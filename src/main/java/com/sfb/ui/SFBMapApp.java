@@ -1,18 +1,10 @@
 package com.sfb.ui;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import com.sfb.Player;
-import com.sfb.TurnTracker;
-import com.sfb.constants.Constants;
+import com.sfb.Game;
+import com.sfb.Game.ActionResult;
 import com.sfb.objects.Ship;
-import com.sfb.properties.Faction;
-import com.sfb.properties.Location;
-import com.sfb.samples.SampleShips;
-import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.Weapon;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -25,19 +17,15 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 /**
- * JavaFX entry point for the Star Fleet Battles map viewer.
- *
- * Keyboard controls (with a ship selected):
- *   W / Up    - Move forward
- *   S / Down  - Move backward
- *   Q / Left  - Turn left
- *   E / Right - Turn right
- *   A         - Sideslip left
- *   D         - Sideslip right
+ * Pure view layer for the Star Fleet Battles map.
+ * Reads state from Game and sends actions to Game — does not mutate ship
+ * state directly. This keeps the door open for multiplayer: actions will
+ * eventually be sent over a network rather than applied in-process.
  *
  * Run with: mvn exec:java
  */
@@ -46,24 +34,21 @@ public class SFBMapApp extends Application {
     private static final int MAP_COLS = 32;
     private static final int MAP_ROWS = 40;
 
-    private final List<Ship> ships = new ArrayList<>();
-    private final Set<Ship> movedThisImpulse = new HashSet<>();
-    private HexMapCanvas mapCanvas;
+    private final Game game = new Game();
+
+    private HexMapCanvas  mapCanvas;
     private ShipInfoPanel infoPanel;
-    private Label turnLabel;
-    private Label selectedLabel;
-    private Label statusLabel;
-    private boolean firingMode = false;
-    private TextArea combatLog;
+    private Label         turnLabel;
+    private Label         selectedLabel;
+    private Label         statusLabel;
+    private TextArea      combatLog;
+    private boolean       firingMode = false;
 
     @Override
     public void start(Stage primaryStage) {
-        setupShips();
+        game.setup();
 
-        // Advance to impulse 1 so the game is in a valid starting state
-        TurnTracker.nextImpulse();
-
-        mapCanvas = new HexMapCanvas(MAP_COLS, MAP_ROWS, ships);
+        mapCanvas = new HexMapCanvas(MAP_COLS, MAP_ROWS, game.getShips());
         infoPanel = new ShipInfoPanel();
 
         ScrollPane scrollPane = new ScrollPane(mapCanvas);
@@ -110,7 +95,7 @@ public class SFBMapApp extends Application {
             "-fx-border-color: #1a2a3a;");
         Label logLabel = new Label("COMBAT LOG");
         logLabel.setStyle("-fx-text-fill: #445566; -fx-font-size: 10; -fx-font-family: Monospaced; -fx-padding: 2 0 0 4;");
-        javafx.scene.layout.VBox logBox = new javafx.scene.layout.VBox(2, logLabel, combatLog);
+        VBox logBox = new VBox(2, logLabel, combatLog);
         logBox.setStyle("-fx-background-color: #080818; -fx-padding: 4 6 4 6;");
 
         BorderPane root = new BorderPane();
@@ -122,7 +107,7 @@ public class SFBMapApp extends Application {
         Scene scene = new Scene(root, 1200, 820);
         scene.setFill(Color.rgb(10, 10, 30));
 
-        // --- Mouse: click to select or target a ship ---
+        // --- Mouse: click to select or target ---
         mapCanvas.setOnMouseClicked(event -> {
             Ship hit = mapCanvas.hitTestShip(event.getX(), event.getY());
             if (firingMode) {
@@ -165,26 +150,15 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode) return;  // ignore movement keys while targeting
+            if (firingMode) return;
 
             Ship ship = mapCanvas.getSelectedShip();
-            if (ship == null) {
-                setStatus("No ship selected");
-                return;
-            }
-            int localImpulse = TurnTracker.getLocalImpulse();
-            if (!ship.movesThisImpulse(localImpulse)) {
-                setStatus(ship.getName() + " (spd " + ship.getSpeed() + ") does not move on impulse " + localImpulse);
-                return;
-            }
-            if (movedThisImpulse.contains(ship)) {
-                setStatus(ship.getName() + " has already moved this impulse");
-                return;
-            }
+            if (ship == null) { setStatus("No ship selected"); return; }
+
             handleMovementKey(event.getCode(), ship);
         });
 
-        updateMovableShips();
+        refreshMovableShips();
 
         primaryStage.setTitle("Star Fleet Battles");
         primaryStage.setScene(scene);
@@ -200,76 +174,45 @@ public class SFBMapApp extends Application {
     // -------------------------------------------------------------------------
 
     private void advanceImpulse() {
-        TurnTracker.nextImpulse();
-        movedThisImpulse.clear();
-        updateMovableShips();
+        game.advanceImpulse();
+        refreshMovableShips();
         turnLabel.setText(turnText());
-        setStatus("Impulse " + TurnTracker.getLocalImpulse() + " — ships with yellow ring may move");
+        setStatus("Impulse " + game.getCurrentImpulse() + " — ships with yellow ring may move");
         mapCanvas.render();
     }
 
-    private void updateMovableShips() {
-        int localImpulse = TurnTracker.getLocalImpulse();
-        List<Ship> movable = new ArrayList<>();
-        for (Ship ship : ships) {
-            if (ship.movesThisImpulse(localImpulse)) {
-                movable.add(ship);
-            }
-        }
-        mapCanvas.setMovableShips(movable);
+    private void refreshMovableShips() {
+        mapCanvas.setMovableShips(game.getMovableShips());
     }
 
     private String turnText() {
-        int turn    = (TurnTracker.getImpulse() - 1) / Constants.IMPULSES_PER_TURN + 1;
-        int impulse = TurnTracker.getLocalImpulse();
-        return "Turn " + turn + "  |  Impulse " + impulse + " / 32";
+        return "Turn " + game.getCurrentTurn() + "  |  Impulse " + game.getCurrentImpulse() + " / 32";
     }
 
     // -------------------------------------------------------------------------
-    // Movement key handling
+    // Movement
     // -------------------------------------------------------------------------
 
     private void handleMovementKey(KeyCode code, Ship ship) {
-        boolean moved = false;
-        String action = "";
+        ActionResult result;
 
         switch (code) {
-            case W:
-                moved  = ship.goForward();
-                action = "forward";
-                break;
-            case A:
-                moved  = ship.turnLeft();
-                action = moved ? "turned left" : "cannot turn left yet (turn mode)";
-                break;
-            case D:
-                moved  = ship.turnRight();
-                action = moved ? "turned right" : "cannot turn right yet (turn mode)";
-                break;
-            case Q:
-                moved  = ship.sideslipLeft();
-                action = moved ? "sideslipped left" : "cannot sideslip (must move first)";
-                break;
-            case E:
-                moved  = ship.sideslipRight();
-                action = moved ? "sideslipped right" : "cannot sideslip (must move first)";
-                break;
-            default:
-                return;  // unrecognised key — do nothing
+            case W: result = game.moveForward(ship);   break;
+            case A: result = game.turnLeft(ship);      break;
+            case D: result = game.turnRight(ship);     break;
+            case Q: result = game.sideslipLeft(ship);  break;
+            case E: result = game.sideslipRight(ship); break;
+            default: return;
         }
 
-        if (moved) {
-            movedThisImpulse.add(ship);
+        setStatus(result.getMessage());
+        if (result.isSuccess()) {
+            selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
+                    + "  @ " + ship.getLocation());
+            refreshMovableShips();
         }
-        selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
-                + "  @ " + ship.getLocation());
-        setStatus(ship.getName() + ": " + action);
         infoPanel.update(ship);
         mapCanvas.render();
-    }
-
-    private void setStatus(String message) {
-        statusLabel.setText(message);
     }
 
     // -------------------------------------------------------------------------
@@ -285,8 +228,8 @@ public class SFBMapApp extends Application {
     }
 
     private void resolveWeaponsFire(Ship attacker, Ship target) {
-        int range = MapUtils.getRange(attacker, target);
-        List<Weapon> bearing = attacker.fetchAllBearingWeapons(target);
+        int range = game.getRange(attacker, target);
+        List<Weapon> bearing = game.getBearingWeapons(attacker, target);
 
         if (bearing.isEmpty()) {
             setStatus("No weapons bear on " + target.getName() + " at range " + range);
@@ -294,9 +237,7 @@ public class SFBMapApp extends Application {
             return;
         }
 
-        int shieldFacing = target.getRelativeShieldFacing(attacker);
-        int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
-        shieldNumber = Math.max(1, Math.min(6, shieldNumber));
+        int shieldNumber = game.getShieldNumber(attacker, target);
 
         WeaponSelectDialog dialog = new WeaponSelectDialog(
                 (Stage) mapCanvas.getScene().getWindow(),
@@ -316,54 +257,8 @@ public class SFBMapApp extends Application {
         mapCanvas.render();
     }
 
-    // -------------------------------------------------------------------------
-    // Ship setup
-    // -------------------------------------------------------------------------
-
-    private void setupShips() {
-        Player player1 = new Player();
-        player1.setName("Knosset");
-        player1.setFaction(Faction.Federation);
-
-        Player player2 = new Player();
-        player2.setName("Kumerian");
-        player2.setFaction(Faction.Klingon);
-
-        Ship fedCa = new Ship();
-        fedCa.init(SampleShips.getFedCa());
-        fedCa.setLocation(new Location(12, 1));
-        fedCa.setFacing(13);
-        fedCa.setSpeed(16);
-        fedCa.setOwner(player1);
-        fedCa.autoAllocate();
-        ships.add(fedCa);
-
-        Ship fedFfg = new Ship();
-        fedFfg.init(SampleShips.getFedFfg());
-        fedFfg.setLocation(new Location(16, 1));
-        fedFfg.setFacing(13);
-        fedFfg.setSpeed(20);
-        fedFfg.setOwner(player1);
-        fedFfg.autoAllocate();
-        ships.add(fedFfg);
-
-        Ship klnD7 = new Ship();
-        klnD7.init(SampleShips.getD7());
-        klnD7.setLocation(new Location(12, 30));
-        klnD7.setFacing(1);
-        klnD7.setSpeed(16);
-        klnD7.setOwner(player2);
-        klnD7.autoAllocate();
-        ships.add(klnD7);
-
-        Ship klnF5 = new Ship();
-        klnF5.init(SampleShips.getF5());
-        klnF5.setLocation(new Location(16, 30));
-        klnF5.setFacing(1);
-        klnF5.setSpeed(20);
-        klnF5.setOwner(player2);
-        klnF5.autoAllocate();
-        ships.add(klnF5);
+    private void setStatus(String message) {
+        statusLabel.setText(message);
     }
 
     public static void main(String[] args) {

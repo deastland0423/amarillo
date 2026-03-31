@@ -1,139 +1,310 @@
 package com.sfb;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.sfb.objects.Seeker;
-import com.sfb.objects.Unit;
-import com.sfb.samples.SampleUsers;
+import com.sfb.objects.Ship;
+import com.sfb.properties.Faction;
+import com.sfb.properties.Location;
+import com.sfb.samples.SampleShips;
+import com.sfb.utilities.MapUtils;
+import com.sfb.weapons.Weapon;
 
+/**
+ * Authoritative game state. All mutations to ship positions, damage, and turn
+ * progress go through here. The UI reads from Game and sends actions to Game —
+ * it never mutates ship state directly. This separation is what will allow
+ * multiplayer: actions can be sent over a network instead of applied locally.
+ */
 public class Game {
-	private List<Player> players     	= new ArrayList<>();	// The players
-	private List<Unit>   units			= new ArrayList<>();	// The ships on the board.
-	private List<Seeker> seekers		= new ArrayList<>();	// The seekers on the board.
-	private boolean      inProgress		= true;					// When true, the game continues to run.
-	
-	
 
-	public static void main(String[] args) {
-		
-		Game thisGame = new Game();
-		TurnTracker.reset();
-		
-		// GET THE PLAYERS
-		thisGame.loadPlayerList();
-		
-		// GET THE SHIPS
-		// Now that you have all the players, load all the player
-		// ships into the ship list.
-		// The ships should have their starting hex and facing.
-		for (Player player : thisGame.players) {
-			thisGame.getUnits().addAll(player.getPlayerUnits());
-		}
-		
-		// This is the turn cycle, it repeats until the game is over.
-		while(thisGame.isInProgress()) {
-			
-			// 1. Energy Allocation
-				// A. Send EA requests to all players/ships
-				// B. Wait for responses.
-				// C. Assign EA results to all ships.
-			
-			// 2. Speed Determination
-				// A. Determine all ship speeds
-				// B. Report all speeds to all players
-			
-			// 3. Sensor lock-on
-				// A. For all ships with damaged sensors, roll for lock-on
-				// B. Process results.
-				// C. Report results to to players.
-				// D. Wait for any appropriate responses (moving seeker control)
-				// E. Process responses.
-			
-			// 4. Impulse Procedure (repeat 32 times)
-			for (int i=0; i < 32; i++) {
+    // --- State ---
+    private final List<Player>  players  = new ArrayList<>();
+    private final List<Ship>    ships    = new ArrayList<>();
+    private final List<Seeker>  seekers  = new ArrayList<>();
+    private final Set<Ship>     movedThisImpulse = new HashSet<>();
 
-				// A. Advance the impulse tracker. If it passes 32 - jump to 5
-				TurnTracker.nextImpulse();
-				
-				// B. Send impulse count to players. and request ship actions
-				
-				// C. Wait for responses.
-				
-				// D. Once all responses are in, perform actions.
-				
-				// E. Send result of actions out to players and request any required interaction.
-				
-				// F. Wait for response.
-				
-				// G. Register the results of these actions.
-				
-				// H. Back up to A.
-				
-				
-				
-				//TODO: Perhaps this process should be driven from the web-side servers.
-				// They can track each impulse, deciding to fire/move/whatever with each one.
-				// As they submit their option for each impulse, this code will be notified
-				// and proceed after everyone has "checked their options" for the impulse.
-				
-				// Then it sends an update of the map/situation up to the various clients
-				// and resolves them.
-				
-				
-				
-				
-			}
-			
-			// 5. Roll for Klingon Mutiny
-			
-			// 6. Boarding Party Combat
-			
-			// 7. End-of-turn (cleanUp)
-			
-			
-			
-			
-			
-			thisGame.setInProgress(false);
-		}
-	}
-	
-	private boolean isInProgress() {
-		return this.inProgress;
-	}
-	
-	private void setInProgress(boolean value) {
-		this.inProgress = value;
-	}
-	
-	private void loadPlayerList() {
-		
-		this.players = SampleUsers.getClassicPlayers();;
-	}
+    private boolean inProgress = false;
 
-	public List<Player> getPlayers() {
-		return players;
-	}
+    // --- Setup ---
 
-	public void setPlayers(List<Player> players) {
-		this.players = players;
-	}
+    /**
+     * Populate the game with two players and four sample ships.
+     * Call this once before starting the impulse loop.
+     */
+    public void setup() {
+        Player player1 = new Player();
+        player1.setName("Knosset");
+        player1.setFaction(Faction.Federation);
 
-	public List<Seeker> getSeekers() {
-		return seekers;
-	}
+        Player player2 = new Player();
+        player2.setName("Kumerian");
+        player2.setFaction(Faction.Klingon);
 
-	public void setSeekers(List<Seeker> seekers) {
-		this.seekers = seekers;
-	}
+        players.add(player1);
+        players.add(player2);
 
-	public List<Unit> getUnits() {
-		return units;
-	}
+        Ship fedCa = new Ship();
+        fedCa.init(SampleShips.getFedCa());
+        fedCa.setLocation(new Location(12, 1));
+        fedCa.setFacing(13);
+        fedCa.setSpeed(16);
+        fedCa.setOwner(player1);
+        ships.add(fedCa);
+        player1.getPlayerUnits().add(fedCa);
 
-	public void setUnits(List<Unit> units) {
-		this.units = units;
-	}
-	
+        Ship fedFfg = new Ship();
+        fedFfg.init(SampleShips.getFedFfg());
+        fedFfg.setLocation(new Location(16, 1));
+        fedFfg.setFacing(13);
+        fedFfg.setSpeed(20);
+        fedFfg.setOwner(player1);
+        ships.add(fedFfg);
+        player1.getPlayerUnits().add(fedFfg);
+
+        Ship klnD7 = new Ship();
+        klnD7.init(SampleShips.getD7());
+        klnD7.setLocation(new Location(12, 30));
+        klnD7.setFacing(1);
+        klnD7.setSpeed(16);
+        klnD7.setOwner(player2);
+        ships.add(klnD7);
+        player2.getPlayerUnits().add(klnD7);
+
+        Ship klnF5 = new Ship();
+        klnF5.init(SampleShips.getF5());
+        klnF5.setLocation(new Location(16, 30));
+        klnF5.setFacing(1);
+        klnF5.setSpeed(20);
+        klnF5.setOwner(player2);
+        ships.add(klnF5);
+        player2.getPlayerUnits().add(klnF5);
+
+        TurnTracker.reset();
+        inProgress = true;
+        startTurn();  // run energy allocation and turn setup before impulse 1
+    }
+
+    // --- Turn progression ---
+
+    /**
+     * Energy allocation and turn setup. Each ship builds its auto allocation,
+     * applies it, then calls startTurn() to set speed, shields, capacitors, etc.
+     * Later this will wait for real player allocations before proceeding.
+     */
+    public void startTurn() {
+        for (Ship ship : ships) {
+            ship.allocateEnergy(ship.buildAutoAllocation());
+            ship.startTurn();
+        }
+        TurnTracker.nextImpulse();  // advance to impulse 1
+        movedThisImpulse.clear();
+    }
+
+    /**
+     * End-of-turn cleanup. Resets per-turn weapon states, shield reinforcement,
+     * etc. Then starts the next turn's energy allocation.
+     */
+    public void endTurn() {
+        for (Ship ship : ships) {
+            ship.cleanUp();
+        }
+        startTurn();
+    }
+
+    /**
+     * Advance to the next impulse. If we just completed impulse 32, trigger
+     * end-of-turn cleanup and start the next turn automatically.
+     */
+    public void advanceImpulse() {
+        if (TurnTracker.getLocalImpulse() >= 32) {
+            endTurn();
+        } else {
+            TurnTracker.nextImpulse();
+            movedThisImpulse.clear();
+        }
+    }
+
+    public int getCurrentTurn() {
+        return (TurnTracker.getImpulse() - 1) / 32 + 1;
+    }
+
+    public int getCurrentImpulse() {
+        return TurnTracker.getLocalImpulse();
+    }
+
+    // --- Queries ---
+
+    public List<Ship> getShips() {
+        return ships;
+    }
+
+    public List<Player> getPlayers() {
+        return players;
+    }
+
+    public List<Seeker> getSeekers() {
+        return seekers;
+    }
+
+    /**
+     * Returns all ships that may move on the current impulse and have not yet
+     * moved this impulse.
+     */
+    public List<Ship> getMovableShips() {
+        List<Ship> movable = new ArrayList<>();
+        int impulse = TurnTracker.getLocalImpulse();
+        for (Ship ship : ships) {
+            if (ship.movesThisImpulse(impulse) && !movedThisImpulse.contains(ship)) {
+                movable.add(ship);
+            }
+        }
+        return movable;
+    }
+
+    public boolean hasMovedThisImpulse(Ship ship) {
+        return movedThisImpulse.contains(ship);
+    }
+
+    public boolean canMoveThisImpulse(Ship ship) {
+        return ship.movesThisImpulse(TurnTracker.getLocalImpulse())
+                && !movedThisImpulse.contains(ship);
+    }
+
+    // --- Movement actions ---
+
+    public ActionResult moveForward(Ship ship) {
+        if (!canMoveThisImpulse(ship))
+            return ActionResult.fail(ship.getName() + " cannot move this impulse");
+        boolean moved = ship.goForward();
+        if (moved) movedThisImpulse.add(ship);
+        return moved ? ActionResult.ok(ship.getName() + " moved forward")
+                     : ActionResult.fail(ship.getName() + " could not move forward");
+    }
+
+    public ActionResult turnLeft(Ship ship) {
+        if (!canMoveThisImpulse(ship))
+            return ActionResult.fail(ship.getName() + " cannot move this impulse");
+        boolean moved = ship.turnLeft();
+        if (moved) movedThisImpulse.add(ship);
+        return moved ? ActionResult.ok(ship.getName() + " turned left")
+                     : ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
+    }
+
+    public ActionResult turnRight(Ship ship) {
+        if (!canMoveThisImpulse(ship))
+            return ActionResult.fail(ship.getName() + " cannot move this impulse");
+        boolean moved = ship.turnRight();
+        if (moved) movedThisImpulse.add(ship);
+        return moved ? ActionResult.ok(ship.getName() + " turned right")
+                     : ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
+    }
+
+    public ActionResult sideslipLeft(Ship ship) {
+        if (!canMoveThisImpulse(ship))
+            return ActionResult.fail(ship.getName() + " cannot move this impulse");
+        boolean moved = ship.sideslipLeft();
+        if (moved) movedThisImpulse.add(ship);
+        return moved ? ActionResult.ok(ship.getName() + " sideslipped left")
+                     : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+    }
+
+    public ActionResult sideslipRight(Ship ship) {
+        if (!canMoveThisImpulse(ship))
+            return ActionResult.fail(ship.getName() + " cannot move this impulse");
+        boolean moved = ship.sideslipRight();
+        if (moved) movedThisImpulse.add(ship);
+        return moved ? ActionResult.ok(ship.getName() + " sideslipped right")
+                     : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+    }
+
+    // --- Weapons fire ---
+
+    /**
+     * Returns all weapons on the attacker that bear on the target.
+     */
+    public List<Weapon> getBearingWeapons(Ship attacker, Ship target) {
+        return attacker.fetchAllBearingWeapons(target);
+    }
+
+    /**
+     * Compute the range between two ships.
+     */
+    public int getRange(Ship attacker, Ship target) {
+        return MapUtils.getRange(attacker, target);
+    }
+
+    /**
+     * Compute which shield number on the target is facing the attacker.
+     */
+    public int getShieldNumber(Ship attacker, Ship target) {
+        int shieldFacing = target.getRelativeShieldFacing(attacker);
+        int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
+        return Math.max(1, Math.min(6, shieldNumber));
+    }
+
+    /**
+     * Apply damage to the target's shield and resolve any bleed-through as
+     * internal damage via the DAC.
+     *
+     * @return A FireResult containing the bleed-through amount and internal
+     *         damage log, ready for the UI to display.
+     */
+    public FireResult applyDamage(Ship target, int shieldNumber, int totalDamage) {
+        int bleed = target.damageShield(shieldNumber, totalDamage);
+        List<String> internalLog = new ArrayList<>();
+        if (bleed > 0) {
+            internalLog = target.applyInternalDamage(bleed);
+        }
+        return new FireResult(bleed, internalLog);
+    }
+
+    // --- Status ---
+
+    public boolean isInProgress() {
+        return inProgress;
+    }
+
+    // -------------------------------------------------------------------------
+    // Nested result types — simple value holders the UI can read without
+    // needing to reach into game state directly.
+    // -------------------------------------------------------------------------
+
+    /**
+     * The result of a movement or other action attempt.
+     */
+    public static class ActionResult {
+        private final boolean success;
+        private final String  message;
+
+        private ActionResult(boolean success, String message) {
+            this.success = success;
+            this.message = message;
+        }
+
+        public static ActionResult ok(String message)   { return new ActionResult(true,  message); }
+        public static ActionResult fail(String message) { return new ActionResult(false, message); }
+
+        public boolean isSuccess() { return success; }
+        public String  getMessage() { return message; }
+    }
+
+    /**
+     * The result of applying damage: bleed-through amount and internal damage log.
+     */
+    public static class FireResult {
+        private final int          bleed;
+        private final List<String> internalLog;
+
+        public FireResult(int bleed, List<String> internalLog) {
+            this.bleed       = bleed;
+            this.internalLog = internalLog;
+        }
+
+        public int          getBleed()       { return bleed; }
+        public List<String> getInternalLog() { return internalLog; }
+    }
 }

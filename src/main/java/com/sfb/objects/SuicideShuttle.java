@@ -2,14 +2,15 @@ package com.sfb.objects;
 
 public class SuicideShuttle extends Shuttle implements Seeker {
 
-	Unit target;						// The target of the suicide shuttle
-	private int     warheadDamage;		// The damage dealt if the weapon hits its target.
-	
+	Unit target; // The target of the suicide shuttle
+	private int warheadDamage; // The damage dealt if the weapon hits its target.
+
 	public SuicideShuttle(int warhead) {
 		super();
 		this.warheadDamage = warhead;
+		this.setSeekerType(SeekerType.SHUTTLE);
 	}
-	
+
 	@Override
 	public void setTarget(Unit target) {
 		this.target = target;
@@ -21,27 +22,25 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 	}
 
 	@Override
-	public String getType() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void setType(String type) {
-		// TODO Auto-generated method stub
-		
+	public SeekerType getSeekerType() {
+		return SeekerType.SHUTTLE;
 	}
 
 	@Override
 	public boolean isSelfGuiding() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
 	public void setSelfGuiding(boolean selfGuiding) {
 		// TODO Auto-generated method stub
-		
+
+	}
+
+	@Override
+	public void setSeekerType(SeekerType seekerType) {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
@@ -53,7 +52,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 	@Override
 	public void setEndurance(int endurance) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -65,7 +64,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 	@Override
 	public void setLaunchImpulse(int launchImpulse) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -81,7 +80,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 	@Override
 	public void setController(Unit controllingUnit) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override

@@ -11,8 +11,8 @@ public class DroneRack extends Weapon implements Launcher {
 
 	private int spaces = 0; // The number of spaces in the rack (usually 4 or 6)
 
-	private List<Drone> ammoList = new ArrayList<>(); // The drones in the rack.
-	private List<Drone> reloads = new ArrayList<>(); // The drone reloads available.
+	private List<Drone> ammoList = new ArrayList<Drone>(); // The drones in the rack.
+	private List<Drone> reloads = new ArrayList<Drone>(); // The drone reloads available.
 	private int numberOfReloads = 0; // The number of reloads available.
 
 	private int addAmmo = 0; // The number of ADD shots in the drone rack.

@@ -509,27 +509,42 @@ public class Ship extends Unit {
 	}
 	
 	/**
-	 * Apply a simple default energy allocation for testing/AI:
-	 * charges the phaser capacitor fully and arms all heavy weapons
-	 * as if two turns of standard arming have already elapsed.
+	 * Build a default Energy allocation for this ship suitable for use in
+	 * testing and early gameplay. Allocates all warp/impulse power to movement,
+	 * fills the phaser capacitor, activates shields and life support at full cost,
+	 * and arms all heavy weapons with standard arming energy.
+	 *
+	 * This produces an Energy object that can be passed to allocateEnergy() and
+	 * then startTurn(), replacing the old direct-mutation autoAllocate().
 	 */
-	public void autoAllocate() {
-		// Charge phaser capacitor to full
-		double capSize = this.weapons.getAvailablePhaserCapacitor();
-		try {
-			this.weapons.chargePhaserCapacitor(capSize);
-		} catch (com.sfb.exceptions.CapacitorException e) {
-			// Already full — ignore
-		}
+	public Energy buildAutoAllocation() {
+		Energy e = new Energy();
 
-		// Arm all heavy weapons (simulate two standard arming turns)
+		// Movement — all warp + impulse power
+		e.setMovement(powerSystems.getAvailableWarpPower()
+				+ powerSystems.getAvailableImpulse());
+
+		// Life support
+		e.setLifeSupport(lifeSupportCost);
+
+		// Fire control
+		e.setFireControl(fireControlCost);
+
+		// Shields — activate at full cost
+		e.setActivateShields(activeShieldCost);
+
+		// Phaser capacitor — fill to capacity
+		e.setPhaserCapacitor(weapons.getAvailablePhaserCapacitor());
+
+		// Heavy weapon arming — standard arming energy for each weapon
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
 			if (weapon instanceof HeavyWeapon) {
-				HeavyWeapon hw = (HeavyWeapon) weapon;
-				hw.arm(2); // turn 1
-				hw.arm(2); // turn 2 — marks as armed
+				e.getArmingEnergy().put(weapon, (double) Constants.gArmingCost[0]);
+				e.getArmingType().put(weapon, com.sfb.properties.WeaponArmingType.STANDARD);
 			}
 		}
+
+		return e;
 	}
 
 	/**

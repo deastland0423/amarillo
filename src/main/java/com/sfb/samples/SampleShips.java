@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sfb.objects.Drone;
+import com.sfb.objects.Drone.DroneType;
 import com.sfb.properties.Faction;
 import com.sfb.properties.TurnMode;
 import com.sfb.weapons.Disruptor;
@@ -249,6 +251,8 @@ public class SampleShips {
 		droneRack.setSpaces(4);
 		droneRack.setNumberOfReloads(1);
 		droneRack.setDesignator("Drone Rack");
+		droneRack.setAmmo(makeDrones(4, DroneType.TypeI));
+		droneRack.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack);
 		// Drone Rack
 
@@ -396,9 +400,13 @@ public class SampleShips {
 
 		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack1.setDesignator("Rack 1");
+		droneRack1.setAmmo(makeDrones(4, DroneType.TypeI));
+		droneRack1.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack1);
 		DroneRack droneRack2 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack2.setDesignator("Rack 2");
+		droneRack2.setAmmo(makeDrones(4, DroneType.TypeI));
+		droneRack2.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack2);
 
 		shipSpecs.put("weapons", weaponList);
@@ -515,10 +523,21 @@ public class SampleShips {
 
 		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack1.setDesignator("Rack 1");
+		droneRack1.setAmmo(makeDrones(4, DroneType.TypeI));
+		droneRack1.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack1);
 
 		shipSpecs.put("weapons", weaponList);
 
 		return shipSpecs;
+	}
+
+	/** Creates a list of drones of the given type and count. */
+	private static List<Drone> makeDrones(int count, DroneType type) {
+		List<Drone> list = new ArrayList<>();
+		for (int i = 0; i < count; i++) {
+			list.add(new Drone(type));
+		}
+		return list;
 	}
 }
