@@ -1,6 +1,7 @@
 package com.sfb.objects;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ import com.sfb.systems.Energy;
 import com.sfb.systems.PerformanceData;
 import com.sfb.systems.SpecialFunctions;
 import com.sfb.systems.Tractors;
+import com.sfb.utilities.DAC;
 import com.sfb.utilities.DiceRoller;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.HeavyWeapon;
@@ -45,6 +47,7 @@ public class Ship extends Unit {
 
 	/// All the stuff that goes into a ship ///
 	
+	private DAC               dac               = new DAC();					// Damage Allocation Chart
 	private Shields           shields           = new Shields();				// Shield systems
 	private HullBoxes         hullBoxes         = new HullBoxes();				// Hull boxes
 	private PowerSystems      powerSystems      = new PowerSystems();			// Power systems (warp, impulse, apr, awr, battery)
@@ -277,6 +280,19 @@ public class Ship extends Unit {
 		
 	}
 	
+	/// IDENTITY ///
+	public String getHullType() {
+		return this.hullType;
+	}
+
+	public Faction getFaction() {
+		return this.faction;
+	}
+
+	public int getBattlePointValue() {
+		return this.battlePointValue;
+	}
+
 	/// SHIELDS ///
 	public Shields getShields() {
 		return this.shields;
@@ -492,6 +508,102 @@ public class Ship extends Unit {
 		return weapons.fetchAllBearingWeapons(this, target);
 	}
 	
+	/**
+	 * Apply a simple default energy allocation for testing/AI:
+	 * charges the phaser capacitor fully and arms all heavy weapons
+	 * as if two turns of standard arming have already elapsed.
+	 */
+	public void autoAllocate() {
+		// Charge phaser capacitor to full
+		double capSize = this.weapons.getAvailablePhaserCapacitor();
+		try {
+			this.weapons.chargePhaserCapacitor(capSize);
+		} catch (com.sfb.exceptions.CapacitorException e) {
+			// Already full — ignore
+		}
+
+		// Arm all heavy weapons (simulate two standard arming turns)
+		for (Weapon weapon : weapons.fetchAllWeapons()) {
+			if (weapon instanceof HeavyWeapon) {
+				HeavyWeapon hw = (HeavyWeapon) weapon;
+				hw.arm(2); // turn 1
+				hw.arm(2); // turn 2 — marks as armed
+			}
+		}
+	}
+
+	/**
+	 * Apply bleed-through damage via the DAC. Rolls 2d6 once per damage point,
+	 * looks up the result on this ship's DAC, and damages the indicated system.
+	 * After the volley the DAC is reset so "special" (underlined) items refresh.
+	 *
+	 * @param bleedThrough The number of damage points that penetrated the shields.
+	 * @return A list of strings describing each system hit (for the combat log).
+	 */
+	public List<String> applyInternalDamage(int bleedThrough) {
+		List<String> log = new ArrayList<>();
+		DiceRoller roller = new DiceRoller();
+
+		for (int i = 0; i < bleedThrough; i++) {
+			int roll = roller.rollTwoDice();
+			String system = dac.fetchNextHit(roll);
+			if (system == null) {
+				log.add("  internal [" + roll + "]: excess damage");
+				specialFunctions.damageExcessDamage();
+				continue;
+			}
+
+			boolean hit = false;
+			switch (system) {
+				case "bridge":   hit = controlSpaces.damageBridge();  break;
+				case "flag":     hit = controlSpaces.damageFlag();    break;
+				case "emer":     hit = controlSpaces.damageEmer();    break;
+				case "auxcon":   hit = controlSpaces.damageAuxcon();  break;
+				case "lwarp":    hit = powerSystems.damageLWarp();    break;
+				case "rwarp":    hit = powerSystems.damageRWarp();    break;
+				case "cwarp":    hit = powerSystems.damageCWarp();    break;
+				case "impulse":  hit = powerSystems.damageImpulse();  break;
+				case "apr":      hit = powerSystems.damageApr();      break;
+				case "battery":  hit = powerSystems.damageBattery();  break;
+				case "fhull":    hit = hullBoxes.damageFhull();       break;
+				case "ahull":    hit = hullBoxes.damageAhull();       break;
+				case "afthull":  hit = hullBoxes.damageAhull();       break;
+				case "cargo":    hit = hullBoxes.damageCargo();       break;
+				case "scanner":  hit = specialFunctions.damageScanner(); break;
+				case "sensor":   hit = specialFunctions.damageSensor();  break;
+				case "damcon":   hit = specialFunctions.damageDamCon();  break;
+				case "phaser": {
+					List<Weapon> phasers = weapons.getPhaserList();
+					Weapon target = phasers.stream()
+						.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) { target.damage(); hit = true; }
+					break;
+				}
+				case "torp":
+				case "drone":
+				case "weapon": {
+					List<Weapon> all = weapons.fetchAllWeapons();
+					Weapon target = all.stream()
+						.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) { target.damage(); hit = true; }
+					break;
+				}
+				default:
+					hit = false;
+					break;
+			}
+
+			if (hit) {
+				log.add("  internal [" + roll + "]: " + system + " HIT");
+			} else {
+				log.add("  internal [" + roll + "]: " + system + " (no boxes remaining)");
+			}
+		}
+
+		dac.reset();
+		return log;
+	}
+
 	/// PHASER CAPACITORS ///
 	public void drainCapacitor(double energy) throws CapacitorException {
 		this.weapons.drainPhaserCapacitor(energy);

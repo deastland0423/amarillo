@@ -28,8 +28,8 @@ public class Unit extends Marker {
 	private int     facing				= 0;		// Direction the unit is facing (1 through 6)
 	private int     speed				= 0;		// Speed the unit is moving (0 through 32)
 	private int     sizeClass			= 0;		// Size class of the unit (0 through 6...I think?)
-	private int     sideslipCount		= 0;		// Track number of moves since last sideslip.
-	private int     turnCount			= 0;		// Track number of moves since last turn.
+	private int     sideslipCount		= 100;		// Track number of moves since last sideslip.
+	private int     turnCount			= 100;		// Track number of moves since last turn.
 	private boolean tractored			= false;	// True if the unit is tractored by another unit.
 	private Unit    tractoringUnit		= null;		// The unit that is applying a tractor to this unit, if any.
 	

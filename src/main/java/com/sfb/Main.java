@@ -57,8 +57,8 @@ public class Main {
 		player1.setFaction(Faction.Federation);
 		
 		Player player2 = new Player();
-		player1.setName("Kumerian");
-		player1.setFaction(Faction.Klingon);
+		player2.setName("Kumerian");
+		player2.setFaction(Faction.Klingon);
 		
 		// Place a Fed CA on the board.
 		Ship fedCa = new Ship();

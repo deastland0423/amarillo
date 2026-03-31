@@ -2,6 +2,7 @@ package com.sfb.weapons;
 
 import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
+import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
 import com.sfb.utilities.DiceRoller;
 
@@ -33,7 +34,12 @@ public class Phaser2 extends VariableDamageWeapon implements DirectFire {
 	 * @throws CapacitorException 
 	 */
 	@Override
-	public int fire(int range) throws TargetOutOfRangeException, CapacitorException {
+	public int fire(int range) throws TargetOutOfRangeException, CapacitorException, WeaponUnarmedException {
+
+		if (!canFire()) {
+			throw new WeaponUnarmedException("Phaser not ready — must wait 8 impulses between shots.");
+		}
+
 		// If this phaser is mounted on a ship, drain the capacitor
 		// the amount needed to fire this phaser.
 		if (fetchOwningShip() instanceof Ship) {

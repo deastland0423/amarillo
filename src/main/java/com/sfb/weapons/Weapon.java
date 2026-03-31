@@ -1,6 +1,8 @@
 package com.sfb.weapons;
 
 import com.sfb.Main;
+import com.sfb.TurnTracker;
+import com.sfb.constants.Constants;
 import com.sfb.objects.Unit;
 
 /**
@@ -174,6 +176,16 @@ public abstract class Weapon {
 
 	public void setOwningShip(Unit owningShip) {
 		this.owningShip = owningShip;
+	}
+
+	/**
+	 * Returns true if this weapon is allowed to fire on the current impulse.
+	 * A phaser must wait at least WEAPON_FIRE_DELAY (8) global impulses since
+	 * it last fired, which also enforces the once-per-turn rule.
+	 */
+	public boolean canFire() {
+		int currentImpulse = TurnTracker.getImpulse();
+		return (currentImpulse - lastImpulseFired) >= Constants.WEAPON_FIRE_DELAY;
 	}
 
 	/**

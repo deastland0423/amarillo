@@ -38,6 +38,15 @@ public class Shields implements Systems {
 	public int getShieldStrength(int shieldNumber) {
 		return currentShieldValues[shieldNumber - 1] + specificReinforcement[shieldNumber - 1];
 	}
+
+	/**
+	 * Get the original (maximum) strength of a specific shield.
+	 * @param shieldNumber The shield to be checked (1-6).
+	 * @return The original maximum value of the shield.
+	 */
+	public int getMaxShieldStrength(int shieldNumber) {
+		return shieldValues[shieldNumber - 1];
+	}
 	
 	// NOTE: Not sure if this is a method that should be exposed.
 	/**

@@ -6,34 +6,101 @@ import java.util.List;
 import com.sfb.objects.Drone;
 
 public class DroneRack extends Weapon implements Launcher {
-	
-	private int         spaces 		= 0;					// The number of spaces in the rack (usually 4 or 6)
 
-	private List<Drone> ammo 		= new ArrayList<>();	// The drones in the rack.		
-	private int         addAmmo 	= 0;					// The number of ADD shots in the drone rack.
-	
-	private List<Drone> reloads		= new ArrayList<>();	// The drone reloads available.
-	private int         addReloads	= 0;					// The number of ADD reloads available.
-	
+	private DroneRackType type = null; // The type of drone rack (A-H)
+
+	private int spaces = 0; // The number of spaces in the rack (usually 4 or 6)
+
+	private List<Drone> ammoList = new ArrayList<>(); // The drones in the rack.
+	private List<Drone> reloads = new ArrayList<>(); // The drone reloads available.
+	private int numberOfReloads = 0; // The number of reloads available.
+
+	private int addAmmo = 0; // The number of ADD shots in the drone rack.
+
+	private int addReloads = 0; // The number of ADD reloads available.
+
+	// Base constructor. Sets the arcs to full.
 	public DroneRack() {
-		setArcs(new int[] {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24});
+		setArcs(new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 });
 	}
-	
+
+	// Constructor with type. Sets the arcs to full.
+	public DroneRack(DroneRackType type) {
+		this();
+		this.type = type;
+
+		switch (type) {
+			case TYPE_A:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_B:
+				this.spaces = 6;
+				this.numberOfReloads = 2;
+				break;
+			case TYPE_C:
+				this.spaces = 4;
+				this.numberOfReloads = 2;
+				break;
+			case TYPE_D:
+				this.spaces = 12;
+				break;
+			case TYPE_E:
+				this.spaces = 4;
+				break;
+			case TYPE_F:
+				this.spaces = 4;
+				break;
+			case TYPE_G:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_H:
+				this.spaces = 20;
+				break;
+			default:
+				this.spaces = 4;
+		}
+	}
+
+	// Enum for the different types of drone racks. Each type has a different number
+	// of spaces and different reloads.
+	public enum DroneRackType {
+		TYPE_A,
+		TYPE_B,
+		TYPE_C,
+		TYPE_D,
+		TYPE_E,
+		TYPE_F,
+		TYPE_G,
+		TYPE_H
+
+	}
+
+	public DroneRackType getRackType() {
+		return type;
+	}
+
+	public void setType(DroneRackType type) {
+		this.type = type;
+	}
+
 	@Override
 	public Drone launch(int weaponNumber) {
-		Drone launchedDrone = ammo.get(weaponNumber);
-		
+		Drone launchedDrone = ammoList.get(weaponNumber);
+
 		return launchedDrone;
 	}
-	
+
 	/**
 	 * Get a list of drones ready to fire.
+	 * 
 	 * @return A list of drones in the rack.
 	 */
 	public List<Drone> getAmmo() {
-		return ammo;
+		return ammoList;
 	}
-	
+
 	public int getSpaces() {
 		return spaces;
 	}
@@ -66,15 +133,24 @@ public class DroneRack extends Weapon implements Launcher {
 		this.addReloads = addReloads;
 	}
 
-	public void setAmmo(List<Drone> ammo) {
-		this.ammo = ammo;
+	public void setAmmo(List<Drone> ammoList) {
+		this.ammoList = ammoList;
+	}
+
+	public int getNumberOfReloads() {
+		return numberOfReloads;
+	}
+
+	public void setNumberOfReloads(int numberOfReloads) {
+		this.numberOfReloads = numberOfReloads;
 	}
 
 	/**
 	 * Checks if the drone rack is empty.
+	 * 
 	 * @return True if there is no ammo in the rack, false otherwise.
 	 */
 	public boolean isEmpty() {
-		return ammo.size() == 0;
+		return ammoList.size() == 0;
 	}
 }
