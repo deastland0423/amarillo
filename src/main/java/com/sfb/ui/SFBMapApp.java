@@ -162,6 +162,7 @@ public class SFBMapApp extends Application {
             handleMovementKey(event.getCode(), ship);
         });
 
+        runAllocationPhase(primaryStage);
         refreshMovableShips();
         setStatus(phaseStatus());
 
@@ -178,6 +179,22 @@ public class SFBMapApp extends Application {
     // Impulse management
     // -------------------------------------------------------------------------
 
+    /**
+     * Show the energy allocation dialog for each ship that needs allocation.
+     * Blocks until all ships have submitted. Called at game start and each
+     * turn rollover.
+     */
+    private void runAllocationPhase(Stage stage) {
+        while (game.isAwaitingAllocation()) {
+            Ship ship = game.nextShipNeedingAllocation();
+            if (ship == null) break;
+            EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game, ship);
+            dialog.showAndWait();
+        }
+        turnLabel.setText(turnText());
+        setStatus(phaseStatus());
+    }
+
     private void advancePhase() {
         boolean leavingFirePhase = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
         game.advancePhase();
@@ -187,8 +204,11 @@ public class SFBMapApp extends Application {
                 for (String entry : internalLog) {
                     combatLog.appendText(entry + "\n");
                 }
-                infoPanel.update(null);  // clear selection — player should re-select to see damage
+                infoPanel.update(null);
             }
+        }
+        if (game.isAwaitingAllocation()) {
+            runAllocationPhase((Stage) mapCanvas.getScene().getWindow());
         }
         refreshMovableShips();
         turnLabel.setText(turnText());

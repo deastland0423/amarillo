@@ -150,6 +150,121 @@ public class SampleShips {
 	}
 
 	/**
+	 * This map represents a Federation Light Cruiser (Texas Class)
+	 * 
+	 * @return A map with all the data for a Fed Old Light Cruiser
+	 */
+	public static Map<String, Object> getFedOcl() {
+		Map<String, Object> shipSpecs = new HashMap<String, Object>();
+
+		// Ship basics
+		shipSpecs.put("faction", Faction.Federation);
+		shipSpecs.put("hull", "OCL");
+		shipSpecs.put("name", "USS Texas");
+		shipSpecs.put("serviceyear", new Integer(120));
+		shipSpecs.put("bpv", new Integer(98));
+		shipSpecs.put("turnmode", TurnMode.C);
+		shipSpecs.put("sizeclass", new Integer(3));
+
+		// Shields
+		shipSpecs.put("shield1", new Integer(16));
+		shipSpecs.put("shield2", new Integer(12));
+		shipSpecs.put("shield3", new Integer(10));
+		shipSpecs.put("shield4", new Integer(12));
+		shipSpecs.put("shield5", new Integer(10));
+		shipSpecs.put("shield6", new Integer(12));
+
+		// Hull
+		shipSpecs.put("fhull", new Integer(6));
+		shipSpecs.put("ahull", new Integer(6));
+		shipSpecs.put("armor", new Integer(6));
+
+		// Power
+		shipSpecs.put("lwarp", new Integer(12));
+		shipSpecs.put("rwarp", new Integer(12));
+		shipSpecs.put("impulse", new Integer(4));
+		shipSpecs.put("apr", new Integer(2));
+		shipSpecs.put("battery", new Integer(4));
+
+		// Control
+		shipSpecs.put("bridge", new Integer(2));
+		shipSpecs.put("emer", new Integer(1));
+		shipSpecs.put("auxcon", new Integer(2));
+
+		// Special Functions
+		shipSpecs.put("damcon", new int[] { 4, 4, 2, 2, 2, 0 });
+		shipSpecs.put("scanner", new int[] { 0, 0, 1, 3, 5, 9 });
+		shipSpecs.put("sensor", new int[] { 6, 6, 5, 3, 1, 0 });
+		shipSpecs.put("excess", new Integer(6));
+		shipSpecs.put("controlmod", new Double(0.5)); // Multiplier for control channels
+
+		// Operations
+		shipSpecs.put("trans", new Integer(2));
+		shipSpecs.put("tractor", new Integer(2));
+		shipSpecs.put("lab", new Integer(6));
+
+		// Probes
+		shipSpecs.put("probe", new Integer(1));
+
+		// Shuttles
+		shipSpecs.put("shuttle", new Integer(2));
+
+		// Crew
+		shipSpecs.put("crew", new Integer(37));
+		shipSpecs.put("boardingparties", new Integer(8));
+		shipSpecs.put("minimumcrew", new Integer(4));
+
+		// Performance
+		shipSpecs.put("movecost", new Double(3.0 / 4.0));
+		shipSpecs.put("breakdown", new Integer(4));
+		shipSpecs.put("bonushets", new Integer(1));
+
+		// Weapons
+		List<Weapon> weaponList = new ArrayList<>();
+
+		// Fore Phasers (FH)
+		Phaser1 phaser1 = new Phaser1();
+		phaser1.setArcs(new int[] { 19, 20, 21, 22, 23, 24, 1, 2, 3, 4, 5, 6, 7 });
+		phaser1.setDesignator("1");
+		weaponList.add(phaser1);
+
+		// Right Half Phasers (RH)
+		Phaser1 phaser2 = new Phaser1();
+		phaser2.setArcs(new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 });
+		phaser2.setDesignator("2");
+		weaponList.add(phaser2);
+
+		// Left Half Phasers (LH))
+		Phaser1 phaser3 = new Phaser1();
+		phaser3.setArcs(new int[] { 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 1 });
+		phaser3.setDesignator("3");
+		weaponList.add(phaser3);
+
+		// Photons
+		Photon photonA = new Photon();
+		photonA.setArcs(new int[] { 21, 22, 23, 24, 1, 2, 3, 4, 5 });
+		photonA.setDesignator("A");
+		weaponList.add(photonA);
+		Photon photonB = new Photon();
+		photonB.setArcs(new int[] { 21, 22, 23, 24, 1, 2, 3, 4, 5 });
+		photonB.setDesignator("B");
+		weaponList.add(photonB);
+
+		DroneRack droneRack = new DroneRack(DroneRack.DroneRackType.TYPE_G);
+		droneRack.setSpaces(4);
+		droneRack.setNumberOfReloads(1);
+		droneRack.setDesignator("Drone Rack");
+		droneRack.setAmmo(makeDrones(4, DroneType.TypeI));
+		droneRack.setReloads(makeDrones(4, DroneType.TypeI));
+		weaponList.add(droneRack);
+		// Drone Rack
+
+		shipSpecs.put("weapons", weaponList);
+
+		return shipSpecs;
+	}
+
+	/**
 	 * This map represents a Federation Improved Frigate (Burke Class)
 	 * 
 	 * @return A map with all the data for a Fed FFG

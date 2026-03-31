@@ -46,48 +46,46 @@ import com.sfb.weapons.Weapon;
 public class Ship extends Unit {
 
 	/// All the stuff that goes into a ship ///
-	
-	private DAC               dac               = new DAC();					// Damage Allocation Chart
-	private Shields           shields           = new Shields();				// Shield systems
-	private HullBoxes         hullBoxes         = new HullBoxes();				// Hull boxes
-	private PowerSystems      powerSystems      = new PowerSystems();			// Power systems (warp, impulse, apr, awr, battery)
-	private ControlSpaces     controlSpaces     = new ControlSpaces();			// Control systems (bridge, flag, aux, emer, security)
-	private SpecialFunctions  specialFunctions  = new SpecialFunctions();		// Special functions
-	private Labs              labs				= new Labs(this);				// Labs
-	private Transporters      transporters      = new Transporters(this);		// Transporters
-	private Tractors          tractors          = new Tractors(this);			// Tractor beam systems.
-	private ProbeLaunchers    probes            = new ProbeLaunchers(this);		// Probes
-	private Shuttles          shuttles          = new Shuttles(this);			// Shuttles and shuttle bays.
-	private Weapons           weapons           = new Weapons(this);			// Weapons
-	private PerformanceData	  performanceData	= new PerformanceData();		// Base statistics for the frame.
-	private Crew              crew				= new Crew(this);				// Crew
-	private CloakingDevice    cloak				= null;							// Cloaking Device (null if none installed).
-	
-	private Energy            energyAllocated	= new Energy();					// Where all the ship's energy is allocated
-	
+
+	private DAC dac = new DAC(); // Damage Allocation Chart
+	private Shields shields = new Shields(); // Shield systems
+	private HullBoxes hullBoxes = new HullBoxes(); // Hull boxes
+	private PowerSystems powerSystems = new PowerSystems(); // Power systems (warp, impulse, apr, awr, battery)
+	private ControlSpaces controlSpaces = new ControlSpaces(); // Control systems (bridge, flag, aux, emer, security)
+	private SpecialFunctions specialFunctions = new SpecialFunctions(); // Special functions
+	private Labs labs = new Labs(this); // Labs
+	private Transporters transporters = new Transporters(this); // Transporters
+	private Tractors tractors = new Tractors(this); // Tractor beam systems.
+	private ProbeLaunchers probes = new ProbeLaunchers(this); // Probes
+	private Shuttles shuttles = new Shuttles(this); // Shuttles and shuttle bays.
+	private Weapons weapons = new Weapons(this); // Weapons
+	private PerformanceData performanceData = new PerformanceData(); // Base statistics for the frame.
+	private Crew crew = new Crew(this); // Crew
+	private CloakingDevice cloak = null; // Cloaking Device (null if none installed).
+
+	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
+
 	// WHERE SHOULD THIS GO?
-	private int               armor             = 0;							// Some early ships have armor.
-	private double            lifeSupportCost	= 0;							// cost to have life support active.
-	private int               activeShieldCost	= 0;							// Cost to have shields active.
-	private double            minimumShieldCost = 0;							// Cost to have shields at minimum.
-	private int               fireControlCost	= 1;							// Cost for active fire control (always 1).
-	
+	private int armor = 0; // Some early ships have armor.
+	private double lifeSupportCost = 0; // cost to have life support active.
+	private int activeShieldCost = 0; // Cost to have shields active.
+	private double minimumShieldCost = 0; // Cost to have shields at minimum.
+	private int fireControlCost = 1; // Cost for active fire control (always 1).
+
 	// Other data
-	private int               yearInService		= 0;							// The minimum year this ship can be deployed.
-	private String            hullType			= null;							// Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
-	private Faction			  faction			= Faction.Federation;			// The faction to which this ship belongs.
-	private int               battlePointValue	= 0;							// BPV, a measure of how powerful the ship is in combat.
-	
+	private int yearInService = 0; // The minimum year this ship can be deployed.
+	private String hullType = null; // Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
+	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
+	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
+
 	// Real-time data
-	private boolean           activeFireControl = false;						// True if active fire control is up, false otherwise.
-	private ShieldStatus      shieldsStatus		= ShieldStatus.Inactive;		// Status of shields. Active is normal shields. Minimal is 5-point shields. Inactive is no shields at all.
-	private boolean           lifeSupportActive = false;						// True if life support is active, false otherwise.
-	
-	
-	//TODO: Transporter bombs (Romulan nuclear mine).
-	//TODO: Armor?
-	
-	
+	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
+	private ShieldStatus shieldsStatus = ShieldStatus.Inactive; // Status of shields. Active is normal shields. Minimal is
+																															// 5-point shields. Inactive is no shields at all.
+	private boolean lifeSupportActive = false; // True if life support is active, false otherwise.
+
+	// TODO: Transporter bombs (Romulan nuclear mine).
+
 	/**
 	 * Constructor
 	 */
@@ -101,18 +99,21 @@ public class Ship extends Unit {
 	public void init(Map<String, Object> values) {
 		// Unit values
 		super.init(values);
-		
+
 		// Explicit Ship values
-		faction          = values.get("faction")     == null ? null : (Faction)values.get("faction");
-		hullType         = values.get("hull")        == null ? null : (String)values.get("hull");
-		yearInService    = values.get("serviceyear") == null ? 0    : (Integer)values.get("serviceyear");
-		battlePointValue = values.get("bpv")         == null ? 0    : (Integer)values.get("bpv");
-		
+		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
+		hullType = values.get("hull") == null ? null : (String) values.get("hull");
+		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
+		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
+
 		// Calculated Ship Values
-		lifeSupportCost  = Constants.LIFE_SUPPORT_COST[getSizeClass()];
+		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
 		activeShieldCost = Constants.ACTIVE_SHIELD_COST[getSizeClass()];
 		minimumShieldCost = Constants.MINIMUM_SHIELD_COST[getSizeClass()];
-		
+
+		// Odds and ends
+		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
+
 		// Subsystem values
 		shields.init(values);
 		hullBoxes.init(values);
@@ -128,26 +129,27 @@ public class Ship extends Unit {
 		crew.init(values);
 		performanceData.init(values);
 	}
-	
+
 	/**
 	 * Set up the energy profile for this ship for the current turn.
 	 * 
 	 * @param allocation Object that will contain all instructions for
-	 * allocation of the ship's energy for the turn.
+	 *                   allocation of the ship's energy for the turn.
 	 */
 	public void allocateEnergy(Energy allocation) {
 		this.energyAllocated = allocation;
-		
+
 	}
-	
+
 	@Override
 	public void startTurn() {
 		// Warp movement: each moveCost energy = 1 speed (max 30)
-		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost (max +1, giving speed 31)
-		int warpSpeed    = (int)(energyAllocated.getWarpMovement() / performanceData.getMovementCost());
+		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost
+		// (max +1, giving speed 31)
+		int warpSpeed = (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost());
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
 		setSpeed(Math.min(warpSpeed + impulseSpeed, 31));
-		
+
 		// Life support
 		if (energyAllocated.getLifeSupport() >= lifeSupportCost) {
 			this.lifeSupportActive = true;
@@ -163,9 +165,9 @@ public class Ship extends Unit {
 		} else {
 			this.activeFireControl = false;
 		}
-		
+
 		// Shields
-		
+
 		// General Reinforcement (1 point for every 2 energy)
 		if (energyAllocated.getGeneralReinforcement() > 0) {
 			this.shields.addGeneralRenforcement(energyAllocated.getGeneralReinforcement() / 2);
@@ -180,10 +182,11 @@ public class Ship extends Unit {
 		} else {
 			this.shieldsStatus = ShieldStatus.Inactive;
 		}
-		
+
 		// Damage Control
-		//TODO: Damage Control - will probably need a list of systems repaired in the energy allocation
-		
+		// TODO: Damage Control - will probably need a list of systems repaired in the
+		// energy allocation
+
 		// Phaser Capacitor
 		try {
 			chargeCapacitor(energyAllocated.getPhaserCapacitor());
@@ -191,25 +194,28 @@ public class Ship extends Unit {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		// Weapons
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
 			// For heavy weapons, apply the arming type and energy
 			if (weapon instanceof HeavyWeapon) {
-				((HeavyWeapon) weapon).applyAllocationEnergy(energyAllocated.getArmingEnergy().get(weapon), energyAllocated.getArmingType().get(weapon));
+				((HeavyWeapon) weapon).applyAllocationEnergy(energyAllocated.getArmingEnergy().get(weapon),
+						energyAllocated.getArmingType().get(weapon));
 			}
 		}
-		//TODO: Need to figure this out.
+		// TODO: Need to figure this out.
 	}
-	
+
 	/**
-	 * Perform end-of-turn activities needed to prepare for the next energy allocation phase.
+	 * Perform end-of-turn activities needed to prepare for the next energy
+	 * allocation phase.
 	 */
 	public void cleanUp() {
-		
-		//TODO: Figure out if there is any Ship object level cleanup needed.
-		// For example, if there is recharge energy remaining - put it into the batteries
-		
+
+		// TODO: Figure out if there is any Ship object level cleanup needed.
+		// For example, if there is recharge energy remaining - put it into the
+		// batteries
+
 		shields.cleanUp();
 		hullBoxes.cleanUp();
 		powerSystems.cleanUp();
@@ -223,66 +229,80 @@ public class Ship extends Unit {
 		crew.cleanUp();
 		performanceData.cleanUp();
 	}
-	
+
 	/// BASIC SHIP DATA ///
 	public void setType(String type) {
 		this.hullType = type;
 	}
-	
+
 	public String getType() {
 		return this.hullType;
 	}
-	
+
 	public void setFaction(Faction faction) {
 		this.faction = faction;
 	}
-	
+
 	public Faction getFacation() {
 		return this.faction;
 	}
-	
+
 	public int getYearInService() {
 		return this.yearInService;
 	}
-	
+
 	public int getBpv() {
 		return this.battlePointValue;
 	}
-	
+
+	public int getArmor() {
+		return this.armor;
+	}
+
 	public double getLifeSupportCost() {
 		return this.lifeSupportCost;
 	}
-	
+
 	public boolean isLifeSupportActive() {
 		return this.lifeSupportActive;
 	}
-	
+
 	public int getActiveShieldCost() {
 		return this.activeShieldCost;
 	}
-	
+
+	public double getMinimumShieldCost() {
+		return this.minimumShieldCost;
+	}
+
+	public int getFireControlCost() {
+		return this.fireControlCost;
+	}
+
 	/**
 	 * Indicates if the shields are in Active mode
+	 * 
 	 * @return True if the shields are Active, false otherwise.
 	 */
 	public boolean shieldsActive() {
 		return this.shieldsStatus == ShieldStatus.Active;
 	}
-	
+
 	/**
 	 * Indicates if the shields are in Inactive mode
+	 * 
 	 * @return True if the sheilds are Inactive, false otherwise.
 	 */
 	public boolean shieldsInactive() {
 		return this.shieldsStatus == ShieldStatus.Inactive;
 	}
-	
+
 	// Cleanup tasks for the end of the turn.
 	public void endOfTurn() {
 		shields.cleanUp();
-		
+
 	}
-	
+
 	/// IDENTITY ///
 	public String getHullType() {
 		return this.hullType;
@@ -300,35 +320,37 @@ public class Ship extends Unit {
 	public Shields getShields() {
 		return this.shields;
 	}
-	
+
 	// Get the strength of a particular shield (including specific reinforcement)
 	public int getShield(Integer shieldNumber) {
 		return this.shields.getShieldStrength(shieldNumber);
 	}
-	
+
 	// Applies damage to given shield. If any damage remains, return the value.
 	// Otherwise return 0.
 	public int damageShield(Integer shieldNumber, Integer damageApplied) {
 		return this.shields.damageShield(shieldNumber, damageApplied);
 	}
-	
+
 	/**
 	 * Discover which of this ship's shields is facing another unit.
+	 * 
 	 * @param otherUnit The other unit being used in the check.
-	 * @return The shield facing (1..12). Odd numbers are shield facings, even 
-	 * numbers are the borders between shields.
+	 * @return The shield facing (1..12). Odd numbers are shield facings, even
+	 *         numbers are the borders between shields.
 	 */
 	public int getRelativeShieldFacing(Unit otherUnit) {
 		int absFacing = MapUtils.getAbsoluteShieldFacing(this, otherUnit);
 		int relFacing = MapUtils.getRelativeShieldFacing(absFacing, this.getFacing());
-		
+
 		return relFacing;
 	}
-	
+
 	/**
 	 * User energy to repair a shield, limited by the ship's DamCon rating.
+	 * 
 	 * @param shieldNumber The shield to repair.
-	 * @param energy The amount of energy to expend.
+	 * @param energy       The amount of energy to expend.
 	 * @return True if this is a legal request, false otherwise.
 	 */
 	public boolean repairShield(int shieldNumber, int energy) {
@@ -336,14 +358,14 @@ public class Ship extends Unit {
 		if (energy > this.specialFunctions.getDamageControl()) {
 			return false;
 		}
-		
+
 		// Energy expenditure is good. Repair a number of shield boxes
 		// equal to half the energy spent.
 		return this.shields.repairShield(shieldNumber, energy / 2);
 	}
-	
+
 	/**
-	 * Checks on the status of the shields: 
+	 * Checks on the status of the shields:
 	 * Active) Full shields
 	 * Minimal) 5-point shields
 	 * Inactive) No shields
@@ -353,7 +375,7 @@ public class Ship extends Unit {
 	public ShieldStatus getShieldStatus() {
 		return this.shieldsStatus;
 	}
-	
+
 	/**
 	 * Checks to see if fire control is active.
 	 * 
@@ -362,9 +384,9 @@ public class Ship extends Unit {
 	public boolean isActiveFireControl() {
 		return this.activeFireControl;
 	}
-	
+
 	/// HULL BOXES ///
-	
+
 	public HullBoxes getHullBoxes() {
 		return this.hullBoxes;
 	}
@@ -373,46 +395,46 @@ public class Ship extends Unit {
 	public PowerSystems getPowerSysetems() {
 		return powerSystems;
 	}
-	
+
 	/// CONTROL SPACES ///
-	
+
 	// Create control boxes.
 	public ControlSpaces getControlSpaces() {
 		return this.controlSpaces;
 	}
-	
+
 	/// SPECIAL FUNCITONS ///
 	public boolean hasDerfacs() {
 		return this.specialFunctions.hasDerfacs();
 	}
-	
+
 	public boolean hasUim() {
 		return this.specialFunctions.hasUim();
 	}
-	
+
 	/// TRANSPORTERS ///
 	public Transporters getTransporters() {
 		return this.transporters;
 	}
-	
+
 	/// OPERATIONS SYSTEMS ///
 	public Labs getLabs() {
 		return this.labs;
 	}
-	
+
 	/// PROBES ///
 	public ProbeLaunchers getProbes() {
 		return this.probes;
 	}
-	
+
 	/// WEAPONS ///
 	public Weapons getWeapons() {
 		return this.weapons;
 	}
-	
+
 	/// SHUTTLES ///
 
-	//TODO: Shuttle operations
+	// TODO: Shuttle operations
 	public Shuttles getShuttles() {
 		return this.shuttles;
 	}
@@ -421,40 +443,39 @@ public class Ship extends Unit {
 	public Crew getCrew() {
 		return this.crew;
 	}
-	
+
 	/// PERFORMANCE DATA ///
 	public PerformanceData getPerformanceData() {
 		return this.performanceData;
 	}
-	
+
 	/// CLOAKING DEVICE ///
 	public CloakingDevice getCloakingDevice() {
 		return this.cloak;
 	}
-	
+
 	@Override
 	public boolean performHet(int absoluteFacing) {
-		
+
 		// Roll for breakdown chance
 		DiceRoller roller = new DiceRoller();
 		int breakdownRoll = roller.rollOneDie();
-		
+
 		// If there is still a bonus to be had, use it
 		// and decrement the number of bonus HETs remaining.
 		if (performanceData.getBonusHetsRemaining() > 0) {
 			breakdownRoll -= 2;
 			performanceData.useBonusHet();
 		}
-		
-		if (breakdownRoll >= performanceData.getBreakdownChance()) {
-			//TODO: BREAKDOWN CONSEQUENCES!
 
-			
+		if (breakdownRoll >= performanceData.getBreakdownChance()) {
+			// TODO: BREAKDOWN CONSEQUENCES!
+
 			return false;
 		}
-		
+
 		super.performHet(absoluteFacing);
-		
+
 		return true;
 	}
 
@@ -475,10 +496,10 @@ public class Ship extends Unit {
 		totalBoxes += this.specialFunctions.getOriginalExcessDamage();
 		totalBoxes += this.shuttles.fetchOriginalTotalBoxes();
 		totalBoxes += this.weapons.fetchOriginalTotalBoxes();
-		
+
 		return totalBoxes;
 	}
-	
+
 	/**
 	 * Calculate the total number of remaining undamaged boxes on the ship.
 	 * 
@@ -496,10 +517,10 @@ public class Ship extends Unit {
 		totalBoxes += this.specialFunctions.getExcessDamage();
 		totalBoxes += this.shuttles.fetchRemainingTotalBoxes();
 		totalBoxes += this.weapons.fetchRemainingTotalBoxes();
-		
+
 		return totalBoxes;
 	}
-	
+
 	/**
 	 * Find all weapons on the ship that have a chance of hitting the target.
 	 * 
@@ -510,7 +531,7 @@ public class Ship extends Unit {
 	public List<Weapon> fetchAllBearingWeapons(Unit target) {
 		return weapons.fetchAllBearingWeapons(this, target);
 	}
-	
+
 	/**
 	 * Build a default Energy allocation for this ship suitable for use in
 	 * testing and early gameplay. Allocates all warp/impulse power to movement,
@@ -524,7 +545,7 @@ public class Ship extends Unit {
 		Energy e = new Energy();
 
 		// Movement: warp up to speed 30, then 1 impulse point for speed 31
-		double moveCost      = performanceData.getMovementCost();
+		double moveCost = performanceData.getMovementCost();
 		double warpAvailable = powerSystems.getAvailableWarpPower();
 		e.setWarpMovement(Math.min(warpAvailable, 30.0 * moveCost));
 		// Use 1 impulse point for the extra hex only if impulse power is available
@@ -565,6 +586,9 @@ public class Ship extends Unit {
 	 */
 	public List<String> applyInternalDamage(int bleedThrough) {
 		List<String> log = new ArrayList<>();
+		int absorbed = Math.min(armor, bleedThrough);
+		armor -= absorbed;
+		bleedThrough -= absorbed;
 		DiceRoller roller = new DiceRoller();
 
 		for (int i = 0; i < bleedThrough; i++) {
@@ -578,43 +602,86 @@ public class Ship extends Unit {
 
 			boolean hit = false;
 			switch (system) {
-				case "bridge":   hit = controlSpaces.damageBridge();  break;
-				case "flag":     hit = controlSpaces.damageFlag();    break;
-				case "emer":     hit = controlSpaces.damageEmer();    break;
-				case "auxcon":   hit = controlSpaces.damageAuxcon();  break;
-				case "lwarp":    hit = powerSystems.damageLWarp();    break;
-				case "rwarp":    hit = powerSystems.damageRWarp();    break;
-				case "cwarp":    hit = powerSystems.damageCWarp();    break;
-				case "impulse":  hit = powerSystems.damageImpulse();  break;
-				case "apr":      hit = powerSystems.damageApr();      break;
-				case "battery":  hit = powerSystems.damageBattery();  break;
-				case "fhull":    hit = hullBoxes.damageFhull();       break;
-				case "ahull":    hit = hullBoxes.damageAhull();       break;
-				case "afthull":  hit = hullBoxes.damageAhull();       break;
-				case "cargo":    hit = hullBoxes.damageCargo();       break;
-				case "scanner":  hit = specialFunctions.damageScanner(); break;
-				case "sensor":   hit = specialFunctions.damageSensor();  break;
-				case "damcon":   hit = specialFunctions.damageDamCon();  break;
+				case "bridge":
+					hit = controlSpaces.damageBridge();
+					break;
+				case "flag":
+					hit = controlSpaces.damageFlag();
+					break;
+				case "emer":
+					hit = controlSpaces.damageEmer();
+					break;
+				case "auxcon":
+					hit = controlSpaces.damageAuxcon();
+					break;
+				case "lwarp":
+					hit = powerSystems.damageLWarp();
+					break;
+				case "rwarp":
+					hit = powerSystems.damageRWarp();
+					break;
+				case "cwarp":
+					hit = powerSystems.damageCWarp();
+					break;
+				case "impulse":
+					hit = powerSystems.damageImpulse();
+					break;
+				case "apr":
+					hit = powerSystems.damageApr();
+					break;
+				case "battery":
+					hit = powerSystems.damageBattery();
+					break;
+				case "fhull":
+					hit = hullBoxes.damageFhull();
+					break;
+				case "ahull":
+					hit = hullBoxes.damageAhull();
+					break;
+				case "afthull":
+					hit = hullBoxes.damageAhull();
+					break;
+				case "cargo":
+					hit = hullBoxes.damageCargo();
+					break;
+				case "scanner":
+					hit = specialFunctions.damageScanner();
+					break;
+				case "sensor":
+					hit = specialFunctions.damageSensor();
+					break;
+				case "damcon":
+					hit = specialFunctions.damageDamCon();
+					break;
 				case "phaser": {
 					List<Weapon> phasers = weapons.getPhaserList();
 					Weapon target = phasers.stream()
-						.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) { target.damage(); hit = true; }
+							.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) {
+						target.damage();
+						hit = true;
+					}
 					break;
 				}
 				case "drone": {
 					List<Weapon> drones = weapons.getDroneList();
 					Weapon target = drones.stream()
-						.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) { target.damage(); hit = true; }
+							.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) {
+						target.damage();
+						hit = true;
+					}
 					break;
 				}
 				case "torp":
 				case "weapon": {
 					List<Weapon> all = weapons.fetchAllWeapons();
 					Weapon target = all.stream()
-						.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) { target.damage(); hit = true; }
+							.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) {
+						target.damage();
+						hit = true;
+					}
 					break;
 				}
 				default:
@@ -637,38 +704,38 @@ public class Ship extends Unit {
 	public void drainCapacitor(double energy) throws CapacitorException {
 		this.weapons.drainPhaserCapacitor(energy);
 	}
-	
+
 	public void chargeCapacitor(double energy) throws CapacitorException {
 		this.weapons.chargePhaserCapacitor(energy);
 	}
-	
+
 	// The ship may be crippled if half or more of its boxes
 	// are destroyed.
 	public boolean isCrippled() {
 		if (getCurrentBoxes() <= (getTotalSSDBoxes() / 2)) {
 			return true;
 		}
-		
+
 		return false;
 	}
-	
+
 	public boolean movesThisImpulse(int impulse) {
 
 		// Get the list of speeds that move this impulse.
 		int[] whoMoves = Constants.IMPULSE_CHART[impulse];
-		for (int i=0; i < whoMoves.length; i++) {
+		for (int i = 0; i < whoMoves.length; i++) {
 			if (whoMoves[i] == getSpeed()) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	/**
 	 * Another unit attempts to tractor this ship.
 	 * 
-	 * @param energy The amount of energy applied to the tractor attempt.
+	 * @param energy         The amount of energy applied to the tractor attempt.
 	 * 
 	 * @param tractoringUnit The unit attempting to tractor this ship.
 	 * 
@@ -677,8 +744,8 @@ public class Ship extends Unit {
 	@Override
 	public boolean applyTractor(int energy, Unit tractoringUnit) {
 		if (energy > this.tractors.getNegativeTractorEnergy()) {
-			//TODO: Probably a tractor auction?
-			
+			// TODO: Probably a tractor auction?
+
 			setTractoringUnit(tractoringUnit);
 			setTractored(true);
 			return true;
@@ -687,19 +754,16 @@ public class Ship extends Unit {
 		}
 	}
 
-	
-	
-	
 	// Return the JSON string of the Unit object
 	@Override
 	public String toString() {
-		
+
 		String outputString = null;
 		ObjectMapper mapper = new ObjectMapper();
-		
+
 		try {
-//			mapper.writeValue(new File("e:\\ship.txt"), this);
-			
+			// mapper.writeValue(new File("e:\\ship.txt"), this);
+
 			outputString = mapper.writeValueAsString(this);
 		} catch (JsonGenerationException e) {
 			// TODO Auto-generated catch block
@@ -711,22 +775,21 @@ public class Ship extends Unit {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
+
 		return outputString;
-		
-//		String jsonOutput = null;
-//		ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
-//		try {
-//			jsonOutput = ow.writeValueAsString(this);
-//		} catch (JsonGenerationException e) {
-//			e.printStackTrace();
-//		} catch (JsonMappingException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		
-//		return jsonOutput;
+
+		// String jsonOutput = null;
+		// ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+		// try {
+		// jsonOutput = ow.writeValueAsString(this);
+		// } catch (JsonGenerationException e) {
+		// e.printStackTrace();
+		// } catch (JsonMappingException e) {
+		// e.printStackTrace();
+		// } catch (IOException e) {
+		// e.printStackTrace();
+		// }
+		//
+		// return jsonOutput;
 	}
 }

@@ -52,6 +52,7 @@ com\sfb\systemgroups\ProbeLaunchers.class
 com\sfb\weapons\PlasmaLauncher.class
 com\sfb\objects\Drone.class
 com\sfb\samples\SampleUsers.class
+com\sfb\Game$1.class
 com\sfb\properties\DisruptorArmingType.class
 com\sfb\objects\Ship.class
 com\sfb\systems\Probe$1.class
@@ -68,6 +69,7 @@ com\sfb\objects\Shuttle.class
 com\sfb\UnitFactory.class
 com\sfb\systemgroups\HullBoxes.class
 com\sfb\weapons\Launcher.class
+com\sfb\objects\Drone$1.class
 com\sfb\ShipFactory.class
 com\sfb\Game.class
 com\sfb\properties\Arc.class

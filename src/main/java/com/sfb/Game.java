@@ -7,6 +7,7 @@ import java.util.Set;
 
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.systems.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
 import com.sfb.samples.SampleShips;
@@ -44,9 +45,11 @@ public class Game {
     private final Set<Ship>     movedThisImpulse     = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
 
-    private ImpulsePhase currentPhase        = ImpulsePhase.MOVEMENT;
+    private ImpulsePhase currentPhase          = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
-    private boolean inProgress = false;
+    private boolean      inProgress            = false;
+    private boolean      awaitingAllocation    = false;
+    private final List<Ship> allocationQueue   = new ArrayList<>();
 
     // --- Setup ---
 
@@ -110,17 +113,53 @@ public class Game {
     // --- Turn progression ---
 
     /**
-     * Energy allocation and turn setup. Each ship builds its auto allocation,
-     * applies it, then calls startTurn() to set speed, shields, capacitors, etc.
-     * Later this will wait for real player allocations before proceeding.
+     * Begin the energy allocation phase. Queues every ship for allocation and
+     * blocks the impulse loop until all ships have submitted. The UI calls
+     * submitAllocation() for each ship in turn; once the queue is empty,
+     * beginImpulses() is called automatically.
      */
     public void startTurn() {
+        allocationQueue.clear();
+        allocationQueue.addAll(ships);
+        awaitingAllocation = true;
+    }
+
+    /**
+     * Returns the next ship waiting for energy allocation, or null if all
+     * ships have been allocated this turn.
+     */
+    public Ship nextShipNeedingAllocation() {
+        return allocationQueue.isEmpty() ? null : allocationQueue.get(0);
+    }
+
+    public boolean isAwaitingAllocation() {
+        return awaitingAllocation;
+    }
+
+    /**
+     * Submit the player's energy allocation for one ship. When the last ship
+     * is submitted, automatically finalises all ships and advances to impulse 1.
+     */
+    public void submitAllocation(Ship ship, Energy allocation) {
+        ship.allocateEnergy(allocation);
+        allocationQueue.remove(ship);
+        if (allocationQueue.isEmpty()) {
+            beginImpulses();
+        }
+    }
+
+    /**
+     * Finalise all ships' startTurn() and advance to impulse 1.
+     * Called automatically once every ship has submitted an allocation.
+     */
+    private void beginImpulses() {
         for (Ship ship : ships) {
-            ship.allocateEnergy(ship.buildAutoAllocation());
             ship.startTurn();
         }
-        TurnTracker.nextImpulse();  // advance to impulse 1
+        awaitingAllocation = false;
+        TurnTracker.nextImpulse();
         movedThisImpulse.clear();
+        currentPhase = ImpulsePhase.MOVEMENT;
     }
 
     /**
