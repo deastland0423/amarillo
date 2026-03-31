@@ -210,7 +210,7 @@ public class WeaponSelectDialog extends Stage {
             return "[unarmed t" + hw.getArmingTurn() + "]";
         }
         if (!w.canFire()) {
-            int remaining = com.sfb.constants.Constants.WEAPON_FIRE_DELAY
+            int remaining = w.getMinImpulseGap()
                     - (com.sfb.TurnTracker.getImpulse() - w.getLastImpulseFired());
             return "[cooldown " + remaining + "]";
         }

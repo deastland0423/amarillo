@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.sfb.objects.Drone;
+import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
 import com.sfb.properties.Faction;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -43,6 +46,7 @@ public class HexMapCanvas extends Canvas {
 
     private Ship selectedShip = null;
     private List<Ship> movableShips = new ArrayList<>();
+    private List<Seeker> seekers = new ArrayList<>();
     private boolean firingMode = false;
 
     public HexMapCanvas(int cols, int rows, List<Ship> ships) {
@@ -81,6 +85,10 @@ public class HexMapCanvas extends Canvas {
         this.firingMode = firing;
     }
 
+    public void setSeekers(List<Seeker> seekers) {
+        this.seekers = seekers;
+    }
+
     /**
      * Returns the ship whose counter contains the given pixel, or null.
      */
@@ -112,6 +120,9 @@ public class HexMapCanvas extends Canvas {
         drawCoordinateLabels(gc);
         for (Ship ship : ships) {
             drawShip(gc, ship);
+        }
+        for (Seeker seeker : seekers) {
+            if (seeker instanceof Drone) drawDrone(gc, (Drone) seeker);
         }
     }
 
@@ -282,6 +293,43 @@ public class HexMapCanvas extends Canvas {
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 8.5));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.fillText(label, cx, cy + 3.5);
+    }
+
+    // -------------------------------------------------------------------------
+    // Drone counter
+    // -------------------------------------------------------------------------
+
+    private void drawDrone(GraphicsContext gc, Drone drone) {
+        if (drone.getLocation() == null) return;
+        double[] c = hexCenter(drone.getLocation().getX(), drone.getLocation().getY());
+        double cx = c[0];
+        double cy = c[1];
+
+        // Color from controller's faction (white if no controller)
+        Color color = Color.WHITE;
+        if (drone.getController() instanceof Ship) {
+            color = factionColor(((Ship) drone.getController()).getFaction());
+        }
+
+        // Diamond shape (rotated square)
+        double r = COUNTER_SIZE * 0.45;
+        double[] dx = { cx,     cx + r, cx,     cx - r };
+        double[] dy = { cy - r, cy,     cy + r, cy     };
+        gc.setFill(color.deriveColor(0, 0.7, 0.15, 1.0));
+        gc.fillPolygon(dx, dy, 4);
+        gc.setStroke(color);
+        gc.setLineWidth(1.5);
+        gc.strokePolygon(dx, dy, 4);
+
+        // Facing arrow
+        drawFacingArrow(gc, cx, cy, drone.getFacing(), color);
+
+        // Type label ("I", "II", etc.)
+        String label = drone.getDroneType() != null ? drone.getDroneType().toString().replace("Type ", "") : "?";
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 7.5));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText(label, cx, cy + 3.0);
     }
 
     // -------------------------------------------------------------------------

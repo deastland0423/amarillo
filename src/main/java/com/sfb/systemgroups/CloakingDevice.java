@@ -5,8 +5,10 @@ import java.util.Map;
 import com.sfb.objects.Unit;
 
 public class CloakingDevice implements Systems {
-	
+
 	int powerToActivate = 0;
+	int fadeInImpulses = 0;
+	int fadeOutImpulses = 0;
 	boolean active = false;
 
 	@Override
@@ -42,7 +44,7 @@ public class CloakingDevice implements Systems {
 	public int getPowerToActivate() {
 		return this.powerToActivate;
 	}
-	
+
 	public boolean isActive() {
 		return this.active;
 	}

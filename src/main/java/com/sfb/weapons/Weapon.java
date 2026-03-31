@@ -1,8 +1,6 @@
 package com.sfb.weapons;
 
-import com.sfb.Main;
 import com.sfb.TurnTracker;
-import com.sfb.constants.Constants;
 import com.sfb.objects.Unit;
 
 /**
@@ -19,8 +17,11 @@ public abstract class Weapon {
 	private String  dacHitLocaiton;			// What DAC 'hit' destroys  this weapon //TODO: should this be an enum?
 	private int[]   arcs;					// An array of the arcs into which the weapon can fire. All arcs are a number (1 for straight ahead, etc.)
 	private boolean functional = true;		// True if the weapon is undamaged, false otherwise.
-	private int     lastImpulseFired = -9;	// The last impulse on which this weapon was fired. (Weapons normally can't fire twice within 8 impulses.)
-	private int     lastTurnFired    = -1;	// The last turn on which this weapon was fired. -1 = never fired.
+	private int     lastImpulseFired  = -9;	// The last impulse on which this weapon was fired.
+	private int     lastTurnFired     = -1;	// The last turn on which this weapon was fired. -1 = never fired. (used by Fusion)
+	private int     maxShotsPerTurn   = 1;	// How many times this weapon may fire per turn (default 1).
+	private int     minImpulseGap     = 8;	// Minimum global impulses between shots (default 8).
+	private int     shotsThisTurn     = 0;	// Shots fired so far this turn; reset by cleanUp().
 	
 	private int     maxRange;				// The maximum distance that this weapon can do damage.
 	private int     minRange;				// The range below which this weapon can not fire.
@@ -181,29 +182,48 @@ public abstract class Weapon {
 	/**
 	 * Returns true if this weapon is allowed to fire on the current impulse.
 	 * Two conditions must both be met:
-	 *   1. Has not fired this turn (once-per-turn rule).
-	 *   2. At least WEAPON_FIRE_DELAY (8) global impulses since last fired
-	 *      (prevents firing near end of one turn and start of the next).
+	 *   1. Has not exceeded maxShotsPerTurn this turn.
+	 *   2. At least minImpulseGap global impulses since last fired.
 	 */
 	public boolean canFire() {
-		int currentTurn    = TurnTracker.getTurn();
 		int currentImpulse = TurnTracker.getImpulse();
-		return lastTurnFired < currentTurn
-				&& (currentImpulse - lastImpulseFired) >= Constants.WEAPON_FIRE_DELAY;
+		return shotsThisTurn < maxShotsPerTurn
+				&& (currentImpulse - lastImpulseFired) >= minImpulseGap;
 	}
 
 	/**
 	 * Register that this weapon fired on the current impulse and turn.
 	 */
 	protected void registerFire() {
-		setLastImpulseFired(Main.getTurnTracker().getImpulse());
-		setLastTurnFired(Main.getTurnTracker().getTurn());
+		lastImpulseFired = TurnTracker.getImpulse();
+		lastTurnFired    = TurnTracker.getTurn();
+		shotsThisTurn++;
 	}
-	
+
 	/**
-	 * End of turn cleanup.
+	 * End of turn cleanup. Resets per-turn shot counter.
 	 */
 	public void cleanUp() {
-		
+		shotsThisTurn = 0;
+	}
+
+	public int getMaxShotsPerTurn() {
+		return maxShotsPerTurn;
+	}
+
+	public void setMaxShotsPerTurn(int maxShotsPerTurn) {
+		this.maxShotsPerTurn = maxShotsPerTurn;
+	}
+
+	public int getMinImpulseGap() {
+		return minImpulseGap;
+	}
+
+	public void setMinImpulseGap(int minImpulseGap) {
+		this.minImpulseGap = minImpulseGap;
+	}
+
+	public int getShotsThisTurn() {
+		return shotsThisTurn;
 	}
 }

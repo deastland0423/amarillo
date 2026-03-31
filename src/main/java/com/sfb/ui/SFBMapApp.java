@@ -5,6 +5,7 @@ import java.util.List;
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Ship;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Weapon;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -42,13 +43,15 @@ public class SFBMapApp extends Application {
     private Label         selectedLabel;
     private Label         statusLabel;
     private TextArea      combatLog;
-    private boolean       firingMode = false;
+    private boolean       firingMode  = false;
+    private boolean       droneMode   = false;
 
     @Override
     public void start(Stage primaryStage) {
         game.setup();
 
         mapCanvas = new HexMapCanvas(MAP_COLS, MAP_ROWS, game.getShips());
+        mapCanvas.setSeekers(game.getSeekers());
         infoPanel = new ShipInfoPanel();
 
         ScrollPane scrollPane = new ScrollPane(mapCanvas);
@@ -75,7 +78,7 @@ public class SFBMapApp extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire");
+        Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire  L=drone");
         keyHelp.setStyle("-fx-text-fill: #445566; -fx-font-size: 10;");
 
         HBox toolbar = new HBox(16, turnLabel, selectedLabel, statusLabel, spacer, keyHelp, nextImpulseBtn);
@@ -110,7 +113,22 @@ public class SFBMapApp extends Application {
         // --- Mouse: click to select or target ---
         mapCanvas.setOnMouseClicked(event -> {
             Ship hit = mapCanvas.hitTestShip(event.getX(), event.getY());
-            if (firingMode) {
+            if (droneMode) {
+                Ship launcher = mapCanvas.getSelectedShip();
+                if (hit == null) {
+                    setStatus("No target — click a ship or press Escape to cancel");
+                } else if (hit == launcher) {
+                    setStatus("Can't target yourself — click an enemy or press Escape");
+                } else {
+                    DroneRack rack = findLoadedRack(launcher);
+                    if (rack != null) {
+                        Game.ActionResult result = game.launchDrone(launcher, hit, rack);
+                        combatLog.appendText(result.getMessage() + "\n");
+                        setStatus(result.getMessage());
+                    }
+                    exitDroneMode();
+                }
+            } else if (firingMode) {
                 Ship attacker = mapCanvas.getSelectedShip();
                 if (hit == null) {
                     setStatus("No target — click a ship or press Escape to cancel");
@@ -139,6 +157,7 @@ public class SFBMapApp extends Application {
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 if (firingMode) exitFiringMode();
+                if (droneMode) exitDroneMode();
                 return;
             }
             if (event.getCode() == KeyCode.F) {
@@ -154,7 +173,22 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode) return;
+            if (event.getCode() == KeyCode.L) {
+                if (!game.canLaunchThisPhase()) {
+                    setStatus("Can't launch drones during " + game.getCurrentPhase().getLabel() + " phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                DroneRack rack = findLoadedRack(ship);
+                if (rack == null) { setStatus(ship.getName() + " has no drones loaded"); return; }
+                droneMode = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("DRONE MODE — click a target  (Escape to cancel)");
+                mapCanvas.render();
+                return;
+            }
+            if (firingMode || droneMode) return;
 
             Ship ship = mapCanvas.getSelectedShip();
             if (ship == null) { setStatus("No ship selected"); return; }
@@ -196,8 +230,18 @@ public class SFBMapApp extends Application {
     }
 
     private void advancePhase() {
-        boolean leavingFirePhase = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
+        boolean leavingMovementPhase = game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT;
+        boolean leavingFirePhase     = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
         game.advancePhase();
+        if (leavingMovementPhase) {
+            List<String> seekerLog = game.getLastSeekerLog();
+            if (!seekerLog.isEmpty()) {
+                for (String entry : seekerLog) {
+                    combatLog.appendText(entry + "\n");
+                }
+                infoPanel.update(null);
+            }
+        }
         if (leavingFirePhase) {
             List<String> internalLog = game.getLastInternalDamageLog();
             if (!internalLog.isEmpty()) {
@@ -271,6 +315,25 @@ public class SFBMapApp extends Application {
         Ship sel = mapCanvas.getSelectedShip();
         setStatus(sel != null ? "Selected  —  press F to fire" : "");
         mapCanvas.render();
+    }
+
+    private void exitDroneMode() {
+        droneMode = false;
+        mapCanvas.setFiringMode(false);
+        Ship sel = mapCanvas.getSelectedShip();
+        setStatus(sel != null ? "Selected  —  press L to launch drone" : "");
+        mapCanvas.render();
+    }
+
+    /** Returns the first loaded DroneRack on the ship, or null if none. */
+    private DroneRack findLoadedRack(Ship ship) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) {
+                DroneRack rack = (DroneRack) w;
+                if (rack.isFunctional() && !rack.isEmpty()) return rack;
+            }
+        }
+        return null;
     }
 
     private void resolveWeaponsFire(Ship attacker, Ship target) {

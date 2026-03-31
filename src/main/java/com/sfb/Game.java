@@ -5,13 +5,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.sfb.objects.Drone;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
 import com.sfb.systems.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
 import com.sfb.samples.SampleShips;
 import com.sfb.utilities.MapUtils;
+import com.sfb.utilities.MovementUtil;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -47,6 +51,7 @@ public class Game {
 
     private ImpulsePhase currentPhase          = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
+    private List<String> lastSeekerLog         = new ArrayList<>();
     private boolean      inProgress            = false;
     private boolean      awaitingAllocation    = false;
     private final List<Ship> allocationQueue   = new ArrayList<>();
@@ -181,6 +186,7 @@ public class Game {
     public void advancePhase() {
         switch (currentPhase) {
             case MOVEMENT:
+                lastSeekerLog = moveSeekers();
                 currentPhase = ImpulsePhase.ACTIVITY;
                 break;
             case ACTIVITY:
@@ -324,7 +330,7 @@ public class Game {
     /**
      * Compute which shield number on the target is facing the attacker.
      */
-    public int getShieldNumber(Ship attacker, Ship target) {
+    public int getShieldNumber(Unit attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
         return Math.max(1, Math.min(6, shieldNumber));
@@ -366,6 +372,129 @@ public class Game {
      */
     public List<String> getLastInternalDamageLog() {
         return lastInternalDamageLog;
+    }
+
+    // --- Drone launching ---
+
+    public boolean canLaunchThisPhase() {
+        return currentPhase == ImpulsePhase.ACTIVITY;
+    }
+
+    /**
+     * Launch one drone from the given rack at the given target.
+     * The drone is placed at the launching ship's location, faced toward the
+     * target, and added to the active seekers list.
+     *
+     * @return ActionResult describing success or reason for failure.
+     */
+    public ActionResult launchDrone(Ship launcher, Ship target, DroneRack rack) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        if (!rack.isFunctional())
+            return ActionResult.fail(rack.getName() + " is destroyed");
+        if (!rack.canFire())
+            return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
+        if (rack.isEmpty())
+            return ActionResult.fail(rack.getName() + " has no drones loaded");
+
+        Drone drone = rack.getAmmo().remove(0);
+        rack.recordLaunch();
+        drone.setLocation(launcher.getLocation());
+        drone.setFacing(MapUtils.getBearing(launcher, target));
+        drone.setTarget(target);
+        drone.setController(launcher);
+        drone.setLaunchImpulse(TurnTracker.getImpulse());
+        drone.setSeekerType(Seeker.SeekerType.DRONE);
+        seekers.add(drone);
+
+        return ActionResult.ok(launcher.getName() + " launched " + drone.getDroneType()
+                + " drone at " + target.getName());
+    }
+
+    /**
+     * Move all active seekers that are scheduled to move this impulse.
+     * Each drone re-faces its target, advances one hex, and is checked for
+     * impact or endurance expiry. Returns a log of all seeker activity.
+     * Called automatically when leaving the MOVEMENT phase.
+     */
+    private List<String> moveSeekers() {
+        List<String> log = new ArrayList<>();
+        if (seekers.isEmpty()) return log;
+
+        int impulse = TurnTracker.getLocalImpulse();
+        List<Seeker> expired = new ArrayList<>();
+
+        for (Seeker seeker : seekers) {
+            if (!(seeker instanceof Drone)) continue;
+            Drone drone = (Drone) seeker;
+
+            if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed())) continue;
+
+            // Re-face toward target before moving, snapped to nearest cardinal
+            Unit target = drone.getTarget();
+            if (target != null) {
+                int bearing = MapUtils.getBearing(drone, target);
+                if (bearing != 0) drone.setFacing(snapToCardinal(bearing));
+            }
+
+            drone.goForward();
+
+            // If the drone moved off the map, expire it
+            if (drone.getLocation() == null) {
+                log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
+                expired.add(seeker);
+                continue;
+            }
+
+            // Decrement endurance
+            drone.setEndurance(drone.getEndurance() - 1);
+
+            // Check impact — drone and target in same hex
+            if (target != null && target.getLocation() != null
+                    && drone.getLocation().equals(target.getLocation())) {
+                int shieldNum = getShieldNumber(drone, (Ship) target);
+                int dmg = drone.impact();
+                FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
+                log.add("  Drone (" + drone.getDroneType() + ") impacted "
+                        + target.getName() + " shield #" + shieldNum
+                        + "  damage " + dmg
+                        + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                expired.add(seeker);
+                continue;
+            }
+
+            // Check endurance
+            if (drone.getEndurance() <= 0) {
+                log.add("  Drone (" + drone.getDroneType() + ") targeting "
+                        + (target != null ? target.getName() : "?") + " ran out of endurance");
+                expired.add(seeker);
+            }
+        }
+
+        seekers.removeAll(expired);
+        return log;
+    }
+
+    /**
+     * Returns the seeker activity log from the most recent MOVEMENT phase.
+     * The UI should read this after advancing past MOVEMENT.
+     */
+    public List<String> getLastSeekerLog() {
+        return lastSeekerLog;
+    }
+
+    /** Snap a 1–24 bearing to the nearest cardinal (1, 5, 9, 13, 17, 21). */
+    private static int snapToCardinal(int bearing) {
+        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
+        int best = cardinals[0];
+        int bestDist = Integer.MAX_VALUE;
+        for (int c : cardinals) {
+            int diff = Math.abs(bearing - c);
+            // wrap around the 24-direction circle
+            if (diff > 12) diff = 24 - diff;
+            if (diff < bestDist) { bestDist = diff; best = c; }
+        }
+        return best;
     }
 
     // --- Status ---

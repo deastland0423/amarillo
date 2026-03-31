@@ -56,6 +56,7 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 	
 	@Override
 	public void cleanUp() {
+		super.cleanUp();
 		// If it is on cooldown and did not fire this turn, deactivate cooldown.
 		if (isOnCooldown() && getLastTurnFired() < Main.getTurnTracker().getTurn()) {
 			setCooldown(false);

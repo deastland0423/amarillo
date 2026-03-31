@@ -10,6 +10,7 @@ import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.Phaser3;
+import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -60,6 +61,10 @@ public class Weapons implements Systems {
 					
 					if (weapon instanceof Phaser3) {
 						phaserCapacitor += 0.5;
+					}
+
+					if (weapon instanceof PhaserG) {
+						phaserCapacitor += 1.0;
 					}
 				}
 				// Register a new 'torp' type weapon

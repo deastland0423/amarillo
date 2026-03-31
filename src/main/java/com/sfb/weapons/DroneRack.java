@@ -43,6 +43,8 @@ public class DroneRack extends Weapon implements Launcher {
 			case TYPE_C:
 				this.spaces = 4;
 				this.numberOfReloads = 2;
+				this.setMaxShotsPerTurn(2);
+				this.setMinImpulseGap(12);
 				break;
 			case TYPE_D:
 				this.spaces = 12;
@@ -95,7 +97,6 @@ public class DroneRack extends Weapon implements Launcher {
 	@Override
 	public Drone launch(int weaponNumber) {
 		Drone launchedDrone = ammoList.get(weaponNumber);
-
 		return launchedDrone;
 	}
 
@@ -154,10 +155,18 @@ public class DroneRack extends Weapon implements Launcher {
 
 	/**
 	 * Checks if the drone rack is empty.
-	 * 
+	 *
 	 * @return True if there is no ammo in the rack, false otherwise.
 	 */
 	public boolean isEmpty() {
 		return ammoList.size() == 0;
+	}
+
+	/**
+	 * Record that a drone was launched this impulse, stamping the once-per-turn
+	 * and 8-impulse cooldown timestamps.
+	 */
+	public void recordLaunch() {
+		registerFire();
 	}
 }

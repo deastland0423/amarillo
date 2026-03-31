@@ -651,7 +651,9 @@ public class SampleShips {
 	private static List<Drone> makeDrones(int count, DroneType type) {
 		List<Drone> list = new ArrayList<>();
 		for (int i = 0; i < count; i++) {
-			list.add(new Drone(type));
+			Drone thisDrone = new Drone(type);
+			thisDrone.setSpeed(32);
+			list.add(thisDrone);
 		}
 		return list;
 	}

@@ -281,7 +281,7 @@ public class ShipInfoPanel extends VBox {
                 statusColor = Color.rgb(220, 185, 30);
             }
         } else if (!w.canFire()) {
-            int remaining = com.sfb.constants.Constants.WEAPON_FIRE_DELAY
+            int remaining = w.getMinImpulseGap()
                     - (com.sfb.TurnTracker.getImpulse() - w.getLastImpulseFired());
             statusText = "cooldown " + remaining;
             statusColor = Color.rgb(180, 130, 30);
