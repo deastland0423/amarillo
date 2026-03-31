@@ -303,6 +303,13 @@ public class ShipInfoPanel extends VBox {
         if (!rack.isFunctional()) {
             status = "DESTROYED";
             statusColor = Color.rgb(150, 40, 40);
+        } else if (!rack.canFire()) {
+            int remaining = rack.getMinImpulseGap()
+                    - (com.sfb.TurnTracker.getImpulse() - rack.getLastImpulseFired());
+            remaining = Math.max(remaining, 0);
+            status = "cooldown " + remaining
+                    + "  (" + rack.getAmmo().size() + "/" + rack.getSpaces() + ")";
+            statusColor = Color.rgb(180, 130, 30);
         } else {
             int loaded = rack.getAmmo().size();
             int spaces = rack.getSpaces();

@@ -143,6 +143,12 @@ public class DroneRack extends Weapon implements Launcher {
 
 	public void setAmmo(List<Drone> ammoList) {
 		this.ammoList = ammoList;
+		// Reloads always mirror the initial loadout — build a fresh copy.
+		List<Drone> reloadCopy = new ArrayList<>();
+		for (Drone d : ammoList) {
+			reloadCopy.add(new Drone(d.getDroneType()));
+		}
+		this.reloads = reloadCopy;
 	}
 
 	public int getNumberOfReloads() {

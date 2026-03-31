@@ -330,7 +330,7 @@ public class SFBMapApp extends Application {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof DroneRack) {
                 DroneRack rack = (DroneRack) w;
-                if (rack.isFunctional() && !rack.isEmpty()) return rack;
+                if (rack.isFunctional() && !rack.isEmpty() && rack.canFire()) return rack;
             }
         }
         return null;

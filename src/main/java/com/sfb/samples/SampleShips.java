@@ -255,7 +255,6 @@ public class SampleShips {
 		droneRack.setNumberOfReloads(1);
 		droneRack.setDesignator("Drone Rack");
 		droneRack.setAmmo(makeDrones(4, DroneType.TypeI));
-		droneRack.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack);
 		// Drone Rack
 
@@ -367,9 +366,7 @@ public class SampleShips {
 		droneRack.setNumberOfReloads(1);
 		droneRack.setDesignator("Drone Rack");
 		droneRack.setAmmo(makeDrones(4, DroneType.TypeI));
-		droneRack.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack);
-		// Drone Rack
 
 		shipSpecs.put("weapons", weaponList);
 
@@ -516,12 +513,10 @@ public class SampleShips {
 		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack1.setDesignator("Rack 1");
 		droneRack1.setAmmo(makeDrones(4, DroneType.TypeI));
-		droneRack1.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack1);
 		DroneRack droneRack2 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack2.setDesignator("Rack 2");
 		droneRack2.setAmmo(makeDrones(4, DroneType.TypeI));
-		droneRack2.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack2);
 
 		shipSpecs.put("weapons", weaponList);
@@ -638,7 +633,11 @@ public class SampleShips {
 
 		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
 		droneRack1.setDesignator("Rack 1");
-		droneRack1.setAmmo(makeDrones(4, DroneType.TypeI));
+		List<Drone> droneList = new ArrayList<>();
+		droneList.add(new Drone(DroneType.TypeI));
+		droneList.add(new Drone(DroneType.TypeI));
+		droneList.add(new Drone(DroneType.TypeIV));
+		droneRack1.setAmmo(droneList);
 		droneRack1.setReloads(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack1);
 
