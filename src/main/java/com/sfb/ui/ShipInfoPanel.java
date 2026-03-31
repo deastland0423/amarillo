@@ -7,6 +7,7 @@ import com.sfb.properties.Faction;
 import com.sfb.systemgroups.HullBoxes;
 import com.sfb.systemgroups.PowerSystems;
 import com.sfb.utilities.MapUtils;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
 import javafx.geometry.Insets;
@@ -247,7 +248,15 @@ public class ShipInfoPanel extends VBox {
             }
         }
 
-        if (phasers.isEmpty() && torps.isEmpty()) {
+        List<Weapon> drones = ship.getWeapons().getDroneList();
+        if (!drones.isEmpty()) {
+            weaponsContent.getChildren().add(styledLabel("-- Drones --", VALUE_FONT, DIM_COLOR));
+            for (Weapon w : drones) {
+                weaponsContent.getChildren().add(droneRackRow((DroneRack) w));
+            }
+        }
+
+        if (phasers.isEmpty() && torps.isEmpty() && drones.isEmpty()) {
             weaponsContent.getChildren().add(styledLabel("none", VALUE_FONT, DIM_COLOR));
         }
     }
@@ -278,6 +287,27 @@ public class ShipInfoPanel extends VBox {
 
         Label nameLabel = styledLabel(padRight(name, 10), VALUE_FONT, Color.WHITE);
         Label statusLabel = styledLabel(statusText, VALUE_FONT, statusColor);
+        return new HBox(6, nameLabel, statusLabel);
+    }
+
+    private HBox droneRackRow(DroneRack rack) {
+        String name = rack.getName() != null ? rack.getName() : "DroneRack";
+        String status;
+        Color statusColor;
+
+        if (!rack.isFunctional()) {
+            status = "DESTROYED";
+            statusColor = Color.rgb(150, 40, 40);
+        } else {
+            int loaded = rack.getAmmo().size();
+            int spaces = rack.getSpaces();
+            int reloads = rack.getNumberOfReloads();
+            status = loaded + "/" + spaces + " +" + reloads + "R";
+            statusColor = loaded > 0 ? Color.rgb(100, 180, 100) : Color.rgb(180, 130, 30);
+        }
+
+        Label nameLabel = styledLabel(padRight(name, 10), VALUE_FONT, Color.WHITE);
+        Label statusLabel = styledLabel(status, VALUE_FONT, statusColor);
         return new HBox(6, nameLabel, statusLabel);
     }
 

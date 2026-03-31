@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /d/repos/amarillo/src/main/java -name \"*.java\" -type f -exec wc -l {} +)"
+      "Bash(find /d/repos/amarillo/src/main/java -name \"*.java\" -type f -exec wc -l {} +)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn test:*)"
     ]
   }
 }

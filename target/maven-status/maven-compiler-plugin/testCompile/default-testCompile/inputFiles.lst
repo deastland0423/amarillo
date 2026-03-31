@@ -1,6 +1,7 @@
 D:\repos\amarillo\src\test\java\com\sfb\systems\ProbeTest.java
 D:\repos\amarillo\src\test\java\com\sfb\weapons\DisruptorTest.java
 D:\repos\amarillo\src\test\java\com\sfb\utilities\HexMapUtilsTest.java
+D:\repos\amarillo\src\test\java\com\sfb\weapons\DroneRackTest.java
 D:\repos\amarillo\src\test\java\com\sfb\systemgroups\ControlSpacesTest.java
 D:\repos\amarillo\src\test\java\com\sfb\weapons\WeaponTest.java
 D:\repos\amarillo\src\test\java\com\sfb\systems\SpecialFunctionsTest.java
@@ -17,4 +18,5 @@ D:\repos\amarillo\src\test\java\com\sfb\utilities\MovementUtilsTest.java
 D:\repos\amarillo\src\test\java\com\sfb\systemgroups\PowerSystemsTest.java
 D:\repos\amarillo\src\test\java\com\sfb\ShipFactoryTest.java
 D:\repos\amarillo\src\test\java\com\sfb\systemgroups\WeaponsTest.java
+D:\repos\amarillo\src\test\java\com\sfb\objects\InternalDamageTest.java
 D:\repos\amarillo\src\test\java\com\sfb\systemgroups\LabsTest.java

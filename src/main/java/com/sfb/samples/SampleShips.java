@@ -248,6 +248,7 @@ public class SampleShips {
 		DroneRack droneRack = new DroneRack(DroneRack.DroneRackType.TYPE_G);
 		droneRack.setSpaces(4);
 		droneRack.setNumberOfReloads(1);
+		droneRack.setDesignator("Drone Rack");
 		weaponList.add(droneRack);
 		// Drone Rack
 
@@ -393,7 +394,12 @@ public class SampleShips {
 		disrD.setDesignator("D");
 		weaponList.add(disrD);
 
-		// TODO: Drones
+		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
+		droneRack1.setDesignator("Rack 1");
+		weaponList.add(droneRack1);
+		DroneRack droneRack2 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
+		droneRack2.setDesignator("Rack 2");
+		weaponList.add(droneRack2);
 
 		shipSpecs.put("weapons", weaponList);
 
@@ -507,7 +513,9 @@ public class SampleShips {
 		disrB.setDesignator("B");
 		weaponList.add(disrB);
 
-		// TODO: Drones
+		DroneRack droneRack1 = new DroneRack(DroneRack.DroneRackType.TYPE_F);
+		droneRack1.setDesignator("Rack 1");
+		weaponList.add(droneRack1);
 
 		shipSpecs.put("weapons", weaponList);
 

@@ -21,6 +21,8 @@ public class DroneRack extends Weapon implements Launcher {
 
 	// Base constructor. Sets the arcs to full.
 	public DroneRack() {
+		setDacHitLocaiton("drone");
+		setType("Drone");
 		setArcs(new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 });
 	}
 
@@ -44,12 +46,15 @@ public class DroneRack extends Weapon implements Launcher {
 				break;
 			case TYPE_D:
 				this.spaces = 12;
+				this.numberOfReloads = 2;
 				break;
 			case TYPE_E:
 				this.spaces = 4;
+				this.numberOfReloads = 1;
 				break;
 			case TYPE_F:
 				this.spaces = 4;
+				this.numberOfReloads = 1;
 				break;
 			case TYPE_G:
 				this.spaces = 4;
@@ -57,9 +62,11 @@ public class DroneRack extends Weapon implements Launcher {
 				break;
 			case TYPE_H:
 				this.spaces = 20;
+				this.numberOfReloads = 2;
 				break;
-			default:
+			default: // Defaults to Type A if no type is specified.
 				this.spaces = 4;
+				this.numberOfReloads = 1;
 		}
 	}
 
