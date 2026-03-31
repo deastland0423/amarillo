@@ -8,6 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.samples.SampleShips;
+import com.sfb.weapons.Weapon;
 
 public class InternalDamageTest {
 
@@ -91,6 +92,36 @@ public class InternalDamageTest {
     }
 
     // --- Phasers can be destroyed via DAC ---
+
+    // --- Drone racks are hit by drone DAC results ---
+
+    @Test
+    public void droneRacksCanBeDestroyedByInternalDamage() {
+        // D7 has 2 drone racks; heavy damage must eventually produce a "drone" DAC hit
+        long dronesBefore = ship.getWeapons().getDroneList().stream()
+                .filter(Weapon::isFunctional).count();
+        assertTrue("D7 should start with functional drone racks", dronesBefore > 0);
+
+        ship.applyInternalDamage(50);
+
+        long dronesAfter = ship.getWeapons().getDroneList().stream()
+                .filter(Weapon::isFunctional).count();
+        assertTrue("Heavy internal damage should destroy at least one drone rack",
+                dronesAfter < dronesBefore);
+    }
+
+    @Test
+    public void destroyedDroneRackIsMarkedNonFunctional() {
+        // Verify the infrastructure the drone-DAC fix relies on: calling damage() on
+        // a rack from getDroneList() must flip isFunctional() to false.
+        List<Weapon> drones = ship.getWeapons().getDroneList();
+        assertFalse("D7 must have at least one drone rack", drones.isEmpty());
+
+        Weapon rack = drones.get(0);
+        assertTrue("Drone rack should start functional", rack.isFunctional());
+        rack.damage();
+        assertFalse("Drone rack must be non-functional after damage()", rack.isFunctional());
+    }
 
     @Test
     public void phasersCanBeDestroyedByInternalDamage() {
