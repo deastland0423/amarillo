@@ -20,7 +20,7 @@ public abstract class Weapon {
 	private int[]   arcs;					// An array of the arcs into which the weapon can fire. All arcs are a number (1 for straight ahead, etc.)
 	private boolean functional = true;		// True if the weapon is undamaged, false otherwise.
 	private int     lastImpulseFired = -9;	// The last impulse on which this weapon was fired. (Weapons normally can't fire twice within 8 impulses.)
-	private int     lastTurnFired;			// The last turn on which this weapon was fired.
+	private int     lastTurnFired    = -1;	// The last turn on which this weapon was fired. -1 = never fired.
 	
 	private int     maxRange;				// The maximum distance that this weapon can do damage.
 	private int     minRange;				// The range below which this weapon can not fire.
@@ -180,12 +180,16 @@ public abstract class Weapon {
 
 	/**
 	 * Returns true if this weapon is allowed to fire on the current impulse.
-	 * A phaser must wait at least WEAPON_FIRE_DELAY (8) global impulses since
-	 * it last fired, which also enforces the once-per-turn rule.
+	 * Two conditions must both be met:
+	 *   1. Has not fired this turn (once-per-turn rule).
+	 *   2. At least WEAPON_FIRE_DELAY (8) global impulses since last fired
+	 *      (prevents firing near end of one turn and start of the next).
 	 */
 	public boolean canFire() {
+		int currentTurn    = TurnTracker.getTurn();
 		int currentImpulse = TurnTracker.getImpulse();
-		return (currentImpulse - lastImpulseFired) >= Constants.WEAPON_FIRE_DELAY;
+		return lastTurnFired < currentTurn
+				&& (currentImpulse - lastImpulseFired) >= Constants.WEAPON_FIRE_DELAY;
 	}
 
 	/**

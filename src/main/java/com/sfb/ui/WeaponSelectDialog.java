@@ -160,13 +160,11 @@ public class WeaponSelectDialog extends Stage {
                 }
             }
 
-            FireResult result = game.applyDamage(target, shieldNumber, totalDamage);
+            FireResult result = game.markShieldDamage(target, shieldNumber, totalDamage);
             log.append("  Total damage: ").append(totalDamage);
             if (result.getBleed() > 0) {
-                log.append("   BLEED-THROUGH: ").append(result.getBleed()).append("\n");
-                for (String entry : result.getInternalLog()) {
-                    log.append(entry).append("\n");
-                }
+                log.append("   BLEED-THROUGH: ").append(result.getBleed())
+                   .append(" (internal damage resolves at end of Direct-Fire segment)\n");
             }
 
             combatLogEntry = log.toString();

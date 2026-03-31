@@ -280,6 +280,11 @@ public class ShipInfoPanel extends VBox {
                 statusText = turn > 0 ? "arming t" + turn : "unarmed";
                 statusColor = Color.rgb(220, 185, 30);
             }
+        } else if (!w.canFire()) {
+            int remaining = com.sfb.constants.Constants.WEAPON_FIRE_DELAY
+                    - (com.sfb.TurnTracker.getImpulse() - w.getLastImpulseFired());
+            statusText = "cooldown " + remaining;
+            statusColor = Color.rgb(180, 130, 30);
         } else {
             statusText = "ready";
             statusColor = Color.rgb(100, 180, 100);

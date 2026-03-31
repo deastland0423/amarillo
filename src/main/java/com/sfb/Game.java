@@ -21,12 +21,31 @@ import com.sfb.weapons.Weapon;
  */
 public class Game {
 
+    /**
+     * The four segments of each impulse, in order.
+     * Actions are gated by the current phase: movement keys only work in MOVEMENT,
+     * the fire dialog only opens in DIRECT_FIRE, etc.
+     */
+    public enum ImpulsePhase {
+        MOVEMENT    ("Movement"),
+        ACTIVITY    ("Activity"),
+        DIRECT_FIRE ("Direct Fire"),
+        END_OF_IMPULSE("End of Impulse");
+
+        private final String label;
+        ImpulsePhase(String label) { this.label = label; }
+        public String getLabel()   { return label; }
+    }
+
     // --- State ---
     private final List<Player>  players  = new ArrayList<>();
     private final List<Ship>    ships    = new ArrayList<>();
     private final List<Seeker>  seekers  = new ArrayList<>();
-    private final Set<Ship>     movedThisImpulse = new HashSet<>();
+    private final Set<Ship>     movedThisImpulse     = new HashSet<>();
+    private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
 
+    private ImpulsePhase currentPhase        = ImpulsePhase.MOVEMENT;
+    private List<String> lastInternalDamageLog = new ArrayList<>();
     private boolean inProgress = false;
 
     // --- Setup ---
@@ -116,16 +135,37 @@ public class Game {
     }
 
     /**
-     * Advance to the next impulse. If we just completed impulse 32, trigger
-     * end-of-turn cleanup and start the next turn automatically.
+     * Advance to the next phase. Cycles MOVEMENT → ACTIVITY → DIRECT_FIRE →
+     * END_OF_IMPULSE, then rolls over to the next impulse (or next turn after
+     * impulse 32).
      */
-    public void advanceImpulse() {
-        if (TurnTracker.getLocalImpulse() >= 32) {
-            endTurn();
-        } else {
-            TurnTracker.nextImpulse();
-            movedThisImpulse.clear();
+    public void advancePhase() {
+        switch (currentPhase) {
+            case MOVEMENT:
+                currentPhase = ImpulsePhase.ACTIVITY;
+                break;
+            case ACTIVITY:
+                currentPhase = ImpulsePhase.DIRECT_FIRE;
+                break;
+            case DIRECT_FIRE:
+                resolveInternalDamage();
+                currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                break;
+            case END_OF_IMPULSE:
+                // Roll over to next impulse (or next turn)
+                if (TurnTracker.getLocalImpulse() >= 32) {
+                    endTurn();
+                } else {
+                    TurnTracker.nextImpulse();
+                    movedThisImpulse.clear();
+                }
+                currentPhase = ImpulsePhase.MOVEMENT;
+                break;
         }
+    }
+
+    public ImpulsePhase getCurrentPhase() {
+        return currentPhase;
     }
 
     public int getCurrentTurn() {
@@ -170,8 +210,13 @@ public class Game {
     }
 
     public boolean canMoveThisImpulse(Ship ship) {
-        return ship.movesThisImpulse(TurnTracker.getLocalImpulse())
+        return currentPhase == ImpulsePhase.MOVEMENT
+                && ship.movesThisImpulse(TurnTracker.getLocalImpulse())
                 && !movedThisImpulse.contains(ship);
+    }
+
+    public boolean canFireThisPhase() {
+        return currentPhase == ImpulsePhase.DIRECT_FIRE;
     }
 
     // --- Movement actions ---
@@ -247,19 +292,41 @@ public class Game {
     }
 
     /**
-     * Apply damage to the target's shield and resolve any bleed-through as
-     * internal damage via the DAC.
+     * Mark shield damage from one firing volley (6D2 — Direct-Fire Weapons Fire Stage).
+     * Bleed-through is queued as pending internal damage; it will not be resolved
+     * until resolveInternalDamage() is called at the end of the Direct-Fire segment (6D4).
      *
-     * @return A FireResult containing the bleed-through amount and internal
-     *         damage log, ready for the UI to display.
+     * @return A FireResult with the bleed-through amount and an empty internal log
+     *         (log is populated later when resolveInternalDamage() runs).
      */
-    public FireResult applyDamage(Ship target, int shieldNumber, int totalDamage) {
+    public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage) {
         int bleed = target.damageShield(shieldNumber, totalDamage);
-        List<String> internalLog = new ArrayList<>();
         if (bleed > 0) {
-            internalLog = target.applyInternalDamage(bleed);
+            pendingInternalDamage.add(new PendingDamage(target, bleed));
         }
-        return new FireResult(bleed, internalLog);
+        return new FireResult(bleed, new ArrayList<>());
+    }
+
+    /**
+     * Resolve all queued internal damage (6D4 — Direct-Fire Weapons Damage Resolution Stage).
+     * Called automatically when advancePhase() moves out of DIRECT_FIRE.
+     */
+    private void resolveInternalDamage() {
+        lastInternalDamageLog = new ArrayList<>();
+        for (PendingDamage pd : pendingInternalDamage) {
+            List<String> entries = pd.target.applyInternalDamage(pd.bleed);
+            lastInternalDamageLog.add("=== Internal damage — " + pd.target.getName() + " ===");
+            lastInternalDamageLog.addAll(entries);
+        }
+        pendingInternalDamage.clear();
+    }
+
+    /**
+     * Returns the internal damage log from the most recent resolution step.
+     * The UI should read this after advancing past DIRECT_FIRE.
+     */
+    public List<String> getLastInternalDamageLog() {
+        return lastInternalDamageLog;
     }
 
     // --- Status ---
@@ -290,6 +357,18 @@ public class Game {
 
         public boolean isSuccess() { return success; }
         public String  getMessage() { return message; }
+    }
+
+    /**
+     * Bleed-through damage waiting to be resolved at end of Direct-Fire segment (6D4).
+     */
+    private static class PendingDamage {
+        final Ship   target;
+        final int    bleed;
+        PendingDamage(Ship target, int bleed) {
+            this.target = target;
+            this.bleed  = bleed;
+        }
     }
 
     /**

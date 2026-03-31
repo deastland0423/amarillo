@@ -65,12 +65,12 @@ public class SFBMapApp extends Application {
         statusLabel = new Label("Click a ship to select it");
         statusLabel.setStyle("-fx-text-fill: #889966; -fx-font-size: 11;");
 
-        Button nextImpulseBtn = new Button("Next Impulse  ▶");
+        Button nextImpulseBtn = new Button("Next Phase  ▶");
         nextImpulseBtn.setStyle(
             "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
             "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-cursor: hand;");
-        nextImpulseBtn.setOnAction(e -> advanceImpulse());
+        nextImpulseBtn.setOnAction(e -> advancePhase());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -142,6 +142,10 @@ public class SFBMapApp extends Application {
                 return;
             }
             if (event.getCode() == KeyCode.F) {
+                if (!game.canFireThisPhase()) {
+                    setStatus("Can't fire during " + game.getCurrentPhase().getLabel() + " phase");
+                    return;
+                }
                 Ship ship = mapCanvas.getSelectedShip();
                 if (ship == null) { setStatus("Select a ship first"); return; }
                 firingMode = true;
@@ -159,6 +163,7 @@ public class SFBMapApp extends Application {
         });
 
         refreshMovableShips();
+        setStatus(phaseStatus());
 
         primaryStage.setTitle("Star Fleet Battles");
         primaryStage.setScene(scene);
@@ -173,12 +178,32 @@ public class SFBMapApp extends Application {
     // Impulse management
     // -------------------------------------------------------------------------
 
-    private void advanceImpulse() {
-        game.advanceImpulse();
+    private void advancePhase() {
+        boolean leavingFirePhase = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
+        game.advancePhase();
+        if (leavingFirePhase) {
+            List<String> internalLog = game.getLastInternalDamageLog();
+            if (!internalLog.isEmpty()) {
+                for (String entry : internalLog) {
+                    combatLog.appendText(entry + "\n");
+                }
+                infoPanel.update(null);  // clear selection — player should re-select to see damage
+            }
+        }
         refreshMovableShips();
         turnLabel.setText(turnText());
-        setStatus("Impulse " + game.getCurrentImpulse() + " — ships with yellow ring may move");
+        setStatus(phaseStatus());
         mapCanvas.render();
+    }
+
+    private String phaseStatus() {
+        switch (game.getCurrentPhase()) {
+            case MOVEMENT:    return "Impulse " + game.getCurrentImpulse() + " — Movement  (W/A/D/Q/E to move)";
+            case ACTIVITY:    return "Impulse " + game.getCurrentImpulse() + " — Activity";
+            case DIRECT_FIRE: return "Impulse " + game.getCurrentImpulse() + " — Direct Fire  (select a ship, press F)";
+            case END_OF_IMPULSE: return "Impulse " + game.getCurrentImpulse() + " — End of Impulse";
+            default: return "";
+        }
     }
 
     private void refreshMovableShips() {
@@ -186,7 +211,8 @@ public class SFBMapApp extends Application {
     }
 
     private String turnText() {
-        return "Turn " + game.getCurrentTurn() + "  |  Impulse " + game.getCurrentImpulse() + " / 32";
+        return "Turn " + game.getCurrentTurn() + "  |  Impulse " + game.getCurrentImpulse()
+                + " / 32  |  " + game.getCurrentPhase().getLabel();
     }
 
     // -------------------------------------------------------------------------

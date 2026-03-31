@@ -65,6 +65,6 @@
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
   <testcase classname="com.sfb.utilities.HexMapUtilsTest" name="testFacingRightChange" time="0"/>
-  <testcase classname="com.sfb.utilities.HexMapUtilsTest" name="testTrueBearing" time="0"/>
   <testcase classname="com.sfb.utilities.HexMapUtilsTest" name="testAdjacentHex" time="0"/>
+  <testcase classname="com.sfb.utilities.HexMapUtilsTest" name="testTrueBearing" time="0"/>
 </testsuite>
