@@ -142,8 +142,11 @@ public class Ship extends Unit {
 	
 	@Override
 	public void startTurn() {
-		// Speed = Movement energy / movement cost
-		setSpeed((int)(energyAllocated.getMovement() / performanceData.getMovementCost()));
+		// Warp movement: each moveCost energy = 1 speed (max 30)
+		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost (max +1, giving speed 31)
+		int warpSpeed    = (int)(energyAllocated.getWarpMovement() / performanceData.getMovementCost());
+		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
+		setSpeed(Math.min(warpSpeed + impulseSpeed, 31));
 		
 		// Life support
 		if (energyAllocated.getLifeSupport() >= lifeSupportCost) {
@@ -520,9 +523,12 @@ public class Ship extends Unit {
 	public Energy buildAutoAllocation() {
 		Energy e = new Energy();
 
-		// Movement — all warp + impulse power
-		e.setMovement(powerSystems.getAvailableWarpPower()
-				+ powerSystems.getAvailableImpulse());
+		// Movement: warp up to speed 30, then 1 impulse point for speed 31
+		double moveCost      = performanceData.getMovementCost();
+		double warpAvailable = powerSystems.getAvailableWarpPower();
+		e.setWarpMovement(Math.min(warpAvailable, 30.0 * moveCost));
+		// Use 1 impulse point for the extra hex only if impulse power is available
+		e.setImpulseMovement(powerSystems.getAvailableImpulse() >= 1 ? 1 : 0);
 
 		// Life support
 		e.setLifeSupport(lifeSupportCost);
@@ -533,8 +539,10 @@ public class Ship extends Unit {
 		// Shields — activate at full cost
 		e.setActivateShields(activeShieldCost);
 
-		// Phaser capacitor — fill to capacity
-		e.setPhaserCapacitor(weapons.getAvailablePhaserCapacitor());
+		// Phaser capacitor — top off only (capacitor carries over between turns)
+		double capacitorNeeded = weapons.getAvailablePhaserCapacitor()
+				- weapons.getPhaserCapacitorEnergy();
+		e.setPhaserCapacitor(Math.max(0, capacitorNeeded));
 
 		// Heavy weapon arming — standard arming energy for each weapon
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
@@ -594,8 +602,14 @@ public class Ship extends Unit {
 					if (target != null) { target.damage(); hit = true; }
 					break;
 				}
+				case "drone": {
+					List<Weapon> drones = weapons.getDroneList();
+					Weapon target = drones.stream()
+						.filter(Weapon::isFunctional).findFirst().orElse(null);
+					if (target != null) { target.damage(); hit = true; }
+					break;
+				}
 				case "torp":
-				case "drone":
 				case "weapon": {
 					List<Weapon> all = weapons.fetchAllWeapons();
 					Weapon target = all.stream()

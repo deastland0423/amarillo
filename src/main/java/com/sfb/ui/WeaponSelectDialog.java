@@ -3,6 +3,8 @@ package com.sfb.ui;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sfb.Game;
+import com.sfb.Game.FireResult;
 import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
@@ -51,7 +53,7 @@ public class WeaponSelectDialog extends Stage {
 
     private String combatLogEntry = null;  // set after firing
 
-    public WeaponSelectDialog(Stage owner, Ship attacker, Ship target,
+    public WeaponSelectDialog(Stage owner, Game game, Ship attacker, Ship target,
                               List<Weapon> bearingWeapons, int range, int shieldNumber) {
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
@@ -158,11 +160,11 @@ public class WeaponSelectDialog extends Stage {
                 }
             }
 
-            int bleed = target.damageShield(shieldNumber, totalDamage);
+            FireResult result = game.applyDamage(target, shieldNumber, totalDamage);
             log.append("  Total damage: ").append(totalDamage);
-            if (bleed > 0) {
-                log.append("   BLEED-THROUGH: ").append(bleed).append("\n");
-                for (String entry : target.applyInternalDamage(bleed)) {
+            if (result.getBleed() > 0) {
+                log.append("   BLEED-THROUGH: ").append(result.getBleed()).append("\n");
+                for (String entry : result.getInternalLog()) {
                     log.append(entry).append("\n");
                 }
             }

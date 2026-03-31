@@ -241,7 +241,7 @@ public class SFBMapApp extends Application {
 
         WeaponSelectDialog dialog = new WeaponSelectDialog(
                 (Stage) mapCanvas.getScene().getWindow(),
-                attacker, target, bearing, range, shieldNumber);
+                game, attacker, target, bearing, range, shieldNumber);
         dialog.showAndWait();
 
         String entry = dialog.getCombatLogEntry();

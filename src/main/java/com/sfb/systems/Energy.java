@@ -24,7 +24,11 @@ public class Energy {
 	private int[] specificReinforcement = new int[6];
 	
 	// Movement
-	private double movement;
+	// Warp energy allocated to movement: each moveCost energy = 1 speed (max 30).
+	private double warpMovement;
+	// Impulse points allocated to movement: 1 point = 1 extra speed hex, flat cost
+	// regardless of moveCost (allows speed 31).
+	private int    impulseMovement;
 	private double highEnergyTurns;
 	private double erraticManuvers;
 	private double warpTacticalTurns;
@@ -97,12 +101,20 @@ public class Energy {
 		this.specificReinforcement = specificReinforcement;
 	}
 
-	public double getMovement() {
-		return movement;
+	public double getWarpMovement() {
+		return warpMovement;
 	}
 
-	public void setMovement(double movement) {
-		this.movement = movement;
+	public void setWarpMovement(double warpMovement) {
+		this.warpMovement = warpMovement;
+	}
+
+	public int getImpulseMovement() {
+		return impulseMovement;
+	}
+
+	public void setImpulseMovement(int impulseMovement) {
+		this.impulseMovement = impulseMovement;
 	}
 
 	public double getHighEnergyTurns() {

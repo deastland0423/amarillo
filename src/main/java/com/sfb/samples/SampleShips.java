@@ -212,7 +212,7 @@ public class SampleShips {
 		shipSpecs.put("minimumcrew", new Integer(4));
 
 		// Performance
-		shipSpecs.put("movecost", new Double(0.5));
+		shipSpecs.put("movecost", new Double(1.0 / 3.0));
 		shipSpecs.put("breakdown", new Integer(5));
 		shipSpecs.put("bonushets", new Integer(1));
 
