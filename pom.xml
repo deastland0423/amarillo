@@ -10,7 +10,10 @@
 
 	<name>Maven Quick Start Archetype</name>
 	<url>http://maven.apache.org</url>
-
+	<properties>
+		<javafx.version>21</javafx.version>   <!-- LTS version; change to 17 or 23 if you prefer -->
+		<maven.compiler.release>21</maven.compiler.release>
+	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -58,6 +61,17 @@
 			<scope>test</scope>
 		</dependency>
 		<!-- JavaFX is bundled with JDK 8 - no extra dependency needed -->
+		<!-- Not anymore :( MED -->
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-controls</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-fxml</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
@@ -91,6 +105,14 @@
 				<version>1.6.0</version>
 				<configuration>
 					<mainClass>com.sfb.ui.SFBMapApp</mainClass>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.openjfx</groupId>
+				<artifactId>javafx-maven-plugin</artifactId>
+				<version>0.0.8</version>
+				<configuration>
+					<mainClass>com.sfb.ui.SFBMapApp</mainClass> 
 				</configuration>
 			</plugin>
 		</plugins>
