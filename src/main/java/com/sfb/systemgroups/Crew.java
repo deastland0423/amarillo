@@ -9,9 +9,11 @@ public class Crew implements Systems {
 	private int crewUnits = 0;
 	private int minimumCrew = 0;
 	private int boardingParties = 0;
-	
+	private int deckCrews = 2; // Most ships have 2 deck crews for drone reloads.
+
 	private int availableCrewUnits = 0;
 	private int availableBoardingParties = 0;
+	private int availableDeckCrews = 0;
 	
 	private Unit owningUnit;
 	
@@ -23,8 +25,10 @@ public class Crew implements Systems {
 		crewUnits       = values.get("crew")            == null ? 0 : (Integer)values.get("crew");
 		boardingParties = values.get("boardingparties") == null ? 0 : (Integer)values.get("boardingparties");
 		minimumCrew     = values.get("minimumcrew")     == null ? 0 : (Integer)values.get("minimumcrew");
-		availableCrewUnits = crewUnits;
+		deckCrews       = values.get("deckcrews")       == null ? 2 : (Integer)values.get("deckcrews");
+		availableCrewUnits       = crewUnits;
 		availableBoardingParties = boardingParties;
+		availableDeckCrews       = deckCrews;
 	}
 	
 	/**
@@ -56,6 +60,18 @@ public class Crew implements Systems {
 		return this.minimumCrew;
 	}
 
+	public int getDeckCrews() {
+		return this.deckCrews;
+	}
+
+	public int getAvailableDeckCrews() {
+		return this.availableDeckCrews;
+	}
+
+	public void setAvailableDeckCrews(int availableDeckCrews) {
+		this.availableDeckCrews = availableDeckCrews;
+	}
+
 	@Override
 	public int fetchOriginalTotalBoxes() {
 		return 0;
@@ -68,8 +84,7 @@ public class Crew implements Systems {
 
 	@Override
 	public void cleanUp() {
-		// TODO Auto-generated method stub
-		
+		availableDeckCrews = deckCrews;
 	}
 
 	@Override

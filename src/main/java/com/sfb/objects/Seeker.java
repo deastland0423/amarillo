@@ -71,8 +71,16 @@ public interface Seeker {
 
 	/**
 	 * The seeker impacts its target, doing damage.
-	 * 
+	 *
 	 * @return The damage done by the seeker to its target.
 	 */
 	public int impact();
+
+	/**
+	 * Mark this seeker as identified by an enemy ship.
+	 * Identified seekers can be prioritized for point defense.
+	 */
+	public void identify();
+
+	public boolean isIdentified();
 }

@@ -316,14 +316,14 @@ public class Game {
     /**
      * Returns all weapons on the attacker that bear on the target.
      */
-    public List<Weapon> getBearingWeapons(Ship attacker, Ship target) {
+    public List<Weapon> getBearingWeapons(Ship attacker, Unit target) {
         return attacker.fetchAllBearingWeapons(target);
     }
 
     /**
-     * Compute the range between two ships.
+     * Compute the range between two units.
      */
-    public int getRange(Ship attacker, Ship target) {
+    public int getRange(Unit attacker, Unit target) {
         return MapUtils.getRange(attacker, target);
     }
 
@@ -350,6 +350,34 @@ public class Game {
             pendingInternalDamage.add(new PendingDamage(target, bleed));
         }
         return new FireResult(bleed, new ArrayList<>());
+    }
+
+    /**
+     * Apply weapon damage to any unit — routes to the correct damage path based on type.
+     * Ships: damage goes through shields first, bleed-through queued as internal damage.
+     * Drones: damage applied directly to hull; drone destroyed and removed when hull reaches 0.
+     *
+     * @return A log entry describing what happened.
+     */
+    public String applyDamageToUnit(int damage, Unit target, int shieldNumber) {
+        if (target instanceof Ship) {
+            Ship ship = (Ship) target;
+            FireResult result = markShieldDamage(ship, shieldNumber, damage);
+            return "Hit " + ship.getName() + " shield " + shieldNumber
+                    + " for " + damage + " damage"
+                    + (result.getBleed() > 0 ? " (" + result.getBleed() + " bleed)" : "");
+        } else if (target instanceof Drone) {
+            Drone drone = (Drone) target;
+            int remaining = drone.getHull() - damage;
+            drone.setHull(Math.max(0, remaining));
+            if (drone.getHull() <= 0) {
+                seekers.remove(drone);
+                return "Drone (" + drone.getDroneType() + ") destroyed";
+            }
+            return "Drone (" + drone.getDroneType() + ") hit for " + damage
+                    + " — " + drone.getHull() + " hull remaining";
+        }
+        return "Damage to unknown unit type ignored";
     }
 
     /**
@@ -397,7 +425,23 @@ public class Game {
         if (rack.isEmpty())
             return ActionResult.fail(rack.getName() + " has no drones loaded");
 
-        Drone drone = rack.getAmmo().remove(0);
+        return launchDrone(launcher, target, rack, rack.getAmmo().get(0));
+    }
+
+    /**
+     * Launch a specific drone from the given rack at the given target.
+     */
+    public ActionResult launchDrone(Ship launcher, Ship target, DroneRack rack, Drone drone) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        if (!rack.isFunctional())
+            return ActionResult.fail(rack.getName() + " is destroyed");
+        if (!rack.canFire())
+            return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
+        if (!rack.getAmmo().contains(drone))
+            return ActionResult.fail("Drone is not in " + rack.getName());
+
+        rack.getAmmo().remove(drone);
         rack.recordLaunch();
         drone.setLocation(launcher.getLocation());
         drone.setFacing(MapUtils.getBearing(launcher, target));

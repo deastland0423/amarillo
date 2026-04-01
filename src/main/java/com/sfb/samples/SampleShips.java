@@ -638,7 +638,8 @@ public class SampleShips {
 		droneList.add(new Drone(DroneType.TypeI));
 		droneList.add(new Drone(DroneType.TypeIV));
 		droneRack1.setAmmo(droneList);
-		droneRack1.setReloads(makeDrones(4, DroneType.TypeI));
+		droneRack1.getReloads().clear();
+		droneRack1.getReloads().add(makeDrones(4, DroneType.TypeI));
 		weaponList.add(droneRack1);
 
 		shipSpecs.put("weapons", weaponList);

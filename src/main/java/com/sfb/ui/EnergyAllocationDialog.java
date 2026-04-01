@@ -3,13 +3,19 @@ package com.sfb.ui;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.sfb.Game;
 import com.sfb.constants.Constants;
+import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.properties.WeaponArmingType;
 import com.sfb.systems.Energy;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
+import javafx.scene.control.CheckBox;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -94,7 +100,7 @@ public class EnergyAllocationDialog extends Stage {
         ToggleGroup impGroup = new ToggleGroup();
         impYes.setToggleGroup(impGroup);
         impNo.setToggleGroup(impGroup);
-        if (impAvail >= 1) { impYes.setSelected(true); } else { impNo.setSelected(true); impYes.setDisable(true); }
+        if (impAvail >= 1) { impNo.setSelected(true); } else { impNo.setSelected(true); impYes.setDisable(true); }
 
         Label speedLabel = styledLabel("Warp speed: " + maxWarpSpeed, LABEL_FONT, Color.rgb(100, 180, 255));
 
@@ -186,13 +192,53 @@ public class EnergyAllocationDialog extends Stage {
             weaponsBox.getChildren().add(grid);
         }
 
+        // --- Drone reloads ---
+        int deckCrews = ship.getCrew().getDeckCrews();
+        List<DroneRack> reloadableRacks = new ArrayList<>();
+        for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) {
+                DroneRack rack = (DroneRack) w;
+                if (rack.isFunctional() && !rack.getReloads().isEmpty()) reloadableRacks.add(rack);
+            }
+        }
+
+        // One checkbox per rack — selecting it assigns the first available reload set
+        Map<DroneRack, CheckBox> reloadChecks = new HashMap<>();
+        VBox reloadBox = new VBox(6);
+        reloadBox.setStyle(SECTION_BG);
+        reloadBox.getChildren().add(styledLabel("DRONE RELOADS", SECTION_FONT, Color.rgb(180, 140, 255)));
+        Label deckCrewLabel = styledLabel("Deck crews: " + deckCrews + " available", SMALL_FONT, Color.rgb(150, 150, 150));
+        reloadBox.getChildren().add(deckCrewLabel);
+
+        if (reloadableRacks.isEmpty()) {
+            reloadBox.getChildren().add(styledLabel("No reloads available", LABEL_FONT, Color.rgb(100, 100, 100)));
+        } else {
+            for (DroneRack rack : reloadableRacks) {
+                List<Drone> nextSet = rack.getReloads().get(0);
+                double cost = DroneRack.reloadCost(nextSet);
+                String setDesc = describeReloadSet(nextSet);
+                String label = rack.getName() + "  →  " + setDesc
+                        + "  (deck crew: " + (int) cost + ")"
+                        + "  [" + rack.getReloads().size() + " reload(s) left]";
+                CheckBox cb = new CheckBox(label);
+                cb.setFont(LABEL_FONT);
+                cb.setTextFill(Color.WHITE);
+                reloadChecks.put(rack, cb);
+                reloadBox.getChildren().add(cb);
+            }
+        }
+
         // --- Submit button (declared here so refresh lambda can reference it) ---
         Button submitBtn = new Button("Confirm Allocation");
 
         // --- Attach all listeners now that every variable is in scope ---
         Runnable refresh = () -> updateBudget(budgetLabel, ship, speedSlider, impYes,
                 shGroup, shActive, shMinimum, capGroup, capTopOff, capNeeded,
-                heavyWeapons, weaponGroups, submitBtn);
+                heavyWeapons, weaponGroups, reloadableRacks, reloadChecks, deckCrews, submitBtn);
+
+        for (CheckBox cb : reloadChecks.values()) {
+            cb.selectedProperty().addListener((obs, old, val) -> refresh.run());
+        }
 
         speedSlider.valueProperty().addListener((obs, old, val) -> {
             speedLabel.setText("Warp speed: " + (int) Math.round(val.doubleValue()));
@@ -210,7 +256,8 @@ public class EnergyAllocationDialog extends Stage {
                 ship, speedSlider, impYes, impGroup,
                 shGroup, shActive, shMinimum,
                 capGroup, capTopOff, capNeeded,
-                heavyWeapons, weaponGroups);
+                heavyWeapons, weaponGroups,
+                reloadableRacks, reloadChecks);
             game.submitAllocation(ship, submittedAllocation);
             close();
         });
@@ -223,7 +270,7 @@ public class EnergyAllocationDialog extends Stage {
         // Initial budget display
         refresh.run();
 
-        VBox root = new VBox(10, header, movementBox, shieldsBox, capBox, weaponsBox, buttonRow);
+        VBox root = new VBox(10, header, movementBox, shieldsBox, capBox, weaponsBox, reloadBox, buttonRow);
         root.setPadding(new Insets(12));
         root.setStyle(DARK_BG);
 
@@ -241,7 +288,8 @@ public class EnergyAllocationDialog extends Stage {
     private Energy buildAllocation(Ship ship, Slider speedSlider, RadioButton impYes,
             ToggleGroup impGroup, ToggleGroup shGroup, RadioButton shActive,
             RadioButton shMinimum, ToggleGroup capGroup, RadioButton capTopOff,
-            double capNeeded, List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups) {
+            double capNeeded, List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
+            List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks) {
 
         Energy e = new Energy();
         double moveCost = ship.getPerformanceData().getMovementCost();
@@ -251,8 +299,8 @@ public class EnergyAllocationDialog extends Stage {
         e.setWarpMovement(warpSpeed * moveCost);
         e.setImpulseMovement(impYes.isSelected() ? 1 : 0);
 
-        // Life support and fire control always at full cost
-        e.setLifeSupport(ship.getLifeSupportCost());
+        // Crippled ships get life support for free; others must pay
+        e.setLifeSupport(ship.isCrippled() ? 0 : ship.getLifeSupportCost());
         e.setFireControl(ship.getFireControlCost());
 
         // Shields
@@ -284,6 +332,14 @@ public class EnergyAllocationDialog extends Stage {
             // "Don't arm" — weapon not added to maps, applyAllocationEnergy won't be called
         }
 
+        // Drone reloads
+        for (DroneRack rack : reloadableRacks) {
+            CheckBox cb = reloadChecks.get(rack);
+            if (cb != null && cb.isSelected()) {
+                e.getReloadAssignments().put(rack, rack.getReloads().get(0));
+            }
+        }
+
         return e;
     }
 
@@ -292,13 +348,14 @@ public class EnergyAllocationDialog extends Stage {
             ToggleGroup shGroup, RadioButton shActive, RadioButton shMinimum,
             ToggleGroup capGroup, RadioButton capTopOff, double capNeeded,
             List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
-            Button submitBtn) {
+            List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
+            int totalDeckCrews, Button submitBtn) {
 
         double moveCost  = ship.getPerformanceData().getMovementCost();
         int    warpSpeed = (int) Math.round(speedSlider.getValue());
         double spent     = warpSpeed * moveCost;
 
-        spent += ship.getLifeSupportCost();
+        spent += ship.isCrippled() ? 0 : ship.getLifeSupportCost();
         spent += ship.getFireControlCost();
         if (impYes.isSelected()) spent += 1;
 
@@ -327,11 +384,37 @@ public class EnergyAllocationDialog extends Stage {
             }
         }
 
+        // Drone reloads — track deck crew usage
+        double deckCrewUsed = 0;
+        for (DroneRack rack : reloadableRacks) {
+            CheckBox cb = reloadChecks.get(rack);
+            if (cb != null && cb.isSelected()) {
+                deckCrewUsed += DroneRack.reloadCost(rack.getReloads().get(0));
+            }
+        }
+
         double total = ship.getPowerSysetems().getTotalAvailablePower();
-        boolean over = spent > total;
-        budgetLabel.setText(String.format("Spent: %.1f / %.0f", spent, total));
-        budgetLabel.setTextFill(over ? Color.rgb(255, 80, 80) : Color.rgb(200, 200, 100));
-        submitBtn.setDisable(over);
+        boolean overEnergy    = spent > total;
+        boolean overDeckCrews = deckCrewUsed > totalDeckCrews;
+        budgetLabel.setText(String.format("Spent: %.1f / %.0f    Deck crews: %.0f / %d",
+                spent, total, deckCrewUsed, totalDeckCrews));
+        budgetLabel.setTextFill((overEnergy || overDeckCrews) ? Color.rgb(255, 80, 80) : Color.rgb(200, 200, 100));
+        submitBtn.setDisable(overEnergy || overDeckCrews);
+    }
+
+    /** Produces a compact description of a reload set, e.g. "2×TypeI 1×TypeIV". */
+    private static String describeReloadSet(List<Drone> set) {
+        Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+        for (Drone d : set) {
+            String key = d.getDroneType().toString();
+            counts.put(key, counts.getOrDefault(key, 0) + 1);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(entry.getValue()).append("×").append(entry.getKey());
+        }
+        return sb.toString();
     }
 
     private static Label styledLabel(String text, Font font, Color color) {

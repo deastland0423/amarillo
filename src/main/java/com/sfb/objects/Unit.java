@@ -18,24 +18,22 @@ public class Unit extends Marker {
 	// a direction that the thing is facing, relative
 	// to the hex map. (1 is "due north" and 4 is "due south).
 	//
-	//    1
-	// 2     5
-	//    X
-	// 17    9
-	//    3
+	// 1
+	// 2 5
+	// X
+	// 17 9
+	// 3
 	//
-	private String  name				= null;		// Name of the ship.
-	private int     facing				= 0;		// Direction the unit is facing (1 through 6)
-	private int     speed				= 0;		// Speed the unit is moving (0 through 32)
-	private int     sizeClass			= 0;		// Size class of the unit (0 through 6...I think?)
-	private int     sideslipCount		= 100;		// Track number of moves since last sideslip.
-	private int     turnCount			= 100;		// Track number of moves since last turn.
-	private boolean tractored			= false;	// True if the unit is tractored by another unit.
-	private Unit    tractoringUnit		= null;		// The unit that is applying a tractor to this unit, if any.
-	
-	private Player owner	= null; // controlling player
+	private String name = null; // Name of the ship.
+	private int facing = 0; // Direction the unit is facing (1 through 6)
+	private int speed = 0; // Speed the unit is moving (0 through 32)
+	private int sizeClass = 0; // Size class of the unit (0 through 6...I think?)
+	private int sideslipCount = 100; // Track number of moves since last sideslip.
+	private int turnCount = 100; // Track number of moves since last turn.
+	private boolean tractored = false; // True if the unit is tractored by another unit.
+	private Unit tractoringUnit = null; // The unit that is applying a tractor to this unit, if any.
 
-	// TODO: Point Value
+	private Player owner = null; // controlling player
 
 	private TurnMode turnMode;
 
@@ -45,27 +43,29 @@ public class Unit extends Marker {
 
 	/**
 	 * Initialize a basic unit by setting its turn mode.
+	 * 
 	 * @param values
 	 */
-	//TODO: Should I do an "init" or just have these values explicitly set on instantiation?
+	// TODO: Should I do an "init" or just have these values explicitly set on
+	// instantiation?
 	public void init(Map<String, Object> values) {
-		name			= values.get("name")	    == null ? null : (String)values.get("name");
-		turnMode        = values.get("turnmode")    == null ? null : (TurnMode) values.get("turnmode");
-		sizeClass       = values.get("sizeclass")   == null ? 3    : (Integer)values.get("sizeclass");
+		name = values.get("name") == null ? null : (String) values.get("name");
+		turnMode = values.get("turnmode") == null ? null : (TurnMode) values.get("turnmode");
+		sizeClass = values.get("sizeclass") == null ? 3 : (Integer) values.get("sizeclass");
 	}
-	
+
 	/**
 	 * Perform the various functions that are needed at the start of each turn,
 	 * such as setting a speed.
 	 */
 	public void startTurn() {
-		
+
 	}
-	
+
 	public String getName() {
 		return this.name;
 	}
-	
+
 	public void setName(String name) {
 		this.name = name;
 	}
@@ -129,7 +129,7 @@ public class Unit extends Marker {
 	public void setTurnMode(TurnMode mode) {
 		turnMode = mode;
 	}
-	
+
 	/**
 	 * Get the number of hexes the unit must move before it can turn.
 	 * 
@@ -143,18 +143,20 @@ public class Unit extends Marker {
 	public Player getOwner() {
 		return this.owner;
 	}
-	
+
 	public void setOwner(Player player) {
 		this.owner = player;
 	}
-	
+
 	// / MOVEMENT ///
 
 	/**
 	 * Sideslip the unit to the left. This is only possible if the unit
 	 * has moved at least one hex since the last sideslip.
-	 * The unit will move to the adjacent hex in (relative) direction 21 without changing
+	 * The unit will move to the adjacent hex in (relative) direction 21 without
+	 * changing
 	 * its facing.
+	 * 
 	 * @return True if the sideslip was possible, false otherwise.
 	 */
 	public boolean sideslipLeft() {
@@ -162,10 +164,11 @@ public class Unit extends Marker {
 			return false;
 		}
 
-		// Calculate what hex is adjacent in the '21' relative bearing (forward left). Move the ship to that hex.
+		// Calculate what hex is adjacent in the '21' relative bearing (forward left).
+		// Move the ship to that hex.
 		int relativeBearing = 21;
 		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(relativeBearing, getFacing())));
-		
+
 		sideslipCount = 0;
 		return true;
 	}
@@ -173,15 +176,18 @@ public class Unit extends Marker {
 	/**
 	 * Sideslip the unit to the right. This is only possible if the unit
 	 * has moved at least one hex since the last sideslip.
-	 * The unit will move to the adjacent hex in (relative) direction 5 without changing
-	 * its facing. 
+	 * The unit will move to the adjacent hex in (relative) direction 5 without
+	 * changing
+	 * its facing.
+	 * 
 	 * @return True if the sideslip was possible, false otherwise.
 	 */
 	public boolean sideslipRight() {
 		if (sideslipCount == 0) {
 			return false;
 		}
-		// Calculate what hex is adjacent in the '5' relative bearing (forward right). Move the ship to that hex.
+		// Calculate what hex is adjacent in the '5' relative bearing (forward right).
+		// Move the ship to that hex.
 		int relativeBearing = 5;
 		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(relativeBearing, getFacing())));
 
@@ -191,9 +197,11 @@ public class Unit extends Marker {
 
 	/**
 	 * Turn the unit to the left and move one hex forward. This will change the
-	 * facing of the unit to (relative) direction 21 and then move it into the adjacent
+	 * facing of the unit to (relative) direction 21 and then move it into the
+	 * adjacent
 	 * hex in (relative) direction 1.
 	 * This is only possible if the unit has fulfilled its turn mode.
+	 * 
 	 * @return True if the turn was possible, false otherwise.
 	 */
 	public boolean turnLeft() {
@@ -212,9 +220,11 @@ public class Unit extends Marker {
 
 	/**
 	 * Turn the unit to the right and move one hex forward. This will change the
-	 * facing of the unit to (relative) direction 5 and then move it into the adjacent
+	 * facing of the unit to (relative) direction 5 and then move it into the
+	 * adjacent
 	 * hex in (relative) direction 1.
 	 * This is only possible if the unit has fulfilled its turn mode.
+	 * 
 	 * @return True if the turn was possible, false otherwise.
 	 */
 	public boolean turnRight() {
@@ -234,6 +244,7 @@ public class Unit extends Marker {
 	/**
 	 * Move the unit a single hex forward, placing it in the adjacent hex
 	 * in (relative) direction 1 without changing facing.
+	 * 
 	 * @return True if this is a legal move.
 	 */
 	public boolean goForward() {
@@ -242,12 +253,13 @@ public class Unit extends Marker {
 
 		// Find the hex directly in front of the ship and move the ship to that hex.
 		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(1, getFacing())));
-		
+
 		return true;
 	}
-	
+
 	/**
 	 * Move the unit a single hex backward.
+	 * 
 	 * @return True if this is a legal move.
 	 */
 	public boolean goBackward() {
@@ -256,7 +268,7 @@ public class Unit extends Marker {
 
 		// Find the hex directly behind of the ship and move the ship to that hex.
 		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(13, getFacing())));
-		
+
 		return true;
 	}
 
@@ -264,7 +276,7 @@ public class Unit extends Marker {
 	 * Change the facing of the unit without moving it.
 	 * 
 	 * @param absoluteFacing
-	 *            The new facing of the unit with respect to the map.
+	 *                       The new facing of the unit with respect to the map.
 	 * @return True if the maneuver is possible, false otherwise.
 	 */
 	public boolean performHet(int absoluteFacing) {
@@ -272,29 +284,31 @@ public class Unit extends Marker {
 		setFacing(absoluteFacing);
 		turnCount = 0;
 		sideslipCount = 0;
-		
+
 		return true;
 	}
-	
+
 	/**
 	 * Check if the unit is being held in a tractor.
+	 * 
 	 * @return True if the unit is tractored, false otherwise.
 	 */
 	public boolean isTractored() {
 		return tractored;
 	}
-	
+
 	protected void setTractored(boolean value) {
 		this.tractored = value;
 	}
-	
+
 	public Unit getTractoringUnit() {
 		return this.tractoringUnit;
 	}
-	
+
 	protected void setTractoringUnit(Unit unit) {
 		this.tractoringUnit = unit;
 	}
+
 	/**
 	 * Unit is tractored by another unit.
 	 * 
@@ -303,10 +317,10 @@ public class Unit extends Marker {
 	 * @return True if the tractor is successful, false otherwise.
 	 */
 	public boolean applyTractor(int energy, Unit tractoringUnit) {
-		
+
 		return true;
 	}
-	
+
 	/**
 	 * Release the unit from whatever tractor beam is holding it.
 	 */

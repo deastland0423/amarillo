@@ -106,6 +106,23 @@ public class HexMapCanvas extends Canvas {
         return closest;
     }
 
+    /**
+     * Returns all drones whose hex contains the given pixel.
+     * Multiple drones can share a hex, so all are returned.
+     */
+    public List<Drone> hitTestDrones(double pixelX, double pixelY) {
+        List<Drone> hits = new ArrayList<>();
+        for (Seeker seeker : seekers) {
+            if (!(seeker instanceof Drone)) continue;
+            Drone drone = (Drone) seeker;
+            if (drone.getLocation() == null) continue;
+            double[] c = hexCenter(drone.getLocation().getX(), drone.getLocation().getY());
+            double dist = Math.hypot(pixelX - c[0], pixelY - c[1]);
+            if (dist < COUNTER_SIZE) hits.add(drone);
+        }
+        return hits;
+    }
+
     // -------------------------------------------------------------------------
     // Public render entry point
     // -------------------------------------------------------------------------

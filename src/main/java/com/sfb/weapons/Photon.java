@@ -344,6 +344,20 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 	}
 	
 	@Override
+	public int[] getHitChart() {
+		switch(armingType) {
+		case STANDARD:
+			return hitChart;
+		case OVERLOAD:
+			return overloadHitChart;
+		case SPECIAL:
+			return proximityHitChart;
+		default:
+			return hitChart;
+		}
+	}
+	
+	@Override
 	public void cleanUp() {
 		//TODO: figure this out.
 	}

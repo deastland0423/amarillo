@@ -8,7 +8,9 @@ import com.sfb.Game.FireResult;
 import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
+import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
 import com.sfb.weapons.DirectFire;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
@@ -53,7 +55,7 @@ public class WeaponSelectDialog extends Stage {
 
     private String combatLogEntry = null;  // set after firing
 
-    public WeaponSelectDialog(Stage owner, Game game, Ship attacker, Ship target,
+    public WeaponSelectDialog(Stage owner, Game game, Ship attacker, Unit target,
                               List<Weapon> bearingWeapons, int range, int shieldNumber) {
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
@@ -63,8 +65,10 @@ public class WeaponSelectDialog extends Stage {
 
         // --- Header ---
         Label title = label(attacker.getName() + "  →  " + target.getName(), HEADER_FONT, Color.WHITE);
-        Label sub   = label("Range " + range + "   Target shield #" + shieldNumber, LABEL_FONT,
-                Color.rgb(150, 150, 180));
+        String targetInfo = (target instanceof Ship)
+                ? "Range " + range + "   Target shield #" + shieldNumber
+                : "Range " + range + "   Drone hull " + ((Drone) target).getHull();
+        Label sub = label(targetInfo, LABEL_FONT, Color.rgb(150, 150, 180));
 
         VBox header = new VBox(3, title, sub);
         header.setPadding(new Insets(8, 10, 8, 10));
@@ -160,11 +164,16 @@ public class WeaponSelectDialog extends Stage {
                 }
             }
 
-            FireResult result = game.markShieldDamage(target, shieldNumber, totalDamage);
             log.append("  Total damage: ").append(totalDamage);
-            if (result.getBleed() > 0) {
-                log.append("   BLEED-THROUGH: ").append(result.getBleed())
-                   .append(" (internal damage resolves at end of Direct-Fire segment)\n");
+            if (target instanceof Ship) {
+                FireResult result = game.markShieldDamage((Ship) target, shieldNumber, totalDamage);
+                if (result.getBleed() > 0) {
+                    log.append("   BLEED-THROUGH: ").append(result.getBleed())
+                       .append(" (internal damage resolves at end of Direct-Fire segment)\n");
+                }
+            } else {
+                String dmgLog = game.applyDamageToUnit(totalDamage, target, shieldNumber);
+                log.append("   ").append(dmgLog).append("\n");
             }
 
             combatLogEntry = log.toString();

@@ -4,7 +4,9 @@ import java.util.List;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
+import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Weapon;
 import javafx.application.Application;
@@ -13,6 +15,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -43,8 +46,12 @@ public class SFBMapApp extends Application {
     private Label         selectedLabel;
     private Label         statusLabel;
     private TextArea      combatLog;
-    private boolean       firingMode  = false;
-    private boolean       droneMode   = false;
+    private Button        nextPhaseBtn;
+    private boolean       firingMode     = false;
+    private boolean       droneMode      = false;
+    private DroneRack     pendingRack    = null;
+    private Drone         pendingDrone   = null;
+    private final Tooltip droneTooltip   = new Tooltip();
 
     @Override
     public void start(Stage primaryStage) {
@@ -68,12 +75,12 @@ public class SFBMapApp extends Application {
         statusLabel = new Label("Click a ship to select it");
         statusLabel.setStyle("-fx-text-fill: #889966; -fx-font-size: 11;");
 
-        Button nextImpulseBtn = new Button("Next Phase  ▶");
-        nextImpulseBtn.setStyle(
+        nextPhaseBtn = new Button(nextPhaseLabel());
+        nextPhaseBtn.setStyle(
             "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
             "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-cursor: hand;");
-        nextImpulseBtn.setOnAction(e -> advancePhase());
+        nextPhaseBtn.setOnAction(e -> advancePhase());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -81,7 +88,7 @@ public class SFBMapApp extends Application {
         Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire  L=drone");
         keyHelp.setStyle("-fx-text-fill: #445566; -fx-font-size: 10;");
 
-        HBox toolbar = new HBox(16, turnLabel, selectedLabel, statusLabel, spacer, keyHelp, nextImpulseBtn);
+        HBox toolbar = new HBox(16, turnLabel, selectedLabel, statusLabel, spacer, keyHelp, nextPhaseBtn);
         toolbar.setStyle("-fx-padding: 8 14; -fx-background-color: #0d0d22; -fx-alignment: center-left;");
 
         ScrollPane infoScroll = new ScrollPane(infoPanel);
@@ -112,30 +119,35 @@ public class SFBMapApp extends Application {
 
         // --- Mouse: click to select or target ---
         mapCanvas.setOnMouseClicked(event -> {
-            Ship hit = mapCanvas.hitTestShip(event.getX(), event.getY());
+            Ship hitShip   = mapCanvas.hitTestShip(event.getX(), event.getY());
+            List<Drone> hitDrones = mapCanvas.hitTestDrones(event.getX(), event.getY());
+            // Prefer ship if both overlap; pick first drone otherwise
+            Unit hitUnit = hitShip != null ? hitShip : (hitDrones.isEmpty() ? null : hitDrones.get(0));
+
             if (droneMode) {
                 Ship launcher = mapCanvas.getSelectedShip();
-                if (hit == null) {
+                if (hitShip == null) {
                     setStatus("No target — click a ship or press Escape to cancel");
-                } else if (hit == launcher) {
+                } else if (hitShip == launcher) {
                     setStatus("Can't target yourself — click an enemy or press Escape");
                 } else {
-                    DroneRack rack = findLoadedRack(launcher);
-                    if (rack != null) {
-                        Game.ActionResult result = game.launchDrone(launcher, hit, rack);
+                    if (pendingRack != null && pendingDrone != null) {
+                        Game.ActionResult result = game.launchDrone(launcher, hitShip, pendingRack, pendingDrone);
                         combatLog.appendText(result.getMessage() + "\n");
                         setStatus(result.getMessage());
+                        mapCanvas.setSeekers(game.getSeekers());
+                        mapCanvas.render();
                     }
                     exitDroneMode();
                 }
             } else if (firingMode) {
                 Ship attacker = mapCanvas.getSelectedShip();
-                if (hit == null) {
-                    setStatus("No target — click a ship or press Escape to cancel");
-                } else if (hit == attacker) {
+                if (hitUnit == null) {
+                    setStatus("No target — click a ship or drone or press Escape to cancel");
+                } else if (hitUnit == attacker) {
                     setStatus("Can't target yourself — click an enemy or press Escape");
                 } else {
-                    resolveWeaponsFire(attacker, hit);
+                    resolveWeaponsFire(attacker, hitUnit);
                     exitFiringMode();
                 }
             } else {
@@ -152,6 +164,20 @@ public class SFBMapApp extends Application {
             mapCanvas.render();
             scene.getRoot().requestFocus();
         });
+
+        // --- Drone tooltip on hover ---
+        mapCanvas.setOnMouseMoved(event -> {
+            List<Drone> hovered = mapCanvas.hitTestDrones(event.getX(), event.getY());
+            if (hovered.isEmpty()) {
+                droneTooltip.hide();
+            } else {
+                droneTooltip.setText(buildDroneTooltip(hovered));
+                droneTooltip.show(mapCanvas,
+                        event.getScreenX() + 12,
+                        event.getScreenY() + 12);
+            }
+        });
+        mapCanvas.setOnMouseExited(event -> droneTooltip.hide());
 
         // --- Keyboard ---
         scene.setOnKeyPressed(event -> {
@@ -180,8 +206,12 @@ public class SFBMapApp extends Application {
                 }
                 Ship ship = mapCanvas.getSelectedShip();
                 if (ship == null) { setStatus("Select a ship first"); return; }
-                DroneRack rack = findLoadedRack(ship);
-                if (rack == null) { setStatus(ship.getName() + " has no drones loaded"); return; }
+                DroneSelectDialog dlg = new DroneSelectDialog(
+                        mapCanvas.getScene().getWindow(), ship);
+                dlg.showAndWait();
+                pendingRack  = dlg.getSelectedRack();
+                pendingDrone = dlg.getSelectedDrone();
+                if (pendingRack == null || pendingDrone == null) return;
                 droneMode = true;
                 mapCanvas.setFiringMode(true);
                 setStatus("DRONE MODE — click a target  (Escape to cancel)");
@@ -256,8 +286,20 @@ public class SFBMapApp extends Application {
         }
         refreshMovableShips();
         turnLabel.setText(turnText());
+        nextPhaseBtn.setText(nextPhaseLabel());
         setStatus(phaseStatus());
         mapCanvas.render();
+    }
+
+    private String nextPhaseLabel() {
+        switch (game.getCurrentPhase()) {
+            case MOVEMENT:       return "End Movement  ▶";
+            case ACTIVITY:       return "End Activity  ▶";
+            case DIRECT_FIRE:    return "Resolve Fire  ▶";
+            case END_OF_IMPULSE:
+                return game.getCurrentImpulse() >= 32 ? "Next Turn  ▶" : "Next Impulse  ▶";
+            default:             return "Next Phase  ▶";
+        }
     }
 
     private String phaseStatus() {
@@ -318,25 +360,17 @@ public class SFBMapApp extends Application {
     }
 
     private void exitDroneMode() {
-        droneMode = false;
+        droneMode    = false;
+        pendingRack  = null;
+        pendingDrone = null;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
         setStatus(sel != null ? "Selected  —  press L to launch drone" : "");
         mapCanvas.render();
     }
 
-    /** Returns the first loaded DroneRack on the ship, or null if none. */
-    private DroneRack findLoadedRack(Ship ship) {
-        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof DroneRack) {
-                DroneRack rack = (DroneRack) w;
-                if (rack.isFunctional() && !rack.isEmpty() && rack.canFire()) return rack;
-            }
-        }
-        return null;
-    }
 
-    private void resolveWeaponsFire(Ship attacker, Ship target) {
+    private void resolveWeaponsFire(Ship attacker, Unit target) {
         int range = game.getRange(attacker, target);
         List<Weapon> bearing = game.getBearingWeapons(attacker, target);
 
@@ -346,7 +380,9 @@ public class SFBMapApp extends Application {
             return;
         }
 
-        int shieldNumber = game.getShieldNumber(attacker, target);
+        int shieldNumber = (target instanceof Ship)
+                ? game.getShieldNumber(attacker, (Ship) target)
+                : 0;
 
         WeaponSelectDialog dialog = new WeaponSelectDialog(
                 (Stage) mapCanvas.getScene().getWindow(),
@@ -357,13 +393,32 @@ public class SFBMapApp extends Application {
         if (entry != null) {
             combatLog.appendText(entry + "\n");
             setStatus("Fired — see combat log");
-            selectedLabel.setText(target.getName() + " (" + target.getHullType() + ")  — damage taken");
-            infoPanel.update(target);
+            if (target instanceof Ship) {
+                selectedLabel.setText(target.getName() + " (" + ((Ship) target).getHullType() + ")  — damage taken");
+                infoPanel.update((Ship) target);
+            } else {
+                selectedLabel.setText(target.getName() + "  — drone hit");
+            }
         } else {
             setStatus("Fire cancelled");
             infoPanel.update(attacker);
         }
         mapCanvas.render();
+    }
+
+    private String buildDroneTooltip(List<Drone> drones) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < drones.size(); i++) {
+            if (i > 0) sb.append("\n----------\n");
+            Drone d = drones.get(i);
+            sb.append("Type:    ").append(d.getDroneType() != null ? d.getDroneType() : "?").append("\n");
+            sb.append("Warhead: ").append(d.getWarheadDamage()).append("\n");
+            sb.append("Hull:    ").append(d.getHull()).append("\n");
+            sb.append("Speed:   ").append(d.getSpeed()).append("\n");
+            String targetName = d.getTarget() != null ? d.getTarget().getName() : "none";
+            sb.append("Target:  ").append(targetName);
+        }
+        return sb.toString();
     }
 
     private void setStatus(String message) {

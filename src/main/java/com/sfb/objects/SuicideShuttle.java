@@ -4,6 +4,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 
 	Unit target; // The target of the suicide shuttle
 	private int warheadDamage; // The damage dealt if the weapon hits its target.
+	private boolean identified; // True if an enemy ship has identified this seeker.
 
 	public SuicideShuttle(int warhead) {
 		super();
@@ -93,6 +94,16 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 	public int impact() {
 		// TODO Auto-generated method stub
 		return 0;
+	}
+
+	@Override
+	public boolean isIdentified() {
+		return identified;
+	}
+
+	@Override
+	public void identify() {
+		this.identified = true;
 	}
 
 }

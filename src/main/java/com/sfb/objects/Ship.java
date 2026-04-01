@@ -31,6 +31,7 @@ import com.sfb.systems.Tractors;
 import com.sfb.utilities.DAC;
 import com.sfb.utilities.DiceRoller;
 import com.sfb.utilities.MapUtils;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
 
@@ -202,8 +203,16 @@ public class Ship extends Unit {
 				((HeavyWeapon) weapon).applyAllocationEnergy(energyAllocated.getArmingEnergy().get(weapon),
 						energyAllocated.getArmingType().get(weapon));
 			}
+			// For drone racks, apply any assigned reload
+			if (weapon instanceof DroneRack) {
+				DroneRack rack = (DroneRack) weapon;
+				java.util.List<com.sfb.objects.Drone> reloadSet =
+						energyAllocated.getReloadAssignments().get(rack);
+				if (reloadSet != null) {
+					rack.applyReload(reloadSet);
+				}
+			}
 		}
-		// TODO: Need to figure this out.
 	}
 
 	/**
@@ -469,14 +478,30 @@ public class Ship extends Unit {
 		}
 
 		if (breakdownRoll >= performanceData.getBreakdownChance()) {
-			// TODO: BREAKDOWN CONSEQUENCES!
-
+			doBreakdown();
 			return false;
 		}
 
 		super.performHet(absoluteFacing);
 
 		return true;
+	}
+
+	private void doBreakdown() {
+
+		/*
+		 * Here's what happens in a breakdown.
+		 * 1. The ship immediately stops moving and sets its speed to 0.
+		 * 2. Roll one die (d6) and face the ship in the resulting direction (A-F).
+		 * 3. The ship may not move by any means for 16 impulses, not even for tactical
+		 * maneuvers or HETs
+		 * 4. 1/3 of the crew units are lost (round up).
+		 * 5. 1/5 of of all remaining warp power is lost (round up).
+		 * 6. The ship suffers 2 internal damage points that penetrate the armor. Apply
+		 * these to the DAC as normal.
+		 * 7. The ships breakdown rating is reduced by 1 for the rest of the game
+		 * (minimum 1).
+		 */
 	}
 
 	/**

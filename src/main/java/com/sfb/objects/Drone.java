@@ -22,6 +22,7 @@ public class Drone extends Unit implements Seeker {
 	private double rackSize; // The number of spaces the drone takes up in a rack.
 	private int hull; // The hull damage needed to kill the drone.
 	private Seeker.SeekerType seekerType; // The type of seeker.
+	private boolean identified = false; // True if an enemy ship has identified this seeker.
 
 	public Drone() {
 		setTurnMode(TurnMode.Seeker);
@@ -50,7 +51,7 @@ public class Drone extends Unit implements Seeker {
 				this.endurance = 800;
 				this.setSpeed(12);
 				this.warheadDamage = 12;
-				this.rackSize = 3;
+				this.rackSize = 1;
 				this.selfGuiding = true;
 				this.hull = 4;
 				break;
@@ -194,6 +195,16 @@ public class Drone extends Unit implements Seeker {
 	@Override
 	public void setSeekerType(Seeker.SeekerType seekerType) {
 		this.seekerType = seekerType;
+	}
+
+	@Override
+	public void identify() {
+		this.identified = true;
+	}
+
+	@Override
+	public boolean isIdentified() {
+		return identified;
 	}
 
 	@Override

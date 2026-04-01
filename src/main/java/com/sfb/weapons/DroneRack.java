@@ -12,8 +12,10 @@ public class DroneRack extends Weapon implements Launcher {
 	private int spaces = 0; // The number of spaces in the rack (usually 4 or 6)
 
 	private List<Drone> ammoList = new ArrayList<Drone>(); // The drones in the rack.
-	private List<Drone> reloads = new ArrayList<Drone>(); // The drone reloads available.
-	private int numberOfReloads = 0; // The number of reloads available.
+	private List<List<Drone>> reloads = new ArrayList<>(); // Each entry is one full reload set.
+	private int numberOfReloads = 0; // The number of reload sets available (mirrors reloads.size()).
+
+	private boolean reloadingThisTurn = false; // True if this rack is being reloaded this turn — blocks firing.
 
 	private int addAmmo = 0; // The number of ADD shots in the drone rack.
 
@@ -125,12 +127,12 @@ public class DroneRack extends Weapon implements Launcher {
 		this.addAmmo = addAmmo;
 	}
 
-	public List<Drone> getReloads() {
+	/**
+	 * Returns all available reload sets. Each entry is one full loadout
+	 * that can be loaded into the rack during energy allocation.
+	 */
+	public List<List<Drone>> getReloads() {
 		return reloads;
-	}
-
-	public void setReloads(List<Drone> reloads) {
-		this.reloads = reloads;
 	}
 
 	public int getAddReloads() {
@@ -141,18 +143,25 @@ public class DroneRack extends Weapon implements Launcher {
 		this.addReloads = addReloads;
 	}
 
+	/**
+	 * Set the rack's initial ammo and automatically build reload sets.
+	 * Each reload set is an identical copy of the initial ammo list.
+	 * The number of sets built equals numberOfReloads (set before calling this).
+	 */
 	public void setAmmo(List<Drone> ammoList) {
 		this.ammoList = ammoList;
-		// Reloads always mirror the initial loadout — build a fresh copy.
-		List<Drone> reloadCopy = new ArrayList<>();
-		for (Drone d : ammoList) {
-			reloadCopy.add(new Drone(d.getDroneType()));
+		this.reloads = new ArrayList<>();
+		for (int i = 0; i < numberOfReloads; i++) {
+			List<Drone> set = new ArrayList<>();
+			for (Drone d : ammoList) {
+				if (d.getDroneType() != null) set.add(new Drone(d.getDroneType()));
+			}
+			if (!set.isEmpty()) this.reloads.add(set);
 		}
-		this.reloads = reloadCopy;
 	}
 
 	public int getNumberOfReloads() {
-		return numberOfReloads;
+		return reloads.isEmpty() ? numberOfReloads : reloads.size();
 	}
 
 	public void setNumberOfReloads(int numberOfReloads) {
@@ -169,10 +178,53 @@ public class DroneRack extends Weapon implements Launcher {
 	}
 
 	/**
+	 * A rack cannot fire if it is being reloaded this turn.
+	 */
+	@Override
+	public boolean canFire() {
+		return !reloadingThisTurn && super.canFire();
+	}
+
+	/**
 	 * Record that a drone was launched this impulse, stamping the once-per-turn
 	 * and 8-impulse cooldown timestamps.
 	 */
 	public void recordLaunch() {
 		registerFire();
+	}
+
+	/**
+	 * Apply a reload set to this rack during energy allocation.
+	 * Replaces current ammo with the given set and marks the rack
+	 * unavailable for firing this turn.
+	 */
+	public void applyReload(List<Drone> reloadSet) {
+		this.ammoList = new ArrayList<>(reloadSet);
+		this.reloads.remove(reloadSet);
+		this.reloadingThisTurn = true;
+	}
+
+	/**
+	 * Returns whether this rack is being reloaded this turn.
+	 */
+	public boolean isReloadingThisTurn() {
+		return reloadingThisTurn;
+	}
+
+	/**
+	 * Calculates the total deck crew cost (sum of rackSize) of a reload set.
+	 */
+	public static double reloadCost(List<Drone> reloadSet) {
+		double cost = 0;
+		for (Drone d : reloadSet) {
+			cost += d.getRackSize();
+		}
+		return cost;
+	}
+
+	@Override
+	public void cleanUp() {
+		super.cleanUp();
+		reloadingThisTurn = false;
 	}
 }

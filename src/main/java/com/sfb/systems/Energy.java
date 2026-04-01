@@ -1,9 +1,12 @@
 package com.sfb.systems;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.sfb.objects.Drone;
 import com.sfb.properties.WeaponArmingType;
+import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -53,9 +56,9 @@ public class Energy {
 	// Weapons Map with <Weapon, Energy for Weapon>
 	Map<Weapon, Double> armingEnergy = new HashMap<>();
 	Map<Weapon, WeaponArmingType> armingType = new HashMap<>();
-	//TODO: May be better to have a map of <Weapon, CustomObject> where custom object holds both arming energy AND armingType.
-	
-	//TODO: dang, how will I do this?
+
+	// Drone reload assignments: which reload set to load into each rack this turn.
+	Map<DroneRack, List<Drone>> reloadAssignments = new HashMap<>();
 
 	public Energy() {
 		
@@ -212,5 +215,8 @@ public class Energy {
 	public void setArmingType(Map<Weapon, WeaponArmingType> armingType) {
 		this.armingType = armingType;
 	}
-	
+
+	public Map<DroneRack, List<Drone>> getReloadAssignments() {
+		return reloadAssignments;
+	}
 }
