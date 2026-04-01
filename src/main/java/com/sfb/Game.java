@@ -330,6 +330,20 @@ public class Game {
     /**
      * Compute which shield number on the target is facing the attacker.
      */
+    /**
+     * Determine which shield a drone hits based on its direction of travel.
+     * The drone's facing is where it is going; the hit shield faces the opposite direction.
+     */
+    private int getDroneImpactShield(Drone drone, Ship target) {
+        // Reverse the drone's facing 180° to get the incoming direction (1-24)
+        int incomingFacing = (drone.getFacing() + 11) % 24 + 1;
+        // Convert 24-direction to 12-direction absolute shield facing
+        int absShieldFacing = ((incomingFacing - 1) / 4) * 2 + 1;
+        int relFacing = MapUtils.getRelativeShieldFacing(absShieldFacing, target.getFacing());
+        int shieldNumber = (relFacing % 2 == 0) ? relFacing / 2 : (relFacing + 1) / 2;
+        return Math.max(1, Math.min(6, shieldNumber));
+    }
+
     public int getShieldNumber(Unit attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
@@ -361,6 +375,9 @@ public class Game {
      */
     public String applyDamageToUnit(int damage, Unit target, int shieldNumber) {
         if (target instanceof Ship) {
+            if (damage == com.sfb.weapons.ADD.HIT) {
+                return "ADD has no effect on ships";
+            }
             Ship ship = (Ship) target;
             FireResult result = markShieldDamage(ship, shieldNumber, damage);
             return "Hit " + ship.getName() + " shield " + shieldNumber
@@ -415,7 +432,7 @@ public class Game {
      *
      * @return ActionResult describing success or reason for failure.
      */
-    public ActionResult launchDrone(Ship launcher, Ship target, DroneRack rack) {
+    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         if (!rack.isFunctional())
@@ -431,7 +448,7 @@ public class Game {
     /**
      * Launch a specific drone from the given rack at the given target.
      */
-    public ActionResult launchDrone(Ship launcher, Ship target, DroneRack rack, Drone drone) {
+    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         if (!rack.isFunctional())
@@ -496,14 +513,23 @@ public class Game {
             // Check impact — drone and target in same hex
             if (target != null && target.getLocation() != null
                     && drone.getLocation().equals(target.getLocation())) {
-                int shieldNum = getShieldNumber(drone, (Ship) target);
-                int dmg = drone.impact();
-                FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
-                log.add("  Drone (" + drone.getDroneType() + ") impacted "
-                        + target.getName() + " shield #" + shieldNum
-                        + "  damage " + dmg
-                        + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
-                expired.add(seeker);
+                if (target instanceof Drone) {
+                    // Drone vs drone — both destroyed regardless of warhead or hull
+                    Drone targetDrone = (Drone) target;
+                    log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
+                            + targetDrone.getDroneType() + ") — both destroyed");
+                    expired.add(seeker);
+                    seekers.remove(targetDrone);
+                } else if (target instanceof Ship) {
+                    int shieldNum = getDroneImpactShield(drone, (Ship) target);
+                    int dmg = drone.impact();
+                    FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
+                    log.add("  Drone (" + drone.getDroneType() + ") impacted "
+                            + target.getName() + " shield #" + shieldNum
+                            + "  damage " + dmg
+                            + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                    expired.add(seeker);
+                }
                 continue;
             }
 

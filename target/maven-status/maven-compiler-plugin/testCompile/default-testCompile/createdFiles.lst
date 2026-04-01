@@ -1,8 +1,11 @@
+com\sfb\objects\ArmorTest.class
+com\sfb\objects\SpeedCalculationTest.class
 com\sfb\systemgroups\LabsTest.class
 com\sfb\weapons\Phaser1Test.class
 com\sfb\systems\ProbeTest.class
 com\sfb\weapons\WeaponTest.class
 com\sfb\systemgroups\ShieldsTest.class
+com\sfb\objects\InternalDamageTest.class
 com\sfb\objects\ShipTest.class
 com\sfb\systems\SpecialFunctionsTest.class
 com\sfb\systemgroups\WeaponsTest.class
@@ -10,6 +13,7 @@ com\sfb\constants\ConstantsTest.class
 com\sfb\utilities\MovementUtilsTest.class
 com\sfb\systemgroups\OperationsSystemsTest.class
 com\sfb\systemgroups\PowerSystemsTest.class
+com\sfb\weapons\DroneRackTest.class
 com\sfb\weapons\PhotonTest.class
 com\sfb\ShipFactoryTest.class
 com\sfb\utilities\DACTest.class

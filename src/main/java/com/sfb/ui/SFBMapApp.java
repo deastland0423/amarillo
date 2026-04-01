@@ -126,13 +126,13 @@ public class SFBMapApp extends Application {
 
             if (droneMode) {
                 Ship launcher = mapCanvas.getSelectedShip();
-                if (hitShip == null) {
-                    setStatus("No target — click a ship or press Escape to cancel");
-                } else if (hitShip == launcher) {
+                if (hitUnit == null) {
+                    setStatus("No target — click a ship or drone or press Escape to cancel");
+                } else if (hitUnit == launcher) {
                     setStatus("Can't target yourself — click an enemy or press Escape");
                 } else {
                     if (pendingRack != null && pendingDrone != null) {
-                        Game.ActionResult result = game.launchDrone(launcher, hitShip, pendingRack, pendingDrone);
+                        Game.ActionResult result = game.launchDrone(launcher, hitUnit, pendingRack, pendingDrone);
                         combatLog.appendText(result.getMessage() + "\n");
                         setStatus(result.getMessage());
                         mapCanvas.setSeekers(game.getSeekers());
@@ -151,15 +151,15 @@ public class SFBMapApp extends Application {
                     exitFiringMode();
                 }
             } else {
-                mapCanvas.setSelectedShip(hit);
-                if (hit != null) {
-                    selectedLabel.setText(hit.getName() + " (" + hit.getHullType() + ")  spd " + hit.getSpeed());
+                mapCanvas.setSelectedShip(hitShip);
+                if (hitShip != null) {
+                    selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
                     statusLabel.setText("Selected  —  press F to fire");
                 } else {
                     selectedLabel.setText("No ship selected");
                     statusLabel.setText("");
                 }
-                infoPanel.update(hit);
+                infoPanel.update(hitShip);
             }
             mapCanvas.render();
             scene.getRoot().requestFocus();
@@ -260,6 +260,11 @@ public class SFBMapApp extends Application {
     }
 
     private void advancePhase() {
+        if (game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT
+                && !game.getMovableShips().isEmpty()) {
+            setStatus("All scheduled ships must move before leaving the movement phase");
+            return;
+        }
         boolean leavingMovementPhase = game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT;
         boolean leavingFirePhase     = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
         game.advancePhase();
@@ -337,11 +342,18 @@ public class SFBMapApp extends Application {
             default: return;
         }
 
-        setStatus(result.getMessage());
         if (result.isSuccess()) {
             selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
                     + "  @ " + ship.getLocation());
             refreshMovableShips();
+            int remaining = game.getMovableShips().size();
+            if (remaining == 0) {
+                setStatus("All ships moved — ready to advance");
+            } else {
+                setStatus(remaining + " ship(s) still need to move");
+            }
+        } else {
+            setStatus(result.getMessage());
         }
         infoPanel.update(ship);
         mapCanvas.render();
