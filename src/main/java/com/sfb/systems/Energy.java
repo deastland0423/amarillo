@@ -50,8 +50,9 @@ public class Energy {
 	private double transporters;
 	private int damageControl;
 	
-	// Reserve
-	private double rechargeBatteries;
+	// Batteries
+	private int batteryDraw;       // Energy drawn FROM batteries this turn (adds to effective budget)
+	private int batteryRecharge;   // Energy put INTO batteries this turn (costs from ship power)
 	
 	// Weapons Map with <Weapon, Energy for Weapon>
 	Map<Weapon, Double> armingEnergy = new HashMap<>();
@@ -192,12 +193,20 @@ public class Energy {
 		this.damageControl = damageControl;
 	}
 
-	public double getRechargeBatteries() {
-		return rechargeBatteries;
+	public int getBatteryDraw() {
+		return batteryDraw;
 	}
 
-	public void setRechargeBatteries(double rechargeBatteries) {
-		this.rechargeBatteries = rechargeBatteries;
+	public void setBatteryDraw(int batteryDraw) {
+		this.batteryDraw = batteryDraw;
+	}
+
+	public int getBatteryRecharge() {
+		return batteryRecharge;
+	}
+
+	public void setBatteryRecharge(int batteryRecharge) {
+		this.batteryRecharge = batteryRecharge;
 	}
 
 	public Map<Weapon, Double> getArmingEnergy() {

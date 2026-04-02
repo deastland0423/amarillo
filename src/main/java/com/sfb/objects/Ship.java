@@ -189,6 +189,13 @@ public class Ship extends Unit {
 		// TODO: Damage Control - will probably need a list of systems repaired in the
 		// energy allocation
 
+		// Batteries: draw or recharge (mutually exclusive — dialog enforces this)
+		if (energyAllocated.getBatteryDraw() > 0) {
+			getPowerSysetems().useBattery(energyAllocated.getBatteryDraw());
+		} else if (energyAllocated.getBatteryRecharge() > 0) {
+			getPowerSysetems().chargeBattery(energyAllocated.getBatteryRecharge());
+		}
+
 		// Phaser Capacitor
 		try {
 			chargeCapacitor(energyAllocated.getPhaserCapacitor());

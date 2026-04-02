@@ -52,6 +52,7 @@ public class PowerSystems implements Systems {
 		availableApr     = apr     = values.get("apr")     == null ? 0: (Integer)values.get("apr"); 
 		availableAwr     = awr     = values.get("awr")     == null ? 0: (Integer)values.get("awr"); 
 		availableBattery = battery = values.get("battery") == null ? 0: (Integer)values.get("battery");
+		batteryPower = availableBattery; // Batteries start fully charged
 
 	}
 	

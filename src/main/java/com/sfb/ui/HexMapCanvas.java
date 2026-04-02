@@ -114,12 +114,15 @@ public class HexMapCanvas extends Canvas {
     public List<Drone> hitTestDrones(double pixelX, double pixelY) {
         List<Drone> hits = new ArrayList<>();
         for (Seeker seeker : seekers) {
-            if (!(seeker instanceof Drone)) continue;
+            if (!(seeker instanceof Drone))
+                continue;
             Drone drone = (Drone) seeker;
-            if (drone.getLocation() == null) continue;
+            if (drone.getLocation() == null)
+                continue;
             double[] c = hexCenter(drone.getLocation().getX(), drone.getLocation().getY());
             double dist = Math.hypot(pixelX - c[0], pixelY - c[1]);
-            if (dist < COUNTER_SIZE) hits.add(drone);
+            if (dist < COUNTER_SIZE)
+                hits.add(drone);
         }
         return hits;
     }
@@ -140,8 +143,10 @@ public class HexMapCanvas extends Canvas {
             drawShip(gc, ship);
         }
         for (Seeker seeker : seekers) {
-            if (seeker instanceof Drone) drawDrone(gc, (Drone) seeker);
-            else if (seeker instanceof PlasmaTorpedo) drawPlasmaTorpedo(gc, (PlasmaTorpedo) seeker);
+            if (seeker instanceof Drone)
+                drawDrone(gc, (Drone) seeker);
+            else if (seeker instanceof PlasmaTorpedo)
+                drawPlasmaTorpedo(gc, (PlasmaTorpedo) seeker);
         }
     }
 
@@ -323,7 +328,8 @@ public class HexMapCanvas extends Canvas {
     // -------------------------------------------------------------------------
 
     private void drawDrone(GraphicsContext gc, Drone drone) {
-        if (drone.getLocation() == null) return;
+        if (drone.getLocation() == null)
+            return;
         double[] c = hexCenter(drone.getLocation().getX(), drone.getLocation().getY());
         double cx = c[0];
         double cy = c[1];
@@ -336,8 +342,8 @@ public class HexMapCanvas extends Canvas {
 
         // Diamond shape (rotated square)
         double r = COUNTER_SIZE * 0.45;
-        double[] dx = { cx,     cx + r, cx,     cx - r };
-        double[] dy = { cy - r, cy,     cy + r, cy     };
+        double[] dx = { cx, cx + r, cx, cx - r };
+        double[] dy = { cy - r, cy, cy + r, cy };
         gc.setFill(color.deriveColor(0, 0.7, 0.15, 1.0));
         gc.fillPolygon(dx, dy, 4);
         gc.setStroke(color);
@@ -360,7 +366,8 @@ public class HexMapCanvas extends Canvas {
     // -------------------------------------------------------------------------
 
     private void drawPlasmaTorpedo(GraphicsContext gc, PlasmaTorpedo torp) {
-        if (torp.getLocation() == null) return;
+        if (torp.getLocation() == null)
+            return;
         double[] c = hexCenter(torp.getLocation().getX(), torp.getLocation().getY());
         double cx = c[0];
         double cy = c[1];
@@ -369,7 +376,8 @@ public class HexMapCanvas extends Canvas {
         Color baseColor = Color.ORANGERED;
         if (torp.getController() instanceof Ship) {
             Color faction = factionColor(((Ship) torp.getController()).getFaction());
-            // Blend faction hue with orange: keep orange saturation/brightness, use faction hue
+            // Blend faction hue with orange: keep orange saturation/brightness, use faction
+            // hue
             baseColor = Color.hsb(faction.getHue(), 0.9, 1.0);
         }
 
@@ -467,7 +475,7 @@ public class HexMapCanvas extends Canvas {
             case Klingon:
                 return Color.rgb(210, 50, 50);
             case Romulan:
-                return Color.rgb(190, 50, 50);
+                return Color.rgb(54, 253, 5);
             case Gorn:
                 return Color.rgb(50, 170, 130);
             case Kzinti:
