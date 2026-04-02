@@ -9,31 +9,32 @@ public class Crew implements Systems {
 	private int crewUnits = 0;
 	private int minimumCrew = 0;
 	private int boardingParties = 0;
-	private int deckCrews = 2; // Most ships have 2 deck crews for drone reloads.
+	private int deckCrews = 2; // Most ships have 2 deck crews for drone reloads or shuttle operations.
 
 	private int availableCrewUnits = 0;
 	private int availableBoardingParties = 0;
 	private int availableDeckCrews = 0;
-	
+
 	private Unit owningUnit;
-	
+
 	public Crew(Unit owner) {
 		this.owningUnit = owner;
 	}
-	
+
 	public void init(Map<String, Object> values) {
-		crewUnits       = values.get("crew")            == null ? 0 : (Integer)values.get("crew");
-		boardingParties = values.get("boardingparties") == null ? 0 : (Integer)values.get("boardingparties");
-		minimumCrew     = values.get("minimumcrew")     == null ? 0 : (Integer)values.get("minimumcrew");
-		deckCrews       = values.get("deckcrews")       == null ? 2 : (Integer)values.get("deckcrews");
-		availableCrewUnits       = crewUnits;
+		crewUnits = values.get("crew") == null ? 0 : (Integer) values.get("crew");
+		boardingParties = values.get("boardingparties") == null ? 0 : (Integer) values.get("boardingparties");
+		minimumCrew = values.get("minimumcrew") == null ? 0 : (Integer) values.get("minimumcrew");
+		deckCrews = values.get("deckcrews") == null ? 2 : (Integer) values.get("deckcrews");
+		availableCrewUnits = crewUnits;
 		availableBoardingParties = boardingParties;
-		availableDeckCrews       = deckCrews;
+		availableDeckCrews = deckCrews;
 	}
-	
+
 	/**
 	 * Checks if the crew has dropped below the minimum and, therefore,
 	 * the ship is running on a skeleton crew.
+	 * 
 	 * @return True if the ship is below minimum crew, false otherwise.
 	 */
 	public boolean isSkeleton() {
@@ -55,7 +56,7 @@ public class Crew implements Systems {
 	public void setAvailableBoardingParties(int availableBoardingParties) {
 		this.availableBoardingParties = availableBoardingParties;
 	}
-	
+
 	public int getMinimumCrew() {
 		return this.minimumCrew;
 	}
@@ -92,6 +93,4 @@ public class Crew implements Systems {
 		return this.owningUnit;
 	}
 
-	
-	
 }

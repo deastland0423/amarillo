@@ -252,8 +252,7 @@ public class Shields implements Systems {
 	/**
 	 * Deactivate (lower) the specified shield.
 	 * This is only possible if the shield is active (raised) and the shield status
-	 * hasn't been changed
-	 * within 1/4 turn.
+	 * hasn't been changed within 1/4 turn.
 	 * 
 	 * @param shieldNumber The shield to be lowered.
 	 * @return

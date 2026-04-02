@@ -11,6 +11,8 @@ public class CloakingDevice implements Systems {
 	int fadeOutImpulses = 0;
 	boolean active = false;
 
+	private Unit owningUnit = null;
+
 	@Override
 	public void init(Map<String, Object> values) {
 		// TODO Auto-generated method stub
@@ -19,8 +21,7 @@ public class CloakingDevice implements Systems {
 
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		// TODO Auto-generated method stub
-		return 0;
+		return 1;
 	}
 
 	@Override
@@ -37,8 +38,7 @@ public class CloakingDevice implements Systems {
 
 	@Override
 	public Unit fetchOwningUnit() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.owningUnit;
 	}
 
 	public int getPowerToActivate() {

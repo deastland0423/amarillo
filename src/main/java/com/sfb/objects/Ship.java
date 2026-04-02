@@ -72,6 +72,9 @@ public class Ship extends Unit {
 	private int activeShieldCost = 0; // Cost to have shields active.
 	private double minimumShieldCost = 0; // Cost to have shields at minimum.
 	private int fireControlCost = 1; // Cost for active fire control (always 1).
+	private int tBombs = 0; // Number of transporter bombs available.
+	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
+	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -84,8 +87,6 @@ public class Ship extends Unit {
 	private ShieldStatus shieldsStatus = ShieldStatus.Inactive; // Status of shields. Active is normal shields. Minimal is
 																															// 5-point shields. Inactive is no shields at all.
 	private boolean lifeSupportActive = false; // True if life support is active, false otherwise.
-
-	// TODO: Transporter bombs (Romulan nuclear mine).
 
 	/**
 	 * Constructor
@@ -206,8 +207,7 @@ public class Ship extends Unit {
 			// For drone racks, apply any assigned reload
 			if (weapon instanceof DroneRack) {
 				DroneRack rack = (DroneRack) weapon;
-				java.util.List<com.sfb.objects.Drone> reloadSet =
-						energyAllocated.getReloadAssignments().get(rack);
+				java.util.List<com.sfb.objects.Drone> reloadSet = energyAllocated.getReloadAssignments().get(rack);
 				if (reloadSet != null) {
 					rack.applyReload(reloadSet);
 				}

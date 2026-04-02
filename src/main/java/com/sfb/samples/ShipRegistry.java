@@ -10,7 +10,7 @@ import java.util.function.Supplier;
  * Keys use the format FACTION_HULL (e.g. "FED_CA", "KLN_D7", "ROM_KR").
  *
  * Usage:
- *   ship.init(ShipRegistry.build("FED_CA"));
+ * ship.init(ShipRegistry.build("FED_CA"));
  */
 public class ShipRegistry {
 
@@ -20,24 +20,27 @@ public class ShipRegistry {
         Map<String, Supplier<Map<String, Object>>> m = new LinkedHashMap<>();
 
         // Federation
-        m.put("FED_CA",  FederationShips::getFedCa);
+        m.put("FED_CA", FederationShips::getFedCa);
         m.put("FED_OCL", FederationShips::getFedOcl);
         m.put("FED_FFG", FederationShips::getFedFfg);
 
         // Klingon
-        m.put("KLN_D7",  KlingonShips::getD7);
-        m.put("KLN_F5",  KlingonShips::getF5);
+        m.put("KLN_D7", KlingonShips::getD7);
+        m.put("KLN_F5", KlingonShips::getF5);
 
         // Romulan
-        m.put("ROM_KR",  RomulanShips::getRomKr);
+        m.put("ROM_KR", RomulanShips::getRomKr);
+        m.put("ROM_WE", RomulanShips::getRomWe);
 
         REGISTRY = Collections.unmodifiableMap(m);
     }
 
-    private ShipRegistry() {}
+    private ShipRegistry() {
+    }
 
     /**
      * Build ship data for the given key.
+     * 
      * @throws IllegalArgumentException if the key is not registered.
      */
     public static Map<String, Object> build(String key) {
