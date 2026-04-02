@@ -1,6 +1,7 @@
 package com.sfb;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -254,13 +255,16 @@ public class Game {
      * moved this impulse.
      */
     public List<Ship> getMovableShips() {
-        List<Ship> movable = new ArrayList<>();
         int impulse = TurnTracker.getLocalImpulse();
+        List<Ship> movable = new ArrayList<>();
         for (Ship ship : ships) {
             if (ship.movesThisImpulse(impulse) && !movedThisImpulse.contains(ship)) {
                 movable.add(ship);
             }
         }
+        // Slower ships move first; ties broken by worst turn mode first (F > E > ... > AA).
+        movable.sort(Comparator.comparingInt(Ship::getSpeed)
+                .thenComparingInt(s -> -s.getTurnMode().ordinal()));
         return movable;
     }
 
@@ -520,6 +524,30 @@ public class Game {
                 + torpedo.getPlasmaType() + " at " + target.getName());
     }
 
+    public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        if (!weapon.isFunctional())
+            return ActionResult.fail(weapon.getName() + " is destroyed");
+        if (!weapon.canLaunchPseudo())
+            return ActionResult.fail(weapon.getName() + " cannot launch pseudo plasma now");
+
+        PlasmaTorpedo torpedo = weapon.launchPseudo();
+        if (torpedo == null)
+            return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
+
+        torpedo.setLocation(launcher.getLocation());
+        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        torpedo.setTarget(target);
+        torpedo.setController(launcher);
+        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        seekers.add(torpedo);
+
+        return ActionResult.ok(launcher.getName() + " launched pseudo plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]");
+    }
+
     /**
      * Move all active seekers that are scheduled to move this impulse.
      * Each drone re-faces its target, advances one hex, and is checked for
@@ -533,7 +561,24 @@ public class Game {
         int impulse = TurnTracker.getLocalImpulse();
         List<Seeker> expired = new ArrayList<>();
 
-        for (Seeker seeker : seekers) {
+        // Order seekers so that a seeker whose target is also a seeker moves after its target.
+        // Simple two-pass: targets first, then hunters.
+        Set<Seeker> seekerSet = new HashSet<>(seekers);
+        List<Seeker> ordered = new ArrayList<>();
+        Set<Seeker> placed = new HashSet<>();
+        for (Seeker s : seekers) {
+            Unit target = (s instanceof Drone) ? ((Drone) s).getTarget() : null;
+            if (target instanceof Seeker && seekerSet.contains(target) && !placed.contains(target)) {
+                ordered.add((Seeker) target);
+                placed.add((Seeker) target);
+            }
+            if (!placed.contains(s)) {
+                ordered.add(s);
+                placed.add(s);
+            }
+        }
+
+        for (Seeker seeker : ordered) {
             if (seeker instanceof Drone) {
                 Drone drone = (Drone) seeker;
                 if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed())) continue;
@@ -561,9 +606,7 @@ public class Game {
                         log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
                                 + targetDrone.getDroneType() + ") — both destroyed");
                         expired.add(seeker);
-                        seekers.remove(targetDrone);
-                        if (targetDrone.getController() instanceof Ship)
-                            ((Ship) targetDrone.getController()).releaseControl(targetDrone);
+                        expired.add(targetDrone);
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(drone, (Ship) target);
                         int dmg = drone.impact();

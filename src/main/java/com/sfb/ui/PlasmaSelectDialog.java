@@ -33,6 +33,7 @@ public class PlasmaSelectDialog extends Stage {
     private static final Font LABEL_FONT  = Font.font("Monospaced", 10);
 
     private PlasmaLauncher selectedLauncher = null;
+    private boolean        selectedPseudo   = false;
 
     public PlasmaSelectDialog(Window owner, Ship ship) {
         initOwner(owner);
@@ -49,38 +50,65 @@ public class PlasmaSelectDialog extends Stage {
         heading.setTextFill(Color.rgb(255, 180, 100));
         root.getChildren().add(heading);
 
-        boolean anyAvailable = false;
+        boolean anyReal   = false;
+        boolean anyPseudo = false;
 
         for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof PlasmaLauncher)) continue;
             PlasmaLauncher launcher = (PlasmaLauncher) w;
-            if (!launcher.isFunctional() || !launcher.isArmed()) continue;
+            if (!launcher.isFunctional()) continue;
 
-            anyAvailable = true;
+            if (launcher.isArmed()) {
+                anyReal = true;
+                String label = String.format("  %-14s  Plasma-%-2s  strength %d",
+                        launcher.getName() != null ? launcher.getName() : "Plasma",
+                        launcher.getPlasmaType() != null ? launcher.getPlasmaType().toString() : "?",
+                        launcher.getArmedStrength());
+                Button btn = new Button(label);
+                btn.setFont(LABEL_FONT);
+                btn.setStyle(BTN_STYLE);
+                btn.setMaxWidth(Double.MAX_VALUE);
+                final PlasmaLauncher chosen = launcher;
+                btn.setOnAction(e -> { selectedLauncher = chosen; selectedPseudo = false; close(); });
+                root.getChildren().add(btn);
+            }
 
-            String label = String.format("  %-14s  Plasma-%-2s  strength %d",
-                    launcher.getName() != null ? launcher.getName() : "Plasma",
-                    launcher.getPlasmaType() != null ? launcher.getPlasmaType().toString() : "?",
-                    launcher.getArmedStrength());
-
-            Button btn = new Button(label);
-            btn.setFont(LABEL_FONT);
-            btn.setStyle(BTN_STYLE);
-            btn.setMaxWidth(Double.MAX_VALUE);
-
-            final PlasmaLauncher chosen = launcher;
-            btn.setOnAction(e -> {
-                selectedLauncher = chosen;
-                close();
-            });
-            root.getChildren().add(btn);
+            if (launcher.canLaunchPseudo()) {
+                anyPseudo = true;
+            }
         }
 
-        if (!anyAvailable) {
+        if (!anyReal) {
             Label none = new Label("No armed plasma launchers available.");
             none.setFont(LABEL_FONT);
             none.setTextFill(Color.rgb(180, 80, 80));
             root.getChildren().add(none);
+        }
+
+        if (anyPseudo) {
+            Label pseudoHeading = new Label("Pseudo plasma:");
+            pseudoHeading.setFont(HEADER_FONT);
+            pseudoHeading.setTextFill(Color.rgb(150, 200, 255));
+            root.getChildren().add(pseudoHeading);
+
+            for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                if (!(w instanceof PlasmaLauncher)) continue;
+                PlasmaLauncher launcher = (PlasmaLauncher) w;
+                if (!launcher.isFunctional() || !launcher.canLaunchPseudo()) continue;
+
+                String pseudoStyle = BTN_STYLE.replace("#2a1a0a", "#0a1a2a").replace("#ffaa66", "#88ccff")
+                        .replace("#664422", "#224466");
+                String label = String.format("  %-14s  Pseudo Plasma-%-2s  [DECOY]",
+                        launcher.getName() != null ? launcher.getName() : "Plasma",
+                        launcher.getLauncherType() != null ? launcher.getLauncherType().toString() : "?");
+                Button btn = new Button(label);
+                btn.setFont(LABEL_FONT);
+                btn.setStyle(pseudoStyle);
+                btn.setMaxWidth(Double.MAX_VALUE);
+                final PlasmaLauncher chosen = launcher;
+                btn.setOnAction(e -> { selectedLauncher = chosen; selectedPseudo = true; close(); });
+                root.getChildren().add(btn);
+            }
         }
 
         Button cancel = new Button("Cancel");
@@ -98,5 +126,9 @@ public class PlasmaSelectDialog extends Stage {
 
     public PlasmaLauncher getSelectedLauncher() {
         return selectedLauncher;
+    }
+
+    public boolean isSelectedPseudo() {
+        return selectedPseudo;
     }
 }

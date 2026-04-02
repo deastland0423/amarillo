@@ -8,6 +8,7 @@ import java.util.Map;
 import com.sfb.objects.DroneType;
 import com.sfb.properties.Faction;
 import com.sfb.properties.TurnMode;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Photon;
@@ -51,32 +52,33 @@ public class FederationShips {
 
         // Fore phasers (FH)
         Phaser1 p1 = new Phaser1();
-        p1.setArcs(new int[] { 19,20,21,22,23,24,1,2,3,4,5,6,7 }); p1.setDesignator("1");
+        p1.setArcs(ArcUtils.FH); p1.setDesignator("1");
         weapons.add(p1);
         Phaser1 p2 = new Phaser1();
-        p2.setArcs(new int[] { 19,20,21,22,23,24,1,2,3,4,5,6,7 }); p2.setDesignator("2");
+        p2.setArcs(ArcUtils.FH); p2.setDesignator("2");
         weapons.add(p2);
 
-        // Left phasers (LF + L + aft)
+        // Left phasers (L + LF + aft)
+        int leftAft = ArcUtils.L | ArcUtils.LF | ArcUtils.of(13);
         Phaser1 p3 = new Phaser1();
-        p3.setArcs(new int[] { 17,18,19,20,21,22,23,24,1,13 }); p3.setDesignator("3");
+        p3.setArcs(leftAft); p3.setDesignator("3");
         weapons.add(p3);
         Phaser1 p4 = new Phaser1();
-        p4.setArcs(new int[] { 17,18,19,20,21,22,23,24,1,13 }); p4.setDesignator("4");
+        p4.setArcs(leftAft); p4.setDesignator("4");
         weapons.add(p4);
 
         // Right phasers (RF + R + aft)
+        int rightAft = ArcUtils.RF | ArcUtils.R | ArcUtils.of(13);
         Phaser1 p5 = new Phaser1();
-        p5.setArcs(new int[] { 1,2,3,4,5,6,7,8,9,13 }); p5.setDesignator("5");
+        p5.setArcs(rightAft); p5.setDesignator("5");
         weapons.add(p5);
         Phaser1 p6 = new Phaser1();
-        p6.setArcs(new int[] { 1,2,3,4,5,6,7,8,9,13 }); p6.setDesignator("6");
+        p6.setArcs(rightAft); p6.setDesignator("6");
         weapons.add(p6);
 
         // Photon torpedoes (FA)
-        int[] faArc = { 21,22,23,24,1,2,3,4,5 };
         for (String des : new String[] { "A","B","C","D" }) {
-            Photon ph = new Photon(); ph.setArcs(faArc); ph.setDesignator(des); weapons.add(ph);
+            Photon ph = new Photon(); ph.setArcs(ArcUtils.FA); ph.setDesignator(des); weapons.add(ph);
         }
 
         s.put("weapons", weapons);
@@ -119,18 +121,17 @@ public class FederationShips {
         List<Weapon> weapons = new ArrayList<>();
 
         Phaser1 p1 = new Phaser1();
-        p1.setArcs(new int[] { 19,20,21,22,23,24,1,2,3,4,5,6,7 }); p1.setDesignator("1");
+        p1.setArcs(ArcUtils.FH); p1.setDesignator("1");
         weapons.add(p1);
         Phaser1 p2 = new Phaser1();
-        p2.setArcs(new int[] { 1,2,3,4,5,6,7,8,9,10,11,12,13 }); p2.setDesignator("2");
+        p2.setArcs(ArcUtils.RS); p2.setDesignator("2");
         weapons.add(p2);
         Phaser1 p3 = new Phaser1();
-        p3.setArcs(new int[] { 13,14,15,16,17,18,19,20,21,22,23,24,1 }); p3.setDesignator("3");
+        p3.setArcs(ArcUtils.LS); p3.setDesignator("3");
         weapons.add(p3);
 
-        int[] faArc = { 21,22,23,24,1,2,3,4,5 };
         for (String des : new String[] { "A","B" }) {
-            Photon ph = new Photon(); ph.setArcs(faArc); ph.setDesignator(des); weapons.add(ph);
+            Photon ph = new Photon(); ph.setArcs(ArcUtils.FA); ph.setDesignator(des); weapons.add(ph);
         }
 
         DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_G);
@@ -179,18 +180,17 @@ public class FederationShips {
         List<Weapon> weapons = new ArrayList<>();
 
         Phaser1 p1 = new Phaser1();
-        p1.setArcs(new int[] { 19,20,21,22,23,24,1,2,3,4,5,6,7 }); p1.setDesignator("1");
+        p1.setArcs(ArcUtils.FH); p1.setDesignator("1");
         weapons.add(p1);
         Phaser1 p2 = new Phaser1();
-        p2.setArcs(new int[] { 1,2,3,4,5,6,7,8,9,10,11,12,13 }); p2.setDesignator("2");
+        p2.setArcs(ArcUtils.RS); p2.setDesignator("2");
         weapons.add(p2);
         Phaser1 p3 = new Phaser1();
-        p3.setArcs(new int[] { 13,14,15,16,17,18,19,20,21,22,23,24,1 }); p3.setDesignator("3");
+        p3.setArcs(ArcUtils.LS); p3.setDesignator("3");
         weapons.add(p3);
 
-        int[] faArc = { 21,22,23,24,1,2,3,4,5 };
         for (String des : new String[] { "A","B" }) {
-            Photon ph = new Photon(); ph.setArcs(faArc); ph.setDesignator(des); weapons.add(ph);
+            Photon ph = new Photon(); ph.setArcs(ArcUtils.FA); ph.setDesignator(des); weapons.add(ph);
         }
 
         DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_G);

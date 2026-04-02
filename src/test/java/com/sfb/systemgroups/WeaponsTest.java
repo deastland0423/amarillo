@@ -11,6 +11,7 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.sfb.objects.Unit;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.Disruptor;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
@@ -46,44 +47,45 @@ public class WeaponsTest {
 		Phaser1 phaser1 = new Phaser1();
 		Phaser1 phaser2 = new Phaser1();
 		Phaser1 phaser3 = new Phaser1();
-		phaser1.setArcs(new int[] {17,18,19,20,21,22,23,24,1,2,3,4,5,6,7,8,9,13});
-		phaser2.setArcs(new int[] {17,18,19,20,21,22,23,24,1,2,3,4,5,6,7,8,9,13});
-		phaser3.setArcs(new int[] {17,18,19,20,21,22,23,24,1,2,3,4,5,6,7,8,9,13});
+		int boomArc = ArcUtils.FH | ArcUtils.RS | ArcUtils.of(13);
+		phaser1.setArcs(boomArc);
+		phaser2.setArcs(boomArc);
+		phaser3.setArcs(boomArc);
 		weaponList.add(phaser1);
 		weaponList.add(phaser2);
 		weaponList.add(phaser3);
-		
+
 		// Wing Phasers
 		Phaser2 phaser4 = new Phaser2();
-		phaser4.setArcs(new int[] {17,18,19,20,21,22,23,24,1,9,10,11,12,13});
+		phaser4.setArcs(ArcUtils.L | ArcUtils.LF | ArcUtils.RR | ArcUtils.of(5));
 		weaponList.add(phaser4);
 		Phaser2 phaser5 = new Phaser2();
-		phaser5.setArcs(new int[] {1,2,3,4,5,6,7,8,9,13,14,15,16,17});
+		phaser5.setArcs(ArcUtils.RF | ArcUtils.R | ArcUtils.LR | ArcUtils.of(21));
 		weaponList.add(phaser5);
-		
+
 		// Waist Phasers
 		Phaser2 phaser6 = new Phaser2();
-		phaser6.setArcs(new int[] {13,14,15,16,17,18,19,20,21});
+		phaser6.setArcs(ArcUtils.L | ArcUtils.LR);
 		weaponList.add(phaser6);
 		Phaser2 phaser7 = new Phaser2();
-		phaser7.setArcs(new int[] {13,14,15,16,17,18,19,20,21});
+		phaser7.setArcs(ArcUtils.L | ArcUtils.LR);
 		weaponList.add(phaser7);
 		Phaser2 phaser8 = new Phaser2();
-		phaser8.setArcs(new int[] {5,6,7,8,9,10,11,12,13});
+		phaser8.setArcs(ArcUtils.R | ArcUtils.RR);
 		weaponList.add(phaser8);
 		Phaser2 phaser9 = new Phaser2();
-		phaser9.setArcs(new int[] {5,6,7,8,9,10,11,12,13});
+		phaser9.setArcs(ArcUtils.R | ArcUtils.RR);
 		weaponList.add(phaser9);
-		
+
 		// Distruptors
 		Disruptor disruptorA = new Disruptor(30);
-		disruptorA.setArcs(new int[] {21,22,23,24,1,2,3,4,5});
+		disruptorA.setArcs(ArcUtils.FA);
 		Disruptor disruptorB = new Disruptor(30);
-		disruptorB.setArcs(new int[] {21,22,23,24,1,2,3,4,5});
+		disruptorB.setArcs(ArcUtils.FA);
 		Disruptor disruptorC = new Disruptor(30);
-		disruptorC.setArcs(new int[] {21,22,23,24,1,2,3,4,5});
+		disruptorC.setArcs(ArcUtils.FA);
 		Disruptor disruptorD = new Disruptor(30);
-		disruptorD.setArcs(new int[] {21,22,23,24,1,2,3,4,5});
+		disruptorD.setArcs(ArcUtils.FA);
 		weaponList.add(disruptorA);
 		weaponList.add(disruptorB);
 		weaponList.add(disruptorC);

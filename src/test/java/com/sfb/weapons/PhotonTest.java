@@ -9,6 +9,7 @@ import org.junit.Test;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.properties.WeaponArmingType;
+import com.sfb.utilities.ArcUtils;
 
 public class PhotonTest {
 
@@ -125,9 +126,7 @@ public class PhotonTest {
 	public void testArcs() {
 		Photon photon = getStandardPhoton();
 		
-		int[] arcs = {21,22,23,24,1,2,3,4,5};
-
-		photon.setArcs(arcs);
+		photon.setArcs(ArcUtils.FA);
 		
 		System.out.println("InArc: " + photon.inArc(7));
 		

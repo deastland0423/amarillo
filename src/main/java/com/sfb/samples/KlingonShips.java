@@ -9,6 +9,7 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.properties.Faction;
 import com.sfb.properties.TurnMode;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.Disruptor;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.Phaser2;
@@ -51,36 +52,35 @@ public class KlingonShips {
 
         List<Weapon> weapons = new ArrayList<>();
 
-        // Boom phasers (FX + aft)
-        int[] fxAftArc = { 17,18,19,20,21,22,23,24,1,2,3,4,5,6,7,8,9,13 };
+        // Boom phasers (FH + RS + aft)
+        int fxAft = ArcUtils.FH | ArcUtils.RS | ArcUtils.of(13);
         for (String des : new String[] { "1","2","3" }) {
-            Phaser2 p = new Phaser2(); p.setArcs(fxAftArc); p.setDesignator(des); weapons.add(p);
+            Phaser2 p = new Phaser2(); p.setArcs(fxAft); p.setDesignator(des); weapons.add(p);
         }
 
         // Left wing phaser (L + LF + RR + cross-deck 5)
         Phaser2 p4 = new Phaser2();
-        p4.setArcs(new int[] { 17,18,19,20,21,22,23,24,1,9,10,11,12,13,5 }); p4.setDesignator("4");
+        p4.setArcs(ArcUtils.L | ArcUtils.LF | ArcUtils.RR | ArcUtils.of(5)); p4.setDesignator("4");
         weapons.add(p4);
 
         // Right wing phaser (RF + R + LR + cross-deck 21)
         Phaser2 p5 = new Phaser2();
-        p5.setArcs(new int[] { 1,2,3,4,5,6,7,8,9,13,14,15,16,17,21 }); p5.setDesignator("5");
+        p5.setArcs(ArcUtils.RF | ArcUtils.R | ArcUtils.LR | ArcUtils.of(21)); p5.setDesignator("5");
         weapons.add(p5);
 
         // Left waist phasers (L + LR)
-        int[] leftArc = { 13,14,15,16,17,18,19,20,21 };
+        int leftArc = ArcUtils.L | ArcUtils.LR;
         Phaser2 p6 = new Phaser2(); p6.setArcs(leftArc); p6.setDesignator("6"); weapons.add(p6);
         Phaser2 p7 = new Phaser2(); p7.setArcs(leftArc); p7.setDesignator("7"); weapons.add(p7);
 
         // Right waist phasers (R + RR)
-        int[] rightArc = { 5,6,7,8,9,10,11,12,13 };
+        int rightArc = ArcUtils.R | ArcUtils.RR;
         Phaser2 p8 = new Phaser2(); p8.setArcs(rightArc); p8.setDesignator("8"); weapons.add(p8);
         Phaser2 p9 = new Phaser2(); p9.setArcs(rightArc); p9.setDesignator("9"); weapons.add(p9);
 
         // Disruptors (FA)
-        int[] faArc = { 21,22,23,24,1,2,3,4,5 };
         for (String des : new String[] { "A","B","C","D" }) {
-            Disruptor d = new Disruptor(30); d.setArcs(faArc); d.setDesignator(des); weapons.add(d);
+            Disruptor d = new Disruptor(30); d.setArcs(ArcUtils.FA); d.setDesignator(des); weapons.add(d);
         }
 
         // Drone racks
@@ -133,26 +133,25 @@ public class KlingonShips {
 
         List<Weapon> weapons = new ArrayList<>();
 
-        // Left boom phaser (FA + L + aft row)
+        // Left boom phaser (FA + L + aft)
         Phaser2 p1 = new Phaser2();
-        p1.setArcs(new int[] { 17,18,19,20,21,22,23,24,1,2,3,4,5,13 }); p1.setDesignator("1");
+        p1.setArcs(ArcUtils.FA | ArcUtils.L | ArcUtils.of(13)); p1.setDesignator("1");
         weapons.add(p1);
 
-        // Right boom phaser (FA + R + aft row)
+        // Right boom phaser (FA + R + aft)
         Phaser2 p2 = new Phaser2();
-        p2.setArcs(new int[] { 21,22,23,24,1,2,3,4,5,6,7,8,9,13 }); p2.setDesignator("2");
+        p2.setArcs(ArcUtils.FA | ArcUtils.R | ArcUtils.of(13)); p2.setDesignator("2");
         weapons.add(p2);
 
-        // Aft phasers (RX)
-        int[] rxArc = { 5,6,7,8,9,10,11,12,23,14,15,16,17,18,19,20,21 };
+        // Aft phasers (RH + LS aft overlap — effectively RX)
+        int rxArc = ArcUtils.RH | ArcUtils.LS | ArcUtils.of(23);
         for (String des : new String[] { "3","4","5" }) {
             Phaser2 p = new Phaser2(); p.setArcs(rxArc); p.setDesignator(des); weapons.add(p);
         }
 
         // Disruptors (FA)
-        int[] faArc = { 21,22,23,24,1,2,3,4,5 };
-        Disruptor dA = new Disruptor(15); dA.setArcs(faArc); dA.setDesignator("A"); weapons.add(dA);
-        Disruptor dB = new Disruptor(15); dB.setArcs(faArc); dB.setDesignator("B"); weapons.add(dB);
+        Disruptor dA = new Disruptor(15); dA.setArcs(ArcUtils.FA); dA.setDesignator("A"); weapons.add(dA);
+        Disruptor dB = new Disruptor(15); dB.setArcs(ArcUtils.FA); dB.setDesignator("B"); weapons.add(dB);
 
         // Drone rack
         DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_F);

@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.Test;
 
 import com.sfb.objects.Drone;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.DroneRack.DroneRackType;
 
 public class DroneRackTest {
@@ -39,7 +40,7 @@ public class DroneRackTest {
     @Test
     public void typeConstructorSetsFullArcs() {
         DroneRack rack = new DroneRack(DroneRackType.TYPE_F);
-        assertEquals(24, rack.getArcs().length);
+        assertEquals(ArcUtils.FULL, rack.getArcs());
     }
 
     // --- Ammo ---

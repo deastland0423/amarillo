@@ -2,6 +2,7 @@ package com.sfb.weapons;
 
 import com.sfb.TurnTracker;
 import com.sfb.objects.Unit;
+import com.sfb.utilities.ArcUtils;
 
 /**
  * Parent class for all weapons. Contains common functionality shared by weapons of all types.
@@ -15,7 +16,7 @@ public abstract class Weapon {
 	private String  type;					// The type of weapon (Phaser1, Disruptor30, Photon, ESG, etc.)
 	private String  designator;				// The unique designator for the weapon (A, B, C...1, 2, 3...etc.)'
 	private String  dacHitLocaiton;			// What DAC 'hit' destroys  this weapon //TODO: should this be an enum?
-	private int[]   arcs;					// An array of the arcs into which the weapon can fire. All arcs are a number (1 for straight ahead, etc.)
+	private int     arcs = ArcUtils.FULL;	// Bitmask of the 24 directions (1-24) into which the weapon can fire.
 	private boolean functional = true;		// True if the weapon is undamaged, false otherwise.
 	private int     lastImpulseFired  = -9;	// The last impulse on which this weapon was fired.
 	private int     lastTurnFired     = -1;	// The last turn on which this weapon was fired. -1 = never fired. (used by Fusion)
@@ -48,39 +49,27 @@ public abstract class Weapon {
 	}
 	
 	/**
-	 * Specify into which arcs this weapon may fire.
-	 * 
-	 * @return An array of ints representing all of the arcs into which this weapon may fire.
+	 * Returns the arc bitmask for this weapon.
 	 */
-	public int[] getArcs() {
+	public int getArcs() {
 		return arcs;
 	}
-	
+
 	/**
-	 * Set all of the arcs into which this weapon my fire.
-	 * 
-	 * @param arcs An array of ints representing all of the arcs 
-	 * into which this weapon may fire.
+	 * Set the arc bitmask for this weapon (use ArcUtils constants or ArcUtils.mask()).
 	 */
-	public void setArcs(int[] arcs) {
-		this.arcs = arcs;
+	public void setArcs(int arcMask) {
+		this.arcs = arcMask;
 	}
-	
+
 	/**
-	 * Check to see if the weapon can hit a target
-	 * within the provided arc.
-	 * 
-	 * @param targetArc The arc containing the target.
+	 * Check to see if the weapon can hit a target within the provided arc.
+	 *
+	 * @param targetArc The 1-based bearing (1-24) to the target.
 	 * @return True if the target is within the weapon arcs, false otherwise.
 	 */
 	public boolean inArc(int targetArc) {
-		for (int i=0; i < arcs.length; i++) {
-			if (targetArc == arcs[i]) {
-				return true;
-			}
-		}
-		
-		return false;
+		return ArcUtils.inArc(targetArc, arcs);
 	}
 	
 	/**

@@ -54,6 +54,7 @@ public class SFBMapApp extends Application {
     private DroneRack     pendingRack      = null;
     private Drone         pendingDrone     = null;
     private PlasmaLauncher pendingLauncher = null;
+    private boolean        pendingPseudo   = false;
     private final Tooltip droneTooltip   = new Tooltip();
 
     @Override
@@ -151,7 +152,9 @@ public class SFBMapApp extends Application {
                     setStatus("Can't target yourself — click an enemy or press Escape");
                 } else {
                     if (pendingLauncher != null) {
-                        Game.ActionResult result = game.launchPlasma(launcher, hitUnit, pendingLauncher);
+                        Game.ActionResult result = pendingPseudo
+                                ? game.launchPseudoPlasma(launcher, hitUnit, pendingLauncher)
+                                : game.launchPlasma(launcher, hitUnit, pendingLauncher);
                         combatLog.appendText(result.getMessage() + "\n");
                         setStatus(result.getMessage());
                         mapCanvas.setSeekers(game.getSeekers());
@@ -249,6 +252,7 @@ public class SFBMapApp extends Application {
                         mapCanvas.getScene().getWindow(), ship);
                 dlg.showAndWait();
                 pendingLauncher = dlg.getSelectedLauncher();
+                pendingPseudo   = dlg.isSelectedPseudo();
                 if (pendingLauncher == null) return;
                 plasmaMode = true;
                 mapCanvas.setFiringMode(true);
@@ -429,6 +433,7 @@ public class SFBMapApp extends Application {
     private void exitPlasmaMode() {
         plasmaMode      = false;
         pendingLauncher = null;
+        pendingPseudo   = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
         setStatus(sel != null ? "Selected  —  press P to launch plasma" : "");

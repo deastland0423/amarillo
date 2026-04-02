@@ -9,6 +9,7 @@ import com.sfb.constants.Constants;
 import com.sfb.properties.Faction;
 import com.sfb.properties.PlasmaType;
 import com.sfb.properties.TurnMode;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.PlasmaLauncher;
@@ -68,48 +69,33 @@ public class RomulanShips {
 
         List<Weapon> weapons = new ArrayList<>();
 
-        // Boom phasers (FX + aft)
-        int[] fxAftArc = { 17, 18, 19, 20, 21, 22, 23, 24, 1, 2, 3, 4, 5, 6, 7, 8, 9, 13 };
+        // Boom phasers (FH + RS + aft)
+        int fxAft = ArcUtils.FH | ArcUtils.RS | ArcUtils.of(13);
         Phaser1 p1 = new Phaser1();
-        p1.setArcs(fxAftArc);
-        p1.setDesignator("1");
-        weapons.add(p1);
+        p1.setArcs(fxAft); p1.setDesignator("1"); weapons.add(p1);
         Phaser1 p2 = new Phaser1();
-        p2.setArcs(fxAftArc);
-        p2.setDesignator("2");
-        weapons.add(p2);
+        p2.setArcs(fxAft); p2.setDesignator("2"); weapons.add(p2);
         Phaser1 p3 = new Phaser1();
-        p3.setArcs(fxAftArc);
-        p3.setDesignator("3");
-        weapons.add(p3);
+        p3.setArcs(fxAft); p3.setDesignator("3"); weapons.add(p3);
 
         // Left waist phasers (L + LR)
-        int[] leftArc = { 13, 14, 15, 16, 17, 18, 19, 20, 21 };
+        int leftArc = ArcUtils.L | ArcUtils.LR;
         Phaser2 p6 = new Phaser2();
-        p6.setArcs(leftArc);
-        p6.setDesignator("6");
-        weapons.add(p6);
+        p6.setArcs(leftArc); p6.setDesignator("6"); weapons.add(p6);
         Phaser2 p7 = new Phaser2();
-        p7.setArcs(leftArc);
-        p7.setDesignator("7");
-        weapons.add(p7);
+        p7.setArcs(leftArc); p7.setDesignator("7"); weapons.add(p7);
 
         // Right waist phasers (R + RR)
-        int[] rightArc = { 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+        int rightArc = ArcUtils.R | ArcUtils.RR;
         Phaser2 p8 = new Phaser2();
-        p8.setArcs(rightArc);
-        p8.setDesignator("8");
-        weapons.add(p8);
+        p8.setArcs(rightArc); p8.setDesignator("8"); weapons.add(p8);
         Phaser2 p9 = new Phaser2();
-        p9.setArcs(rightArc);
-        p9.setDesignator("9");
-        weapons.add(p9);
+        p9.setArcs(rightArc); p9.setDesignator("9"); weapons.add(p9);
 
         // Plasma-G launchers (FA), pre-armed for testing
-        int[] faArc = { 21, 22, 23, 24, 1, 2, 3, 4, 5 };
-        for (String des : new String[] { "A", "B", "C", "D" }) {
+        for (String des : new String[] { "A", "B" }) {
             PlasmaLauncher pl = new PlasmaLauncher(PlasmaType.G);
-            pl.setArcs(faArc);
+            pl.setArcs(ArcUtils.FA);
             pl.setDesignator(des);
             pl.arm(Constants.gArmingCost[0]);
             pl.arm(Constants.gArmingCost[0]);
@@ -172,38 +158,27 @@ public class RomulanShips {
         List<Weapon> weapons = new ArrayList<>();
 
         // Left Phasers (FA + L)
-        int[] faLArc = { 17, 18, 19, 20, 21, 22, 23, 24, 1, 2, 3, 4, 5 };
+        int faL = ArcUtils.FA | ArcUtils.L;
         Phaser1 p1 = new Phaser1();
-        p1.setArcs(faLArc);
-        p1.setDesignator("1");
-        weapons.add(p1);
+        p1.setArcs(faL); p1.setDesignator("1"); weapons.add(p1);
         Phaser1 p2 = new Phaser1();
-        p2.setArcs(faLArc);
-        p2.setDesignator("2");
-        weapons.add(p2);
+        p2.setArcs(faL); p2.setDesignator("2"); weapons.add(p2);
 
         // Right Phasers (FA + R)
-        int[] faRArc = { 21, 22, 23, 24, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        int faR = ArcUtils.FA | ArcUtils.R;
         Phaser1 p3 = new Phaser1();
-        p3.setArcs(faRArc);
-        p3.setDesignator("3");
-        weapons.add(p3);
+        p3.setArcs(faR); p3.setDesignator("3"); weapons.add(p3);
         Phaser1 p4 = new Phaser1();
-        p4.setArcs(faRArc);
-        p4.setDesignator("4");
-        weapons.add(p4);
+        p4.setArcs(faR); p4.setDesignator("4"); weapons.add(p4);
 
         // Plasma-R launcher (FA), pre-armed for testing
-        int[] faArc = { 21, 22, 23, 24, 1, 2, 3, 4, 5 };
-        for (String des : new String[] { "A" }) {
-            PlasmaLauncher pl = new PlasmaLauncher(PlasmaType.R);
-            pl.setArcs(faArc);
-            pl.setDesignator(des);
-            pl.arm(Constants.gArmingCost[0]);
-            pl.arm(Constants.gArmingCost[0]);
-            pl.arm(Constants.gArmingCost[1]);
-            weapons.add(pl);
-        }
+        PlasmaLauncher pl = new PlasmaLauncher(PlasmaType.R);
+        pl.setArcs(ArcUtils.FA);
+        pl.setDesignator("A");
+        pl.arm(Constants.rArmingCost[0]);
+        pl.arm(Constants.rArmingCost[0]);
+        pl.arm(Constants.rArmingCost[1]);
+        weapons.add(pl);
 
         s.put("weapons", weapons);
         return s;

@@ -31,6 +31,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     private double damageTaken = 0.0; // accumulated phaser damage (1 phaser pt = 0.5 damage)
     private Seeker.SeekerType seekerType = Seeker.SeekerType.PLASMA;
     private boolean identified = false;
+    private boolean pseudoPlasma = false; // True if this torpedo is a pseudo-torpedo: behaves like a real torpedo but deals zero damage on impact.
+    
 
     // Damage tables by range for each plasma type. Index = distance traveled in
     // impulses.
@@ -227,12 +229,20 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         return identified;
     }
 
+    public boolean isPseudoPlasma() {
+        return pseudoPlasma;
+    }
+
+    public void setPseudoPlasma(boolean pseudo) {
+        this.pseudoPlasma = pseudo;
+    }
+
     /**
-     * Impact the target. Returns current strength as damage.
+     * Impact the target. Returns current strength as damage, or 0 for a pseudo-torpedo.
      * Caller is responsible for applying enveloping spread if isEnveloping().
      */
     @Override
     public int impact() {
-        return getCurrentStrength();
+        return pseudoPlasma ? 0 : getCurrentStrength();
     }
 }

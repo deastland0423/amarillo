@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.sfb.constants.Constants;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.Weapon;
 
@@ -18,7 +18,7 @@ public class AdminShuttle extends Shuttle {
 		// Create a phaser 3 (360 arc) and put it with the shuttle weapons.
 		Phaser3 phaser1 = new Phaser3();
 		phaser1.setDesignator("1");
-		phaser1.setArcs(Constants.Arcs.FULL);
+		phaser1.setArcs(ArcUtils.FULL);
 		List<Weapon> weaponList = new ArrayList<>();
 		weaponList.add(phaser1);
 		Map<String, Object> values = new HashMap<String, Object>();

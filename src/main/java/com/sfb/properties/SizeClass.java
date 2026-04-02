@@ -11,12 +11,22 @@ public enum SizeClass {
 	// 5 - PFs, Interceptors, Small/Medium Ground Bases
 	// 6 - Shuttlecraft, Fighters, Heavy Fighters
 	// 7 - Drones, Plasma Torpedoes, Mines
-	Monster, 
-	Starbase, 
-	Dreadnought, 
-	Cruiser, 
-	Destroyer, 
-	PF, 
-	Shuttle, 
-	Seeker;
+	Monster(0),
+	Starbase(1),
+	Dreadnought(2),
+	Cruiser(3),
+	Destroyer(4),
+	PF(5),
+	Shuttle(6),
+	Seeker(7);
+
+	private int sizeClassNumber;
+
+	SizeClass(int sizeClassNumber) {
+		this.sizeClassNumber = sizeClassNumber;
+	}
+
+	public int getSizeClassNumber() {
+		return sizeClassNumber;
+	}
 }
