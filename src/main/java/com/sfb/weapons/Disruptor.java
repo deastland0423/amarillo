@@ -159,6 +159,41 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	}
 
 	/**
+	 * Fire with scanner adjustment. Hit check uses adjustedRange;
+	 * damage is looked up using realRange (scanner doesn't reduce actual damage).
+	 */
+	@Override
+	public int fire(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException {
+		if (!isArmed()) throw new WeaponUnarmedException("Weapon is unarmed.");
+		if (realRange > getMaxRange() || realRange < getMinRange())
+			throw new TargetOutOfRangeException("Target not in weapon range. [" + getMinRange() + "|" + getMaxRange() + "]");
+
+		int damage = 0;
+		DiceRoller diceRoller = new DiceRoller();
+
+		switch (armingType) {
+			case STANDARD: {
+				int adjIdx = Math.min(adjustedRange, hitChart.length - 1);
+				if (diceRoller.rollOneDie() <= hitChart[adjIdx])
+					damage = damageChart[realRange];
+				break;
+			}
+			case OVERLOAD: {
+				int adjIdx = Math.min(adjustedRange, overloadHitChart.length - 1);
+				if (diceRoller.rollOneDie() <= overloadHitChart[adjIdx])
+					damage = overloadDamageChart[realRange];
+				break;
+			}
+			default: break;
+		}
+
+		reset();
+		registerFire();
+		return damage;
+	}
+
+	/**
 	 * Fire the disruptors using the UIM targeting system.
 	 * 
 	 * @param range The range to the target.

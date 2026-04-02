@@ -59,16 +59,23 @@ public class PowerSystemsTest {
 
 		PowerSystems testPs = testShip.getPowerSysetems();
 
-		// Put 3 power into battery
-		assertTrue(testPs.chargeBattery(3));
-		// Check battery power
-		assertEquals(testPs.getBatteryPower(), 3);
-		// Put 1 more power into battery (fail because no more room in batteries)
-		
-		// Use 3 battery power
-		assertTrue(testPs.useBattery(3));
-		// Remaining battery power should be 0
-		assertEquals(0, testPs.getBatteryPower());
+		// Batteries start fully charged (Fed CA has 3 battery)
+		assertEquals(3, testPs.getBatteryPower());
+
+		// Charging when full should fail
+		assertFalse(testPs.chargeBattery(1));
+
+		// Use 2 battery power
+		assertTrue(testPs.useBattery(2));
+		// Remaining battery power should be 1
+		assertEquals(1, testPs.getBatteryPower());
+
+		// Recharge 2 back
+		assertTrue(testPs.chargeBattery(2));
+		assertEquals(3, testPs.getBatteryPower());
+
+		// Discharging more than available should fail
+		assertFalse(testPs.useBattery(5));
 
 	}
 

@@ -24,18 +24,18 @@ public class Unit extends Marker {
 	// 17 9
 	// 3
 	//
-	private String name = null; // Name of the ship.
-	private int facing = 0; // Direction the unit is facing (1 through 6)
-	private int speed = 0; // Speed the unit is moving (0 through 32)
-	private int sizeClass = 0; // Size class of the unit (0 through 6...I think?)
-	private int sideslipCount = 100; // Track number of moves since last sideslip.
-	private int turnCount = 100; // Track number of moves since last turn.
-	private boolean tractored = false; // True if the unit is tractored by another unit.
-	private Unit tractoringUnit = null; // The unit that is applying a tractor to this unit, if any.
+	protected String name = null; // Name of the ship.
+	protected int facing = 0; // Direction the unit is facing (1 through 6)
+	protected int speed = 0; // Speed the unit is moving (0 through 32)
+	protected int sizeClass = 0; // Size class of the unit (0 through 6...I think?)
+	protected int sideslipCount = 100; // Track number of moves since last sideslip.
+	protected int turnCount = 100; // Track number of moves since last turn.
+	protected boolean tractored = false; // True if the unit is tractored by another unit.
+	protected Unit tractoringUnit = null; // The unit that is applying a tractor to this unit, if any.
 
-	private Player owner = null; // controlling player
+	protected Player owner = null; // controlling player
 
-	private TurnMode turnMode;
+	protected TurnMode turnMode;
 
 	public Unit() {
 

@@ -199,13 +199,14 @@ public class PlasmaTorpedoTest {
 	
 	@Test
 	public void testSelfGuiding() {
-		assertFalse(plasma.isSelfGuiding());
-		
-		plasma.setSelfGuiding(true);
+		// Plasma torpedoes are always self-guiding
 		assertTrue(plasma.isSelfGuiding());
-		
+
 		plasma.setSelfGuiding(false);
 		assertFalse(plasma.isSelfGuiding());
+
+		plasma.setSelfGuiding(true);
+		assertTrue(plasma.isSelfGuiding());
 	}
 	
 	@Test

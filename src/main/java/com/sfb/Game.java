@@ -403,6 +403,8 @@ public class Game {
             drone.setHull(Math.max(0, remaining));
             if (drone.getHull() <= 0) {
                 seekers.remove(drone);
+                if (drone.getController() instanceof Ship)
+                    ((Ship) drone.getController()).releaseControl(drone);
                 return "Drone (" + drone.getDroneType() + ") destroyed";
             }
             return "Drone (" + drone.getDroneType() + ") hit for " + damage
@@ -471,6 +473,9 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (!rack.getAmmo().contains(drone))
             return ActionResult.fail("Drone is not in " + rack.getName());
+        if (!drone.isSelfGuiding() && !launcher.acquireControl(drone))
+            return ActionResult.fail("No control channels available (limit: "
+                    + launcher.getControlLimit() + ")");
 
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
@@ -557,6 +562,8 @@ public class Game {
                                 + targetDrone.getDroneType() + ") — both destroyed");
                         expired.add(seeker);
                         seekers.remove(targetDrone);
+                        if (targetDrone.getController() instanceof Ship)
+                            ((Ship) targetDrone.getController()).releaseControl(targetDrone);
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(drone, (Ship) target);
                         int dmg = drone.impact();
@@ -637,6 +644,13 @@ public class Game {
             }
         }
 
+        for (Seeker s : expired) {
+            if (s instanceof Drone) {
+                Drone d = (Drone) s;
+                if (d.getController() instanceof Ship)
+                    ((Ship) d.getController()).releaseControl(d);
+            }
+        }
         seekers.removeAll(expired);
         return log;
     }

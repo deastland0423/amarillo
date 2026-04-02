@@ -32,6 +32,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     private Seeker.SeekerType seekerType = Seeker.SeekerType.PLASMA;
     private boolean identified = false;
 
+    // Damage tables by range for each plasma type. Index = distance traveled in
+    // impulses.
     private static final int[] PLASMA_R_DAMAGE_BY_RANGE = { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 35, 35, 35, 35,
             35, 25, 25, 25, 25, 25, 20, 20, 20, 20, 25, 10, 10, 10, 5, 1, 0 };
     private static final int[] PLASMA_S_DAMAGE_BY_RANGE = { 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 22, 22, 22, 22,
@@ -47,19 +49,22 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     public PlasmaTorpedo(PlasmaType type, WeaponArmingType armingType) {
         this.plasmaType = type;
         this.armingType = armingType;
+        this.selfGuiding = true;
         setTurnMode(TurnMode.Seeker);
         setSpeed(SPEED);
     }
 
     /**
      * Current damage strength.
-     * Enveloping: table value doubled, then phaser damage subtracted.
-     * Standard:   table value, then phaser damage subtracted.
+     * Envelopin table value doubled, then phaser damage subtracted.
+     * Standard: table value, then phaser damage subtracted.
      * Returns 0 if the torpedo has traveled beyond its table or been shot down.
      */
     public int getCurrentStrength() {
         int[] table = getDamageTable();
-        if (distanceTraveled >= table.length) return 0;
+
+        if (distanceTraveled >= table.length)
+            return 0;
         int base = isEnveloping() ? table[distanceTraveled] * 2 : table[distanceTraveled];
         return Math.max(0, base - (int) damageTaken);
     }
@@ -72,17 +77,22 @@ public class PlasmaTorpedo extends Unit implements Seeker {
      */
     public int[] computeEnvelopingDamage() {
         int total = getCurrentStrength();
-        int base  = total / 6;
+        int base = total / 6;
         int remainder = total % 6;
 
         int[] damage = new int[6];
-        for (int i = 0; i < 6; i++) damage[i] = base;
+
+        for (int i = 0; i < 6; i++)
+            damage[i] = base;
 
         // Pick 'remainder' distinct shield indices at random for the +1 bonus
         List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < 6; i++) indices.add(i);
+        for (int i = 0; i < 6; i++)
+            indices.add(i);
         Collections.shuffle(indices);
-        for (int i = 0; i < remainder; i++) damage[indices.get(i)]++;
+
+        for (int i = 0; i < remainder; i++)
+            damage[indices.get(i)]++;
 
         return damage;
     }
@@ -101,12 +111,18 @@ public class PlasmaTorpedo extends Unit implements Seeker {
 
     private int[] getDamageTable() {
         switch (plasmaType) {
-            case R: return PLASMA_R_DAMAGE_BY_RANGE;
-            case S: return PLASMA_S_DAMAGE_BY_RANGE;
-            case G: return PLASMA_G_DAMAGE_BY_RANGE;
-            case D: return PLASMA_D_DAMAGE_BY_RANGE;
+            case R:
+                return PLASMA_R_DAMAGE_BY_RANGE;
+            case S:
+                return PLASMA_S_DAMAGE_BY_RANGE;
+            case G:
+                return PLASMA_G_DAMAGE_BY_RANGE;
+            case D:
+                return PLASMA_D_DAMAGE_BY_RANGE;
             case F:
-            default: return PLASMA_F_DAMAGE_BY_RANGE;
+
+            default:
+                return PLASMA_F_DAMAGE_BY_RANGE;
         }
     }
 

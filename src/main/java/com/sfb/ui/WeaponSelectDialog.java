@@ -63,11 +63,17 @@ public class WeaponSelectDialog extends Stage {
         setTitle("Weapons Fire");
         setResizable(false);
 
+        int scannerValue = attacker.getScanner();
+        int adjustedRange = range + scannerValue;
+
         // --- Header ---
         Label title = label(attacker.getName() + "  →  " + target.getName(), HEADER_FONT, Color.WHITE);
+        String rangeStr = scannerValue > 0
+                ? "Range " + range + " (scanner +" + scannerValue + " = " + adjustedRange + ")"
+                : "Range " + range;
         String targetInfo = (target instanceof Ship)
-                ? "Range " + range + "   Target shield #" + shieldNumber
-                : "Range " + range + "   Drone hull " + ((Drone) target).getHull();
+                ? rangeStr + "   Target shield #" + shieldNumber
+                : rangeStr + "   Drone hull " + ((Drone) target).getHull();
         Label sub = label(targetInfo, LABEL_FONT, Color.rgb(150, 150, 180));
 
         VBox header = new VBox(3, title, sub);
@@ -151,7 +157,7 @@ public class WeaponSelectDialog extends Stage {
             int totalDamage = 0;
             for (Weapon w : selected) {
                 try {
-                    int dmg = ((DirectFire) w).fire(range);
+                    int dmg = ((DirectFire) w).fire(range, adjustedRange);
                     totalDamage += dmg;
                     log.append("  ").append(w.getName())
                        .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");

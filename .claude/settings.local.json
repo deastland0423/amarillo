@@ -13,7 +13,8 @@
       "Bash(do echo:*)",
       "Read(//d/repos/amarillo/**)",
       "Bash(done)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(mvn clean:*)"
     ]
   }
 }

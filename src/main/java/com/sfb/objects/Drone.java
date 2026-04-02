@@ -30,81 +30,18 @@ public class Drone extends Unit implements Seeker {
 
 	public Drone(DroneType type) {
 		this();
-		this.type = type;
+		// Fallback to TypeI if null is passed
+		DroneType config = (type != null) ? type : DroneType.TypeI;
 
-		switch (type) {
-			case TypeI:
-				this.endurance = 96;
-				this.setSpeed(8);
-				this.warheadDamage = 12;
-				this.rackSize = 1;
-				this.hull = 4;
-				break;
-			case TypeII:
-				this.endurance = 64;
-				this.setSpeed(12);
-				this.warheadDamage = 12;
-				this.rackSize = 1;
-				this.hull = 4;
-				break;
-			case TypeIII:
-				this.endurance = 800;
-				this.setSpeed(12);
-				this.warheadDamage = 12;
-				this.rackSize = 1;
-				this.selfGuiding = true;
-				this.hull = 4;
-				break;
-			case TypeIV:
-				this.endurance = 96;
-				this.setSpeed(8);
-				this.warheadDamage = 24;
-				this.rackSize = 2;
-				this.hull = 6;
-				break;
-			case TypeV:
-				this.endurance = 64;
-				this.setSpeed(12);
-				this.warheadDamage = 24;
-				this.rackSize = 2;
-				this.hull = 6;
-				break;
-			case TypeVI:
-				this.endurance = 32;
-				this.setSpeed(12);
-				this.warheadDamage = 8;
-				this.rackSize = 0.5;
-				this.hull = 3;
-				break;
-			default:
-				// Default to Type I if no type is specified.
-				this.endurance = 96;
-				this.setSpeed(8);
-				this.warheadDamage = 12;
-				this.rackSize = 1;
-				this.hull = 4;
-				break;
-		}
-	}
+		this.type = config;
 
-	public enum DroneType {
-		TypeI("Type I"),
-		TypeII("Type II"),
-		TypeIII("Type III"),
-		TypeIV("Type IV"),
-		TypeV("Type V"),
-		TypeVI("Type VI");
-
-		private final String displayName;
-
-		DroneType(String displayName) {
-			this.displayName = displayName;
-		}
-
-		@Override
-		public String toString() {
-			return displayName;
-		}
+		// Unified Direct Assignments
+		this.endurance = config.endurance;
+		this.speed = config.speed; // Protected in Unit
+		this.warheadDamage = config.damage;
+		this.rackSize = config.rack;
+		this.hull = config.hull;
+		this.selfGuiding = config.selfGuiding; // Satisfies the internal state for Seeker
 	}
 
 	public void setTarget(Unit target) {

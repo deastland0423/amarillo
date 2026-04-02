@@ -420,12 +420,32 @@ public class Ship extends Unit {
 	}
 
 	/// SPECIAL FUNCITONS ///
+	public int getScanner() {
+		return this.specialFunctions.getScanner();
+	}
+
 	public boolean hasDerfacs() {
 		return this.specialFunctions.hasDerfacs();
 	}
 
 	public boolean hasUim() {
 		return this.specialFunctions.hasUim();
+	}
+
+	public int getControlLimit() {
+		return this.specialFunctions.getControlLimit();
+	}
+
+	public int getControlUsed() {
+		return this.specialFunctions.getControlUsed();
+	}
+
+	public boolean acquireControl(Seeker seeker) {
+		return this.specialFunctions.acquireControl(seeker);
+	}
+
+	public void releaseControl(Seeker seeker) {
+		this.specialFunctions.releaseControl(seeker);
 	}
 
 	/// TRANSPORTERS ///

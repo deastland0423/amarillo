@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.objects.Drone;
-import com.sfb.objects.Drone.DroneType;
+import com.sfb.objects.DroneType;
 
 /** Package-private helpers shared across faction ship files. */
 class ShipDataUtils {

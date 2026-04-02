@@ -1,5 +1,6 @@
 package com.sfb.weapons;
 
+import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.properties.WeaponArmingType;
@@ -91,13 +92,49 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		
 		// Once fired, the weapon is no longer armed.
 		reset();
-		
+
 		registerFire();
 		return damage;
 	}
-	
+
 	/**
-	 * 
+	 * Fire with scanner adjustment. The to-hit roll uses adjustedRange;
+	 * damage is fixed (or energy-based for overload), so realRange is unused here.
+	 */
+	@Override
+	public int fire(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException, CapacitorException {
+		if (!isArmed()) throw new WeaponUnarmedException("Weapon is unarmed.");
+		if (realRange > getMaxRange() || realRange < getMinRange())
+			throw new TargetOutOfRangeException("Target not in weapon range.");
+
+		int clampedAdj = Math.min(adjustedRange, getHitChart().length - 1);
+		int damage = 0;
+		DiceRoller diceRoller = new DiceRoller();
+
+		switch (armingType) {
+		case STANDARD:
+			if (diceRoller.rollOneDie() <= hitChart[clampedAdj]) damage = 8;
+			break;
+		case OVERLOAD:
+			int clampedAdjOvl = Math.min(adjustedRange, overloadHitChart.length - 1);
+			if (diceRoller.rollOneDie() <= overloadHitChart[clampedAdjOvl])
+				damage = (int)(armingEnergy * 2);
+			break;
+		case SPECIAL:
+			int clampedAdjPrx = Math.min(adjustedRange, proximityHitChart.length - 1);
+			if (diceRoller.rollOneDie() <= proximityHitChart[clampedAdjPrx]) damage = 4;
+			break;
+		default: break;
+		}
+
+		reset();
+		registerFire();
+		return damage;
+	}
+
+	/**
+	 *
 	 * @return True if the weapon is armed. False otherwise.
 	 */
 	@Override

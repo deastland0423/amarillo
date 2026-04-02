@@ -49,15 +49,15 @@ public class SpecialFunctions {
 		// Sensors Track
 		int[] sensorValues = values.get("sensor") == null ? new int[] {0} : (int[])values.get("sensor");
 		sensor = new int[sensorValues.length];
-		System.arraycopy(sensorValues, 0, this.scanner, 0, sensorValues.length);
+		System.arraycopy(sensorValues, 0, this.sensor, 0, sensorValues.length);
 		availableSensor = 0;
-		
+
 		// Excess Damage
 		availableExcessDamage = excessDamage = values.get("excess") == null ? 0 : (Integer)values.get("excess");
-		
+
 		// Control channels is (sensor rating) * (control modifier)
 		controlModifier = values.get("controlmod") == null ? 1 : (Double)values.get("controlmod");
-		controlChannels = (int)(availableSensor * controlModifier);
+		controlChannels = (int)(sensor[availableSensor] * controlModifier);
 
 	}
 	
@@ -103,7 +103,26 @@ public class SpecialFunctions {
 	}
 	
 	public int getControlLimit() {
-		return (int)(availableSensor * controlModifier);
+		return (int)(sensor[availableSensor] * controlModifier);
+	}
+
+	public int getControlUsed() {
+		return controlUsed;
+	}
+
+	/** Claim a control channel for a drone. Returns false if at limit. */
+	public boolean acquireControl(Seeker seeker) {
+		if (controlUsed >= getControlLimit()) return false;
+		controlledSeekers.add(seeker);
+		controlUsed++;
+		return true;
+	}
+
+	/** Release a control channel when a drone is destroyed, impacts, or expires. */
+	public void releaseControl(Seeker seeker) {
+		if (controlledSeekers.remove(seeker)) {
+			controlUsed = Math.max(0, controlUsed - 1);
+		}
 	}
 	
 	
@@ -128,10 +147,14 @@ public class SpecialFunctions {
 		// Move the pointer to the next value in the track.
 		availableSensor++;
 
-		// Adjust the number of control channels
-		controlChannels = (int)(availableSensor * controlModifier);
-		if (controlChannels < controlUsed) {
-			//TODO: Release a controlled seeker that now has no control
+		// Adjust control channels to reflect the new (lower) sensor rating.
+		controlChannels = (int)(sensor[availableSensor] * controlModifier);
+
+		// Release excess seekers if the limit dropped below current usage.
+		while (controlUsed > controlChannels && !controlledSeekers.isEmpty()) {
+			Seeker released = controlledSeekers.remove(controlledSeekers.size() - 1);
+			controlUsed--;
+			released.setSelfGuiding(true); // Drone is now free-flying, no longer guided
 		}
 
 		return true;
@@ -176,9 +199,10 @@ public class SpecialFunctions {
 		if (availableSensor == 0) {
 			return false;
 		}
-		
+
 		// Move the pointer to the previous value in the track.
 		availableSensor--;
+		controlChannels = (int)(sensor[availableSensor] * controlModifier);
 		return true;
 	}
 	
