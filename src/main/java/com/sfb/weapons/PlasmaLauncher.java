@@ -45,6 +45,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		this.launcherType = launcherType;
 		setDacHitLocaiton("torp");
 		setType("Plasma");
+		setMaxRange(BOLT_HIT_CHART.length - 1); // bolt range 0–30
 	}
 	
 	public PlasmaType getLauncherType() {
