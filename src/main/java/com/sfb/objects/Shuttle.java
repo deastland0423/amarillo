@@ -45,6 +45,7 @@ public abstract class Shuttle extends Unit {
 	
 	public void setHull(int maxHull) {
 		this.hull = maxHull;
+		if (this.currentHull == 0) this.currentHull = maxHull;
 	}
 	
 	public int getCurrentHull() {

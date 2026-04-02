@@ -413,6 +413,21 @@ public class Game {
             }
             return "Drone (" + drone.getDroneType() + ") hit for " + damage
                     + " — " + drone.getHull() + " hull remaining";
+        } else if (target instanceof com.sfb.objects.Shuttle) {
+            com.sfb.objects.Shuttle shuttle = (com.sfb.objects.Shuttle) target;
+            if (damage == com.sfb.weapons.ADD.HIT) {
+                int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+                shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - roll));
+                if (shuttle.getCurrentHull() <= 0)
+                    return shuttle.getName() + " destroyed by ADD (" + roll + " hull damage)";
+                return shuttle.getName() + " hit by ADD for " + roll + " hull damage — "
+                        + shuttle.getCurrentHull() + " remaining";
+            }
+            shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - damage));
+            if (shuttle.getCurrentHull() <= 0)
+                return shuttle.getName() + " destroyed (" + damage + " damage)";
+            return shuttle.getName() + " hit for " + damage + " — "
+                    + shuttle.getCurrentHull() + " hull remaining";
         }
         return "Damage to unknown unit type ignored";
     }

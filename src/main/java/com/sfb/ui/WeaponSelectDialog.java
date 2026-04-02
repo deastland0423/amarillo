@@ -155,12 +155,18 @@ public class WeaponSelectDialog extends Stage {
                .append("   shield #").append(shieldNumber).append("\n");
 
             int totalDamage = 0;
+            boolean addHit = false;
             for (Weapon w : selected) {
                 try {
                     int dmg = ((DirectFire) w).fire(range, adjustedRange);
-                    totalDamage += dmg;
-                    log.append("  ").append(w.getName())
-                       .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
+                    if (dmg == com.sfb.weapons.ADD.HIT) {
+                        addHit = true;
+                        log.append("  ").append(w.getName()).append("  HIT\n");
+                    } else {
+                        totalDamage += dmg;
+                        log.append("  ").append(w.getName())
+                           .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
+                    }
                 } catch (WeaponUnarmedException ex) {
                     log.append("  ").append(w.getName()).append("  unarmed\n");
                 } catch (TargetOutOfRangeException ex) {
@@ -170,6 +176,10 @@ public class WeaponSelectDialog extends Stage {
                 }
             }
 
+            if (addHit) {
+                String dmgLog = game.applyDamageToUnit(com.sfb.weapons.ADD.HIT, target, shieldNumber);
+                log.append("  ADD result: ").append(dmgLog).append("\n");
+            }
             log.append("  Total damage: ").append(totalDamage);
             if (target instanceof Ship) {
                 FireResult result = game.markShieldDamage((Ship) target, shieldNumber, totalDamage);
@@ -177,7 +187,7 @@ public class WeaponSelectDialog extends Stage {
                     log.append("   BLEED-THROUGH: ").append(result.getBleed())
                        .append(" (internal damage resolves at end of Direct-Fire segment)\n");
                 }
-            } else {
+            } else if (totalDamage > 0) {
                 String dmgLog = game.applyDamageToUnit(totalDamage, target, shieldNumber);
                 log.append("   ").append(dmgLog).append("\n");
             }
@@ -219,6 +229,10 @@ public class WeaponSelectDialog extends Stage {
 
     private static String weaponStatus(Weapon w) {
         if (!w.isFunctional()) return "[DESTROYED]";
+        if (w instanceof com.sfb.weapons.ADD) {
+            com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
+            return "[" + add.getShots() + " shots]";
+        }
         if (w instanceof HeavyWeapon) {
             HeavyWeapon hw = (HeavyWeapon) w;
             if (hw.isArmed()) return "[ARMED]";
@@ -236,8 +250,8 @@ public class WeaponSelectDialog extends Stage {
         if (!w.isFunctional()) return false;
         if (!w.canFire()) return false;
         if (w instanceof HeavyWeapon && !((HeavyWeapon) w).isArmed()) return false;
-        if (!(w instanceof HeavyWeapon)) {
-            if (attacker.getWeapons().getPhaserCapacitorEnergy() < 1) return false;
+        if (!(w instanceof com.sfb.weapons.ADD) && !(w instanceof HeavyWeapon)) {
+            if (attacker.getWeapons().getPhaserCapacitorEnergy() < w.energyToFire()) return false;
         }
         return true;
     }

@@ -174,6 +174,10 @@ public abstract class Weapon {
 	 *   1. Has not exceeded maxShotsPerTurn this turn.
 	 *   2. At least minImpulseGap global impulses since last fired.
 	 */
+	public double energyToFire() {
+		return 1.0;
+	}
+
 	public boolean canFire() {
 		int currentImpulse = TurnTracker.getImpulse();
 		return shotsThisTurn < maxShotsPerTurn
