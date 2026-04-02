@@ -8,7 +8,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectWriter;
 
 import com.sfb.objects.Ship;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
 import com.sfb.utilities.DAC;
 
 public class Application {
@@ -71,7 +71,7 @@ public class Application {
 //		System.out.println("Roll: " + roll + " |Result: " + dac.fetchNextHit(roll));
 		
 		Ship newShip = new Ship();
-		newShip.init(SampleShips.getFedCa());
+		newShip.init(FederationShips.getFedCa());
 		
 		ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
 		try {

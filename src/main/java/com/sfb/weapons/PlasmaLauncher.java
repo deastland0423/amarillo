@@ -1,12 +1,15 @@
 package com.sfb.weapons;
 
 import com.sfb.constants.Constants;
+import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
+import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.properties.PlasmaType;
 import com.sfb.properties.WeaponArmingType;
+import com.sfb.utilities.DiceRoller;
 
-public class PlasmaLauncher implements HeavyWeapon, Launcher {
+public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, DirectFire {
 
 	/*
 	 * Arming chart (std/env/shotgun).
@@ -21,6 +24,15 @@ public class PlasmaLauncher implements HeavyWeapon, Launcher {
 	 */
 
 
+	// Bolt hit chart: index = range, value = max d6 roll that hits
+	// Range 0-5: 1-4, Range 6-10: 1-3, Range 11-20: 1-2, Range 21-30: 1-1
+	private static final int[] BOLT_HIT_CHART = {
+		4, 4, 4, 4, 4, 4,       // range 0-5
+		3, 3, 3, 3, 3,           // range 6-10
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // range 11-20
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1  // range 21-30
+	};
+
 	PlasmaType launcherType        = null;		// The type of launcher, which will also be the max size plasma that can be launched.
 	PlasmaType plasmaType		= null;			// The type of plasma in the launcher.
 	int        armingTurn  = 0;
@@ -31,10 +43,27 @@ public class PlasmaLauncher implements HeavyWeapon, Launcher {
 	
 	public PlasmaLauncher(PlasmaType launcherType) {
 		this.launcherType = launcherType;
+		setDacHitLocaiton("torp");
+		setType("Plasma");
 	}
 	
 	public PlasmaType getLauncherType() {
 		return this.launcherType;
+	}
+
+	/** The type of plasma currently loaded (null if unarmed). */
+	public PlasmaType getPlasmaType() {
+		return this.plasmaType;
+	}
+
+	/**
+	 * The warhead strength that would be delivered at range 0 if fired now.
+	 * Returns 0 if not armed.
+	 */
+	public int getArmedStrength() {
+		if (!armed || plasmaType == null) return 0;
+		return new PlasmaTorpedo(plasmaType, armingType != null ? armingType : WeaponArmingType.STANDARD)
+				.getCurrentStrength();
 	}
 
 	@Override
@@ -283,10 +312,46 @@ public class PlasmaLauncher implements HeavyWeapon, Launcher {
 		
 	}
 
+	/**
+	 * Fire the plasma as a direct-fire bolt.
+	 * Damage = half the table value at this range (rounded down).
+	 * Enveloping arming does NOT double damage for bolts.
+	 * Returns damage on a hit, 0 on a miss.
+	 * Throws TargetOutOfRangeException if the torpedo would do 0 damage at this range.
+	 */
+	@Override
+	public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+		if (!armed) throw new WeaponUnarmedException("Plasma launcher is not armed");
+		if (range >= BOLT_HIT_CHART.length) throw new TargetOutOfRangeException("Target out of range for plasma bolt");
+
+		PlasmaTorpedo temp = new PlasmaTorpedo(plasmaType, WeaponArmingType.STANDARD);
+		for (int i = 0; i < range; i++) temp.incrementDistance();
+		int tableValue = temp.getCurrentStrength();
+		int boltDamage = tableValue / 2;
+
+		if (boltDamage <= 0) throw new TargetOutOfRangeException("Plasma bolt has no strength at range " + range);
+
+		int roll = new DiceRoller().rollOneDie();
+		int hit  = roll <= BOLT_HIT_CHART[range] ? boltDamage : 0;
+		reset();
+		return hit;
+	}
+
+	/**
+	 * Create and return a PlasmaTorpedo ready to be placed on the map.
+	 * The launcher must be armed before calling this.
+	 * Resets the launcher state after launch.
+	 */
+	public PlasmaTorpedo launch() {
+		if (!armed) return null;
+		PlasmaTorpedo torpedo = new PlasmaTorpedo(plasmaType, armingType);
+		reset();
+		return torpedo;
+	}
+
 	@Override
 	public Seeker launch(int weaponNumber) {
-		// TODO Auto-generated method stub
-		return null;
+		return launch();
 	}
 	
 	

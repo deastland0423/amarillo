@@ -8,7 +8,8 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 
 /**
  * Verifies that the warp/impulse speed rules are applied correctly:
@@ -20,7 +21,7 @@ public class SpeedCalculationTest {
 
     /** Clone the D7 spec and override movement-related fields for isolation. */
     private Map<String, Object> spec(int lWarp, int rWarp, int impulse, double moveCost) {
-        Map<String, Object> m = new HashMap<>(SampleShips.getD7());
+        Map<String, Object> m = new HashMap<>(KlingonShips.getD7());
         m.put("lwarp",   lWarp);
         m.put("rwarp",   rWarp);
         m.put("impulse", impulse);

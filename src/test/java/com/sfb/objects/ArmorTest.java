@@ -7,7 +7,8 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 
 public class ArmorTest {
 
@@ -16,7 +17,7 @@ public class ArmorTest {
     @Before
     public void setUp() {
         ship = new Ship();
-        ship.init(SampleShips.getFedOcl());
+        ship.init(FederationShips.getFedOcl());
     }
 
     // --- Initial value ---

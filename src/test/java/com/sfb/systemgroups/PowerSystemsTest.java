@@ -7,7 +7,8 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.sfb.objects.Ship;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 
 public class PowerSystemsTest {
 
@@ -16,7 +17,7 @@ public class PowerSystemsTest {
 		// Get the test power system (Fed CA)
 		// CA has 15 LWarp, 15RWarp, 4 Impulse, 0 APR, and 4 Batteries
 		Ship testShip = new Ship();
-		testShip.init(SampleShips.getFedCa());
+		testShip.init(FederationShips.getFedCa());
 
 		PowerSystems testPs = testShip.getPowerSysetems();
 //		PowerSystems testPs = TestObjects.testPowerSystems;
@@ -54,7 +55,7 @@ public class PowerSystemsTest {
 		// Get the test power system (Fed CA)
 		// CA has 15 LWarp, 15RWarp, 4 Impulse, 4 APR, and 4 Batteries
 		Ship testShip = new Ship();
-		testShip.init(SampleShips.getFedCa());
+		testShip.init(FederationShips.getFedCa());
 
 		PowerSystems testPs = testShip.getPowerSysetems();
 

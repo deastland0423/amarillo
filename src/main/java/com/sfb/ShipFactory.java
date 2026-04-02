@@ -1,7 +1,7 @@
 package com.sfb;
 
 import com.sfb.objects.Ship;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.ShipRegistry;
 
 public class ShipFactory {
 
@@ -27,7 +27,7 @@ public class ShipFactory {
 		//////////////////////////////
 		// Get a test version of the Fed CA
 		
-		theShip.init(SampleShips.getFedCa());
+		theShip.init(ShipRegistry.build(shipType));
 		theShip.setName("USS Merrimac");
 		//////////////////////////////
 		

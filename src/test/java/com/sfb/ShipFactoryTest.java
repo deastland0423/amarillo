@@ -12,7 +12,7 @@ public class ShipFactoryTest {
 	public void testCreateShip() {
 		ShipFactory factory = ShipFactory.getInstance();
 		
-		Ship newShip = factory.buildShip("CA", "SS Botany Bay");
+		Ship newShip = factory.buildShip("FED_CA", "SS Botany Bay");
 		
 		System.out.println(newShip);
 		

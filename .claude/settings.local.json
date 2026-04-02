@@ -6,7 +6,9 @@
       "Bash(mvn test:*)",
       "Bash(git checkout:*)",
       "Bash(git stash:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(sed -i 's/import com.sfb.samples.SampleShips;/import com.sfb.samples.FederationShips;\\\\nimport com.sfb.samples.KlingonShips;/' src/test/java/com/sfb/objects/SpeedCalculationTest.java src/test/java/com/sfb/objects/InternalDamageTest.java src/test/java/com/sfb/objects/ArmorTest.java src/test/java/com/sfb/systemgroups/PowerSystemsTest.java src/test/java/com/sfb/objects/ShipTest.java src/test/java/com/sfb/constants/ConstantsTest.java)",
+      "Bash(sed -i -e 's/SampleShips\\\\.getFedCa\\(\\)/FederationShips.getFedCa\\(\\)/g' -e 's/SampleShips\\\\.getFedOcl\\(\\)/FederationShips.getFedOcl\\(\\)/g' -e 's/SampleShips\\\\.getD7\\(\\)/KlingonShips.getD7\\(\\)/g' src/test/java/com/sfb/objects/SpeedCalculationTest.java src/test/java/com/sfb/objects/InternalDamageTest.java src/test/java/com/sfb/objects/ArmorTest.java src/test/java/com/sfb/systemgroups/PowerSystemsTest.java src/test/java/com/sfb/objects/ShipTest.java src/test/java/com/sfb/constants/ConstantsTest.java)"
     ]
   }
 }

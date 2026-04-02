@@ -11,7 +11,8 @@ import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DirectFire;
 import com.sfb.weapons.Weapon;
@@ -62,7 +63,7 @@ public class Main {
 		
 		// Place a Fed CA on the board.
 		Ship fedCa = new Ship();
-		fedCa.init(SampleShips.getFedCa());
+		fedCa.init(FederationShips.getFedCa());
 		fedCa.setLocation(new Location(14,01));
 		fedCa.setFacing(13);
 		fedCa.setOwner(player1);
@@ -70,7 +71,7 @@ public class Main {
 		
 		// Place a Klin D7 on the board.
 		Ship klnD7 = new Ship();
-		klnD7.init(SampleShips.getD7());
+		klnD7.init(KlingonShips.getD7());
 		klnD7.setLocation(new Location(14,30));
 		klnD7.setFacing(1);
 		klnD7.setOwner(player2);

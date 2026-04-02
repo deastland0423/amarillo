@@ -6,16 +6,20 @@ import java.util.List;
 import java.util.Set;
 
 import com.sfb.objects.Drone;
+import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.systems.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
+import com.sfb.samples.RomulanShips;
 import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -75,7 +79,7 @@ public class Game {
         players.add(player2);
 
         Ship fedCa = new Ship();
-        fedCa.init(SampleShips.getFedCa());
+        fedCa.init(FederationShips.getFedCa());
         fedCa.setLocation(new Location(12, 1));
         fedCa.setFacing(13);
         fedCa.setSpeed(16);
@@ -84,7 +88,7 @@ public class Game {
         player1.getPlayerUnits().add(fedCa);
 
         Ship fedFfg = new Ship();
-        fedFfg.init(SampleShips.getFedFfg());
+        fedFfg.init(FederationShips.getFedFfg());
         fedFfg.setLocation(new Location(16, 1));
         fedFfg.setFacing(13);
         fedFfg.setSpeed(20);
@@ -93,7 +97,7 @@ public class Game {
         player1.getPlayerUnits().add(fedFfg);
 
         Ship klnD7 = new Ship();
-        klnD7.init(SampleShips.getD7());
+        klnD7.init(KlingonShips.getD7());
         klnD7.setLocation(new Location(12, 30));
         klnD7.setFacing(1);
         klnD7.setSpeed(16);
@@ -102,13 +106,22 @@ public class Game {
         player2.getPlayerUnits().add(klnD7);
 
         Ship klnF5 = new Ship();
-        klnF5.init(SampleShips.getF5());
+        klnF5.init(KlingonShips.getF5());
         klnF5.setLocation(new Location(16, 30));
         klnF5.setFacing(1);
         klnF5.setSpeed(20);
         klnF5.setOwner(player2);
         ships.add(klnF5);
         player2.getPlayerUnits().add(klnF5);
+
+        Ship romKr = new Ship();
+        romKr.init(RomulanShips.getRomKr());
+        romKr.setLocation(new Location(8, 30));
+        romKr.setFacing(1);
+        romKr.setSpeed(16);
+        romKr.setOwner(player2);
+        ships.add(romKr);
+        player2.getPlayerUnits().add(romKr);
 
         TurnTracker.reset();
         inProgress = true;
@@ -335,7 +348,7 @@ public class Game {
      * Determine which shield a drone hits based on its direction of travel.
      * The drone's facing is where it is going; the hit shield faces the opposite direction.
      */
-    private int getDroneImpactShield(Drone drone, Ship target) {
+    private int getDroneImpactShield(Unit drone, Ship target) {
         // Reverse the drone's facing 180° to get the incoming direction (1-24)
         int incomingFacing = (drone.getFacing() + 11) % 24 + 1;
         // Convert 24-direction to 12-direction absolute shield facing
@@ -474,6 +487,35 @@ public class Game {
     }
 
     /**
+     * Launch a plasma torpedo from the given launcher at the target.
+     * The launcher must be armed. The torpedo is placed at the launcher's
+     * location, faced toward the target, and added to the active seekers list.
+     */
+    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        if (!weapon.isFunctional())
+            return ActionResult.fail(weapon.getName() + " is destroyed");
+        if (!weapon.isArmed())
+            return ActionResult.fail(weapon.getName() + " is not armed");
+
+        PlasmaTorpedo torpedo = weapon.launch();
+        if (torpedo == null)
+            return ActionResult.fail(weapon.getName() + " failed to launch");
+
+        torpedo.setLocation(launcher.getLocation());
+        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        torpedo.setTarget(target);
+        torpedo.setController(launcher);
+        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        seekers.add(torpedo);
+
+        return ActionResult.ok(launcher.getName() + " launched plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName());
+    }
+
+    /**
      * Move all active seekers that are scheduled to move this impulse.
      * Each drone re-faces its target, advances one hex, and is checked for
      * impact or endurance expiry. Returns a log of all seeker activity.
@@ -487,58 +529,111 @@ public class Game {
         List<Seeker> expired = new ArrayList<>();
 
         for (Seeker seeker : seekers) {
-            if (!(seeker instanceof Drone)) continue;
-            Drone drone = (Drone) seeker;
+            if (seeker instanceof Drone) {
+                Drone drone = (Drone) seeker;
+                if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed())) continue;
 
-            if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed())) continue;
+                Unit target = drone.getTarget();
+                if (target != null) {
+                    int bearing = MapUtils.getBearing(drone, target);
+                    if (bearing != 0) drone.setFacing(snapToCardinal(bearing));
+                }
 
-            // Re-face toward target before moving, snapped to nearest cardinal
-            Unit target = drone.getTarget();
-            if (target != null) {
-                int bearing = MapUtils.getBearing(drone, target);
-                if (bearing != 0) drone.setFacing(snapToCardinal(bearing));
-            }
+                drone.goForward();
 
-            drone.goForward();
-
-            // If the drone moved off the map, expire it
-            if (drone.getLocation() == null) {
-                log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
-                expired.add(seeker);
-                continue;
-            }
-
-            // Decrement endurance
-            drone.setEndurance(drone.getEndurance() - 1);
-
-            // Check impact — drone and target in same hex
-            if (target != null && target.getLocation() != null
-                    && drone.getLocation().equals(target.getLocation())) {
-                if (target instanceof Drone) {
-                    // Drone vs drone — both destroyed regardless of warhead or hull
-                    Drone targetDrone = (Drone) target;
-                    log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
-                            + targetDrone.getDroneType() + ") — both destroyed");
+                if (drone.getLocation() == null) {
+                    log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
                     expired.add(seeker);
-                    seekers.remove(targetDrone);
-                } else if (target instanceof Ship) {
-                    int shieldNum = getDroneImpactShield(drone, (Ship) target);
-                    int dmg = drone.impact();
-                    FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
-                    log.add("  Drone (" + drone.getDroneType() + ") impacted "
-                            + target.getName() + " shield #" + shieldNum
-                            + "  damage " + dmg
-                            + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                    continue;
+                }
+
+                drone.setEndurance(drone.getEndurance() - 1);
+
+                if (target != null && target.getLocation() != null
+                        && drone.getLocation().equals(target.getLocation())) {
+                    if (target instanceof Drone) {
+                        Drone targetDrone = (Drone) target;
+                        log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
+                                + targetDrone.getDroneType() + ") — both destroyed");
+                        expired.add(seeker);
+                        seekers.remove(targetDrone);
+                    } else if (target instanceof Ship) {
+                        int shieldNum = getDroneImpactShield(drone, (Ship) target);
+                        int dmg = drone.impact();
+                        FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
+                        log.add("  Drone (" + drone.getDroneType() + ") impacted "
+                                + target.getName() + " shield #" + shieldNum
+                                + "  damage " + dmg
+                                + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                        expired.add(seeker);
+                    }
+                    continue;
+                }
+
+                if (drone.getEndurance() <= 0) {
+                    log.add("  Drone (" + drone.getDroneType() + ") targeting "
+                            + (target != null ? target.getName() : "?") + " ran out of endurance");
                     expired.add(seeker);
                 }
-                continue;
-            }
 
-            // Check endurance
-            if (drone.getEndurance() <= 0) {
-                log.add("  Drone (" + drone.getDroneType() + ") targeting "
-                        + (target != null ? target.getName() : "?") + " ran out of endurance");
-                expired.add(seeker);
+            } else if (seeker instanceof PlasmaTorpedo) {
+                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
+                if (!MovementUtil.moveThisImpulse(impulse, torp.getSpeed())) continue;
+
+                Unit target = torp.getTarget();
+                if (target != null) {
+                    int bearing = MapUtils.getBearing(torp, target);
+                    if (bearing != 0) torp.setFacing(snapToCardinal(bearing));
+                }
+
+                torp.goForward();
+                torp.incrementDistance();
+
+                if (torp.getLocation() == null) {
+                    log.add("  Plasma-" + torp.getPlasmaType() + " moved off the map");
+                    expired.add(seeker);
+                    continue;
+                }
+
+                if (torp.getCurrentStrength() <= 0) {
+                    log.add("  Plasma-" + torp.getPlasmaType() + " targeting "
+                            + (target != null ? target.getName() : "?") + " dissipated");
+                    expired.add(seeker);
+                    continue;
+                }
+
+                if (target != null && target.getLocation() != null
+                        && torp.getLocation().equals(target.getLocation())) {
+                    if (target instanceof Ship) {
+                        Ship ship = (Ship) target;
+                        if (torp.isEnveloping()) {
+                            int[] spread = torp.computeEnvelopingDamage();
+                            int total = 0;
+                            for (int i = 0; i < 6; i++) {
+                                if (spread[i] > 0) {
+                                    markShieldDamage(ship, i + 1, spread[i]);
+                                    total += spread[i];
+                                }
+                            }
+                            log.add("  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
+                                    + ship.getName() + "  total damage " + total + " spread to all shields");
+                        } else {
+                            int shieldNum = getDroneImpactShield(torp, ship);
+                            int dmg = torp.impact();
+                            FireResult result = markShieldDamage(ship, shieldNum, dmg);
+                            log.add("  Plasma-" + torp.getPlasmaType() + " impacted "
+                                    + ship.getName() + " shield #" + shieldNum
+                                    + "  damage " + dmg
+                                    + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                        }
+                    } else {
+                        int dmg = torp.impact();
+                        String dmgLog = applyDamageToUnit(dmg, target, 1);
+                        log.add("  Plasma-" + torp.getPlasmaType() + " impacted " + target.getName()
+                                + "  " + dmgLog);
+                    }
+                    expired.add(seeker);
+                }
             }
         }
 

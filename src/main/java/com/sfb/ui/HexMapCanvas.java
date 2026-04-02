@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import com.sfb.objects.Drone;
+import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
@@ -140,6 +141,7 @@ public class HexMapCanvas extends Canvas {
         }
         for (Seeker seeker : seekers) {
             if (seeker instanceof Drone) drawDrone(gc, (Drone) seeker);
+            else if (seeker instanceof PlasmaTorpedo) drawPlasmaTorpedo(gc, (PlasmaTorpedo) seeker);
         }
     }
 
@@ -277,10 +279,14 @@ public class HexMapCanvas extends Canvas {
         }
     }
 
+    /** Convert a 1–24 SFB facing to screen radians (0 = up = north). */
+    private static double facingToRadians(int facing) {
+        return Math.toRadians(270.0 + (facing - 1) * 15.0);
+    }
+
     /** Arrow pointing from counter center toward the facing direction. */
     private void drawFacingArrow(GraphicsContext gc, double cx, double cy, int facing, Color color) {
-        double angleDeg = 270.0 + (facing - 1) * 15.0;
-        double angleRad = Math.toRadians(angleDeg);
+        double angleRad = facingToRadians(facing);
         double len = COUNTER_SIZE * 0.78;
 
         double tipX = cx + len * Math.cos(angleRad);
@@ -347,6 +353,49 @@ public class HexMapCanvas extends Canvas {
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 7.5));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.fillText(label, cx, cy + 3.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Plasma torpedo counter
+    // -------------------------------------------------------------------------
+
+    private void drawPlasmaTorpedo(GraphicsContext gc, PlasmaTorpedo torp) {
+        if (torp.getLocation() == null) return;
+        double[] c = hexCenter(torp.getLocation().getX(), torp.getLocation().getY());
+        double cx = c[0];
+        double cy = c[1];
+
+        // Faction color tint; default orange for uncontrolled
+        Color baseColor = Color.ORANGERED;
+        if (torp.getController() instanceof Ship) {
+            Color faction = factionColor(((Ship) torp.getController()).getFaction());
+            // Blend faction hue with orange: keep orange saturation/brightness, use faction hue
+            baseColor = Color.hsb(faction.getHue(), 0.9, 1.0);
+        }
+
+        // Triangle: tip points in facing direction, two base corners 140° behind
+        double r = COUNTER_SIZE * 0.48;
+        double facingRad = facingToRadians(torp.getFacing());
+        double[] tx = new double[3];
+        double[] ty = new double[3];
+        for (int i = 0; i < 3; i++) {
+            double angle = facingRad + Math.toRadians(i == 0 ? 0 : (i == 1 ? 140 : -140));
+            tx[i] = cx + r * Math.cos(angle);
+            ty[i] = cy + r * Math.sin(angle);
+        }
+
+        gc.setFill(baseColor.deriveColor(0, 1.0, 0.25, 1.0));
+        gc.fillPolygon(tx, ty, 3);
+        gc.setStroke(baseColor);
+        gc.setLineWidth(1.5);
+        gc.strokePolygon(tx, ty, 3);
+
+        // Warhead strength centered in the triangle — type is hidden information
+        int strength = torp.getCurrentStrength();
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 8.5));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText(String.valueOf(strength), cx, cy + 3.0);
     }
 
     // -------------------------------------------------------------------------

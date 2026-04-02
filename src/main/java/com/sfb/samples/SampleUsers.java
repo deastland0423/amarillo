@@ -20,7 +20,7 @@ public class SampleUsers {
 
 		// Create new ship (CA)
 		Ship fedCa = new Ship();
-		fedCa.init(SampleShips.getFedCa());
+		fedCa.init(FederationShips.getFedCa());
 		fedCa.setName("USS Kongo");
 		// Set location and facing.
 		fedCa.setLocation(new Location(21, 01));
@@ -38,7 +38,7 @@ public class SampleUsers {
 
 		// Create new ship (D7)
 		Ship klinD7 = new Ship();
-		klinD7.init(SampleShips.getD7());
+		klinD7.init(KlingonShips.getD7());
 		klinD7.setName("IKV Antagonist");
 
 		// Set location and facing.

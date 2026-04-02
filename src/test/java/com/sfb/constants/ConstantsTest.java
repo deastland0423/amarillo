@@ -3,7 +3,8 @@ package com.sfb.constants;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import com.sfb.objects.Ship;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 
 public class ConstantsTest {
 	
@@ -22,7 +23,7 @@ public class ConstantsTest {
 		System.out.println(speedList.toString());
 		
 		Ship ship = new Ship();
-		ship.init(SampleShips.getFedCa());
+		ship.init(FederationShips.getFedCa());
 		
 		ship.setSpeed(14);
 		

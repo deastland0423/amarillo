@@ -7,7 +7,8 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.sfb.properties.TurnMode;
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 
 public class ShipTest {
 	
@@ -16,7 +17,7 @@ public class ShipTest {
 		// Create a new ship
 		Ship testShip = new Ship();
 		
-		testShip.init(SampleShips.getD7());
+		testShip.init(KlingonShips.getD7());
 		
 //		// Load the ship with the values from the map.
 //		testShip.init(getInitMap());

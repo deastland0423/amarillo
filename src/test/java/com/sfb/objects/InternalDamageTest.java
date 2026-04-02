@@ -7,7 +7,8 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.sfb.samples.SampleShips;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
 import com.sfb.weapons.Weapon;
 
 public class InternalDamageTest {
@@ -17,7 +18,7 @@ public class InternalDamageTest {
     @Before
     public void setUp() {
         ship = new Ship();
-        ship.init(SampleShips.getD7());
+        ship.init(KlingonShips.getD7());
     }
 
     // --- Basic contract ---

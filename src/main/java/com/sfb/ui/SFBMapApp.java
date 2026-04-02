@@ -8,6 +8,7 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -47,10 +48,12 @@ public class SFBMapApp extends Application {
     private Label         statusLabel;
     private TextArea      combatLog;
     private Button        nextPhaseBtn;
-    private boolean       firingMode     = false;
-    private boolean       droneMode      = false;
-    private DroneRack     pendingRack    = null;
-    private Drone         pendingDrone   = null;
+    private boolean       firingMode       = false;
+    private boolean       droneMode        = false;
+    private boolean       plasmaMode       = false;
+    private DroneRack     pendingRack      = null;
+    private Drone         pendingDrone     = null;
+    private PlasmaLauncher pendingLauncher = null;
     private final Tooltip droneTooltip   = new Tooltip();
 
     @Override
@@ -140,6 +143,22 @@ public class SFBMapApp extends Application {
                     }
                     exitDroneMode();
                 }
+            } else if (plasmaMode) {
+                Ship launcher = mapCanvas.getSelectedShip();
+                if (hitUnit == null) {
+                    setStatus("No target — click a ship or press Escape to cancel");
+                } else if (hitUnit == launcher) {
+                    setStatus("Can't target yourself — click an enemy or press Escape");
+                } else {
+                    if (pendingLauncher != null) {
+                        Game.ActionResult result = game.launchPlasma(launcher, hitUnit, pendingLauncher);
+                        combatLog.appendText(result.getMessage() + "\n");
+                        setStatus(result.getMessage());
+                        mapCanvas.setSeekers(game.getSeekers());
+                        mapCanvas.render();
+                    }
+                    exitPlasmaMode();
+                }
             } else if (firingMode) {
                 Ship attacker = mapCanvas.getSelectedShip();
                 if (hitUnit == null) {
@@ -154,7 +173,7 @@ public class SFBMapApp extends Application {
                 mapCanvas.setSelectedShip(hitShip);
                 if (hitShip != null) {
                     selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
-                    statusLabel.setText("Selected  —  press F to fire");
+                    statusLabel.setText("Selected  —  F: fire  L: launch drone  P: launch plasma");
                 } else {
                     selectedLabel.setText("No ship selected");
                     statusLabel.setText("");
@@ -182,8 +201,9 @@ public class SFBMapApp extends Application {
         // --- Keyboard ---
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                if (firingMode) exitFiringMode();
-                if (droneMode) exitDroneMode();
+                if (firingMode)  exitFiringMode();
+                if (droneMode)   exitDroneMode();
+                if (plasmaMode)  exitPlasmaMode();
                 return;
             }
             if (event.getCode() == KeyCode.F) {
@@ -218,7 +238,25 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode || droneMode) return;
+            if (event.getCode() == KeyCode.P) {
+                if (!game.canLaunchThisPhase()) {
+                    setStatus("Can't launch plasma during " + game.getCurrentPhase().getLabel() + " phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                PlasmaSelectDialog dlg = new PlasmaSelectDialog(
+                        mapCanvas.getScene().getWindow(), ship);
+                dlg.showAndWait();
+                pendingLauncher = dlg.getSelectedLauncher();
+                if (pendingLauncher == null) return;
+                plasmaMode = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("PLASMA MODE — click a target  (Escape to cancel)");
+                mapCanvas.render();
+                return;
+            }
+            if (firingMode || droneMode || plasmaMode) return;
 
             Ship ship = mapCanvas.getSelectedShip();
             if (ship == null) { setStatus("No ship selected"); return; }
@@ -374,7 +412,7 @@ public class SFBMapApp extends Application {
         firingMode = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  press F to fire" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: launch drone  P: launch plasma" : "");
         mapCanvas.render();
     }
 
@@ -384,7 +422,16 @@ public class SFBMapApp extends Application {
         pendingDrone = null;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  press L to launch drone" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: launch drone  P: launch plasma" : "");
+        mapCanvas.render();
+    }
+
+    private void exitPlasmaMode() {
+        plasmaMode      = false;
+        pendingLauncher = null;
+        mapCanvas.setFiringMode(false);
+        Ship sel = mapCanvas.getSelectedShip();
+        setStatus(sel != null ? "Selected  —  press P to launch plasma" : "");
         mapCanvas.render();
     }
 
