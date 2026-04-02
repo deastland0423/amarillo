@@ -187,6 +187,7 @@ public class Game {
         switch (currentPhase) {
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
+                resolveInternalDamage();
                 currentPhase = ImpulsePhase.ACTIVITY;
                 break;
             case ACTIVITY:
