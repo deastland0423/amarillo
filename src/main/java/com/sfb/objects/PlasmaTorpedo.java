@@ -1,5 +1,9 @@
 package com.sfb.objects;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.sfb.properties.PlasmaType;
 import com.sfb.properties.TurnMode;
 import com.sfb.properties.WeaponArmingType;
@@ -48,13 +52,39 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     /**
-     * Current damage strength — table value minus accumulated phaser damage.
+     * Current damage strength.
+     * Enveloping: table value doubled, then phaser damage subtracted.
+     * Standard:   table value, then phaser damage subtracted.
      * Returns 0 if the torpedo has traveled beyond its table or been shot down.
      */
     public int getCurrentStrength() {
         int[] table = getDamageTable();
         if (distanceTraveled >= table.length) return 0;
-        return Math.max(0, table[distanceTraveled] - (int) damageTaken);
+        int base = isEnveloping() ? table[distanceTraveled] * 2 : table[distanceTraveled];
+        return Math.max(0, base - (int) damageTaken);
+    }
+
+    /**
+     * Compute per-shield damage distribution for an enveloping impact.
+     * Returns an int[6] where index 0 = shield 1 ... index 5 = shield 6.
+     * Base damage is divided evenly; remainder points distributed randomly,
+     * at most 1 extra per shield.
+     */
+    public int[] computeEnvelopingDamage() {
+        int total = getCurrentStrength();
+        int base  = total / 6;
+        int remainder = total % 6;
+
+        int[] damage = new int[6];
+        for (int i = 0; i < 6; i++) damage[i] = base;
+
+        // Pick 'remainder' distinct shield indices at random for the +1 bonus
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < 6; i++) indices.add(i);
+        Collections.shuffle(indices);
+        for (int i = 0; i < remainder; i++) damage[indices.get(i)]++;
+
+        return damage;
     }
 
     /**

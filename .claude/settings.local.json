@@ -4,10 +4,9 @@
       "Bash(find /d/repos/amarillo/src/main/java -name \"*.java\" -type f -exec wc -l {} +)",
       "Bash(mvn compile:*)",
       "Bash(mvn test:*)",
-      "Bash(xargs grep:*)",
-      "Bash(xargs cat:*)",
-      "Bash(mvn clean:*)",
-      "Bash(git rm:*)"
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)"
     ]
   }
 }
