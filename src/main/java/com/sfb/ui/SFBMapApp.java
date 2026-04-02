@@ -276,6 +276,13 @@ public class SFBMapApp extends Application {
                 }
                 infoPanel.update(null);
             }
+            List<String> droneInternalLog = game.getLastInternalDamageLog();
+            if (!droneInternalLog.isEmpty()) {
+                for (String entry : droneInternalLog) {
+                    combatLog.appendText(entry + "\n");
+                }
+                infoPanel.update(null);
+            }
         }
         if (leavingFirePhase) {
             List<String> internalLog = game.getLastInternalDamageLog();
