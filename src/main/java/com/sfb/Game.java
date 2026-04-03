@@ -191,10 +191,45 @@ public class Game {
         for (Ship ship : ships) {
             ship.startTurn();
         }
+        performLockOnRolls();
         awaitingAllocation = false;
         TurnTracker.nextImpulse();
         movedThisImpulse.clear();
         currentPhase = ImpulsePhase.MOVEMENT;
+    }
+
+    /**
+     * Sensor Lock-On Phase (D6.1): each ship rolls 1d6 per other unit on the map.
+     * Roll ≤ sensor rating → lock-on achieved. Sensor 6 is automatic (always succeeds).
+     * Per D6.113, each ship gets only one roll per turn.
+     */
+    private void performLockOnRolls() {
+        DiceRoller dice = new DiceRoller();
+        for (Ship ship : ships) {
+            ship.clearLockOns();
+            if (!ship.isActiveFireControl()) continue; // D6.1143: no fire control = no lock-on
+            int sensorRating = ship.getSpecialFunctions().getSensor();
+            for (Ship target : ships) {
+                if (target == ship) continue;
+                int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
+                if (roll <= sensorRating) {
+                    ship.addLockOn(target);
+                }
+            }
+        }
+    }
+
+    /**
+     * Compute the effective range from attacker to target (D6.21 + D6.123).
+     * Formula: (noLockOn ? trueRange * 2 : trueRange) + scannerAdjustment + cloakBonus
+     */
+    public int getEffectiveRange(Ship attacker, Unit target) {
+        int trueRange = MapUtils.getRange(attacker, target);
+        boolean hasLock = attacker.hasLockOn(target);
+        int base = hasLock ? trueRange : trueRange * 2;
+        int scanner = attacker.getSpecialFunctions().getScanner();
+        // TODO: add cloakBonus from target's CloakingDevice once implemented
+        return base + scanner;
     }
 
     /**
@@ -241,11 +276,23 @@ public class Game {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
                 }
+                autoRaiseShields();
                 currentPhase = ImpulsePhase.MOVEMENT;
                 break;
         }
         String message = log.isEmpty() ? "" : String.join("\n", log);
         return ActionResult.ok(message);
+    }
+
+    /** Automatically raise any voluntarily-lowered shields that have met the 8-impulse lockout. */
+    private void autoRaiseShields() {
+        for (Ship ship : ships) {
+            for (int s = 1; s <= 6; s++) {
+                if (!ship.getShields().isShieldActive(s)) {
+                    ship.getShields().raiseShield(s);
+                }
+            }
+        }
     }
 
     public ImpulsePhase getCurrentPhase() {
@@ -488,6 +535,9 @@ public class Game {
      */
     public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
                               int range, int adjustedRange, int shieldNumber) {
+        if (!attacker.isActiveFireControl()) {
+            return attacker.getName() + " has no active fire control — cannot fire";
+        }
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
            .append("   range ").append(range)
@@ -579,6 +629,8 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (rack.isEmpty())
             return ActionResult.fail(rack.getName() + " has no drones loaded");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
 
         return launchDrone(launcher, target, rack, rack.getAmmo().get(0));
     }
@@ -1079,6 +1131,12 @@ public class Game {
         int range = getRange(actingShip, target);
         if (range > 5) {
             return ActionResult.fail("Target is out of transporter range (" + range + " hexes, max 5)");
+        }
+
+        // Lock-on check (D6.124)
+        if (!actingShip.hasLockOn(target)) {
+            return ActionResult.fail("No sensor lock-on to " + target.getName()
+                    + " — cannot use transporters (D6.124)");
         }
 
         // Resource checks

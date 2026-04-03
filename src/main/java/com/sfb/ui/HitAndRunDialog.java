@@ -28,27 +28,27 @@ import javafx.stage.StageStyle;
 /**
  * Modal dialog for conducting a Hit &amp; Run boarding raid.
  *
- * <p>The player chooses how many boarding parties to send (up to the
+ * <p>
+ * The player chooses how many boarding parties to send (up to the
  * transporter/party/energy limit) and assigns each to a different system
  * on the target ship.
  *
- * <p>After the dialog closes, call {@link #getTargetSystems()} to retrieve
- * the assignments.  A null return means the player cancelled.
+ * <p>
+ * After the dialog closes, call {@link #getTargetSystems()} to retrieve
+ * the assignments. A null return means the player cancelled.
  */
 public class HitAndRunDialog extends Stage {
 
-    private static final Font   HEADER_FONT  = Font.font("Monospaced", FontWeight.BOLD, 13);
-    private static final Font   SECTION_FONT = Font.font("Monospaced", FontWeight.BOLD, 11);
-    private static final Font   LABEL_FONT   = Font.font("Monospaced", 11);
-    private static final Font   SMALL_FONT   = Font.font("Monospaced", 10);
-    private static final String DARK_BG      = "-fx-background-color: #0d0d22;";
-    private static final String SECTION_BG   = "-fx-background-color: #111130; -fx-background-radius: 4; -fx-padding: 8;";
-    private static final String BTN_STYLE    =
-            "-fx-background-color: #1a3a1a; -fx-text-fill: #88ff88; " +
+    private static final Font HEADER_FONT = Font.font("Monospaced", FontWeight.BOLD, 13);
+    private static final Font SECTION_FONT = Font.font("Monospaced", FontWeight.BOLD, 11);
+    private static final Font LABEL_FONT = Font.font("Monospaced", 11);
+    private static final Font SMALL_FONT = Font.font("Monospaced", 10);
+    private static final String DARK_BG = "-fx-background-color: #0d0d22;";
+    private static final String SECTION_BG = "-fx-background-color: #111130; -fx-background-radius: 4; -fx-padding: 8;";
+    private static final String BTN_STYLE = "-fx-background-color: #1a3a1a; -fx-text-fill: #88ff88; " +
             "-fx-border-color: #336633; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-font-weight: bold; -fx-cursor: hand;";
-    private static final String CANCEL_STYLE =
-            "-fx-background-color: #3a1a1a; -fx-text-fill: #ff8888; " +
+    private static final String CANCEL_STYLE = "-fx-background-color: #3a1a1a; -fx-text-fill: #ff8888; " +
             "-fx-border-color: #663333; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-font-weight: bold; -fx-cursor: hand;";
 
@@ -56,13 +56,13 @@ public class HitAndRunDialog extends Stage {
     private List<SystemTarget> targetSystems = null;
 
     /**
-     * @param owner       The owning stage.
-     * @param actingShip  The ship sending boarding parties.
-     * @param target      The ship being raided.
-     * @param available   Pre-computed list of targetable systems on the target ship.
+     * @param owner      The owning stage.
+     * @param actingShip The ship sending boarding parties.
+     * @param target     The ship being raided.
+     * @param available  Pre-computed list of targetable systems on the target ship.
      */
     public HitAndRunDialog(Stage owner, Ship actingShip, Ship target,
-                           List<SystemTarget> available) {
+            List<SystemTarget> available) {
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
         initStyle(StageStyle.DECORATED);
@@ -110,7 +110,8 @@ public class HitAndRunDialog extends Stage {
             Set<SystemTarget> taken = new HashSet<>();
             for (int i = 0; i < partyChoices.size(); i++) {
                 SystemTarget sel = partyChoices.get(i).getValue();
-                if (sel != null) taken.add(sel);
+                if (sel != null)
+                    taken.add(sel);
             }
 
             // Check for duplicates
@@ -146,19 +147,25 @@ public class HitAndRunDialog extends Stage {
         removeParty.setDisable(true);
 
         addParty.setOnAction(e -> {
-            if (partyChoices.size() >= maxParties) return;
+            if (partyChoices.size() >= maxParties)
+                return;
             ChoiceBox<SystemTarget> cb = new ChoiceBox<>();
             cb.getItems().addAll(available);
-            cb.setStyle("-fx-background-color: #1a1a3a; -fx-mark-color: #88aaff;");
+            cb.setStyle("-fx-background-color: #1a1a3a; -fx-mark-color: #f3f4f7;");
+            // Original colros, but the blue mark color is hard to see against the dark
+            // background
+            // cb.setStyle("-fx-background-color: #1a1a3a; -fx-mark-color: #88aaff;"); //
             cb.valueProperty().addListener((obs, old, val) -> refresh.run());
             partyChoices.add(cb);
             removeParty.setDisable(false);
-            if (partyChoices.size() >= maxParties) addParty.setDisable(true);
+            if (partyChoices.size() >= maxParties)
+                addParty.setDisable(true);
             refresh.run();
         });
 
         removeParty.setOnAction(e -> {
-            if (partyChoices.isEmpty()) return;
+            if (partyChoices.isEmpty())
+                return;
             partyChoices.remove(partyChoices.size() - 1);
             removeParty.setDisable(partyChoices.isEmpty());
             addParty.setDisable(false);
@@ -217,7 +224,7 @@ public class HitAndRunDialog extends Stage {
 
     /**
      * Returns the list of system targets the player confirmed, one per boarding
-     * party.  Returns null if the player cancelled.
+     * party. Returns null if the player cancelled.
      */
     public List<SystemTarget> getTargetSystems() {
         return targetSystems;
@@ -237,8 +244,8 @@ public class HitAndRunDialog extends Stage {
         b.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
         b.setStyle(
                 "-fx-background-color: #1a2a3a; -fx-text-fill: #88bbff; " +
-                "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
-                "-fx-min-height: 22; -fx-cursor: hand;");
+                        "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
+                        "-fx-min-height: 22; -fx-cursor: hand;");
         return b;
     }
 }

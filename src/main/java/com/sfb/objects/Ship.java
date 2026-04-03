@@ -2,8 +2,10 @@ package com.sfb.objects;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -87,7 +89,8 @@ public class Ship extends Unit {
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
-	private ShieldStatus shieldsStatus = ShieldStatus.Inactive; // Status of shields. Active is normal shields. Minimal is
+	private ShieldStatus shieldsStatus = ShieldStatus.Inactive;
+	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields. Active is normal shields. Minimal is
 																															// 5-point shields. Inactive is no shields at all.
 	private boolean lifeSupportActive = false; // True if life support is active, false otherwise.
 
@@ -333,6 +336,28 @@ public class Ship extends Unit {
 
 	public boolean isNimble() {
 		return this.nimble;
+	}
+
+	// --- Lock-on ---
+
+	public boolean hasLockOn(Unit target) {
+		return lockOns.contains(target);
+	}
+
+	public void addLockOn(Unit target) {
+		lockOns.add(target);
+	}
+
+	public void removeLockOn(Unit target) {
+		lockOns.remove(target);
+	}
+
+	public void clearLockOns() {
+		lockOns.clear();
+	}
+
+	public Set<Unit> getLockOns() {
+		return lockOns;
 	}
 
 	public void setNimble(boolean nimble) {

@@ -616,7 +616,7 @@ public class SFBMapApp extends Application {
 
         List<Weapon> selected = dialog.getSelectedWeapons();
         if (selected != null) {
-            int adjustedRange = range + attacker.getScanner();
+            int adjustedRange = game.getEffectiveRange(attacker, target);
             Game.ActionResult result = game.execute(
                     new FireCommand(attacker, target, selected, range, adjustedRange, shieldNumber));
             combatLog.appendText(result.getMessage() + "\n");
