@@ -24,7 +24,6 @@ public class Unit extends Marker {
 	// 17 9
 	// 3
 	//
-	protected String name = null; // Name of the ship.
 	protected int facing = 0; // Direction the unit is facing (1 through 6)
 	protected int speed = 0; // Speed the unit is moving (0 through 32)
 	protected int sizeClass = 0; // Size class of the unit (0 through 6...I think?)
@@ -62,13 +61,6 @@ public class Unit extends Marker {
 
 	}
 
-	public String getName() {
-		return this.name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
 
 	public int getFacing() {
 		return facing;

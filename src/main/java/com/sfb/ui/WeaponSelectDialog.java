@@ -3,11 +3,6 @@ package com.sfb.ui;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.sfb.Game;
-import com.sfb.Game.FireResult;
-import com.sfb.exceptions.CapacitorException;
-import com.sfb.exceptions.TargetOutOfRangeException;
-import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
@@ -20,7 +15,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -40,8 +34,6 @@ public class WeaponSelectDialog extends Stage {
 
     private static final Font HEADER_FONT = Font.font("Monospaced", FontWeight.BOLD, 12);
     private static final Font LABEL_FONT  = Font.font("Monospaced", 11);
-    private static final Font RESULT_FONT = Font.font("Monospaced", 10);
-
     private static final String DARK_BG    = "-fx-background-color: #0d0d22;";
     private static final String SECTION_BG = "-fx-background-color: #111130; -fx-background-radius: 4;";
     private static final String BTN_STYLE  =
@@ -53,9 +45,9 @@ public class WeaponSelectDialog extends Stage {
         "-fx-border-color: #883333; -fx-border-radius: 3; -fx-background-radius: 3; " +
         "-fx-font-size: 11; -fx-font-weight: bold; -fx-cursor: hand;";
 
-    private String combatLogEntry = null;  // set after firing
+    private List<Weapon> selectedWeapons = null;  // set when player confirms fire
 
-    public WeaponSelectDialog(Stage owner, Game game, Ship attacker, Unit target,
+    public WeaponSelectDialog(Stage owner, Ship attacker, Unit target,
                               List<Weapon> bearingWeapons, int range, int shieldNumber) {
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
@@ -120,17 +112,11 @@ public class WeaponSelectDialog extends Stage {
         weaponScroll.setPrefHeight(Math.min(checkBoxes.size() * 28 + 20, 220));
         weaponScroll.setStyle("-fx-background-color: #111130; -fx-background: #111130;");
 
-        // --- Results area (hidden until fired) ---
-        TextArea resultsArea = new TextArea();
-        resultsArea.setFont(RESULT_FONT);
-        resultsArea.setEditable(false);
-        resultsArea.setWrapText(true);
-        resultsArea.setPrefHeight(100);
-        resultsArea.setStyle(
-            "-fx-control-inner-background: #080818; -fx-text-fill: #aaffaa; " +
-            "-fx-border-color: #223344;");
-        resultsArea.setVisible(false);
-        resultsArea.setManaged(false);
+        // --- No-selection warning ---
+        Label warningLabel = label("No weapons selected.", LABEL_FONT, Color.rgb(220, 120, 120));
+        warningLabel.setVisible(false);
+        warningLabel.setManaged(false);
+        warningLabel.setPadding(new Insets(0, 10, 0, 10));
 
         // --- Buttons ---
         Button fireBtn   = new Button("Fire Selected");
@@ -144,58 +130,13 @@ public class WeaponSelectDialog extends Stage {
                 if (cb.isSelected()) selected.add((Weapon) cb.getUserData());
             }
             if (selected.isEmpty()) {
-                resultsArea.setText("No weapons selected.");
-                showResults(resultsArea);
+                warningLabel.setVisible(true);
+                warningLabel.setManaged(true);
+                sizeToScene();
                 return;
             }
-
-            StringBuilder log = new StringBuilder();
-            log.append(attacker.getName()).append("  →  ").append(target.getName())
-               .append("   range ").append(range)
-               .append("   shield #").append(shieldNumber).append("\n");
-
-            int totalDamage = 0;
-            boolean addHit = false;
-            for (Weapon w : selected) {
-                try {
-                    int dmg = ((DirectFire) w).fire(range, adjustedRange);
-                    if (dmg == com.sfb.weapons.ADD.HIT) {
-                        addHit = true;
-                        log.append("  ").append(w.getName()).append("  HIT\n");
-                    } else {
-                        totalDamage += dmg;
-                        log.append("  ").append(w.getName())
-                           .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
-                    }
-                } catch (WeaponUnarmedException ex) {
-                    log.append("  ").append(w.getName()).append("  unarmed\n");
-                } catch (TargetOutOfRangeException ex) {
-                    log.append("  ").append(w.getName()).append("  out of range\n");
-                } catch (CapacitorException ex) {
-                    log.append("  ").append(w.getName()).append("  no capacitor energy\n");
-                }
-            }
-
-            if (addHit) {
-                String dmgLog = game.applyDamageToUnit(com.sfb.weapons.ADD.HIT, target, shieldNumber);
-                log.append("  ADD result: ").append(dmgLog).append("\n");
-            }
-            log.append("  Total damage: ").append(totalDamage);
-            if (target instanceof Ship) {
-                FireResult result = game.markShieldDamage((Ship) target, shieldNumber, totalDamage);
-                if (result.getBleed() > 0) {
-                    log.append("   BLEED-THROUGH: ").append(result.getBleed())
-                       .append(" (internal damage resolves at end of Direct-Fire segment)\n");
-                }
-            } else if (totalDamage > 0) {
-                String dmgLog = game.applyDamageToUnit(totalDamage, target, shieldNumber);
-                log.append("   ").append(dmgLog).append("\n");
-            }
-
-            combatLogEntry = log.toString();
-            resultsArea.setText(log.toString());
-            showResults(resultsArea);
-            fireBtn.setDisable(true);
+            selectedWeapons = selected;
+            close();
         });
 
         cancelBtn.setOnAction(e -> close());
@@ -206,7 +147,7 @@ public class WeaponSelectDialog extends Stage {
         buttons.setPadding(new Insets(6, 10, 8, 10));
 
         // --- Root layout ---
-        VBox root = new VBox(8, header, capLabel, weaponScroll, resultsArea, buttons);
+        VBox root = new VBox(8, header, capLabel, weaponScroll, warningLabel, buttons);
         root.setPadding(new Insets(10));
         root.setStyle(DARK_BG);
         capLabel.setPadding(new Insets(0, 10, 0, 10));
@@ -216,15 +157,9 @@ public class WeaponSelectDialog extends Stage {
         setScene(scene);
     }
 
-    /** Returns the combat log text after firing, or null if cancelled. */
-    public String getCombatLogEntry() {
-        return combatLogEntry;
-    }
-
-    private void showResults(TextArea area) {
-        area.setVisible(true);
-        area.setManaged(true);
-        sizeToScene();
+    /** Returns the weapons the player confirmed firing, or null if cancelled. */
+    public List<Weapon> getSelectedWeapons() {
+        return selectedWeapons;
     }
 
     private static String weaponStatus(Weapon w) {

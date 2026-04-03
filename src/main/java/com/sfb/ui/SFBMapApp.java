@@ -4,6 +4,10 @@ import java.util.List;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
+import com.sfb.commands.FireCommand;
+import com.sfb.commands.LaunchDroneCommand;
+import com.sfb.commands.LaunchPlasmaCommand;
+import com.sfb.commands.MoveCommand;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Marker;
 import com.sfb.objects.Ship;
@@ -338,11 +342,11 @@ public class SFBMapApp extends Application {
         ActionResult result;
 
         switch (code) {
-            case W: result = game.moveForward(ship);   break;
-            case A: result = game.turnLeft(ship);      break;
-            case D: result = game.turnRight(ship);     break;
-            case Q: result = game.sideslipLeft(ship);  break;
-            case E: result = game.sideslipRight(ship); break;
+            case W: result = game.execute(new MoveCommand(ship, MoveCommand.Action.FORWARD));        break;
+            case A: result = game.execute(new MoveCommand(ship, MoveCommand.Action.TURN_LEFT));     break;
+            case D: result = game.execute(new MoveCommand(ship, MoveCommand.Action.TURN_RIGHT));    break;
+            case Q: result = game.execute(new MoveCommand(ship, MoveCommand.Action.SIDESLIP_LEFT)); break;
+            case E: result = game.execute(new MoveCommand(ship, MoveCommand.Action.SIDESLIP_RIGHT));break;
             default: return;
         }
 
@@ -408,7 +412,7 @@ public class SFBMapApp extends Application {
                 setStatus("Can't target yourself — click an enemy or press Escape");
             } else {
                 if (pendingRack != null && pendingDrone != null) {
-                    Game.ActionResult result = game.launchDrone(launcher, hitUnit, pendingRack, pendingDrone);
+                    Game.ActionResult result = game.execute(new LaunchDroneCommand(launcher, hitUnit, pendingRack, pendingDrone));
                     combatLog.appendText(result.getMessage() + "\n");
                     setStatus(result.getMessage());
                     mapCanvas.setSeekers(game.getSeekers());
@@ -424,9 +428,7 @@ public class SFBMapApp extends Application {
                 setStatus("Can't target yourself — click an enemy or press Escape");
             } else {
                 if (pendingLauncher != null) {
-                    Game.ActionResult result = pendingPseudo
-                            ? game.launchPseudoPlasma(launcher, hitUnit, pendingLauncher)
-                            : game.launchPlasma(launcher, hitUnit, pendingLauncher);
+                    Game.ActionResult result = game.execute(new LaunchPlasmaCommand(launcher, hitUnit, pendingLauncher, pendingPseudo));
                     combatLog.appendText(result.getMessage() + "\n");
                     setStatus(result.getMessage());
                     mapCanvas.setSeekers(game.getSeekers());
@@ -482,12 +484,15 @@ public class SFBMapApp extends Application {
 
         WeaponSelectDialog dialog = new WeaponSelectDialog(
                 (Stage) mapCanvas.getScene().getWindow(),
-                game, attacker, target, bearing, range, shieldNumber);
+                attacker, target, bearing, range, shieldNumber);
         dialog.showAndWait();
 
-        String entry = dialog.getCombatLogEntry();
-        if (entry != null) {
-            combatLog.appendText(entry + "\n");
+        List<Weapon> selected = dialog.getSelectedWeapons();
+        if (selected != null) {
+            int adjustedRange = range + attacker.getScanner();
+            Game.ActionResult result = game.execute(
+                    new FireCommand(attacker, target, selected, range, adjustedRange, shieldNumber));
+            combatLog.appendText(result.getMessage() + "\n");
             setStatus("Fired — see combat log");
             if (target instanceof Ship) {
                 selectedLabel.setText(target.getName() + " (" + ((Ship) target).getHullType() + ")  — damage taken");

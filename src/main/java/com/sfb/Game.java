@@ -6,6 +6,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.sfb.commands.Command;
+import com.sfb.exceptions.CapacitorException;
+import com.sfb.exceptions.TargetOutOfRangeException;
+import com.sfb.exceptions.WeaponUnarmedException;
+import com.sfb.weapons.ADD;
+import com.sfb.weapons.DirectFire;
+
 import com.sfb.objects.Drone;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
@@ -273,13 +280,22 @@ public class Game {
     }
 
     public boolean canMoveThisImpulse(Ship ship) {
-        return currentPhase == ImpulsePhase.MOVEMENT
-                && ship.movesThisImpulse(TurnTracker.getLocalImpulse())
-                && !movedThisImpulse.contains(ship);
+        if (currentPhase != ImpulsePhase.MOVEMENT) return false;
+        if (!ship.movesThisImpulse(TurnTracker.getLocalImpulse())) return false;
+        if (movedThisImpulse.contains(ship)) return false;
+        // Enforce order: ship may only move if no higher-priority ship is still waiting
+        List<Ship> movable = getMovableShips();
+        return movable.isEmpty() || movable.get(0) == ship;
     }
 
     public boolean canFireThisPhase() {
         return currentPhase == ImpulsePhase.DIRECT_FIRE;
+    }
+
+    // --- Command execution ---
+
+    public ActionResult execute(Command command) {
+        return command.execute(this);
     }
 
     // --- Movement actions ---
@@ -430,6 +446,66 @@ public class Game {
                     + shuttle.getCurrentHull() + " hull remaining";
         }
         return "Damage to unknown unit type ignored";
+    }
+
+    /**
+     * Fire a list of direct-fire weapons at a target, apply damage, and return a combat log entry.
+     *
+     * @param attacker      The firing ship.
+     * @param target        The unit being fired upon.
+     * @param selected      Weapons chosen by the player (must implement DirectFire).
+     * @param range         True hex range to the target.
+     * @param adjustedRange Range after scanner modifier.
+     * @param shieldNumber  Shield facing the attacker (0 for non-ship targets).
+     * @return A formatted combat log string describing every shot and the total damage applied.
+     */
+    public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
+                              int range, int adjustedRange, int shieldNumber) {
+        StringBuilder log = new StringBuilder();
+        log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
+           .append("   range ").append(range)
+           .append("   shield #").append(shieldNumber).append("\n");
+
+        int     totalDamage = 0;
+        boolean addHit      = false;
+
+        for (Weapon w : selected) {
+            try {
+                int dmg = ((DirectFire) w).fire(range, adjustedRange);
+                if (dmg == ADD.HIT) {
+                    addHit = true;
+                    log.append("  ").append(w.getName()).append("  HIT\n");
+                } else {
+                    totalDamage += dmg;
+                    log.append("  ").append(w.getName())
+                       .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
+                }
+            } catch (WeaponUnarmedException ex) {
+                log.append("  ").append(w.getName()).append("  unarmed\n");
+            } catch (TargetOutOfRangeException ex) {
+                log.append("  ").append(w.getName()).append("  out of range\n");
+            } catch (CapacitorException ex) {
+                log.append("  ").append(w.getName()).append("  no capacitor energy\n");
+            }
+        }
+
+        if (addHit) {
+            String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
+            log.append("  ADD result: ").append(dmgLog).append("\n");
+        }
+        log.append("  Total damage: ").append(totalDamage);
+        if (target instanceof Ship) {
+            FireResult result = markShieldDamage((Ship) target, shieldNumber, totalDamage);
+            if (result.getBleed() > 0) {
+                log.append("   BLEED-THROUGH: ").append(result.getBleed())
+                   .append(" (internal damage resolves at end of Direct-Fire segment)\n");
+            }
+        } else if (totalDamage > 0) {
+            String dmgLog = applyDamageToUnit(totalDamage, target, shieldNumber);
+            log.append("   ").append(dmgLog).append("\n");
+        }
+
+        return log.toString();
     }
 
     /**
