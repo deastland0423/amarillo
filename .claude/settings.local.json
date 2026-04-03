@@ -14,7 +14,10 @@
       "Read(//d/repos/amarillo/**)",
       "Bash(done)",
       "Bash(grep -v \"^$\")",
-      "Bash(mvn clean:*)"
+      "Bash(mvn clean:*)",
+      "Bash(ls /d/repos/amarillo/target/surefire-reports/*.txt)",
+      "Bash(xargs ls:*)",
+      "Bash(ls /d/repos/amarillo/hs_err*.log)"
     ]
   }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import com.sfb.objects.Drone;
+import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -123,6 +124,47 @@ public class HexMapCanvas extends Canvas {
             double dist = Math.hypot(pixelX - c[0], pixelY - c[1]);
             if (dist < COUNTER_SIZE)
                 hits.add(drone);
+        }
+        return hits;
+    }
+
+    /**
+     * Returns all map objects (ships and seekers) whose hex contains the given pixel.
+     * The common type is Marker — terrain features will be added here when implemented.
+     */
+    public List<Marker> hitTestAll(double pixelX, double pixelY) {
+        List<Marker> hits = new ArrayList<>();
+        for (Ship ship : ships) {
+            double[] c = hexCenter(ship.getLocation().getX(), ship.getLocation().getY());
+            if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
+                hits.add(ship);
+        }
+        for (Seeker seeker : seekers) {
+            if (!(seeker instanceof Unit)) continue;
+            Unit unit = (Unit) seeker;
+            if (unit.getLocation() == null) continue;
+            double[] c = hexCenter(unit.getLocation().getX(), unit.getLocation().getY());
+            if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
+                hits.add(unit);
+        }
+        return hits;
+    }
+
+    /**
+     * Returns all seekers (drones and plasma torpedoes) whose hex contains the given pixel.
+     */
+    public List<Seeker> hitTestSeekers(double pixelX, double pixelY) {
+        List<Seeker> hits = new ArrayList<>();
+        for (Seeker seeker : seekers) {
+            if (!(seeker instanceof Unit))
+                continue;
+            Unit unit = (Unit) seeker;
+            if (unit.getLocation() == null)
+                continue;
+            double[] c = hexCenter(unit.getLocation().getX(), unit.getLocation().getY());
+            double dist = Math.hypot(pixelX - c[0], pixelY - c[1]);
+            if (dist < COUNTER_SIZE)
+                hits.add(seeker);
         }
         return hits;
     }

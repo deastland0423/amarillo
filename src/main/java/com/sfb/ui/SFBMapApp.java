@@ -5,6 +5,7 @@ import java.util.List;
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Drone;
+import com.sfb.objects.Marker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.weapons.DroneRack;
@@ -13,7 +14,9 @@ import com.sfb.weapons.Weapon;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
@@ -123,68 +126,20 @@ public class SFBMapApp extends Application {
 
         // --- Mouse: click to select or target ---
         mapCanvas.setOnMouseClicked(event -> {
-            Ship hitShip   = mapCanvas.hitTestShip(event.getX(), event.getY());
-            List<Drone> hitDrones = mapCanvas.hitTestDrones(event.getX(), event.getY());
-            // Prefer ship if both overlap; pick first drone otherwise
-            Unit hitUnit = hitShip != null ? hitShip : (hitDrones.isEmpty() ? null : hitDrones.get(0));
-
-            if (droneMode) {
-                Ship launcher = mapCanvas.getSelectedShip();
-                if (hitUnit == null) {
-                    setStatus("No target — click a ship or drone or press Escape to cancel");
-                } else if (hitUnit == launcher) {
-                    setStatus("Can't target yourself — click an enemy or press Escape");
-                } else {
-                    if (pendingRack != null && pendingDrone != null) {
-                        Game.ActionResult result = game.launchDrone(launcher, hitUnit, pendingRack, pendingDrone);
-                        combatLog.appendText(result.getMessage() + "\n");
-                        setStatus(result.getMessage());
-                        mapCanvas.setSeekers(game.getSeekers());
-                        mapCanvas.render();
-                    }
-                    exitDroneMode();
-                }
-            } else if (plasmaMode) {
-                Ship launcher = mapCanvas.getSelectedShip();
-                if (hitUnit == null) {
-                    setStatus("No target — click a ship or press Escape to cancel");
-                } else if (hitUnit == launcher) {
-                    setStatus("Can't target yourself — click an enemy or press Escape");
-                } else {
-                    if (pendingLauncher != null) {
-                        Game.ActionResult result = pendingPseudo
-                                ? game.launchPseudoPlasma(launcher, hitUnit, pendingLauncher)
-                                : game.launchPlasma(launcher, hitUnit, pendingLauncher);
-                        combatLog.appendText(result.getMessage() + "\n");
-                        setStatus(result.getMessage());
-                        mapCanvas.setSeekers(game.getSeekers());
-                        mapCanvas.render();
-                    }
-                    exitPlasmaMode();
-                }
-            } else if (firingMode) {
-                Ship attacker = mapCanvas.getSelectedShip();
-                if (hitUnit == null) {
-                    setStatus("No target — click a ship or drone or press Escape to cancel");
-                } else if (hitUnit == attacker) {
-                    setStatus("Can't target yourself — click an enemy or press Escape");
-                } else {
-                    resolveWeaponsFire(attacker, hitUnit);
-                    exitFiringMode();
-                }
+            List<Marker> hits = mapCanvas.hitTestAll(event.getX(), event.getY());
+            if (hits.isEmpty()) {
+                handleHitMarker(null, scene);
+            } else if (hits.size() == 1) {
+                handleHitMarker(hits.get(0), scene);
             } else {
-                mapCanvas.setSelectedShip(hitShip);
-                if (hitShip != null) {
-                    selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
-                    statusLabel.setText("Selected  —  F: fire  L: launch drone  P: launch plasma");
-                } else {
-                    selectedLabel.setText("No ship selected");
-                    statusLabel.setText("");
+                ContextMenu menu = new ContextMenu();
+                for (Marker m : hits) {
+                    MenuItem item = new MenuItem(m.getName());
+                    item.setOnAction(e -> handleHitMarker(m, scene));
+                    menu.getItems().add(item);
                 }
-                infoPanel.update(hitShip);
+                menu.show(mapCanvas, event.getScreenX(), event.getScreenY());
             }
-            mapCanvas.render();
-            scene.getRoot().requestFocus();
         });
 
         // --- Drone tooltip on hover ---
@@ -441,9 +396,79 @@ public class SFBMapApp extends Application {
     }
 
 
+    private void handleHitMarker(Marker hit, Scene scene) {
+        Unit hitUnit = (hit instanceof Unit) ? (Unit) hit : null;
+        Ship hitShip = (hit instanceof Ship) ? (Ship) hit : null;
+
+        if (droneMode) {
+            Ship launcher = mapCanvas.getSelectedShip();
+            if (hitUnit == null) {
+                setStatus("No target — click a ship or drone or press Escape to cancel");
+            } else if (hitUnit == launcher) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else {
+                if (pendingRack != null && pendingDrone != null) {
+                    Game.ActionResult result = game.launchDrone(launcher, hitUnit, pendingRack, pendingDrone);
+                    combatLog.appendText(result.getMessage() + "\n");
+                    setStatus(result.getMessage());
+                    mapCanvas.setSeekers(game.getSeekers());
+                    mapCanvas.render();
+                }
+                exitDroneMode();
+            }
+        } else if (plasmaMode) {
+            Ship launcher = mapCanvas.getSelectedShip();
+            if (hitUnit == null) {
+                setStatus("No target — click a ship or press Escape to cancel");
+            } else if (hitUnit == launcher) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else {
+                if (pendingLauncher != null) {
+                    Game.ActionResult result = pendingPseudo
+                            ? game.launchPseudoPlasma(launcher, hitUnit, pendingLauncher)
+                            : game.launchPlasma(launcher, hitUnit, pendingLauncher);
+                    combatLog.appendText(result.getMessage() + "\n");
+                    setStatus(result.getMessage());
+                    mapCanvas.setSeekers(game.getSeekers());
+                    mapCanvas.render();
+                }
+                exitPlasmaMode();
+            }
+        } else if (firingMode) {
+            Ship attacker = mapCanvas.getSelectedShip();
+            if (hitUnit == null) {
+                setStatus("No target — click a ship or drone or press Escape to cancel");
+            } else if (hitUnit == attacker) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else {
+                resolveWeaponsFire(attacker, hitUnit);
+                exitFiringMode();
+            }
+        } else {
+            mapCanvas.setSelectedShip(hitShip);
+            if (hitShip != null) {
+                selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
+                statusLabel.setText("Selected  —  F: fire  L: launch drone  P: launch plasma");
+            } else {
+                selectedLabel.setText(hit != null ? hit.getName() : "No ship selected");
+                statusLabel.setText("");
+            }
+            infoPanel.update(hitShip);
+        }
+        mapCanvas.render();
+        scene.getRoot().requestFocus();
+    }
+
     private void resolveWeaponsFire(Ship attacker, Unit target) {
         int range = game.getRange(attacker, target);
         List<Weapon> bearing = game.getBearingWeapons(attacker, target);
+
+        // Only phasers can fire at plasma torpedoes
+        if (target instanceof com.sfb.objects.PlasmaTorpedo) {
+            bearing = bearing.stream()
+                    .filter(w -> "phaser".equals(w.getDacHitLocaiton()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
 
         if (bearing.isEmpty()) {
             setStatus("No weapons bear on " + target.getName() + " at range " + range);

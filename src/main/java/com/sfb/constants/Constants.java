@@ -51,7 +51,8 @@ public class Constants {
 		public static final int[] LP = new int[] { 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 1, 2, 3 };
 	}
 
-	// For each impulse, an array of the speeds that get a move.
+	// Replaced by ImpulseUtil.doesMove() — kept only for reference.
+	@Deprecated
 	public static int[][] IMPULSE_CHART = {
 			/* Impulse */ {},
 			/* 1 */ { 32 },

@@ -1,6 +1,6 @@
-package com.sfb.constants;
+package com.sfb.utilities;
 
-public class ImpulseManager {
+public class ImpulseUtil {
   // Each index (0-31) represents Impulse 1-32
   // Each value is a bitmask of speeds that move on that impulse
   public static final int[] IMPULSE_MASKS = new int[32];
@@ -57,7 +57,11 @@ public class ImpulseManager {
     if (speed <= 0 || impulse < 1 || impulse > 32)
       return false;
 
+    // Map 1-32 to 0-31for the array and bit-shift
+    int impulseIdx = impulse - 1;
+    int speedBit = speed - 1;
+
     // The core logic: check if the bit for 'speed' is set in the 'impulse' mask
-    return (IMPULSE_MASKS[impulse - 1] & (1 << (speed - 1))) != 0;
+    return (IMPULSE_MASKS[impulseIdx] & (1 << speedBit)) != 0;
   }
 }

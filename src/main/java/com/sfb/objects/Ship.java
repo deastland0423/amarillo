@@ -30,6 +30,7 @@ import com.sfb.systems.SpecialFunctions;
 import com.sfb.systems.Tractors;
 import com.sfb.utilities.DAC;
 import com.sfb.utilities.DiceRoller;
+import com.sfb.utilities.ImpulseUtil;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
@@ -772,16 +773,7 @@ public class Ship extends Unit {
 	}
 
 	public boolean movesThisImpulse(int impulse) {
-
-		// Get the list of speeds that move this impulse.
-		int[] whoMoves = Constants.IMPULSE_CHART[impulse];
-		for (int i = 0; i < whoMoves.length; i++) {
-			if (whoMoves[i] == getSpeed()) {
-				return true;
-			}
-		}
-
-		return false;
+		return ImpulseUtil.doesMove(impulse, getSpeed());
 	}
 
 	/**
