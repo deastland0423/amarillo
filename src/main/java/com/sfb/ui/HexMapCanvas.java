@@ -3,10 +3,12 @@ package com.sfb.ui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Consumer;
 
 import com.sfb.objects.Drone;
 import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
+import com.sfb.properties.Location;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
@@ -51,6 +53,11 @@ public class HexMapCanvas extends Canvas {
     private List<Seeker> seekers = new ArrayList<>();
     private boolean firingMode = false;
 
+    // Hex selection mode — when active, clicks resolve to a Location rather than a Marker
+    private boolean              hexSelectionMode    = false;
+    private Consumer<Location>   hexSelectionCallback = null;
+    private Location             hoveredHex          = null;
+
     public HexMapCanvas(int cols, int rows, List<Ship> ships) {
         super(canvasWidth(cols), canvasHeight(rows));
         this.cols = cols;
@@ -85,6 +92,66 @@ public class HexMapCanvas extends Canvas {
 
     public void setFiringMode(boolean firing) {
         this.firingMode = firing;
+    }
+
+    /**
+     * Enter hex selection mode. Every click will resolve to a Location and
+     * pass it to the callback, then automatically exit hex selection mode.
+     * Pass null to cancel without a selection.
+     */
+    public void enterHexSelectionMode(Consumer<Location> callback) {
+        this.hexSelectionMode     = true;
+        this.hexSelectionCallback = callback;
+        this.hoveredHex           = null;
+    }
+
+    public void exitHexSelectionMode() {
+        this.hexSelectionMode     = false;
+        this.hexSelectionCallback = null;
+        this.hoveredHex           = null;
+    }
+
+    public boolean isHexSelectionMode() {
+        return hexSelectionMode;
+    }
+
+    /**
+     * Update the hovered hex for highlight rendering. Call from
+     * onMouseMoved in SFBMapApp when in hex selection mode.
+     */
+    public void setHoveredHex(double pixelX, double pixelY) {
+        hoveredHex = pixelToHex(pixelX, pixelY);
+        render();
+    }
+
+    /**
+     * Convert a pixel coordinate to the nearest hex Location, or null if
+     * the pixel is outside the map bounds.
+     */
+    public Location pixelToHex(double pixelX, double pixelY) {
+        // Invert hexCenter:
+        //   cx = MARGIN + (x-1)*COL_SPACING + HEX_SIZE  →  x = round((cx - MARGIN - HEX_SIZE) / COL_SPACING) + 1
+        int x = (int) Math.round((pixelX - MARGIN - HEX_SIZE) / COL_SPACING) + 1;
+        if (x < 1 || x > cols) return null;
+
+        // cy depends on whether x is even (shifted down by HEX_H/2) or odd
+        double yOffset = (x % 2 == 0) ? HEX_H / 2.0 : 0.0;
+        int y = (int) Math.round((pixelY - MARGIN - yOffset) / HEX_H) + 1;
+        if (y < 1 || y > rows) return null;
+
+        return new Location(x, y);
+    }
+
+    /**
+     * Handle a click in hex selection mode. Resolves the pixel to a hex,
+     * fires the callback, and exits hex selection mode.
+     */
+    public void handleHexClick(double pixelX, double pixelY) {
+        if (!hexSelectionMode || hexSelectionCallback == null) return;
+        Location loc = pixelToHex(pixelX, pixelY);
+        Consumer<Location> cb = hexSelectionCallback;
+        exitHexSelectionMode();
+        cb.accept(loc); // may be null if click was outside map
     }
 
     public void setSeekers(List<Seeker> seekers) {
@@ -181,6 +248,9 @@ public class HexMapCanvas extends Canvas {
         drawStars(gc);
         drawGrid(gc);
         drawCoordinateLabels(gc);
+        if (hexSelectionMode && hoveredHex != null) {
+            drawHexHighlight(gc, hoveredHex);
+        }
         for (Ship ship : ships) {
             drawShip(gc, ship);
         }
@@ -190,6 +260,16 @@ public class HexMapCanvas extends Canvas {
             else if (seeker instanceof PlasmaTorpedo)
                 drawPlasmaTorpedo(gc, (PlasmaTorpedo) seeker);
         }
+    }
+
+    private void drawHexHighlight(GraphicsContext gc, Location loc) {
+        double[] c = hexCenter(loc.getX(), loc.getY());
+        double[][] v = hexVertices(c[0], c[1], HEX_SIZE);
+        gc.setFill(Color.color(0.2, 0.8, 1.0, 0.25));
+        gc.fillPolygon(v[0], v[1], 6);
+        gc.setStroke(Color.color(0.2, 0.8, 1.0, 0.9));
+        gc.setLineWidth(2.0);
+        gc.strokePolygon(v[0], v[1], 6);
     }
 
     // -------------------------------------------------------------------------

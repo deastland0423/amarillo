@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.sfb.Game;
 import com.sfb.constants.Constants;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
@@ -58,11 +57,11 @@ public class EnergyAllocationDialog extends Stage {
     // cancel button)
     private Energy submittedAllocation = null;
 
-    public EnergyAllocationDialog(Stage owner, Game game, Ship ship) {
+    public EnergyAllocationDialog(Stage owner, int currentTurn, Ship ship) {
         initOwner(owner);
         initModality(Modality.APPLICATION_MODAL);
         initStyle(StageStyle.DECORATED);
-        setTitle("Energy Allocation — Turn " + game.getCurrentTurn());
+        setTitle("Energy Allocation — Turn " + currentTurn);
         setResizable(false);
 
         double totalPower = ship.getPowerSysetems().getTotalAvailablePower();
@@ -227,26 +226,76 @@ public class EnergyAllocationDialog extends Stage {
             grid.setVgap(6);
             int row = 0;
             for (HeavyWeapon hw : heavyWeapons) {
-                int stdCost = hw.energyToArm(); // weapon reports its own standard cost
-                int overCost = stdCost * 2; // overload always costs double standard
-                Label wName = styledLabel(((Weapon) hw).getName(), LABEL_FONT, Color.WHITE);
-                RadioButton arm = new RadioButton("Arm standard  (cost " + stdCost + ")");
-                RadioButton over = new RadioButton("Overload  (cost " + overCost + ")");
-                RadioButton skip = new RadioButton("Don't arm");
-                arm.setFont(LABEL_FONT);
-                arm.setTextFill(Color.rgb(100, 220, 100));
-                over.setFont(LABEL_FONT);
-                over.setTextFill(Color.rgb(255, 160, 80));
-                skip.setFont(LABEL_FONT);
-                skip.setTextFill(Color.rgb(150, 150, 150));
+                int stdCost = hw.energyToArm();
+                int overCost = stdCost * 2;
+                String armStatus = armingStatus(hw);
+                Color nameColor = hw.isArmed() ? Color.rgb(100, 220, 100)
+                        : (hw.getArmingTurn() > 0 || !hw.isArmed()) ? Color.rgb(255, 200, 60)
+                                : Color.WHITE;
+                Label wName = styledLabel(((Weapon) hw).getName() + "  " + armStatus, LABEL_FONT, nameColor);
                 ToggleGroup wg = new ToggleGroup();
-                arm.setToggleGroup(wg);
-                over.setToggleGroup(wg);
-                skip.setToggleGroup(wg);
-                arm.setSelected(true);
+                HBox options;
+                boolean isRolling = (hw instanceof com.sfb.weapons.PlasmaLauncher)
+                        && ((com.sfb.weapons.PlasmaLauncher) hw).isRolling();
+                if (isRolling) {
+                    // Rolling: pay low cost to keep rolling, pay finish cost to arm, or discharge
+                    com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) hw;
+                    int rollCost = pl.rollingCost();
+                    int finishCost = pl.energyToArm();
+                    RadioButton roll = new RadioButton("Roll  (cost " + rollCost + ")");
+                    RadioButton finish = new RadioButton("Finish arming  (cost " + finishCost + ")");
+                    RadioButton discharge = new RadioButton("Discharge");
+                    roll.setUserData("ROLL");
+                    finish.setUserData("FINISH");
+                    discharge.setUserData("SKIP");
+                    roll.setFont(LABEL_FONT);
+                    roll.setTextFill(Color.rgb(255, 200, 60));
+                    finish.setFont(LABEL_FONT);
+                    finish.setTextFill(Color.rgb(100, 220, 100));
+                    discharge.setFont(LABEL_FONT);
+                    discharge.setTextFill(Color.rgb(150, 150, 150));
+                    roll.setToggleGroup(wg);
+                    finish.setToggleGroup(wg);
+                    discharge.setToggleGroup(wg);
+                    roll.setSelected(true);
+                    options = new HBox(12, roll, finish, discharge);
+                } else if (hw.isArmed()) {
+                    // Fully armed: offer Hold (or Roll for R-type) or Discharge
+                    RadioButton hold = new RadioButton("Hold  (cost " + stdCost + ")");
+                    RadioButton discharge = new RadioButton("Discharge");
+                    hold.setUserData("HOLD");
+                    discharge.setUserData("SKIP");
+                    hold.setFont(LABEL_FONT);
+                    hold.setTextFill(Color.rgb(100, 220, 100));
+                    discharge.setFont(LABEL_FONT);
+                    discharge.setTextFill(Color.rgb(150, 150, 150));
+                    hold.setToggleGroup(wg);
+                    discharge.setToggleGroup(wg);
+                    hold.setSelected(true);
+                    options = new HBox(12, hold, discharge);
+                } else {
+                    // Not yet armed: offer Arm, Overload, or Skip
+                    RadioButton arm = new RadioButton("Arm  (cost " + stdCost + ")");
+                    RadioButton over = new RadioButton("Overload  (cost " + overCost + ")");
+                    RadioButton skip = new RadioButton("Don't arm");
+                    arm.setUserData("ARM");
+                    over.setUserData("OVERLOAD");
+                    skip.setUserData("SKIP");
+                    arm.setFont(LABEL_FONT);
+                    arm.setTextFill(Color.rgb(100, 220, 100));
+                    over.setFont(LABEL_FONT);
+                    over.setTextFill(Color.rgb(255, 160, 80));
+                    skip.setFont(LABEL_FONT);
+                    skip.setTextFill(Color.rgb(150, 150, 150));
+                    arm.setToggleGroup(wg);
+                    over.setToggleGroup(wg);
+                    skip.setToggleGroup(wg);
+                    arm.setSelected(true);
+                    options = new HBox(12, arm, over, skip);
+                }
                 weaponGroups.add(wg);
                 grid.add(wName, 0, row);
-                grid.add(new HBox(12, arm, over, skip), 1, row);
+                grid.add(options, 1, row);
                 row++;
             }
             weaponsBox.getChildren().add(grid);
@@ -450,7 +499,6 @@ public class EnergyAllocationDialog extends Stage {
                     reloadableRacks, reloadChecks,
                     generalReinf, specificReinf,
                     batDraw, batRecharge);
-            game.submitAllocation(ship, submittedAllocation);
             close();
         });
 
@@ -477,6 +525,32 @@ public class EnergyAllocationDialog extends Stage {
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * Returns the allocation the player submitted, or null if the dialog was closed
+     * without submitting.
+     */
+    public Energy getSubmittedAllocation() {
+        return submittedAllocation;
+    }
+
+    private static String armingStatus(HeavyWeapon hw) {
+        if (hw instanceof com.sfb.weapons.PlasmaLauncher) {
+            com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) hw;
+            if (pl.isRolling()) {
+                return "[ROLLING — roll cost " + pl.rollingCost() + "  finish cost " + pl.energyToArm() + "]";
+            }
+        }
+        if (hw.isArmed()) {
+            int holdCost = hw.energyToArm();
+            return holdCost > 0 ? "[ARMED — hold cost " + holdCost + "]" : "[ARMED]";
+        }
+        int turn = hw.getArmingTurn();
+        int total = hw.totalArmingTurns();
+        if (turn == 0)
+            return "[unarmed]";
+        return "[arming — turn " + turn + " of " + total + "]";
+    }
 
     private Energy buildAllocation(Ship ship, Slider speedSlider, RadioButton impYes,
             ToggleGroup impGroup, ToggleGroup shGroup, RadioButton shActive,
@@ -515,15 +589,26 @@ public class EnergyAllocationDialog extends Stage {
         for (int i = 0; i < heavyWeapons.size(); i++) {
             HeavyWeapon hw = heavyWeapons.get(i);
             RadioButton selected = (RadioButton) weaponGroups.get(i).getSelectedToggle();
-            String txt = selected.getText();
-            if (txt.startsWith("Arm standard")) {
-                e.getArmingEnergy().put((Weapon) hw, (double) Constants.gArmingCost[0]);
-                e.getArmingType().put((Weapon) hw, WeaponArmingType.STANDARD);
-            } else if (txt.startsWith("Overload")) {
-                e.getArmingEnergy().put((Weapon) hw, (double) (Constants.gArmingCost[0] + 1));
-                e.getArmingType().put((Weapon) hw, WeaponArmingType.OVERLOAD);
+            String tag = selected.getUserData() != null ? selected.getUserData().toString() : "SKIP";
+            switch (tag) {
+                case "ARM":
+                case "HOLD":
+                case "FINISH":
+                    e.getArmingEnergy().put((Weapon) hw, (double) hw.energyToArm());
+                    e.getArmingType().put((Weapon) hw, WeaponArmingType.STANDARD);
+                    break;
+                case "ROLL":
+                    int rollCost = ((com.sfb.weapons.PlasmaLauncher) hw).rollingCost();
+                    e.getArmingEnergy().put((Weapon) hw, (double) rollCost);
+                    e.getArmingType().put((Weapon) hw, WeaponArmingType.STANDARD);
+                    break;
+                case "OVERLOAD":
+                    e.getArmingEnergy().put((Weapon) hw, (double) hw.energyToArm() * 2);
+                    e.getArmingType().put((Weapon) hw, WeaponArmingType.OVERLOAD);
+                    break;
+                // "SKIP" / discharge — weapon not added to maps, applyAllocationEnergy gets
+                // null
             }
-            // "Don't arm" — weapon not added to maps, applyAllocationEnergy won't be called
         }
 
         // Drone reloads
@@ -578,12 +663,19 @@ public class EnergyAllocationDialog extends Stage {
         // Heavy weapons
         for (int i = 0; i < heavyWeapons.size(); i++) {
             RadioButton sel = (RadioButton) weaponGroups.get(i).getSelectedToggle();
-            if (sel != null) {
-                String txt = sel.getText();
-                if (txt.startsWith("Arm standard")) {
-                    spent += heavyWeapons.get(i).energyToArm();
-                } else if (txt.startsWith("Overload")) {
-                    spent += heavyWeapons.get(i).energyToArm() * 2;
+            if (sel != null && sel.getUserData() != null) {
+                switch (sel.getUserData().toString()) {
+                    case "ARM":
+                    case "HOLD":
+                    case "FINISH":
+                        spent += heavyWeapons.get(i).energyToArm();
+                        break;
+                    case "ROLL":
+                        spent += ((com.sfb.weapons.PlasmaLauncher) heavyWeapons.get(i)).rollingCost();
+                        break;
+                    case "OVERLOAD":
+                        spent += heavyWeapons.get(i).energyToArm() * 2;
+                        break;
                 }
             }
         }

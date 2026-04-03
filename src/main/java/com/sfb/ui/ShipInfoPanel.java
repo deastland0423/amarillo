@@ -129,9 +129,9 @@ public class ShipInfoPanel extends VBox {
 
         // Hull
         HullBoxes hull = ship.getHullBoxes();
-        fhullLabel.setText("Fwd  " + hull.getAvailableFhull());
-        ahullLabel.setText("Aft  " + hull.getAvailableAhull());
-        chullLabel.setText("Ctr  " + hull.getAvailableChull());
+        fhullLabel.setText(String.valueOf(hull.getAvailableFhull()));
+        ahullLabel.setText(String.valueOf(hull.getAvailableAhull()));
+        chullLabel.setText(String.valueOf(hull.getAvailableChull()));
 
         // Power
         PowerSystems ps = ship.getPowerSysetems();

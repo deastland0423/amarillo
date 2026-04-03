@@ -201,6 +201,11 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 	}
 
 	@Override
+	public int totalArmingTurns() {
+		return 1;
+	}
+
+	@Override
 	public int energyToArm() {
 		if (armingType == WeaponArmingType.STANDARD) {
 			return 2;

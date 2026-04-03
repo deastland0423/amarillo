@@ -67,7 +67,7 @@ public class Ship extends Unit {
 
 	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
 
-	// WHERE SHOULD THIS GO?
+	// Odds and ends
 	private int armor = 0; // Some early ships have armor.
 	private double lifeSupportCost = 0; // cost to have life support active.
 	private int activeShieldCost = 0; // Cost to have shields active.
@@ -116,11 +116,11 @@ public class Ship extends Unit {
 		minimumShieldCost = Constants.MINIMUM_SHIELD_COST[getSizeClass()];
 
 		// Odds and ends
-		armor               = values.get("armor")             == null ? 0     : (Integer) values.get("armor");
-		tBombs              = values.get("tbombs")            == null ? 0     : (Integer) values.get("tbombs");
-		dummyTBombs         = values.get("dummytbombs")       == null ? 0     : (Integer) values.get("dummytbombs");
-		nuclearSpaceMines   = values.get("nuclearspacemines") == null ? 0     : (Integer) values.get("nuclearspacemines");
-		nimble              = values.get("nimble")            == null ? false : (Boolean) values.get("nimble");
+		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
+		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
+		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
+		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
+		nimble = values.get("nimble") == null ? false : (Boolean) values.get("nimble");
 
 		// Subsystem values
 		shields.init(values);
@@ -301,17 +301,37 @@ public class Ship extends Unit {
 		return this.fireControlCost;
 	}
 
-	public int getTBombs() { return this.tBombs; }
-	public void setTBombs(int tBombs) { this.tBombs = tBombs; }
+	public int getTBombs() {
+		return this.tBombs;
+	}
 
-	public int getDummyTBombs() { return this.dummyTBombs; }
-	public void setDummyTBombs(int dummyTBombs) { this.dummyTBombs = dummyTBombs; }
+	public void setTBombs(int tBombs) {
+		this.tBombs = tBombs;
+	}
 
-	public int getNuclearSpaceMines() { return this.nuclearSpaceMines; }
-	public void setNuclearSpaceMines(int nuclearSpaceMines) { this.nuclearSpaceMines = nuclearSpaceMines; }
+	public int getDummyTBombs() {
+		return this.dummyTBombs;
+	}
 
-	public boolean isNimble() { return this.nimble; }
-	public void setNimble(boolean nimble) { this.nimble = nimble; }
+	public void setDummyTBombs(int dummyTBombs) {
+		this.dummyTBombs = dummyTBombs;
+	}
+
+	public int getNuclearSpaceMines() {
+		return this.nuclearSpaceMines;
+	}
+
+	public void setNuclearSpaceMines(int nuclearSpaceMines) {
+		this.nuclearSpaceMines = nuclearSpaceMines;
+	}
+
+	public boolean isNimble() {
+		return this.nimble;
+	}
+
+	public void setNimble(boolean nimble) {
+		this.nimble = nimble;
+	}
 
 	/**
 	 * Indicates if the shields are in Active mode

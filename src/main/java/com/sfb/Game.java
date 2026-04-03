@@ -166,12 +166,13 @@ public class Game {
      * Submit the player's energy allocation for one ship. When the last ship
      * is submitted, automatically finalises all ships and advances to impulse 1.
      */
-    public void submitAllocation(Ship ship, Energy allocation) {
+    public ActionResult submitAllocation(Ship ship, Energy allocation) {
         ship.allocateEnergy(allocation);
         allocationQueue.remove(ship);
         if (allocationQueue.isEmpty()) {
             beginImpulses();
         }
+        return ActionResult.ok(ship.getName() + " energy allocated");
     }
 
     /**
@@ -204,11 +205,14 @@ public class Game {
      * END_OF_IMPULSE, then rolls over to the next impulse (or next turn after
      * impulse 32).
      */
-    public void advancePhase() {
+    public ActionResult advancePhase() {
+        List<String> log = new ArrayList<>();
         switch (currentPhase) {
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
                 resolveInternalDamage();
+                log.addAll(lastSeekerLog);
+                log.addAll(lastInternalDamageLog);
                 currentPhase = ImpulsePhase.ACTIVITY;
                 break;
             case ACTIVITY:
@@ -216,6 +220,7 @@ public class Game {
                 break;
             case DIRECT_FIRE:
                 resolveInternalDamage();
+                log.addAll(lastInternalDamageLog);
                 currentPhase = ImpulsePhase.END_OF_IMPULSE;
                 break;
             case END_OF_IMPULSE:
@@ -229,6 +234,8 @@ public class Game {
                 currentPhase = ImpulsePhase.MOVEMENT;
                 break;
         }
+        String message = log.isEmpty() ? "" : String.join("\n", log);
+        return ActionResult.ok(message);
     }
 
     public ImpulsePhase getCurrentPhase() {

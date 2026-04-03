@@ -347,6 +347,11 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	}
 
 	@Override
+	public int totalArmingTurns() {
+		return 1;
+	}
+
+	@Override
 	public int energyToArm() {
 		// Standard disruptors require 2 energy to arm.
 		if (armingType == WeaponArmingType.STANDARD) {

@@ -4,6 +4,9 @@ import java.util.List;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
+import com.sfb.commands.AdvancePhaseCommand;
+import com.sfb.commands.AllocateEnergyCommand;
+import com.sfb.systems.Energy;
 import com.sfb.commands.FireCommand;
 import com.sfb.commands.LaunchDroneCommand;
 import com.sfb.commands.LaunchPlasmaCommand;
@@ -130,6 +133,10 @@ public class SFBMapApp extends Application {
 
         // --- Mouse: click to select or target ---
         mapCanvas.setOnMouseClicked(event -> {
+            if (mapCanvas.isHexSelectionMode()) {
+                mapCanvas.handleHexClick(event.getX(), event.getY());
+                return;
+            }
             List<Marker> hits = mapCanvas.hitTestAll(event.getX(), event.getY());
             if (hits.isEmpty()) {
                 handleHitMarker(null, scene);
@@ -146,8 +153,12 @@ public class SFBMapApp extends Application {
             }
         });
 
-        // --- Drone tooltip on hover ---
+        // --- Drone tooltip on hover / hex highlight in selection mode ---
         mapCanvas.setOnMouseMoved(event -> {
+            if (mapCanvas.isHexSelectionMode()) {
+                mapCanvas.setHoveredHex(event.getX(), event.getY());
+                return;
+            }
             List<Drone> hovered = mapCanvas.hitTestDrones(event.getX(), event.getY());
             if (hovered.isEmpty()) {
                 droneTooltip.hide();
@@ -166,6 +177,11 @@ public class SFBMapApp extends Application {
                 if (firingMode)  exitFiringMode();
                 if (droneMode)   exitDroneMode();
                 if (plasmaMode)  exitPlasmaMode();
+                if (mapCanvas.isHexSelectionMode()) {
+                    mapCanvas.exitHexSelectionMode();
+                    mapCanvas.render();
+                    setStatus("Hex selection cancelled");
+                }
                 return;
             }
             if (event.getCode() == KeyCode.F) {
@@ -253,8 +269,12 @@ public class SFBMapApp extends Application {
         while (game.isAwaitingAllocation()) {
             Ship ship = game.nextShipNeedingAllocation();
             if (ship == null) break;
-            EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game, ship);
+            EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game.getCurrentTurn(), ship);
             dialog.showAndWait();
+            Energy allocation = dialog.getSubmittedAllocation();
+            if (allocation != null) {
+                game.execute(new AllocateEnergyCommand(ship, allocation));
+            }
         }
         turnLabel.setText(turnText());
         setStatus(phaseStatus());
@@ -266,33 +286,10 @@ public class SFBMapApp extends Application {
             setStatus("All scheduled ships must move before leaving the movement phase");
             return;
         }
-        boolean leavingMovementPhase = game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT;
-        boolean leavingFirePhase     = game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE;
-        game.advancePhase();
-        if (leavingMovementPhase) {
-            List<String> seekerLog = game.getLastSeekerLog();
-            if (!seekerLog.isEmpty()) {
-                for (String entry : seekerLog) {
-                    combatLog.appendText(entry + "\n");
-                }
-                infoPanel.update(null);
-            }
-            List<String> droneInternalLog = game.getLastInternalDamageLog();
-            if (!droneInternalLog.isEmpty()) {
-                for (String entry : droneInternalLog) {
-                    combatLog.appendText(entry + "\n");
-                }
-                infoPanel.update(null);
-            }
-        }
-        if (leavingFirePhase) {
-            List<String> internalLog = game.getLastInternalDamageLog();
-            if (!internalLog.isEmpty()) {
-                for (String entry : internalLog) {
-                    combatLog.appendText(entry + "\n");
-                }
-                infoPanel.update(null);
-            }
+        Game.ActionResult result = game.execute(new AdvancePhaseCommand());
+        if (!result.getMessage().isEmpty()) {
+            combatLog.appendText(result.getMessage() + "\n");
+            infoPanel.update(null);
         }
         if (game.isAwaitingAllocation()) {
             runAllocationPhase((Stage) mapCanvas.getScene().getWindow());
@@ -370,6 +367,27 @@ public class SFBMapApp extends Application {
     // -------------------------------------------------------------------------
     // Weapons fire
     // -------------------------------------------------------------------------
+
+    /**
+     * Enter hex selection mode. The status bar prompts the player; when they
+     * click a hex the callback receives the Location (null if outside the map).
+     * Any future feature that needs a hex target calls this instead of wiring
+     * its own click handler.
+     */
+    private void enterHexSelectionMode(String prompt, java.util.function.Consumer<com.sfb.properties.Location> callback) {
+        if (firingMode) exitFiringMode();
+        if (droneMode)  exitDroneMode();
+        if (plasmaMode) exitPlasmaMode();
+        mapCanvas.enterHexSelectionMode(loc -> {
+            mapCanvas.render();
+            if (loc != null) {
+                callback.accept(loc);
+            } else {
+                setStatus("No hex selected");
+            }
+        });
+        setStatus(prompt + "  (Escape to cancel)");
+    }
 
     private void exitFiringMode() {
         firingMode = false;
