@@ -200,8 +200,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 
 	@Override
 	public WeaponArmingType getArmingType() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.armingType;
 	}
 
 	@Override
@@ -386,6 +385,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 
 		int roll = new DiceRoller().rollOneDie();
 		int hit = roll <= BOLT_HIT_CHART[range] ? boltDamage : 0;
+		registerFire();
 		reset();
 		return hit;
 	}

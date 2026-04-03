@@ -76,6 +76,7 @@ public class Ship extends Unit {
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
+	private boolean nimble = false; // Whether the ship is nimble
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -115,7 +116,11 @@ public class Ship extends Unit {
 		minimumShieldCost = Constants.MINIMUM_SHIELD_COST[getSizeClass()];
 
 		// Odds and ends
-		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
+		armor               = values.get("armor")             == null ? 0     : (Integer) values.get("armor");
+		tBombs              = values.get("tbombs")            == null ? 0     : (Integer) values.get("tbombs");
+		dummyTBombs         = values.get("dummytbombs")       == null ? 0     : (Integer) values.get("dummytbombs");
+		nuclearSpaceMines   = values.get("nuclearspacemines") == null ? 0     : (Integer) values.get("nuclearspacemines");
+		nimble              = values.get("nimble")            == null ? false : (Boolean) values.get("nimble");
 
 		// Subsystem values
 		shields.init(values);
@@ -295,6 +300,18 @@ public class Ship extends Unit {
 	public int getFireControlCost() {
 		return this.fireControlCost;
 	}
+
+	public int getTBombs() { return this.tBombs; }
+	public void setTBombs(int tBombs) { this.tBombs = tBombs; }
+
+	public int getDummyTBombs() { return this.dummyTBombs; }
+	public void setDummyTBombs(int dummyTBombs) { this.dummyTBombs = dummyTBombs; }
+
+	public int getNuclearSpaceMines() { return this.nuclearSpaceMines; }
+	public void setNuclearSpaceMines(int nuclearSpaceMines) { this.nuclearSpaceMines = nuclearSpaceMines; }
+
+	public boolean isNimble() { return this.nimble; }
+	public void setNimble(boolean nimble) { this.nimble = nimble; }
 
 	/**
 	 * Indicates if the shields are in Active mode
