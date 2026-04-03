@@ -127,6 +127,17 @@ public class SpecialFunctions {
 	
 	
 	///// DAMAGE /////
+
+	/** Returns true if the scanner track can still advance (i.e. not fully destroyed). */
+	public boolean canDamageScanner() {
+		return availableScanner < scanner.length - 1;
+	}
+
+	/** Returns true if the sensor track can still advance (i.e. not fully destroyed). */
+	public boolean canDamageSensor() {
+		return availableSensor < sensor.length - 1;
+	}
+
 	public boolean damageScanner() {
 		// If we are at the last position in the track, no further damage can be done.
 		if (availableScanner == this.scanner.length - 1) {

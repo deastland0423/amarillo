@@ -198,6 +198,16 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		return this.armed;
 	}
 
+	/** True if the launcher is in rolling mode (continuous low-energy arming). */
+	public boolean isRolling() {
+		return this.rolling;
+	}
+
+	/** True if this launcher type cannot hold an armed torpedo (Plasma-R). */
+	public boolean canHold() {
+		return launcherType != PlasmaType.R;
+	}
+
 	@Override
 	public WeaponArmingType getArmingType() {
 		return this.armingType;
@@ -347,14 +357,64 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 
 	@Override
 	public int energyToArm() {
-		// TODO Auto-generated method stub
-		return 0;
+		if (armed) {
+			// Cost to hold an armed plasma torpedo (0 for F, 1 for G)
+			switch (launcherType) {
+				case G: return Constants.gArmingCost[2];
+				default: return Constants.fArmingCost[2];
+			}
+		}
+		if (armingTurn < 2) {
+			// First two turns cost the base rate for the current plasma type
+			switch (launcherType) {
+				case G: return Constants.gArmingCost[0];
+				default: return Constants.fArmingCost[0];
+			}
+		}
+		// Final (3rd+) turn: standard finish cost
+		switch (launcherType) {
+			case G: return Constants.gArmingCost[1];
+			default: return Constants.fArmingCost[1];
+		}
+	}
+
+	@Override
+	public int totalArmingTurns() {
+		return 3;
+	}
+
+	/**
+	 * Energy cost to continue rolling this turn (paid when already rolling).
+	 * This is the lower per-turn cost, not the final burst needed to fully arm.
+	 */
+	public int rollingCost() {
+		if (plasmaType == PlasmaType.G) return Constants.gArmingCost[0];
+		return Constants.fArmingCost[0]; // F, and F-within-G launcher
 	}
 
 	@Override
 	public void applyAllocationEnergy(Double energy, WeaponArmingType type) {
-		// TODO Auto-generated method stub
-
+		if (energy == null || energy <= 0) {
+			reset();
+			return;
+		}
+		if (armed) {
+			// Already armed — attempt to hold; discharge if hold fails
+			try {
+				if (!hold(energy.intValue())) reset();
+			} catch (com.sfb.exceptions.WeaponUnarmedException ex) {
+				reset();
+			}
+			return;
+		}
+		if (type != null) {
+			switch (type) {
+				case OVERLOAD:   setEnveloping(); break;
+				case STANDARD:   setStandard();   break;
+				default:         break;
+			}
+		}
+		arm(energy.intValue());
 	}
 
 	/**

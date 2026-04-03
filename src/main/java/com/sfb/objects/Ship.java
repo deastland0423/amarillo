@@ -2,8 +2,10 @@ package com.sfb.objects;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -67,7 +69,7 @@ public class Ship extends Unit {
 
 	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
 
-	// WHERE SHOULD THIS GO?
+	// Odds and ends
 	private int armor = 0; // Some early ships have armor.
 	private double lifeSupportCost = 0; // cost to have life support active.
 	private int activeShieldCost = 0; // Cost to have shields active.
@@ -77,6 +79,7 @@ public class Ship extends Unit {
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	private boolean nimble = false; // Whether the ship is nimble
+	private int enemyBoardingParties = 0; // Number of enemy boarding parties currently on board.
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -86,7 +89,8 @@ public class Ship extends Unit {
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
-	private ShieldStatus shieldsStatus = ShieldStatus.Inactive; // Status of shields. Active is normal shields. Minimal is
+	private ShieldStatus shieldsStatus = ShieldStatus.Inactive;
+	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields. Active is normal shields. Minimal is
 																															// 5-point shields. Inactive is no shields at all.
 	private boolean lifeSupportActive = false; // True if life support is active, false otherwise.
 
@@ -116,11 +120,11 @@ public class Ship extends Unit {
 		minimumShieldCost = Constants.MINIMUM_SHIELD_COST[getSizeClass()];
 
 		// Odds and ends
-		armor               = values.get("armor")             == null ? 0     : (Integer) values.get("armor");
-		tBombs              = values.get("tbombs")            == null ? 0     : (Integer) values.get("tbombs");
-		dummyTBombs         = values.get("dummytbombs")       == null ? 0     : (Integer) values.get("dummytbombs");
-		nuclearSpaceMines   = values.get("nuclearspacemines") == null ? 0     : (Integer) values.get("nuclearspacemines");
-		nimble              = values.get("nimble")            == null ? false : (Boolean) values.get("nimble");
+		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
+		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
+		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
+		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
+		nimble = values.get("nimble") == null ? false : (Boolean) values.get("nimble");
 
 		// Subsystem values
 		shields.init(values);
@@ -208,6 +212,11 @@ public class Ship extends Unit {
 		} catch (CapacitorException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+
+		// Transporters
+		if (energyAllocated.getTransporters() > 0) {
+			transporters.bankEnergy(energyAllocated.getTransporters());
 		}
 
 		// Weapons
@@ -301,17 +310,78 @@ public class Ship extends Unit {
 		return this.fireControlCost;
 	}
 
-	public int getTBombs() { return this.tBombs; }
-	public void setTBombs(int tBombs) { this.tBombs = tBombs; }
+	public int getTBombs() {
+		return this.tBombs;
+	}
 
-	public int getDummyTBombs() { return this.dummyTBombs; }
-	public void setDummyTBombs(int dummyTBombs) { this.dummyTBombs = dummyTBombs; }
+	public void setTBombs(int tBombs) {
+		this.tBombs = tBombs;
+	}
 
-	public int getNuclearSpaceMines() { return this.nuclearSpaceMines; }
-	public void setNuclearSpaceMines(int nuclearSpaceMines) { this.nuclearSpaceMines = nuclearSpaceMines; }
+	public int getDummyTBombs() {
+		return this.dummyTBombs;
+	}
 
-	public boolean isNimble() { return this.nimble; }
-	public void setNimble(boolean nimble) { this.nimble = nimble; }
+	public void setDummyTBombs(int dummyTBombs) {
+		this.dummyTBombs = dummyTBombs;
+	}
+
+	public int getNuclearSpaceMines() {
+		return this.nuclearSpaceMines;
+	}
+
+	public void setNuclearSpaceMines(int nuclearSpaceMines) {
+		this.nuclearSpaceMines = nuclearSpaceMines;
+	}
+
+	public boolean isNimble() {
+		return this.nimble;
+	}
+
+	// --- Lock-on ---
+
+	public boolean hasLockOn(Unit target) {
+		return lockOns.contains(target);
+	}
+
+	public void addLockOn(Unit target) {
+		lockOns.add(target);
+	}
+
+	public void removeLockOn(Unit target) {
+		lockOns.remove(target);
+	}
+
+	public void clearLockOns() {
+		lockOns.clear();
+	}
+
+	public Set<Unit> getLockOns() {
+		return lockOns;
+	}
+
+	public void setNimble(boolean nimble) {
+		this.nimble = nimble;
+	}
+
+	public int setEnemyBoardingParties(int enemyBoardingParties) {
+		this.enemyBoardingParties = enemyBoardingParties;
+		return this.enemyBoardingParties;
+	}
+
+	public int getEnemyBoardingParties() {
+		return this.enemyBoardingParties;
+	}
+
+	public int addEnemyBoardingParties(int boardingParties) {
+		this.enemyBoardingParties += boardingParties;
+		return this.enemyBoardingParties;
+	}
+
+	public int removeEnemyBoardingParties(int boardingParties) {
+		this.enemyBoardingParties = Math.max(0, this.enemyBoardingParties - boardingParties);
+		return this.enemyBoardingParties;
+	}
 
 	/**
 	 * Indicates if the shields are in Active mode
@@ -373,8 +443,8 @@ public class Ship extends Unit {
 	 * @return The shield facing (1..12). Odd numbers are shield facings, even
 	 *         numbers are the borders between shields.
 	 */
-	public int getRelativeShieldFacing(Unit otherUnit) {
-		int absFacing = MapUtils.getAbsoluteShieldFacing(this, otherUnit);
+	public int getRelativeShieldFacing(Marker otherMarker) {
+		int absFacing = MapUtils.getAbsoluteShieldFacing(this, otherMarker);
 		int relFacing = MapUtils.getRelativeShieldFacing(absFacing, this.getFacing());
 
 		return relFacing;
@@ -435,6 +505,11 @@ public class Ship extends Unit {
 	// Create control boxes.
 	public ControlSpaces getControlSpaces() {
 		return this.controlSpaces;
+	}
+
+	/// SPECIAL FUNCTIONS ///
+	public com.sfb.systems.SpecialFunctions getSpecialFunctions() {
+		return this.specialFunctions;
 	}
 
 	/// SPECIAL FUNCITONS ///

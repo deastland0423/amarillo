@@ -84,10 +84,16 @@ public interface HeavyWeapon {
 	
 	/**
 	 * This will give the minimum energy required for the current arming cycle of this weapon.
-	 * 
+	 *
 	 * @return The amount of energy required to arm this weapon in its current state.
 	 */
 	public int energyToArm();
+
+	/**
+	 * Returns the total number of turns required to fully arm this weapon in its
+	 * current arming mode. Used to display arming progress in the UI.
+	 */
+	public int totalArmingTurns();
 	
 	/**
 	 * This is where the weapon is affected by energy allocation at the start

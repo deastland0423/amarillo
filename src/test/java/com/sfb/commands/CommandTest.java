@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
+import com.sfb.systems.Energy;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.weapons.DroneRack;
@@ -46,6 +47,7 @@ public class CommandTest {
         when(game.launchDrone(any(), any(), any(), any())).thenReturn(ok);
         when(game.launchPlasma(any(), any(), any())).thenReturn(ok);
         when(game.launchPseudoPlasma(any(), any(), any())).thenReturn(ok);
+        when(game.advancePhase()).thenReturn(ok);
     }
 
     // -------------------------------------------------------------------------
@@ -169,5 +171,68 @@ public class CommandTest {
         when(game.fireWeapons(any(), any(), any(), anyInt(), anyInt(), anyInt())).thenReturn("ok");
         new FireCommand(attacker, target, selected, 10, 12, 3).execute(game);
         verify(game).fireWeapons(attacker, target, selected, 10, 12, 3);
+    }
+
+    // -------------------------------------------------------------------------
+    // AdvancePhaseCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void advancePhaseDelegatesToGame() {
+        new AdvancePhaseCommand().execute(game);
+        verify(game).advancePhase();
+    }
+
+    @Test
+    public void advancePhaseCommandReturnsGameResult() {
+        ActionResult expected = ActionResult.ok("seeker moved\ninternal damage resolved");
+        when(game.advancePhase()).thenReturn(expected);
+        ActionResult result = new AdvancePhaseCommand().execute(game);
+        assertSame(expected, result);
+    }
+
+    @Test
+    public void advancePhaseCommandReturnsEmptyMessageWhenNoLog() {
+        when(game.advancePhase()).thenReturn(ActionResult.ok(""));
+        ActionResult result = new AdvancePhaseCommand().execute(game);
+        assertTrue(result.isSuccess());
+        assertEquals("", result.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // AllocateEnergyCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void allocateEnergyDelegatesToGame() {
+        Energy allocation = mock(Energy.class);
+        when(game.submitAllocation(attacker, allocation)).thenReturn(ActionResult.ok("ok"));
+        new AllocateEnergyCommand(attacker, allocation).execute(game);
+        verify(game).submitAllocation(attacker, allocation);
+    }
+
+    @Test
+    public void allocateEnergyCommandReturnsGameResult() {
+        Energy allocation = mock(Energy.class);
+        ActionResult expected = ActionResult.ok("F5 energy allocated");
+        when(game.submitAllocation(attacker, allocation)).thenReturn(expected);
+        ActionResult result = new AllocateEnergyCommand(attacker, allocation).execute(game);
+        assertSame(expected, result);
+    }
+
+    @Test
+    public void allocateEnergyCommandPassesCorrectShipAndAllocation() {
+        Energy allocationA = mock(Energy.class);
+        Energy allocationB = mock(Energy.class);
+        Ship   shipB       = mock(Ship.class);
+        when(game.submitAllocation(any(), any())).thenReturn(ActionResult.ok("ok"));
+
+        new AllocateEnergyCommand(attacker, allocationA).execute(game);
+        new AllocateEnergyCommand(shipB,    allocationB).execute(game);
+
+        verify(game).submitAllocation(attacker, allocationA);
+        verify(game).submitAllocation(shipB,    allocationB);
+        verify(game, never()).submitAllocation(attacker, allocationB);
+        verify(game, never()).submitAllocation(shipB,    allocationA);
     }
 }

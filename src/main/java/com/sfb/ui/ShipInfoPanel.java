@@ -118,8 +118,12 @@ public class ShipInfoPanel extends VBox {
         for (int i = 0; i < 6; i++) {
             int cur = ship.getShields().getShieldStrength(i + 1);
             int max = ship.getShields().getMaxShieldStrength(i + 1);
+            boolean active = ship.getShields().isShieldActive(i + 1);
             if (max == 0) {
                 shieldLabels[i].setText("n/a");
+                shieldLabels[i].setTextFill(DIM_COLOR);
+            } else if (!active) {
+                shieldLabels[i].setText(cur + " / " + max + "  [DOWN]");
                 shieldLabels[i].setTextFill(DIM_COLOR);
             } else {
                 shieldLabels[i].setText(cur + " / " + max + "  " + bar(cur, max, 8));
@@ -129,9 +133,9 @@ public class ShipInfoPanel extends VBox {
 
         // Hull
         HullBoxes hull = ship.getHullBoxes();
-        fhullLabel.setText("Fwd  " + hull.getAvailableFhull());
-        ahullLabel.setText("Aft  " + hull.getAvailableAhull());
-        chullLabel.setText("Ctr  " + hull.getAvailableChull());
+        fhullLabel.setText(String.valueOf(hull.getAvailableFhull()));
+        ahullLabel.setText(String.valueOf(hull.getAvailableAhull()));
+        chullLabel.setText(String.valueOf(hull.getAvailableChull()));
 
         // Power
         PowerSystems ps = ship.getPowerSysetems();

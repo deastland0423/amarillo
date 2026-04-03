@@ -14,13 +14,20 @@ import com.sfb.weapons.ADD;
 import com.sfb.weapons.DirectFire;
 
 import com.sfb.objects.Drone;
+import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
+import com.sfb.objects.TBomb;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.systems.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
+import com.sfb.properties.SystemTarget;
+import com.sfb.systemgroups.HullBoxes;
+import com.sfb.systemgroups.PowerSystems;
+import com.sfb.systems.SpecialFunctions;
+import com.sfb.utilities.DiceRoller;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 import com.sfb.samples.RomulanShips;
@@ -58,6 +65,7 @@ public class Game {
     private final List<Player>  players  = new ArrayList<>();
     private final List<Ship>    ships    = new ArrayList<>();
     private final List<Seeker>  seekers  = new ArrayList<>();
+    private final List<TBomb>   mines    = new ArrayList<>();
     private final Set<Ship>     movedThisImpulse     = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
 
@@ -166,12 +174,13 @@ public class Game {
      * Submit the player's energy allocation for one ship. When the last ship
      * is submitted, automatically finalises all ships and advances to impulse 1.
      */
-    public void submitAllocation(Ship ship, Energy allocation) {
+    public ActionResult submitAllocation(Ship ship, Energy allocation) {
         ship.allocateEnergy(allocation);
         allocationQueue.remove(ship);
         if (allocationQueue.isEmpty()) {
             beginImpulses();
         }
+        return ActionResult.ok(ship.getName() + " energy allocated");
     }
 
     /**
@@ -182,10 +191,45 @@ public class Game {
         for (Ship ship : ships) {
             ship.startTurn();
         }
+        performLockOnRolls();
         awaitingAllocation = false;
         TurnTracker.nextImpulse();
         movedThisImpulse.clear();
         currentPhase = ImpulsePhase.MOVEMENT;
+    }
+
+    /**
+     * Sensor Lock-On Phase (D6.1): each ship rolls 1d6 per other unit on the map.
+     * Roll ≤ sensor rating → lock-on achieved. Sensor 6 is automatic (always succeeds).
+     * Per D6.113, each ship gets only one roll per turn.
+     */
+    private void performLockOnRolls() {
+        DiceRoller dice = new DiceRoller();
+        for (Ship ship : ships) {
+            ship.clearLockOns();
+            if (!ship.isActiveFireControl()) continue; // D6.1143: no fire control = no lock-on
+            int sensorRating = ship.getSpecialFunctions().getSensor();
+            for (Ship target : ships) {
+                if (target == ship) continue;
+                int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
+                if (roll <= sensorRating) {
+                    ship.addLockOn(target);
+                }
+            }
+        }
+    }
+
+    /**
+     * Compute the effective range from attacker to target (D6.21 + D6.123).
+     * Formula: (noLockOn ? trueRange * 2 : trueRange) + scannerAdjustment + cloakBonus
+     */
+    public int getEffectiveRange(Ship attacker, Unit target) {
+        int trueRange = MapUtils.getRange(attacker, target);
+        boolean hasLock = attacker.hasLockOn(target);
+        int base = hasLock ? trueRange : trueRange * 2;
+        int scanner = attacker.getSpecialFunctions().getScanner();
+        // TODO: add cloakBonus from target's CloakingDevice once implemented
+        return base + scanner;
     }
 
     /**
@@ -204,11 +248,16 @@ public class Game {
      * END_OF_IMPULSE, then rolls over to the next impulse (or next turn after
      * impulse 32).
      */
-    public void advancePhase() {
+    public ActionResult advancePhase() {
+        List<String> log = new ArrayList<>();
         switch (currentPhase) {
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
+                List<String> mineLog = processMines();
+                lastSeekerLog.addAll(mineLog);
                 resolveInternalDamage();
+                log.addAll(lastSeekerLog);
+                log.addAll(lastInternalDamageLog);
                 currentPhase = ImpulsePhase.ACTIVITY;
                 break;
             case ACTIVITY:
@@ -216,6 +265,7 @@ public class Game {
                 break;
             case DIRECT_FIRE:
                 resolveInternalDamage();
+                log.addAll(lastInternalDamageLog);
                 currentPhase = ImpulsePhase.END_OF_IMPULSE;
                 break;
             case END_OF_IMPULSE:
@@ -226,8 +276,22 @@ public class Game {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
                 }
+                autoRaiseShields();
                 currentPhase = ImpulsePhase.MOVEMENT;
                 break;
+        }
+        String message = log.isEmpty() ? "" : String.join("\n", log);
+        return ActionResult.ok(message);
+    }
+
+    /** Automatically raise any voluntarily-lowered shields that have met the 8-impulse lockout. */
+    private void autoRaiseShields() {
+        for (Ship ship : ships) {
+            for (int s = 1; s <= 6; s++) {
+                if (!ship.getShields().isShieldActive(s)) {
+                    ship.getShields().raiseShield(s);
+                }
+            }
         }
     }
 
@@ -378,7 +442,7 @@ public class Game {
         return Math.max(1, Math.min(6, shieldNumber));
     }
 
-    public int getShieldNumber(Unit attacker, Ship target) {
+    public int getShieldNumber(Marker attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
         return Math.max(1, Math.min(6, shieldNumber));
@@ -444,6 +508,16 @@ public class Game {
                 return shuttle.getName() + " destroyed (" + damage + " damage)";
             return shuttle.getName() + " hit for " + damage + " — "
                     + shuttle.getCurrentHull() + " hull remaining";
+        } else if (target instanceof PlasmaTorpedo) {
+            PlasmaTorpedo torp = (PlasmaTorpedo) target;
+            int before = torp.getCurrentStrength();
+            torp.applyPhaserDamage(damage);
+            int after = torp.getCurrentStrength();
+            if (after <= 0) {
+                seekers.remove(torp);
+                return torp.getName() + " destroyed by phaser fire (" + damage + " pts)";
+            }
+            return torp.getName() + " hit for " + damage + " phaser pts — strength " + before + " → " + after;
         }
         return "Damage to unknown unit type ignored";
     }
@@ -461,6 +535,9 @@ public class Game {
      */
     public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
                               int range, int adjustedRange, int shieldNumber) {
+        if (!attacker.isActiveFireControl()) {
+            return attacker.getName() + " has no active fire control — cannot fire";
+        }
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
            .append("   range ").append(range)
@@ -552,6 +629,8 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (rack.isEmpty())
             return ActionResult.fail(rack.getName() + " has no drones loaded");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
 
         return launchDrone(launcher, target, rack, rack.getAmmo().get(0));
     }
@@ -809,6 +888,378 @@ public class Game {
             if (diff < bestDist) { bestDist = diff; best = c; }
         }
         return best;
+    }
+
+    // --- Mines ---
+
+    public List<TBomb> getMines() {
+        return mines;
+    }
+
+    /**
+     * Place a tBomb (real or dummy) on the map via transporter.
+     *
+     * <p>Validates the same transporter preconditions as a Hit &amp; Run raid:
+     * Activity phase, range ≤ 5, acting ship's facing shield passable, and
+     * enough transporter energy.  Decrements the appropriate tBomb count on
+     * the acting ship.
+     */
+    public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal) {
+        if (currentPhase != ImpulsePhase.ACTIVITY) {
+            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+        }
+
+        // Range check — build a temporary marker at the target hex
+        Marker targetMarker = new Marker();
+        targetMarker.setLocation(targetHex);
+        int range = MapUtils.getRange(actingShip, targetMarker);
+        if (range > 5) {
+            return ActionResult.fail("Target hex is out of transporter range (" + range + " hexes, max 5)");
+        }
+
+        // Transporter energy
+        if (actingShip.getTransporters().availableUses() < 1) {
+            return ActionResult.fail("No transporter energy available");
+        }
+
+        // Acting ship's facing shield toward target hex must be passable
+        int actingShieldNum = getShieldNumber(targetMarker, actingShip);
+        if (!actingShip.getShields().isTransportable(actingShieldNum)) {
+            boolean lowered = actingShip.getShields().lowerShield(actingShieldNum);
+            if (!lowered) {
+                return ActionResult.fail("Cannot lower shield #" + actingShieldNum
+                        + " — must wait 8 impulses since last toggle");
+            }
+        }
+
+        // Check inventory
+        if (isReal && actingShip.getTBombs() < 1) {
+            return ActionResult.fail("No tBombs remaining");
+        }
+        if (!isReal && actingShip.getDummyTBombs() < 1) {
+            return ActionResult.fail("No dummy tBombs remaining");
+        }
+
+        // Spend inventory and transporter energy
+        if (isReal) {
+            actingShip.setTBombs(actingShip.getTBombs() - 1);
+        } else {
+            actingShip.setDummyTBombs(actingShip.getDummyTBombs() - 1);
+        }
+        actingShip.getTransporters().useTransporter();
+
+        // Place the mine
+        TBomb mine = new TBomb(actingShip, TurnTracker.getImpulse(), isReal);
+        mine.setLocation(targetHex);
+        mines.add(mine);
+
+        return ActionResult.ok(actingShip.getName() + " placed a "
+                + (isReal ? "tBomb" : "dummy tBomb")
+                + " at " + targetHex);
+    }
+
+    /**
+     * Process all mines each movement phase: attempt to activate inactive mines,
+     * then check active mines for detection and detonation.
+     */
+    private List<String> processMines() {
+        List<String> log = new ArrayList<>();
+        if (mines.isEmpty()) return log;
+
+        int currentImpulse = TurnTracker.getImpulse();
+        DiceRoller dice = new DiceRoller();
+
+        // All units currently on the map
+        List<Unit> allUnits = new ArrayList<>(ships);
+        for (Seeker s : seekers) {
+            if (s instanceof Unit) allUnits.add((Unit) s);
+        }
+
+        List<TBomb> detonated = new ArrayList<>();
+
+        for (TBomb mine : mines) {
+            if (mine.getLocation() == null) continue;
+
+            // Try to arm inactive mines
+            if (!mine.isActive()) {
+                int layerRange = MapUtils.getRange(mine, mine.getLayingShip());
+                mine.tryActivate(currentImpulse, layerRange);
+                if (!mine.isActive()) continue;
+                log.add("  tBomb at " + mine.getLocation() + " is now ARMED");
+            }
+
+            // Find units within range 1
+            List<Unit> inRange = new ArrayList<>();
+            for (Unit unit : allUnits) {
+                if (unit.getLocation() == null) continue;
+                if (MapUtils.getRange(mine, unit) <= 1) inRange.add(unit);
+            }
+
+            if (inRange.isEmpty()) continue;
+
+            // Detection check — first unit that triggers detonates the mine
+            boolean triggered = false;
+            for (Unit unit : inRange) {
+                int roll = dice.rollOneDie();
+                if (mine.detectsUnit(unit.getSpeed(), roll)) {
+                    triggered = true;
+                    break;
+                }
+            }
+
+            if (!triggered) {
+                // Units in range but not detected — reveal dummy if applicable
+                if (!mine.isReal() && !mine.isRevealed()) {
+                    mine.reveal();
+                    log.add("  Dummy tBomb at " + mine.getLocation()
+                            + " revealed — no explosion");
+                }
+                continue;
+            }
+
+            if (!mine.isReal()) {
+                mine.reveal();
+                log.add("  Dummy tBomb at " + mine.getLocation()
+                        + " revealed — no explosion");
+                continue;
+            }
+
+            // Real mine — detonate
+            log.add("  tBomb DETONATED at " + mine.getLocation() + "!");
+            for (Unit unit : inRange) {
+                if (unit instanceof Ship) {
+                    Ship ship = (Ship) unit;
+                    int shieldNum = getShieldNumber(mine, ship);
+                    FireResult result = markShieldDamage(ship, shieldNum, TBomb.DAMAGE);
+                    log.add("    " + ship.getName() + " shield #" + shieldNum
+                            + " hit for " + TBomb.DAMAGE
+                            + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                } else {
+                    String dmgLog = applyDamageToUnit(TBomb.DAMAGE, unit, 0);
+                    log.add("    " + dmgLog);
+                }
+            }
+            detonated.add(mine);
+        }
+
+        mines.removeAll(detonated);
+        return log;
+    }
+
+    // --- Hit & Run raids ---
+
+    /**
+     * Build the list of systems on a ship that can be targeted by a Hit &amp; Run raid.
+     * Only includes functional/damageable systems.
+     */
+    public List<SystemTarget> getTargetableSystems(Ship target) {
+        List<SystemTarget> systems = new ArrayList<>();
+
+        // Individual weapons
+        for (Weapon w : target.getWeapons().fetchAllWeapons()) {
+            if (w.isFunctional()) {
+                systems.add(new SystemTarget(w));
+            }
+        }
+
+        // Power
+        PowerSystems ps = target.getPowerSysetems();
+        if (ps.getAvailableLWarp() > 0 || ps.getAvailableRWarp() > 0 || ps.getAvailableCWarp() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.WARP, "Warp Engines"));
+        }
+        if (ps.getAvailableImpulse() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.IMPULSE, "Impulse Engines"));
+        }
+
+        // Special functions
+        SpecialFunctions sf = target.getSpecialFunctions();
+        if (sf.canDamageSensor()) {
+            systems.add(new SystemTarget(SystemTarget.Type.SENSORS, "Sensors"));
+        }
+        if (sf.canDamageScanner()) {
+            systems.add(new SystemTarget(SystemTarget.Type.SCANNERS, "Scanners"));
+        }
+
+        // Transporters
+        if (target.getTransporters().getAvailableTrans() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters"));
+        }
+
+        // Crew
+        if (target.getCrew().getAvailableCrewUnits() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.CREW, "Crew"));
+        }
+
+        // Hull
+        HullBoxes h = target.getHullBoxes();
+        if (h.getAvailableFhull() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.FHULL, "Forward Hull"));
+        }
+        if (h.getAvailableAhull() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.AHULL, "Aft Hull"));
+        }
+        if (h.getAvailableChull() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.CHULL, "Center Hull"));
+        }
+
+        return systems;
+    }
+
+    /**
+     * Execute a Hit &amp; Run boarding raid.
+     *
+     * <p>Pre-conditions checked here: range ≤ 5, enough boarding parties and
+     * transporter energy, target shield passable.  The acting ship's facing
+     * shield is lowered automatically if it has remaining strength (triggering
+     * the 8-impulse lockout).
+     *
+     * @param actingShip    The ship sending boarding parties.
+     * @param target        The ship being raided.
+     * @param targetSystems One {@link SystemTarget} per boarding party sent.
+     * @return ActionResult with a full raid log, or failure message.
+     */
+    public ActionResult performHitAndRun(Ship actingShip, Ship target,
+                                         List<SystemTarget> targetSystems) {
+        if (currentPhase != ImpulsePhase.ACTIVITY) {
+            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+        }
+        if (targetSystems.isEmpty()) {
+            return ActionResult.fail("No boarding parties assigned");
+        }
+
+        // Range check
+        int range = getRange(actingShip, target);
+        if (range > 5) {
+            return ActionResult.fail("Target is out of transporter range (" + range + " hexes, max 5)");
+        }
+
+        // Lock-on check (D6.124)
+        if (!actingShip.hasLockOn(target)) {
+            return ActionResult.fail("No sensor lock-on to " + target.getName()
+                    + " — cannot use transporters (D6.124)");
+        }
+
+        // Resource checks
+        int numParties = targetSystems.size();
+        int availableParties = actingShip.getCrew().getAvailableBoardingParties();
+        if (numParties > availableParties) {
+            return ActionResult.fail("Not enough boarding parties (have " + availableParties
+                    + ", need " + numParties + ")");
+        }
+        int availableTrans = actingShip.getTransporters().getAvailableTrans();
+        if (numParties > availableTrans) {
+            return ActionResult.fail("Not enough transporters (have " + availableTrans
+                    + ", need " + numParties + ")");
+        }
+        int availableUses = actingShip.getTransporters().availableUses();
+        if (numParties > availableUses) {
+            return ActionResult.fail("Not enough transporter energy (have " + availableUses
+                    + " use(s), need " + numParties + ")");
+        }
+
+        // Shield checks — acting ship's shield facing target must be passable
+        int actingShieldNum = getShieldNumber(target, actingShip);
+        if (!actingShip.getShields().isTransportable(actingShieldNum)) {
+            boolean lowered = actingShip.getShields().lowerShield(actingShieldNum);
+            if (!lowered) {
+                return ActionResult.fail("Cannot lower shield #" + actingShieldNum
+                        + " on " + actingShip.getName()
+                        + " — must wait 8 impulses since last toggle");
+            }
+        }
+
+        // Target's shield facing the acting ship must already be passable
+        int targetShieldNum = getShieldNumber(actingShip, target);
+        if (!target.getShields().isTransportable(targetShieldNum)) {
+            return ActionResult.fail(target.getName() + " shield #" + targetShieldNum
+                    + " is active — cannot beam through");
+        }
+
+        // Spend transporter energy
+        for (int i = 0; i < numParties; i++) {
+            actingShip.getTransporters().useTransporter();
+        }
+
+        // Roll and apply results
+        DiceRoller dice = new DiceRoller();
+        StringBuilder log = new StringBuilder();
+        log.append("=== Hit & Run Raid: ").append(actingShip.getName())
+           .append("  →  ").append(target.getName()).append(" ===\n");
+        log.append("  ").append(actingShip.getName()).append(" shield #")
+           .append(actingShieldNum).append(" lowered\n");
+
+        int partiesLost = 0;
+        for (SystemTarget st : targetSystems) {
+            int roll = dice.rollOneDie();
+            boolean systemHit  = (roll == 1 || roll == 2);
+            boolean partyLost  = (roll >= 2 && roll <= 5);
+
+            String hitResult;
+            if (systemHit) {
+                boolean damaged = applyHitAndRunHit(target, st);
+                hitResult = damaged ? st.getDisplayName() + " DAMAGED"
+                                    : st.getDisplayName() + " already destroyed";
+            } else {
+                hitResult = st.getDisplayName() + " not damaged";
+            }
+
+            log.append("  Roll ").append(roll).append(": ").append(hitResult)
+               .append(",  boarding party ").append(partyLost ? "lost" : "safe").append("\n");
+            if (partyLost) partiesLost++;
+        }
+
+        if (partiesLost > 0) {
+            int remaining = actingShip.getCrew().getAvailableBoardingParties() - partiesLost;
+            actingShip.getCrew().setAvailableBoardingParties(Math.max(0, remaining));
+        }
+
+        log.append("  Boarding parties lost: ").append(partiesLost)
+           .append(" / ").append(numParties).append(" sent");
+
+        return ActionResult.ok(log.toString());
+    }
+
+    /**
+     * Apply a single Hit &amp; Run hit to the given system on the target ship.
+     * Returns true if the system was actually damaged (false if already destroyed).
+     */
+    private boolean applyHitAndRunHit(Ship target, SystemTarget system) {
+        switch (system.getType()) {
+            case WEAPON: {
+                Weapon w = system.getWeapon();
+                if (!w.isFunctional()) return false;
+                w.damage();
+                return true;
+            }
+            case WARP: {
+                PowerSystems ps = target.getPowerSysetems();
+                if (ps.damageLWarp()) return true;
+                if (ps.damageRWarp()) return true;
+                return ps.damageCWarp();
+            }
+            case IMPULSE:
+                return target.getPowerSysetems().damageImpulse();
+            case SENSORS:
+                return target.getSpecialFunctions().damageSensor();
+            case SCANNERS:
+                return target.getSpecialFunctions().damageScanner();
+            case TRANSPORTERS:
+                return target.getTransporters().damage();
+            case CREW: {
+                int current = target.getCrew().getAvailableCrewUnits();
+                if (current <= 0) return false;
+                target.getCrew().setAvailableCrewUnits(current - 1);
+                return true;
+            }
+            case FHULL:
+                return target.getHullBoxes().damageFhull();
+            case AHULL:
+                return target.getHullBoxes().damageAhull();
+            case CHULL:
+                return target.getHullBoxes().damageChull();
+            default:
+                return false;
+        }
     }
 
     // --- Status ---

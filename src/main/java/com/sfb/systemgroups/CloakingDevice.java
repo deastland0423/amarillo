@@ -13,6 +13,14 @@ public class CloakingDevice implements Systems {
 
 	private Unit owningUnit = null;
 
+	public CloakingDevice() {
+
+	}
+
+	public CloakingDevice(Unit owner) {
+		this.owningUnit = owner;
+	}
+
 	@Override
 	public void init(Map<String, Object> values) {
 		// TODO Auto-generated method stub
