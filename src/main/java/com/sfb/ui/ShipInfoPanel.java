@@ -118,8 +118,12 @@ public class ShipInfoPanel extends VBox {
         for (int i = 0; i < 6; i++) {
             int cur = ship.getShields().getShieldStrength(i + 1);
             int max = ship.getShields().getMaxShieldStrength(i + 1);
+            boolean active = ship.getShields().isShieldActive(i + 1);
             if (max == 0) {
                 shieldLabels[i].setText("n/a");
+                shieldLabels[i].setTextFill(DIM_COLOR);
+            } else if (!active) {
+                shieldLabels[i].setText(cur + " / " + max + "  [DOWN]");
                 shieldLabels[i].setTextFill(DIM_COLOR);
             } else {
                 shieldLabels[i].setText(cur + " / " + max + "  " + bar(cur, max, 8));

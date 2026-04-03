@@ -8,9 +8,14 @@ import com.sfb.commands.AdvancePhaseCommand;
 import com.sfb.commands.AllocateEnergyCommand;
 import com.sfb.systems.Energy;
 import com.sfb.commands.FireCommand;
+import com.sfb.commands.HitAndRunCommand;
 import com.sfb.commands.LaunchDroneCommand;
 import com.sfb.commands.LaunchPlasmaCommand;
 import com.sfb.commands.MoveCommand;
+import com.sfb.commands.PlaceTBombCommand;
+import com.sfb.properties.SystemTarget;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Marker;
 import com.sfb.objects.Ship;
@@ -61,6 +66,7 @@ public class SFBMapApp extends Application {
     private boolean       firingMode       = false;
     private boolean       droneMode        = false;
     private boolean       plasmaMode       = false;
+    private boolean       hitAndRunMode    = false;
     private DroneRack     pendingRack      = null;
     private Drone         pendingDrone     = null;
     private PlasmaLauncher pendingLauncher = null;
@@ -73,6 +79,7 @@ public class SFBMapApp extends Application {
 
         mapCanvas = new HexMapCanvas(MAP_COLS, MAP_ROWS, game.getShips());
         mapCanvas.setSeekers(game.getSeekers());
+        mapCanvas.setMines(game.getMines());
         infoPanel = new ShipInfoPanel();
 
         ScrollPane scrollPane = new ScrollPane(mapCanvas);
@@ -99,7 +106,7 @@ public class SFBMapApp extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire  L=drone");
+        Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire  L=drone  P=plasma  H=hit&run  B=tBomb");
         keyHelp.setStyle("-fx-text-fill: #445566; -fx-font-size: 10;");
 
         HBox toolbar = new HBox(16, turnLabel, selectedLabel, statusLabel, spacer, keyHelp, nextPhaseBtn);
@@ -174,9 +181,10 @@ public class SFBMapApp extends Application {
         // --- Keyboard ---
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                if (firingMode)  exitFiringMode();
-                if (droneMode)   exitDroneMode();
-                if (plasmaMode)  exitPlasmaMode();
+                if (firingMode)     exitFiringMode();
+                if (droneMode)      exitDroneMode();
+                if (plasmaMode)     exitPlasmaMode();
+                if (hitAndRunMode)  exitHitAndRunMode();
                 if (mapCanvas.isHexSelectionMode()) {
                     mapCanvas.exitHexSelectionMode();
                     mapCanvas.render();
@@ -235,7 +243,72 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode || droneMode || plasmaMode) return;
+            if (event.getCode() == KeyCode.H) {
+                if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY) {
+                    setStatus("Hit & Run raids can only be performed during the Activity phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                if (ship.getCrew().getAvailableBoardingParties() == 0) {
+                    setStatus("No boarding parties available");
+                    return;
+                }
+                if (ship.getTransporters().availableUses() == 0) {
+                    setStatus("No transporter energy available");
+                    return;
+                }
+                hitAndRunMode = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("HIT & RUN MODE — click an enemy ship  (Escape to cancel)");
+                mapCanvas.render();
+                return;
+            }
+            if (event.getCode() == KeyCode.B) {
+                if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY) {
+                    setStatus("tBombs can only be placed during the Activity phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                if (ship.getTransporters().availableUses() < 1) {
+                    setStatus("No transporter energy available");
+                    return;
+                }
+                if (ship.getTBombs() < 1 && ship.getDummyTBombs() < 1) {
+                    setStatus("No tBombs available");
+                    return;
+                }
+                enterHexSelectionMode("Select hex to place tBomb", loc -> {
+                    // Ask real or dummy
+                    boolean hasReal  = ship.getTBombs() > 0;
+                    boolean hasDummy = ship.getDummyTBombs() > 0;
+                    boolean isReal;
+                    if (hasReal && hasDummy) {
+                        ButtonType realBtn  = new ButtonType("Real tBomb");
+                        ButtonType dummyBtn = new ButtonType("Dummy tBomb");
+                        ButtonType cancelBtn = new ButtonType("Cancel");
+                        Alert alert = new Alert(Alert.AlertType.NONE,
+                                "Place a real tBomb or a dummy?",
+                                realBtn, dummyBtn, cancelBtn);
+                        alert.setTitle("tBomb Type");
+                        alert.initOwner(mapCanvas.getScene().getWindow());
+                        ButtonType choice = alert.showAndWait().orElse(cancelBtn);
+                        if (choice == cancelBtn) { setStatus("Cancelled"); return; }
+                        isReal = (choice == realBtn);
+                    } else {
+                        isReal = hasReal;
+                    }
+                    Game.ActionResult result = game.execute(
+                            new PlaceTBombCommand(ship, loc, isReal));
+                    combatLog.appendText(result.getMessage() + "\n");
+                    setStatus(result.isSuccess() ? "tBomb placed" : result.getMessage());
+                    mapCanvas.render();
+                    infoPanel.update(ship);
+                });
+                return;
+            }
+            if (firingMode || droneMode || plasmaMode || hitAndRunMode) return;
 
             Ship ship = mapCanvas.getSelectedShip();
             if (ship == null) { setStatus("No ship selected"); return; }
@@ -393,7 +466,7 @@ public class SFBMapApp extends Application {
         firingMode = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: launch drone  P: launch plasma" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
         mapCanvas.render();
     }
 
@@ -403,7 +476,7 @@ public class SFBMapApp extends Application {
         pendingDrone = null;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: launch drone  P: launch plasma" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
         mapCanvas.render();
     }
 
@@ -413,7 +486,15 @@ public class SFBMapApp extends Application {
         pendingPseudo   = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  press P to launch plasma" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        mapCanvas.render();
+    }
+
+    private void exitHitAndRunMode() {
+        hitAndRunMode = false;
+        mapCanvas.setFiringMode(false);
+        Ship sel = mapCanvas.getSelectedShip();
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
         mapCanvas.render();
     }
 
@@ -464,11 +545,39 @@ public class SFBMapApp extends Application {
                 resolveWeaponsFire(attacker, hitUnit);
                 exitFiringMode();
             }
+        } else if (hitAndRunMode) {
+            Ship actingShip = mapCanvas.getSelectedShip();
+            if (hitShip == null) {
+                setStatus("Click an enemy ship — or press Escape to cancel");
+            } else if (hitShip == actingShip) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else {
+                List<SystemTarget> available = game.getTargetableSystems(hitShip);
+                if (available.isEmpty()) {
+                    setStatus("No targetable systems on " + hitShip.getName());
+                } else {
+                    HitAndRunDialog dlg = new HitAndRunDialog(
+                            (Stage) mapCanvas.getScene().getWindow(),
+                            actingShip, hitShip, available);
+                    dlg.showAndWait();
+                    List<SystemTarget> targets = dlg.getTargetSystems();
+                    if (targets != null && !targets.isEmpty()) {
+                        Game.ActionResult result = game.execute(
+                                new HitAndRunCommand(actingShip, hitShip, targets));
+                        combatLog.appendText(result.getMessage() + "\n");
+                        setStatus(result.isSuccess() ? "Raid complete — see combat log" : result.getMessage());
+                        infoPanel.update(hitShip);
+                    } else {
+                        setStatus("Raid cancelled");
+                    }
+                }
+                exitHitAndRunMode();
+            }
         } else {
             mapCanvas.setSelectedShip(hitShip);
             if (hitShip != null) {
                 selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
-                statusLabel.setText("Selected  —  F: fire  L: launch drone  P: launch plasma");
+                statusLabel.setText("Selected  —  F: fire  L: drone  P: plasma  H: hit & run");
             } else {
                 selectedLabel.setText(hit != null ? hit.getName() : "No ship selected");
                 statusLabel.setText("");

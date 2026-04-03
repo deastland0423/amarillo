@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
+import com.sfb.objects.TBomb;
 import com.sfb.properties.Location;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -51,6 +52,7 @@ public class HexMapCanvas extends Canvas {
     private Ship selectedShip = null;
     private List<Ship> movableShips = new ArrayList<>();
     private List<Seeker> seekers = new ArrayList<>();
+    private List<TBomb>  mines  = new ArrayList<>();
     private boolean firingMode = false;
 
     // Hex selection mode — when active, clicks resolve to a Location rather than a Marker
@@ -158,6 +160,10 @@ public class HexMapCanvas extends Canvas {
         this.seekers = seekers;
     }
 
+    public void setMines(List<TBomb> mines) {
+        this.mines = mines;
+    }
+
     /**
      * Returns the ship whose counter contains the given pixel, or null.
      */
@@ -253,6 +259,9 @@ public class HexMapCanvas extends Canvas {
         }
         for (Ship ship : ships) {
             drawShip(gc, ship);
+        }
+        for (TBomb mine : mines) {
+            drawTBomb(gc, mine);
         }
         for (Seeker seeker : seekers) {
             if (seeker instanceof Drone)
@@ -351,15 +360,21 @@ public class HexMapCanvas extends Canvas {
         for (int s = 1; s <= 6; s++) {
             int current = ship.getShields().getShieldStrength(s);
             int max = ship.getShields().getMaxShieldStrength(s);
+            boolean active = ship.getShields().isShieldActive(s);
 
             if (max == 0)
                 continue;
 
-            double ratio = (double) Math.max(0, current) / max;
-            Color arcColor = shieldColor(ratio);
-
             double centerDeg = (baseDeg + (s - 1) * 60.0) % 360.0;
             double startDeg = centerDeg - 28.0; // slightly less than 30° for visible gap
+
+            Color arcColor;
+            if (!active) {
+                arcColor = Color.rgb(80, 80, 80); // dark grey = shield down
+            } else {
+                double ratio = (double) Math.max(0, current) / max;
+                arcColor = shieldColor(ratio);
+            }
 
             gc.setStroke(arcColor);
             gc.setLineWidth(3.5);
@@ -372,7 +387,7 @@ public class HexMapCanvas extends Canvas {
             gc.setFill(arcColor.deriveColor(0, 1, 1.2, 1.0));
             gc.setFont(Font.font("Monospaced", 7.5));
             gc.setTextAlign(TextAlignment.CENTER);
-            gc.fillText(String.valueOf(current), labelX, labelY + 3.0);
+            gc.fillText(active ? String.valueOf(current) : "-", labelX, labelY + 3.0);
         }
     }
 
@@ -448,6 +463,52 @@ public class HexMapCanvas extends Canvas {
     // -------------------------------------------------------------------------
     // Drone counter
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // tBomb counter
+    // -------------------------------------------------------------------------
+
+    private void drawTBomb(GraphicsContext gc, TBomb mine) {
+        if (mine.getLocation() == null) return;
+        double[] c = hexCenter(mine.getLocation().getX(), mine.getLocation().getY());
+        double cx = c[0];
+        double cy = c[1];
+
+        // Color: amber = inactive/arming, red = armed, grey = revealed dummy
+        Color color;
+        if (mine.isRevealed()) {
+            color = Color.rgb(130, 130, 130);
+        } else if (mine.isActive()) {
+            color = Color.rgb(220, 40, 40);
+        } else {
+            color = Color.rgb(210, 155, 20);
+        }
+
+        double r   = COUNTER_SIZE * 0.32;   // circle radius
+        double arm = r * 1.55;              // crosshair arm (extends beyond circle)
+
+        // Filled circle (dark tint)
+        gc.setFill(color.deriveColor(0, 1.0, 0.2, 1.0));
+        gc.fillOval(cx - r, cy - r, r * 2, r * 2);
+
+        // Circle outline
+        gc.setStroke(color);
+        gc.setLineWidth(1.5);
+        gc.strokeOval(cx - r, cy - r, r * 2, r * 2);
+
+        // Crosshairs  (+ shape through centre)
+        gc.setLineWidth(1.0);
+        gc.strokeLine(cx - arm, cy,       cx + arm, cy);       // horizontal
+        gc.strokeLine(cx,       cy - arm, cx,       cy + arm); // vertical
+
+        // "D" label on a revealed dummy so the player can tell it apart
+        if (mine.isRevealed()) {
+            gc.setFill(Color.rgb(200, 200, 200));
+            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 7.0));
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.fillText("D", cx, cy + 2.5);
+        }
+    }
 
     private void drawDrone(GraphicsContext gc, Drone drone) {
         if (drone.getLocation() == null)

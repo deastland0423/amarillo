@@ -72,8 +72,7 @@ public class Transporters implements Systems {
 		if (availableTrans == 0) {
 			return false;
 		}
-		
-		availableTrans++;
+		availableTrans--;
 		return true;
 	}
 	
@@ -88,8 +87,8 @@ public class Transporters implements Systems {
 	
 	@Override
 	public void cleanUp() {
-		// TODO Auto-generated method stub
-		
+		bankedEnergy = 0.0;
+		energyUsed   = 0.0;
 	}
 
 	@Override

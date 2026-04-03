@@ -54,6 +54,8 @@ public class FederationShips {
         s.put("controlmod", 0.5);
 
         s.put("trans", 3);
+        s.put("tbombs", 1);
+        s.put("dummytbombs", 1);
         s.put("tractor", 3);
         s.put("lab", 8);
         s.put("probe", 1);
@@ -149,6 +151,8 @@ public class FederationShips {
         s.put("controlmod", 1.0);
 
         s.put("trans", 2);
+        s.put("tbombs", 1);
+        s.put("dummytbombs", 1);
         s.put("tractor", 2);
         s.put("lab", 4);
         s.put("probe", 1);

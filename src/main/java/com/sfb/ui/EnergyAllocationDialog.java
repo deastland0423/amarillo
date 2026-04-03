@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.sfb.constants.Constants;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Ship;
 import com.sfb.properties.WeaponArmingType;
@@ -230,7 +229,7 @@ public class EnergyAllocationDialog extends Stage {
                 int overCost = stdCost * 2;
                 String armStatus = armingStatus(hw);
                 Color nameColor = hw.isArmed() ? Color.rgb(100, 220, 100)
-                        : (hw.getArmingTurn() > 0 || !hw.isArmed()) ? Color.rgb(255, 200, 60)
+                        : hw.getArmingTurn() > 0 ? Color.rgb(255, 200, 60)
                                 : Color.WHITE;
                 Label wName = styledLabel(((Weapon) hw).getName() + "  " + armStatus, LABEL_FONT, nameColor);
                 ToggleGroup wg = new ToggleGroup();
@@ -391,6 +390,26 @@ public class EnergyAllocationDialog extends Stage {
             }
         }
 
+        // --- Transporters ---
+        int availableTrans = ship.getTransporters().getAvailableTrans();
+        double energyPerUse = com.sfb.systemgroups.Transporters.energyPerUse();
+        int[] transUses = { 0 };
+        Label transValueLabel = styledLabel("0 uses  (cost 0.0)", LABEL_FONT, Color.rgb(200, 200, 100));
+        Button transMinus = arrowButton("−");
+        Button transPlus  = arrowButton("+");
+        transMinus.setDisable(true);
+        VBox transBox = new VBox(6);
+        transBox.setStyle(SECTION_BG);
+        transBox.getChildren().add(styledLabel("TRANSPORTERS", SECTION_FONT, Color.rgb(100, 200, 255)));
+        if (availableTrans == 0) {
+            transBox.getChildren().add(styledLabel("None available", LABEL_FONT, Color.rgb(100, 100, 100)));
+        } else {
+            Label transStatus = styledLabel(
+                    availableTrans + " transporter(s)  —  " + energyPerUse + " energy per use",
+                    SMALL_FONT, Color.rgb(150, 150, 150));
+            transBox.getChildren().addAll(transStatus, new HBox(6, transMinus, transPlus, transValueLabel));
+        }
+
         // --- Submit button (declared here so refresh lambda can reference it) ---
         Button submitBtn = new Button("Confirm Allocation");
 
@@ -398,7 +417,7 @@ public class EnergyAllocationDialog extends Stage {
         Runnable refresh = () -> updateBudget(budgetLabel, ship, speedSlider, impYes,
                 shGroup, shActive, shMinimum, capGroup, capTopOff, capNeeded,
                 heavyWeapons, weaponGroups, reloadableRacks, reloadChecks, deckCrews,
-                generalReinf, specificReinf, batDraw, batRecharge, submitBtn);
+                generalReinf, specificReinf, batDraw, batRecharge, transUses, submitBtn);
 
         // Wire battery button actions now that refresh is in scope
         batGroup.selectedToggleProperty().addListener((obs, old, val) -> {
@@ -479,6 +498,27 @@ public class EnergyAllocationDialog extends Stage {
             cb.selectedProperty().addListener((obs, old, val) -> refresh.run());
         }
 
+        // Transporter buttons — wired here so refresh is in scope
+        transPlus.setOnAction(e2 -> {
+            if (transUses[0] >= availableTrans) return;
+            transUses[0]++;
+            transValueLabel.setText(transUses[0] + " use(s)  (cost "
+                    + String.format("%.1f", transUses[0] * energyPerUse) + ")");
+            transMinus.setDisable(false);
+            if (transUses[0] >= availableTrans) transPlus.setDisable(true);
+            refresh.run();
+        });
+        transMinus.setOnAction(e2 -> {
+            if (transUses[0] > 0) {
+                transUses[0]--;
+                transValueLabel.setText(transUses[0] + " use(s)  (cost "
+                        + String.format("%.1f", transUses[0] * energyPerUse) + ")");
+                transMinus.setDisable(transUses[0] == 0);
+                transPlus.setDisable(transUses[0] >= availableTrans);
+                refresh.run();
+            }
+        });
+
         speedSlider.valueProperty().addListener((obs, old, val) -> {
             speedLabel.setText("Warp speed: " + (int) Math.round(val.doubleValue()));
             refresh.run();
@@ -498,7 +538,7 @@ public class EnergyAllocationDialog extends Stage {
                     heavyWeapons, weaponGroups,
                     reloadableRacks, reloadChecks,
                     generalReinf, specificReinf,
-                    batDraw, batRecharge);
+                    batDraw, batRecharge, transUses);
             close();
         });
 
@@ -511,7 +551,7 @@ public class EnergyAllocationDialog extends Stage {
         refresh.run();
 
         VBox root = new VBox(10, header, batteryBox, movementBox, shieldsBox, reinforceBox, capBox, weaponsBox,
-                reloadBox, buttonRow);
+                transBox, reloadBox, buttonRow);
         root.setPadding(new Insets(12));
         root.setStyle(DARK_BG);
 
@@ -557,7 +597,8 @@ public class EnergyAllocationDialog extends Stage {
             RadioButton shMinimum, ToggleGroup capGroup, RadioButton capTopOff,
             double capNeeded, List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
-            int[] generalReinf, int[] specificReinf, int[] batDraw, int[] batRecharge) {
+            int[] generalReinf, int[] specificReinf, int[] batDraw, int[] batRecharge,
+            int[] transUses) {
 
         Energy e = new Energy();
         double moveCost = ship.getPerformanceData().getMovementCost();
@@ -627,6 +668,9 @@ public class EnergyAllocationDialog extends Stage {
         e.setBatteryDraw(batDraw[0]);
         e.setBatteryRecharge(batRecharge[0]);
 
+        // Transporters
+        e.setTransporters(transUses[0] * com.sfb.systemgroups.Transporters.energyPerUse());
+
         return e;
     }
 
@@ -637,7 +681,7 @@ public class EnergyAllocationDialog extends Stage {
             List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
             int totalDeckCrews, int[] generalReinf, int[] specificReinf,
-            int[] batDraw, int[] batRecharge, Button submitBtn) {
+            int[] batDraw, int[] batRecharge, int[] transUses, Button submitBtn) {
 
         double moveCost = ship.getPerformanceData().getMovementCost();
         int warpSpeed = (int) Math.round(speedSlider.getValue());
@@ -693,6 +737,10 @@ public class EnergyAllocationDialog extends Stage {
         spent += generalReinf[0];
         for (int sr : specificReinf)
             spent += sr;
+
+        // Transporters
+        double energyPerUse = com.sfb.systemgroups.Transporters.energyPerUse();
+        spent += transUses[0] * energyPerUse;
 
         // Batteries: draw expands the budget, recharge costs from it
         spent += batRecharge[0];

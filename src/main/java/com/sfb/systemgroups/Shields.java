@@ -152,6 +152,11 @@ public class Shields implements Systems {
 	 *         stop all damage.
 	 */
 	public int damageShield(int shieldNumber, int amount) {
+		// A lowered shield offers no protection — all damage bleeds through
+		if (!shieldActive[shieldNumber - 1]) {
+			return amount;
+		}
+
 		int remainingDamage = amount;
 
 		// Remove general reinforcement first. If reinforcement eliminates all
@@ -240,7 +245,7 @@ public class Shields implements Systems {
 	public boolean raiseShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == false
 				&& ((Main.getTurnTracker().getImpulse()
-						- impulseShieldToggled[shieldNumber - 1]) <= (Constants.IMPULSES_PER_TURN / 4))) {
+						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = true;
 			impulseShieldToggled[shieldNumber - 1] = Main.getTurnTracker().getImpulse();
 			return true;
@@ -260,13 +265,32 @@ public class Shields implements Systems {
 	public boolean lowerShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == true
 				&& ((Main.getTurnTracker().getImpulse()
-						- impulseShieldToggled[shieldNumber - 1]) <= (Constants.IMPULSES_PER_TURN / 4))) {
+						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = false;
 			impulseShieldToggled[shieldNumber - 1] = Main.getTurnTracker().getImpulse();
 			return true;
 		}
 		return false;
 
+	}
+
+	/**
+	 * Returns true if the specified shield is currently active (raised).
+	 *
+	 * @param shieldNumber The shield to check (1-6).
+	 */
+	public boolean isShieldActive(int shieldNumber) {
+		return shieldActive[shieldNumber - 1];
+	}
+
+	/**
+	 * Returns true if a transporter can pass through this shield — i.e. the shield
+	 * is either inactive (lowered) or has been reduced to 0 strength.
+	 *
+	 * @param shieldNumber The shield to check (1-6).
+	 */
+	public boolean isTransportable(int shieldNumber) {
+		return !shieldActive[shieldNumber - 1] || currentShieldValues[shieldNumber - 1] == 0;
 	}
 
 	@Override

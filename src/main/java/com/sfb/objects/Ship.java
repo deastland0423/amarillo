@@ -77,6 +77,7 @@ public class Ship extends Unit {
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	private boolean nimble = false; // Whether the ship is nimble
+	private int enemyBoardingParties = 0; // Number of enemy boarding parties currently on board.
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -210,6 +211,11 @@ public class Ship extends Unit {
 			e.printStackTrace();
 		}
 
+		// Transporters
+		if (energyAllocated.getTransporters() > 0) {
+			transporters.bankEnergy(energyAllocated.getTransporters());
+		}
+
 		// Weapons
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
 			// For heavy weapons, apply the arming type and energy
@@ -333,6 +339,25 @@ public class Ship extends Unit {
 		this.nimble = nimble;
 	}
 
+	public int setEnemyBoardingParties(int enemyBoardingParties) {
+		this.enemyBoardingParties = enemyBoardingParties;
+		return this.enemyBoardingParties;
+	}
+
+	public int getEnemyBoardingParties() {
+		return this.enemyBoardingParties;
+	}
+
+	public int addEnemyBoardingParties(int boardingParties) {
+		this.enemyBoardingParties += boardingParties;
+		return this.enemyBoardingParties;
+	}
+
+	public int removeEnemyBoardingParties(int boardingParties) {
+		this.enemyBoardingParties = Math.max(0, this.enemyBoardingParties - boardingParties);
+		return this.enemyBoardingParties;
+	}
+
 	/**
 	 * Indicates if the shields are in Active mode
 	 * 
@@ -393,8 +418,8 @@ public class Ship extends Unit {
 	 * @return The shield facing (1..12). Odd numbers are shield facings, even
 	 *         numbers are the borders between shields.
 	 */
-	public int getRelativeShieldFacing(Unit otherUnit) {
-		int absFacing = MapUtils.getAbsoluteShieldFacing(this, otherUnit);
+	public int getRelativeShieldFacing(Marker otherMarker) {
+		int absFacing = MapUtils.getAbsoluteShieldFacing(this, otherMarker);
 		int relFacing = MapUtils.getRelativeShieldFacing(absFacing, this.getFacing());
 
 		return relFacing;
@@ -455,6 +480,11 @@ public class Ship extends Unit {
 	// Create control boxes.
 	public ControlSpaces getControlSpaces() {
 		return this.controlSpaces;
+	}
+
+	/// SPECIAL FUNCTIONS ///
+	public com.sfb.systems.SpecialFunctions getSpecialFunctions() {
+		return this.specialFunctions;
 	}
 
 	/// SPECIAL FUNCITONS ///
