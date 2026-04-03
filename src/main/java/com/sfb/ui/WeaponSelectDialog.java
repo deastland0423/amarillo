@@ -233,6 +233,11 @@ public class WeaponSelectDialog extends Stage {
             com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
             return "[" + add.getShots() + " shots]";
         }
+        if (w instanceof com.sfb.weapons.PhaserG) {
+            int fired = w.getShotsThisTurn();
+            int remaining = w.getMaxShotsPerTurn() - fired;
+            return "[" + remaining + "/" + w.getMaxShotsPerTurn() + " shots]";
+        }
         if (w instanceof HeavyWeapon) {
             HeavyWeapon hw = (HeavyWeapon) w;
             if (hw.isArmed()) return "[ARMED]";

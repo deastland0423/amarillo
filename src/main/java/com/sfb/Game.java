@@ -99,7 +99,7 @@ public class Game {
 
         Ship klnD7 = new Ship();
         klnD7.init(KlingonShips.getD7());
-        klnD7.setLocation(new Location(12, 30));
+        klnD7.setLocation(new Location(12, 15));
         klnD7.setFacing(1);
         klnD7.setSpeed(16);
         klnD7.setOwner(player2);
@@ -108,7 +108,7 @@ public class Game {
 
         Ship klnF5 = new Ship();
         klnF5.init(KlingonShips.getF5());
-        klnF5.setLocation(new Location(16, 30));
+        klnF5.setLocation(new Location(16, 15));
         klnF5.setFacing(1);
         klnF5.setSpeed(20);
         klnF5.setOwner(player2);
@@ -117,7 +117,7 @@ public class Game {
 
         Ship romKr = new Ship();
         romKr.init(RomulanShips.getRomKr());
-        romKr.setLocation(new Location(8, 30));
+        romKr.setLocation(new Location(8, 15));
         romKr.setFacing(1);
         romKr.setSpeed(16);
         romKr.setOwner(player2);

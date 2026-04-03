@@ -282,12 +282,26 @@ public class EnergyAllocationDialog extends Stage {
             specGrid.add(new HBox(4, specMinus[i], specPlus[i], specLabels[i]), 0, i);
         }
 
-        VBox reinforceBox = new VBox(6,
-                styledLabel("SHIELD REINFORCEMENT", SECTION_FONT, Color.rgb(100, 220, 220)),
+        VBox reinforceContent = new VBox(6,
                 styledLabel("General (2 energy = +1 pt to all shields):", SMALL_FONT, Color.rgb(150, 150, 150)),
                 new HBox(6, genMinus, genPlus, genValueLabel),
                 styledLabel("Specific (1 energy = +1 pt to one shield):", SMALL_FONT, Color.rgb(150, 150, 150)),
                 specGrid);
+        reinforceContent.setVisible(false);
+        reinforceContent.setManaged(false);
+
+        Button reinforceToggle = new Button("▶  SHIELD REINFORCEMENT");
+        reinforceToggle.setFont(SECTION_FONT);
+        reinforceToggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #64dcdc; " +
+                "-fx-border-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+        reinforceToggle.setOnAction(e -> {
+            boolean nowVisible = !reinforceContent.isVisible();
+            reinforceContent.setVisible(nowVisible);
+            reinforceContent.setManaged(nowVisible);
+            reinforceToggle.setText((nowVisible ? "▼" : "▶") + "  SHIELD REINFORCEMENT");
+        });
+
+        VBox reinforceBox = new VBox(6, reinforceToggle, reinforceContent);
         reinforceBox.setStyle(SECTION_BG);
 
         // --- Drone reloads ---
