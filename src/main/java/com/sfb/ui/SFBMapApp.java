@@ -498,7 +498,7 @@ public class SFBMapApp extends Application {
                 selectedLabel.setText(target.getName() + " (" + ((Ship) target).getHullType() + ")  — damage taken");
                 infoPanel.update((Ship) target);
             } else {
-                selectedLabel.setText(target.getName() + "  — drone hit");
+                selectedLabel.setText(target.getName() + "  — hit");
             }
         } else {
             setStatus("Fire cancelled");

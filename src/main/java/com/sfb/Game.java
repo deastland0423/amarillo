@@ -444,6 +444,16 @@ public class Game {
                 return shuttle.getName() + " destroyed (" + damage + " damage)";
             return shuttle.getName() + " hit for " + damage + " — "
                     + shuttle.getCurrentHull() + " hull remaining";
+        } else if (target instanceof PlasmaTorpedo) {
+            PlasmaTorpedo torp = (PlasmaTorpedo) target;
+            int before = torp.getCurrentStrength();
+            torp.applyPhaserDamage(damage);
+            int after = torp.getCurrentStrength();
+            if (after <= 0) {
+                seekers.remove(torp);
+                return torp.getName() + " destroyed by phaser fire (" + damage + " pts)";
+            }
+            return torp.getName() + " hit for " + damage + " phaser pts — strength " + before + " → " + after;
         }
         return "Damage to unknown unit type ignored";
     }

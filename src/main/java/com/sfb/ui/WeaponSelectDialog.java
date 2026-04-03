@@ -65,7 +65,9 @@ public class WeaponSelectDialog extends Stage {
                 : "Range " + range;
         String targetInfo = (target instanceof Ship)
                 ? rangeStr + "   Target shield #" + shieldNumber
-                : rangeStr + "   Drone hull " + ((Drone) target).getHull();
+                : (target instanceof Drone)
+                    ? rangeStr + "   Drone hull " + ((Drone) target).getHull()
+                    : rangeStr + "   " + target.getName();
         Label sub = label(targetInfo, LABEL_FONT, Color.rgb(150, 150, 180));
 
         VBox header = new VBox(3, title, sub);
