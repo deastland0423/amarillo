@@ -23,7 +23,8 @@ public class SystemTarget {
         FHULL,
         AHULL,
         CHULL,
-        CLOAKING_DEVICE
+        CLOAKING_DEVICE,
+        DERFACS
     }
 
     private final Type   type;

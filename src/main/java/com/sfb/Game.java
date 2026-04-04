@@ -655,9 +655,17 @@ public class Game {
         int totalDamage = 0;
         boolean addHit = false;
 
+        com.sfb.systemgroups.DERFACS derfacs = attacker.getDerfacs();
+        boolean hasDerfacs = derfacs != null && derfacs.isFunctional();
+
         for (Weapon w : selected) {
             try {
-                int dmg = ((DirectFire) w).fire(range, adjustedRange);
+                int dmg;
+                if (hasDerfacs && w instanceof com.sfb.weapons.Disruptor) {
+                    dmg = ((com.sfb.weapons.Disruptor) w).fireDerfacs(range, adjustedRange);
+                } else {
+                    dmg = ((DirectFire) w).fire(range, adjustedRange);
+                }
                 if (dmg == ADD.HIT) {
                     addHit = true;
                     log.append("  ").append(w.getName()).append("  HIT\n");
@@ -877,25 +885,46 @@ public class Game {
      */
     private List<String> releaseOrphanedDrones() {
         List<String> log = new ArrayList<>();
+        List<Seeker> toRemove = new ArrayList<>();
         for (Seeker s : seekers) {
-            if (!(s instanceof Drone))
-                continue;
-            Drone drone = (Drone) s;
-            if (drone.isSelfGuiding())
-                continue;
-            Unit target = drone.getTarget();
-            Unit controller = drone.getController();
-            if (target == null || !(controller instanceof Ship))
-                continue;
-            Ship controlShip = (Ship) controller;
-            if (!controlShip.hasLockOn(target)) {
-                drone.setTarget(null);
-                drone.setController(null);
-                log.add("  Drone released — " + controlShip.getName()
-                        + " lost lock-on to " + target.getName());
+            if (s instanceof Drone) {
+                Drone drone = (Drone) s;
+                if (drone.isSelfGuiding()) {
+                    // Self-guiding drones have their own lock-on — foiled by full cloak
+                    if (isTargetFullyCloaked(drone)) {
+                        log.add("  Drone lost tracking — " + drone.getTarget().getName() + " is fully cloaked");
+                        toRemove.add(drone);
+                    }
+                } else {
+                    // Controller-guided drones: released when controller loses lock-on
+                    Unit target = drone.getTarget();
+                    Unit controller = drone.getController();
+                    if (target == null || !(controller instanceof Ship))
+                        continue;
+                    Ship controlShip = (Ship) controller;
+                    if (!controlShip.hasLockOn(target)) {
+                        log.add("  Drone released — " + controlShip.getName()
+                                + " lost lock-on to " + target.getName());
+                        toRemove.add(drone);
+                    }
+                }
+            } else if (s instanceof PlasmaTorpedo) {
+                // Self-guiding — foiled by full cloak
+                if (isTargetFullyCloaked(s)) {
+                    log.add("  Plasma torpedo lost tracking — " + s.getTarget().getName() + " is fully cloaked");
+                    toRemove.add(s);
+                }
             }
         }
+        seekers.removeAll(toRemove);
         return log;
+    }
+
+    private boolean isTargetFullyCloaked(Seeker s) {
+        Unit target = s.getTarget();
+        if (!(target instanceof Ship)) return false;
+        com.sfb.systemgroups.CloakingDevice cloak = ((Ship) target).getCloakingDevice();
+        return cloak != null && cloak.breaksLockOn();
     }
 
     private List<String> moveSeekers() {
@@ -985,11 +1014,15 @@ public class Game {
                     continue;
 
                 Unit target = torp.getTarget();
-                if (target != null) {
-                    int bearing = MapUtils.getBearing(torp, target);
-                    if (bearing != 0)
-                        torp.setFacing(snapToCardinal(bearing));
+                if (target == null) {
+                    log.add("  Plasma torpedo has no target — removed");
+                    expired.add(seeker);
+                    continue;
                 }
+
+                int bearing = MapUtils.getBearing(torp, target);
+                if (bearing != 0)
+                    torp.setFacing(snapToCardinal(bearing));
 
                 torp.goForward();
                 torp.incrementDistance();
@@ -1328,6 +1361,12 @@ public class Game {
             systems.add(new SystemTarget(SystemTarget.Type.CLOAKING_DEVICE, "Cloaking Device"));
         }
 
+        // DERFACS
+        com.sfb.systemgroups.DERFACS derfacsTarget = target.getDerfacs();
+        if (derfacsTarget != null && derfacsTarget.isFunctional()) {
+            systems.add(new SystemTarget(SystemTarget.Type.DERFACS, "DERFACS"));
+        }
+
         // Hull
         HullBoxes h = target.getHullBoxes();
         if (h.getAvailableFhull() > 0) {
@@ -1508,6 +1547,13 @@ public class Game {
                 if (cloak == null || !cloak.isFunctional())
                     return false;
                 cloak.damage(TurnTracker.getImpulse());
+                return true;
+            }
+            case DERFACS: {
+                com.sfb.systemgroups.DERFACS d = target.getDerfacs();
+                if (d == null || !d.isFunctional())
+                    return false;
+                d.damage();
                 return true;
             }
             default:

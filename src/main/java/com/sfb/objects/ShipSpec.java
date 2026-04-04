@@ -105,6 +105,7 @@ public class ShipSpec {
         public int dummyTBombs;
         public int nuclearSpaceMines;
         public int cloakCost;
+        public boolean derfacs;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -220,6 +221,7 @@ public class ShipSpec {
             if (auxiliary.dummyTBombs > 0)       m.put("dummytbombs", auxiliary.dummyTBombs);
             if (auxiliary.nuclearSpaceMines > 0) m.put("nuclearspacemines", auxiliary.nuclearSpaceMines);
             if (auxiliary.cloakCost > 0)         m.put("cloakcost", auxiliary.cloakCost);
+            if (auxiliary.derfacs)               m.put("derfacs", true);
         }
 
         // Crew

@@ -66,6 +66,7 @@ public class Ship extends Unit {
 	private PerformanceData performanceData = new PerformanceData(); // Base statistics for the frame.
 	private Crew crew = new Crew(this); // Crew
 	private CloakingDevice cloak = null; // Cloaking Device (null if none installed).
+	private com.sfb.systemgroups.DERFACS derfacs = null; // DERFACS targeting system (null if none installed).
 
 	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
 
@@ -144,6 +145,9 @@ public class Ship extends Unit {
 		// Optional systems
 		if (values.containsKey("cloakcost")) {
 			cloak = new CloakingDevice(this, (Integer) values.get("cloakcost"));
+		}
+		if (Boolean.TRUE.equals(values.get("derfacs"))) {
+			derfacs = new com.sfb.systemgroups.DERFACS(this);
 		}
 	}
 
@@ -586,6 +590,11 @@ public class Ship extends Unit {
 	/// CLOAKING DEVICE ///
 	public CloakingDevice getCloakingDevice() {
 		return this.cloak;
+	}
+
+	/// DERFACS ///
+	public com.sfb.systemgroups.DERFACS getDerfacs() {
+		return this.derfacs;
 	}
 
 	@Override
