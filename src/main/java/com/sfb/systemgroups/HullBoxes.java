@@ -2,6 +2,7 @@ package com.sfb.systemgroups;
 
 import java.util.Map;
 
+import com.sfb.objects.ShipSpec;
 import com.sfb.objects.Unit;
 
 public class HullBoxes implements Systems {
@@ -19,7 +20,6 @@ public class HullBoxes implements Systems {
 	private Unit owningUnit = null;
 
 	public HullBoxes() {
-
 	}
 
 	public HullBoxes(Unit owner) {
@@ -36,6 +36,20 @@ public class HullBoxes implements Systems {
 		availableChull = chull = values.get("chull") == null ? 0 : (Integer) values.get("chull");
 		availableCargo = cargo = values.get("cargo") == null ? 0 : (Integer) values.get("cargo");
 
+	}
+
+	// Replace the Map-based init with a type-safe Spec-based init
+	public void initFromSpec(ShipSpec.HullSpec spec) {
+		this.fhull = spec.fhull;
+		this.ahull = spec.ahull;
+		this.chull = spec.chull;
+		this.cargo = spec.cargo;
+
+		// Reset available counts to max
+		this.availableFhull = this.fhull;
+		this.availableAhull = this.ahull;
+		this.availableChull = this.chull;
+		this.availableCargo = this.cargo;
 	}
 
 	///// GETTERS //////

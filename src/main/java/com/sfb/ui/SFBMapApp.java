@@ -61,6 +61,7 @@ public class SFBMapApp extends Application {
     private Label         turnLabel;
     private Label         selectedLabel;
     private Label         statusLabel;
+    private Label         keyHelp;
     private TextArea      combatLog;
     private Button        nextPhaseBtn;
     private boolean       firingMode       = false;
@@ -106,8 +107,9 @@ public class SFBMapApp extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label keyHelp = new Label("W=fwd  A/D=turn  Q/E=slip  F=fire  L=drone  P=plasma  H=hit&run  B=tBomb");
-        keyHelp.setStyle("-fx-text-fill: #445566; -fx-font-size: 10;");
+        keyHelp = new Label();
+        keyHelp.setStyle("-fx-text-fill: #8899aa; -fx-font-size: 10;");
+        updateKeyHelp();
 
         HBox toolbar = new HBox(16, turnLabel, selectedLabel, statusLabel, spacer, keyHelp, nextPhaseBtn);
         toolbar.setStyle("-fx-padding: 8 14; -fx-background-color: #0d0d22; -fx-alignment: center-left;");
@@ -308,6 +310,25 @@ public class SFBMapApp extends Application {
                 });
                 return;
             }
+            if (event.getCode() == KeyCode.C) {
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
+                if (cloak == null) { setStatus(ship.getName() + " has no cloaking device"); return; }
+                Game.ActionResult result;
+                com.sfb.systemgroups.CloakingDevice.CloakState state = cloak.getState();
+                if (state == com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE
+                        || state == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_IN) {
+                    result = game.execute(new com.sfb.commands.CloakCommand(ship));
+                } else {
+                    result = game.execute(new com.sfb.commands.UncloakCommand(ship));
+                }
+                combatLog.appendText(result.getMessage() + "\n");
+                setStatus(result.getMessage());
+                infoPanel.update(ship);
+                mapCanvas.render();
+                return;
+            }
             if (firingMode || droneMode || plasmaMode || hitAndRunMode) return;
 
             Ship ship = mapCanvas.getSelectedShip();
@@ -371,6 +392,17 @@ public class SFBMapApp extends Application {
         turnLabel.setText(turnText());
         nextPhaseBtn.setText(nextPhaseLabel());
         setStatus(phaseStatus());
+        updateKeyHelp();
+        // Auto-select the first ship that needs to move
+        if (game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT) {
+            List<Ship> movable = game.getMovableShips();
+            if (!movable.isEmpty()) {
+                Ship first = movable.get(0);
+                mapCanvas.setSelectedShip(first);
+                infoPanel.update(first);
+                selectedLabel.setText(first.getName() + " (" + first.getHullType() + ")");
+            }
+        }
         mapCanvas.render();
     }
 
@@ -387,11 +419,33 @@ public class SFBMapApp extends Application {
 
     private String phaseStatus() {
         switch (game.getCurrentPhase()) {
-            case MOVEMENT:    return "Impulse " + game.getCurrentImpulse() + " — Movement  (W/A/D/Q/E to move)";
+            case MOVEMENT: {
+                List<Ship> movable = game.getMovableShips();
+                if (movable.isEmpty()) return "Impulse " + game.getCurrentImpulse() + " — Movement  (all ships moved)";
+                String names = movable.stream().map(Ship::getName).collect(java.util.stream.Collectors.joining(", "));
+                return "Impulse " + game.getCurrentImpulse() + " — Move: " + names;
+            }
             case ACTIVITY:    return "Impulse " + game.getCurrentImpulse() + " — Activity";
             case DIRECT_FIRE: return "Impulse " + game.getCurrentImpulse() + " — Direct Fire  (select a ship, press F)";
             case END_OF_IMPULSE: return "Impulse " + game.getCurrentImpulse() + " — End of Impulse";
             default: return "";
+        }
+    }
+
+    private void updateKeyHelp() {
+        switch (game.getCurrentPhase()) {
+            case MOVEMENT:
+                keyHelp.setText("W=fwd  A/D=turn  Q/E=sideslip  ESC=cancel");
+                break;
+            case ACTIVITY:
+                keyHelp.setText("L=launch drone  P=plasma  B=tBomb  C=cloak/uncloak  ESC=cancel");
+                break;
+            case DIRECT_FIRE:
+                keyHelp.setText("F=fire  H=hit&run  ESC=cancel");
+                break;
+            default:
+                keyHelp.setText("");
+                break;
         }
     }
 
@@ -421,19 +475,26 @@ public class SFBMapApp extends Application {
         }
 
         if (result.isSuccess()) {
-            selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
-                    + "  @ " + ship.getLocation());
             refreshMovableShips();
-            int remaining = game.getMovableShips().size();
-            if (remaining == 0) {
+            List<Ship> movable = game.getMovableShips();
+            if (movable.isEmpty()) {
                 setStatus("All ships moved — ready to advance");
+                selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
+                        + "  @ " + ship.getLocation());
+                infoPanel.update(ship);
             } else {
-                setStatus(remaining + " ship(s) still need to move");
+                // Auto-advance to next ship that needs to move this impulse
+                Ship next = movable.get(0);
+                mapCanvas.setSelectedShip(next);
+                infoPanel.update(next);
+                selectedLabel.setText(next.getName() + " (" + next.getHullType() + ")");
+                String names = movable.stream().map(Ship::getName).collect(java.util.stream.Collectors.joining(", "));
+                setStatus("Move: " + names);
             }
         } else {
             setStatus(result.getMessage());
+            infoPanel.update(ship);
         }
-        infoPanel.update(ship);
         mapCanvas.render();
     }
 

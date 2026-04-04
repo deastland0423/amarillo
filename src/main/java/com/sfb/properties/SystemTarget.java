@@ -22,7 +22,8 @@ public class SystemTarget {
         CREW,
         FHULL,
         AHULL,
-        CHULL
+        CHULL,
+        CLOAKING_DEVICE
     }
 
     private final Type   type;

@@ -115,6 +115,7 @@ public class RomulanShips {
             PlasmaLauncher pl = new PlasmaLauncher(PlasmaType.G);
             pl.setArcs(ArcUtils.FA);
             pl.setDesignator(des);
+            pl.setLaunchDirections(ArcUtils.of(1));
             pl.arm(Constants.gArmingCost[0]);
             pl.arm(Constants.gArmingCost[0]);
             pl.arm(Constants.gArmingCost[1]);
@@ -163,6 +164,7 @@ public class RomulanShips {
 
         s.put("trans", 1);
         s.put("tractor", 1);
+        s.put("nuclearSpaceMines", 1);
         s.put("lab", 0);
         s.put("probe", 1);
         s.put("shuttle", 2);
@@ -201,6 +203,7 @@ public class RomulanShips {
         PlasmaLauncher pl = new PlasmaLauncher(PlasmaType.R);
         pl.setArcs(ArcUtils.FA);
         pl.setDesignator("A");
+        pl.setLaunchDirections(ArcUtils.of(1));
         pl.arm(Constants.rArmingCost[0]);
         pl.arm(Constants.rArmingCost[0]);
         pl.arm(Constants.rArmingCost[1]);

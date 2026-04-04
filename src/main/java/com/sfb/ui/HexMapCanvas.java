@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 import com.sfb.objects.Drone;
 import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
-import com.sfb.objects.TBomb;
+import com.sfb.objects.SpaceMine;
 import com.sfb.properties.Location;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -52,13 +52,14 @@ public class HexMapCanvas extends Canvas {
     private Ship selectedShip = null;
     private List<Ship> movableShips = new ArrayList<>();
     private List<Seeker> seekers = new ArrayList<>();
-    private List<TBomb>  mines  = new ArrayList<>();
+    private List<SpaceMine> mines = new ArrayList<>();
     private boolean firingMode = false;
 
-    // Hex selection mode — when active, clicks resolve to a Location rather than a Marker
-    private boolean              hexSelectionMode    = false;
-    private Consumer<Location>   hexSelectionCallback = null;
-    private Location             hoveredHex          = null;
+    // Hex selection mode — when active, clicks resolve to a Location rather than a
+    // Marker
+    private boolean hexSelectionMode = false;
+    private Consumer<Location> hexSelectionCallback = null;
+    private Location hoveredHex = null;
 
     public HexMapCanvas(int cols, int rows, List<Ship> ships) {
         super(canvasWidth(cols), canvasHeight(rows));
@@ -102,15 +103,15 @@ public class HexMapCanvas extends Canvas {
      * Pass null to cancel without a selection.
      */
     public void enterHexSelectionMode(Consumer<Location> callback) {
-        this.hexSelectionMode     = true;
+        this.hexSelectionMode = true;
         this.hexSelectionCallback = callback;
-        this.hoveredHex           = null;
+        this.hoveredHex = null;
     }
 
     public void exitHexSelectionMode() {
-        this.hexSelectionMode     = false;
+        this.hexSelectionMode = false;
         this.hexSelectionCallback = null;
-        this.hoveredHex           = null;
+        this.hoveredHex = null;
     }
 
     public boolean isHexSelectionMode() {
@@ -132,14 +133,17 @@ public class HexMapCanvas extends Canvas {
      */
     public Location pixelToHex(double pixelX, double pixelY) {
         // Invert hexCenter:
-        //   cx = MARGIN + (x-1)*COL_SPACING + HEX_SIZE  →  x = round((cx - MARGIN - HEX_SIZE) / COL_SPACING) + 1
+        // cx = MARGIN + (x-1)*COL_SPACING + HEX_SIZE → x = round((cx - MARGIN -
+        // HEX_SIZE) / COL_SPACING) + 1
         int x = (int) Math.round((pixelX - MARGIN - HEX_SIZE) / COL_SPACING) + 1;
-        if (x < 1 || x > cols) return null;
+        if (x < 1 || x > cols)
+            return null;
 
         // cy depends on whether x is even (shifted down by HEX_H/2) or odd
         double yOffset = (x % 2 == 0) ? HEX_H / 2.0 : 0.0;
         int y = (int) Math.round((pixelY - MARGIN - yOffset) / HEX_H) + 1;
-        if (y < 1 || y > rows) return null;
+        if (y < 1 || y > rows)
+            return null;
 
         return new Location(x, y);
     }
@@ -149,7 +153,8 @@ public class HexMapCanvas extends Canvas {
      * fires the callback, and exits hex selection mode.
      */
     public void handleHexClick(double pixelX, double pixelY) {
-        if (!hexSelectionMode || hexSelectionCallback == null) return;
+        if (!hexSelectionMode || hexSelectionCallback == null)
+            return;
         Location loc = pixelToHex(pixelX, pixelY);
         Consumer<Location> cb = hexSelectionCallback;
         exitHexSelectionMode();
@@ -160,7 +165,7 @@ public class HexMapCanvas extends Canvas {
         this.seekers = seekers;
     }
 
-    public void setMines(List<TBomb> mines) {
+    public void setMines(List<SpaceMine> mines) {
         this.mines = mines;
     }
 
@@ -202,8 +207,10 @@ public class HexMapCanvas extends Canvas {
     }
 
     /**
-     * Returns all map objects (ships and seekers) whose hex contains the given pixel.
-     * The common type is Marker — terrain features will be added here when implemented.
+     * Returns all map objects (ships and seekers) whose hex contains the given
+     * pixel.
+     * The common type is Marker — terrain features will be added here when
+     * implemented.
      */
     public List<Marker> hitTestAll(double pixelX, double pixelY) {
         List<Marker> hits = new ArrayList<>();
@@ -213,9 +220,11 @@ public class HexMapCanvas extends Canvas {
                 hits.add(ship);
         }
         for (Seeker seeker : seekers) {
-            if (!(seeker instanceof Unit)) continue;
+            if (!(seeker instanceof Unit))
+                continue;
             Unit unit = (Unit) seeker;
-            if (unit.getLocation() == null) continue;
+            if (unit.getLocation() == null)
+                continue;
             double[] c = hexCenter(unit.getLocation().getX(), unit.getLocation().getY());
             if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
                 hits.add(unit);
@@ -224,7 +233,8 @@ public class HexMapCanvas extends Canvas {
     }
 
     /**
-     * Returns all seekers (drones and plasma torpedoes) whose hex contains the given pixel.
+     * Returns all seekers (drones and plasma torpedoes) whose hex contains the
+     * given pixel.
      */
     public List<Seeker> hitTestSeekers(double pixelX, double pixelY) {
         List<Seeker> hits = new ArrayList<>();
@@ -260,7 +270,7 @@ public class HexMapCanvas extends Canvas {
         for (Ship ship : ships) {
             drawShip(gc, ship);
         }
-        for (TBomb mine : mines) {
+        for (SpaceMine mine : mines) {
             drawTBomb(gc, mine);
         }
         for (Seeker seeker : seekers) {
@@ -346,10 +356,54 @@ public class HexMapCanvas extends Canvas {
 
         Color factionColor = factionColor(ship.getFaction());
 
-        drawShieldArcs(gc, ship, cx, cy, factionColor);
-        drawCounter(gc, ship, cx, cy, factionColor);
-        drawFacingArrow(gc, cx, cy, ship.getFacing(), factionColor);
-        drawCounterLabel(gc, ship, cx, cy);
+        com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
+        com.sfb.systemgroups.CloakingDevice.CloakState cloakState =
+                cloak != null ? cloak.getState()
+                              : com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE;
+
+        switch (cloakState) {
+            case FULLY_CLOAKED:
+                // Shields at full opacity so players can read their state
+                drawShieldArcs(gc, ship, cx, cy, factionColor);
+                // Counter and arrow as a faint ghost
+                gc.setGlobalAlpha(0.15);
+                drawCounter(gc, ship, cx, cy, Color.rgb(180, 120, 255));
+                drawFacingArrow(gc, cx, cy, ship.getFacing(), Color.rgb(180, 120, 255));
+                gc.setGlobalAlpha(1.0);
+                drawCloakLabel(gc, cx, cy, "CLOAKED");
+                break;
+            case FADING_OUT:
+            case FADING_IN: {
+                // Shields at full opacity so players can read them clearly
+                drawShieldArcs(gc, ship, cx, cy, factionColor);
+                // Counter and arrow semi-transparent with purple tint
+                gc.setGlobalAlpha(0.70);
+                drawCounter(gc, ship, cx, cy, Color.rgb(180, 120, 255));
+                drawFacingArrow(gc, cx, cy, ship.getFacing(), Color.rgb(180, 120, 255));
+                gc.setGlobalAlpha(1.0);
+                drawCounterLabel(gc, ship, cx, cy);
+                int step = cloak.getFadeStep(com.sfb.TurnTracker.getImpulse());
+                String fadeLabel = (cloakState == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT
+                        ? "Fade-Out " : "Fade-In ") + step;
+                drawCloakLabel(gc, cx, cy, fadeLabel);
+                break;
+            }
+            default:
+                // Normal rendering
+                drawShieldArcs(gc, ship, cx, cy, factionColor);
+                drawCounter(gc, ship, cx, cy, factionColor);
+                drawFacingArrow(gc, cx, cy, ship.getFacing(), factionColor);
+                drawCounterLabel(gc, ship, cx, cy);
+                break;
+        }
+    }
+
+    /** Small purple label below the counter showing cloak state. */
+    private void drawCloakLabel(GraphicsContext gc, double cx, double cy, String text) {
+        gc.setFill(Color.rgb(200, 150, 255));
+        gc.setFont(javafx.scene.text.Font.font("Monospaced", 7.0));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText(text, cx, cy + COUNTER_SIZE + 9.0);
     }
 
     /** Six colored arcs around the counter, one per shield. */
@@ -468,8 +522,9 @@ public class HexMapCanvas extends Canvas {
     // tBomb counter
     // -------------------------------------------------------------------------
 
-    private void drawTBomb(GraphicsContext gc, TBomb mine) {
-        if (mine.getLocation() == null) return;
+    private void drawTBomb(GraphicsContext gc, SpaceMine mine) {
+        if (mine.getLocation() == null)
+            return;
         double[] c = hexCenter(mine.getLocation().getX(), mine.getLocation().getY());
         double cx = c[0];
         double cy = c[1];
@@ -484,8 +539,8 @@ public class HexMapCanvas extends Canvas {
             color = Color.rgb(210, 155, 20);
         }
 
-        double r   = COUNTER_SIZE * 0.32;   // circle radius
-        double arm = r * 1.55;              // crosshair arm (extends beyond circle)
+        double r = COUNTER_SIZE * 0.32; // circle radius
+        double arm = r * 1.55; // crosshair arm (extends beyond circle)
 
         // Filled circle (dark tint)
         gc.setFill(color.deriveColor(0, 1.0, 0.2, 1.0));
@@ -496,10 +551,10 @@ public class HexMapCanvas extends Canvas {
         gc.setLineWidth(1.5);
         gc.strokeOval(cx - r, cy - r, r * 2, r * 2);
 
-        // Crosshairs  (+ shape through centre)
+        // Crosshairs (+ shape through centre)
         gc.setLineWidth(1.0);
-        gc.strokeLine(cx - arm, cy,       cx + arm, cy);       // horizontal
-        gc.strokeLine(cx,       cy - arm, cx,       cy + arm); // vertical
+        gc.strokeLine(cx - arm, cy, cx + arm, cy); // horizontal
+        gc.strokeLine(cx, cy - arm, cx, cy + arm); // vertical
 
         // "D" label on a revealed dummy so the player can tell it apart
         if (mine.isRevealed()) {

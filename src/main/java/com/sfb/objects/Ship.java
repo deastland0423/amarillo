@@ -140,6 +140,11 @@ public class Ship extends Unit {
 		weapons.init(values);
 		crew.init(values);
 		performanceData.init(values);
+
+		// Optional systems
+		if (values.containsKey("cloakcost")) {
+			cloak = new CloakingDevice(this, (Integer) values.get("cloakcost"));
+		}
 	}
 
 	/**
