@@ -363,8 +363,10 @@ public class HexMapCanvas extends Canvas {
 
         switch (cloakState) {
             case FULLY_CLOAKED:
-                // Shields at full opacity so players can read their state
+                // Shields at 50% opacity so players can read their state
+                gc.setGlobalAlpha(0.50);
                 drawShieldArcs(gc, ship, cx, cy, factionColor);
+                gc.setGlobalAlpha(1.0);
                 // Counter and arrow as a faint ghost
                 gc.setGlobalAlpha(0.15);
                 drawCounter(gc, ship, cx, cy, Color.rgb(180, 120, 255));

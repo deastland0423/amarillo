@@ -105,55 +105,69 @@ public class Game {
         players.add(player1);
         players.add(player2);
 
-        ShipSpec caSpec = ShipLibrary.get("Federation", "CA");
-        Ship fedCa = caSpec != null ? createShip(caSpec) : new Ship();
-        if (caSpec == null) fedCa.init(FederationShips.getFedCa());
-        fedCa.setLocation(new Location(12, 1));
-        fedCa.setFacing(13);
-        fedCa.setSpeed(16);
-        fedCa.setOwner(player1);
-        ships.add(fedCa);
-        player1.getPlayerUnits().add(fedCa);
+        try {
+            ShipSpec caSpec = ShipLibrary.get("Federation", "CA");
+            Ship fedCa = caSpec != null ? createShip(caSpec) : new Ship();
+            if (caSpec == null)
+                fedCa.init(FederationShips.getFedCa());
+            fedCa.setLocation(new Location(12, 1));
+            fedCa.setFacing(13);
+            fedCa.setSpeed(16);
+            fedCa.chargeCapacitor(6);
+            fedCa.setOwner(player1);
+            ships.add(fedCa);
+            player1.getPlayerUnits().add(fedCa);
 
-        ShipSpec ffgSpec = ShipLibrary.get("Federation", "FFG");
-        Ship fedFfg = ffgSpec != null ? createShip(ffgSpec) : new Ship();
-        if (ffgSpec == null) fedFfg.init(FederationShips.getFedFfg());
-        fedFfg.setLocation(new Location(16, 1));
-        fedFfg.setFacing(13);
-        fedFfg.setSpeed(20);
-        fedFfg.setOwner(player1);
-        ships.add(fedFfg);
-        player1.getPlayerUnits().add(fedFfg);
+            ShipSpec ffgSpec = ShipLibrary.get("Federation", "FFG");
+            Ship fedFfg = ffgSpec != null ? createShip(ffgSpec) : new Ship();
+            if (ffgSpec == null)
+                fedFfg.init(FederationShips.getFedFfg());
+            fedFfg.setLocation(new Location(16, 1));
+            fedFfg.setFacing(13);
+            fedFfg.setSpeed(20);
+            fedFfg.chargeCapacitor(3);
+            fedFfg.setOwner(player1);
+            ships.add(fedFfg);
+            player1.getPlayerUnits().add(fedFfg);
 
-        ShipSpec d7Spec = ShipLibrary.get("Klingon", "D7");
-        Ship klnD7 = d7Spec != null ? createShip(d7Spec) : new Ship();
-        if (d7Spec == null) klnD7.init(KlingonShips.getD7());
-        klnD7.setLocation(new Location(12, 12));
-        klnD7.setFacing(1);
-        klnD7.setSpeed(16);
-        klnD7.setOwner(player2);
-        ships.add(klnD7);
-        player2.getPlayerUnits().add(klnD7);
+            ShipSpec d7Spec = ShipLibrary.get("Klingon", "D7");
+            Ship klnD7 = d7Spec != null ? createShip(d7Spec) : new Ship();
+            if (d7Spec == null)
+                klnD7.init(KlingonShips.getD7());
+            klnD7.setLocation(new Location(12, 12));
+            klnD7.setFacing(1);
+            klnD7.setSpeed(16);
+            klnD7.chargeCapacitor(9);
+            klnD7.setOwner(player2);
+            ships.add(klnD7);
+            player2.getPlayerUnits().add(klnD7);
 
-        ShipSpec f5Spec = ShipLibrary.get("Klingon", "F5");
-        Ship klnF5 = f5Spec != null ? createShip(f5Spec) : new Ship();
-        if (f5Spec == null) klnF5.init(KlingonShips.getF5());
-        klnF5.setLocation(new Location(16, 12));
-        klnF5.setFacing(1);
-        klnF5.setSpeed(20);
-        klnF5.setOwner(player2);
-        ships.add(klnF5);
-        player2.getPlayerUnits().add(klnF5);
+            ShipSpec f5Spec = ShipLibrary.get("Klingon", "F5");
+            Ship klnF5 = f5Spec != null ? createShip(f5Spec) : new Ship();
+            if (f5Spec == null)
+                klnF5.init(KlingonShips.getF5());
+            klnF5.setLocation(new Location(16, 12));
+            klnF5.setFacing(1);
+            klnF5.setSpeed(20);
+            klnF5.chargeCapacitor(5);
+            klnF5.setOwner(player2);
+            ships.add(klnF5);
+            player2.getPlayerUnits().add(klnF5);
 
-        ShipSpec krSpec = ShipLibrary.get("Romulan", "KR");
-        Ship romKr = krSpec != null ? createShip(krSpec) : new Ship();
-        if (krSpec == null) romKr.init(RomulanShips.getRomKr());
-        romKr.setLocation(new Location(8, 12));
-        romKr.setFacing(1);
-        romKr.setSpeed(16);
-        romKr.setOwner(player2);
-        ships.add(romKr);
-        player2.getPlayerUnits().add(romKr);
+            ShipSpec krSpec = ShipLibrary.get("Romulan", "KR");
+            Ship romKr = krSpec != null ? createShip(krSpec) : new Ship();
+            if (krSpec == null)
+                romKr.init(RomulanShips.getRomKr());
+            romKr.setLocation(new Location(8, 12));
+            romKr.setFacing(1);
+            romKr.setSpeed(16);
+            romKr.chargeCapacitor(7);
+            romKr.setOwner(player2);
+            ships.add(romKr);
+            player2.getPlayerUnits().add(romKr);
+        } catch (CapacitorException e) {
+            System.err.println("Error during game setup: " + e.getMessage());
+        }
 
         TurnTracker.reset();
         inProgress = true;
@@ -333,7 +347,8 @@ public class Game {
                 // lock-ons other ships hold on it — it can no longer be targeted.
                 for (Ship ship : ships) {
                     com.sfb.systemgroups.CloakingDevice cd = ship.getCloakingDevice();
-                    if (cd == null) continue;
+                    if (cd == null)
+                        continue;
                     com.sfb.systemgroups.CloakingDevice.CloakState before = cd.getState();
                     cd.updateState(TurnTracker.getImpulse());
                     if (before != com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED
@@ -628,7 +643,8 @@ public class Game {
         if (!attacker.isActiveFireControl())
             return attacker.getName() + " has no active fire control — cannot fire";
         ActionResult cloakBlock = cloakActionBlock(attacker);
-        if (cloakBlock != null) return cloakBlock.getMessage();
+        if (cloakBlock != null)
+            return cloakBlock.getMessage();
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
                 .append("   range ").append(range);
@@ -707,7 +723,10 @@ public class Game {
         return currentPhase == ImpulsePhase.ACTIVITY;
     }
 
-    /** Returns a failure message if the ship's cloak is restricting actions, or null if clear. */
+    /**
+     * Returns a failure message if the ship's cloak is restricting actions, or null
+     * if clear.
+     */
     private ActionResult cloakActionBlock(Ship ship) {
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak != null && cloak.isRestrictingActions())
@@ -726,7 +745,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (!rack.isFunctional())
             return ActionResult.fail(rack.getName() + " is destroyed");
         if (!rack.canFire())
@@ -746,7 +766,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (!rack.isFunctional())
             return ActionResult.fail(rack.getName() + " is destroyed");
         if (!rack.canFire())
@@ -780,7 +801,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.isArmed())
@@ -812,7 +834,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.canLaunchPseudo())
@@ -855,12 +878,15 @@ public class Game {
     private List<String> releaseOrphanedDrones() {
         List<String> log = new ArrayList<>();
         for (Seeker s : seekers) {
-            if (!(s instanceof Drone)) continue;
+            if (!(s instanceof Drone))
+                continue;
             Drone drone = (Drone) s;
-            if (drone.isSelfGuiding()) continue;
+            if (drone.isSelfGuiding())
+                continue;
             Unit target = drone.getTarget();
             Unit controller = drone.getController();
-            if (target == null || !(controller instanceof Ship)) continue;
+            if (target == null || !(controller instanceof Ship))
+                continue;
             Ship controlShip = (Ship) controller;
             if (!controlShip.hasLockOn(target)) {
                 drone.setTarget(null);
@@ -905,11 +931,16 @@ public class Game {
                     continue;
 
                 Unit target = drone.getTarget();
-                if (target != null) {
-                    int bearing = MapUtils.getBearing(drone, target);
-                    if (bearing != 0)
-                        drone.setFacing(snapToCardinal(bearing));
+                if (target == null) {
+                    // Orphaned drone — no guidance, self-destructs immediately
+                    log.add("  Drone (" + drone.getDroneType() + ") lost guidance — self-destructed");
+                    expired.add(drone);
+                    continue;
                 }
+
+                int bearing = MapUtils.getBearing(drone, target);
+                if (bearing != 0)
+                    drone.setFacing(snapToCardinal(bearing));
 
                 drone.goForward();
 
@@ -1067,7 +1098,8 @@ public class Game {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
 
         // Range check — build a temporary marker at the target hex
         Marker targetMarker = new Marker();
@@ -1330,7 +1362,8 @@ public class Game {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (targetSystems.isEmpty()) {
             return ActionResult.fail("No boarding parties assigned");
         }
@@ -1472,7 +1505,8 @@ public class Game {
                 return target.getHullBoxes().damageChull();
             case CLOAKING_DEVICE: {
                 com.sfb.systemgroups.CloakingDevice cloak = target.getCloakingDevice();
-                if (cloak == null || !cloak.isFunctional()) return false;
+                if (cloak == null || !cloak.isFunctional())
+                    return false;
                 cloak.damage(TurnTracker.getImpulse());
                 return true;
             }

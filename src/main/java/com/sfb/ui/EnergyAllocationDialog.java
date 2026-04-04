@@ -173,11 +173,11 @@ public class EnergyAllocationDialog extends Stage {
         shOff.setToggleGroup(shGroup);
         shActive.setSelected(true);
 
-        VBox shieldsBox = new VBox(6,
-                styledLabel("SHIELDS", SECTION_FONT, Color.rgb(100, 200, 200)),
+        VBox shieldsContent = new VBox(6,
                 new HBox(16, shActive, shMinimum, shOff));
-        shieldsBox.setStyle(SECTION_BG);
-        // (reinforcement will be merged into shieldsBox below)
+        shieldsContent.setVisible(false);
+        shieldsContent.setManaged(false);
+        // (reinforcement will be merged into shieldsContent below)
 
         // --- Phaser capacitor ---
         double capCurrent = ship.getWeapons().getPhaserCapacitorEnergy();
@@ -350,8 +350,21 @@ public class EnergyAllocationDialog extends Stage {
             reinforceToggle.setText((nowVisible ? "▼" : "▶") + "  Reinforcement");
         });
 
-        // Merge reinforcement into shields box
-        shieldsBox.getChildren().addAll(reinforceToggle, reinforceContent);
+        // Merge reinforcement into shields content
+        shieldsContent.getChildren().addAll(reinforceToggle, reinforceContent);
+
+        Button shieldsToggle = new Button("▶  SHIELDS");
+        shieldsToggle.setFont(SECTION_FONT);
+        shieldsToggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #64c8c8; " +
+                "-fx-border-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+        shieldsToggle.setOnAction(e -> {
+            boolean nowVisible = !shieldsContent.isVisible();
+            shieldsContent.setVisible(nowVisible);
+            shieldsContent.setManaged(nowVisible);
+            shieldsToggle.setText((nowVisible ? "▼" : "▶") + "  SHIELDS");
+        });
+        VBox shieldsSection = new VBox(6, shieldsToggle, shieldsContent);
+        shieldsSection.setStyle(SECTION_BG);
 
         // --- Drone reloads ---
         int deckCrews = ship.getCrew().getDeckCrews();
@@ -592,7 +605,7 @@ public class EnergyAllocationDialog extends Stage {
         VBox weaponsSection = new VBox(6, weaponsToggle, weaponsContent);
         weaponsSection.setStyle(SECTION_BG);
 
-        VBox root = new VBox(10, header, batteryBox, movementBox, shieldsBox, capBox, weaponsSection,
+        VBox root = new VBox(10, header, batteryBox, movementBox, shieldsSection, capBox, weaponsSection,
                 transBox, reloadBox);
         if (cloakBox != null) root.getChildren().add(cloakBox);
         root.getChildren().add(buttonRow);
