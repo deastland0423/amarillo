@@ -7,17 +7,18 @@ package com.sfb.objects;
  * A tBomb starts inactive. It becomes permanently active once BOTH of the
  * following conditions are true simultaneously:
  * <ul>
- *   <li>At least 2 impulses have elapsed since placement.</li>
- *   <li>The laying ship is more than 1 hex away.</li>
+ * <li>At least 2 impulses have elapsed since placement.</li>
+ * <li>The laying ship is more than 1 hex away.</li>
  * </ul>
  * Once active it never deactivates, even if the laying ship returns to range.
  *
  * <h3>Detection and detonation</h3>
- * Each impulse, every unit within range 1 (the mine's hex plus its 6 neighbours)
+ * Each impulse, every unit within range 1 (the mine's hex plus its 6
+ * neighbours)
  * is checked:
  * <ul>
- *   <li>Speed &ge; 6 → automatically detected → detonate.</li>
- *   <li>Speed &lt; 6 → roll 1d6; if roll &gt; speed → detected → detonate.</li>
+ * <li>Speed &ge; 6 → automatically detected → detonate.</li>
+ * <li>Speed &lt; 6 → roll 1d6; if roll &gt; speed → detected → detonate.</li>
  * </ul>
  * On detonation, 10 points of damage are applied to the facing shield of every
  * unit within range 1.
@@ -31,17 +32,17 @@ public class TBomb extends Marker {
     public static final int DAMAGE = 10;
 
     private final boolean isReal;
-    private final Ship    layingShip;
-    private final int     placedOnImpulse;
+    private final Ship layingShip;
+    private final int placedOnImpulse;
 
-    private boolean active  = false;
+    private boolean active = false;
     private boolean revealed = false; // true once a dummy has been exposed
 
     public TBomb(Ship layingShip, int placedOnImpulse, boolean isReal) {
-        this.layingShip      = layingShip;
+        this.layingShip = layingShip;
         this.placedOnImpulse = placedOnImpulse;
-        this.isReal          = isReal;
-        this.name            = "tBomb";
+        this.isReal = isReal;
+        this.name = "tBomb";
     }
 
     // -------------------------------------------------------------------------
@@ -61,13 +62,14 @@ public class TBomb extends Marker {
      * at least {@code impulsesElapsed} impulses have passed AND the laying ship
      * is more than 1 hex away.
      *
-     * @param currentImpulse  The current absolute impulse number.
-     * @param layerRange      Hex distance from this tBomb to the laying ship.
+     * @param currentImpulse The current absolute impulse number.
+     * @param layerRange     Hex distance from this tBomb to the laying ship.
      */
     public void tryActivate(int currentImpulse, int layerRange) {
-        if (active) return;
-        boolean timeElapsed  = (currentImpulse - placedOnImpulse) >= 2;
-        boolean layerGone    = layerRange > 1;
+        if (active)
+            return;
+        boolean timeElapsed = (currentImpulse - placedOnImpulse) >= 2;
+        boolean layerGone = layerRange > 1;
         if (timeElapsed && layerGone) {
             active = true;
         }
@@ -81,16 +83,19 @@ public class TBomb extends Marker {
      * Check whether this active tBomb detects a unit moving at {@code speed}.
      * Rolls 1d6 for slow units. Returns true if the unit is detected.
      *
-     * <p>The caller is responsible for confirming the unit is within range 1
+     * <p>
+     * The caller is responsible for confirming the unit is within range 1
      * before calling this method.
      *
-     * @param speed     The speed of the unit being checked.
-     * @param diceRoll  A pre-rolled 1d6 value (1–6). Ignored when speed &ge; 6.
+     * @param speed    The speed of the unit being checked.
+     * @param diceRoll A pre-rolled 1d6 value (1–6). Ignored when speed &ge; 6.
      * @return true if the tBomb detects the unit and should detonate.
      */
     public boolean detectsUnit(int speed, int diceRoll) {
-        if (!active) return false;
-        if (speed >= 6) return true;
+        if (!active)
+            return false;
+        if (speed >= 6)
+            return true;
         return diceRoll > speed;
     }
 
@@ -98,21 +103,32 @@ public class TBomb extends Marker {
     // Dummy / reveal
     // -------------------------------------------------------------------------
 
-    public boolean isReal()     { return isReal; }
-    public boolean isRevealed() { return revealed; }
+    public boolean isReal() {
+        return isReal;
+    }
+
+    public boolean isRevealed() {
+        return revealed;
+    }
 
     /**
      * Mark this dummy tBomb as revealed (a unit entered range without explosion).
      * Has no effect on real tBombs.
      */
     public void reveal() {
-        if (!isReal) revealed = true;
+        if (!isReal)
+            revealed = true;
     }
 
     // -------------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------------
 
-    public Ship getLayingShip()    { return layingShip; }
-    public int  getPlacedOnImpulse() { return placedOnImpulse; }
+    public Ship getLayingShip() {
+        return layingShip;
+    }
+
+    public int getPlacedOnImpulse() {
+        return placedOnImpulse;
+    }
 }

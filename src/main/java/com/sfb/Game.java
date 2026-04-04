@@ -51,30 +51,36 @@ public class Game {
      * the fire dialog only opens in DIRECT_FIRE, etc.
      */
     public enum ImpulsePhase {
-        MOVEMENT    ("Movement"),
-        ACTIVITY    ("Activity"),
-        DIRECT_FIRE ("Direct Fire"),
+        MOVEMENT("Movement"),
+        ACTIVITY("Activity"),
+        DIRECT_FIRE("Direct Fire"),
         END_OF_IMPULSE("End of Impulse");
 
         private final String label;
-        ImpulsePhase(String label) { this.label = label; }
-        public String getLabel()   { return label; }
+
+        ImpulsePhase(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 
     // --- State ---
-    private final List<Player>  players  = new ArrayList<>();
-    private final List<Ship>    ships    = new ArrayList<>();
-    private final List<Seeker>  seekers  = new ArrayList<>();
-    private final List<TBomb>   mines    = new ArrayList<>();
-    private final Set<Ship>     movedThisImpulse     = new HashSet<>();
+    private final List<Player> players = new ArrayList<>();
+    private final List<Ship> ships = new ArrayList<>();
+    private final List<Seeker> seekers = new ArrayList<>();
+    private final List<TBomb> mines = new ArrayList<>();
+    private final Set<Ship> movedThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
 
-    private ImpulsePhase currentPhase          = ImpulsePhase.MOVEMENT;
+    private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
-    private List<String> lastSeekerLog         = new ArrayList<>();
-    private boolean      inProgress            = false;
-    private boolean      awaitingAllocation    = false;
-    private final List<Ship> allocationQueue   = new ArrayList<>();
+    private List<String> lastSeekerLog = new ArrayList<>();
+    private boolean inProgress = false;
+    private boolean awaitingAllocation = false;
+    private final List<Ship> allocationQueue = new ArrayList<>();
 
     // --- Setup ---
 
@@ -114,25 +120,25 @@ public class Game {
 
         Ship klnD7 = new Ship();
         klnD7.init(KlingonShips.getD7());
-        klnD7.setLocation(new Location(12, 15));
+        klnD7.setLocation(new Location(12, 12));
         klnD7.setFacing(1);
         klnD7.setSpeed(16);
         klnD7.setOwner(player2);
         ships.add(klnD7);
         player2.getPlayerUnits().add(klnD7);
 
-        Ship klnF5 = new Ship();
-        klnF5.init(KlingonShips.getF5());
-        klnF5.setLocation(new Location(16, 15));
-        klnF5.setFacing(1);
-        klnF5.setSpeed(20);
-        klnF5.setOwner(player2);
-        ships.add(klnF5);
-        player2.getPlayerUnits().add(klnF5);
+        // Ship klnF5 = new Ship();
+        // klnF5.init(KlingonShips.getF5());
+        // klnF5.setLocation(new Location(16, 12));
+        // klnF5.setFacing(1);
+        // klnF5.setSpeed(20);
+        // klnF5.setOwner(player2);
+        // ships.add(klnF5);
+        // player2.getPlayerUnits().add(klnF5);
 
         Ship romKr = new Ship();
         romKr.init(RomulanShips.getRomKr());
-        romKr.setLocation(new Location(8, 15));
+        romKr.setLocation(new Location(8, 12));
         romKr.setFacing(1);
         romKr.setSpeed(16);
         romKr.setOwner(player2);
@@ -141,7 +147,7 @@ public class Game {
 
         TurnTracker.reset();
         inProgress = true;
-        startTurn();  // run energy allocation and turn setup before impulse 1
+        startTurn(); // run energy allocation and turn setup before impulse 1
     }
 
     // --- Turn progression ---
@@ -200,17 +206,20 @@ public class Game {
 
     /**
      * Sensor Lock-On Phase (D6.1): each ship rolls 1d6 per other unit on the map.
-     * Roll ≤ sensor rating → lock-on achieved. Sensor 6 is automatic (always succeeds).
+     * Roll ≤ sensor rating → lock-on achieved. Sensor 6 is automatic (always
+     * succeeds).
      * Per D6.113, each ship gets only one roll per turn.
      */
     private void performLockOnRolls() {
         DiceRoller dice = new DiceRoller();
         for (Ship ship : ships) {
             ship.clearLockOns();
-            if (!ship.isActiveFireControl()) continue; // D6.1143: no fire control = no lock-on
+            if (!ship.isActiveFireControl())
+                continue; // D6.1143: no fire control = no lock-on
             int sensorRating = ship.getSpecialFunctions().getSensor();
             for (Ship target : ships) {
-                if (target == ship) continue;
+                if (target == ship)
+                    continue;
                 int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
                 if (roll <= sensorRating) {
                     ship.addLockOn(target);
@@ -221,7 +230,8 @@ public class Game {
 
     /**
      * Compute the effective range from attacker to target (D6.21 + D6.123).
-     * Formula: (noLockOn ? trueRange * 2 : trueRange) + scannerAdjustment + cloakBonus
+     * Formula: (noLockOn ? trueRange * 2 : trueRange) + scannerAdjustment +
+     * cloakBonus
      */
     public int getEffectiveRange(Ship attacker, Unit target) {
         int trueRange = MapUtils.getRange(attacker, target);
@@ -284,7 +294,10 @@ public class Game {
         return ActionResult.ok(message);
     }
 
-    /** Automatically raise any voluntarily-lowered shields that have met the 8-impulse lockout. */
+    /**
+     * Automatically raise any voluntarily-lowered shields that have met the
+     * 8-impulse lockout.
+     */
     private void autoRaiseShields() {
         for (Ship ship : ships) {
             for (int s = 1; s <= 6; s++) {
@@ -333,7 +346,8 @@ public class Game {
                 movable.add(ship);
             }
         }
-        // Slower ships move first; ties broken by worst turn mode first (F > E > ... > AA).
+        // Slower ships move first; ties broken by worst turn mode first (F > E > ... >
+        // AA).
         movable.sort(Comparator.comparingInt(Ship::getSpeed)
                 .thenComparingInt(s -> -s.getTurnMode().ordinal()));
         return movable;
@@ -344,9 +358,12 @@ public class Game {
     }
 
     public boolean canMoveThisImpulse(Ship ship) {
-        if (currentPhase != ImpulsePhase.MOVEMENT) return false;
-        if (!ship.movesThisImpulse(TurnTracker.getLocalImpulse())) return false;
-        if (movedThisImpulse.contains(ship)) return false;
+        if (currentPhase != ImpulsePhase.MOVEMENT)
+            return false;
+        if (!ship.movesThisImpulse(TurnTracker.getLocalImpulse()))
+            return false;
+        if (movedThisImpulse.contains(ship))
+            return false;
         // Enforce order: ship may only move if no higher-priority ship is still waiting
         List<Ship> movable = getMovableShips();
         return movable.isEmpty() || movable.get(0) == ship;
@@ -368,45 +385,50 @@ public class Game {
         if (!canMoveThisImpulse(ship))
             return ActionResult.fail(ship.getName() + " cannot move this impulse");
         boolean moved = ship.goForward();
-        if (moved) movedThisImpulse.add(ship);
+        if (moved)
+            movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " moved forward")
-                     : ActionResult.fail(ship.getName() + " could not move forward");
+                : ActionResult.fail(ship.getName() + " could not move forward");
     }
 
     public ActionResult turnLeft(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return ActionResult.fail(ship.getName() + " cannot move this impulse");
         boolean moved = ship.turnLeft();
-        if (moved) movedThisImpulse.add(ship);
+        if (moved)
+            movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " turned left")
-                     : ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
+                : ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
     }
 
     public ActionResult turnRight(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return ActionResult.fail(ship.getName() + " cannot move this impulse");
         boolean moved = ship.turnRight();
-        if (moved) movedThisImpulse.add(ship);
+        if (moved)
+            movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " turned right")
-                     : ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
+                : ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
     }
 
     public ActionResult sideslipLeft(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return ActionResult.fail(ship.getName() + " cannot move this impulse");
         boolean moved = ship.sideslipLeft();
-        if (moved) movedThisImpulse.add(ship);
+        if (moved)
+            movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " sideslipped left")
-                     : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+                : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
     }
 
     public ActionResult sideslipRight(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return ActionResult.fail(ship.getName() + " cannot move this impulse");
         boolean moved = ship.sideslipRight();
-        if (moved) movedThisImpulse.add(ship);
+        if (moved)
+            movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " sideslipped right")
-                     : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+                : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
     }
 
     // --- Weapons fire ---
@@ -430,7 +452,8 @@ public class Game {
      */
     /**
      * Determine which shield a drone hits based on its direction of travel.
-     * The drone's facing is where it is going; the hit shield faces the opposite direction.
+     * The drone's facing is where it is going; the hit shield faces the opposite
+     * direction.
      */
     private int getDroneImpactShield(Unit drone, Ship target) {
         // Reverse the drone's facing 180° to get the incoming direction (1-24)
@@ -449,9 +472,11 @@ public class Game {
     }
 
     /**
-     * Mark shield damage from one firing volley (6D2 — Direct-Fire Weapons Fire Stage).
+     * Mark shield damage from one firing volley (6D2 — Direct-Fire Weapons Fire
+     * Stage).
      * Bleed-through is queued as pending internal damage; it will not be resolved
-     * until resolveInternalDamage() is called at the end of the Direct-Fire segment (6D4).
+     * until resolveInternalDamage() is called at the end of the Direct-Fire segment
+     * (6D4).
      *
      * @return A FireResult with the bleed-through amount and an empty internal log
      *         (log is populated later when resolveInternalDamage() runs).
@@ -465,9 +490,12 @@ public class Game {
     }
 
     /**
-     * Apply weapon damage to any unit — routes to the correct damage path based on type.
-     * Ships: damage goes through shields first, bleed-through queued as internal damage.
-     * Drones: damage applied directly to hull; drone destroyed and removed when hull reaches 0.
+     * Apply weapon damage to any unit — routes to the correct damage path based on
+     * type.
+     * Ships: damage goes through shields first, bleed-through queued as internal
+     * damage.
+     * Drones: damage applied directly to hull; drone destroyed and removed when
+     * hull reaches 0.
      *
      * @return A log entry describing what happened.
      */
@@ -523,28 +551,31 @@ public class Game {
     }
 
     /**
-     * Fire a list of direct-fire weapons at a target, apply damage, and return a combat log entry.
+     * Fire a list of direct-fire weapons at a target, apply damage, and return a
+     * combat log entry.
      *
      * @param attacker      The firing ship.
      * @param target        The unit being fired upon.
-     * @param selected      Weapons chosen by the player (must implement DirectFire).
+     * @param selected      Weapons chosen by the player (must implement
+     *                      DirectFire).
      * @param range         True hex range to the target.
      * @param adjustedRange Range after scanner modifier.
      * @param shieldNumber  Shield facing the attacker (0 for non-ship targets).
-     * @return A formatted combat log string describing every shot and the total damage applied.
+     * @return A formatted combat log string describing every shot and the total
+     *         damage applied.
      */
     public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
-                              int range, int adjustedRange, int shieldNumber) {
+            int range, int adjustedRange, int shieldNumber) {
         if (!attacker.isActiveFireControl()) {
             return attacker.getName() + " has no active fire control — cannot fire";
         }
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
-           .append("   range ").append(range)
-           .append("   shield #").append(shieldNumber).append("\n");
+                .append("   range ").append(range)
+                .append("   shield #").append(shieldNumber).append("\n");
 
-        int     totalDamage = 0;
-        boolean addHit      = false;
+        int totalDamage = 0;
+        boolean addHit = false;
 
         for (Weapon w : selected) {
             try {
@@ -555,7 +586,7 @@ public class Game {
                 } else {
                     totalDamage += dmg;
                     log.append("  ").append(w.getName())
-                       .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
+                            .append(dmg > 0 ? "  HIT  " + dmg : "  MISS").append("\n");
                 }
             } catch (WeaponUnarmedException ex) {
                 log.append("  ").append(w.getName()).append("  unarmed\n");
@@ -575,7 +606,7 @@ public class Game {
             FireResult result = markShieldDamage((Ship) target, shieldNumber, totalDamage);
             if (result.getBleed() > 0) {
                 log.append("   BLEED-THROUGH: ").append(result.getBleed())
-                   .append(" (internal damage resolves at end of Direct-Fire segment)\n");
+                        .append(" (internal damage resolves at end of Direct-Fire segment)\n");
             }
         } else if (totalDamage > 0) {
             String dmgLog = applyDamageToUnit(totalDamage, target, shieldNumber);
@@ -586,7 +617,8 @@ public class Game {
     }
 
     /**
-     * Resolve all queued internal damage (6D4 — Direct-Fire Weapons Damage Resolution Stage).
+     * Resolve all queued internal damage (6D4 — Direct-Fire Weapons Damage
+     * Resolution Stage).
      * Called automatically when advancePhase() moves out of DIRECT_FIRE.
      */
     private void resolveInternalDamage() {
@@ -726,12 +758,14 @@ public class Game {
      */
     private List<String> moveSeekers() {
         List<String> log = new ArrayList<>();
-        if (seekers.isEmpty()) return log;
+        if (seekers.isEmpty())
+            return log;
 
         int impulse = TurnTracker.getLocalImpulse();
         List<Seeker> expired = new ArrayList<>();
 
-        // Order seekers so that a seeker whose target is also a seeker moves after its target.
+        // Order seekers so that a seeker whose target is also a seeker moves after its
+        // target.
         // Simple two-pass: targets first, then hunters.
         Set<Seeker> seekerSet = new HashSet<>(seekers);
         List<Seeker> ordered = new ArrayList<>();
@@ -751,12 +785,14 @@ public class Game {
         for (Seeker seeker : ordered) {
             if (seeker instanceof Drone) {
                 Drone drone = (Drone) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed())) continue;
+                if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed()))
+                    continue;
 
                 Unit target = drone.getTarget();
                 if (target != null) {
                     int bearing = MapUtils.getBearing(drone, target);
-                    if (bearing != 0) drone.setFacing(snapToCardinal(bearing));
+                    if (bearing != 0)
+                        drone.setFacing(snapToCardinal(bearing));
                 }
 
                 drone.goForward();
@@ -798,12 +834,14 @@ public class Game {
 
             } else if (seeker instanceof PlasmaTorpedo) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, torp.getSpeed())) continue;
+                if (!MovementUtil.moveThisImpulse(impulse, torp.getSpeed()))
+                    continue;
 
                 Unit target = torp.getTarget();
                 if (target != null) {
                     int bearing = MapUtils.getBearing(torp, target);
-                    if (bearing != 0) torp.setFacing(snapToCardinal(bearing));
+                    if (bearing != 0)
+                        torp.setFacing(snapToCardinal(bearing));
                 }
 
                 torp.goForward();
@@ -884,8 +922,12 @@ public class Game {
         for (int c : cardinals) {
             int diff = Math.abs(bearing - c);
             // wrap around the 24-direction circle
-            if (diff > 12) diff = 24 - diff;
-            if (diff < bestDist) { bestDist = diff; best = c; }
+            if (diff > 12)
+                diff = 24 - diff;
+            if (diff < bestDist) {
+                bestDist = diff;
+                best = c;
+            }
         }
         return best;
     }
@@ -899,9 +941,10 @@ public class Game {
     /**
      * Place a tBomb (real or dummy) on the map via transporter.
      *
-     * <p>Validates the same transporter preconditions as a Hit &amp; Run raid:
+     * <p>
+     * Validates the same transporter preconditions as a Hit &amp; Run raid:
      * Activity phase, range ≤ 5, acting ship's facing shield passable, and
-     * enough transporter energy.  Decrements the appropriate tBomb count on
+     * enough transporter energy. Decrements the appropriate tBomb count on
      * the acting ship.
      */
     public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal) {
@@ -964,7 +1007,8 @@ public class Game {
      */
     private List<String> processMines() {
         List<String> log = new ArrayList<>();
-        if (mines.isEmpty()) return log;
+        if (mines.isEmpty())
+            return log;
 
         int currentImpulse = TurnTracker.getImpulse();
         DiceRoller dice = new DiceRoller();
@@ -972,30 +1016,36 @@ public class Game {
         // All units currently on the map
         List<Unit> allUnits = new ArrayList<>(ships);
         for (Seeker s : seekers) {
-            if (s instanceof Unit) allUnits.add((Unit) s);
+            if (s instanceof Unit)
+                allUnits.add((Unit) s);
         }
 
         List<TBomb> detonated = new ArrayList<>();
 
         for (TBomb mine : mines) {
-            if (mine.getLocation() == null) continue;
+            if (mine.getLocation() == null)
+                continue;
 
             // Try to arm inactive mines
             if (!mine.isActive()) {
                 int layerRange = MapUtils.getRange(mine, mine.getLayingShip());
                 mine.tryActivate(currentImpulse, layerRange);
-                if (!mine.isActive()) continue;
+                if (!mine.isActive())
+                    continue;
                 log.add("  tBomb at " + mine.getLocation() + " is now ARMED");
             }
 
             // Find units within range 1
             List<Unit> inRange = new ArrayList<>();
             for (Unit unit : allUnits) {
-                if (unit.getLocation() == null) continue;
-                if (MapUtils.getRange(mine, unit) <= 1) inRange.add(unit);
+                if (unit.getLocation() == null)
+                    continue;
+                if (MapUtils.getRange(mine, unit) <= 1)
+                    inRange.add(unit);
             }
 
-            if (inRange.isEmpty()) continue;
+            if (inRange.isEmpty())
+                continue;
 
             // Detection check — first unit that triggers detonates the mine
             boolean triggered = false;
@@ -1049,7 +1099,8 @@ public class Game {
     // --- Hit & Run raids ---
 
     /**
-     * Build the list of systems on a ship that can be targeted by a Hit &amp; Run raid.
+     * Build the list of systems on a ship that can be targeted by a Hit &amp; Run
+     * raid.
      * Only includes functional/damageable systems.
      */
     public List<SystemTarget> getTargetableSystems(Ship target) {
@@ -1108,8 +1159,9 @@ public class Game {
     /**
      * Execute a Hit &amp; Run boarding raid.
      *
-     * <p>Pre-conditions checked here: range ≤ 5, enough boarding parties and
-     * transporter energy, target shield passable.  The acting ship's facing
+     * <p>
+     * Pre-conditions checked here: range ≤ 5, enough boarding parties and
+     * transporter energy, target shield passable. The acting ship's facing
      * shield is lowered automatically if it has remaining strength (triggering
      * the 8-impulse lockout).
      *
@@ -1119,7 +1171,7 @@ public class Game {
      * @return ActionResult with a full raid log, or failure message.
      */
     public ActionResult performHitAndRun(Ship actingShip, Ship target,
-                                         List<SystemTarget> targetSystems) {
+            List<SystemTarget> targetSystems) {
         if (currentPhase != ImpulsePhase.ACTIVITY) {
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         }
@@ -1184,28 +1236,29 @@ public class Game {
         DiceRoller dice = new DiceRoller();
         StringBuilder log = new StringBuilder();
         log.append("=== Hit & Run Raid: ").append(actingShip.getName())
-           .append("  →  ").append(target.getName()).append(" ===\n");
+                .append("  →  ").append(target.getName()).append(" ===\n");
         log.append("  ").append(actingShip.getName()).append(" shield #")
-           .append(actingShieldNum).append(" lowered\n");
+                .append(actingShieldNum).append(" lowered\n");
 
         int partiesLost = 0;
         for (SystemTarget st : targetSystems) {
             int roll = dice.rollOneDie();
-            boolean systemHit  = (roll == 1 || roll == 2);
-            boolean partyLost  = (roll >= 2 && roll <= 5);
+            boolean systemHit = (roll == 1 || roll == 2);
+            boolean partyLost = (roll >= 2 && roll <= 5);
 
             String hitResult;
             if (systemHit) {
                 boolean damaged = applyHitAndRunHit(target, st);
                 hitResult = damaged ? st.getDisplayName() + " DAMAGED"
-                                    : st.getDisplayName() + " already destroyed";
+                        : st.getDisplayName() + " already destroyed";
             } else {
                 hitResult = st.getDisplayName() + " not damaged";
             }
 
             log.append("  Roll ").append(roll).append(": ").append(hitResult)
-               .append(",  boarding party ").append(partyLost ? "lost" : "safe").append("\n");
-            if (partyLost) partiesLost++;
+                    .append(",  boarding party ").append(partyLost ? "lost" : "safe").append("\n");
+            if (partyLost)
+                partiesLost++;
         }
 
         if (partiesLost > 0) {
@@ -1214,7 +1267,7 @@ public class Game {
         }
 
         log.append("  Boarding parties lost: ").append(partiesLost)
-           .append(" / ").append(numParties).append(" sent");
+                .append(" / ").append(numParties).append(" sent");
 
         return ActionResult.ok(log.toString());
     }
@@ -1227,14 +1280,17 @@ public class Game {
         switch (system.getType()) {
             case WEAPON: {
                 Weapon w = system.getWeapon();
-                if (!w.isFunctional()) return false;
+                if (!w.isFunctional())
+                    return false;
                 w.damage();
                 return true;
             }
             case WARP: {
                 PowerSystems ps = target.getPowerSysetems();
-                if (ps.damageLWarp()) return true;
-                if (ps.damageRWarp()) return true;
+                if (ps.damageLWarp())
+                    return true;
+                if (ps.damageRWarp())
+                    return true;
                 return ps.damageCWarp();
             }
             case IMPULSE:
@@ -1247,7 +1303,8 @@ public class Game {
                 return target.getTransporters().damage();
             case CREW: {
                 int current = target.getCrew().getAvailableCrewUnits();
-                if (current <= 0) return false;
+                if (current <= 0)
+                    return false;
                 target.getCrew().setAvailableCrewUnits(current - 1);
                 return true;
             }
@@ -1278,29 +1335,41 @@ public class Game {
      */
     public static class ActionResult {
         private final boolean success;
-        private final String  message;
+        private final String message;
 
         private ActionResult(boolean success, String message) {
             this.success = success;
             this.message = message;
         }
 
-        public static ActionResult ok(String message)   { return new ActionResult(true,  message); }
-        public static ActionResult fail(String message) { return new ActionResult(false, message); }
+        public static ActionResult ok(String message) {
+            return new ActionResult(true, message);
+        }
 
-        public boolean isSuccess() { return success; }
-        public String  getMessage() { return message; }
+        public static ActionResult fail(String message) {
+            return new ActionResult(false, message);
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getMessage() {
+            return message;
+        }
     }
 
     /**
-     * Bleed-through damage waiting to be resolved at end of Direct-Fire segment (6D4).
+     * Bleed-through damage waiting to be resolved at end of Direct-Fire segment
+     * (6D4).
      */
     private static class PendingDamage {
-        final Ship   target;
-        final int    bleed;
+        final Ship target;
+        final int bleed;
+
         PendingDamage(Ship target, int bleed) {
             this.target = target;
-            this.bleed  = bleed;
+            this.bleed = bleed;
         }
     }
 
@@ -1308,15 +1377,20 @@ public class Game {
      * The result of applying damage: bleed-through amount and internal damage log.
      */
     public static class FireResult {
-        private final int          bleed;
+        private final int bleed;
         private final List<String> internalLog;
 
         public FireResult(int bleed, List<String> internalLog) {
-            this.bleed       = bleed;
+            this.bleed = bleed;
             this.internalLog = internalLog;
         }
 
-        public int          getBleed()       { return bleed; }
-        public List<String> getInternalLog() { return internalLog; }
+        public int getBleed() {
+            return bleed;
+        }
+
+        public List<String> getInternalLog() {
+            return internalLog;
+        }
     }
 }
