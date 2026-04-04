@@ -22,8 +22,6 @@ import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.Photon;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
-import com.sfb.objects.Drone;
-import com.sfb.objects.DroneType;
 import com.sfb.weapons.ADD.AddType;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -37,6 +35,7 @@ public class ShipSpec {
     public String name;
     public int serviceYear;
     public int bpv;
+    public int epv;
     public String turnMode;
     public int sizeClass;
     public double moveCost;
@@ -64,7 +63,9 @@ public class ShipSpec {
         public int fhull;
         public int ahull;
         public int chull;
+        public int armor;
         public int cargo;
+        public int barracks; // Not a real hull box type, but used for boarding party calculations
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -149,7 +150,8 @@ public class ShipSpec {
     // -------------------------------------------------------------------------
 
     /**
-     * Convert this spec into the Map<String, Object> format expected by Ship.init().
+     * Convert this spec into the Map<String, Object> format expected by
+     * Ship.init().
      */
     public Map<String, Object> toInitMap() {
         Map<String, Object> m = new HashMap<>();
@@ -159,6 +161,7 @@ public class ShipSpec {
         m.put("name", name);
         m.put("serviceyear", serviceYear);
         m.put("bpv", bpv);
+        m.put("epv", epv);
         m.put("turnmode", TurnMode.valueOf(turnMode));
         m.put("sizeclass", sizeClass);
         m.put("movecost", moveCost);
@@ -177,20 +180,32 @@ public class ShipSpec {
 
         // Hull boxes
         if (hullBoxes != null) {
-            if (hullBoxes.fhull > 0) m.put("fhull", hullBoxes.fhull);
-            if (hullBoxes.ahull > 0) m.put("ahull", hullBoxes.ahull);
-            if (hullBoxes.chull > 0) m.put("chull", hullBoxes.chull);
-            if (hullBoxes.cargo > 0) m.put("cargo", hullBoxes.cargo);
+            if (hullBoxes.fhull > 0)
+                m.put("fhull", hullBoxes.fhull);
+            if (hullBoxes.ahull > 0)
+                m.put("ahull", hullBoxes.ahull);
+            if (hullBoxes.chull > 0)
+                m.put("chull", hullBoxes.chull);
+            if (hullBoxes.cargo > 0)
+                m.put("cargo", hullBoxes.cargo);
+            if (hullBoxes.armor > 0)
+                m.put("armor", hullBoxes.armor);
         }
 
         // Power
         if (power != null) {
-            if (power.leftWarp > 0)  m.put("lwarp", power.leftWarp);
-            if (power.rightWarp > 0) m.put("rwarp", power.rightWarp);
-            if (power.cwarp > 0)     m.put("cwarp", power.cwarp);
-            if (power.impulse > 0)   m.put("impulse", power.impulse);
-            if (power.apr > 0)       m.put("apr", power.apr);
-            if (power.battery > 0)   m.put("battery", power.battery);
+            if (power.leftWarp > 0)
+                m.put("lwarp", power.leftWarp);
+            if (power.rightWarp > 0)
+                m.put("rwarp", power.rightWarp);
+            if (power.cwarp > 0)
+                m.put("cwarp", power.cwarp);
+            if (power.impulse > 0)
+                m.put("impulse", power.impulse);
+            if (power.apr > 0)
+                m.put("apr", power.apr);
+            if (power.battery > 0)
+                m.put("battery", power.battery);
         }
 
         // Control
@@ -198,7 +213,8 @@ public class ShipSpec {
             m.put("bridge", control.bridge);
             m.put("emer", control.emergency);
             m.put("auxcon", control.auxCon);
-            if (control.security > 0) m.put("security", control.security);
+            if (control.security > 0)
+                m.put("security", control.security);
             m.put("controlmod", control.controlMod);
         }
 
@@ -217,11 +233,16 @@ public class ShipSpec {
             m.put("lab", auxiliary.labs);
             m.put("probe", auxiliary.probes);
             m.put("shuttle", auxiliary.shuttles);
-            if (auxiliary.tBombs > 0)            m.put("tbombs", auxiliary.tBombs);
-            if (auxiliary.dummyTBombs > 0)       m.put("dummytbombs", auxiliary.dummyTBombs);
-            if (auxiliary.nuclearSpaceMines > 0) m.put("nuclearspacemines", auxiliary.nuclearSpaceMines);
-            if (auxiliary.cloakCost > 0)         m.put("cloakcost", auxiliary.cloakCost);
-            if (auxiliary.derfacs)               m.put("derfacs", true);
+            if (auxiliary.tBombs > 0)
+                m.put("tbombs", auxiliary.tBombs);
+            if (auxiliary.dummyTBombs > 0)
+                m.put("dummytbombs", auxiliary.dummyTBombs);
+            if (auxiliary.nuclearSpaceMines > 0)
+                m.put("nuclearspacemines", auxiliary.nuclearSpaceMines);
+            if (auxiliary.cloakCost > 0)
+                m.put("cloakcost", auxiliary.cloakCost);
+            if (auxiliary.derfacs)
+                m.put("derfacs", true);
         }
 
         // Crew
@@ -248,7 +269,8 @@ public class ShipSpec {
         for (WeaponSpec ws : weapons) {
             int arcMask = ws.arcs == null || ws.arcs.isEmpty() ? ArcUtils.FULL : ArcUtils.calculateMask(ws.arcs);
             Weapon w = buildWeapon(ws, arcMask);
-            if (w != null) list.add(w);
+            if (w != null)
+                list.add(w);
         }
         return list;
     }
@@ -300,9 +322,11 @@ public class ShipSpec {
                         ? DroneRack.DroneRackType.valueOf(ws.rackType)
                         : DroneRack.DroneRackType.TYPE_F;
                 DroneRack rack = new DroneRack(rackType);
-                if (ws.spaces > 0) rack.setSpaces(ws.spaces);
+                if (ws.spaces > 0)
+                    rack.setSpaces(ws.spaces);
                 rack.setDesignator(ws.designator);
-                // Default ammo: fill all spaces with TypeI drones; setAmmo builds reloads automatically
+                // Default ammo: fill all spaces with TypeI drones; setAmmo builds reloads
+                // automatically
                 List<Drone> ammo = new ArrayList<>();
                 for (int i = 0; i < rack.getSpaces(); i++) {
                     ammo.add(new Drone(DroneType.TypeI));

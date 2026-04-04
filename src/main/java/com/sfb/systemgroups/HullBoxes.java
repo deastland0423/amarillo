@@ -10,12 +10,16 @@ public class HullBoxes implements Systems {
 	private int fhull;
 	private int ahull;
 	private int chull;
+	private int armor;
 	private int cargo;
+	private int barracks; // Not a real hull box type, but used for boarding party calculations
 
 	private int availableFhull;
 	private int availableAhull;
 	private int availableChull;
+	private int availableArmor;
 	private int availableCargo;
+	private int availableBarracks;
 
 	private Unit owningUnit = null;
 
@@ -27,14 +31,16 @@ public class HullBoxes implements Systems {
 	}
 
 	// Use a <String, Integer> map to set the initial values.
-	// Acceptable keys are: fhull, ahull, chull, cargo
+	// Acceptable keys are: fhull, ahull, chull, cargo, barracks
 	@Override
 	public void init(Map<String, Object> values) {
 		// If map has matching value, get it. Otherwise set to 0.
 		availableFhull = fhull = values.get("fhull") == null ? 0 : (Integer) values.get("fhull");
 		availableAhull = ahull = values.get("ahull") == null ? 0 : (Integer) values.get("ahull");
 		availableChull = chull = values.get("chull") == null ? 0 : (Integer) values.get("chull");
+		availableArmor = armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
 		availableCargo = cargo = values.get("cargo") == null ? 0 : (Integer) values.get("cargo");
+		availableBarracks = barracks = values.get("barracks") == null ? 0 : (Integer) values.get("barracks");
 
 	}
 
@@ -43,13 +49,17 @@ public class HullBoxes implements Systems {
 		this.fhull = spec.fhull;
 		this.ahull = spec.ahull;
 		this.chull = spec.chull;
+		this.armor = spec.armor;
 		this.cargo = spec.cargo;
+		this.barracks = spec.barracks;
 
 		// Reset available counts to max
 		this.availableFhull = this.fhull;
 		this.availableAhull = this.ahull;
 		this.availableChull = this.chull;
 		this.availableCargo = this.cargo;
+		this.availableBarracks = this.barracks;
+		this.availableArmor = this.armor;
 	}
 
 	///// GETTERS //////
@@ -69,16 +79,21 @@ public class HullBoxes implements Systems {
 		return this.availableCargo;
 	}
 
+	public int getAvailableBarracks() {
+		return this.availableBarracks;
+	}
+
 	// Total original hull boxes on SSD (cripple calculations).
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return this.ahull + this.cargo + this.chull + this.fhull;
+		return this.ahull + this.cargo + this.chull + this.fhull + this.barracks + this.armor;
 	}
 
 	// Total current hull boxes (cripple calculations).
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return this.availableAhull + this.availableCargo + this.availableChull + this.availableFhull;
+		return this.availableAhull + this.availableCargo + this.availableChull + this.availableFhull
+				+ this.availableBarracks + this.availableArmor;
 	}
 
 	//// DAMAGE //////
@@ -118,6 +133,24 @@ public class HullBoxes implements Systems {
 		return true;
 	}
 
+	public boolean damageBarracks() {
+		if (availableBarracks == 0) {
+			return false;
+		}
+
+		availableBarracks--;
+		return true;
+	}
+
+	public boolean damageArmor() {
+		if (availableArmor == 0) {
+			return false;
+		}
+
+		availableArmor--;
+		return true;
+	}
+
 	//// REPAIR ////
 	public boolean repairFhull(int amount) {
 		if (availableFhull + amount > fhull) {
@@ -152,6 +185,24 @@ public class HullBoxes implements Systems {
 		}
 
 		availableCargo += amount;
+		return true;
+	}
+
+	public boolean repairBarracks(int amount) {
+		if (availableBarracks + amount > barracks) {
+			return false;
+		}
+
+		availableBarracks += amount;
+		return true;
+	}
+
+	public boolean repairArmor(int amount) {
+		if (availableArmor + amount > armor) {
+			return false;
+		}
+
+		availableArmor += amount;
 		return true;
 	}
 

@@ -39,6 +39,7 @@ public class ArcUtils {
   public static final int FX = L | LF | RF | R; // Front Extended
   public static final int RP = RF | R | mask(10, 11, 23, 24); // Right Plasma arc
   public static final int LP = LF | L | mask(15, 16, 2, 3); // Left Plasma arc
+  public static final int FP = FH; // Forward Plasma arc (same as FH)
   public static final int FULL = LF | RF | R | L | RR | LR; // all directions
 
   // Check whether a 1-based bearing falls within an arc bitmask.
@@ -102,6 +103,8 @@ public class ArcUtils {
         return RP;
       case "LP":
         return LP;
+      case "FP":
+        return FP;
       case "FULL":
         return FULL;
       default:
