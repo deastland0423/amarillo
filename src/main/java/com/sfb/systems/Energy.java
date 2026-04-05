@@ -49,7 +49,8 @@ public class Energy {
 	// Operations
 	private double transporters;
 	private int damageControl;
-	
+	private boolean cloakPaid; // true if the player paid the cloak cost this turn
+
 	// Batteries
 	private int batteryDraw;       // Energy drawn FROM batteries this turn (adds to effective budget)
 	private int batteryRecharge;   // Energy put INTO batteries this turn (costs from ship power)
@@ -207,6 +208,14 @@ public class Energy {
 
 	public void setBatteryRecharge(int batteryRecharge) {
 		this.batteryRecharge = batteryRecharge;
+	}
+
+	public boolean isCloakPaid() {
+		return cloakPaid;
+	}
+
+	public void setCloakPaid(boolean cloakPaid) {
+		this.cloakPaid = cloakPaid;
 	}
 
 	public Map<Weapon, Double> getArmingEnergy() {

@@ -41,7 +41,8 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	boolean armed = false;
 	boolean rolling = false; // Set to true if the torpedo has had 3 turns of arming but is not given the
 														// final burst of arming energy.
-	int[] launchDirections = new int[] {}; // The initial direction the plasma can face upon launch.
+	int launchDirections = 0; // The initial direction the plasma can face upon launch. Expressed as a bitmask
+														// of arc indices (0-5), where 0 = front, 1 = front-right, ..., 5 = front-left.
 	boolean pseudoPlasmaReady = true; // Set to true if the launcher is in a state where it can fire a pseudo-plasma
 																		// plasma torpedo. A launcher can only fire one pseudo-plasma torpedo per game.
 	private int pseudoLastImpulseFired = -9; // Tracks when the pseudo was last fired, to prevent firing both pseudo and
@@ -129,6 +130,14 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	public boolean setSpecial() {
 		this.armingType = WeaponArmingType.SPECIAL;
 		return true;
+	}
+
+	public int getLaunchDirections() {
+		return this.launchDirections;
+	}
+
+	public void setLaunchDirections(int launchDirections) {
+		this.launchDirections = launchDirections;
 	}
 
 	/**
@@ -360,21 +369,27 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		if (armed) {
 			// Cost to hold an armed plasma torpedo (0 for F, 1 for G)
 			switch (launcherType) {
-				case G: return Constants.gArmingCost[2];
-				default: return Constants.fArmingCost[2];
+				case G:
+					return Constants.gArmingCost[2];
+				default:
+					return Constants.fArmingCost[2];
 			}
 		}
 		if (armingTurn < 2) {
 			// First two turns cost the base rate for the current plasma type
 			switch (launcherType) {
-				case G: return Constants.gArmingCost[0];
-				default: return Constants.fArmingCost[0];
+				case G:
+					return Constants.gArmingCost[0];
+				default:
+					return Constants.fArmingCost[0];
 			}
 		}
 		// Final (3rd+) turn: standard finish cost
 		switch (launcherType) {
-			case G: return Constants.gArmingCost[1];
-			default: return Constants.fArmingCost[1];
+			case G:
+				return Constants.gArmingCost[1];
+			default:
+				return Constants.fArmingCost[1];
 		}
 	}
 
@@ -388,7 +403,8 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	 * This is the lower per-turn cost, not the final burst needed to fully arm.
 	 */
 	public int rollingCost() {
-		if (plasmaType == PlasmaType.G) return Constants.gArmingCost[0];
+		if (plasmaType == PlasmaType.G)
+			return Constants.gArmingCost[0];
 		return Constants.fArmingCost[0]; // F, and F-within-G launcher
 	}
 
@@ -401,7 +417,8 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		if (armed) {
 			// Already armed — attempt to hold; discharge if hold fails
 			try {
-				if (!hold(energy.intValue())) reset();
+				if (!hold(energy.intValue()))
+					reset();
 			} catch (com.sfb.exceptions.WeaponUnarmedException ex) {
 				reset();
 			}
@@ -409,9 +426,14 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		}
 		if (type != null) {
 			switch (type) {
-				case OVERLOAD:   setEnveloping(); break;
-				case STANDARD:   setStandard();   break;
-				default:         break;
+				case OVERLOAD:
+					setEnveloping();
+					break;
+				case STANDARD:
+					setStandard();
+					break;
+				default:
+					break;
 			}
 		}
 		arm(energy.intValue());

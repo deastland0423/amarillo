@@ -243,50 +243,37 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	}
 
 	/**
-	 * Fire the disruptors using the DERFACS targeting system.
-	 * 
-	 * @param range The range to the target.
-	 * @return Damage dealt by the weapon to the target (0 if a miss) or an
-	 *         exception if illegal condition (range, arming, etc.).
-	 * @throws WeaponUnarmedException
-	 * @throws TargetOutOfRangeException
+	 * Fire using the DERFACS targeting system. Hit check uses adjustedRange against
+	 * the DERFACS hit chart (standard) or the standard overload chart (overload);
+	 * damage is looked up at realRange.
 	 */
-	public int fireDerfacs(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
-		// If the dirutptor isn't armed, it can't fire.
-		if (!isArmed()) {
-			throw new WeaponUnarmedException("Weapon is unarmed.");
-		}
-
-		// If the target is out of range, it can't fire.
-		if (range > getMaxRange() || range < getMinRange()) {
+	public int fireDerfacs(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException {
+		if (!isArmed()) throw new WeaponUnarmedException("Weapon is unarmed.");
+		if (realRange > getMaxRange() || realRange < getMinRange())
 			throw new TargetOutOfRangeException("Target not in weapon range.");
-		}
 
 		int damage = 0;
-		// Roll to hit.
 		DiceRoller diceRoller = new DiceRoller();
 
-		// Based on arming type, calculate damage (0 on a miss).
 		switch (armingType) {
-			case STANDARD:
-				// Calculate hit/damage for the range.
-				if (diceRoller.rollOneDie() <= derfacsHitChart[range]) {
-					damage = damageChart[range];
-				}
+			case STANDARD: {
+				int adjIdx = Math.min(adjustedRange, derfacsHitChart.length - 1);
+				if (diceRoller.rollOneDie() <= derfacsHitChart[adjIdx])
+					damage = damageChart[realRange];
 				break;
-			case OVERLOAD:
-				// Calculate hit/damage for the range
-				if (diceRoller.rollOneDie() <= overloadHitChart[range]) {
-					damage = overloadDamageChart[range];
-				}
+			}
+			case OVERLOAD: {
+				// DERFACS does not improve overload accuracy; use standard overload chart
+				int adjIdx = Math.min(adjustedRange, overloadHitChart.length - 1);
+				if (diceRoller.rollOneDie() <= overloadHitChart[adjIdx])
+					damage = overloadDamageChart[realRange];
 				break;
-			default:
-				break;
+			}
+			default: break;
 		}
 
-		// Once fired, the weapon is no longer armed.
 		reset();
-
 		registerFire();
 		return damage;
 	}

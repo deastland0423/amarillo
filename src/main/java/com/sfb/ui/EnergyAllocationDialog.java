@@ -173,10 +173,11 @@ public class EnergyAllocationDialog extends Stage {
         shOff.setToggleGroup(shGroup);
         shActive.setSelected(true);
 
-        VBox shieldsBox = new VBox(6,
-                styledLabel("SHIELDS", SECTION_FONT, Color.rgb(100, 200, 200)),
+        VBox shieldsContent = new VBox(6,
                 new HBox(16, shActive, shMinimum, shOff));
-        shieldsBox.setStyle(SECTION_BG);
+        shieldsContent.setVisible(false);
+        shieldsContent.setManaged(false);
+        // (reinforcement will be merged into shieldsContent below)
 
         // --- Phaser capacitor ---
         double capCurrent = ship.getWeapons().getPhaserCapacitorEnergy();
@@ -338,19 +339,32 @@ public class EnergyAllocationDialog extends Stage {
         reinforceContent.setVisible(false);
         reinforceContent.setManaged(false);
 
-        Button reinforceToggle = new Button("▶  SHIELD REINFORCEMENT");
-        reinforceToggle.setFont(SECTION_FONT);
+        Button reinforceToggle = new Button("▶  Reinforcement");
+        reinforceToggle.setFont(SMALL_FONT);
         reinforceToggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #64dcdc; " +
                 "-fx-border-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
         reinforceToggle.setOnAction(e -> {
             boolean nowVisible = !reinforceContent.isVisible();
             reinforceContent.setVisible(nowVisible);
             reinforceContent.setManaged(nowVisible);
-            reinforceToggle.setText((nowVisible ? "▼" : "▶") + "  SHIELD REINFORCEMENT");
+            reinforceToggle.setText((nowVisible ? "▼" : "▶") + "  Reinforcement");
         });
 
-        VBox reinforceBox = new VBox(6, reinforceToggle, reinforceContent);
-        reinforceBox.setStyle(SECTION_BG);
+        // Merge reinforcement into shields content
+        shieldsContent.getChildren().addAll(reinforceToggle, reinforceContent);
+
+        Button shieldsToggle = new Button("▶  SHIELDS");
+        shieldsToggle.setFont(SECTION_FONT);
+        shieldsToggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #64c8c8; " +
+                "-fx-border-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+        shieldsToggle.setOnAction(e -> {
+            boolean nowVisible = !shieldsContent.isVisible();
+            shieldsContent.setVisible(nowVisible);
+            shieldsContent.setManaged(nowVisible);
+            shieldsToggle.setText((nowVisible ? "▼" : "▶") + "  SHIELDS");
+        });
+        VBox shieldsSection = new VBox(6, shieldsToggle, shieldsContent);
+        shieldsSection.setStyle(SECTION_BG);
 
         // --- Drone reloads ---
         int deckCrews = ship.getCrew().getDeckCrews();
@@ -410,6 +424,26 @@ public class EnergyAllocationDialog extends Stage {
             transBox.getChildren().addAll(transStatus, new HBox(6, transMinus, transPlus, transValueLabel));
         }
 
+        // --- Cloaking device ---
+        com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
+        CheckBox cloakCheck = null;
+        VBox cloakBox = null;
+        if (cloak != null) {
+            int cloakCost = cloak.getPowerToActivate();
+            cloakCheck = new CheckBox("Pay cloak cost  (cost " + cloakCost + ")");
+            cloakCheck.setFont(LABEL_FONT);
+            cloakCheck.setTextFill(Color.rgb(180, 120, 255));
+            cloakCheck.setSelected(cloak.isCostPaidThisTurn());
+            String stateStr = cloak.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE
+                    ? "inactive" : cloak.getState().toString().toLowerCase().replace('_', ' ');
+            Label cloakStatus = styledLabel("Current state: " + stateStr, SMALL_FONT, Color.rgb(150, 150, 150));
+            cloakBox = new VBox(6,
+                    styledLabel("CLOAKING DEVICE", SECTION_FONT, Color.rgb(180, 120, 255)),
+                    cloakStatus, cloakCheck);
+            cloakBox.setStyle(SECTION_BG);
+        }
+        final CheckBox cloakCheckFinal = cloakCheck;
+
         // --- Submit button (declared here so refresh lambda can reference it) ---
         Button submitBtn = new Button("Confirm Allocation");
 
@@ -417,7 +451,8 @@ public class EnergyAllocationDialog extends Stage {
         Runnable refresh = () -> updateBudget(budgetLabel, ship, speedSlider, impYes,
                 shGroup, shActive, shMinimum, capGroup, capTopOff, capNeeded,
                 heavyWeapons, weaponGroups, reloadableRacks, reloadChecks, deckCrews,
-                generalReinf, specificReinf, batDraw, batRecharge, transUses, submitBtn);
+                generalReinf, specificReinf, batDraw, batRecharge, transUses,
+                cloakCheckFinal, submitBtn);
 
         // Wire battery button actions now that refresh is in scope
         batGroup.selectedToggleProperty().addListener((obs, old, val) -> {
@@ -529,6 +564,9 @@ public class EnergyAllocationDialog extends Stage {
         for (ToggleGroup wg : weaponGroups) {
             wg.selectedToggleProperty().addListener((obs, old, val) -> refresh.run());
         }
+        if (cloakCheck != null)
+            cloakCheck.selectedProperty().addListener((obs, old, val) -> refresh.run());
+
         submitBtn.setStyle(BTN_STYLE);
         submitBtn.setOnAction(e -> {
             submittedAllocation = buildAllocation(
@@ -538,7 +576,7 @@ public class EnergyAllocationDialog extends Stage {
                     heavyWeapons, weaponGroups,
                     reloadableRacks, reloadChecks,
                     generalReinf, specificReinf,
-                    batDraw, batRecharge, transUses);
+                    batDraw, batRecharge, transUses, cloakCheckFinal);
             close();
         });
 
@@ -550,8 +588,27 @@ public class EnergyAllocationDialog extends Stage {
         // Initial budget display
         refresh.run();
 
-        VBox root = new VBox(10, header, batteryBox, movementBox, shieldsBox, reinforceBox, capBox, weaponsBox,
-                transBox, reloadBox, buttonRow);
+        // Wrap heavy weapons in a collapsible section
+        VBox weaponsContent = weaponsBox;
+        weaponsContent.setVisible(false);
+        weaponsContent.setManaged(false);
+        Button weaponsToggle = new Button("▶  HEAVY WEAPONS");
+        weaponsToggle.setFont(SECTION_FONT);
+        weaponsToggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #ffa050; " +
+                "-fx-border-color: transparent; -fx-cursor: hand; -fx-padding: 0;");
+        weaponsToggle.setOnAction(e -> {
+            boolean nowVisible = !weaponsContent.isVisible();
+            weaponsContent.setVisible(nowVisible);
+            weaponsContent.setManaged(nowVisible);
+            weaponsToggle.setText((nowVisible ? "▼" : "▶") + "  HEAVY WEAPONS");
+        });
+        VBox weaponsSection = new VBox(6, weaponsToggle, weaponsContent);
+        weaponsSection.setStyle(SECTION_BG);
+
+        VBox root = new VBox(10, header, batteryBox, movementBox, shieldsSection, capBox, weaponsSection,
+                transBox, reloadBox);
+        if (cloakBox != null) root.getChildren().add(cloakBox);
+        root.getChildren().add(buttonRow);
         root.setPadding(new Insets(12));
         root.setStyle(DARK_BG);
 
@@ -598,7 +655,7 @@ public class EnergyAllocationDialog extends Stage {
             double capNeeded, List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
             int[] generalReinf, int[] specificReinf, int[] batDraw, int[] batRecharge,
-            int[] transUses) {
+            int[] transUses, CheckBox cloakCheck) {
 
         Energy e = new Energy();
         double moveCost = ship.getPerformanceData().getMovementCost();
@@ -671,6 +728,9 @@ public class EnergyAllocationDialog extends Stage {
         // Transporters
         e.setTransporters(transUses[0] * com.sfb.systemgroups.Transporters.energyPerUse());
 
+        // Cloaking device
+        e.setCloakPaid(cloakCheck != null && cloakCheck.isSelected());
+
         return e;
     }
 
@@ -681,7 +741,8 @@ public class EnergyAllocationDialog extends Stage {
             List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
             int totalDeckCrews, int[] generalReinf, int[] specificReinf,
-            int[] batDraw, int[] batRecharge, int[] transUses, Button submitBtn) {
+            int[] batDraw, int[] batRecharge, int[] transUses,
+            CheckBox cloakCheck, Button submitBtn) {
 
         double moveCost = ship.getPerformanceData().getMovementCost();
         int warpSpeed = (int) Math.round(speedSlider.getValue());
@@ -741,6 +802,10 @@ public class EnergyAllocationDialog extends Stage {
         // Transporters
         double energyPerUse = com.sfb.systemgroups.Transporters.energyPerUse();
         spent += transUses[0] * energyPerUse;
+
+        // Cloaking device
+        if (cloakCheck != null && cloakCheck.isSelected() && ship.getCloakingDevice() != null)
+            spent += ship.getCloakingDevice().getPowerToActivate();
 
         // Batteries: draw expands the budget, recharge costs from it
         spent += batRecharge[0];

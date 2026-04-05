@@ -22,7 +22,9 @@ public class SystemTarget {
         CREW,
         FHULL,
         AHULL,
-        CHULL
+        CHULL,
+        CLOAKING_DEVICE,
+        DERFACS
     }
 
     private final Type   type;

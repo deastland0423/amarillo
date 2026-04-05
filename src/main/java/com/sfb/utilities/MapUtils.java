@@ -574,6 +574,34 @@ public class MapUtils {
 	}
 
 	// Return the direction value of 1..24, or 0 for same hex.
+	public static int getBearing(Location sourceLocation, Location targetLocation) {
+		if (sourceLocation == null || targetLocation == null) return 0;
+		if (sourceLocation.equals(targetLocation)) return 0;
+		int xOffset = targetLocation.getX() - sourceLocation.getX();
+		if (xOffset == 0)
+			return targetLocation.getY() < sourceLocation.getY() ? 1 : 13;
+		boolean evenOffset = (Math.abs(xOffset) % 2 == 0);
+		if (evenOffset && sourceLocation.getY() == targetLocation.getY())
+			return xOffset < 0 ? 10 : 4;
+		Location topSpine    = getTopArcHex(sourceLocation, targetLocation);
+		Location bottomSpine = getBottomArcHex(sourceLocation, targetLocation);
+		int topY    = topSpine.getY();
+		int bottomY = bottomSpine.getY();
+		if (xOffset > 0) {
+			if (targetLocation.getY() < topY)    return 2;
+			if (targetLocation.getY() == topY)   return 3;
+			if (targetLocation.getY() <= bottomY) return 4;
+			if (targetLocation.getY() == bottomY + 1) return 5;
+			return 6;
+		} else {
+			if (targetLocation.getY() < topY)    return 24;
+			if (targetLocation.getY() == topY)   return 23;
+			if (targetLocation.getY() <= bottomY) return 22;
+			if (targetLocation.getY() == bottomY + 1) return 21;
+			return 20;
+		}
+	}
+
 	public static int getBearing(Marker source, Marker target) {
 
 		Location sourceLocation = source.getLocation();

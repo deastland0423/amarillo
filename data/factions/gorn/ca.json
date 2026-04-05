@@ -1,0 +1,73 @@
+{
+  "faction": "Gorn",
+  "hull": "CA",
+  "name": "GCS Serpenticon",
+  "serviceYear": 121,
+  "bpv": 120,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+
+  "shields": [30, 24, 24, 24, 24, 24],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 4,
+    "chull": 8
+  },
+  
+  "power": {
+    "leftWarp": 16,
+    "rightWarp": 16,
+    "impulse": 4,
+    "apr": 2,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 2, 0],
+    "scanner": [0, 0, 1, 2, 4, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 2,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "gas"] },
+    { "shuttles": ["admin", "admin", "gas"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 48,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["L", "RA"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["R", "RA"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["L", "LF"], "launchDirections": ["21"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["R", "RF"], "launchDirections": ["5"] }
+  ]
+}
