@@ -1,0 +1,83 @@
+{
+  "faction": "Kzinti",
+  "hull": "BC",
+  "name": "KHS Comet",
+  "serviceYear": 160,
+  "bpv": 135,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [30, 28, 22, 22, 22, 28],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 12
+  },
+  
+  "power": {
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "centerWarp": 10,
+    "impulse": 3,
+    "apr": 3,
+    "battery": 5
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 4, 1, 0],
+    "scanner": [0, 1, 2, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 2,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ]
+}

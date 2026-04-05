@@ -40,9 +40,12 @@
     "transporters": 1,
     "tractors": 13,
     "probes": 1,
-    "shuttles": 2,
     "cloakCost": 6
   },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
 
   "crewData": {
     "totalCrew": 20,

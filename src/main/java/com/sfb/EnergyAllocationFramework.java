@@ -96,7 +96,7 @@ public class EnergyAllocationFramework {
 		}
 
 		// Shuttle Energy
-		for (Shuttle shuttle : ship.getShuttles().getShuttleInventory()) {
+		for (Shuttle shuttle : ship.getShuttles().getAllShuttles()) {
 			shuttleEnergy.put(shuttle, new Integer(0));
 		}
 

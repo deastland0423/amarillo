@@ -74,8 +74,10 @@ public class Game {
     private final List<Player> players = new ArrayList<>();
     private final List<Ship> ships = new ArrayList<>();
     private final List<Seeker> seekers = new ArrayList<>();
+    private final List<com.sfb.objects.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
     private final List<SpaceMine> mines = new ArrayList<>();
     private final Set<Ship> movedThisImpulse = new HashSet<>();
+    private final Set<com.sfb.objects.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
 
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
@@ -248,6 +250,7 @@ public class Game {
         awaitingAllocation = false;
         TurnTracker.nextImpulse();
         movedThisImpulse.clear();
+        movedShuttlesThisImpulse.clear();
         currentPhase = ImpulsePhase.MOVEMENT;
     }
 
@@ -318,6 +321,7 @@ public class Game {
         switch (currentPhase) {
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
+                lastSeekerLog.addAll(moveShuttles());
                 List<String> mineLog = processMines();
                 lastSeekerLog.addAll(mineLog);
                 resolveInternalDamage();
@@ -340,6 +344,7 @@ public class Game {
                 } else {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
+        movedShuttlesThisImpulse.clear();
                 }
                 autoRaiseShields();
                 // Advance cloak fade states now that the impulse has incremented.
@@ -394,6 +399,10 @@ public class Game {
         return TurnTracker.getLocalImpulse();
     }
 
+    public int getAbsoluteImpulse() {
+        return TurnTracker.getImpulse();
+    }
+
     // --- Queries ---
 
     public List<Ship> getShips() {
@@ -406,6 +415,10 @@ public class Game {
 
     public List<Seeker> getSeekers() {
         return seekers;
+    }
+
+    public List<com.sfb.objects.Shuttle> getActiveShuttles() {
+        return activeShuttles;
     }
 
     /**
@@ -503,6 +516,64 @@ public class Game {
             movedThisImpulse.add(ship);
         return moved ? ActionResult.ok(ship.getName() + " sideslipped right")
                 : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+    }
+
+    // --- Shuttle movement ---
+
+    /**
+     * Returns shuttles that move this impulse, have not yet moved, and all
+     * ships have already moved (shuttles move after all ships).
+     */
+    public List<com.sfb.objects.Shuttle> getMovableShuttles() {
+        if (!getMovableShips().isEmpty()) return java.util.Collections.emptyList();
+        int impulse = TurnTracker.getLocalImpulse();
+        List<com.sfb.objects.Shuttle> movable = new ArrayList<>();
+        for (com.sfb.objects.Shuttle s : activeShuttles) {
+            if (!s.isPlayerControlled()) continue;
+            if (MovementUtil.moveThisImpulse(impulse, s.getSpeed())
+                    && !movedShuttlesThisImpulse.contains(s)) {
+                movable.add(s);
+            }
+        }
+        return movable;
+    }
+
+    public boolean canMoveShuttleThisImpulse(com.sfb.objects.Shuttle shuttle) {
+        if (currentPhase != ImpulsePhase.MOVEMENT) return false;
+        if (!shuttle.isPlayerControlled()) return false;
+        if (!getMovableShips().isEmpty()) return false;
+        if (!MovementUtil.moveThisImpulse(TurnTracker.getLocalImpulse(), shuttle.getSpeed())) return false;
+        return !movedShuttlesThisImpulse.contains(shuttle);
+    }
+
+    public ActionResult moveShuttleForward(com.sfb.objects.Shuttle shuttle) {
+        if (!canMoveShuttleThisImpulse(shuttle))
+            return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+        shuttle.goForward();
+        if (shuttle.getLocation() == null) {
+            activeShuttles.remove(shuttle);
+            return ActionResult.fail(shuttle.getName() + " moved off the map");
+        }
+        movedShuttlesThisImpulse.add(shuttle);
+        return ActionResult.ok(shuttle.getName() + " moved forward");
+    }
+
+    public ActionResult turnShuttleLeft(com.sfb.objects.Shuttle shuttle) {
+        if (!canMoveShuttleThisImpulse(shuttle))
+            return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+        boolean turned = shuttle.turnLeft();
+        if (turned) movedShuttlesThisImpulse.add(shuttle);
+        return turned ? ActionResult.ok(shuttle.getName() + " turned left")
+                : ActionResult.fail(shuttle.getName() + " cannot turn left yet (turn mode)");
+    }
+
+    public ActionResult turnShuttleRight(com.sfb.objects.Shuttle shuttle) {
+        if (!canMoveShuttleThisImpulse(shuttle))
+            return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+        boolean turned = shuttle.turnRight();
+        if (turned) movedShuttlesThisImpulse.add(shuttle);
+        return turned ? ActionResult.ok(shuttle.getName() + " turned right")
+                : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
     }
 
     // --- Weapons fire ---
@@ -815,19 +886,15 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
-        if (weapon.getLaunchDirections() != 0) {
-            int bearing = MapUtils.getBearing(launcher, target);
-            int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
-            if (!ArcUtils.inArc(relBearing, weapon.getLaunchDirections()))
-                return ActionResult.fail(weapon.getName() + ": torpedo cannot be placed facing that direction");
-        }
-
         PlasmaTorpedo torpedo = weapon.launch();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch");
 
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        int launchFacing = weapon.getLaunchDirections() != 0
+                ? lowestDirection(weapon.getLaunchDirections())
+                : MapUtils.getBearing(launcher, target);
+        torpedo.setFacing(launchFacing);
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -848,19 +915,15 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.canLaunchPseudo())
             return ActionResult.fail(weapon.getName() + " cannot launch pseudo plasma now");
-        if (weapon.getLaunchDirections() != 0) {
-            int bearing = MapUtils.getBearing(launcher, target);
-            int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
-            if (!ArcUtils.inArc(relBearing, weapon.getLaunchDirections()))
-                return ActionResult.fail(weapon.getName() + ": torpedo cannot be placed facing that direction");
-        }
-
         PlasmaTorpedo torpedo = weapon.launchPseudo();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
 
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        int launchFacing = weapon.getLaunchDirections() != 0
+                ? lowestDirection(weapon.getLaunchDirections())
+                : MapUtils.getBearing(launcher, target);
+        torpedo.setFacing(launchFacing);
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -871,12 +934,111 @@ public class Game {
                 + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]");
     }
 
+    // -------------------------------------------------------------------------
+    // Shuttle launch
+    // -------------------------------------------------------------------------
+
     /**
-     * Move all active seekers that are scheduled to move this impulse.
-     * Each drone re-faces its target, advances one hex, and is checked for
-     * impact or endurance expiry. Returns a log of all seeker activity.
+     * Launch a standard (admin/GAS) shuttle from a bay.
+     * The shuttle moves independently on the map but is not a seeker.
+     */
+    public ActionResult launchShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.Shuttle shuttle, int speed, int facing) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(launcher);
+        if (cloakBlock != null) return cloakBlock;
+        if (!bay.canLaunch(TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+
+        com.sfb.objects.Shuttle launched = bay.launch(shuttle, speed, facing, TurnTracker.getImpulse());
+        if (launched == null)
+            return ActionResult.fail("Shuttle not found in bay");
+
+        launched.setLocation(launcher.getLocation());
+        activeShuttles.add(launched);
+        return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
+    }
+
+    /**
+     * Launch a fully-armed suicide shuttle at a target.
+     * Requires lock-on. Speed capped at shuttle's maxSpeed.
+     */
+    public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.SuicideShuttle shuttle, Unit target) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(launcher);
+        if (cloakBlock != null) return cloakBlock;
+        if (!shuttle.isArmed())
+            return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
+        if (!bay.canLaunch(TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No lock-on to target — cannot launch suicide shuttle");
+        if (!launcher.acquireControl(shuttle))
+            return ActionResult.fail("No control channels available (limit: " + launcher.getControlLimit() + ")");
+
+        bay.launch(shuttle, shuttle.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        shuttle.setLocation(launcher.getLocation());
+        shuttle.setTarget(target);
+        shuttle.setController(launcher);
+        shuttle.setLaunchImpulse(TurnTracker.getImpulse());
+        seekers.add(shuttle);
+        return ActionResult.ok(launcher.getName() + " launched suicide shuttle at " + target.getName()
+                + " (warhead " + shuttle.getWarheadDamage() + ")");
+    }
+
+    /**
+     * Launch a scatter pack at a target hex.
+     * Requires lock-on. Releases its drones after 8 impulses.
+     */
+    public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.ScatterPack pack, Unit target) {
+        if (!canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(launcher);
+        if (cloakBlock != null) return cloakBlock;
+        if (pack.getPayload().isEmpty())
+            return ActionResult.fail("Scatter pack has no drones loaded");
+        if (!bay.canLaunch(TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
+
+        bay.launch(pack, pack.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        pack.setLocation(launcher.getLocation());
+        pack.setTarget(target);
+        pack.setController(launcher);
+        pack.setLaunchImpulse(TurnTracker.getImpulse());
+        seekers.add(pack);
+        return ActionResult.ok(launcher.getName() + " launched scatter pack ("
+                + pack.getPayload().size() + " drones) at " + target.getName());
+    }
+
+    /**
+     * Auto-drift non-player-controlled shuttles (e.g. released ScatterPack).
+     * Player-controlled shuttles (admin, GAS, HTS) are moved manually by the player.
      * Called automatically when leaving the MOVEMENT phase.
      */
+    private List<String> moveShuttles() {
+        List<String> log = new ArrayList<>();
+        int impulse = TurnTracker.getLocalImpulse();
+        List<com.sfb.objects.Shuttle> offMap = new ArrayList<>();
+
+        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            if (shuttle.isPlayerControlled()) continue; // manual control only
+            if (!MovementUtil.moveThisImpulse(impulse, shuttle.getSpeed()))
+                continue;
+            shuttle.goForward();
+            if (shuttle.getLocation() == null) {
+                log.add("  Shuttle " + shuttle.getName() + " moved off the map");
+                offMap.add(shuttle);
+            }
+        }
+        activeShuttles.removeAll(offMap);
+        return log;
+    }
 
     /**
      * Release any non-self-guiding drone whose controlling ship no longer has
@@ -918,6 +1080,14 @@ public class Game {
         }
         seekers.removeAll(toRemove);
         return log;
+    }
+
+    /** Extracts the lowest-numbered direction from an arc bitmask. */
+    private int lowestDirection(int mask) {
+        for (int d = 1; d <= 24; d++) {
+            if ((mask & (1 << (d - 1))) != 0) return d;
+        }
+        return 1;
     }
 
     private boolean isTargetFullyCloaked(Seeker s) {
@@ -1008,6 +1178,83 @@ public class Game {
                     expired.add(seeker);
                 }
 
+            } else if (seeker instanceof com.sfb.objects.ScatterPack) {
+                com.sfb.objects.ScatterPack pack = (com.sfb.objects.ScatterPack) seeker;
+                if (!MovementUtil.moveThisImpulse(impulse, pack.getSpeed()))
+                    continue;
+
+                if (!pack.isReleased()) {
+                    Unit target = pack.getTarget();
+                    if (target != null) {
+                        int bearing = MapUtils.getBearing(pack, target);
+                        if (bearing != 0) pack.setFacing(snapToCardinal(bearing));
+                    }
+                    pack.goForward();
+                    if (pack.getLocation() == null) {
+                        log.add("  Scatter pack moved off the map — lost");
+                        expired.add(pack);
+                        continue;
+                    }
+                    // Check if 8 impulses have elapsed — release drones
+                    if (pack.isReadyToRelease(TurnTracker.getImpulse())) {
+                        List<com.sfb.objects.Drone> released = pack.release();
+                        Unit controller = pack.getController();
+                        for (com.sfb.objects.Drone drone : released) {
+                            drone.setLocation(pack.getLocation());
+                            drone.setFacing(pack.getFacing());
+                            if (!drone.isSelfGuiding() && controller instanceof Ship
+                                    && ((Ship) controller).hasLockOn(target)) {
+                                drone.setTarget(target);
+                                drone.setController(controller);
+                                if (!((Ship) controller).acquireControl(drone)) {
+                                    log.add("  Scatter pack drone — no control channel, released");
+                                    drone.setTarget(null);
+                                    drone.setController(null);
+                                }
+                            } else if (drone.isSelfGuiding()) {
+                                drone.setTarget(target);
+                            }
+                            seekers.add(drone);
+                        }
+                        log.add("  Scatter pack released " + released.size() + " drones at "
+                                + (target != null ? target.getName() : "?"));
+                        // Shuttle stays on map — move to activeShuttles for drift
+                        activeShuttles.add(pack);
+                        expired.add(pack);
+                    }
+                }
+
+            } else if (seeker instanceof com.sfb.objects.SuicideShuttle) {
+                com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) seeker;
+                if (!MovementUtil.moveThisImpulse(impulse, ss.getSpeed()))
+                    continue;
+
+                Unit target = ss.getTarget();
+                if (target == null) {
+                    log.add("  Suicide shuttle lost guidance — removed");
+                    expired.add(ss);
+                    continue;
+                }
+                int bearing = MapUtils.getBearing(ss, target);
+                if (bearing != 0) ss.setFacing(snapToCardinal(bearing));
+                ss.goForward();
+                if (ss.getLocation() == null) {
+                    log.add("  Suicide shuttle moved off the map");
+                    expired.add(ss);
+                    continue;
+                }
+                if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
+                    if (target instanceof Ship) {
+                        int shieldNum = getDroneImpactShield(ss, (Ship) target);
+                        int dmg = ss.impact();
+                        FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
+                        log.add("  Suicide shuttle impacted " + target.getName()
+                                + " shield #" + shieldNum + "  damage " + dmg
+                                + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                    }
+                    expired.add(ss);
+                }
+
             } else if (seeker instanceof PlasmaTorpedo) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 if (!MovementUtil.moveThisImpulse(impulse, torp.getSpeed()))
@@ -1080,6 +1327,10 @@ public class Game {
                 Drone d = (Drone) s;
                 if (d.getController() instanceof Ship)
                     ((Ship) d.getController()).releaseControl(d);
+            } else if (s instanceof com.sfb.objects.SuicideShuttle) {
+                com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
+                if (ss.getController() instanceof Ship)
+                    ((Ship) ss.getController()).releaseControl(ss);
             }
         }
         seekers.removeAll(expired);

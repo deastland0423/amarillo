@@ -1,0 +1,65 @@
+{
+  "faction": "Gorn",
+  "hull": "DD",
+  "name": "GCS Jaws",
+  "serviceYear": 120,
+  "bpv": 68,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 4,
+  "bonusHets": 1,
+
+  "shields": [14, 10, 8, 7, 8, 10],
+  
+  "hullBoxes": {
+    "fhull": 2,
+    "ahull": 6
+  },
+  
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 6, 4, 1, 0],
+    "scanner": [0, 0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "gas"] },
+    { "shuttles": ["admin", "gas"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 20,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
+  ]
+}

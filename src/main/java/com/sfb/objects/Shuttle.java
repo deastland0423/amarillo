@@ -22,6 +22,12 @@ public abstract class Shuttle extends Unit {
 	public Shuttle() {
 		setTurnMode(TurnMode.Shuttle);
 	}
+
+	/**
+	 * Returns true if this shuttle is controlled by the player (manual movement).
+	 * Auto-drifting objects (e.g. released ScatterPack) override this to return false.
+	 */
+	public boolean isPlayerControlled() { return true; }
 	
 	public int getMaxSpeed() {
 		return maxSpeed;

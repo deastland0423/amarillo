@@ -44,9 +44,12 @@
     "transporters": 2,
     "tractors": 1,
     "labs": 2,
-    "probes": 1,
-    "shuttles": 1
+    "probes": 1
   },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
 
   "crewData": {
     "totalCrew": 22,

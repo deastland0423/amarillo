@@ -1,109 +1,73 @@
 package com.sfb.objects;
 
+/**
+ * A shuttle configured as a suicide weapon.
+ *
+ * Arming takes 3 turns. Each turn the player allocates 1–3 energy.
+ * Warhead damage = totalEnergy * 2 (max 18 at 3 energy/turn × 3 turns).
+ * Speed is capped at the base shuttle's maxSpeed.
+ * Controller-guided — requires an owning ship with lock-on, like a drone.
+ * If arming is abandoned or hold cost not paid, energy is lost and the
+ * shuttle reverts to a normal admin shuttle.
+ */
 public class SuicideShuttle extends Shuttle implements Seeker {
 
-	Unit target; // The target of the suicide shuttle
-	private int warheadDamage; // The damage dealt if the weapon hits its target.
-	private boolean identified; // True if an enemy ship has identified this seeker.
+    private Unit   target;
+    private Unit   controller;
+    private boolean identified = false;
 
-	public SuicideShuttle(int warhead) {
-		super();
-		this.warheadDamage = warhead;
-		this.setSeekerType(SeekerType.SHUTTLE);
-	}
+    // Arming state
+    private int armingTurnsComplete = 0; // 0–3; armed when == 3
+    private int totalEnergy         = 0; // cumulative energy across all arming turns
 
-	@Override
-	public void setTarget(Unit target) {
-		this.target = target;
-	}
+    public SuicideShuttle(Shuttle base) {
+        setHull(base.getHull());
+        setMaxSpeed(base.getMaxSpeed());
+        setName(base.getName());
+    }
 
-	@Override
-	public Unit getTarget() {
-		return this.target;
-	}
+    // -------------------------------------------------------------------------
+    // Arming
+    // -------------------------------------------------------------------------
 
-	@Override
-	public SeekerType getSeekerType() {
-		return SeekerType.SHUTTLE;
-	}
+    /**
+     * Apply energy this turn (1–3 points). Call once per energy allocation.
+     * @return true if accepted, false if already armed or invalid amount.
+     */
+    public boolean arm(int energy) {
+        if (isArmed()) return false;
+        if (energy < 1 || energy > 3) return false;
+        totalEnergy += energy;
+        armingTurnsComplete++;
+        return true;
+    }
 
-	@Override
-	public boolean isSelfGuiding() {
-		return false;
-	}
+    public boolean isArmed() {
+        return armingTurnsComplete >= 3;
+    }
 
-	@Override
-	public void setSelfGuiding(boolean selfGuiding) {
-		// TODO Auto-generated method stub
+    public int getArmingTurnsComplete() { return armingTurnsComplete; }
+    public int getTotalEnergy()         { return totalEnergy; }
 
-	}
+    // -------------------------------------------------------------------------
+    // Seeker interface
+    // -------------------------------------------------------------------------
 
-	@Override
-	public void setSeekerType(SeekerType seekerType) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public int getEndurance() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public void setEndurance(int endurance) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public int getLaunchImpulse() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public void setLaunchImpulse(int launchImpulse) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public int getWarheadDamage() {
-		return this.warheadDamage;
-	}
-
-	@Override
-	public void setWarheadDamage(int warheadDamage) {
-		this.warheadDamage = warheadDamage;
-	}
-
-	@Override
-	public void setController(Unit controllingUnit) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public Unit getController() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public int impact() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public boolean isIdentified() {
-		return identified;
-	}
-
-	@Override
-	public void identify() {
-		this.identified = true;
-	}
-
+    @Override public void setTarget(Unit target)          { this.target = target; }
+    @Override public Unit getTarget()                     { return target; }
+    @Override public void setController(Unit controller)  { this.controller = controller; }
+    @Override public Unit getController()                 { return controller; }
+    @Override public boolean isSelfGuiding()              { return false; }
+    @Override public void setSelfGuiding(boolean sg)      {}
+    @Override public SeekerType getSeekerType()           { return SeekerType.SHUTTLE; }
+    @Override public void setSeekerType(SeekerType type)  {}
+    @Override public int getEndurance()                   { return Integer.MAX_VALUE; }
+    @Override public void setEndurance(int e)             {}
+    @Override public int getLaunchImpulse()               { return 0; }
+    @Override public void setLaunchImpulse(int i)         {}
+    @Override public int getWarheadDamage()               { return totalEnergy * 2; }
+    @Override public void setWarheadDamage(int dmg)       {}
+    @Override public int impact()                         { return getWarheadDamage(); }
+    @Override public void identify()                      { identified = true; }
+    @Override public boolean isIdentified()               { return identified; }
 }

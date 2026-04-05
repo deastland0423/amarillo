@@ -79,7 +79,6 @@ public class Ship extends Unit {
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
-	private boolean nimble = false; // Whether the ship is nimble
 	private int enemyBoardingParties = 0; // Number of enemy boarding parties currently on board.
 
 	// Other data
@@ -125,7 +124,6 @@ public class Ship extends Unit {
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
 		nuclearSpaceMines = values.get("nuclearspacemines") == null ? 0 : (Integer) values.get("nuclearspacemines");
-		nimble = values.get("nimble") == null ? false : (Boolean) values.get("nimble");
 
 		// Subsystem values
 		shields.init(values);
@@ -344,7 +342,7 @@ public class Ship extends Unit {
 	}
 
 	public boolean isNimble() {
-		return this.nimble;
+		return performanceData.isNimble();
 	}
 
 	// --- Lock-on ---
@@ -369,9 +367,6 @@ public class Ship extends Unit {
 		return lockOns;
 	}
 
-	public void setNimble(boolean nimble) {
-		this.nimble = nimble;
-	}
 
 	public int setEnemyBoardingParties(int enemyBoardingParties) {
 		this.enemyBoardingParties = enemyBoardingParties;

@@ -1,0 +1,81 @@
+{
+  "faction": "Kzinti",
+  "hull": "CS",
+  "name": "KHS Quasar",
+  "serviceYear": 125,
+  "bpv": 116,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [24, 22, 22, 22, 22, 22],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 12
+  },
+  
+  "power": {
+    "leftWarp": 9,
+    "rightWarp": 9,
+    "centerWarp": 9,
+    "impulse": 3,
+    "apr": 3,
+    "battery": 5
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 4, 1, 0],
+    "scanner": [0, 1, 2, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 2,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ]
+}

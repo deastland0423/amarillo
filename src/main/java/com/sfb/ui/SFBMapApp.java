@@ -10,6 +10,7 @@ import com.sfb.systems.Energy;
 import com.sfb.commands.FireCommand;
 import com.sfb.commands.HitAndRunCommand;
 import com.sfb.commands.LaunchDroneCommand;
+import com.sfb.commands.ShuttleMoveCommand;
 import com.sfb.commands.LaunchPlasmaCommand;
 import com.sfb.commands.MoveCommand;
 import com.sfb.commands.PlaceTBombCommand;
@@ -68,6 +69,10 @@ public class SFBMapApp extends Application {
     private boolean       droneMode        = false;
     private boolean       plasmaMode       = false;
     private boolean       hitAndRunMode    = false;
+    private boolean       shuttleMode      = false;
+    private com.sfb.objects.Shuttle         selectedShuttle = null;
+    private com.sfb.systemgroups.ShuttleBay pendingBay     = null;
+    private com.sfb.objects.Shuttle         pendingShuttle = null;
     private DroneRack     pendingRack      = null;
     private Drone         pendingDrone     = null;
     private PlasmaLauncher pendingLauncher = null;
@@ -183,10 +188,12 @@ public class SFBMapApp extends Application {
         // --- Keyboard ---
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                if (firingMode)     exitFiringMode();
-                if (droneMode)      exitDroneMode();
-                if (plasmaMode)     exitPlasmaMode();
-                if (hitAndRunMode)  exitHitAndRunMode();
+                if (firingMode)        exitFiringMode();
+                if (droneMode)         exitDroneMode();
+                if (plasmaMode)        exitPlasmaMode();
+                if (shuttleMode)       exitShuttleMode();
+                if (hitAndRunMode)     exitHitAndRunMode();
+                if (selectedShuttle != null) { selectedShuttle = null; selectedLabel.setText(""); }
                 if (mapCanvas.isHexSelectionMode()) {
                     mapCanvas.exitHexSelectionMode();
                     mapCanvas.render();
@@ -243,6 +250,42 @@ public class SFBMapApp extends Application {
                 mapCanvas.setFiringMode(true);
                 setStatus("PLASMA MODE — click a target  (Escape to cancel)");
                 mapCanvas.render();
+                return;
+            }
+            if (event.getCode() == KeyCode.S) {
+                if (!game.canLaunchThisPhase()) {
+                    setStatus("Can't launch shuttles during " + game.getCurrentPhase().getLabel() + " phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                ShuttleSelectDialog dlg = new ShuttleSelectDialog(
+                        mapCanvas.getScene().getWindow(), ship, game.getAbsoluteImpulse());
+                dlg.showAndWait();
+                pendingBay    = dlg.getSelectedBay();
+                pendingShuttle = dlg.getSelectedShuttle();
+                if (pendingBay == null || pendingShuttle == null) return;
+                ShuttleDirectionDialog dirDlg = new ShuttleDirectionDialog(
+                        mapCanvas.getScene().getWindow());
+                dirDlg.showAndWait();
+                int relDir = dirDlg.getSelectedDirection();
+                if (relDir == 0) return; // cancelled
+                int facing = ((relDir - 1 + ship.getFacing() - 1) % 24) + 1;
+                Game.ActionResult result = game.launchShuttle(
+                        ship, pendingBay, pendingShuttle,
+                        pendingShuttle.getMaxSpeed(), facing);
+                combatLog.appendText(result.getMessage() + "\n");
+                if (result.isSuccess()) {
+                    // Pre-select the shuttle so it auto-moves when its impulse comes
+                    selectedShuttle = pendingShuttle;
+                    selectedLabel.setText(pendingShuttle.getName() + "  (shuttle — moves in MOVEMENT phase)");
+                    setStatus(result.getMessage() + " — move it with W/A/D in MOVEMENT phase");
+                } else {
+                    setStatus(result.getMessage());
+                }
+                mapCanvas.setActiveShuttles(game.getActiveShuttles());
+                mapCanvas.render();
+                exitShuttleMode();
                 return;
             }
             if (event.getCode() == KeyCode.H) {
@@ -330,6 +373,14 @@ public class SFBMapApp extends Application {
                 return;
             }
             if (firingMode || droneMode || plasmaMode || hitAndRunMode) return;
+
+            // Shuttle movement: only in MOVEMENT phase when all ships have moved
+            if (selectedShuttle != null
+                    && game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT
+                    && game.getMovableShips().isEmpty()) {
+                handleShuttleMovementKey(event.getCode(), selectedShuttle);
+                return;
+            }
 
             Ship ship = mapCanvas.getSelectedShip();
             if (ship == null) { setStatus("No ship selected"); return; }
@@ -435,10 +486,10 @@ public class SFBMapApp extends Application {
     private void updateKeyHelp() {
         switch (game.getCurrentPhase()) {
             case MOVEMENT:
-                keyHelp.setText("W=fwd  A/D=turn  Q/E=sideslip  ESC=cancel");
+                keyHelp.setText("W=fwd  A/D=turn  Q/E=sideslip  (shuttles: W/A/D after ships)  ESC=cancel");
                 break;
             case ACTIVITY:
-                keyHelp.setText("L=launch drone  P=plasma  B=tBomb  C=cloak/uncloak  ESC=cancel");
+                keyHelp.setText("L=launch drone  P=plasma  S=shuttle  B=tBomb  C=cloak/uncloak  ESC=cancel");
                 break;
             case DIRECT_FIRE:
                 keyHelp.setText("F=fire  H=hit&run  ESC=cancel");
@@ -478,6 +529,15 @@ public class SFBMapApp extends Application {
             refreshMovableShips();
             List<Ship> movable = game.getMovableShips();
             if (movable.isEmpty()) {
+                // Auto-select first movable shuttle if any
+                List<com.sfb.objects.Shuttle> movableShuttles = game.getMovableShuttles();
+                if (!movableShuttles.isEmpty()) {
+                    selectedShuttle = movableShuttles.get(0);
+                    selectedLabel.setText(selectedShuttle.getName() + "  (shuttle)");
+                    setStatus("Move shuttle: " + selectedShuttle.getName() + "  W=fwd  A/D=turn  ESC=deselect");
+                    mapCanvas.render();
+                    return;
+                }
                 setStatus("All ships moved — ready to advance");
                 selectedLabel.setText(ship.getName() + " (" + ship.getHullType() + ")  spd " + ship.getSpeed()
                         + "  @ " + ship.getLocation());
@@ -494,6 +554,33 @@ public class SFBMapApp extends Application {
         } else {
             setStatus(result.getMessage());
             infoPanel.update(ship);
+        }
+        mapCanvas.render();
+    }
+
+    private void handleShuttleMovementKey(KeyCode code, com.sfb.objects.Shuttle shuttle) {
+        ActionResult result;
+        switch (code) {
+            case W: result = game.execute(new ShuttleMoveCommand(shuttle, ShuttleMoveCommand.Action.FORWARD));    break;
+            case A: result = game.execute(new ShuttleMoveCommand(shuttle, ShuttleMoveCommand.Action.TURN_LEFT));  break;
+            case D: result = game.execute(new ShuttleMoveCommand(shuttle, ShuttleMoveCommand.Action.TURN_RIGHT)); break;
+            default: return;
+        }
+
+        if (result.isSuccess()) {
+            mapCanvas.setActiveShuttles(game.getActiveShuttles());
+            List<com.sfb.objects.Shuttle> movable = game.getMovableShuttles();
+            if (movable.isEmpty()) {
+                selectedShuttle = null;
+                setStatus("All shuttles moved — ready to advance");
+                selectedLabel.setText("");
+            } else {
+                selectedShuttle = movable.get(0);
+                selectedLabel.setText(selectedShuttle.getName() + "  (shuttle)");
+                setStatus("Move shuttle: " + selectedShuttle.getName() + "  W=fwd  A/D=turn  ESC=deselect");
+            }
+        } else {
+            setStatus(result.getMessage());
         }
         mapCanvas.render();
     }
@@ -548,6 +635,13 @@ public class SFBMapApp extends Application {
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
         setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        mapCanvas.render();
+    }
+
+    private void exitShuttleMode() {
+        shuttleMode    = false;
+        pendingBay     = null;
+        pendingShuttle = null;
         mapCanvas.render();
     }
 
@@ -635,15 +729,28 @@ public class SFBMapApp extends Application {
                 exitHitAndRunMode();
             }
         } else {
-            mapCanvas.setSelectedShip(hitShip);
-            if (hitShip != null) {
-                selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
-                statusLabel.setText("Selected  —  F: fire  L: drone  P: plasma  H: hit & run");
+            // Check if a shuttle was clicked
+            com.sfb.objects.Shuttle clickedShuttle = null;
+            if (hit instanceof com.sfb.objects.Shuttle)
+                clickedShuttle = (com.sfb.objects.Shuttle) hit;
+
+            if (clickedShuttle != null) {
+                selectedShuttle = clickedShuttle;
+                mapCanvas.setSelectedShip(null);
+                selectedLabel.setText(clickedShuttle.getName() + "  (shuttle)");
+                statusLabel.setText("Shuttle selected  —  W=fwd  A/D=turn  ESC=deselect");
             } else {
-                selectedLabel.setText(hit != null ? hit.getName() : "No ship selected");
-                statusLabel.setText("");
+                selectedShuttle = null;
+                mapCanvas.setSelectedShip(hitShip);
+                if (hitShip != null) {
+                    selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
+                    statusLabel.setText("Selected  —  F: fire  L: drone  P: plasma  H: hit & run");
+                } else {
+                    selectedLabel.setText(hit != null ? hit.getName() : "No ship selected");
+                    statusLabel.setText("");
+                }
+                infoPanel.update(hitShip);
             }
-            infoPanel.update(hitShip);
         }
         mapCanvas.render();
         scene.getRoot().requestFocus();

@@ -52,6 +52,7 @@ public class HexMapCanvas extends Canvas {
     private Ship selectedShip = null;
     private List<Ship> movableShips = new ArrayList<>();
     private List<Seeker> seekers = new ArrayList<>();
+    private List<com.sfb.objects.Shuttle> activeShuttles = new ArrayList<>();
     private List<SpaceMine> mines = new ArrayList<>();
     private boolean firingMode = false;
 
@@ -165,6 +166,10 @@ public class HexMapCanvas extends Canvas {
         this.seekers = seekers;
     }
 
+    public void setActiveShuttles(List<com.sfb.objects.Shuttle> shuttles) {
+        this.activeShuttles = shuttles;
+    }
+
     public void setMines(List<SpaceMine> mines) {
         this.mines = mines;
     }
@@ -229,6 +234,12 @@ public class HexMapCanvas extends Canvas {
             if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
                 hits.add(unit);
         }
+        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            if (shuttle.getLocation() == null) continue;
+            double[] c = hexCenter(shuttle.getLocation().getX(), shuttle.getLocation().getY());
+            if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
+                hits.add(shuttle);
+        }
         return hits;
     }
 
@@ -278,6 +289,11 @@ public class HexMapCanvas extends Canvas {
                 drawDrone(gc, (Drone) seeker);
             else if (seeker instanceof PlasmaTorpedo)
                 drawPlasmaTorpedo(gc, (PlasmaTorpedo) seeker);
+            else if (seeker instanceof com.sfb.objects.Shuttle)
+                drawShuttle(gc, (com.sfb.objects.Shuttle) seeker);
+        }
+        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            drawShuttle(gc, shuttle);
         }
     }
 
@@ -357,9 +373,8 @@ public class HexMapCanvas extends Canvas {
         Color factionColor = factionColor(ship.getFaction());
 
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
-        com.sfb.systemgroups.CloakingDevice.CloakState cloakState =
-                cloak != null ? cloak.getState()
-                              : com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE;
+        com.sfb.systemgroups.CloakingDevice.CloakState cloakState = cloak != null ? cloak.getState()
+                : com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE;
 
         switch (cloakState) {
             case FULLY_CLOAKED:
@@ -386,7 +401,8 @@ public class HexMapCanvas extends Canvas {
                 drawCounterLabel(gc, ship, cx, cy);
                 int step = cloak.getFadeStep(com.sfb.TurnTracker.getImpulse());
                 String fadeLabel = (cloakState == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT
-                        ? "Fade-Out " : "Fade-In ") + step;
+                        ? "Fade-Out "
+                        : "Fade-In ") + step;
                 drawCloakLabel(gc, cx, cy, fadeLabel);
                 break;
             }
@@ -402,7 +418,8 @@ public class HexMapCanvas extends Canvas {
 
     /** Small purple label below the counter showing cloak state. */
     private void drawCloakLabel(GraphicsContext gc, double cx, double cy, String text) {
-        gc.setFill(Color.rgb(200, 150, 255));
+        gc.setFill(Color.rgb(255, 244, 150));
+        // gc.setFill(Color.rgb(200, 150, 255)); // original purple, less readable
         gc.setFont(javafx.scene.text.Font.font("Monospaced", 7.0));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.fillText(text, cx, cy + COUNTER_SIZE + 9.0);
@@ -599,6 +616,41 @@ public class HexMapCanvas extends Canvas {
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 7.5));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.fillText(label, cx, cy + 3.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Shuttle counter
+    // -------------------------------------------------------------------------
+
+    private void drawShuttle(GraphicsContext gc, com.sfb.objects.Shuttle shuttle) {
+        if (shuttle.getLocation() == null) return;
+        double[] c = hexCenter(shuttle.getLocation().getX(), shuttle.getLocation().getY());
+        double cx = c[0], cy = c[1];
+
+        // Pentagon shape to distinguish from drones (diamonds) and ships
+        Color color = Color.rgb(100, 220, 180); // teal-green for shuttles
+        double r = COUNTER_SIZE * 0.40;
+        int sides = 5;
+        double[] px = new double[sides];
+        double[] py = new double[sides];
+        for (int i = 0; i < sides; i++) {
+            double angle = Math.toRadians(-90 + i * 360.0 / sides);
+            px[i] = cx + r * Math.cos(angle);
+            py[i] = cy + r * Math.sin(angle);
+        }
+        gc.setFill(color.deriveColor(0, 0.7, 0.15, 1.0));
+        gc.fillPolygon(px, py, sides);
+        gc.setStroke(color);
+        gc.setLineWidth(1.5);
+        gc.strokePolygon(px, py, sides);
+
+        drawFacingArrow(gc, cx, cy, shuttle.getFacing(), color);
+
+        // "SH" label
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 7.0));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText("SH", cx, cy + 3.0);
     }
 
     // -------------------------------------------------------------------------

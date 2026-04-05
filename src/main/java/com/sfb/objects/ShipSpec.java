@@ -41,6 +41,7 @@ public class ShipSpec {
     public double moveCost;
     public int breakdown;
     public int bonusHets;
+    public boolean nimble;
 
     public int[] shields;
 
@@ -53,6 +54,7 @@ public class ShipSpec {
     public CrewSpec crewData;
 
     public List<WeaponSpec> weapons;
+    public List<ShuttleBaySpec> shuttleBays;
 
     // -------------------------------------------------------------------------
     // Inner spec classes
@@ -83,6 +85,7 @@ public class ShipSpec {
         public int bridge;
         public int emergency;
         public int auxCon;
+        public int flag;
         public int security;
         public double controlMod;
     }
@@ -93,6 +96,11 @@ public class ShipSpec {
         public int[] sensor;
         public int[] scanner;
         public int excess;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ShuttleBaySpec {
+        public List<String> shuttles; // e.g. ["admin", "admin", "gas"]
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -167,6 +175,8 @@ public class ShipSpec {
         m.put("movecost", moveCost);
         m.put("breakdown", breakdown);
         m.put("bonushets", bonusHets);
+        if (nimble)
+            m.put("nimble", true);
 
         // Shields
         if (shields != null && shields.length >= 6) {
@@ -216,6 +226,8 @@ public class ShipSpec {
             if (control.security > 0)
                 m.put("security", control.security);
             m.put("controlmod", control.controlMod);
+            if (control.flag > 0)
+                m.put("flag", control.flag);
         }
 
         // Tables
@@ -243,6 +255,15 @@ public class ShipSpec {
                 m.put("cloakcost", auxiliary.cloakCost);
             if (auxiliary.derfacs)
                 m.put("derfacs", true);
+        }
+
+        // Shuttle bays
+        if (shuttleBays != null && !shuttleBays.isEmpty()) {
+            List<List<String>> bayList = new ArrayList<>();
+            for (ShuttleBaySpec bay : shuttleBays) {
+                bayList.add(bay.shuttles != null ? bay.shuttles : new ArrayList<>());
+            }
+            m.put("shuttlebays", bayList);
         }
 
         // Crew
