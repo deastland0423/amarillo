@@ -45,7 +45,9 @@
     "tractors": 3,
     "labs": 4,
     "probes": 1,
-    "derfacs": true
+    "derfacs": true,
+    "tBombs": 1,
+    "dummyTBombs": 1
   },
 
   "shuttleBays": [
