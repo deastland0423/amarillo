@@ -44,7 +44,9 @@
     "tractors": 3,
     "labs": 4,
     "probes": 1,
-    "cloakCost": 20
+    "cloakCost": 20,
+    "tBombs": 1,
+    "dummyTBombs": 1
   },
 
   "shuttleBays": [
