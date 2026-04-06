@@ -18,7 +18,29 @@
       "Bash(ls /d/repos/amarillo/target/surefire-reports/*.txt)",
       "Bash(xargs ls:*)",
       "Bash(ls /d/repos/amarillo/hs_err*.log)",
-      "Bash(grep -l \"Cloak\\\\|cloak\\\\|releaseOrphan\\\\|launchDirection\\\\|SpaceMine\\\\|ShipSpec\\\\|ShipLibrary\" d:/repos/amarillo/src/test/java/com/sfb/**/*.java)"
+      "Bash(grep -l \"Cloak\\\\|cloak\\\\|releaseOrphan\\\\|launchDirection\\\\|SpaceMine\\\\|ShipSpec\\\\|ShipLibrary\" d:/repos/amarillo/src/test/java/com/sfb/**/*.java)",
+      "Bash(mvn --version)",
+      "Bash(java -version)",
+      "Bash(cmd /c \"java -version 2>&1\")",
+      "Bash(mvn spring-boot:run -pl amarillo-server)",
+      "Bash(mvn spring-boot:run -pl amarillo-server --am)",
+      "Bash(curl -s http://localhost:8080/api/games/FAKE/status)",
+      "Bash(curl -s -X POST http://localhost:8080/api/games -H \"Content-Type: application/json\" -d \"{\\\\\"name\\\\\": \\\\\"Daniel\\\\\"}\")",
+      "Bash(taskkill /PID 47644 /F)",
+      "Bash(cmd /c \"taskkill /PID 47644 /F\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":8080\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(cmd /c \"taskkill /F /PID 47644 2>&1\")",
+      "Bash(cmd /c \"netstat -ano | findstr :8080 | findstr LISTENING\")",
+      "Bash(cmd /c \"netstat -ano | findstr 8080\")",
+      "Bash(curl -s -X POST http://localhost:8080/api/games -H \"Content-Type: application/json\" -d \"{\\\\\"name\\\\\":\\\\\"Daniel\\\\\"}\")",
+      "Bash(cmd /c \"wmic process where \\\\\"name='java.exe'\\\\\" get processid,commandline 2>&1 | findstr 8080\")",
+      "Bash(cmd /c \"wmic process where \\\\\"name='java.exe'\\\\\" get processid,commandline\")",
+      "Bash(cmd /c \"tasklist | findstr java\")",
+      "Bash(cmd /c \"curl -v http://127.0.0.1:8080/api/games 2>&1\")",
+      "Bash(cmd /c \"powershell -command \\\\\"\\(Invoke-WebRequest -Uri 'http://localhost:8080/api/games' -Method POST -ContentType 'application/json' -Body '{\\\\\"name\\\\\":\\\\\"test\\\\\"}' -ErrorAction SilentlyContinue\\).StatusCode\\\\\" 2>&1\")",
+      "Bash(mvn install:*)"
     ]
   }
 }
