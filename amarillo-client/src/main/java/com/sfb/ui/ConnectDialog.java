@@ -55,6 +55,7 @@ public class ConnectDialog {
 
         Label urlLabel    = smallLabel("Server URL");
         TextField urlField = textField("http://localhost:8080");
+        urlField.setText("http://localhost:8080");
 
         Label idLabel     = smallLabel("Game ID");
         TextField idField  = textField("e.g. A3BF");

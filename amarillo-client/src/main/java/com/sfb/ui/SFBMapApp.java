@@ -401,7 +401,15 @@ public class SFBMapApp extends Application {
                 refreshMovableShips();
                 turnLabel.setText(turnText());
                 nextPhaseBtn.setText(nextPhaseLabel());
-                setStatus(phaseStatus());
+                ServerGameClient sgc = (ServerGameClient) game;
+                if (sgc.isWaitingForOtherPlayer()) {
+                    Ship next = sgc.getNextInQueue();
+                    String shipName = next != null ? next.getName() : "another ship";
+                    setStatus("Waiting for " + shipName + " to move...");
+                    mapCanvas.setSelectedShip(null);
+                } else {
+                    setStatus(phaseStatus());
+                }
                 updateKeyHelp();
                 mapCanvas.render();
             });

@@ -74,7 +74,8 @@ public class ServerGameClient implements GameFacade {
     private volatile Game.ImpulsePhase currentPhase  = Game.ImpulsePhase.MOVEMENT;
     private volatile int               currentTurn    = 1;
     private volatile int               currentImpulse = 1;
-    private final    List<String>      movableNow     = new CopyOnWriteArrayList<>();
+    private final    List<String>      movableNow     = new CopyOnWriteArrayList<>(); // full ordered queue
+    private final    Set<String>       myShipNames    = ConcurrentHashMap.newKeySet(); // ships I own
 
     // -------------------------------------------------------------------------
     // State change callback — SFBMapApp registers this to trigger a re-render
@@ -131,13 +132,18 @@ public class ServerGameClient implements GameFacade {
             if (body == null) return;
 
             GameStateDto dto = mapper.readValue(body, GameStateDto.class);
+            System.out.println("[poll] ships in DTO mapObjects: " +
+                (dto.mapObjects == null ? "null" : dto.mapObjects.size()) +
+                ", local ships after apply: will update");
             applyState(dto);
+            System.out.println("[poll] local ship count after apply: " + ships.size());
 
             if (onStateChanged != null)
                 Platform.runLater(() -> onStateChanged.accept(null));
 
         } catch (Exception e) {
-            System.err.println("State poll error: " + e.getMessage());
+            System.err.println("State poll error: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -148,6 +154,9 @@ public class ServerGameClient implements GameFacade {
 
         movableNow.clear();
         if (dto.movableNow != null) movableNow.addAll(dto.movableNow);
+
+        myShipNames.clear();
+        if (dto.myShips != null) myShipNames.addAll(dto.myShips);
 
         Set<String> seenShips = new HashSet<>();
         List<com.sfb.objects.Shuttle> newShuttles = new ArrayList<>();
@@ -211,6 +220,13 @@ public class ServerGameClient implements GameFacade {
         } else {
             ship = new Ship();
             ship.setName(dto.name);
+            // Initialize shields so rendering doesn't NPE — build a minimal map from DTO
+            Map<String, Object> shieldInit = new java.util.HashMap<>();
+            if (dto.shields != null) {
+                for (GameStateDto.ShieldDto sd : dto.shields)
+                    shieldInit.put("shield" + sd.shieldNum, sd.max);
+            }
+            ship.getShields().init(shieldInit);
         }
         if (dto.location != null) ship.setLocation(parseLocation(dto.location));
         ship.setFacing(dto.facing);
@@ -283,6 +299,7 @@ public class ServerGameClient implements GameFacade {
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .header("X-Player-Token", playerToken)
                     .GET().build();
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
             return res.statusCode() == 200 ? res.body() : null;
@@ -344,10 +361,22 @@ public class ServerGameClient implements GameFacade {
     @Override public List<Ship> getMovableShips() {
         List<Ship> result = new ArrayList<>();
         for (String name : movableNow) {
+            if (!myShipNames.isEmpty() && !myShipNames.contains(name)) continue;
             Ship s = shipByName.get(name);
             if (s != null) result.add(s);
         }
         return result;
+    }
+
+    /** The first ship in the global movement queue, regardless of ownership. Null if none. */
+    public Ship getNextInQueue() {
+        if (movableNow.isEmpty()) return null;
+        return shipByName.get(movableNow.get(0));
+    }
+
+    /** True when there are ships to move this impulse but none belong to this player. */
+    public boolean isWaitingForOtherPlayer() {
+        return !movableNow.isEmpty() && getMovableShips().isEmpty();
     }
 
     @Override public List<com.sfb.objects.Shuttle> getMovableShuttles() {

@@ -234,7 +234,9 @@ public class GameController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/{id}/state")
-    public ResponseEntity<Map<String, Object>> getState(@PathVariable String id) {
+    public ResponseEntity<?> getState(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token) {
 
         GameSession session = sessionService.getSession(id);
         if (session == null)
@@ -242,30 +244,14 @@ public class GameController {
         if (!session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game has not started"));
 
-        Game game = session.getGame();
+        GameStateDto dto = new GameStateDto(session.getGame());
 
-        List<Map<String, Object>> shipList = game.getShips().stream()
-                .map(s -> {
-                    Map<String, Object> m = new java.util.LinkedHashMap<>();
-                    m.put("name",     s.getName());
-                    m.put("hull",     s.getHullType());
-                    m.put("speed",    s.getSpeed());
-                    m.put("location", s.getLocation() != null ? s.getLocation().toString() : "off-map");
-                    m.put("facing",   s.getFacing());
-                    return m;
-                })
-                .collect(Collectors.toList());
+        // Populate myShips if the caller identifies themselves
+        if (token != null && session.hasPlayer(token)) {
+            GameSession.PlayerInfo info = session.getPlayers().get(token);
+            dto.myShips = info.getShipNames();
+        }
 
-        List<String> movableNow = game.getMovableShips().stream()
-                .map(Ship::getName)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(Map.of(
-                "turn",       game.getCurrentTurn(),
-                "impulse",    game.getCurrentImpulse(),
-                "phase",      game.getCurrentPhase().getLabel(),
-                "movableNow", movableNow,
-                "ships",      shipList
-        ));
+        return ResponseEntity.ok(dto);
     }
 }

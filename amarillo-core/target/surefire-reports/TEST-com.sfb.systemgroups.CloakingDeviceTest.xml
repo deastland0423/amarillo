@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="38" failures="0" name="com.sfb.systemgroups.CloakingDeviceTest" time="0.006" errors="0" skipped="0">
+<testsuite tests="38" failures="0" name="com.sfb.systemgroups.CloakingDeviceTest" time="0.001" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
     <property name="sun.boot.library.path" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin"/>
-    <property name="maven.multiModuleProjectDirectory" value="D:/repos/amarillo"/>
+    <property name="maven.multiModuleProjectDirectory" value="D:\repos\amarillo\amarillo-core"/>
     <property name="java.vm.vendor" value="Eclipse Adoptium"/>
     <property name="java.vendor.url" value="https://adoptium.net/"/>
     <property name="guice.disable.misplaced.annotation.check" value="true"/>
@@ -16,7 +16,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="stdin.encoding" value="cp437"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="user.dir" value="D:\repos\amarillo"/>
+    <property name="user.dir" value="D:\repos\amarillo\amarillo-core"/>
     <property name="java.vm.compressedOopsMode" value="Zero based"/>
     <property name="java.runtime.version" value="25.0.2+10-LTS"/>
     <property name="os.arch" value="amd64"/>
@@ -25,29 +25,28 @@
 "/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="user.variant" value=""/>
-    <property name="stderr.encoding" value="Cp1252"/>
+    <property name="stderr.encoding" value="cp437"/>
     <property name="os.name" value="Windows 10"/>
-    <property name="classworlds.conf" value="D:/apache-maven-3.6.0/bin/m2.conf"/>
+    <property name="classworlds.conf" value="D:\apache-maven-3.6.0\bin\..\bin\m2.conf"/>
     <property name="sun.jnu.encoding" value="Cp1252"/>
-    <property name="stdout.encoding" value="Cp1252"/>
-    <property name="java.library.path" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Users\deastland\bin;D:\Git\mingw64\bin;D:\Git\usr\local\bin;D:\Git\usr\bin;D:\Git\usr\bin;D:\Git\mingw64\bin;D:\Git\usr\bin;C:\Users\deastland\bin;D:\Python\Python37-32\Scripts;D:\VSCode;C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\apache-maven-3.6.0\bin;D:\nodejs;C:\Program Files\Amazon\AWSCLIV2;C:\Program Files\dotnet;D:\terraform;D:\Git\cmd;C:\Users\deastland\.cargo\bin;D:\Python\Python37-32\Scripts;D:\Python\Python37-32;C:\Users\deastland\AppData\Local\Microsoft\WindowsApps;C:\Users\deastland\AppData\Local\atom\bin;D:\VSCode\bin;C:\Users\deastland\AppData\Local\Microsoft\WindowsApps;C:\Users\deastland\AppData\Roaming\npm;C:\Users\deastland\.dotnet\tools;D:\terraform;D:\Git\usr\bin\vendor_perl;D:\Git\usr\bin\core_perl;."/>
-    <property name="maven.conf" value="D:/apache-maven-3.6.0/conf"/>
+    <property name="stdout.encoding" value="cp437"/>
+    <property name="java.library.path" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;c:\Users\deastland\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\debugCommand;c:\Users\deastland\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\copilotCli;D:\VSCode;C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;D:\apache-maven-3.6.0\bin;D:\nodejs\;C:\Program Files\Amazon\AWSCLIV2\;C:\Program Files\dotnet\;D:\terraform;D:\Git\cmd;C:\Users\deastland\.cargo\bin;D:\Python\Python37-32\Scripts\;D:\Python\Python37-32\;C:\Users\deastland\AppData\Local\Microsoft\WindowsApps;C:\Users\deastland\AppData\Local\atom\bin;D:\VSCode\bin;C:\Users\deastland\AppData\Local\Microsoft\WindowsApps;C:\Users\deastland\AppData\Roaming\npm;C:\Users\deastland\.dotnet\tools;D:\terraform;c:\Users\deastland\.vscode\extensions\vscjava.vscode-java-debug-0.58.5\bundled\scripts\noConfigScripts;."/>
+    <property name="maven.conf" value="D:\apache-maven-3.6.0\bin\../conf"/>
     <property name="jdk.debug" value="release"/>
     <property name="java.class.version" value="69.0"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="os.version" value="10.0"/>
-    <property name="library.jansi.path" value="D:/apache-maven-3.6.0/lib/jansi-native"/>
+    <property name="library.jansi.path" value="D:\apache-maven-3.6.0\bin\..\lib\jansi-native"/>
     <property name="user.home" value="C:\Users\deastland"/>
     <property name="user.timezone" value="America/Chicago"/>
     <property name="file.encoding" value="UTF-8"/>
     <property name="java.specification.version" value="25"/>
     <property name="user.name" value="deastland"/>
-    <property name="java.class.path" value="D:/apache-maven-3.6.0/boot/plexus-classworlds-2.5.2.jar"/>
-    <property name="org.slf4j.simpleLogger.defaultLogLevel" value="error"/>
+    <property name="java.class.path" value="D:\apache-maven-3.6.0\bin\..\boot\plexus-classworlds-2.5.2.jar"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install -pl amarillo-core -q"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -55,7 +54,7 @@
     <property name="java.version" value="25.0.2"/>
     <property name="native.encoding" value="Cp1252"/>
     <property name="java.vendor" value="Eclipse Adoptium"/>
-    <property name="maven.home" value="D:\apache-maven-3.6.0"/>
+    <property name="maven.home" value="D:\apache-maven-3.6.0\bin\.."/>
     <property name="file.separator" value="\"/>
     <property name="java.version.date" value="2026-01-20"/>
     <property name="java.vendor.url.bug" value="https://github.com/adoptium/adoptium-support/issues"/>
@@ -64,17 +63,17 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitialStateIsInactive" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitialStateIsInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusDuringFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeInAdvancesToInactiveAfter5Impulses" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInvoluntaryDecloakWhenCostNotPaid" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateWhenAlreadyFadingOut" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateWhenAlreadyFadingOut" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testSecondDamageCallIsIgnored" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFailsWhenAlreadyFadingIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyNotRestrictingActions" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusDuringFadeOut" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyNoLockOnBreak" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActivateSucceedsWhenCostPaid" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActivateSucceedsWhenCostPaid" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusIsZeroWhenInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActionsAllowedAfterFullFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyFunctional" time="0"/>
@@ -88,13 +87,13 @@
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFailsWhenInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testNoInvoluntaryDecloakWhenAlreadyInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testNoInvoluntaryDecloakWhenCostPaid" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageRendersDeviceNonFunctional" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageRendersDeviceNonFunctional" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFromFadingOut" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeStepIsZeroWhenFullyCloaked" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateWhenFullyCloaked" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileFadingOutForcesEmergencyFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedRestrictsActions" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileFullyCloakedForcesEmergencyFadeIn" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileFullyCloakedForcesEmergencyFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedCloakBonusIsFive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeStepDuringFadeOut" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileInactiveDoesNotChangeFadeState" time="0"/>

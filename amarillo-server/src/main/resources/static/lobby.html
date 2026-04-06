@@ -147,6 +147,9 @@
         <span class="game-id-badge" id="displayGameId">----</span>
         <button class="btn-sm" onclick="copyGameId()" style="background:#223; color:#aaa; border:1px solid #334;">Copy ID</button>
         <div class="copy-hint">Share this ID with other players so they can join.</div>
+        <div style="margin-top:10px; font-size:0.8em; color:#556;">
+            Your token: <span id="displayToken" style="color:#8ab; font-family:monospace; cursor:pointer;" onclick="copyToken()" title="Click to copy">—</span>
+        </div>
     </div>
 
     <div style="margin-top:20px;">
@@ -213,10 +216,19 @@ async function joinGame() {
 
 // ── Lobby setup ────────────────────────────────────────────
 
+function copyToken() {
+    navigator.clipboard.writeText(myToken).catch(() => {});
+    const el = document.getElementById('displayToken');
+    const orig = el.textContent;
+    el.textContent = 'copied!';
+    setTimeout(() => el.textContent = orig, 1200);
+}
+
 function enterLobby() {
     document.getElementById('entryPanel').classList.add('hidden');
     document.getElementById('lobbyPanel').classList.remove('hidden');
     document.getElementById('displayGameId').textContent = gameId;
+    document.getElementById('displayToken').textContent = myToken;
 
     if (isHost)
         document.getElementById('hostControls').classList.remove('hidden');

@@ -117,11 +117,14 @@ public class GameStateDto {
     public int               impulse;
     public String            phase;
     public List<String>      movableNow;
+    public List<String>      myShips;     // ships owned by the requesting player (null = all ships)
     public List<MapObjectDto> mapObjects;
 
     // -------------------------------------------------------------------------
     // Constructor — builds from live Game state
     // -------------------------------------------------------------------------
+
+    public GameStateDto() {}
 
     public GameStateDto(Game game) {
         this.turn      = game.getCurrentTurn();
