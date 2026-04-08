@@ -27,6 +27,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -41,13 +42,13 @@ import javafx.stage.StageStyle;
  */
 public class EnergyAllocationDialog extends Stage {
 
-    private static final Font HEADER_FONT = Font.font("Monospaced", FontWeight.BOLD, 13);
-    private static final Font SECTION_FONT = Font.font("Monospaced", FontWeight.BOLD, 11);
-    private static final Font LABEL_FONT = Font.font("Monospaced", 11);
-    private static final Font SMALL_FONT = Font.font("Monospaced", 10);
+    private static final Font HEADER_FONT = Font.font("Monospaced", FontWeight.BOLD, 16);
+    private static final Font SECTION_FONT = Font.font("Monospaced", FontWeight.BOLD, 14);
+    private static final Font LABEL_FONT = Font.font("Monospaced", 14);
+    private static final Font SMALL_FONT = Font.font("Monospaced", 12);
 
     private static final String DARK_BG = "-fx-background-color: #0d0d22;";
-    private static final String SECTION_BG = "-fx-background-color: #111130; -fx-background-radius: 4; -fx-padding: 8;";
+    private static final String SECTION_BG = "-fx-background-color: #111130; -fx-background-radius: 4; -fx-padding: 12;";
     private static final String BTN_STYLE = "-fx-background-color: #1a3a1a; -fx-text-fill: #88ff88; " +
             "-fx-border-color: #336633; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-font-weight: bold; -fx-cursor: hand;";
@@ -61,7 +62,9 @@ public class EnergyAllocationDialog extends Stage {
         initModality(Modality.APPLICATION_MODAL);
         initStyle(StageStyle.DECORATED);
         setTitle("Energy Allocation — Turn " + currentTurn);
-        setResizable(false);
+        setResizable(true);
+        setWidth(800);
+        setHeight(600);
 
         double totalPower = ship.getPowerSysetems().getTotalAvailablePower();
         double moveCost = ship.getPerformanceData().getMovementCost();
@@ -80,6 +83,7 @@ public class EnergyAllocationDialog extends Stage {
 
         VBox header = new VBox(4, shipName, powerSummary, budgetLabel);
         header.setStyle(SECTION_BG);
+        header.setPrefHeight(Region.USE_COMPUTED_SIZE);
 
         // --- Batteries ---
         // draw[0]: energy drawn from batteries (adds to budget)
@@ -605,18 +609,25 @@ public class EnergyAllocationDialog extends Stage {
         VBox weaponsSection = new VBox(6, weaponsToggle, weaponsContent);
         weaponsSection.setStyle(SECTION_BG);
 
-        VBox root = new VBox(10, header, batteryBox, movementBox, shieldsSection, capBox, weaponsSection,
-                transBox, reloadBox);
-        if (cloakBox != null) root.getChildren().add(cloakBox);
-        root.getChildren().add(buttonRow);
-        root.setPadding(new Insets(12));
+        // Use BorderPane to keep header fixed at the top
+        BorderPane root = new BorderPane();
+        root.setTop(header);
         root.setStyle(DARK_BG);
 
-        ScrollPane scroll = new ScrollPane(root);
+        // Create a VBox for the scrollable content (excluding header)
+        VBox content = new VBox(10, batteryBox, movementBox, shieldsSection, capBox, weaponsSection,
+                transBox, reloadBox);
+        if (cloakBox != null) content.getChildren().add(cloakBox);
+        content.getChildren().add(buttonRow);
+        content.setPadding(new Insets(12));
+
+        // Wrap the content in a ScrollPane
+        ScrollPane scroll = new ScrollPane(content);
         scroll.setFitToWidth(true);
         scroll.setStyle("-fx-background-color: #0d0d22; -fx-background: #0d0d22;");
+        root.setCenter(scroll);
 
-        Scene scene = new Scene(scroll, 560, 580);
+        Scene scene = new Scene(root, 800, 600);
         scene.setFill(Color.rgb(13, 13, 34));
         setScene(scene);
     }
