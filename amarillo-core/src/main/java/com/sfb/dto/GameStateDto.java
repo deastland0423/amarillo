@@ -55,14 +55,28 @@ public class GameStateDto {
         public boolean active;
     }
 
+    public static class WeaponDto {
+        public String  name;
+        public boolean armed;
+        public int     armingTurn;
+        public String  armingType;      // "STANDARD", "OVERLOAD", "SPECIAL", or null
+        public int     lastImpulseFired; // for canFire() checks client-side
+        public boolean functional;
+    }
+
     public static class ShipDto extends MapObjectDto {
-        public String         hull;
-        public String         faction;
-        public int            facing;
-        public int            speed;
+        public String          hull;
+        public String          faction;
+        public int             facing;
+        public int             speed;
         public List<ShieldDto> shields;
-        public String         cloakState;    // CloakingDevice.CloakState name, or "NONE"
-        public int            cloakFadeStep;
+        public String          cloakState;
+        public int             cloakFadeStep;
+        public int             cloakTransitionImpulse;
+        public double          phaserCapacitor;
+        public boolean         activeFireControl;
+        public int             scannerBonus;
+        public List<WeaponDto> weapons;
     }
 
     // -------------------------------------------------------------------------
@@ -115,9 +129,12 @@ public class GameStateDto {
 
     public int               turn;
     public int               impulse;
+    public int               absoluteImpulse;
     public String            phase;
     public List<String>      movableNow;
-    public List<String>      myShips;     // ships owned by the requesting player (null = all ships)
+    public List<String>      myShips;          // ships owned by the requesting player (null = all ships)
+    public boolean           awaitingAllocation;
+    public List<String>      pendingAllocation; // ship names not yet allocated this turn
     public List<MapObjectDto> mapObjects;
 
     // -------------------------------------------------------------------------
@@ -127,13 +144,21 @@ public class GameStateDto {
     public GameStateDto() {}
 
     public GameStateDto(Game game) {
-        this.turn      = game.getCurrentTurn();
-        this.impulse   = game.getCurrentImpulse();
-        this.phase     = game.getCurrentPhase().getLabel();
+        this.turn            = game.getCurrentTurn();
+        this.impulse         = game.getCurrentImpulse();
+        this.absoluteImpulse = game.getAbsoluteImpulse();
+        this.phase           = game.getCurrentPhase().getLabel();
 
         this.movableNow = new ArrayList<>();
         for (Ship s : game.getMovableShips())
             movableNow.add(s.getName());
+
+        this.awaitingAllocation = game.isAwaitingAllocation();
+        this.pendingAllocation = new ArrayList<>();
+        if (game.isAwaitingAllocation()) {
+            for (Ship s : game.getAllocationQueue())
+                pendingAllocation.add(s.getName());
+        }
 
         this.mapObjects = new ArrayList<>();
 
@@ -179,11 +204,32 @@ public class GameStateDto {
 
         CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak != null) {
-            dto.cloakState    = cloak.getState().name();
-            dto.cloakFadeStep = cloak.getFadeStep(game.getAbsoluteImpulse());
+            dto.cloakState             = cloak.getState().name();
+            dto.cloakFadeStep          = cloak.getFadeStep(game.getAbsoluteImpulse());
+            dto.cloakTransitionImpulse = cloak.getTransitionImpulse();
         } else {
-            dto.cloakState    = "NONE";
-            dto.cloakFadeStep = 0;
+            dto.cloakState             = "NONE";
+            dto.cloakFadeStep          = 0;
+            dto.cloakTransitionImpulse = -1;
+        }
+
+        dto.phaserCapacitor    = ship.getWeapons().getPhaserCapacitorEnergy();
+        dto.activeFireControl  = ship.isActiveFireControl();
+        dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
+
+        dto.weapons = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            WeaponDto wd = new WeaponDto();
+            wd.name             = w.getName();
+            wd.lastImpulseFired = w.getLastImpulseFired();
+            wd.functional       = w.isFunctional();
+            if (w instanceof com.sfb.weapons.HeavyWeapon) {
+                com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+                wd.armed      = hw.isArmed();
+                wd.armingTurn = hw.getArmingTurn();
+                wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
+            }
+            dto.weapons.add(wd);
         }
 
         return dto;

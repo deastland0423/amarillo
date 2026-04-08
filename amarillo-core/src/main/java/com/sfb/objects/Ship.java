@@ -491,6 +491,11 @@ public class Ship extends Unit {
 		return this.activeFireControl;
 	}
 
+	/** Directly set fire control state — used to sync client state from server. */
+	public void setActiveFireControl(boolean active) {
+		this.activeFireControl = active;
+	}
+
 	/// HULL BOXES ///
 
 	public HullBoxes getHullBoxes() {

@@ -49,6 +49,12 @@ public interface HeavyWeapon {
 	 * Returns the number of turns that the weapon has been arming.
 	 */
 	public int getArmingTurn();
+
+	/** Directly set the arming turn counter. Used to sync client state from server. */
+	public void setArmingTurn(int turn);
+
+	/** Directly set the armed flag. Used to sync client state from server. */
+	public void setArmed(boolean armed);
 	
 	/**
 	 * Check to see if a weapon is ready to fire.

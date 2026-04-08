@@ -90,6 +90,12 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	}
 
 	@Override
+	public void setArmingTurn(int turn) { this.armingTurn = turn; }
+
+	@Override
+	public void setArmed(boolean armed) { this.armed = armed; }
+
+	@Override
 	public boolean isArmed() {
 		return armed;
 	}

@@ -397,11 +397,22 @@ public class SFBMapApp extends Application {
 
         // If connected to a server, re-render whenever state is pushed
         if (game instanceof ServerGameClient) {
+            int[] lastAllocatedTurn = { -1 }; // tracks which turn we've already shown the dialog
             ((ServerGameClient) game).setOnStateChanged(v -> {
                 refreshMovableShips();
                 turnLabel.setText(turnText());
                 nextPhaseBtn.setText(nextPhaseLabel());
                 ServerGameClient sgc = (ServerGameClient) game;
+
+                // Allocation phase triggered by server state — only show once per turn
+                if (game.isAwaitingAllocation()
+                        && game.nextShipNeedingAllocation() != null
+                        && lastAllocatedTurn[0] != game.getCurrentTurn()) {
+                    lastAllocatedTurn[0] = game.getCurrentTurn();
+                    runAllocationPhase((Stage) mapCanvas.getScene().getWindow());
+                    return;
+                }
+
                 if (sgc.isWaitingForOtherPlayer()) {
                     Ship next = sgc.getNextInQueue();
                     String shipName = next != null ? next.getName() : "another ship";
@@ -432,14 +443,30 @@ public class SFBMapApp extends Application {
      * turn rollover.
      */
     private void runAllocationPhase(Stage stage) {
-        while (game.isAwaitingAllocation()) {
-            Ship ship = game.nextShipNeedingAllocation();
-            if (ship == null) break;
-            EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game.getCurrentTurn(), ship);
-            dialog.showAndWait();
-            Energy allocation = dialog.getSubmittedAllocation();
-            if (allocation != null) {
-                game.allocateEnergy(ship, allocation);
+        if (game instanceof ServerGameClient) {
+            if (!game.isAwaitingAllocation()) return;
+            // Show dialog for each of our ships that still needs allocation
+            Ship ship;
+            while ((ship = game.nextShipNeedingAllocation()) != null) {
+                EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game.getCurrentTurn(), ship);
+                dialog.showAndWait();
+                Energy allocation = dialog.getSubmittedAllocation();
+                if (allocation != null) {
+                    ActionResult result = game.allocateEnergy(ship, allocation);
+                    if (!result.isSuccess()) break;
+                }
+            }
+            setStatus("Waiting for other players to allocate energy...");
+        } else {
+            while (game.isAwaitingAllocation()) {
+                Ship ship = game.nextShipNeedingAllocation();
+                if (ship == null) break;
+                EnergyAllocationDialog dialog = new EnergyAllocationDialog(stage, game.getCurrentTurn(), ship);
+                dialog.showAndWait();
+                Energy allocation = dialog.getSubmittedAllocation();
+                if (allocation != null) {
+                    game.allocateEnergy(ship, allocation);
+                }
             }
         }
         turnLabel.setText(turnText());

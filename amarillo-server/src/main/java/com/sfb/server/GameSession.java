@@ -4,9 +4,21 @@ import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.Player;
 import com.sfb.commands.AdvancePhaseCommand;
+import com.sfb.commands.CloakCommand;
+import com.sfb.commands.FireCommand;
 import com.sfb.commands.MoveCommand;
+import com.sfb.commands.UncloakCommand;
+import com.sfb.constants.Constants;
+import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
+import com.sfb.properties.WeaponArmingType;
+import com.sfb.systems.Energy;
+import com.sfb.weapons.HeavyWeapon;
+import com.sfb.weapons.PlasmaLauncher;
+import com.sfb.weapons.Weapon;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,16 +172,7 @@ public class GameSession {
         switch (request.getType().toUpperCase()) {
 
             case "ADVANCE_PHASE": {
-                // Any player can advance the phase for now
-                // (future: require all players to confirm readiness)
-                ActionResult result = game.execute(new AdvancePhaseCommand());
-                // Auto-allocate at turn boundary until proper allocation UI is built
-                while (game.isAwaitingAllocation()) {
-                    Ship ship = game.nextShipNeedingAllocation();
-                    if (ship == null) break;
-                    game.submitAllocation(ship, ship.buildAutoAllocation());
-                }
-                return result;
+                return game.execute(new AdvancePhaseCommand());
             }
 
             case "MOVE": {
@@ -185,6 +188,117 @@ public class GameSession {
                 return game.execute(new MoveCommand(ship, action));
             }
 
+            case "ALLOCATE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (!game.isAwaitingAllocation())
+                    return ActionResult.fail("Not currently in allocation phase");
+
+                Energy e = new Energy();
+
+                // Life support and fire control — always full cost
+                e.setLifeSupport(ship.getLifeSupportCost());
+                e.setFireControl(ship.getFireControlCost());
+
+                // Shields
+                String shieldMode = request.getShieldMode();
+                if ("MINIMUM".equalsIgnoreCase(shieldMode))
+                    e.setActivateShields(ship.getMinimumShieldCost());
+                else if ("OFF".equalsIgnoreCase(shieldMode))
+                    e.setActivateShields(0);
+                else
+                    e.setActivateShields(ship.getActiveShieldCost());
+
+                // Movement — convert requested speed to warp energy
+                double moveCost = ship.getPerformanceData().getMovementCost();
+                int requestedSpeed = request.getSpeed();
+                int warpSpeed = Math.min(requestedSpeed, 30);
+                e.setWarpMovement(warpSpeed * moveCost);
+                e.setImpulseMovement(requestedSpeed > 30 ? 1 : 0);
+
+                // Phaser capacitor
+                if (request.isTopOffCap()) {
+                    double capNeeded = ship.getWeapons().getAvailablePhaserCapacitor()
+                            - ship.getWeapons().getPhaserCapacitorEnergy();
+                    e.setPhaserCapacitor(Math.max(0, capNeeded));
+                }
+
+                // Heavy weapon arming
+                Map<String, String> arming = request.getWeaponArming();
+                for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (!(w instanceof HeavyWeapon)) continue;
+                    String choice = arming != null ? arming.get(w.getName()) : null;
+                    if (choice == null) choice = "STANDARD";
+                    switch (choice.toUpperCase()) {
+                        case "OVERLOAD":
+                            e.getArmingEnergy().put(w, (double) Constants.gArmingCost[0] * 2);
+                            e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
+                            break;
+                        case "SKIP":
+                            // No energy allocated — weapon won't arm
+                            break;
+                        case "ROLL":
+                            if (w instanceof PlasmaLauncher)
+                                e.getArmingEnergy().put(w, (double) ((PlasmaLauncher) w).rollingCost());
+                            e.getArmingType().put(w, WeaponArmingType.SPECIAL);
+                            break;
+                        case "FINISH":
+                            e.getArmingEnergy().put(w, (double) ((HeavyWeapon) w).energyToArm());
+                            e.getArmingType().put(w, WeaponArmingType.STANDARD);
+                            break;
+                        default: // STANDARD
+                            e.getArmingEnergy().put(w, (double) Constants.gArmingCost[0]);
+                            e.getArmingType().put(w, WeaponArmingType.STANDARD);
+                            break;
+                    }
+                }
+
+                e.setCloakPaid(request.isCloakPaid());
+
+                return game.submitAllocation(ship, e);
+            }
+
+            case "FIRE": {
+                Ship attacker = findShip(request.getShipName());
+                if (attacker == null)
+                    return ActionResult.fail("Attacker not found: " + request.getShipName());
+
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+
+                List<String> weaponNames = request.getWeaponNames();
+                if (weaponNames == null || weaponNames.isEmpty())
+                    return ActionResult.fail("No weapons specified");
+
+                List<Weapon> weapons = new ArrayList<>();
+                for (String wName : weaponNames) {
+                    Weapon w = attacker.getWeapons().fetchAllWeapons().stream()
+                            .filter(x -> x.getName().equalsIgnoreCase(wName))
+                            .findFirst().orElse(null);
+                    if (w == null)
+                        return ActionResult.fail("Weapon not found on attacker: " + wName);
+                    weapons.add(w);
+                }
+
+                return game.execute(new FireCommand(
+                        attacker, target, weapons,
+                        request.getRange(), request.getAdjustedRange(), request.getShieldNumber()));
+            }
+
+            case "CLOAK": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.execute(new CloakCommand(ship));
+            }
+
+            case "UNCLOAK": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.execute(new UncloakCommand(ship));
+            }
+
             default:
                 return ActionResult.fail("Unknown action type: " + request.getType());
         }
@@ -194,6 +308,17 @@ public class GameSession {
         if (name == null) return null;
         return game.getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(name))
+                .findFirst().orElse(null);
+    }
+
+    /** Find any Unit (ship or seeker) by name. */
+    private Unit findUnit(String name) {
+        if (name == null) return null;
+        Ship ship = findShip(name);
+        if (ship != null) return ship;
+        return game.getSeekers().stream()
+                .filter(s -> s instanceof Unit && name.equalsIgnoreCase(((Unit) s).getName()))
+                .map(s -> (Unit) s)
                 .findFirst().orElse(null);
     }
 

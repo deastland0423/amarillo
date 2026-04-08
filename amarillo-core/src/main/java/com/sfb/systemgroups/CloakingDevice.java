@@ -132,11 +132,11 @@ public class CloakingDevice implements Systems {
      */
     public void updateState(int currentImpulse) {
         if (state == CloakState.FADING_OUT) {
-            if (impulsesElapsed(currentImpulse) >= FADE_IMPULSES) {
+            if (impulsesElapsed(currentImpulse) > FADE_IMPULSES) {
                 state = CloakState.FULLY_CLOAKED;
             }
         } else if (state == CloakState.FADING_IN) {
-            if (impulsesElapsed(currentImpulse) >= FADE_IMPULSES) {
+            if (impulsesElapsed(currentImpulse) > FADE_IMPULSES) {
                 state = CloakState.INACTIVE;
                 transitionImpulse = -1;
             }
@@ -239,6 +239,14 @@ public class CloakingDevice implements Systems {
 
     public CloakState getState() { return state; }
 
+    /** Directly set cloak state — used to sync client-side state from server. */
+    public void setState(CloakState state) { this.state = state; }
+
+    /** Directly set the transition impulse — used to sync client-side state from server. */
+    public void setTransitionImpulse(int impulse) { this.transitionImpulse = impulse; }
+
+    public int getTransitionImpulse() { return transitionImpulse; }
+
     public int getPowerToActivate() { return powerToActivate; }
 
     public boolean isCostPaidThisTurn() { return costPaidThisTurn; }
@@ -251,7 +259,7 @@ public class CloakingDevice implements Systems {
 
     private int impulsesElapsed(int currentImpulse) {
         if (transitionImpulse < 0) return 0;
-        return currentImpulse - transitionImpulse;
+        return currentImpulse - transitionImpulse + 1; // activation impulse = step 1
     }
 
     /**

@@ -1,5 +1,8 @@
 package com.sfb.server;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Inbound action from a client.
  *
@@ -8,19 +11,64 @@ package com.sfb.server;
  *
  *   ADVANCE_PHASE  — no extra fields
  *   MOVE           — shipName, action (FORWARD | TURN_LEFT | TURN_RIGHT | SIDESLIP_LEFT | SIDESLIP_RIGHT)
+ *   FIRE           — shipName (attacker), targetName, weaponNames, range, adjustedRange, shieldNumber
  */
 public class ActionRequest {
 
-    private String type;
-    private String shipName;
-    private String action;
+    private String       type;
+    private String       shipName;
+    private String       action;
 
-    public String getType()                 { return type; }
-    public void   setType(String type)      { this.type = type; }
+    // FIRE fields
+    private String       targetName;
+    private List<String> weaponNames;
+    private int          range;
+    private int          adjustedRange;
+    private int          shieldNumber;
 
-    public String getShipName()             { return shipName; }
-    public void   setShipName(String n)     { this.shipName = n; }
+    // ALLOCATE fields
+    private int                 speed;        // warp speed requested
+    private boolean             topOffCap;    // true = charge phaser capacitor to full
+    private String              shieldMode;   // "ACTIVE", "MINIMUM", or "OFF"
+    private Map<String, String> weaponArming; // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "DISCHARGE"
+    private boolean             cloakPaid;    // true if the player paid the cloak cost this turn
 
-    public String getAction()               { return action; }
-    public void   setAction(String action)  { this.action = action; }
+    public String getType()                        { return type; }
+    public void   setType(String type)             { this.type = type; }
+
+    public String getShipName()                    { return shipName; }
+    public void   setShipName(String n)            { this.shipName = n; }
+
+    public String getAction()                      { return action; }
+    public void   setAction(String action)         { this.action = action; }
+
+    public String getTargetName()                  { return targetName; }
+    public void   setTargetName(String targetName) { this.targetName = targetName; }
+
+    public List<String> getWeaponNames()                       { return weaponNames; }
+    public void         setWeaponNames(List<String> weaponNames) { this.weaponNames = weaponNames; }
+
+    public int  getRange()                         { return range; }
+    public void setRange(int range)                { this.range = range; }
+
+    public int  getAdjustedRange()                 { return adjustedRange; }
+    public void setAdjustedRange(int adjustedRange){ this.adjustedRange = adjustedRange; }
+
+    public int  getShieldNumber()                  { return shieldNumber; }
+    public void setShieldNumber(int shieldNumber)  { this.shieldNumber = shieldNumber; }
+
+    public int  getSpeed()                         { return speed; }
+    public void setSpeed(int speed)                { this.speed = speed; }
+
+    public boolean isTopOffCap()                   { return topOffCap; }
+    public void    setTopOffCap(boolean topOffCap) { this.topOffCap = topOffCap; }
+
+    public String getShieldMode()                        { return shieldMode; }
+    public void   setShieldMode(String shieldMode)       { this.shieldMode = shieldMode; }
+
+    public Map<String, String> getWeaponArming()                           { return weaponArming; }
+    public void                setWeaponArming(Map<String, String> arming) { this.weaponArming = arming; }
+
+    public boolean isCloakPaid()                   { return cloakPaid; }
+    public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
 }

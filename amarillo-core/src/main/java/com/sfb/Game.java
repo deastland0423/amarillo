@@ -1,6 +1,7 @@
 package com.sfb;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -189,6 +190,10 @@ public class Game {
 
     public boolean isAwaitingAllocation() {
         return awaitingAllocation;
+    }
+
+    public List<Ship> getAllocationQueue() {
+        return Collections.unmodifiableList(allocationQueue);
     }
 
     /**

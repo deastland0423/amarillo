@@ -10,6 +10,7 @@ import com.sfb.objects.*;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
 import com.sfb.properties.SystemTarget;
+import com.sfb.properties.WeaponArmingType;
 import com.sfb.systems.Energy;
 import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.utilities.MapUtils;
@@ -71,11 +72,13 @@ public class ServerGameClient implements GameFacade {
     // Game phase state (updated from each poll)
     // -------------------------------------------------------------------------
 
-    private volatile Game.ImpulsePhase currentPhase  = Game.ImpulsePhase.MOVEMENT;
-    private volatile int               currentTurn    = 1;
-    private volatile int               currentImpulse = 1;
-    private final    List<String>      movableNow     = new CopyOnWriteArrayList<>(); // full ordered queue
-    private final    Set<String>       myShipNames    = ConcurrentHashMap.newKeySet(); // ships I own
+    private volatile Game.ImpulsePhase currentPhase        = Game.ImpulsePhase.MOVEMENT;
+    private volatile int               currentTurn          = 1;
+    private volatile int               currentImpulse       = 1;
+    private volatile boolean           awaitingAllocation   = false;
+    private final    List<String>      pendingAllocation    = new CopyOnWriteArrayList<>();
+    private final    List<String>      movableNow           = new CopyOnWriteArrayList<>();
+    private final    Set<String>       myShipNames          = ConcurrentHashMap.newKeySet();
 
     // -------------------------------------------------------------------------
     // State change callback — SFBMapApp registers this to trigger a re-render
@@ -107,10 +110,17 @@ public class ServerGameClient implements GameFacade {
         this.gameId      = gameId;
         this.playerToken = playerToken;
 
-        // Ensure ShipLibrary is loaded (server already loaded it, but the client
-        // needs its own copy to construct Ship objects with full systems).
-        if (!ShipLibrary.isLoaded())
-            ShipLibrary.loadAllSpecs("data/factions");
+        // Ensure ShipLibrary is loaded. Try several candidate paths so the client
+        // works whether launched from the project root, the client subdir, or an IDE.
+        if (!ShipLibrary.isLoaded()) {
+            for (String path : new String[]{
+                    "data/factions",           // run from project root
+                    "../data/factions",        // run from amarillo-client subdir
+                    "../../data/factions"}) {  // run from deeper subdir
+                ShipLibrary.loadAllSpecs(path);
+                if (ShipLibrary.isLoaded()) break;
+            }
+        }
 
         // Start polling — initial fetch is immediate, then every 500 ms.
         poller.scheduleAtFixedRate(this::pollState, 0, 500, TimeUnit.MILLISECONDS);
@@ -152,11 +162,22 @@ public class ServerGameClient implements GameFacade {
         currentImpulse = dto.impulse;
         currentPhase   = phaseFromLabel(dto.phase);
 
+        // Sync TurnTracker so cloak fade steps render correctly
+        if (dto.absoluteImpulse > 0) {
+            int current = com.sfb.TurnTracker.getImpulse();
+            for (int i = current; i < dto.absoluteImpulse; i++)
+                com.sfb.TurnTracker.nextImpulse();
+        }
+
         movableNow.clear();
         if (dto.movableNow != null) movableNow.addAll(dto.movableNow);
 
         myShipNames.clear();
         if (dto.myShips != null) myShipNames.addAll(dto.myShips);
+
+        awaitingAllocation = dto.awaitingAllocation;
+        pendingAllocation.clear();
+        if (dto.pendingAllocation != null) pendingAllocation.addAll(dto.pendingAllocation);
 
         Set<String> seenShips = new HashSet<>();
         List<com.sfb.objects.Shuttle> newShuttles = new ArrayList<>();
@@ -208,6 +229,40 @@ public class ServerGameClient implements GameFacade {
         if (dto.shields != null) {
             for (GameStateDto.ShieldDto sd : dto.shields) {
                 ship.getShields().setShieldValue(sd.shieldNum, sd.current);
+            }
+        }
+
+        // Sync fire control and scanner
+        ship.setActiveFireControl(dto.activeFireControl);
+
+        // Update phaser capacitor
+        try { ship.getWeapons().chargePhaserCapacitor(
+                dto.phaserCapacitor - ship.getWeapons().getPhaserCapacitorEnergy());
+        } catch (Exception ignored) {}
+
+        // Sync cloak state and transition impulse
+        if (dto.cloakState != null && ship.getCloakingDevice() != null) {
+            try {
+                com.sfb.systemgroups.CloakingDevice.CloakState cs =
+                    com.sfb.systemgroups.CloakingDevice.CloakState.valueOf(dto.cloakState);
+                ship.getCloakingDevice().setState(cs);
+                ship.getCloakingDevice().setTransitionImpulse(dto.cloakTransitionImpulse);
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        // Sync all weapon states (arming + lastImpulseFired)
+        if (dto.weapons != null) {
+            for (GameStateDto.WeaponDto wd : dto.weapons) {
+                ship.getWeapons().fetchAllWeapons().stream()
+                    .filter(w -> wd.name.equals(w.getName()))
+                    .findFirst().ifPresent(w -> {
+                        w.setLastImpulseFired(wd.lastImpulseFired);
+                        if (w instanceof com.sfb.weapons.HeavyWeapon) {
+                            com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+                            hw.setArmingTurn(wd.armingTurn);
+                            hw.setArmed(wd.armed);
+                        }
+                    });
             }
         }
     }
@@ -359,6 +414,12 @@ public class ServerGameClient implements GameFacade {
     @Override public boolean canLaunchThisPhase()  { return currentPhase == Game.ImpulsePhase.ACTIVITY; }
 
     @Override public List<Ship> getMovableShips() {
+        if (movableNow.isEmpty()) return Collections.emptyList();
+        // If the globally next ship belongs to another player, we must wait.
+        String nextGlobal = movableNow.get(0);
+        if (!myShipNames.isEmpty() && !myShipNames.contains(nextGlobal))
+            return Collections.emptyList();
+        // It's our turn — return only our ships from the queue.
         List<Ship> result = new ArrayList<>();
         for (String name : movableNow) {
             if (!myShipNames.isEmpty() && !myShipNames.contains(name)) continue;
@@ -367,6 +428,9 @@ public class ServerGameClient implements GameFacade {
         }
         return result;
     }
+
+    /** Names of ships owned by this player. */
+    public Set<String> getMyShipNames() { return myShipNames; }
 
     /** The first ship in the global movement queue, regardless of ownership. Null if none. */
     public Ship getNextInQueue() {
@@ -385,16 +449,42 @@ public class ServerGameClient implements GameFacade {
         return Collections.emptyList();
     }
 
-    // Energy allocation is auto-handled server-side for now
-    @Override public boolean isAwaitingAllocation()    { return false; }
-    @Override public Ship    nextShipNeedingAllocation() { return null; }
+    @Override public boolean isAwaitingAllocation() { return awaitingAllocation; }
+    @Override public Ship nextShipNeedingAllocation() {
+        // Return the first pending ship that belongs to this player
+        for (String name : pendingAllocation) {
+            if (myShipNames.isEmpty() || myShipNames.contains(name)) {
+                return shipByName.get(name);
+            }
+        }
+        return null;
+    }
 
     // -------------------------------------------------------------------------
     // GameFacade — geometry queries (pure local computation)
     // -------------------------------------------------------------------------
 
-    @Override public int getRange(Unit a, Unit b)               { return MapUtils.getRange(a, b); }
-    @Override public int getEffectiveRange(Ship a, Unit b)      { return MapUtils.getRange(a, b); }
+    @Override public int getRange(Unit a, Unit b) { return MapUtils.getRange(a, b); }
+
+    @Override public int getEffectiveRange(Ship a, Unit b) {
+        int trueRange = MapUtils.getRange(a, b);
+        // Fully cloaked ships break all lock-ons — always double range.
+        // Otherwise, active fire control means lock-on is maintained — no doubling.
+        boolean fullyOrFadingCloaked = false;
+        int cloakBonus = 0;
+        if (b instanceof Ship) {
+            com.sfb.systemgroups.CloakingDevice cloak = ((Ship) b).getCloakingDevice();
+            if (cloak != null) {
+                com.sfb.systemgroups.CloakingDevice.CloakState cs = cloak.getState();
+                fullyOrFadingCloaked = (cs == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+                cloakBonus = cloak.getCloakBonus(com.sfb.TurnTracker.getImpulse());
+            }
+        }
+        boolean doubled = !a.isActiveFireControl() || fullyOrFadingCloaked;
+        int base = doubled ? trueRange * 2 : trueRange;
+        int scanner = a.getSpecialFunctions().getScanner();
+        return base + scanner + cloakBonus;
+    }
     @Override public int getShieldNumber(Marker a, Ship t) {
         int facing = t.getRelativeShieldFacing(a);
         int num = (facing % 2 == 0) ? facing / 2 : (facing + 1) / 2;
@@ -424,8 +514,74 @@ public class ServerGameClient implements GameFacade {
     @Override public ActionResult moveShuttle(com.sfb.objects.Shuttle s, ShuttleMoveCommand.Action a) {
         return ActionResult.fail("Shuttle movement via server not yet implemented");
     }
-    @Override public ActionResult allocateEnergy(Ship s, Energy e) {
-        return ActionResult.fail("Energy allocation via server not yet implemented");
+    @Override public ActionResult allocateEnergy(Ship ship, Energy e) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",      "ALLOCATE");
+            body.put("shipName",  ship.getName());
+
+            // Speed: warp movement energy / moveCost
+            double moveCost = ship.getPerformanceData().getMovementCost();
+            int warpSpeed = moveCost > 0 ? (int)(e.getWarpMovement() / moveCost) : 0;
+            int totalSpeed = warpSpeed + e.getImpulseMovement();
+            body.put("speed", totalSpeed);
+
+            // Phaser capacitor — topOff if any energy was allocated
+            body.put("topOffCap", e.getPhaserCapacitor() > 0);
+
+            // Shield mode
+            double activeCost   = ship.getActiveShieldCost();
+            double minimumCost  = ship.getMinimumShieldCost();
+            double allocShields = e.getActivateShields();
+            String shieldMode;
+            if (allocShields >= activeCost)        shieldMode = "ACTIVE";
+            else if (allocShields >= minimumCost)  shieldMode = "MINIMUM";
+            else                                   shieldMode = "OFF";
+            body.put("shieldMode", shieldMode);
+
+            // Heavy weapon arming
+            Map<String, String> arming = new LinkedHashMap<>();
+            for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                if (!(w instanceof com.sfb.weapons.HeavyWeapon)) continue;
+                WeaponArmingType type = e.getArmingType().get(w);
+                if (type == null) {
+                    arming.put(w.getName(), "SKIP");
+                } else {
+                    switch (type) {
+                        case OVERLOAD: arming.put(w.getName(), "OVERLOAD"); break;
+                        case SPECIAL:  arming.put(w.getName(), "ROLL");     break;
+                        default:       arming.put(w.getName(), "STANDARD"); break;
+                    }
+                }
+            }
+            body.put("weaponArming", arming);
+            body.put("cloakPaid",   e.isCloakPaid());
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            System.out.println("[allocate] response " + res.statusCode() + ": " + res.body());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            if (success) {
+                // Remove from local pending list immediately so the dialog loop terminates
+                pendingAllocation.remove(ship.getName());
+            }
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception ex) {
+            System.err.println("[allocate] error: " + ex.getMessage());
+            return ActionResult.fail("Network error: " + ex.getMessage());
+        }
     }
     @Override public ActionResult launchShuttle(Ship ship, ShuttleBay bay, com.sfb.objects.Shuttle s, int speed, int facing) {
         return ActionResult.fail("Shuttle launch via server not yet implemented");
@@ -437,7 +593,34 @@ public class ServerGameClient implements GameFacade {
         return ActionResult.fail("Plasma launch via server not yet implemented");
     }
     @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjusted, int shield) {
-        return ActionResult.fail("Fire via server not yet implemented");
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",          "FIRE");
+            body.put("shipName",      attacker.getName());
+            body.put("targetName",    target.getName());
+            body.put("weaponNames",   weapons.stream().map(Weapon::getName).collect(java.util.stream.Collectors.toList()));
+            body.put("range",         range);
+            body.put("adjustedRange", adjusted);
+            body.put("shieldNumber",  shield);
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult hitAndRun(Ship acting, Ship target, List<SystemTarget> targets) {
         return ActionResult.fail("Hit & run via server not yet implemented");
@@ -445,6 +628,6 @@ public class ServerGameClient implements GameFacade {
     @Override public ActionResult placeTBomb(Ship ship, Location loc, boolean isReal) {
         return ActionResult.fail("tBomb placement via server not yet implemented");
     }
-    @Override public ActionResult cloak(Ship ship)   { return ActionResult.fail("Cloak via server not yet implemented"); }
-    @Override public ActionResult uncloak(Ship ship) { return ActionResult.fail("Uncloak via server not yet implemented"); }
+    @Override public ActionResult cloak(Ship ship)   { return postAction("CLOAK",   ship.getName(), null); }
+    @Override public ActionResult uncloak(Ship ship) { return postAction("UNCLOAK", ship.getName(), null); }
 }

@@ -98,13 +98,13 @@ public class CloakingDeviceTest {
         cloak.activate(1);
         assertEquals(CloakState.FADING_OUT, cloak.getState());
 
-        // Impulses 2-5: still fading
+        // Impulses 2-5: still fading (step 2-5, elapsed 2-5, not yet > 5)
         for (int i = 2; i <= 5; i++) {
             cloak.updateState(i);
             assertEquals(CloakState.FADING_OUT, cloak.getState());
         }
 
-        // Impulse 6: 5 impulses elapsed since activation at impulse 1
+        // Impulse 6: elapsed = 6 > 5 → fully cloaked
         cloak.updateState(6);
         assertEquals(CloakState.FULLY_CLOAKED, cloak.getState());
     }
@@ -114,11 +114,12 @@ public class CloakingDeviceTest {
         cloak.setCostPaid(true);
         cloak.activate(10);
 
-        assertEquals(1, cloak.getFadeStep(11));
-        assertEquals(2, cloak.getFadeStep(12));
-        assertEquals(3, cloak.getFadeStep(13));
-        assertEquals(4, cloak.getFadeStep(14));
-        assertEquals(5, cloak.getFadeStep(15));
+        // Bonus starts on the activation impulse (G13.302)
+        assertEquals(1, cloak.getFadeStep(10));
+        assertEquals(2, cloak.getFadeStep(11));
+        assertEquals(3, cloak.getFadeStep(12));
+        assertEquals(4, cloak.getFadeStep(13));
+        assertEquals(5, cloak.getFadeStep(14));
     }
 
     @Test
@@ -126,11 +127,12 @@ public class CloakingDeviceTest {
         cloak.setCostPaid(true);
         cloak.activate(10);
 
-        assertEquals(1, cloak.getCloakBonus(11));
-        assertEquals(2, cloak.getCloakBonus(12));
-        assertEquals(3, cloak.getCloakBonus(13));
-        assertEquals(4, cloak.getCloakBonus(14));
-        assertEquals(5, cloak.getCloakBonus(15));
+        // Bonus starts on the activation impulse (G13.302)
+        assertEquals(1, cloak.getCloakBonus(10));
+        assertEquals(2, cloak.getCloakBonus(11));
+        assertEquals(3, cloak.getCloakBonus(12));
+        assertEquals(4, cloak.getCloakBonus(13));
+        assertEquals(5, cloak.getCloakBonus(14));
     }
 
     // -------------------------------------------------------------------------
@@ -204,11 +206,13 @@ public class CloakingDeviceTest {
         cloak.deactivate(10);
         assertEquals(CloakState.FADING_IN, cloak.getState());
 
+        // Impulses 11-14: still fading in (elapsed 2-5, not yet > 5)
         for (int i = 11; i <= 14; i++) {
             cloak.updateState(i);
             assertEquals(CloakState.FADING_IN, cloak.getState());
         }
 
+        // Impulse 15: elapsed = 6 > 5 → inactive
         cloak.updateState(15);
         assertEquals(CloakState.INACTIVE, cloak.getState());
     }
@@ -218,11 +222,12 @@ public class CloakingDeviceTest {
         activateAndFullyCloak(1);
         cloak.deactivate(10);
 
-        assertEquals(5, cloak.getCloakBonus(11));
-        assertEquals(4, cloak.getCloakBonus(12));
-        assertEquals(3, cloak.getCloakBonus(13));
-        assertEquals(2, cloak.getCloakBonus(14));
-        assertEquals(1, cloak.getCloakBonus(15));
+        // Fade-in bonus starts on the deactivation impulse
+        assertEquals(5, cloak.getCloakBonus(10));
+        assertEquals(4, cloak.getCloakBonus(11));
+        assertEquals(3, cloak.getCloakBonus(12));
+        assertEquals(2, cloak.getCloakBonus(13));
+        assertEquals(1, cloak.getCloakBonus(14));
     }
 
     @Test
@@ -230,11 +235,12 @@ public class CloakingDeviceTest {
         activateAndFullyCloak(1);
         cloak.deactivate(10);
 
-        assertEquals(1, cloak.getFadeStep(11));
-        assertEquals(2, cloak.getFadeStep(12));
-        assertEquals(3, cloak.getFadeStep(13));
-        assertEquals(4, cloak.getFadeStep(14));
-        assertEquals(5, cloak.getFadeStep(15));
+        // Fade-in step starts on the deactivation impulse
+        assertEquals(1, cloak.getFadeStep(10));
+        assertEquals(2, cloak.getFadeStep(11));
+        assertEquals(3, cloak.getFadeStep(12));
+        assertEquals(4, cloak.getFadeStep(13));
+        assertEquals(5, cloak.getFadeStep(14));
     }
 
     @Test
@@ -357,7 +363,7 @@ public class CloakingDeviceTest {
     // Helper
     // -------------------------------------------------------------------------
 
-    /** Activate and advance 5 impulses to reach FULLY_CLOAKED state. */
+    /** Activate and advance until FULLY_CLOAKED (activation impulse = step 1, takes 5 more). */
     private void activateAndFullyCloak(int startImpulse) {
         cloak.setCostPaid(true);
         cloak.activate(startImpulse);
