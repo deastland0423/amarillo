@@ -71,4 +71,10 @@ public class ActionRequest {
 
     public boolean isCloakPaid()                   { return cloakPaid; }
     public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
+
+    // LAUNCH_PLASMA fields
+    private boolean pseudo;
+
+    public boolean isPseudo()                { return pseudo; }
+    public void    setPseudo(boolean pseudo) { this.pseudo = pseudo; }
 }

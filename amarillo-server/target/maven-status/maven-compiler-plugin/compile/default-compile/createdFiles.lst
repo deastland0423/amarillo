@@ -1,1 +1,10 @@
+com\sfb\server\ActionRequest.class
 com\sfb\server\AmarilloServerApplication.class
+com\sfb\server\GameSession.class
+com\sfb\server\WebSocketConfig.class
+com\sfb\server\GameSession$PlayerInfo.class
+com\sfb\server\LobbyStateDto$PlayerDto.class
+com\sfb\server\GameStateDto.class
+com\sfb\server\GameSessionService.class
+com\sfb\server\GameController.class
+com\sfb\server\LobbyStateDto.class

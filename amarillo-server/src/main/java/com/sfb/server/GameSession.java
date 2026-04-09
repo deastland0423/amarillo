@@ -6,8 +6,13 @@ import com.sfb.Player;
 import com.sfb.commands.AdvancePhaseCommand;
 import com.sfb.commands.CloakCommand;
 import com.sfb.commands.FireCommand;
+import com.sfb.commands.LaunchDroneCommand;
+import com.sfb.commands.LaunchPlasmaCommand;
 import com.sfb.commands.MoveCommand;
+import com.sfb.commands.ShuttleMoveCommand;
 import com.sfb.commands.UncloakCommand;
+import com.sfb.objects.Shuttle;
+import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.constants.Constants;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -285,6 +290,92 @@ public class GameSession {
                 return game.execute(new FireCommand(
                         attacker, target, weapons,
                         request.getRange(), request.getAdjustedRange(), request.getShieldNumber()));
+            }
+
+            case "LAUNCH_SHUTTLE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String shuttleName = request.getAction(); // shuttle name passed in action field
+                int speed    = request.getSpeed();
+                int facing   = request.getRange(); // reuse range field for facing
+                // Find the shuttle in any bay
+                ShuttleBay foundBay = null;
+                Shuttle foundShuttle = null;
+                for (ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (Shuttle s : bay.getInventory()) {
+                        if (s.getName().equalsIgnoreCase(shuttleName)) {
+                            foundBay     = bay;
+                            foundShuttle = s;
+                            break;
+                        }
+                    }
+                    if (foundBay != null) break;
+                }
+                if (foundBay == null || foundShuttle == null)
+                    return ActionResult.fail("Shuttle not found: " + shuttleName);
+                return game.launchShuttle(ship, foundBay, foundShuttle, speed, facing);
+            }
+
+            case "MOVE_SHUTTLE": {
+                String shuttleName = request.getShipName(); // shuttle name in shipName field
+                com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
+                        .findFirst().orElse(null);
+                if (shuttle == null)
+                    return ActionResult.fail("Active shuttle not found: " + shuttleName);
+                ShuttleMoveCommand.Action action;
+                try {
+                    action = ShuttleMoveCommand.Action.valueOf(request.getAction().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    return ActionResult.fail("Unknown shuttle action: " + request.getAction());
+                }
+                return game.execute(new ShuttleMoveCommand(shuttle, action));
+            }
+
+            case "LAUNCH_DRONE": {
+                Ship attacker = findShip(request.getShipName());
+                if (attacker == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                String rackName = request.getWeaponNames() != null && !request.getWeaponNames().isEmpty()
+                        ? request.getWeaponNames().get(0) : null;
+                if (rackName == null)
+                    return ActionResult.fail("No rack specified");
+                com.sfb.weapons.DroneRack rack = attacker.getWeapons().fetchAllWeapons().stream()
+                        .filter(w -> w instanceof com.sfb.weapons.DroneRack
+                                && w.getName().equalsIgnoreCase(rackName))
+                        .map(w -> (com.sfb.weapons.DroneRack) w)
+                        .findFirst().orElse(null);
+                if (rack == null)
+                    return ActionResult.fail("Drone rack not found: " + rackName);
+                int droneIndex = request.getRange(); // reuse range field as drone index
+                if (droneIndex < 0 || droneIndex >= rack.getAmmo().size())
+                    return ActionResult.fail("Invalid drone index: " + droneIndex);
+                com.sfb.objects.Drone drone = rack.getAmmo().get(droneIndex);
+                return game.execute(new LaunchDroneCommand(attacker, target, rack, drone));
+            }
+
+            case "LAUNCH_PLASMA": {
+                Ship attacker = findShip(request.getShipName());
+                if (attacker == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                String wName = request.getWeaponNames() != null && !request.getWeaponNames().isEmpty()
+                        ? request.getWeaponNames().get(0) : null;
+                if (wName == null)
+                    return ActionResult.fail("No launcher specified");
+                PlasmaLauncher launcher = attacker.getWeapons().fetchAllWeapons().stream()
+                        .filter(w -> w instanceof PlasmaLauncher && w.getName().equalsIgnoreCase(wName))
+                        .map(w -> (PlasmaLauncher) w)
+                        .findFirst().orElse(null);
+                if (launcher == null)
+                    return ActionResult.fail("Plasma launcher not found: " + wName);
+                return game.execute(new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo()));
             }
 
             case "CLOAK": {
