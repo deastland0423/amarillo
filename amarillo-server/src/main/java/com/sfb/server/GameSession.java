@@ -378,6 +378,22 @@ public class GameSession {
                 return game.execute(new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo()));
             }
 
+            case "PLACE_TBOMB": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String locStr = request.getAction(); // "x|y" packed in action field
+                com.sfb.properties.Location loc;
+                try {
+                    String[] parts = locStr.split("\\|");
+                    loc = new com.sfb.properties.Location(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+                } catch (Exception e) {
+                    return ActionResult.fail("Invalid location: " + locStr);
+                }
+                boolean isReal = !request.isPseudo();
+                return game.placeTBomb(ship, loc, isReal);
+            }
+
             case "CLOAK": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
