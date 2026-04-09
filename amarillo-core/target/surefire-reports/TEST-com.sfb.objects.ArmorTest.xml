@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="8" failures="0" name="com.sfb.objects.ArmorTest" time="0.006" errors="0" skipped="0">
+<testsuite tests="8" failures="0" name="com.sfb.objects.ArmorTest" time="0.005" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -66,10 +66,10 @@
   </properties>
   <testcase classname="com.sfb.objects.ArmorTest" name="secondHitAfterDepletionGoesFullyToDac" time="0.003"/>
   <testcase classname="com.sfb.objects.ArmorTest" name="bleedExceedingArmorDepletesArmorToZero" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorDepletesArmorToZero" time="0.001"/>
+  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorDepletesArmorToZero" time="0"/>
   <testcase classname="com.sfb.objects.ArmorTest" name="armorInitialisedFromSpec" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorProducesNoLogEntries" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorProducesNoLogEntries" time="0.001"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedExceedingArmorProducesLogEntriesForExcess" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorReducesArmorByBleedAmount" time="0.001"/>
+  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorProducesNoLogEntries" time="0.001"/>
+  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorProducesNoLogEntries" time="0"/>
+  <testcase classname="com.sfb.objects.ArmorTest" name="bleedExceedingArmorProducesLogEntriesForExcess" time="0.001"/>
+  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorReducesArmorByBleedAmount" time="0"/>
 </testsuite>

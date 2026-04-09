@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="25" failures="0" name="com.sfb.objects.SpaceMineTest" time="0.008" errors="0" skipped="0">
+<testsuite tests="22" failures="0" name="com.sfb.objects.SuicideShuttleTest" time="0.013" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -64,29 +64,26 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="newMine_isNotRevealed" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_stationary_rollOf1_notDetected" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_whenAtLeast2ImpulsesElapsed_andLayerGone" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="nsmIsAlwaysRealAndCannotBeRevealed" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_speed5_roll5_notDetected" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollGreaterThanSpeed_detects" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="createDummyTBomb_isNotReal" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="reveal_hasNoEffectOnRealMine" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="reveal_marksRevealedOnDummy" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_speed5_roll6_detects" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollLessThanSpeed_notDetected" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_onExactly2ImpulsesElapsed" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="createNSMine_isAlwaysReal" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLayerWithin1Hex" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_returnsFalse_whenMineInactive" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_atExactly1ImpulseElapsed" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLessThan2ImpulsesElapsed" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="createTBomb_isRealByDefault" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_whenLayerAt2Hexes" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="mineType_damageValues" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_autoDetects_whenSpeedAtLeast6" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="activeState_isPermanent" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="newMine_isInactive" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLayerAtRange0" time="0"/>
-  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollEqualToSpeed_notDetected" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="warheadDamage_maxAt9Energy" time="0.002"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsWhenAlreadyArmed" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="newShuttle_warheadIsZero" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_twoTimesNotYetArmed" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_addsSuicideShuttleToSeekers" time="0.003"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="endurance_isEffectivelyUnlimited" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_setsTargetAndController" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_succeedsWhenAllConditionsMet" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWhenNotArmed" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWhenNotActivityPhase" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_logIncludesWarheadDamage" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsFourOrMoreEnergy" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="newShuttle_isNotArmed" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="impact_returnsWarheadDamage" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWithoutLockOn" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="isSelfGuiding_false" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsZeroEnergy" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="warheadDamage_isTwiceTotalEnergy" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_removesShuttleFromBay" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_acceptsOneToThreeEnergy" time="0"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="seekerType_isShuttle" time="0.001"/>
+  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_threeTimesArmsShuttle" time="0"/>
 </testsuite>

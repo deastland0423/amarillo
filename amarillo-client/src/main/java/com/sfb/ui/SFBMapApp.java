@@ -1,5 +1,6 @@
 package com.sfb.ui;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.Game;
@@ -62,6 +63,7 @@ public class SFBMapApp extends Application {
     private boolean       plasmaMode       = false;
     private boolean       hitAndRunMode    = false;
     private boolean       shuttleMode      = false;
+    private boolean       suicideShuttleMode = false;
     private com.sfb.objects.Shuttle         selectedShuttle = null;
     private com.sfb.systemgroups.ShuttleBay pendingBay     = null;
     private com.sfb.objects.Shuttle         pendingShuttle = null;
@@ -188,11 +190,12 @@ public class SFBMapApp extends Application {
         // --- Keyboard ---
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                if (firingMode)        exitFiringMode();
-                if (droneMode)         exitDroneMode();
-                if (plasmaMode)        exitPlasmaMode();
-                if (shuttleMode)       exitShuttleMode();
-                if (hitAndRunMode)     exitHitAndRunMode();
+                if (firingMode)            exitFiringMode();
+                if (droneMode)             exitDroneMode();
+                if (plasmaMode)            exitPlasmaMode();
+                if (shuttleMode)           exitShuttleMode();
+                if (hitAndRunMode)         exitHitAndRunMode();
+                if (suicideShuttleMode)  { suicideShuttleMode = false; pendingShuttle = null; mapCanvas.setFiringMode(false); mapCanvas.render(); }
                 if (selectedShuttle != null) { selectedShuttle = null; selectedLabel.setText(""); }
                 if (mapCanvas.isHexSelectionMode()) {
                     mapCanvas.exitHexSelectionMode();
@@ -309,6 +312,47 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
+            if (event.getCode() == KeyCode.U) {
+                if (!game.canLaunchThisPhase()) {
+                    setStatus("Suicide shuttles can only be launched during the Activity phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                // Find armed suicide shuttles in any bay
+                List<com.sfb.objects.SuicideShuttle> armedList = new ArrayList<>();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                        if (s instanceof com.sfb.objects.SuicideShuttle
+                                && ((com.sfb.objects.SuicideShuttle) s).isArmed())
+                            armedList.add((com.sfb.objects.SuicideShuttle) s);
+                    }
+                }
+                if (armedList.isEmpty()) {
+                    setStatus(ship.getName() + " has no fully-armed suicide shuttles");
+                    return;
+                }
+                // Pick shuttle (auto-select if only one)
+                com.sfb.objects.SuicideShuttle chosen;
+                if (armedList.size() == 1) {
+                    chosen = armedList.get(0);
+                } else {
+                    javafx.scene.control.ChoiceDialog<com.sfb.objects.SuicideShuttle> pick =
+                            new javafx.scene.control.ChoiceDialog<>(armedList.get(0), armedList);
+                    pick.setTitle("Launch Suicide Shuttle");
+                    pick.setHeaderText("Select suicide shuttle to launch:");
+                    pick.initOwner(mapCanvas.getScene().getWindow());
+                    chosen = pick.showAndWait().orElse(null);
+                    if (chosen == null) { setStatus("Cancelled"); return; }
+                }
+                // Enter target-selection mode
+                pendingShuttle      = chosen;
+                suicideShuttleMode = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("SUICIDE SHUTTLE — click target ship  (Escape to cancel)");
+                mapCanvas.render();
+                return;
+            }
             if (event.getCode() == KeyCode.B) {
                 if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY) {
                     setStatus("tBombs can only be placed during the Activity phase");
@@ -371,7 +415,7 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode || droneMode || plasmaMode || hitAndRunMode) return;
+            if (firingMode || droneMode || plasmaMode || hitAndRunMode || suicideShuttleMode) return;
 
             // Shuttle movement: only in MOVEMENT phase when all ships have moved
             if (selectedShuttle != null
@@ -747,6 +791,23 @@ public class SFBMapApp extends Application {
             } else {
                 resolveWeaponsFire(attacker, hitUnit);
                 exitFiringMode();
+            }
+        } else if (suicideShuttleMode) {
+            Ship launcher = mapCanvas.getSelectedShip();
+            if (hitShip == null) {
+                setStatus("Click an enemy ship — or press Escape to cancel");
+            } else if (hitShip == launcher) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else if (pendingShuttle instanceof com.sfb.objects.SuicideShuttle) {
+                Game.ActionResult result = game.launchSuicideShuttle(
+                        launcher, (com.sfb.objects.SuicideShuttle) pendingShuttle, hitShip);
+                combatLog.appendText(result.getMessage() + "\n");
+                setStatus(result.getMessage());
+                mapCanvas.setSeekers(game.getSeekers());
+                mapCanvas.render();
+                suicideShuttleMode = false;
+                pendingShuttle = null;
+                mapCanvas.setFiringMode(false);
             }
         } else if (hitAndRunMode) {
             Ship actingShip = mapCanvas.getSelectedShip();

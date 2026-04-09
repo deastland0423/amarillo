@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="10" failures="0" name="com.sfb.objects.SpeedCalculationTest" time="0.001" errors="0" skipped="0">
+<testsuite tests="10" failures="0" name="com.sfb.objects.SpeedCalculationTest" time="0.002" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -68,10 +68,10 @@
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="noImpulseCannotReachSpeed31" time="0"/>
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="lowWarpProducesCorrectPartialSpeed" time="0"/>
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="lowWarpPlusImpulseAddsOne" time="0"/>
-  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="warpAloneGivesUpToSpeed30" time="0"/>
+  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="warpAloneGivesUpToSpeed30" time="0.001"/>
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="oneImpulsePointGivesPlusOneSpeed" time="0"/>
-  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="warpCappedWithFractionalMoveCost" time="0.001"/>
-  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="excessWarpIsCappedAtSpeed30" time="0"/>
+  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="warpCappedWithFractionalMoveCost" time="0"/>
+  <testcase classname="com.sfb.objects.SpeedCalculationTest" name="excessWarpIsCappedAtSpeed30" time="0.001"/>
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="impulseIsFlatPlusOneWithOneThirdMoveCost" time="0"/>
   <testcase classname="com.sfb.objects.SpeedCalculationTest" name="impulseIsFlatPlusOneWithHalfMoveCost" time="0"/>
 </testsuite>

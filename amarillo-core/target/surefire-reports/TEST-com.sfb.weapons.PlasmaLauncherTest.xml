@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="19" failures="0" name="com.sfb.weapons.PlasmaLauncherTest" time="0" errors="0" skipped="0">
+<testsuite tests="19" failures="0" name="com.sfb.weapons.PlasmaLauncherTest" time="0.001" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -71,7 +71,7 @@
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaGEnveloping" time="0"/>
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="boltFireUnarmedThrows" time="0"/>
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaFRollingMode" time="0"/>
-  <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaGRollingMode" time="0"/>
+  <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaGRollingMode" time="0.001"/>
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="boltFireOutOfRangeThrows" time="0"/>
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaFResetClearsState" time="0"/>
   <testcase classname="com.sfb.weapons.PlasmaLauncherTest" name="plasmaGCanArmFInside" time="0"/>

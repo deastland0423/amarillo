@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="44" failures="0" name="com.sfb.utilities.MapUtilsTest" time="0.001" errors="0" skipped="0">
+<testsuite tests="44" failures="0" name="com.sfb.utilities.MapUtilsTest" time="0" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -99,7 +99,7 @@
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentSWFromOddColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testBearingSouthwestSpine" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRelativeShieldFacingEastFacingNorth" time="0"/>
-  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentInvalidBearingReturnsNull" time="0.001"/>
+  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentInvalidBearingReturnsNull" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentSEFromOddColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRelativeShieldFacingAllSixFacings" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRangePurelyHorizontal" time="0"/>

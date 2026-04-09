@@ -317,6 +317,32 @@ public class GameSession {
                 return game.launchShuttle(ship, foundBay, foundShuttle, speed, facing);
             }
 
+            case "LAUNCH_SUICIDE_SHUTTLE": {
+                Ship launcher = findShip(request.getShipName());
+                if (launcher == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String shuttleName = request.getAction();
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                ShuttleBay foundBay = null;
+                com.sfb.objects.SuicideShuttle foundShuttle = null;
+                for (ShuttleBay bay : launcher.getShuttles().getBays()) {
+                    for (Shuttle s : bay.getInventory()) {
+                        if (s.getName().equalsIgnoreCase(shuttleName)
+                                && s instanceof com.sfb.objects.SuicideShuttle) {
+                            foundBay     = bay;
+                            foundShuttle = (com.sfb.objects.SuicideShuttle) s;
+                            break;
+                        }
+                    }
+                    if (foundBay != null) break;
+                }
+                if (foundBay == null || foundShuttle == null)
+                    return ActionResult.fail("Armed suicide shuttle not found: " + shuttleName);
+                return game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target);
+            }
+
             case "MOVE_SHUTTLE": {
                 String shuttleName = request.getShipName(); // shuttle name in shipName field
                 com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
@@ -392,6 +418,41 @@ public class GameSession {
                 }
                 boolean isReal = !request.isPseudo();
                 return game.placeTBomb(ship, loc, isReal);
+            }
+
+            case "HIT_AND_RUN": {
+                Ship actingShip = findShip(request.getShipName());
+                if (actingShip == null)
+                    return ActionResult.fail("Acting ship not found: " + request.getShipName());
+                Ship targetShip = findShip(request.getTargetName());
+                if (targetShip == null)
+                    return ActionResult.fail("Target ship not found: " + request.getTargetName());
+                List<String> systemCodes = request.getWeaponNames();
+                if (systemCodes == null || systemCodes.isEmpty())
+                    return ActionResult.fail("No target systems specified");
+
+                // Resolve each "TYPE" or "WEAPON:name" code into a SystemTarget
+                List<com.sfb.properties.SystemTarget> targetSystems = new ArrayList<>();
+                for (String code : systemCodes) {
+                    if (code.startsWith("WEAPON:")) {
+                        String weaponName = code.substring(7);
+                        com.sfb.weapons.Weapon w = targetShip.getWeapons().fetchAllWeapons().stream()
+                                .filter(x -> x.getName().equalsIgnoreCase(weaponName))
+                                .findFirst().orElse(null);
+                        if (w == null)
+                            return ActionResult.fail("Weapon not found on target: " + weaponName);
+                        targetSystems.add(new com.sfb.properties.SystemTarget(w));
+                    } else {
+                        try {
+                            com.sfb.properties.SystemTarget.Type type =
+                                    com.sfb.properties.SystemTarget.Type.valueOf(code.toUpperCase());
+                            targetSystems.add(new com.sfb.properties.SystemTarget(type, code));
+                        } catch (IllegalArgumentException e) {
+                            return ActionResult.fail("Unknown system type: " + code);
+                        }
+                    }
+                }
+                return game.execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
             }
 
             case "CLOAK": {

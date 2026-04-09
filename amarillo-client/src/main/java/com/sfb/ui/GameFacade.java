@@ -5,6 +5,7 @@ import com.sfb.Game.ActionResult;
 import com.sfb.commands.MoveCommand;
 import com.sfb.commands.ShuttleMoveCommand;
 import com.sfb.objects.*;
+import com.sfb.objects.SuicideShuttle;
 import com.sfb.properties.Location;
 import com.sfb.properties.SystemTarget;
 import com.sfb.systems.Energy;
@@ -52,6 +53,7 @@ public interface GameFacade {
     ActionResult moveShuttle(com.sfb.objects.Shuttle shuttle, ShuttleMoveCommand.Action action);
     ActionResult allocateEnergy(Ship ship, Energy allocation);
     ActionResult launchShuttle(Ship ship, ShuttleBay bay, com.sfb.objects.Shuttle shuttle, int speed, int facing);
+    ActionResult launchSuicideShuttle(Ship launcher, com.sfb.objects.SuicideShuttle shuttle, Unit target);
     ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone);
     ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo);
     ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shieldNumber);

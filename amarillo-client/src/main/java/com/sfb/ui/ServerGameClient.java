@@ -194,6 +194,8 @@ public class ServerGameClient implements GameFacade {
                     newSeekers.add(buildDrone((GameStateDto.DroneDto) obj));
                 else if (obj instanceof GameStateDto.PlasmaTorpedoDto)
                     newSeekers.add(buildPlasma((GameStateDto.PlasmaTorpedoDto) obj));
+                else if (obj instanceof GameStateDto.SuicideShuttleDto)
+                    newSeekers.add(buildSuicideShuttle((GameStateDto.SuicideShuttleDto) obj));
                 else if (obj instanceof GameStateDto.MineDto)
                     newMines.add(buildMine((GameStateDto.MineDto) obj));
             }
@@ -236,6 +238,10 @@ public class ServerGameClient implements GameFacade {
         ship.setActiveFireControl(dto.activeFireControl);
         ship.setTBombs(dto.tBombs);
         ship.setDummyTBombs(dto.dummyTBombs);
+        ship.getCrew().setAvailableBoardingParties(dto.boardingParties);
+        // Sync transporter energy: bank exactly enough for the reported available uses
+        ship.getTransporters().cleanUp();
+        ship.getTransporters().bankEnergy(dto.transporterUses * 0.2);
 
         // Update phaser capacitor
         try { ship.getWeapons().chargePhaserCapacitor(
@@ -314,6 +320,12 @@ public class ServerGameClient implements GameFacade {
                     for (GameStateDto.ShuttleInBayDto sd : bd.shuttles) {
                         com.sfb.objects.Shuttle s = com.sfb.systemgroups.ShuttleBay.buildShuttle(
                                 sd.type != null ? sd.type : "admin", sd.name);
+                        if (s instanceof com.sfb.objects.SuicideShuttle) {
+                            com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
+                            // Replay arm() calls to match server arming state
+                            for (int i = 0; i < sd.armingTurnsComplete && i < 3; i++)
+                                ss.arm(sd.warheadDamage > 0 ? (sd.warheadDamage / 2 / Math.max(1, sd.armingTurnsComplete)) : 1);
+                        }
                         bay.getInventory().add(s);
                     }
                 }
@@ -395,6 +407,23 @@ public class ServerGameClient implements GameFacade {
         p.setPseudoPlasma(dto.pseudo);
         p.setDamageTaken(dto.damageTaken);
         return p;
+    }
+
+    private com.sfb.objects.SuicideShuttle buildSuicideShuttle(GameStateDto.SuicideShuttleDto dto) {
+        com.sfb.objects.SuicideShuttle ss = new com.sfb.objects.SuicideShuttle(new com.sfb.objects.AdminShuttle());
+        ss.setName(dto.name);
+        if (dto.location != null) ss.setLocation(parseLocation(dto.location));
+        ss.setFacing(dto.facing);
+        ss.setSpeed(dto.speed);
+        if (dto.controllerName != null) {
+            Ship ctrl = shipByName.get(dto.controllerName);
+            if (ctrl != null) ss.setController(ctrl);
+        }
+        if (dto.targetName != null) {
+            Ship tgt = shipByName.get(dto.targetName);
+            if (tgt != null) ss.setTarget(tgt);
+        }
+        return ss;
     }
 
     private SpaceMine buildMine(GameStateDto.MineDto dto) {
@@ -577,8 +606,49 @@ public class ServerGameClient implements GameFacade {
         return a.fetchAllBearingWeapons(t);
     }
     @Override public List<SystemTarget> getTargetableSystems(Ship s) {
-        // Hit & Run not yet implemented via server — return empty list
-        return Collections.emptyList();
+        // Compute locally — the ship object is fully synced from the server so
+        // all system functional states are current.
+        List<SystemTarget> result = new ArrayList<>();
+
+        for (Weapon w : s.getWeapons().fetchAllWeapons()) {
+            if (w.isFunctional())
+                result.add(new SystemTarget(w));
+        }
+
+        com.sfb.systemgroups.PowerSystems ps = s.getPowerSysetems();
+        if (ps.getAvailableLWarp() > 0 || ps.getAvailableRWarp() > 0 || ps.getAvailableCWarp() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.WARP,         "Warp Engines"));
+        if (ps.getAvailableImpulse() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.IMPULSE,      "Impulse Engines"));
+
+        com.sfb.systems.SpecialFunctions sf = s.getSpecialFunctions();
+        if (sf.canDamageSensor())
+            result.add(new SystemTarget(SystemTarget.Type.SENSORS,      "Sensors"));
+        if (sf.canDamageScanner())
+            result.add(new SystemTarget(SystemTarget.Type.SCANNERS,     "Scanners"));
+
+        if (s.getTransporters().getAvailableTrans() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters"));
+        if (s.getCrew().getAvailableCrewUnits() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.CREW,         "Crew"));
+
+        com.sfb.systemgroups.CloakingDevice cloak = s.getCloakingDevice();
+        if (cloak != null && cloak.isFunctional())
+            result.add(new SystemTarget(SystemTarget.Type.CLOAKING_DEVICE, "Cloaking Device"));
+
+        com.sfb.systemgroups.DERFACS derfacs = s.getDerfacs();
+        if (derfacs != null && derfacs.isFunctional())
+            result.add(new SystemTarget(SystemTarget.Type.DERFACS,      "DERFACS"));
+
+        com.sfb.systemgroups.HullBoxes h = s.getHullBoxes();
+        if (h.getAvailableFhull() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.FHULL,        "Forward Hull"));
+        if (h.getAvailableAhull() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.AHULL,        "Aft Hull"));
+        if (h.getAvailableChull() > 0)
+            result.add(new SystemTarget(SystemTarget.Type.CHULL,        "Center Hull"));
+
+        return result;
     }
 
     // -------------------------------------------------------------------------
@@ -791,8 +861,69 @@ public class ServerGameClient implements GameFacade {
             return ActionResult.fail("Network error: " + e.getMessage());
         }
     }
+    @Override public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.objects.SuicideShuttle shuttle, Unit target) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",       "LAUNCH_SUICIDE_SHUTTLE");
+            body.put("shipName",   launcher.getName());
+            body.put("action",     shuttle.getName());   // shuttle name in action field
+            body.put("targetName", target.getName());
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
+    }
+
     @Override public ActionResult hitAndRun(Ship acting, Ship target, List<SystemTarget> targets) {
-        return ActionResult.fail("Hit & run via server not yet implemented");
+        try {
+            List<String> systemCodes = new ArrayList<>();
+            for (SystemTarget st : targets) {
+                if (st.getType() == SystemTarget.Type.WEAPON) {
+                    systemCodes.add("WEAPON:" + st.getWeapon().getName());
+                } else {
+                    systemCodes.add(st.getType().name());
+                }
+            }
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",        "HIT_AND_RUN");
+            body.put("shipName",    acting.getName());
+            body.put("targetName",  target.getName());
+            body.put("weaponNames", systemCodes);
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult placeTBomb(Ship ship, Location loc, boolean isReal) {
         try {

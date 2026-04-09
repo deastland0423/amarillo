@@ -85,6 +85,7 @@ public class ShuttleBay {
         switch (type.toLowerCase()) {
             case "gas":     s = new GASShuttle();   break;
             case "hts":     s = new HTSShuttle();   break;
+            case "suicide": s = new com.sfb.objects.SuicideShuttle(new com.sfb.objects.AdminShuttle()); break;
             case "admin":
             default:        s = new AdminShuttle();  break;
         }

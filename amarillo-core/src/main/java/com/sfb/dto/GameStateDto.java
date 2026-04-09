@@ -35,11 +35,12 @@ public class GameStateDto {
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
-        @JsonSubTypes.Type(value = ShipDto.class,          name = "SHIP"),
-        @JsonSubTypes.Type(value = ShuttleDto.class,       name = "SHUTTLE"),
-        @JsonSubTypes.Type(value = DroneDto.class,         name = "DRONE"),
-        @JsonSubTypes.Type(value = PlasmaTorpedoDto.class, name = "PLASMA"),
-        @JsonSubTypes.Type(value = MineDto.class,          name = "MINE"),
+        @JsonSubTypes.Type(value = ShipDto.class,             name = "SHIP"),
+        @JsonSubTypes.Type(value = ShuttleDto.class,          name = "SHUTTLE"),
+        @JsonSubTypes.Type(value = SuicideShuttleDto.class,   name = "SUICIDE_SHUTTLE"),
+        @JsonSubTypes.Type(value = DroneDto.class,            name = "DRONE"),
+        @JsonSubTypes.Type(value = PlasmaTorpedoDto.class,    name = "PLASMA"),
+        @JsonSubTypes.Type(value = MineDto.class,             name = "MINE"),
     })
     public static abstract class MapObjectDto {
         public String name;
@@ -83,9 +84,12 @@ public class GameStateDto {
     }
 
     public static class ShuttleInBayDto {
-        public String name;
-        public String type;  // "admin", "gas", "hts"
-        public int    maxSpeed;
+        public String  name;
+        public String  type;             // "admin", "gas", "hts", "suicide"
+        public int     maxSpeed;
+        public boolean armed;            // suicide only: true when armingTurnsComplete >= 3
+        public int     armingTurnsComplete; // suicide only: 0-3
+        public int     warheadDamage;    // suicide only: totalEnergy * 2
     }
 
     public static class ShuttleBayDto {
@@ -112,6 +116,8 @@ public class GameStateDto {
         public int                  tBombs;
         public int                  dummyTBombs;
         public int                  transporterUses;
+        public int                  boardingParties;
+        public int                  availableTransporters;
     }
 
     // -------------------------------------------------------------------------
@@ -122,6 +128,19 @@ public class GameStateDto {
         public int    facing;
         public int    speed;
         public String parentPlayer; // name of the player who owns this shuttle
+    }
+
+    // -------------------------------------------------------------------------
+    // Suicide shuttle (seeker)
+    // -------------------------------------------------------------------------
+
+    public static class SuicideShuttleDto extends MapObjectDto {
+        public int    facing;
+        public int    speed;
+        public String controllerName;   // name of the controlling ship
+        public String targetName;
+        public int    warheadDamage;    // totalEnergy * 2
+        public int    armingTurnsComplete;
     }
 
     // -------------------------------------------------------------------------
@@ -213,6 +232,8 @@ public class GameStateDto {
                 mapObjects.add(fromDrone((Drone) seeker));
             else if (seeker instanceof PlasmaTorpedo)
                 mapObjects.add(fromPlasma((PlasmaTorpedo) seeker));
+            else if (seeker instanceof com.sfb.objects.SuicideShuttle)
+                mapObjects.add(fromSuicideShuttle((com.sfb.objects.SuicideShuttle) seeker));
         }
 
         for (SpaceMine mine : game.getMines())
@@ -256,9 +277,11 @@ public class GameStateDto {
         dto.phaserCapacitor    = ship.getWeapons().getPhaserCapacitorEnergy();
         dto.activeFireControl  = ship.isActiveFireControl();
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
-        dto.tBombs             = ship.getTBombs();
-        dto.dummyTBombs        = ship.getDummyTBombs();
-        dto.transporterUses    = ship.getTransporters().availableUses();
+        dto.tBombs                = ship.getTBombs();
+        dto.dummyTBombs           = ship.getDummyTBombs();
+        dto.transporterUses       = ship.getTransporters().availableUses();
+        dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
+        dto.availableTransporters = ship.getTransporters().getAvailableTrans();
 
         dto.weapons = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -313,6 +336,12 @@ public class GameStateDto {
                 sd.name     = s.getName();
                 sd.type     = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
                 sd.maxSpeed = s.getMaxSpeed();
+                if (s instanceof com.sfb.objects.SuicideShuttle) {
+                    com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
+                    sd.armed               = ss.isArmed();
+                    sd.armingTurnsComplete = ss.getArmingTurnsComplete();
+                    sd.warheadDamage       = ss.getWarheadDamage();
+                }
                 bd.shuttles.add(sd);
             }
             dto.shuttleBays.add(bd);
@@ -328,6 +357,19 @@ public class GameStateDto {
         dto.facing       = shuttle.getFacing();
         dto.speed        = shuttle.getSpeed();
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        return dto;
+    }
+
+    private static SuicideShuttleDto fromSuicideShuttle(com.sfb.objects.SuicideShuttle ss) {
+        SuicideShuttleDto dto    = new SuicideShuttleDto();
+        dto.name                 = ss.getName();
+        dto.location             = ss.getLocation() != null ? ss.getLocation().toString() : null;
+        dto.facing               = ss.getFacing();
+        dto.speed                = ss.getSpeed();
+        dto.warheadDamage        = ss.getWarheadDamage();
+        dto.armingTurnsComplete  = ss.getArmingTurnsComplete();
+        dto.controllerName       = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
+        dto.targetName           = ss.getTarget() != null ? ss.getTarget().getName() : null;
         return dto;
     }
 
