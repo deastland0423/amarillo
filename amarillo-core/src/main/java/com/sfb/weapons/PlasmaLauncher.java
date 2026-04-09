@@ -208,6 +208,9 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	@Override
 	public void setArmed(boolean armed) { this.armed = armed; }
 
+	public void setPlasmaType(PlasmaType type)       { this.plasmaType = type; }
+	public void setPseudoPlasmaReady(boolean ready)  { this.pseudoPlasmaReady = ready; }
+
 	@Override
 	public boolean isArmed() {
 		return this.armed;

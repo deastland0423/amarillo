@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.sfb.Game;
 import com.sfb.objects.*;
 import com.sfb.systemgroups.CloakingDevice;
+import com.sfb.systemgroups.ShuttleBay;
+import com.sfb.weapons.DroneRack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,24 +61,57 @@ public class GameStateDto {
         public String  name;
         public boolean armed;
         public int     armingTurn;
-        public String  armingType;      // "STANDARD", "OVERLOAD", "SPECIAL", or null
-        public int     lastImpulseFired; // for canFire() checks client-side
+        public String  armingType;        // "STANDARD", "OVERLOAD", "SPECIAL", or null
+        public int     lastImpulseFired;  // for canFire() checks client-side
         public boolean functional;
+        public String  plasmaType;        // PlasmaLauncher only: "F", "G", "S", "R", or null
+        public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
+    }
+
+    public static class DroneInRackDto {
+        public String droneType;    // "I", "II", etc.
+        public int    warheadDamage;
+        public int    speed;
+        public int    endurance;
+    }
+
+    public static class DroneRackDto {
+        public String              name;
+        public boolean             functional;
+        public boolean             canFire;
+        public List<DroneInRackDto> drones; // currently loaded drones
+    }
+
+    public static class ShuttleInBayDto {
+        public String name;
+        public String type;  // "admin", "gas", "hts"
+        public int    maxSpeed;
+    }
+
+    public static class ShuttleBayDto {
+        public int                    bayIndex;
+        public boolean                canLaunch;
+        public List<ShuttleInBayDto>  shuttles;
     }
 
     public static class ShipDto extends MapObjectDto {
-        public String          hull;
-        public String          faction;
-        public int             facing;
-        public int             speed;
-        public List<ShieldDto> shields;
-        public String          cloakState;
-        public int             cloakFadeStep;
-        public int             cloakTransitionImpulse;
-        public double          phaserCapacitor;
-        public boolean         activeFireControl;
-        public int             scannerBonus;
-        public List<WeaponDto> weapons;
+        public String               hull;
+        public String               faction;
+        public int                  facing;
+        public int                  speed;
+        public List<ShieldDto>      shields;
+        public String               cloakState;
+        public int                  cloakFadeStep;
+        public int                  cloakTransitionImpulse;
+        public double               phaserCapacitor;
+        public boolean              activeFireControl;
+        public int                  scannerBonus;
+        public List<WeaponDto>      weapons;
+        public List<DroneRackDto>   droneRacks;
+        public List<ShuttleBayDto>  shuttleBays;
+        public int                  tBombs;
+        public int                  dummyTBombs;
+        public int                  transporterUses;
     }
 
     // -------------------------------------------------------------------------
@@ -101,6 +136,7 @@ public class GameStateDto {
         public int    hull;
         public String targetName;
         public String controllerFaction;
+        public String controllerName;     // name of the controlling ship
     }
 
     // -------------------------------------------------------------------------
@@ -112,6 +148,10 @@ public class GameStateDto {
         public int    speed;
         public int    currentStrength;
         public String controllerFaction;
+        public String  plasmaType;       // "F", "G", "S", "R", etc.
+        public int     distanceTraveled;
+        public boolean pseudo;
+        public double  damageTaken;
     }
 
     // -------------------------------------------------------------------------
@@ -216,6 +256,9 @@ public class GameStateDto {
         dto.phaserCapacitor    = ship.getWeapons().getPhaserCapacitorEnergy();
         dto.activeFireControl  = ship.isActiveFireControl();
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
+        dto.tBombs             = ship.getTBombs();
+        dto.dummyTBombs        = ship.getDummyTBombs();
+        dto.transporterUses    = ship.getTransporters().availableUses();
 
         dto.weapons = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -229,7 +272,50 @@ public class GameStateDto {
                 wd.armingTurn = hw.getArmingTurn();
                 wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
             }
+            if (w instanceof com.sfb.weapons.PlasmaLauncher) {
+                com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
+                wd.plasmaType        = pl.getPlasmaType() != null ? pl.getPlasmaType().name() : null;
+                wd.pseudoPlasmaReady = pl.isPseudoPlasmaReady();
+            }
             dto.weapons.add(wd);
+        }
+
+        dto.droneRacks = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRack)) continue;
+            DroneRack rack = (DroneRack) w;
+            DroneRackDto rd = new DroneRackDto();
+            rd.name       = rack.getName();
+            rd.functional = rack.isFunctional();
+            rd.canFire    = rack.canFire();
+            rd.drones     = new ArrayList<>();
+            for (Drone d : rack.getAmmo()) {
+                DroneInRackDto dd = new DroneInRackDto();
+                dd.droneType    = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+                dd.warheadDamage = d.getWarheadDamage();
+                dd.speed        = d.getSpeed();
+                dd.endurance    = d.getEndurance();
+                rd.drones.add(dd);
+            }
+            dto.droneRacks.add(rd);
+        }
+
+        dto.shuttleBays = new ArrayList<>();
+        List<ShuttleBay> bays = ship.getShuttles().getBays();
+        for (int i = 0; i < bays.size(); i++) {
+            ShuttleBay bay = bays.get(i);
+            ShuttleBayDto bd = new ShuttleBayDto();
+            bd.bayIndex  = i;
+            bd.canLaunch = bay.canLaunch(game.getAbsoluteImpulse());
+            bd.shuttles  = new ArrayList<>();
+            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                ShuttleInBayDto sd = new ShuttleInBayDto();
+                sd.name     = s.getName();
+                sd.type     = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
+                sd.maxSpeed = s.getMaxSpeed();
+                bd.shuttles.add(sd);
+            }
+            dto.shuttleBays.add(bd);
         }
 
         return dto;
@@ -256,6 +342,7 @@ public class GameStateDto {
         dto.hull              = drone.getHull();
         dto.targetName        = drone.getTarget() != null ? drone.getTarget().getName() : null;
         dto.controllerFaction = controllerFaction(drone.getController());
+        dto.controllerName    = drone.getController() != null ? drone.getController().getName() : null;
         return dto;
     }
 
@@ -267,6 +354,10 @@ public class GameStateDto {
         dto.speed             = torp.getSpeed();
         dto.currentStrength   = torp.getCurrentStrength();
         dto.controllerFaction = controllerFaction(torp.getController());
+        dto.plasmaType        = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
+        dto.distanceTraveled  = torp.getDistanceTraveled();
+        dto.pseudo            = torp.isPseudoPlasma();
+        dto.damageTaken       = torp.getDamageTaken();
         return dto;
     }
 

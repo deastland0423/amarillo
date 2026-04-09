@@ -475,8 +475,13 @@ public class Game {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
         boolean moved = ship.goForward();
-        if (moved)
+        if (moved) {
             movedThisImpulse.add(ship);
+            List<String> collisions = checkSeekerCollisions(ship);
+            if (!collisions.isEmpty()) {
+                return ActionResult.ok(ship.getName() + " moved forward\n" + String.join("\n", collisions));
+            }
+        }
         return moved ? ActionResult.ok(ship.getName() + " moved forward")
                 : ActionResult.fail(ship.getName() + " could not move forward");
     }
@@ -1098,6 +1103,46 @@ public class Game {
         if (!(target instanceof Ship)) return false;
         com.sfb.systemgroups.CloakingDevice cloak = ((Ship) target).getCloakingDevice();
         return cloak != null && cloak.breaksLockOn();
+    }
+
+    /**
+     * After a ship moves voluntarily, check whether any seeker now shares its hex.
+     * Handles the case where the target ship moves onto a drone rather than
+     * the drone moving onto the ship.
+     */
+    private List<String> checkSeekerCollisions(Ship ship) {
+        List<String> log = new ArrayList<>();
+        if (ship.getLocation() == null) return log;
+        List<Seeker> toRemove = new ArrayList<>();
+        for (Seeker seeker : seekers) {
+            if (!(seeker instanceof Unit)) continue;
+            Unit unit = (Unit) seeker;
+            if (unit.getLocation() == null) continue;
+            if (!unit.getLocation().equals(ship.getLocation())) continue;
+            if (seeker.getTarget() != ship) continue;
+
+            // Enveloping plasma is the only special case — all other seekers use position-based shield
+            if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
+                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
+                int[] spread = torp.computeEnvelopingDamage();
+                int total = 0;
+                for (int i = 0; i < 6; i++) {
+                    if (spread[i] > 0) { markShieldDamage(ship, i + 1, spread[i]); total += spread[i]; }
+                }
+                log.add("  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
+                        + " (enveloping)  total damage " + total + " spread to all shields");
+            } else {
+                int shieldNum = getShieldNumber(unit, ship);
+                int dmg = seeker.impact();
+                FireResult result = markShieldDamage(ship, shieldNum, dmg);
+                log.add("  " + ship.getName() + " moved into " + unit.getName()
+                        + "  shield #" + shieldNum + "  damage " + dmg
+                        + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+            }
+            toRemove.add(seeker);
+        }
+        seekers.removeAll(toRemove);
+        return log;
     }
 
     private List<String> moveSeekers() {

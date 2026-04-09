@@ -145,6 +145,10 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         return plasmaType;
     }
 
+    public void setPlasmaType(PlasmaType type)  { this.plasmaType = type; }
+    public void setDistanceTraveled(int d)      { this.distanceTraveled = d; }
+    public void setDamageTaken(double damage)   { this.damageTaken = damage; }
+
     public WeaponArmingType getArmingType() {
         return armingType;
     }

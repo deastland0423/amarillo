@@ -44,9 +44,10 @@
     <property name="java.specification.version" value="25"/>
     <property name="user.name" value="deastland"/>
     <property name="java.class.path" value="D:/apache-maven-3.6.0/boot/plexus-classworlds-2.5.2.jar"/>
+    <property name="org.slf4j.simpleLogger.defaultLogLevel" value="error"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher test -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher test -pl amarillo-core -q"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -84,7 +85,7 @@
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingNortheast" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingNorthwest" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingNorth" time="0"/>
-  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingNESpine" time="0.001"/>
+  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingNESpine" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAbsoluteShieldFacingSouth" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentNWFromEvenColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testBearingSameHex" time="0"/>
@@ -98,7 +99,7 @@
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentSWFromOddColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testBearingSouthwestSpine" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRelativeShieldFacingEastFacingNorth" time="0"/>
-  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentInvalidBearingReturnsNull" time="0"/>
+  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentInvalidBearingReturnsNull" time="0.001"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentSEFromOddColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRelativeShieldFacingAllSixFacings" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRangePurelyHorizontal" time="0"/>

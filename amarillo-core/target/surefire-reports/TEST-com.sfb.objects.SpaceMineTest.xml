@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="8" failures="0" name="com.sfb.objects.ArmorTest" time="0.006" errors="0" skipped="0">
+<testsuite tests="25" failures="0" name="com.sfb.objects.SpaceMineTest" time="0.006" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -64,12 +64,29 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.objects.ArmorTest" name="secondHitAfterDepletionGoesFullyToDac" time="0.003"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedExceedingArmorDepletesArmorToZero" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorDepletesArmorToZero" time="0.001"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="armorInitialisedFromSpec" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorProducesNoLogEntries" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedEqualToArmorProducesNoLogEntries" time="0.001"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedExceedingArmorProducesLogEntriesForExcess" time="0"/>
-  <testcase classname="com.sfb.objects.ArmorTest" name="bleedBelowArmorReducesArmorByBleedAmount" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="newMine_isNotRevealed" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_stationary_rollOf1_notDetected" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_whenAtLeast2ImpulsesElapsed_andLayerGone" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="nsmIsAlwaysRealAndCannotBeRevealed" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_speed5_roll5_notDetected" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollGreaterThanSpeed_detects" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="createDummyTBomb_isNotReal" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="reveal_hasNoEffectOnRealMine" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="reveal_marksRevealedOnDummy" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_speed5_roll6_detects" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollLessThanSpeed_notDetected" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_onExactly2ImpulsesElapsed" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="createNSMine_isAlwaysReal" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLayerWithin1Hex" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_returnsFalse_whenMineInactive" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_atExactly1ImpulseElapsed" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLessThan2ImpulsesElapsed" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="createTBomb_isRealByDefault" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="activated_whenLayerAt2Hexes" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="mineType_damageValues" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_autoDetects_whenSpeedAtLeast6" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="activeState_isPermanent" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="newMine_isInactive" time="0"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="notActivated_whenLayerAtRange0" time="0.001"/>
+  <testcase classname="com.sfb.objects.SpaceMineTest" name="detectsUnit_rollEqualToSpeed_notDetected" time="0"/>
 </testsuite>

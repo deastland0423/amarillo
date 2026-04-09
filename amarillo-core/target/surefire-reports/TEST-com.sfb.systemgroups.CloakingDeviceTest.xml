@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="38" failures="0" name="com.sfb.systemgroups.CloakingDeviceTest" time="0" errors="0" skipped="0">
+<testsuite tests="38" failures="0" name="com.sfb.systemgroups.CloakingDeviceTest" time="0.007" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -44,9 +44,10 @@
     <property name="java.specification.version" value="25"/>
     <property name="user.name" value="deastland"/>
     <property name="java.class.path" value="D:/apache-maven-3.6.0/boot/plexus-classworlds-2.5.2.jar"/>
+    <property name="org.slf4j.simpleLogger.defaultLogLevel" value="error"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher test -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher test -pl amarillo-core -q"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -63,16 +64,16 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitialStateIsInactive" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitialStateIsInactive" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusDuringFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeInAdvancesToInactiveAfter5Impulses" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInvoluntaryDecloakWhenCostNotPaid" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateWhenAlreadyFadingOut" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testSecondDamageCallIsIgnored" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testSecondDamageCallIsIgnored" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFailsWhenAlreadyFadingIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyNotRestrictingActions" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusDuringFadeOut" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyNoLockOnBreak" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusDuringFadeOut" time="0.001"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testInitiallyNoLockOnBreak" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActivateSucceedsWhenCostPaid" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCloakBonusIsZeroWhenInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActionsAllowedAfterFullFadeIn" time="0"/>
@@ -84,7 +85,7 @@
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActionsRestrictedDuringFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeStepIsZeroWhenInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileAlreadyFadingInDoesNotChangeFadeState" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFailsWhenInactive" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDeactivateFailsWhenInactive" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testNoInvoluntaryDecloakWhenAlreadyInactive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testNoInvoluntaryDecloakWhenCostPaid" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageRendersDeviceNonFunctional" time="0"/>
@@ -92,13 +93,13 @@
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeStepIsZeroWhenFullyCloaked" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateWhenFullyCloaked" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileFadingOutForcesEmergencyFadeIn" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedRestrictsActions" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedRestrictsActions" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileFullyCloakedForcesEmergencyFadeIn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedCloakBonusIsFive" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFadeStepDuringFadeOut" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testDamageWhileInactiveDoesNotChangeFadeState" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testFullyCloakedBreaksLockOn" time="0"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testCannotActivateTwiceInOneTurn" time="0"/>
-  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActivateFailsWithoutCostPaid" time="0"/>
+  <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testActivateFailsWithoutCostPaid" time="0.001"/>
   <testcase classname="com.sfb.systemgroups.CloakingDeviceTest" name="testPowerToActivate" time="0"/>
 </testsuite>

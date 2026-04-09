@@ -234,6 +234,8 @@ public class ServerGameClient implements GameFacade {
 
         // Sync fire control and scanner
         ship.setActiveFireControl(dto.activeFireControl);
+        ship.setTBombs(dto.tBombs);
+        ship.setDummyTBombs(dto.dummyTBombs);
 
         // Update phaser capacitor
         try { ship.getWeapons().chargePhaserCapacitor(
@@ -262,7 +264,59 @@ public class ServerGameClient implements GameFacade {
                             hw.setArmingTurn(wd.armingTurn);
                             hw.setArmed(wd.armed);
                         }
+                        if (w instanceof PlasmaLauncher) {
+                            PlasmaLauncher pl = (PlasmaLauncher) w;
+                            if (wd.plasmaType != null) {
+                                try {
+                                    pl.setPlasmaType(com.sfb.properties.PlasmaType.valueOf(wd.plasmaType));
+                                } catch (IllegalArgumentException ignored) {}
+                            } else {
+                                pl.setPlasmaType(null);
+                            }
+                            pl.setPseudoPlasmaReady(wd.pseudoPlasmaReady);
+                        }
                     });
+            }
+        }
+
+        // Sync drone rack ammo lists
+        if (dto.droneRacks != null) {
+            for (GameStateDto.DroneRackDto rd : dto.droneRacks) {
+                ship.getWeapons().fetchAllWeapons().stream()
+                    .filter(w -> w instanceof DroneRack && rd.name.equals(w.getName()))
+                    .map(w -> (DroneRack) w)
+                    .findFirst().ifPresent(rack -> {
+                        List<com.sfb.objects.Drone> newAmmo = new java.util.ArrayList<>();
+                        if (rd.drones != null) {
+                            for (GameStateDto.DroneInRackDto dd : rd.drones) {
+                                try {
+                                    com.sfb.objects.DroneType dt = com.sfb.objects.DroneType.valueOf(dd.droneType);
+                                    newAmmo.add(new com.sfb.objects.Drone(dt));
+                                } catch (IllegalArgumentException ignored) {
+                                    newAmmo.add(new com.sfb.objects.Drone());
+                                }
+                            }
+                        }
+                        rack.getAmmo().clear();
+                        rack.getAmmo().addAll(newAmmo);
+                    });
+            }
+        }
+
+        // Sync shuttle bay inventories
+        if (dto.shuttleBays != null) {
+            List<com.sfb.systemgroups.ShuttleBay> bays = ship.getShuttles().getBays();
+            for (GameStateDto.ShuttleBayDto bd : dto.shuttleBays) {
+                if (bd.bayIndex < 0 || bd.bayIndex >= bays.size()) continue;
+                com.sfb.systemgroups.ShuttleBay bay = bays.get(bd.bayIndex);
+                bay.getInventory().clear();
+                if (bd.shuttles != null) {
+                    for (GameStateDto.ShuttleInBayDto sd : bd.shuttles) {
+                        com.sfb.objects.Shuttle s = com.sfb.systemgroups.ShuttleBay.buildShuttle(
+                                sd.type != null ? sd.type : "admin", sd.name);
+                        bay.getInventory().add(s);
+                    }
+                }
             }
         }
     }
@@ -294,19 +348,36 @@ public class ServerGameClient implements GameFacade {
     }
 
     private com.sfb.objects.Shuttle buildShuttle(GameStateDto.ShuttleDto dto) {
-        com.sfb.objects.AdminShuttle s = new com.sfb.objects.AdminShuttle();
+        // Reuse existing shuttle object by name so selectedShuttle references stay valid
+        com.sfb.objects.Shuttle existing = activeShuttles.stream()
+                .filter(s -> dto.name.equals(s.getName())).findFirst().orElse(null);
+        com.sfb.objects.Shuttle s = existing != null ? existing : new com.sfb.objects.AdminShuttle();
         s.setName(dto.name);
         if (dto.location != null) s.setLocation(parseLocation(dto.location));
         s.setFacing(dto.facing);
+        s.setSpeed(dto.speed);
         return s;
     }
 
     private Drone buildDrone(GameStateDto.DroneDto dto) {
-        Drone d = new Drone();
+        com.sfb.objects.DroneType dt = null;
+        try { if (dto.droneType != null) dt = com.sfb.objects.DroneType.valueOf(dto.droneType); }
+        catch (IllegalArgumentException ignored) {}
+        Drone d = dt != null ? new Drone(dt) : new Drone();
         d.setName(dto.name);
         if (dto.location != null) d.setLocation(parseLocation(dto.location));
         d.setFacing(dto.facing);
         d.setSpeed(dto.speed);
+        // Set controller so the canvas can color by faction
+        if (dto.controllerName != null) {
+            Ship controller = shipByName.get(dto.controllerName);
+            if (controller != null) d.setController(controller);
+        }
+        // Set target for tooltip display
+        if (dto.targetName != null) {
+            Ship tgt = shipByName.get(dto.targetName);
+            if (tgt != null) d.setTarget(tgt);
+        }
         return d;
     }
 
@@ -316,6 +387,13 @@ public class ServerGameClient implements GameFacade {
         if (dto.location != null) p.setLocation(parseLocation(dto.location));
         p.setFacing(dto.facing);
         p.setSpeed(dto.speed);
+        if (dto.plasmaType != null) {
+            try { p.setPlasmaType(com.sfb.properties.PlasmaType.valueOf(dto.plasmaType)); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        p.setDistanceTraveled(dto.distanceTraveled);
+        p.setPseudoPlasma(dto.pseudo);
+        p.setDamageTaken(dto.damageTaken);
         return p;
     }
 
@@ -444,9 +522,14 @@ public class ServerGameClient implements GameFacade {
     }
 
     @Override public List<com.sfb.objects.Shuttle> getMovableShuttles() {
-        // Shuttle movement is handled by the server; for now return empty.
-        // Full shuttle move support via REST comes in a follow-up.
-        return Collections.emptyList();
+        // Return active shuttles owned by this player — server enforces actual move eligibility
+        return activeShuttles.stream()
+                .filter(s -> {
+                    // If parentPlayer is tracked we could filter; for now return all active shuttles
+                    // the player owns (server will reject moves from opponents)
+                    return true;
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override public boolean isAwaitingAllocation() { return awaitingAllocation; }
@@ -512,7 +595,7 @@ public class ServerGameClient implements GameFacade {
 
     // Shuttle and complex actions — stubs until corresponding server endpoints exist
     @Override public ActionResult moveShuttle(com.sfb.objects.Shuttle s, ShuttleMoveCommand.Action a) {
-        return ActionResult.fail("Shuttle movement via server not yet implemented");
+        return postAction("MOVE_SHUTTLE", s.getName(), a.name());
     }
     @Override public ActionResult allocateEnergy(Ship ship, Energy e) {
         try {
@@ -584,13 +667,99 @@ public class ServerGameClient implements GameFacade {
         }
     }
     @Override public ActionResult launchShuttle(Ship ship, ShuttleBay bay, com.sfb.objects.Shuttle s, int speed, int facing) {
-        return ActionResult.fail("Shuttle launch via server not yet implemented");
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",     "LAUNCH_SHUTTLE");
+            body.put("shipName", ship.getName());
+            body.put("action",   s.getName());   // shuttle name
+            body.put("speed",    speed);
+            body.put("range",    facing);        // facing packed in range field
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone) {
-        return ActionResult.fail("Drone launch via server not yet implemented");
+        try {
+            // Match by drone type — the dialog's drone reference may be stale if a poll
+            // fired between dialog open and button click, rebuilding the ammo list.
+            com.sfb.objects.DroneType targetType = drone.getDroneType();
+            int droneIndex = -1;
+            List<com.sfb.objects.Drone> ammo = rack.getAmmo();
+            for (int i = 0; i < ammo.size(); i++) {
+                if (ammo.get(i).getDroneType() == targetType) { droneIndex = i; break; }
+            }
+            if (droneIndex < 0)
+                return ActionResult.fail("No drone of type " + targetType + " found in rack");
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",        "LAUNCH_DRONE");
+            body.put("shipName",    launcher.getName());
+            body.put("targetName",  target.getName());
+            body.put("weaponNames", List.of(rack.getName()));
+            body.put("range",       droneIndex); // reused as drone index
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo) {
-        return ActionResult.fail("Plasma launch via server not yet implemented");
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",        "LAUNCH_PLASMA");
+            body.put("shipName",    attacker.getName());
+            body.put("targetName",  target.getName());
+            body.put("weaponNames", List.of(weapon.getName()));
+            body.put("pseudo",      pseudo);
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjusted, int shield) {
         try {
@@ -626,7 +795,31 @@ public class ServerGameClient implements GameFacade {
         return ActionResult.fail("Hit & run via server not yet implemented");
     }
     @Override public ActionResult placeTBomb(Ship ship, Location loc, boolean isReal) {
-        return ActionResult.fail("tBomb placement via server not yet implemented");
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",     "PLACE_TBOMB");
+            body.put("shipName", ship.getName());
+            body.put("action",   loc.getX() + "|" + loc.getY());
+            body.put("pseudo",   !isReal); // pseudo=true means dummy tBomb
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
     }
     @Override public ActionResult cloak(Ship ship)   { return postAction("CLOAK",   ship.getName(), null); }
     @Override public ActionResult uncloak(Ship ship) { return postAction("UNCLOAK", ship.getName(), null); }

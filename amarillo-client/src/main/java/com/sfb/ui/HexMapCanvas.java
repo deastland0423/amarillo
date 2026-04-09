@@ -183,7 +183,7 @@ public class HexMapCanvas extends Canvas {
         for (Ship ship : ships) {
             double[] c = hexCenter(ship.getLocation().getX(), ship.getLocation().getY());
             double dist = Math.hypot(pixelX - c[0], pixelY - c[1]);
-            if (dist < COUNTER_SIZE && dist < closestDist) {
+            if (dist < SHIELD_RADIUS && dist < closestDist) {
                 closest = ship;
                 closestDist = dist;
             }
@@ -221,7 +221,7 @@ public class HexMapCanvas extends Canvas {
         List<Marker> hits = new ArrayList<>();
         for (Ship ship : ships) {
             double[] c = hexCenter(ship.getLocation().getX(), ship.getLocation().getY());
-            if (Math.hypot(pixelX - c[0], pixelY - c[1]) < COUNTER_SIZE)
+            if (Math.hypot(pixelX - c[0], pixelY - c[1]) < SHIELD_RADIUS)
                 hits.add(ship);
         }
         for (Seeker seeker : seekers) {
