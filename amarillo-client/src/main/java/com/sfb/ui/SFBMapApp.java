@@ -58,7 +58,8 @@ public class SFBMapApp extends Application {
     private Label         keyHelp;
     private TextArea      combatLog;
     private Button        nextPhaseBtn;
-    private boolean       waitingForReady  = false;
+    private boolean       waitingForReady     = false;
+    private Game.ImpulsePhase waitingPhase  = null; // phase we were in when we clicked Ready
     private boolean       firingMode       = false;
     private boolean       droneMode        = false;
     private boolean       plasmaMode       = false;
@@ -488,12 +489,22 @@ public class SFBMapApp extends Application {
             ((ServerGameClient) game).setOnStateChanged(v -> {
                 refreshMovableShips();
                 turnLabel.setText(turnText());
-                waitingForReady = false;
-                nextPhaseBtn.setText(nextPhaseLabel());
-                nextPhaseBtn.setStyle(
-                    "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
-                    "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
-                    "-fx-font-size: 12; -fx-cursor: hand;");
+                // Only clear waiting state if the phase has actually advanced
+                if (waitingForReady && game.getCurrentPhase() != waitingPhase) {
+                    waitingForReady = false;
+                    waitingPhase = null;
+                    nextPhaseBtn.setText(nextPhaseLabel());
+                    nextPhaseBtn.setStyle(
+                        "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
+                        "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
+                        "-fx-font-size: 12; -fx-cursor: hand;");
+                } else if (!waitingForReady) {
+                    nextPhaseBtn.setText(nextPhaseLabel());
+                    nextPhaseBtn.setStyle(
+                        "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
+                        "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
+                        "-fx-font-size: 12; -fx-cursor: hand;");
+                }
                 ServerGameClient sgc = (ServerGameClient) game;
 
                 // Allocation phase triggered by server state — only show once per turn
@@ -514,6 +525,7 @@ public class SFBMapApp extends Application {
                     setStatus(phaseStatus());
                 }
                 updateKeyHelp();
+                infoPanel.update(mapCanvas.getSelectedShip());
                 mapCanvas.render();
             });
             // Shut down the poller when the window closes
@@ -575,6 +587,7 @@ public class SFBMapApp extends Application {
         if (result.isWaiting()) {
             // Server acknowledged ready signal but other players haven't confirmed yet
             waitingForReady = true;
+            waitingPhase = game.getCurrentPhase();
             nextPhaseBtn.setText(cancelReadyLabel());
             nextPhaseBtn.setStyle(
                 "-fx-background-color: #2a1a1a; -fx-text-fill: #ff8888; " +
@@ -608,10 +621,6 @@ public class SFBMapApp extends Application {
         mapCanvas.render();
     }
 
-    private String waitingLabel() {
-        return "Waiting " + game.getReadyCount() + "/" + game.getPlayerCount() + "  ⏳";
-    }
-
     private String cancelReadyLabel() {
         return "Cancel Ready  ✕";
     }
@@ -619,6 +628,7 @@ public class SFBMapApp extends Application {
     private void cancelReady() {
         game.unready();
         waitingForReady = false;
+        waitingPhase = null;
         nextPhaseBtn.setText(nextPhaseLabel());
         nextPhaseBtn.setStyle(
             "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
@@ -992,7 +1002,7 @@ public class SFBMapApp extends Application {
         List<Weapon> selected = dialog.getSelectedWeapons();
         if (selected != null) {
             int adjustedRange = game.getEffectiveRange(attacker, target);
-            Game.ActionResult result = game.fire(attacker, target, selected, range, adjustedRange, shieldNumber);
+            Game.ActionResult result = game.fire(attacker, target, selected, range, adjustedRange, shieldNumber, dialog.isUimSelected());
             appendLog(result.getMessage());
             setStatus("Fired — see combat log");
             if (target instanceof Ship) {

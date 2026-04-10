@@ -118,6 +118,79 @@ public class DisruptorTest {
 		
 	}
 	
+	// -------------------------------------------------------------------------
+	// UIM lock mechanics
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void uimLock_notLockedByDefault() {
+		Disruptor d = getUnarmedDisruptor();
+		assertFalse(d.isUimLocked(10));
+	}
+
+	@Test
+	public void uimLock_lockedAfterSetUimLocked() {
+		Disruptor d = getUnarmedDisruptor();
+		d.setUimLocked(42); // locked until impulse 42
+		assertTrue(d.isUimLocked(41));  // before unlock impulse
+		assertTrue(d.isUimLocked(10));  // well before
+	}
+
+	@Test
+	public void uimLock_notLockedAtOrAfterUnlockImpulse() {
+		Disruptor d = getUnarmedDisruptor();
+		d.setUimLocked(42);
+		assertFalse(d.isUimLocked(42)); // at the unlock impulse — free
+		assertFalse(d.isUimLocked(50)); // after — free
+	}
+
+	@Test
+	public void fireUim_standard_hitsOrMisses() throws Exception {
+		Disruptor d = getStandardDisruptor();
+		int dmg = d.fireUim(15, 15);
+		assertTrue(dmg == 3 || dmg == 0); // range-15 damage is 3
+	}
+
+	@Test
+	public void fireUim_unarmed_throws() {
+		Disruptor d = getUnarmedDisruptor();
+		try {
+			d.fireUim(15, 15);
+			assertFalse("Expected WeaponUnarmedException", true);
+		} catch (com.sfb.exceptions.WeaponUnarmedException e) {
+			// expected
+		} catch (Exception e) {
+			assertFalse("Wrong exception: " + e, true);
+		}
+	}
+
+	@Test
+	public void fireUim_outOfRange_throws() {
+		Disruptor d = getStandardDisruptor();
+		try {
+			d.fireUim(99, 99);
+			assertFalse("Expected TargetOutOfRangeException", true);
+		} catch (com.sfb.exceptions.TargetOutOfRangeException e) {
+			// expected
+		} catch (Exception e) {
+			assertFalse("Wrong exception: " + e, true);
+		}
+	}
+
+	@Test
+	public void fireUim_overload_hitsOrMisses() throws Exception {
+		Disruptor d = getOverloadedDisruptor();
+		int dmg = d.fireUim(5, 5); // range 5, UIM overload chart gives 5 to hit
+		assertTrue(dmg == 6 || dmg == 0); // range-5 overload damage is 6
+	}
+
+	@Test
+	public void fireUim_resetsWeaponAfterFiring() throws Exception {
+		Disruptor d = getStandardDisruptor();
+		d.fireUim(10, 10);
+		assertFalse(d.isArmed());
+	}
+
 	/// Object builders for tests
 	
 	private Disruptor getUnarmedDisruptor() {

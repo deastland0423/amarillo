@@ -26,6 +26,7 @@ public class ActionRequest {
     private int          range;
     private int          adjustedRange;
     private int          shieldNumber;
+    private boolean      useUim;
 
     // ALLOCATE fields
     private int                 speed;        // warp speed requested
@@ -60,6 +61,9 @@ public class ActionRequest {
 
     public int  getShieldNumber()                  { return shieldNumber; }
     public void setShieldNumber(int shieldNumber)  { this.shieldNumber = shieldNumber; }
+
+    public boolean isUseUim()                      { return useUim; }
+    public void    setUseUim(boolean useUim)        { this.useUim = useUim; }
 
     public int  getSpeed()                         { return speed; }
     public void setSpeed(int speed)                { this.speed = speed; }

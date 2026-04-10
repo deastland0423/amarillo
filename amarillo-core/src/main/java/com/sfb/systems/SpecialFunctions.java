@@ -55,6 +55,10 @@ public class SpecialFunctions {
 		// Excess Damage
 		availableExcessDamage = excessDamage = values.get("excess") == null ? 0 : (Integer)values.get("excess");
 
+		// UIM / DERFACS counts
+		availableUim     = uim     = values.get("uim")     == null ? 0 : (Integer) values.get("uim");
+		availableDerfacs = derfacs = values.get("derfacs")  instanceof Integer ? (Integer) values.get("derfacs") : (Boolean.TRUE.equals(values.get("derfacs")) ? 1 : 0);
+
 		// Control channels is (sensor rating) * (control modifier)
 		controlModifier = values.get("controlmod") == null ? 1 : (Double)values.get("controlmod");
 		controlChannels = (int)(sensor[availableSensor] * controlModifier);

@@ -115,6 +115,7 @@ public class ShipSpec {
         public int nuclearSpaceMines;
         public int cloakCost;
         public boolean derfacs;
+        public int uim;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -255,6 +256,8 @@ public class ShipSpec {
                 m.put("cloakcost", auxiliary.cloakCost);
             if (auxiliary.derfacs)
                 m.put("derfacs", true);
+            if (auxiliary.uim > 0)
+                m.put("uim", auxiliary.uim);
         }
 
         // Shuttle bays

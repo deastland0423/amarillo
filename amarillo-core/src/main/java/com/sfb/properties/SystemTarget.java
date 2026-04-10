@@ -24,7 +24,8 @@ public class SystemTarget {
         AHULL,
         CHULL,
         CLOAKING_DEVICE,
-        DERFACS
+        DERFACS,
+        UIM
     }
 
     private final Type   type;

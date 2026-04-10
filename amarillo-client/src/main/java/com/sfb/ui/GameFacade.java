@@ -60,7 +60,7 @@ public interface GameFacade {
     ActionResult launchScatterPack(Ship launcher, com.sfb.objects.ScatterPack pack, Unit target);
     ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone);
     ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo);
-    ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shieldNumber);
+    ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shieldNumber, boolean useUim);
     ActionResult hitAndRun(Ship actingShip, Ship target, List<SystemTarget> targets);
     ActionResult placeTBomb(Ship ship, Location loc, boolean isReal);
     ActionResult cloak(Ship ship);

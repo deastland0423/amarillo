@@ -719,6 +719,11 @@ public class Game {
      */
     public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
             int range, int adjustedRange, int shieldNumber) {
+        return fireWeapons(attacker, target, selected, range, adjustedRange, shieldNumber, false);
+    }
+
+    public String fireWeapons(Ship attacker, Unit target, List<Weapon> selected,
+            int range, int adjustedRange, int shieldNumber, boolean useUim) {
         if (!attacker.isActiveFireControl())
             return attacker.getName() + " has no active fire control — cannot fire";
         ActionResult cloakBlock = cloakActionBlock(attacker);
@@ -737,10 +742,23 @@ public class Game {
         com.sfb.systemgroups.DERFACS derfacs = attacker.getDerfacs();
         boolean hasDerfacs = derfacs != null && derfacs.isFunctional();
 
+        int currentImpulse = TurnTracker.getImpulse();
+        com.sfb.systemgroups.UIM activeUim = useUim ? attacker.getActiveUim(currentImpulse) : null;
+        boolean uimInUse = activeUim != null;
+        java.util.List<com.sfb.weapons.Disruptor> uimFiredDisruptors = new java.util.ArrayList<>();
+
         for (Weapon w : selected) {
             try {
                 int dmg;
-                if (hasDerfacs && w instanceof com.sfb.weapons.Disruptor) {
+                if (uimInUse && w instanceof com.sfb.weapons.Disruptor) {
+                    com.sfb.weapons.Disruptor d = (com.sfb.weapons.Disruptor) w;
+                    if (d.isUimLocked(currentImpulse)) {
+                        log.append("  ").append(w.getName()).append("  UIM-locked\n");
+                        continue;
+                    }
+                    dmg = d.fireUim(range, adjustedRange);
+                    uimFiredDisruptors.add(d);
+                } else if (hasDerfacs && w instanceof com.sfb.weapons.Disruptor) {
                     dmg = ((com.sfb.weapons.Disruptor) w).fireDerfacs(range, adjustedRange);
                 } else {
                     dmg = ((DirectFire) w).fire(range, adjustedRange);
@@ -759,6 +777,15 @@ public class Game {
                 log.append("  ").append(w.getName()).append("  out of range\n");
             } catch (CapacitorException ex) {
                 log.append("  ").append(w.getName()).append("  no capacitor energy\n");
+            }
+        }
+
+        // UIM burnout check (D6.521): roll at end of impulse if UIM was used this fire
+        if (uimInUse && !uimFiredDisruptors.isEmpty()) {
+            boolean burnout = activeUim.checkBurnout(currentImpulse, uimFiredDisruptors);
+            if (burnout) {
+                log.append("  UIM BURNOUT! Disruptors locked for 32 impulses.\n");
+                attacker.activateNextStandby(activeUim, currentImpulse);
             }
         }
 
@@ -1654,6 +1681,13 @@ public class Game {
             systems.add(new SystemTarget(SystemTarget.Type.DERFACS, "DERFACS"));
         }
 
+        // UIM
+        int currentImpulseHR = TurnTracker.getImpulse();
+        com.sfb.systemgroups.UIM activeUimHR = target.getActiveUim(currentImpulseHR);
+        if (activeUimHR != null) {
+            systems.add(new SystemTarget(SystemTarget.Type.UIM, "UIM"));
+        }
+
         // Hull
         HullBoxes h = target.getHullBoxes();
         if (h.getAvailableFhull() > 0) {
@@ -1841,6 +1875,13 @@ public class Game {
                 if (d == null || !d.isFunctional())
                     return false;
                 d.damage();
+                return true;
+            }
+            case UIM: {
+                com.sfb.systemgroups.UIM uimHit = target.getActiveUim(TurnTracker.getImpulse());
+                if (uimHit == null)
+                    return false;
+                uimHit.damage();
                 return true;
             }
             default:

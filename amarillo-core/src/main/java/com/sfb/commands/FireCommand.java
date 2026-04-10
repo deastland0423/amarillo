@@ -22,20 +22,27 @@ public class FireCommand implements Command {
     private final int          range;
     private final int          adjustedRange;
     private final int          shieldNumber;
+    private final boolean      useUim;
 
     public FireCommand(Ship attacker, Unit target, List<Weapon> selected,
                        int range, int adjustedRange, int shieldNumber) {
+        this(attacker, target, selected, range, adjustedRange, shieldNumber, false);
+    }
+
+    public FireCommand(Ship attacker, Unit target, List<Weapon> selected,
+                       int range, int adjustedRange, int shieldNumber, boolean useUim) {
         this.attacker      = attacker;
         this.target        = target;
         this.selected      = selected;
         this.range         = range;
         this.adjustedRange = adjustedRange;
         this.shieldNumber  = shieldNumber;
+        this.useUim        = useUim;
     }
 
     @Override
     public ActionResult execute(Game game) {
-        String log = game.fireWeapons(attacker, target, selected, range, adjustedRange, shieldNumber);
+        String log = game.fireWeapons(attacker, target, selected, range, adjustedRange, shieldNumber, useUim);
         return ActionResult.ok(log);
     }
 }

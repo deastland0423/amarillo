@@ -46,6 +46,7 @@
     "labs": 4,
     "probes": 1,
     "derfacs": true,
+    "uim": 4,
     "tBombs": 1,
     "dummyTBombs": 1
   },

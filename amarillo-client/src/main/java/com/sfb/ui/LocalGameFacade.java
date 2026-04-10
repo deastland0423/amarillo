@@ -77,8 +77,8 @@ public class LocalGameFacade implements GameFacade {
     @Override public ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo) {
         return game.execute(new LaunchPlasmaCommand(attacker, target, weapon, pseudo));
     }
-    @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shield) {
-        return game.execute(new FireCommand(attacker, target, weapons, range, adjustedRange, shield));
+    @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shield, boolean useUim) {
+        return game.execute(new FireCommand(attacker, target, weapons, range, adjustedRange, shield, useUim));
     }
     @Override public ActionResult hitAndRun(Ship acting, Ship target, List<SystemTarget> targets) {
         return game.execute(new HitAndRunCommand(acting, target, targets));

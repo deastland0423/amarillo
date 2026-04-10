@@ -31,6 +31,15 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	private int armingTurn = 0; // Number of turns the weapon has been arming.
 	private double armingEnergy = 0; // Amount of total energy stored in the weapon.
 	private boolean armed = false; // True if the weapon is armed and ready to fire.
+	private int uimLockedUntilImpulse = -1; // −1 = not locked; ≥0 = locked until this absolute impulse
+
+	public boolean isUimLocked(int currentImpulse) {
+		return uimLockedUntilImpulse >= 0 && currentImpulse < uimLockedUntilImpulse;
+	}
+
+	public void setUimLocked(int untilImpulse) {
+		this.uimLockedUntilImpulse = untilImpulse;
+	}
 
 	// Default will have range 30
 	public Disruptor() {
@@ -200,50 +209,40 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	}
 
 	/**
-	 * Fire the disruptors using the UIM targeting system.
-	 * 
-	 * @param range The range to the target.
-	 * @return Damage dealt by the weapon to the target (0 if a miss) or an
-	 *         exception if illegal condition (range, arming, etc.).
+	 * Fire using the UIM targeting system. Hit check uses adjustedRange against
+	 * the UIM hit charts; damage is looked up at realRange.
+	 *
+	 * @param realRange     Actual range to the target (for damage lookup and range check).
+	 * @param adjustedRange Scanner-adjusted range (for hit probability).
 	 * @throws WeaponUnarmedException
 	 * @throws TargetOutOfRangeException
 	 */
-	public int fireUim(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
-		// If the dirutptor isn't armed, it can't fire.
-		if (!isArmed()) {
-			throw new WeaponUnarmedException("Weapon is unarmed.");
-		}
-
-		// If the target is out of range, it can't fire.
-		if (range > getMaxRange() || range < getMinRange()) {
+	public int fireUim(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException {
+		if (!isArmed()) throw new WeaponUnarmedException("Weapon is unarmed.");
+		if (realRange > getMaxRange() || realRange < getMinRange())
 			throw new TargetOutOfRangeException("Target not in weapon range.");
-		}
 
 		int damage = 0;
-		// Roll to hit.
 		DiceRoller diceRoller = new DiceRoller();
 
-		// Based on arming type, calculate damage (0 on a miss).
 		switch (armingType) {
-			case STANDARD:
-				// Calculate hit/damage for the range.
-				if (diceRoller.rollOneDie() <= uimHitChart[range]) {
-					damage = damageChart[range];
-				}
+			case STANDARD: {
+				int adjIdx = Math.min(adjustedRange, uimHitChart.length - 1);
+				if (diceRoller.rollOneDie() <= uimHitChart[adjIdx])
+					damage = damageChart[realRange];
 				break;
-			case OVERLOAD:
-				// Calculate hit/damage for the range
-				if (diceRoller.rollOneDie() <= uimOverloadHitChart[range]) {
-					damage = overloadDamageChart[range];
-				}
+			}
+			case OVERLOAD: {
+				int adjIdx = Math.min(adjustedRange, uimOverloadHitChart.length - 1);
+				if (diceRoller.rollOneDie() <= uimOverloadHitChart[adjIdx])
+					damage = overloadDamageChart[realRange];
 				break;
-			default:
-				break;
+			}
+			default: break;
 		}
 
-		// Once fired, the weapon is no longer armed.
 		reset();
-
 		registerFire();
 		return damage;
 	}

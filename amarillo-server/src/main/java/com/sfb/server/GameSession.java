@@ -319,7 +319,8 @@ public class GameSession {
 
                 return game.execute(new FireCommand(
                         attacker, target, weapons,
-                        request.getRange(), request.getAdjustedRange(), request.getShieldNumber()));
+                        request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
+                        request.isUseUim()));
             }
 
             case "LAUNCH_SHUTTLE": {

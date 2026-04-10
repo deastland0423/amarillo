@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="22" failures="0" name="com.sfb.objects.SuicideShuttleTest" time="0" errors="0" skipped="0">
+<testsuite tests="17" failures="0" name="com.sfb.systemgroups.UIMTest" time="0" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -63,26 +63,21 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="warheadDamage_maxAt9Energy" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsWhenAlreadyArmed" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="newShuttle_warheadIsZero" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_twoTimesNotYetArmed" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_addsSuicideShuttleToSeekers" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="endurance_isEffectivelyUnlimited" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_setsTargetAndController" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_succeedsWhenAllConditionsMet" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWhenNotArmed" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWhenNotActivityPhase" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_logIncludesWarheadDamage" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsFourOrMoreEnergy" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="newShuttle_isNotArmed" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="impact_returnsWarheadDamage" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_failsWithoutLockOn" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="isSelfGuiding_false" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_rejectsZeroEnergy" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="warheadDamage_isTwiceTotalEnergy" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="launch_removesShuttleFromBay" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_acceptsOneToThreeEnergy" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="seekerType_isShuttle" time="0"/>
-  <testcase classname="com.sfb.objects.SuicideShuttleTest" name="arm_threeTimesArmsShuttle" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="activeUim_isFunctional" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="checkBurnout_whenBurnout_uimIsDamaged" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="ship_hasUim_falseForFedCa" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="undamagedUim_isNotDamaged" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="checkBurnout_emptyDisruptorList_noLockApplied" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="scheduleActivation_setsStandbyDelay" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="ship_withUim_hasActiveUim" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="ship_hasUim_trueForD7" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="standbyUim_notFunctionalBeforeActivationImpulse" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="damagedUim_isNotFunctional" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="activateNextStandby_schedulesNextUimAfter8Impulses" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="standbyUim_functionalAtAndAfterActivationImpulse" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="onlyOneUimActiveAtStart" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="damage_marksUimPermanentlyDamaged" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="ship_withoutUim_hasNoActiveUim" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="checkBurnout_whenNoBurnout_uimIsNotDamaged" time="0"/>
+  <testcase classname="com.sfb.systemgroups.UIMTest" name="checkBurnout_whenBurnout_disruptorsAreLocked" time="0"/>
 </testsuite>

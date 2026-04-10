@@ -67,6 +67,8 @@ public class KlingonShips {
         s.put("lab", 4);
         s.put("probe", 1);
         s.put("shuttle", 2);
+        s.put("derfacs", true);
+        s.put("uim", 4);
         s.put("crew", 45);
         s.put("boardingparties", 10);
         s.put("minimumcrew", 4);

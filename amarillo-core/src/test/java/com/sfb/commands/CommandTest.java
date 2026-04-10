@@ -150,15 +150,15 @@ public class CommandTest {
     @Test
     public void fireCommandDelegatesToFireWeapons() {
         List<Weapon> selected = Arrays.asList(mock(Weapon.class));
-        when(game.fireWeapons(attacker, target, selected, 5, 6, 2)).thenReturn("hit for 8");
+        when(game.fireWeapons(attacker, target, selected, 5, 6, 2, false)).thenReturn("hit for 8");
         new FireCommand(attacker, target, selected, 5, 6, 2).execute(game);
-        verify(game).fireWeapons(attacker, target, selected, 5, 6, 2);
+        verify(game).fireWeapons(attacker, target, selected, 5, 6, 2, false);
     }
 
     @Test
     public void fireCommandWrapsLogInActionResult() {
         List<Weapon> selected = Arrays.asList(mock(Weapon.class));
-        when(game.fireWeapons(any(), any(), any(), anyInt(), anyInt(), anyInt()))
+        when(game.fireWeapons(any(), any(), any(), anyInt(), anyInt(), anyInt(), anyBoolean()))
                 .thenReturn("hit for 8");
         ActionResult result = new FireCommand(attacker, target, selected, 5, 6, 2).execute(game);
         assertTrue(result.isSuccess());
@@ -168,9 +168,9 @@ public class CommandTest {
     @Test
     public void fireCommandPassesRangeAndShieldCorrectly() {
         List<Weapon> selected = Arrays.asList(mock(Weapon.class));
-        when(game.fireWeapons(any(), any(), any(), anyInt(), anyInt(), anyInt())).thenReturn("ok");
+        when(game.fireWeapons(any(), any(), any(), anyInt(), anyInt(), anyInt(), anyBoolean())).thenReturn("ok");
         new FireCommand(attacker, target, selected, 10, 12, 3).execute(game);
-        verify(game).fireWeapons(attacker, target, selected, 10, 12, 3);
+        verify(game).fireWeapons(attacker, target, selected, 10, 12, 3, false);
     }
 
     // -------------------------------------------------------------------------

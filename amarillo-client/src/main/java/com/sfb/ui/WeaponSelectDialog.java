@@ -46,6 +46,7 @@ public class WeaponSelectDialog extends Stage {
         "-fx-font-size: 11; -fx-font-weight: bold; -fx-cursor: hand;";
 
     private List<Weapon> selectedWeapons = null;  // set when player confirms fire
+    private boolean      uimSelected     = false;
 
     public WeaponSelectDialog(Stage owner, Ship attacker, Unit target,
                               List<Weapon> bearingWeapons, int range, int shieldNumber) {
@@ -114,6 +115,19 @@ public class WeaponSelectDialog extends Stage {
         weaponScroll.setPrefHeight(Math.min(checkBoxes.size() * 28 + 20, 220));
         weaponScroll.setStyle("-fx-background-color: #111130; -fx-background: #111130;");
 
+        // --- UIM checkbox (shown only when attacker has a functional UIM) ---
+        int currentImpulse = com.sfb.TurnTracker.getImpulse();
+        boolean uimAvailable = attacker.hasUim()
+                && attacker.getActiveUim(currentImpulse) != null
+                && bearingWeapons.stream().anyMatch(w -> w instanceof com.sfb.weapons.Disruptor);
+        CheckBox uimBox = new CheckBox("Use UIM targeting  (D6.51)");
+        uimBox.setFont(LABEL_FONT);
+        uimBox.setTextFill(Color.rgb(200, 220, 255));
+        uimBox.setSelected(false);
+        uimBox.setVisible(uimAvailable);
+        uimBox.setManaged(uimAvailable);
+        uimBox.setPadding(new Insets(0, 10, 0, 10));
+
         // --- No-selection warning ---
         Label warningLabel = label("No weapons selected.", LABEL_FONT, Color.rgb(220, 120, 120));
         warningLabel.setVisible(false);
@@ -138,6 +152,7 @@ public class WeaponSelectDialog extends Stage {
                 return;
             }
             selectedWeapons = selected;
+            uimSelected     = uimBox.isSelected();
             close();
         });
 
@@ -149,7 +164,7 @@ public class WeaponSelectDialog extends Stage {
         buttons.setPadding(new Insets(6, 10, 8, 10));
 
         // --- Root layout ---
-        VBox root = new VBox(8, header, capLabel, weaponScroll, warningLabel, buttons);
+        VBox root = new VBox(8, header, capLabel, weaponScroll, uimBox, warningLabel, buttons);
         root.setPadding(new Insets(10));
         root.setStyle(DARK_BG);
         capLabel.setPadding(new Insets(0, 10, 0, 10));
@@ -162,6 +177,11 @@ public class WeaponSelectDialog extends Stage {
     /** Returns the weapons the player confirmed firing, or null if cancelled. */
     public List<Weapon> getSelectedWeapons() {
         return selectedWeapons;
+    }
+
+    /** Returns true if the player chose to use UIM for this fire. */
+    public boolean isUimSelected() {
+        return uimSelected;
     }
 
     private static String weaponStatus(Weapon w) {

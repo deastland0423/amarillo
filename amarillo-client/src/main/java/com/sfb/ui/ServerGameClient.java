@@ -882,7 +882,7 @@ public class ServerGameClient implements GameFacade {
             return ActionResult.fail("Network error: " + e.getMessage());
         }
     }
-    @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjusted, int shield) {
+    @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjusted, int shield, boolean useUim) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("type",          "FIRE");
@@ -892,6 +892,7 @@ public class ServerGameClient implements GameFacade {
             body.put("range",         range);
             body.put("adjustedRange", adjusted);
             body.put("shieldNumber",  shield);
+            body.put("useUim",        useUim);
 
             String json = mapper.writeValueAsString(body);
             HttpRequest req = HttpRequest.newBuilder()

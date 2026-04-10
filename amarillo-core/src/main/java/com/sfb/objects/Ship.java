@@ -65,6 +65,7 @@ public class Ship extends Unit {
 	private Crew crew = new Crew(this); // Crew
 	private CloakingDevice cloak = null; // Cloaking Device (null if none installed).
 	private com.sfb.systemgroups.DERFACS derfacs = null; // DERFACS targeting system (null if none installed).
+	private java.util.ArrayList<com.sfb.systemgroups.UIM> uims = new java.util.ArrayList<>(); // UIM modules (up to 4: 1 active + 3 standby).
 
 	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
 
@@ -144,6 +145,12 @@ public class Ship extends Unit {
 		}
 		if (Boolean.TRUE.equals(values.get("derfacs"))) {
 			derfacs = new com.sfb.systemgroups.DERFACS(this);
+		}
+		uims.clear();
+		for (int i = 0; i < specialFunctions.getUim(); i++) {
+			com.sfb.systemgroups.UIM uim = new com.sfb.systemgroups.UIM(this);
+			if (i > 0) uim.scheduleActivation(Integer.MAX_VALUE); // cold standby — not yet needed
+			uims.add(uim);
 		}
 	}
 
@@ -593,6 +600,41 @@ public class Ship extends Unit {
 	/// DERFACS ///
 	public com.sfb.systemgroups.DERFACS getDerfacs() {
 		return this.derfacs;
+	}
+
+	/// UIM ///
+
+	/**
+	 * Returns the active UIM for this impulse, or null if none are functional.
+	 * Per D6.542, a standby UIM has an 8-impulse activation delay after burnout.
+	 */
+	public com.sfb.systemgroups.UIM getActiveUim(int currentImpulse) {
+		for (com.sfb.systemgroups.UIM uim : uims) {
+			if (uim.isFunctional(currentImpulse)) return uim;
+		}
+		return null;
+	}
+
+	/**
+	 * After a burnout, schedules the next undamaged standby UIM to activate
+	 * after an 8-impulse delay (D6.542). The burned-out UIM is already marked
+	 * damaged by {@link com.sfb.systemgroups.UIM#checkBurnout}.
+	 *
+	 * @param burned         The UIM that just burned out.
+	 * @param currentImpulse The impulse at which burnout occurred.
+	 */
+	public void activateNextStandby(com.sfb.systemgroups.UIM burned, int currentImpulse) {
+		int activateAt = currentImpulse + 8;
+		for (com.sfb.systemgroups.UIM uim : uims) {
+			if (uim == burned || uim.isDamaged()) continue;
+			// First undamaged non-burned UIM becomes the next standby
+			uim.scheduleActivation(activateAt);
+			return;
+		}
+	}
+
+	public java.util.List<com.sfb.systemgroups.UIM> getUims() {
+		return java.util.Collections.unmodifiableList(uims);
 	}
 
 	@Override
