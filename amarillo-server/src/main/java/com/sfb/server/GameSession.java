@@ -24,9 +24,11 @@ import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A single game instance on the server.
@@ -66,6 +68,9 @@ public class GameSession {
     /** token → PlayerInfo */
     private final Map<String, PlayerInfo> players = new LinkedHashMap<>();
 
+    /** Tokens of players who have clicked "Ready" for the current phase. */
+    private final Set<String> readyPlayers = new HashSet<>();
+
     private boolean started = false;
 
     public GameSession(String id, String hostToken, String hostName) {
@@ -92,6 +97,17 @@ public class GameSession {
     public boolean isHost(String token) {
         return hostToken.equals(token);
     }
+
+    // -------------------------------------------------------------------------
+    // Ready-state tracking
+    // -------------------------------------------------------------------------
+
+    public int getReadyCount()   { return readyPlayers.size(); }
+    public int getPlayerCount()  { return players.size(); }
+    public boolean allReady()    { return readyPlayers.size() >= players.size(); }
+
+    /** Clear ready flags — called automatically when the phase actually advances. */
+    private void clearReady()    { readyPlayers.clear(); }
 
     // -------------------------------------------------------------------------
     // Ship assignment
@@ -177,7 +193,21 @@ public class GameSession {
         switch (request.getType().toUpperCase()) {
 
             case "ADVANCE_PHASE": {
+                String token = request.getPlayerToken();
+                readyPlayers.add(token);
+                int ready = readyPlayers.size();
+                int total = players.size();
+                if (!allReady()) {
+                    return ActionResult.ok("WAITING:" + ready + "/" + total);
+                }
+                clearReady();
                 return game.execute(new AdvancePhaseCommand());
+            }
+
+            case "UNREADY": {
+                String token = request.getPlayerToken();
+                readyPlayers.remove(token);
+                return ActionResult.ok("UNREADY:" + readyPlayers.size() + "/" + players.size());
             }
 
             case "MOVE": {
@@ -315,6 +345,32 @@ public class GameSession {
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Shuttle not found: " + shuttleName);
                 return game.launchShuttle(ship, foundBay, foundShuttle, speed, facing);
+            }
+
+            case "LAUNCH_SCATTER_PACK": {
+                Ship launcher = findShip(request.getShipName());
+                if (launcher == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String packName = request.getAction();
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                ShuttleBay foundBay = null;
+                com.sfb.objects.ScatterPack foundPack = null;
+                for (ShuttleBay bay : launcher.getShuttles().getBays()) {
+                    for (Shuttle s : bay.getInventory()) {
+                        if (s.getName().equalsIgnoreCase(packName)
+                                && s instanceof com.sfb.objects.ScatterPack) {
+                            foundBay  = bay;
+                            foundPack = (com.sfb.objects.ScatterPack) s;
+                            break;
+                        }
+                    }
+                    if (foundBay != null) break;
+                }
+                if (foundBay == null || foundPack == null)
+                    return ActionResult.fail("Scatter pack not found: " + packName);
+                return game.launchScatterPack(launcher, foundBay, foundPack, target);
             }
 
             case "LAUNCH_SUICIDE_SHUTTLE": {

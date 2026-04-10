@@ -66,6 +66,11 @@ public class ControlSpaces implements Systems {
 		return this.availableSecurity;
 	}
 	
+	////// SETTERS (for client-side sync from server state) //////
+	public void setAvailableBridge(int v)  { availableBridge  = Math.max(0, Math.min(v, bridge)); }
+	public void setAvailableEmer(int v)    { availableEmer    = Math.max(0, Math.min(v, emer)); }
+	public void setAvailableAuxcon(int v)  { availableAuxcon  = Math.max(0, Math.min(v, auxcon)); }
+
 	////// DAMAGE CALLS ///////
 	public boolean damageBridge() {
 		if (availableBridge == 0) {

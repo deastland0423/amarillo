@@ -899,10 +899,7 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " failed to launch");
 
         torpedo.setLocation(launcher.getLocation());
-        int launchFacing = weapon.getLaunchDirections() != 0
-                ? lowestDirection(weapon.getLaunchDirections())
-                : MapUtils.getBearing(launcher, target);
-        torpedo.setFacing(launchFacing);
+        torpedo.setFacing(MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -928,10 +925,7 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
 
         torpedo.setLocation(launcher.getLocation());
-        int launchFacing = weapon.getLaunchDirections() != 0
-                ? lowestDirection(weapon.getLaunchDirections())
-                : MapUtils.getBearing(launcher, target);
-        torpedo.setFacing(launchFacing);
+        torpedo.setFacing(MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -1091,13 +1085,6 @@ public class Game {
     }
 
     /** Extracts the lowest-numbered direction from an arc bitmask. */
-    private int lowestDirection(int mask) {
-        for (int d = 1; d <= 24; d++) {
-            if ((mask & (1 << (d - 1))) != 0) return d;
-        }
-        return 1;
-    }
-
     private boolean isTargetFullyCloaked(Seeker s) {
         Unit target = s.getTarget();
         if (!(target instanceof Ship)) return false;
@@ -1228,10 +1215,39 @@ public class Game {
 
             } else if (seeker instanceof com.sfb.objects.ScatterPack) {
                 com.sfb.objects.ScatterPack pack = (com.sfb.objects.ScatterPack) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, pack.getSpeed()))
-                    continue;
 
-                if (!pack.isReleased()) {
+                // Release check happens every impulse, regardless of movement schedule
+                if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
+                    Unit target = pack.getTarget();
+                    List<com.sfb.objects.Drone> released = pack.release();
+                    Unit controller = pack.getController();
+                    for (com.sfb.objects.Drone drone : released) {
+                        drone.setLocation(pack.getLocation());
+                        drone.setFacing(pack.getFacing());
+                        if (!drone.isSelfGuiding() && controller instanceof Ship
+                                && ((Ship) controller).hasLockOn(target)) {
+                            drone.setTarget(target);
+                            drone.setController(controller);
+                            if (!((Ship) controller).acquireControl(drone)) {
+                                log.add("  Scatter pack drone — no control channel, released");
+                                drone.setTarget(null);
+                                drone.setController(null);
+                            }
+                        } else if (drone.isSelfGuiding()) {
+                            drone.setTarget(target);
+                        }
+                        seekers.add(drone);
+                    }
+                    log.add("  Scatter pack released " + released.size() + " drones at "
+                            + (target != null ? target.getName() : "?"));
+                    // Shuttle stays on map — move to activeShuttles for drift
+                    activeShuttles.add(pack);
+                    expired.add(pack);
+                    continue;
+                }
+
+                // Movement: only on scheduled impulses, only while still en route
+                if (!pack.isReleased() && MovementUtil.moveThisImpulse(impulse, pack.getSpeed())) {
                     Unit target = pack.getTarget();
                     if (target != null) {
                         int bearing = MapUtils.getBearing(pack, target);
@@ -1240,34 +1256,6 @@ public class Game {
                     pack.goForward();
                     if (pack.getLocation() == null) {
                         log.add("  Scatter pack moved off the map — lost");
-                        expired.add(pack);
-                        continue;
-                    }
-                    // Check if 8 impulses have elapsed — release drones
-                    if (pack.isReadyToRelease(TurnTracker.getImpulse())) {
-                        List<com.sfb.objects.Drone> released = pack.release();
-                        Unit controller = pack.getController();
-                        for (com.sfb.objects.Drone drone : released) {
-                            drone.setLocation(pack.getLocation());
-                            drone.setFacing(pack.getFacing());
-                            if (!drone.isSelfGuiding() && controller instanceof Ship
-                                    && ((Ship) controller).hasLockOn(target)) {
-                                drone.setTarget(target);
-                                drone.setController(controller);
-                                if (!((Ship) controller).acquireControl(drone)) {
-                                    log.add("  Scatter pack drone — no control channel, released");
-                                    drone.setTarget(null);
-                                    drone.setController(null);
-                                }
-                            } else if (drone.isSelfGuiding()) {
-                                drone.setTarget(target);
-                            }
-                            seekers.add(drone);
-                        }
-                        log.add("  Scatter pack released " + released.size() + " drones at "
-                                + (target != null ? target.getName() : "?"));
-                        // Shuttle stays on map — move to activeShuttles for drift
-                        activeShuttles.add(pack);
                         expired.add(pack);
                     }
                 }
@@ -1897,6 +1885,11 @@ public class Game {
 
         public String getMessage() {
             return message;
+        }
+
+        /** True when the server accepted the ready signal but is waiting for other players. */
+        public boolean isWaiting() {
+            return success && message != null && message.startsWith("WAITING:");
         }
     }
 

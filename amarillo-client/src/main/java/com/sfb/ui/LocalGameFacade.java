@@ -36,6 +36,8 @@ public class LocalGameFacade implements GameFacade {
     @Override public int getAbsoluteImpulse()                              { return game.getAbsoluteImpulse(); }
     @Override public boolean canFireThisPhase()                            { return game.canFireThisPhase(); }
     @Override public boolean canLaunchThisPhase()                          { return game.canLaunchThisPhase(); }
+    @Override public int     getReadyCount()                               { return 0; }
+    @Override public int     getPlayerCount()                              { return 1; }
     @Override public boolean isAwaitingAllocation()                        { return game.isAwaitingAllocation(); }
     @Override public Ship    nextShipNeedingAllocation()                   { return game.nextShipNeedingAllocation(); }
     @Override public int     getRange(Unit a, Unit t)                      { return game.getRange(a, t); }
@@ -45,6 +47,7 @@ public class LocalGameFacade implements GameFacade {
     @Override public List<SystemTarget> getTargetableSystems(Ship s)       { return game.getTargetableSystems(s); }
 
     @Override public ActionResult advancePhase()                           { return game.execute(new AdvancePhaseCommand()); }
+    @Override public ActionResult unready()                                { return ActionResult.ok(""); } // no-op in local play
     @Override public ActionResult moveShip(Ship s, MoveCommand.Action a)   { return game.execute(new MoveCommand(s, a)); }
     @Override public ActionResult moveShuttle(com.sfb.objects.Shuttle s, ShuttleMoveCommand.Action a) {
         return game.execute(new ShuttleMoveCommand(s, a));
@@ -52,6 +55,13 @@ public class LocalGameFacade implements GameFacade {
     @Override public ActionResult allocateEnergy(Ship s, Energy e)         { return game.execute(new AllocateEnergyCommand(s, e)); }
     @Override public ActionResult launchShuttle(Ship ship, ShuttleBay bay, com.sfb.objects.Shuttle shuttle, int speed, int facing) {
         return game.launchShuttle(ship, bay, shuttle, speed, facing);
+    }
+    @Override public ActionResult launchScatterPack(Ship launcher, com.sfb.objects.ScatterPack pack, Unit target) {
+        for (com.sfb.systemgroups.ShuttleBay bay : launcher.getShuttles().getBays()) {
+            if (bay.getInventory().contains(pack))
+                return game.launchScatterPack(launcher, bay, pack, target);
+        }
+        return ActionResult.fail("Shuttle bay not found for " + pack.getName());
     }
     @Override public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.objects.SuicideShuttle shuttle, Unit target) {
         // Find the bay containing this shuttle

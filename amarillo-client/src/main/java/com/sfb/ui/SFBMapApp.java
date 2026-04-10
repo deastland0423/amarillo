@@ -58,12 +58,15 @@ public class SFBMapApp extends Application {
     private Label         keyHelp;
     private TextArea      combatLog;
     private Button        nextPhaseBtn;
+    private boolean       waitingForReady  = false;
     private boolean       firingMode       = false;
     private boolean       droneMode        = false;
     private boolean       plasmaMode       = false;
     private boolean       hitAndRunMode    = false;
     private boolean       shuttleMode      = false;
-    private boolean       suicideShuttleMode = false;
+    private boolean       suicideShuttleMode  = false;
+    private boolean       scatterPackMode     = false;
+    private com.sfb.objects.ScatterPack pendingScatterPack = null;
     private com.sfb.objects.Shuttle         selectedShuttle = null;
     private com.sfb.systemgroups.ShuttleBay pendingBay     = null;
     private com.sfb.objects.Shuttle         pendingShuttle = null;
@@ -109,7 +112,7 @@ public class SFBMapApp extends Application {
             "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
             "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
             "-fx-font-size: 12; -fx-cursor: hand;");
-        nextPhaseBtn.setOnAction(e -> advancePhase());
+        nextPhaseBtn.setOnAction(e -> { if (waitingForReady) cancelReady(); else advancePhase(); });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -196,6 +199,7 @@ public class SFBMapApp extends Application {
                 if (shuttleMode)           exitShuttleMode();
                 if (hitAndRunMode)         exitHitAndRunMode();
                 if (suicideShuttleMode)  { suicideShuttleMode = false; pendingShuttle = null; mapCanvas.setFiringMode(false); mapCanvas.render(); }
+                if (scatterPackMode)     { scatterPackMode = false; pendingScatterPack = null; mapCanvas.setFiringMode(false); mapCanvas.render(); }
                 if (selectedShuttle != null) { selectedShuttle = null; selectedLabel.setText(""); }
                 if (mapCanvas.isHexSelectionMode()) {
                     mapCanvas.exitHexSelectionMode();
@@ -277,7 +281,7 @@ public class SFBMapApp extends Application {
                 Game.ActionResult result = game.launchShuttle(
                         ship, pendingBay, pendingShuttle,
                         pendingShuttle.getMaxSpeed(), facing);
-                combatLog.appendText(result.getMessage() + "\n");
+                appendLog(result.getMessage());
                 if (result.isSuccess()) {
                     // Pre-select the shuttle so it auto-moves when its impulse comes
                     selectedShuttle = pendingShuttle;
@@ -353,6 +357,45 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
+            if (event.getCode() == KeyCode.K) {
+                if (!game.canLaunchThisPhase()) {
+                    setStatus("Scatter packs can only be launched during the Activity phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                List<com.sfb.objects.ScatterPack> packList = new ArrayList<>();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                        if (s instanceof com.sfb.objects.ScatterPack
+                                && !((com.sfb.objects.ScatterPack) s).getPayload().isEmpty())
+                            packList.add((com.sfb.objects.ScatterPack) s);
+                    }
+                }
+                if (packList.isEmpty()) {
+                    setStatus(ship.getName() + " has no loaded scatter packs");
+                    return;
+                }
+                com.sfb.objects.ScatterPack chosen;
+                if (packList.size() == 1) {
+                    chosen = packList.get(0);
+                } else {
+                    javafx.scene.control.ChoiceDialog<com.sfb.objects.ScatterPack> pick =
+                            new javafx.scene.control.ChoiceDialog<>(packList.get(0), packList);
+                    pick.setTitle("Launch Scatter Pack");
+                    pick.setHeaderText("Select scatter pack to launch:");
+                    pick.initOwner(mapCanvas.getScene().getWindow());
+                    chosen = pick.showAndWait().orElse(null);
+                    if (chosen == null) { setStatus("Cancelled"); return; }
+                }
+                pendingScatterPack = chosen;
+                scatterPackMode    = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("SCATTER PACK — click target ship  (Escape to cancel)  ["
+                        + chosen.getPayload().size() + " drones]");
+                mapCanvas.render();
+                return;
+            }
             if (event.getCode() == KeyCode.B) {
                 if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY) {
                     setStatus("tBombs can only be placed during the Activity phase");
@@ -389,7 +432,7 @@ public class SFBMapApp extends Application {
                         isReal = hasReal;
                     }
                     Game.ActionResult result = game.placeTBomb(ship, loc, isReal);
-                    combatLog.appendText(result.getMessage() + "\n");
+                    appendLog(result.getMessage());
                     setStatus(result.isSuccess() ? "tBomb placed" : result.getMessage());
                     mapCanvas.render();
                     infoPanel.update(ship);
@@ -409,13 +452,13 @@ public class SFBMapApp extends Application {
                 } else {
                     result = game.uncloak(ship);
                 }
-                combatLog.appendText(result.getMessage() + "\n");
+                appendLog(result.getMessage());
                 setStatus(result.getMessage());
                 infoPanel.update(ship);
                 mapCanvas.render();
                 return;
             }
-            if (firingMode || droneMode || plasmaMode || hitAndRunMode || suicideShuttleMode) return;
+            if (firingMode || droneMode || plasmaMode || hitAndRunMode || suicideShuttleMode || scatterPackMode) return;
 
             // Shuttle movement: only in MOVEMENT phase when all ships have moved
             if (selectedShuttle != null
@@ -445,7 +488,12 @@ public class SFBMapApp extends Application {
             ((ServerGameClient) game).setOnStateChanged(v -> {
                 refreshMovableShips();
                 turnLabel.setText(turnText());
+                waitingForReady = false;
                 nextPhaseBtn.setText(nextPhaseLabel());
+                nextPhaseBtn.setStyle(
+                    "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
+                    "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
+                    "-fx-font-size: 12; -fx-cursor: hand;");
                 ServerGameClient sgc = (ServerGameClient) game;
 
                 // Allocation phase triggered by server state — only show once per turn
@@ -524,9 +572,20 @@ public class SFBMapApp extends Application {
             return;
         }
         Game.ActionResult result = game.advancePhase();
+        if (result.isWaiting()) {
+            // Server acknowledged ready signal but other players haven't confirmed yet
+            waitingForReady = true;
+            nextPhaseBtn.setText(cancelReadyLabel());
+            nextPhaseBtn.setStyle(
+                "-fx-background-color: #2a1a1a; -fx-text-fill: #ff8888; " +
+                "-fx-border-color: #663333; -fx-border-radius: 3; -fx-background-radius: 3; " +
+                "-fx-font-size: 12; -fx-cursor: hand;");
+            setStatus("Waiting for other players... (click to cancel)");
+            return;
+        }
+        waitingForReady = false;
         if (!result.getMessage().isEmpty()) {
-            combatLog.appendText(result.getMessage() + "\n");
-            infoPanel.update(null);
+            appendLog(result.getMessage());
         }
         if (game.isAwaitingAllocation()) {
             runAllocationPhase((Stage) mapCanvas.getScene().getWindow());
@@ -547,6 +606,25 @@ public class SFBMapApp extends Application {
             }
         }
         mapCanvas.render();
+    }
+
+    private String waitingLabel() {
+        return "Waiting " + game.getReadyCount() + "/" + game.getPlayerCount() + "  ⏳";
+    }
+
+    private String cancelReadyLabel() {
+        return "Cancel Ready  ✕";
+    }
+
+    private void cancelReady() {
+        game.unready();
+        waitingForReady = false;
+        nextPhaseBtn.setText(nextPhaseLabel());
+        nextPhaseBtn.setStyle(
+            "-fx-background-color: #1a2a4a; -fx-text-fill: #88bbff; " +
+            "-fx-border-color: #334466; -fx-border-radius: 3; -fx-background-radius: 3; " +
+            "-fx-font-size: 12; -fx-cursor: hand;");
+        setStatus(phaseStatus());
     }
 
     private String nextPhaseLabel() {
@@ -575,13 +653,18 @@ public class SFBMapApp extends Application {
         }
     }
 
+    private void appendLog(String text) {
+        combatLog.appendText(text + "\n");
+        combatLog.setScrollTop(Double.MAX_VALUE);
+    }
+
     private void updateKeyHelp() {
         switch (game.getCurrentPhase()) {
             case MOVEMENT:
                 keyHelp.setText("W=fwd  A/D=turn  Q/E=sideslip  (shuttles: W/A/D after ships)  ESC=cancel");
                 break;
             case ACTIVITY:
-                keyHelp.setText("L=launch drone  P=plasma  S=shuttle  B=tBomb  C=cloak/uncloak  ESC=cancel");
+                keyHelp.setText("L=launch drone  P=plasma  S=shuttle  U=suicide shuttle  K=scatter pack  B=tBomb  C=cloak/uncloak  ESC=cancel");
                 break;
             case DIRECT_FIRE:
                 keyHelp.setText("F=fire  H=hit&run  ESC=cancel");
@@ -759,7 +842,7 @@ public class SFBMapApp extends Application {
             } else {
                 if (pendingRack != null && pendingDrone != null) {
                     Game.ActionResult result = game.launchDrone(launcher, hitUnit, pendingRack, pendingDrone);
-                    combatLog.appendText(result.getMessage() + "\n");
+                    appendLog(result.getMessage());
                     setStatus(result.getMessage());
                     mapCanvas.setSeekers(game.getSeekers());
                     mapCanvas.render();
@@ -775,7 +858,7 @@ public class SFBMapApp extends Application {
             } else {
                 if (pendingLauncher != null) {
                     Game.ActionResult result = game.launchPlasma(launcher, hitUnit, pendingLauncher, pendingPseudo);
-                    combatLog.appendText(result.getMessage() + "\n");
+                    appendLog(result.getMessage());
                     setStatus(result.getMessage());
                     mapCanvas.setSeekers(game.getSeekers());
                     mapCanvas.render();
@@ -792,6 +875,22 @@ public class SFBMapApp extends Application {
                 resolveWeaponsFire(attacker, hitUnit);
                 exitFiringMode();
             }
+        } else if (scatterPackMode) {
+            Ship launcher = mapCanvas.getSelectedShip();
+            if (hitShip == null) {
+                setStatus("Click an enemy ship — or press Escape to cancel");
+            } else if (hitShip == launcher) {
+                setStatus("Can't target yourself — click an enemy or press Escape");
+            } else {
+                Game.ActionResult result = game.launchScatterPack(launcher, pendingScatterPack, hitShip);
+                appendLog(result.getMessage());
+                setStatus(result.getMessage());
+                mapCanvas.setSeekers(game.getSeekers());
+                mapCanvas.render();
+                scatterPackMode    = false;
+                pendingScatterPack = null;
+                mapCanvas.setFiringMode(false);
+            }
         } else if (suicideShuttleMode) {
             Ship launcher = mapCanvas.getSelectedShip();
             if (hitShip == null) {
@@ -801,7 +900,7 @@ public class SFBMapApp extends Application {
             } else if (pendingShuttle instanceof com.sfb.objects.SuicideShuttle) {
                 Game.ActionResult result = game.launchSuicideShuttle(
                         launcher, (com.sfb.objects.SuicideShuttle) pendingShuttle, hitShip);
-                combatLog.appendText(result.getMessage() + "\n");
+                appendLog(result.getMessage());
                 setStatus(result.getMessage());
                 mapCanvas.setSeekers(game.getSeekers());
                 mapCanvas.render();
@@ -827,7 +926,7 @@ public class SFBMapApp extends Application {
                     List<SystemTarget> targets = dlg.getTargetSystems();
                     if (targets != null && !targets.isEmpty()) {
                         Game.ActionResult result = game.hitAndRun(actingShip, hitShip, targets);
-                        combatLog.appendText(result.getMessage() + "\n");
+                        appendLog(result.getMessage());
                         setStatus(result.isSuccess() ? "Raid complete — see combat log" : result.getMessage());
                         infoPanel.update(hitShip);
                     } else {
@@ -894,7 +993,7 @@ public class SFBMapApp extends Application {
         if (selected != null) {
             int adjustedRange = game.getEffectiveRange(attacker, target);
             Game.ActionResult result = game.fire(attacker, target, selected, range, adjustedRange, shieldNumber);
-            combatLog.appendText(result.getMessage() + "\n");
+            appendLog(result.getMessage());
             setStatus("Fired — see combat log");
             if (target instanceof Ship) {
                 selectedLabel.setText(target.getName() + " (" + ((Ship) target).getHullType() + ")  — damage taken");

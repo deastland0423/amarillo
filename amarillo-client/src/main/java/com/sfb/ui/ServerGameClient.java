@@ -79,6 +79,8 @@ public class ServerGameClient implements GameFacade {
     private final    List<String>      pendingAllocation    = new CopyOnWriteArrayList<>();
     private final    List<String>      movableNow           = new CopyOnWriteArrayList<>();
     private final    Set<String>       myShipNames          = ConcurrentHashMap.newKeySet();
+    private volatile int               readyCount           = 0;
+    private volatile int               playerCount          = 1;
 
     // -------------------------------------------------------------------------
     // State change callback — SFBMapApp registers this to trigger a re-render
@@ -161,6 +163,8 @@ public class ServerGameClient implements GameFacade {
         currentTurn    = dto.turn;
         currentImpulse = dto.impulse;
         currentPhase   = phaseFromLabel(dto.phase);
+        readyCount     = dto.readyCount;
+        playerCount    = dto.playerCount > 0 ? dto.playerCount : 1;
 
         // Sync TurnTracker so cloak fade steps render correctly
         if (dto.absoluteImpulse > 0) {
@@ -196,6 +200,8 @@ public class ServerGameClient implements GameFacade {
                     newSeekers.add(buildPlasma((GameStateDto.PlasmaTorpedoDto) obj));
                 else if (obj instanceof GameStateDto.SuicideShuttleDto)
                     newSeekers.add(buildSuicideShuttle((GameStateDto.SuicideShuttleDto) obj));
+                else if (obj instanceof GameStateDto.ScatterPackDto)
+                    newSeekers.add(buildScatterPack((GameStateDto.ScatterPackDto) obj));
                 else if (obj instanceof GameStateDto.MineDto)
                     newMines.add(buildMine((GameStateDto.MineDto) obj));
             }
@@ -242,6 +248,23 @@ public class ServerGameClient implements GameFacade {
         // Sync transporter energy: bank exactly enough for the reported available uses
         ship.getTransporters().cleanUp();
         ship.getTransporters().bankEnergy(dto.transporterUses * 0.2);
+
+        // Sync hull box damage
+        ship.getHullBoxes().setAvailableFhull(dto.availableFhull);
+        ship.getHullBoxes().setAvailableAhull(dto.availableAhull);
+        ship.getHullBoxes().setAvailableChull(dto.availableChull);
+
+        // Sync power system damage
+        ship.getPowerSysetems().setAvailableLWarp(dto.availableLWarp);
+        ship.getPowerSysetems().setAvailableRWarp(dto.availableRWarp);
+        ship.getPowerSysetems().setAvailableCWarp(dto.availableCWarp);
+        ship.getPowerSysetems().setAvailableImpulse(dto.availableImpulse);
+        ship.getPowerSysetems().setAvailableBattery(dto.availableBattery);
+
+        // Sync control space damage
+        ship.getControlSpaces().setAvailableBridge(dto.availableBridge);
+        ship.getControlSpaces().setAvailableEmer(dto.availableEmer);
+        ship.getControlSpaces().setAvailableAuxcon(dto.availableAuxcon);
 
         // Update phaser capacitor
         try { ship.getWeapons().chargePhaserCapacitor(
@@ -322,9 +345,14 @@ public class ServerGameClient implements GameFacade {
                                 sd.type != null ? sd.type : "admin", sd.name);
                         if (s instanceof com.sfb.objects.SuicideShuttle) {
                             com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
-                            // Replay arm() calls to match server arming state
                             for (int i = 0; i < sd.armingTurnsComplete && i < 3; i++)
                                 ss.arm(sd.warheadDamage > 0 ? (sd.warheadDamage / 2 / Math.max(1, sd.armingTurnsComplete)) : 1);
+                        } else if (s instanceof com.sfb.objects.ScatterPack) {
+                            com.sfb.objects.ScatterPack pack = (com.sfb.objects.ScatterPack) s;
+                            // Sync payload count — add Type-I drones to match server state
+                            pack.getPayload().clear();
+                            for (int i = 0; i < sd.payloadCount; i++)
+                                pack.addDrone(new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI));
                         }
                         bay.getInventory().add(s);
                     }
@@ -426,6 +454,23 @@ public class ServerGameClient implements GameFacade {
         return ss;
     }
 
+    private com.sfb.objects.ScatterPack buildScatterPack(GameStateDto.ScatterPackDto dto) {
+        com.sfb.objects.ScatterPack pack = new com.sfb.objects.ScatterPack(new com.sfb.objects.AdminShuttle());
+        pack.setName(dto.name);
+        if (dto.location != null) pack.setLocation(parseLocation(dto.location));
+        pack.setFacing(dto.facing);
+        pack.setSpeed(dto.speed);
+        if (dto.controllerName != null) {
+            Ship ctrl = shipByName.get(dto.controllerName);
+            if (ctrl != null) pack.setController(ctrl);
+        }
+        if (dto.targetName != null) {
+            Ship tgt = shipByName.get(dto.targetName);
+            if (tgt != null) pack.setTarget(tgt);
+        }
+        return pack;
+    }
+
     private SpaceMine buildMine(GameStateDto.MineDto dto) {
         SpaceMine m = SpaceMine.forRendering();
         m.setName(dto.name);
@@ -519,6 +564,8 @@ public class ServerGameClient implements GameFacade {
 
     @Override public boolean canFireThisPhase()    { return currentPhase == Game.ImpulsePhase.DIRECT_FIRE; }
     @Override public boolean canLaunchThisPhase()  { return currentPhase == Game.ImpulsePhase.ACTIVITY; }
+    @Override public int     getReadyCount()       { return readyCount; }
+    @Override public int     getPlayerCount()      { return playerCount; }
 
     @Override public List<Ship> getMovableShips() {
         if (movableNow.isEmpty()) return Collections.emptyList();
@@ -657,6 +704,10 @@ public class ServerGameClient implements GameFacade {
 
     @Override public ActionResult advancePhase() {
         return postAction("ADVANCE_PHASE", null, null);
+    }
+
+    @Override public ActionResult unready() {
+        return postAction("UNREADY", null, null);
     }
 
     @Override public ActionResult moveShip(Ship ship, MoveCommand.Action action) {
@@ -861,6 +912,34 @@ public class ServerGameClient implements GameFacade {
             return ActionResult.fail("Network error: " + e.getMessage());
         }
     }
+    @Override public ActionResult launchScatterPack(Ship launcher, com.sfb.objects.ScatterPack pack, Unit target) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",       "LAUNCH_SCATTER_PACK");
+            body.put("shipName",   launcher.getName());
+            body.put("action",     pack.getName());
+            body.put("targetName", target.getName());
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
+    }
+
     @Override public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.objects.SuicideShuttle shuttle, Unit target) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();

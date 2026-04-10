@@ -38,6 +38,7 @@ public class GameStateDto {
         @JsonSubTypes.Type(value = ShipDto.class,             name = "SHIP"),
         @JsonSubTypes.Type(value = ShuttleDto.class,          name = "SHUTTLE"),
         @JsonSubTypes.Type(value = SuicideShuttleDto.class,   name = "SUICIDE_SHUTTLE"),
+        @JsonSubTypes.Type(value = ScatterPackDto.class,      name = "SCATTER_PACK"),
         @JsonSubTypes.Type(value = DroneDto.class,            name = "DRONE"),
         @JsonSubTypes.Type(value = PlasmaTorpedoDto.class,    name = "PLASMA"),
         @JsonSubTypes.Type(value = MineDto.class,             name = "MINE"),
@@ -85,11 +86,12 @@ public class GameStateDto {
 
     public static class ShuttleInBayDto {
         public String  name;
-        public String  type;             // "admin", "gas", "hts", "suicide"
+        public String  type;             // "admin", "gas", "hts", "suicide", "scatterpack"
         public int     maxSpeed;
         public boolean armed;            // suicide only: true when armingTurnsComplete >= 3
         public int     armingTurnsComplete; // suicide only: 0-3
         public int     warheadDamage;    // suicide only: totalEnergy * 2
+        public int     payloadCount;     // scatterpack only: drones loaded
     }
 
     public static class ShuttleBayDto {
@@ -118,6 +120,21 @@ public class GameStateDto {
         public int                  transporterUses;
         public int                  boardingParties;
         public int                  availableTransporters;
+        // Hull box damage state
+        public int                  availableFhull;
+        public int                  availableAhull;
+        public int                  availableChull;
+        // Power system damage state
+        public int                  availableLWarp;
+        public int                  availableRWarp;
+        public int                  availableCWarp;
+        public int                  availableImpulse;
+        public int                  availableBattery;
+        // Control space damage state
+        public int                  availableBridge;
+        public int                  availableEmer;
+        public int                  availableAuxcon;
+        // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
     }
 
     // -------------------------------------------------------------------------
@@ -141,6 +158,19 @@ public class GameStateDto {
         public String targetName;
         public int    warheadDamage;    // totalEnergy * 2
         public int    armingTurnsComplete;
+    }
+
+    // -------------------------------------------------------------------------
+    // Scatter pack (seeker — moves toward target, releases drones after 8 impulses)
+    // -------------------------------------------------------------------------
+
+    public static class ScatterPackDto extends MapObjectDto {
+        public int    facing;
+        public int    speed;
+        public String controllerName;
+        public String targetName;
+        public int    payloadCount;    // number of drones still loaded
+        public boolean released;       // true after drones have been deployed
     }
 
     // -------------------------------------------------------------------------
@@ -195,6 +225,8 @@ public class GameStateDto {
     public boolean           awaitingAllocation;
     public List<String>      pendingAllocation; // ship names not yet allocated this turn
     public List<MapObjectDto> mapObjects;
+    public int               readyCount;       // players who have clicked Ready this phase
+    public int               playerCount;      // total players in the session
 
     // -------------------------------------------------------------------------
     // Constructor — builds from live Game state
@@ -234,6 +266,8 @@ public class GameStateDto {
                 mapObjects.add(fromPlasma((PlasmaTorpedo) seeker));
             else if (seeker instanceof com.sfb.objects.SuicideShuttle)
                 mapObjects.add(fromSuicideShuttle((com.sfb.objects.SuicideShuttle) seeker));
+            else if (seeker instanceof com.sfb.objects.ScatterPack)
+                mapObjects.add(fromScatterPack((com.sfb.objects.ScatterPack) seeker));
         }
 
         for (SpaceMine mine : game.getMines())
@@ -282,6 +316,26 @@ public class GameStateDto {
         dto.transporterUses       = ship.getTransporters().availableUses();
         dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
         dto.availableTransporters = ship.getTransporters().getAvailableTrans();
+
+        // Hull box damage state
+        com.sfb.systemgroups.HullBoxes hb = ship.getHullBoxes();
+        dto.availableFhull  = hb.getAvailableFhull();
+        dto.availableAhull  = hb.getAvailableAhull();
+        dto.availableChull  = hb.getAvailableChull();
+
+        // Power system damage state
+        com.sfb.systemgroups.PowerSystems ps = ship.getPowerSysetems();
+        dto.availableLWarp   = ps.getAvailableLWarp();
+        dto.availableRWarp   = ps.getAvailableRWarp();
+        dto.availableCWarp   = ps.getAvailableCWarp();
+        dto.availableImpulse = ps.getAvailableImpulse();
+        dto.availableBattery = ps.getAvailableBattery();
+
+        // Control space damage state
+        com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
+        dto.availableBridge  = cs.getAvailableBridge();
+        dto.availableEmer    = cs.getAvailableEmer();
+        dto.availableAuxcon  = cs.getAvailableAuxcon();
 
         dto.weapons = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -341,6 +395,8 @@ public class GameStateDto {
                     sd.armed               = ss.isArmed();
                     sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                     sd.warheadDamage       = ss.getWarheadDamage();
+                } else if (s instanceof com.sfb.objects.ScatterPack) {
+                    sd.payloadCount = ((com.sfb.objects.ScatterPack) s).getPayload().size();
                 }
                 bd.shuttles.add(sd);
             }
@@ -370,6 +426,19 @@ public class GameStateDto {
         dto.armingTurnsComplete  = ss.getArmingTurnsComplete();
         dto.controllerName       = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
         dto.targetName           = ss.getTarget() != null ? ss.getTarget().getName() : null;
+        return dto;
+    }
+
+    private static ScatterPackDto fromScatterPack(com.sfb.objects.ScatterPack pack) {
+        ScatterPackDto dto    = new ScatterPackDto();
+        dto.name              = pack.getName();
+        dto.location          = pack.getLocation() != null ? pack.getLocation().toString() : null;
+        dto.facing            = pack.getFacing();
+        dto.speed             = pack.getSpeed();
+        dto.payloadCount      = pack.getPayload().size();
+        dto.released          = pack.isReleased();
+        dto.controllerName    = pack.getController() != null ? ((com.sfb.objects.Unit) pack.getController()).getName() : null;
+        dto.targetName        = pack.getTarget() != null ? pack.getTarget().getName() : null;
         return dto;
     }
 

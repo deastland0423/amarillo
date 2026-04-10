@@ -16,6 +16,7 @@ import java.util.Map;
 public class ActionRequest {
 
     private String       type;
+    private String       playerToken; // set by controller from X-Player-Token header
     private String       shipName;
     private String       action;
 
@@ -33,8 +34,11 @@ public class ActionRequest {
     private Map<String, String> weaponArming; // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "DISCHARGE"
     private boolean             cloakPaid;    // true if the player paid the cloak cost this turn
 
-    public String getType()                        { return type; }
-    public void   setType(String type)             { this.type = type; }
+    public String getType()                           { return type; }
+    public void   setType(String type)                { this.type = type; }
+
+    public String getPlayerToken()                    { return playerToken; }
+    public void   setPlayerToken(String playerToken)  { this.playerToken = playerToken; }
 
     public String getShipName()                    { return shipName; }
     public void   setShipName(String n)            { this.shipName = n; }

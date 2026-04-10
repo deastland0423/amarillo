@@ -125,17 +125,16 @@ public class PowerSystems implements Systems {
 	//
 	/////////////////////////////////////
 	
-	public int getAvailableLWarp() {
-		return availableLwarp;
-	}
-	
-	public int getAvailableRWarp() {
-		return availableRwarp;
-	}
+	public int getAvailableLWarp() { return availableLwarp; }
+	public int getAvailableRWarp() { return availableRwarp; }
+	public int getAvailableCWarp() { return availableCwarp; }
 
-	public int getAvailableCWarp() {
-		return availableCwarp;
-	}
+	// Setters for client-side sync from server state
+	public void setAvailableLWarp(int v)   { availableLwarp   = Math.max(0, Math.min(v, lwarp)); }
+	public void setAvailableRWarp(int v)   { availableRwarp   = Math.max(0, Math.min(v, rwarp)); }
+	public void setAvailableCWarp(int v)   { availableCwarp   = Math.max(0, Math.min(v, cwarp)); }
+	public void setAvailableImpulse(int v) { availableImpulse = Math.max(0, Math.min(v, impulse)); }
+	public void setAvailableBattery(int v) { availableBattery = Math.max(0, Math.min(v, battery)); }
 
 	public int getAvailableApr() {
 		return availableApr;

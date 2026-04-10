@@ -39,6 +39,8 @@ public interface GameFacade {
     int                         getAbsoluteImpulse();
     boolean                     canFireThisPhase();
     boolean                     canLaunchThisPhase();
+    int                         getReadyCount();
+    int                         getPlayerCount();
     boolean                     isAwaitingAllocation();
     Ship                        nextShipNeedingAllocation();
     int                         getRange(Unit attacker, Unit target);
@@ -49,11 +51,13 @@ public interface GameFacade {
 
     // Actions
     ActionResult advancePhase();
+    ActionResult unready();
     ActionResult moveShip(Ship ship, MoveCommand.Action action);
     ActionResult moveShuttle(com.sfb.objects.Shuttle shuttle, ShuttleMoveCommand.Action action);
     ActionResult allocateEnergy(Ship ship, Energy allocation);
     ActionResult launchShuttle(Ship ship, ShuttleBay bay, com.sfb.objects.Shuttle shuttle, int speed, int facing);
     ActionResult launchSuicideShuttle(Ship launcher, com.sfb.objects.SuicideShuttle shuttle, Unit target);
+    ActionResult launchScatterPack(Ship launcher, com.sfb.objects.ScatterPack pack, Unit target);
     ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone);
     ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo);
     ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shieldNumber);

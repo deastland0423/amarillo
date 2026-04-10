@@ -4,9 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.objects.AdminShuttle;
+import com.sfb.objects.Drone;
+import com.sfb.objects.DroneType;
 import com.sfb.objects.GASShuttle;
 import com.sfb.objects.HTSShuttle;
+import com.sfb.objects.ScatterPack;
 import com.sfb.objects.Shuttle;
+import com.sfb.objects.SuicideShuttle;
 import com.sfb.objects.Unit;
 
 /**
@@ -83,9 +87,17 @@ public class ShuttleBay {
     public static Shuttle buildShuttle(String type, String name) {
         Shuttle s;
         switch (type.toLowerCase()) {
-            case "gas":     s = new GASShuttle();   break;
-            case "hts":     s = new HTSShuttle();   break;
-            case "suicide": s = new com.sfb.objects.SuicideShuttle(new com.sfb.objects.AdminShuttle()); break;
+            case "gas":     s = new GASShuttle();                  break;
+            case "hts":     s = new HTSShuttle();                  break;
+            case "suicide": s = new SuicideShuttle(new AdminShuttle()); break;
+            case "scatterpack": {
+                ScatterPack pack = new ScatterPack(new AdminShuttle());
+                // Pre-load 4 Type-I drones (4 × 1 rack space)
+                for (int i = 0; i < 4; i++)
+                    pack.addDrone(new Drone(DroneType.TypeI));
+                s = pack;
+                break;
+            }
             case "admin":
             default:        s = new AdminShuttle();  break;
         }

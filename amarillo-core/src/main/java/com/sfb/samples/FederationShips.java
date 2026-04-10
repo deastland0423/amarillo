@@ -334,7 +334,7 @@ public class FederationShips {
         s.put("tractor", 2);
         s.put("lab", 2);
         s.put("probe", 1);
-        s.put("shuttle", 2);
+        s.put("shuttlebays", List.of(List.of("admin", "scatterpack")));
         s.put("crew", 16);
         s.put("boardingparties", 6);
         s.put("minimumcrew", 4);

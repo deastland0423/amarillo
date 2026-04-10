@@ -789,15 +789,19 @@ public class Ship extends Unit {
 				case "battery":
 					hit = powerSystems.damageBattery();
 					break;
-				case "fhull":
+				case "fhull": {
+					boolean fAvail = hullBoxes.getAvailableFhull() > 0;
 					hit = hullBoxes.damageFhull();
+					if (hit && !fAvail) system = "chull (fhull exhausted)";
 					break;
+				}
 				case "ahull":
+				case "afthull": {
+					boolean aAvail = hullBoxes.getAvailableAhull() > 0;
 					hit = hullBoxes.damageAhull();
+					if (hit && !aAvail) system = "chull (ahull exhausted)";
 					break;
-				case "afthull":
-					hit = hullBoxes.damageAhull();
-					break;
+				}
 				case "cargo":
 					hit = hullBoxes.damageCargo();
 					break;

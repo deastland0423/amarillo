@@ -31,10 +31,17 @@ public class GameController {
         this.broker         = broker;
     }
 
+    private GameStateDto buildState(GameSession session) {
+        GameStateDto dto = new GameStateDto(session.getGame());
+        dto.readyCount   = session.getReadyCount();
+        dto.playerCount  = session.getPlayerCount();
+        return dto;
+    }
+
     private void broadcastState(GameSession session) {
         broker.convertAndSend(
             "/topic/games/" + session.getId() + "/state",
-            new GameStateDto(session.getGame())
+            buildState(session)
         );
     }
 
@@ -192,6 +199,7 @@ public class GameController {
                     "message", "You do not own ship: " + request.getShipName()
             ));
 
+        request.setPlayerToken(token);
         ActionResult result = session.executeAction(request);
         if (result.isSuccess())
             broadcastState(session);
@@ -244,7 +252,7 @@ public class GameController {
         if (!session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game has not started"));
 
-        GameStateDto dto = new GameStateDto(session.getGame());
+        GameStateDto dto = buildState(session);
 
         // Populate myShips if the caller identifies themselves
         if (token != null && session.hasPlayer(token)) {

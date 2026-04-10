@@ -96,23 +96,26 @@ public class HullBoxes implements Systems {
 				+ this.availableBarracks + this.availableArmor;
 	}
 
+	//// SETTERS (for client-side sync from server state) ////
+	public void setAvailableFhull(int v) { availableFhull = Math.max(0, Math.min(v, fhull)); }
+	public void setAvailableAhull(int v) { availableAhull = Math.max(0, Math.min(v, ahull)); }
+	public void setAvailableChull(int v) { availableChull = Math.max(0, Math.min(v, chull)); }
+
 	//// DAMAGE //////
 	public boolean damageFhull() {
-		if (availableFhull == 0) {
-			return false;
+		if (availableFhull > 0) {
+			availableFhull--;
+			return true;
 		}
-
-		availableFhull--;
-		return true;
+		return damageChull();
 	}
 
 	public boolean damageAhull() {
-		if (availableAhull == 0) {
-			return false;
+		if (availableAhull > 0) {
+			availableAhull--;
+			return true;
 		}
-
-		availableAhull--;
-		return true;
+		return damageChull();
 	}
 
 	public boolean damageChull() {
