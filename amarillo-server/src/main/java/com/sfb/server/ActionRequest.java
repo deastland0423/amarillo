@@ -34,6 +34,7 @@ public class ActionRequest {
     private String              shieldMode;   // "ACTIVE", "MINIMUM", or "OFF"
     private Map<String, String> weaponArming; // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "DISCHARGE"
     private boolean             cloakPaid;    // true if the player paid the cloak cost this turn
+    private boolean             energizeCaps; // true if player paid 1 pt to energize capacitors (WS-0)
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -80,9 +81,28 @@ public class ActionRequest {
     public boolean isCloakPaid()                   { return cloakPaid; }
     public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
 
+    public boolean isEnergizeCaps()                        { return energizeCaps; }
+    public void    setEnergizeCaps(boolean energizeCaps)   { this.energizeCaps = energizeCaps; }
+
     // LAUNCH_PLASMA fields
     private boolean pseudo;
 
     public boolean isPseudo()                { return pseudo; }
     public void    setPseudo(boolean pseudo) { this.pseudo = pseudo; }
+
+    // ALLOCATE — transporter field
+    private int transUses;
+
+    public int  getTransUses()               { return transUses; }
+    public void setTransUses(int transUses)  { this.transUses = transUses; }
+
+    // BOARDING_ACTION fields
+    private int normalParties;
+    private int commandoParties;
+
+    public int  getNormalParties()                       { return normalParties; }
+    public void setNormalParties(int normalParties)      { this.normalParties = normalParties; }
+
+    public int  getCommandoParties()                     { return commandoParties; }
+    public void setCommandoParties(int commandoParties)  { this.commandoParties = commandoParties; }
 }

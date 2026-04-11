@@ -266,7 +266,8 @@ public class ServerGameClient implements GameFacade {
         ship.getControlSpaces().setAvailableEmer(dto.availableEmer);
         ship.getControlSpaces().setAvailableAuxcon(dto.availableAuxcon);
 
-        // Update phaser capacitor
+        // Update phaser capacitor state
+        ship.setCapacitorsCharged(dto.capacitorsCharged);
         try { ship.getWeapons().chargePhaserCapacitor(
                 dto.phaserCapacitor - ship.getWeapons().getPhaserCapacitorEnergy());
         } catch (Exception ignored) {}
@@ -730,7 +731,8 @@ public class ServerGameClient implements GameFacade {
             int totalSpeed = warpSpeed + e.getImpulseMovement();
             body.put("speed", totalSpeed);
 
-            // Phaser capacitor — topOff if any energy was allocated
+            // Phaser capacitor — energize (WS-0) or top-off if charged
+            body.put("energizeCaps", e.isEnergizeCaps());
             body.put("topOffCap", e.getPhaserCapacitor() > 0);
 
             // Shield mode
@@ -760,6 +762,11 @@ public class ServerGameClient implements GameFacade {
             }
             body.put("weaponArming", arming);
             body.put("cloakPaid",   e.isCloakPaid());
+
+            // Transporter uses
+            double energyPerUse = com.sfb.systemgroups.Transporters.energyPerUse();
+            int transUses = energyPerUse > 0 ? (int)(e.getTransporters() / energyPerUse) : 0;
+            body.put("transUses", transUses);
 
             String json = mapper.writeValueAsString(body);
             HttpRequest req = HttpRequest.newBuilder()
@@ -985,6 +992,34 @@ public class ServerGameClient implements GameFacade {
             body.put("shipName",    acting.getName());
             body.put("targetName",  target.getName());
             body.put("weaponNames", systemCodes);
+
+            String json = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/games/" + gameId + "/action"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Player-Token", playerToken)
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            Map<?, ?> result = mapper.readValue(res.body(), Map.class);
+            boolean success = Boolean.TRUE.equals(result.get("success"));
+            String msg = Objects.toString(result.get("message"), "");
+
+            poller.schedule(this::pollState, 0, TimeUnit.MILLISECONDS);
+            return success ? ActionResult.ok(msg) : ActionResult.fail(msg);
+        } catch (Exception e) {
+            return ActionResult.fail("Network error: " + e.getMessage());
+        }
+    }
+    @Override public ActionResult boardingAction(Ship acting, Ship target, int normal, int commandos) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("type",            "BOARDING_ACTION");
+            body.put("shipName",        acting.getName());
+            body.put("targetName",      target.getName());
+            body.put("normalParties",   normal);
+            body.put("commandoParties", commandos);
 
             String json = mapper.writeValueAsString(body);
             HttpRequest req = HttpRequest.newBuilder()

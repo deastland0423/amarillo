@@ -64,6 +64,7 @@ public class SFBMapApp extends Application {
     private boolean       droneMode        = false;
     private boolean       plasmaMode       = false;
     private boolean       hitAndRunMode    = false;
+    private boolean       boardingMode     = false;
     private boolean       shuttleMode      = false;
     private boolean       suicideShuttleMode  = false;
     private boolean       scatterPackMode     = false;
@@ -199,6 +200,7 @@ public class SFBMapApp extends Application {
                 if (plasmaMode)            exitPlasmaMode();
                 if (shuttleMode)           exitShuttleMode();
                 if (hitAndRunMode)         exitHitAndRunMode();
+                if (boardingMode)          exitBoardingMode();
                 if (suicideShuttleMode)  { suicideShuttleMode = false; pendingShuttle = null; mapCanvas.setFiringMode(false); mapCanvas.render(); }
                 if (scatterPackMode)     { scatterPackMode = false; pendingScatterPack = null; mapCanvas.setFiringMode(false); mapCanvas.render(); }
                 if (selectedShuttle != null) { selectedShuttle = null; selectedLabel.setText(""); }
@@ -314,6 +316,27 @@ public class SFBMapApp extends Application {
                 hitAndRunMode = true;
                 mapCanvas.setFiringMode(true);
                 setStatus("HIT & RUN MODE — click an enemy ship  (Escape to cancel)");
+                mapCanvas.render();
+                return;
+            }
+            if (event.getCode() == KeyCode.O) {
+                if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY) {
+                    setStatus("Boarding actions can only be performed during the Activity phase");
+                    return;
+                }
+                Ship ship = mapCanvas.getSelectedShip();
+                if (ship == null) { setStatus("Select a ship first"); return; }
+                if (ship.getCrew().getAvailableBoardingParties() == 0) {
+                    setStatus("No boarding parties available");
+                    return;
+                }
+                if (ship.getTransporters().availableUses() == 0) {
+                    setStatus("No transporter energy available");
+                    return;
+                }
+                boardingMode = true;
+                mapCanvas.setFiringMode(true);
+                setStatus("BOARDING MODE — click an enemy ship  (Escape to cancel)");
                 mapCanvas.render();
                 return;
             }
@@ -459,7 +482,7 @@ public class SFBMapApp extends Application {
                 mapCanvas.render();
                 return;
             }
-            if (firingMode || droneMode || plasmaMode || hitAndRunMode || suicideShuttleMode || scatterPackMode) return;
+            if (firingMode || droneMode || plasmaMode || hitAndRunMode || boardingMode || suicideShuttleMode || scatterPackMode) return;
 
             // Shuttle movement: only in MOVEMENT phase when all ships have moved
             if (selectedShuttle != null
@@ -799,7 +822,7 @@ public class SFBMapApp extends Application {
         firingMode = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board" : "");
         mapCanvas.render();
     }
 
@@ -809,7 +832,7 @@ public class SFBMapApp extends Application {
         pendingDrone = null;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board" : "");
         mapCanvas.render();
     }
 
@@ -819,7 +842,7 @@ public class SFBMapApp extends Application {
         pendingPseudo   = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board" : "");
         mapCanvas.render();
     }
 
@@ -834,10 +857,17 @@ public class SFBMapApp extends Application {
         hitAndRunMode = false;
         mapCanvas.setFiringMode(false);
         Ship sel = mapCanvas.getSelectedShip();
-        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run" : "");
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board" : "");
         mapCanvas.render();
     }
 
+    private void exitBoardingMode() {
+        boardingMode = false;
+        mapCanvas.setFiringMode(false);
+        Ship sel = mapCanvas.getSelectedShip();
+        setStatus(sel != null ? "Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board" : "");
+        mapCanvas.render();
+    }
 
     private void handleHitMarker(Marker hit, Scene scene) {
         Unit hitUnit = (hit instanceof Unit) ? (Unit) hit : null;
@@ -945,6 +975,29 @@ public class SFBMapApp extends Application {
                 }
                 exitHitAndRunMode();
             }
+        } else if (boardingMode) {
+            Ship actingShip = mapCanvas.getSelectedShip();
+            if (hitShip == null) {
+                setStatus("Click an enemy ship — or press Escape to cancel");
+            } else if (hitShip == actingShip) {
+                setStatus("Can't board yourself — click an enemy ship or press Escape");
+            } else {
+                BoardingActionDialog dlg = new BoardingActionDialog(
+                        (Stage) mapCanvas.getScene().getWindow(),
+                        actingShip, hitShip);
+                dlg.showAndWait();
+                if (dlg.isConfirmed()) {
+                    Game.ActionResult result = game.boardingAction(
+                            actingShip, hitShip, dlg.getNormal(), dlg.getCommandos());
+                    appendLog(result.getMessage());
+                    setStatus(result.isSuccess() ? "Boarding parties transported — combat at end of turn"
+                            : result.getMessage());
+                    infoPanel.update(hitShip);
+                } else {
+                    setStatus("Boarding action cancelled");
+                }
+                exitBoardingMode();
+            }
         } else {
             // Check if a shuttle was clicked
             com.sfb.objects.Shuttle clickedShuttle = null;
@@ -961,7 +1014,7 @@ public class SFBMapApp extends Application {
                 mapCanvas.setSelectedShip(hitShip);
                 if (hitShip != null) {
                     selectedLabel.setText(hitShip.getName() + " (" + hitShip.getHullType() + ")  spd " + hitShip.getSpeed());
-                    statusLabel.setText("Selected  —  F: fire  L: drone  P: plasma  H: hit & run");
+                    statusLabel.setText("Selected  —  F: fire  L: drone  P: plasma  H: hit & run  O: board");
                 } else {
                     selectedLabel.setText(hit != null ? hit.getName() : "No ship selected");
                     statusLabel.setText("");

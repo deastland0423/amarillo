@@ -1,4 +1,5 @@
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\utilities\DACTest.java
+D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\BoardingTableTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\commands\CommandTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\constants\ConstantsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\ArmorTest.java
@@ -6,15 +7,18 @@ D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\CloakingDevic
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\OperationsSystemsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\utilities\MapUtilsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\SuicideShuttleTest.java
+D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\LockOnTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\weapons\WeaponTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\TBombGameTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\utilities\TurnModeUtilTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\LabsTest.java
+D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\HitAndRunTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\SpaceMineTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\PowerSystemsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\ShipFactoryTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\ControlSpacesTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\ShieldsTest.java
+D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\scenario\ScenarioLoaderTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\WeaponsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\ShipTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\InternalDamageTest.java
@@ -30,5 +34,6 @@ D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\systemgroups\UIMTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\utilities\HexMapUtilsTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\weapons\DisruptorTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\utilities\MovementUtilsTest.java
+D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\objects\BoardingCombatTest.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\weapons\Phaser1Test.java
 D:\repos\amarillo\amarillo-core\src\test\java\com\sfb\weapons\PhotonTest.java

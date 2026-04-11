@@ -62,6 +62,7 @@ public interface GameFacade {
     ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo);
     ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shieldNumber, boolean useUim);
     ActionResult hitAndRun(Ship actingShip, Ship target, List<SystemTarget> targets);
+    ActionResult boardingAction(Ship actingShip, Ship target, int normal, int commandos);
     ActionResult placeTBomb(Ship ship, Location loc, boolean isReal);
     ActionResult cloak(Ship ship);
     ActionResult uncloak(Ship ship);

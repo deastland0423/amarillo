@@ -78,8 +78,9 @@ public class EnergyAllocationFramework {
 		this.batteries = power.getAvailableBattery();
 		this.availableBatteryEnergy = power.getBatteryPower();
 
-		// Size of the phaser capacitor.
-		this.availablePhaserCapacitorSize = weapons.getAvailablePhaserCapacitor();
+		// Size of the phaser capacitor — zero if capacitors not yet energized (WS-0).
+		this.availablePhaserCapacitorSize = ship.isCapacitorsCharged()
+				? weapons.getAvailablePhaserCapacitor() : 0;
 		this.currentPhaserCapacitorEnergy = weapons.getPhaserCapacitorEnergy();
 
 		// Transporters

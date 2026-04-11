@@ -180,6 +180,7 @@ public class EnergyAllocationDialog extends Stage {
         // (reinforcement will be merged into shieldsContent below)
 
         // --- Phaser capacitor ---
+        boolean capsCharged = ship.isCapacitorsCharged();
         double capCurrent = ship.getWeapons().getPhaserCapacitorEnergy();
         double capMax = ship.getWeapons().getAvailablePhaserCapacitor();
         double capNeeded = Math.max(0, capMax - capCurrent);
@@ -193,17 +194,27 @@ public class EnergyAllocationDialog extends Stage {
         ToggleGroup capGroup = new ToggleGroup();
         capTopOff.setToggleGroup(capGroup);
         capSkip.setToggleGroup(capGroup);
-        capTopOff.setSelected(capNeeded > 0);
-        capSkip.setSelected(capNeeded == 0);
-        if (capNeeded == 0)
-            capTopOff.setDisable(true);
 
-        Label capStatus = styledLabel(
-                String.format("Current: %.0f / %.0f", capCurrent, capMax), SMALL_FONT, Color.rgb(150, 150, 150));
+        CheckBox energizeCapsCheck = new CheckBox("Energize capacitors  (cost 1)");
+        energizeCapsCheck.setFont(LABEL_FONT);
+        energizeCapsCheck.setTextFill(Color.WHITE);
 
-        VBox capBox = new VBox(6,
-                styledLabel("PHASER CAPACITOR", SECTION_FONT, Color.rgb(200, 180, 100)),
-                capStatus, new HBox(16, capTopOff, capSkip));
+        VBox capBox;
+        if (capsCharged) {
+            capTopOff.setSelected(capNeeded > 0);
+            capSkip.setSelected(capNeeded == 0);
+            if (capNeeded == 0) capTopOff.setDisable(true);
+            Label capStatus = styledLabel(
+                    String.format("Current: %.0f / %.0f", capCurrent, capMax), SMALL_FONT, Color.rgb(150, 150, 150));
+            capBox = new VBox(6, styledLabel("PHASER CAPACITOR", SECTION_FONT, Color.rgb(200, 180, 100)),
+                    capStatus, new HBox(16, capTopOff, capSkip));
+        } else {
+            capTopOff.setSelected(false);
+            capSkip.setSelected(true);
+            Label capStatus = styledLabel("UNCHARGED — spend 1 pt to energize", SMALL_FONT, Color.rgb(220, 100, 100));
+            capBox = new VBox(6, styledLabel("PHASER CAPACITOR", SECTION_FONT, Color.rgb(200, 180, 100)),
+                    capStatus, energizeCapsCheck);
+        }
         capBox.setStyle(SECTION_BG);
 
         // --- Heavy weapons ---
@@ -452,7 +463,7 @@ public class EnergyAllocationDialog extends Stage {
                 shGroup, shActive, shMinimum, capGroup, capTopOff, capNeeded,
                 heavyWeapons, weaponGroups, reloadableRacks, reloadChecks, deckCrews,
                 generalReinf, specificReinf, batDraw, batRecharge, transUses,
-                cloakCheckFinal, submitBtn);
+                cloakCheckFinal, energizeCapsCheck, submitBtn);
 
         // Wire battery button actions now that refresh is in scope
         batGroup.selectedToggleProperty().addListener((obs, old, val) -> {
@@ -561,6 +572,7 @@ public class EnergyAllocationDialog extends Stage {
         impGroup.selectedToggleProperty().addListener((obs, old, val) -> refresh.run());
         shGroup.selectedToggleProperty().addListener((obs, old, val) -> refresh.run());
         capGroup.selectedToggleProperty().addListener((obs, old, val) -> refresh.run());
+        energizeCapsCheck.selectedProperty().addListener((obs, old, val) -> refresh.run());
         for (ToggleGroup wg : weaponGroups) {
             wg.selectedToggleProperty().addListener((obs, old, val) -> refresh.run());
         }
@@ -576,7 +588,7 @@ public class EnergyAllocationDialog extends Stage {
                     heavyWeapons, weaponGroups,
                     reloadableRacks, reloadChecks,
                     generalReinf, specificReinf,
-                    batDraw, batRecharge, transUses, cloakCheckFinal);
+                    batDraw, batRecharge, transUses, cloakCheckFinal, energizeCapsCheck);
             close();
         });
 
@@ -655,7 +667,7 @@ public class EnergyAllocationDialog extends Stage {
             double capNeeded, List<HeavyWeapon> heavyWeapons, List<ToggleGroup> weaponGroups,
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
             int[] generalReinf, int[] specificReinf, int[] batDraw, int[] batRecharge,
-            int[] transUses, CheckBox cloakCheck) {
+            int[] transUses, CheckBox cloakCheck, CheckBox energizeCapsCheck) {
 
         Energy e = new Energy();
         double moveCost = ship.getPerformanceData().getMovementCost();
@@ -679,7 +691,9 @@ public class EnergyAllocationDialog extends Stage {
         }
 
         // Phaser capacitor
-        if (capGroup.getSelectedToggle() == capTopOff) {
+        if (!ship.isCapacitorsCharged()) {
+            e.setEnergizeCaps(energizeCapsCheck != null && energizeCapsCheck.isSelected());
+        } else if (capGroup.getSelectedToggle() == capTopOff) {
             e.setPhaserCapacitor(capNeeded);
         }
 
@@ -742,7 +756,7 @@ public class EnergyAllocationDialog extends Stage {
             List<DroneRack> reloadableRacks, Map<DroneRack, CheckBox> reloadChecks,
             int totalDeckCrews, int[] generalReinf, int[] specificReinf,
             int[] batDraw, int[] batRecharge, int[] transUses,
-            CheckBox cloakCheck, Button submitBtn) {
+            CheckBox cloakCheck, CheckBox energizeCapsCheck, Button submitBtn) {
 
         double moveCost = ship.getPerformanceData().getMovementCost();
         int warpSpeed = (int) Math.round(speedSlider.getValue());
@@ -761,7 +775,9 @@ public class EnergyAllocationDialog extends Stage {
         }
 
         // Phaser capacitor
-        if (capGroup.getSelectedToggle() == capTopOff) {
+        if (!ship.isCapacitorsCharged()) {
+            if (energizeCapsCheck != null && energizeCapsCheck.isSelected()) spent += 1;
+        } else if (capGroup.getSelectedToggle() == capTopOff) {
             spent += capNeeded;
         }
 

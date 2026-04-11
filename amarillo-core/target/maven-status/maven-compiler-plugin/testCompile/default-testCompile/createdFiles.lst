@@ -1,6 +1,8 @@
 com\sfb\objects\ArmorTest.class
 com\sfb\objects\SpeedCalculationTest.class
+com\sfb\objects\SuicideShuttleTest.class
 com\sfb\weapons\PlasmaLauncherTest.class
+com\sfb\objects\ScatterPackTest.class
 com\sfb\systems\ProbeTest.class
 com\sfb\weapons\WeaponTest.class
 com\sfb\systemgroups\ShieldsTest.class
@@ -12,12 +14,15 @@ com\sfb\commands\CommandTest.class
 com\sfb\ShipFactoryTest.class
 com\sfb\utilities\DACTest.class
 com\sfb\systemgroups\ControlSpacesTest.class
+com\sfb\systemgroups\UIMTest.class
+com\sfb\objects\SpaceMineTest.class
 com\sfb\utilities\HexMapUtilsTest.class
 com\sfb\systemgroups\CloakingDeviceTest.class
 com\sfb\utilities\MapUtilsTest.class
 com\sfb\systemgroups\LabsTest.class
 com\sfb\weapons\Phaser1Test.class
 com\sfb\objects\InternalDamageTest.class
+com\sfb\objects\TBombGameTest.class
 com\sfb\systemgroups\WeaponsTest.class
 com\sfb\constants\ConstantsTest.class
 com\sfb\utilities\MovementUtilsTest.class

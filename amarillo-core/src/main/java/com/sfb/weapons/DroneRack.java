@@ -17,6 +17,7 @@ public class DroneRack extends Weapon implements Launcher {
 	private int numberOfReloads = 0; // The number of reload sets available (mirrors reloads.size()).
 
 	private boolean reloadingThisTurn = false; // True if this rack is being reloaded this turn — blocks firing.
+	private List<Drone> pendingReloadSet = null; // Drones staged for reload — in transit until 8C.
 
 	private int addAmmo = 0; // The number of ADD shots in the drone rack.
 
@@ -195,14 +196,33 @@ public class DroneRack extends Weapon implements Launcher {
 	}
 
 	/**
-	 * Apply a reload set to this rack during energy allocation.
-	 * Replaces current ammo with the given set and marks the rack
-	 * unavailable for firing this turn.
+	 * Stage a reload during energy allocation (Phase 5 / EA).
+	 * The drones are held in transit — they do not enter the rack yet and are
+	 * not removed from reloads yet. The rack is blocked from firing this turn.
 	 */
-	public void applyReload(List<Drone> reloadSet) {
-		this.ammoList = new ArrayList<>(reloadSet);
-		this.reloads.remove(reloadSet);
+	public void stagePendingReload(List<Drone> reloadSet) {
+		this.pendingReloadSet = reloadSet;
 		this.reloadingThisTurn = true;
+	}
+
+	/**
+	 * Complete the reload during Record Keeping 8C.
+	 * If the rack is still functional, the pending drones move into ammo and the
+	 * reload set is consumed. If the rack was destroyed during the turn, the
+	 * pending drones are returned to reloads so they are not lost.
+	 */
+	public void completePendingReload() {
+		if (pendingReloadSet == null) return;
+		if (isFunctional()) {
+			this.ammoList = new ArrayList<>(pendingReloadSet);
+			this.reloads.remove(pendingReloadSet);
+		} else {
+			// Rack was destroyed — return drones to reloads (they survive)
+			if (!this.reloads.contains(pendingReloadSet)) {
+				this.reloads.add(pendingReloadSet);
+			}
+		}
+		this.pendingReloadSet = null;
 	}
 
 	/**
@@ -210,6 +230,13 @@ public class DroneRack extends Weapon implements Launcher {
 	 */
 	public boolean isReloadingThisTurn() {
 		return reloadingThisTurn;
+	}
+
+	/**
+	 * Returns the reload set currently staged for this rack, or null if none.
+	 */
+	public List<Drone> getPendingReloadSet() {
+		return pendingReloadSet;
 	}
 
 	/**
@@ -226,6 +253,8 @@ public class DroneRack extends Weapon implements Launcher {
 	@Override
 	public void cleanUp() {
 		super.cleanUp();
+		// 8C: complete any pending reload before clearing the reloading flag
+		completePendingReload();
 		reloadingThisTurn = false;
 	}
 }

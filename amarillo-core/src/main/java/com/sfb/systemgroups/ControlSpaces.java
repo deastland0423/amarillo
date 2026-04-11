@@ -22,6 +22,14 @@ public class ControlSpaces implements Systems {
 	private int availableEmer;
 	private int availableAuxcon;
 	private int availableSecurity;
+
+	// Captured flags — separate from damaged. A captured room is still
+	// "undestroyed" but controlled by the enemy (D7.36, D7.50).
+	private int capturedBridge;
+	private int capturedFlag;
+	private int capturedEmer;
+	private int capturedAuxcon;
+	private int capturedSecurity;
 	
 	private Unit owningUnit = null;
 	
@@ -171,6 +179,75 @@ public class ControlSpaces implements Systems {
 		return availableBridge + availableFlag + availableEmer + availableAuxcon == 0;
 	}
 
+	// --- Capture (D7.36, D7.50) ---
+
+	/**
+	 * Attempt to capture one box of the given room type.
+	 * A room can only be captured if it has undestroyed, uncaptured boxes.
+	 * Returns true if a box was captured, false if none available.
+	 */
+	public boolean captureRoom(RoomType type) {
+		switch (type) {
+			case BRIDGE:
+				if (availableBridge - capturedBridge <= 0) return false;
+				capturedBridge++;
+				return true;
+			case FLAG:
+				if (availableFlag - capturedFlag <= 0) return false;
+				capturedFlag++;
+				return true;
+			case EMER:
+				if (availableEmer - capturedEmer <= 0) return false;
+				capturedEmer++;
+				return true;
+			case AUXCON:
+				if (availableAuxcon - capturedAuxcon <= 0) return false;
+				capturedAuxcon++;
+				return true;
+			case SECURITY:
+				if (availableSecurity - capturedSecurity <= 0) return false;
+				capturedSecurity++;
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Returns true when every undestroyed control room has been captured —
+	 * the ship capture condition (D7.50).
+	 */
+	public boolean allControlRoomsCaptured() {
+		return uncapturedRooms() == 0;
+	}
+
+	/**
+	 * Number of undestroyed, uncaptured control room boxes (excluding security,
+	 * which has no offensive potential per D7.364).
+	 */
+	public int uncapturedRooms() {
+		int uncaptured = (availableBridge - capturedBridge)
+				+ (availableFlag    - capturedFlag)
+				+ (availableEmer    - capturedEmer)
+				+ (availableAuxcon  - capturedAuxcon);
+		return Math.max(0, uncaptured);
+	}
+
+	/** Casualty-point cost to capture one room box of the given type (D7.43). */
+	public static int captureCost(RoomType type) {
+		return type == RoomType.SECURITY ? 6 : 4;
+	}
+
+	/** Captured box counts — exposed so boarding combat can read them. */
+	public int getCapturedBridge()   { return capturedBridge; }
+	public int getCapturedFlag()     { return capturedFlag; }
+	public int getCapturedEmer()     { return capturedEmer; }
+	public int getCapturedAuxcon()   { return capturedAuxcon; }
+	public int getCapturedSecurity() { return capturedSecurity; }
+
+	/** Room types that can be captured. Ordered cheapest-first for auto-assignment. */
+	public enum RoomType { EMER, AUXCON, FLAG, BRIDGE, SECURITY }
+
 	@Override
 	public int fetchOriginalTotalBoxes() {
 		return bridge + flag + emer + auxcon + security;
@@ -183,8 +260,7 @@ public class ControlSpaces implements Systems {
 
 	@Override
 	public void cleanUp() {
-		// TODO Auto-generated method stub
-		
+		// Control room damage and capture state persists across turns — nothing to reset here.
 	}
 
 	@Override

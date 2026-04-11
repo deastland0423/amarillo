@@ -110,6 +110,7 @@ public class GameStateDto {
         public int                  cloakFadeStep;
         public int                  cloakTransitionImpulse;
         public double               phaserCapacitor;
+        public boolean              capacitorsCharged;
         public boolean              activeFireControl;
         public int                  scannerBonus;
         public List<WeaponDto>      weapons;
@@ -309,6 +310,7 @@ public class GameStateDto {
         }
 
         dto.phaserCapacitor    = ship.getWeapons().getPhaserCapacitorEnergy();
+        dto.capacitorsCharged  = ship.isCapacitorsCharged();
         dto.activeFireControl  = ship.isActiveFireControl();
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
         dto.tBombs                = ship.getTBombs();

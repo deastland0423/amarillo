@@ -7,9 +7,11 @@ D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\utilities\DAC.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\commands\Command.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\Player.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\samples\FederationShips.java
+D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\properties\BoardingPartyQuality.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\properties\ShieldFacing.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\weapons\Fusion.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\weapons\HitOrMissWeapon.java
+D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\commands\BoardingActionCommand.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\objects\Shuttle.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\weapons\Phaser3.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\objects\Marker.java
@@ -72,6 +74,7 @@ D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\weapons\DirectFire.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\samples\KlingonShips.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\exceptions\CapacitorException.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\commands\CloakCommand.java
+D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\objects\TroopCount.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\systemgroups\ControlSpaces.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\systems\Tractors.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\Game.java
@@ -84,6 +87,8 @@ D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\properties\Location.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\properties\Arc.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\objects\GASShuttle.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\samples\RomulanShips.java
+D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\scenario\ScenarioLoader.java
+D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\scenario\ScenarioSpec.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\systems\PerformanceData.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\weapons\Photon.java
 D:\repos\amarillo\amarillo-core\src\main\java\com\sfb\objects\ScatterPack.java

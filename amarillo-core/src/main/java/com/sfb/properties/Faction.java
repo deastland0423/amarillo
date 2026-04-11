@@ -7,6 +7,7 @@ public enum Faction {
 	Romulan,
 	Gorn,
 	Kzinti,
+	Orion,
 	Lyran,
 	Hydran,
 	Tholian,

@@ -49,7 +49,8 @@ public class Energy {
 	// Operations
 	private double transporters;
 	private int damageControl;
-	private boolean cloakPaid; // true if the player paid the cloak cost this turn
+	private boolean cloakPaid;      // true if the player paid the cloak cost this turn
+	private boolean energizeCaps;   // true if the player paid 1 pt to energize uncharged capacitors (WS-0)
 
 	// Batteries
 	private int batteryDraw;       // Energy drawn FROM batteries this turn (adds to effective budget)
@@ -216,6 +217,14 @@ public class Energy {
 
 	public void setCloakPaid(boolean cloakPaid) {
 		this.cloakPaid = cloakPaid;
+	}
+
+	public boolean isEnergizeCaps() {
+		return energizeCaps;
+	}
+
+	public void setEnergizeCaps(boolean energizeCaps) {
+		this.energizeCaps = energizeCaps;
 	}
 
 	public Map<Weapon, Double> getArmingEnergy() {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="29" failures="0" name="com.sfb.objects.PlasmaTorpedoTest" time="0.008" errors="0" skipped="0">
+<testsuite tests="29" failures="0" name="com.sfb.objects.PlasmaTorpedoTest" time="0.002" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -46,7 +46,7 @@
     <property name="java.class.path" value="D:\apache-maven-3.6.0\bin\..\boot\plexus-classworlds-2.5.2.jar"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -65,31 +65,31 @@
   </properties>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testSetAndGetTarget" time="0.001"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testSelfGuiding" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testCombinedDistanceAndPhaserDamage" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testCombinedDistanceAndPhaserDamage" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPhaserDamageReducesStrength" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testEndurance" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testWarheadDamage" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testSetWarheadDamageNoOp" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testSetWarheadDamageNoOp" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testMultiplePhaserApplications" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorWithPlasmaR" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPlasmaDTypeWeakest" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testController" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPhaserDamageCanReduceStrengthToZero" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPhaserDamageCanReduceStrengthToZero" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testSetEnduranceNoOp" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testStrengthBecomesZeroAfterTable" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPlasmaTorpedoInitialStrength" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testStrengthDecreaseWithDistance" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testApplyPhaserDamage" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testApplyPhaserDamage" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIncrementDistance" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIsEnvelopingSpecial" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testDifferentPlasmaTypesHaveDifferentInitialStrength" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorWithDifferentPlasmaTypes" time="0.001"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIsEnveloping" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorWithDifferentPlasmaTypes" time="0"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIsEnveloping" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testImpact" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testLaunchImpulse" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorWithDifferentArmingTypes" time="0"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorWithDifferentArmingTypes" time="0.001"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testConstructorSetsSpeed" time="0"/>
-  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIdentified" time="0.001"/>
+  <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testIdentified" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPlasmaRStrongest" time="0"/>
   <testcase classname="com.sfb.objects.PlasmaTorpedoTest" name="testPhaserDamageWithDistance" time="0"/>
 </testsuite>

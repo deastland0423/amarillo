@@ -2,18 +2,25 @@ package com.sfb.systemgroups;
 
 import java.util.Map;
 
+import com.sfb.objects.TroopCount;
 import com.sfb.objects.Unit;
 
 public class Crew implements Systems {
 
-	private int crewUnits = 0;
-	private int minimumCrew = 0;
-	private int boardingParties = 0;
-	private int deckCrews = 2; // Most ships have 2 deck crews for drone reloads or shuttle operations.
+	/** Quality of the ship's crew for hit-and-run defense rolls (D7.73). */
+	public enum CrewQuality { POOR, NORMAL, OUTSTANDING }
+
+	private int crewUnits    = 0;
+	private int minimumCrew  = 0;
+	private int deckCrews    = 2; // Most ships have 2 deck crews for drone reloads or shuttle operations.
 
 	private int availableCrewUnits = 0;
-	private int availableBoardingParties = 0;
 	private int availableDeckCrews = 0;
+
+	/** Friendly boarding parties available on this ship. */
+	private final TroopCount friendlyTroops = new TroopCount();
+
+	private CrewQuality crewQuality = CrewQuality.NORMAL;
 
 	private Unit owningUnit;
 
@@ -22,21 +29,58 @@ public class Crew implements Systems {
 	}
 
 	public void init(Map<String, Object> values) {
-		crewUnits = values.get("crew") == null ? 0 : (Integer) values.get("crew");
-		boardingParties = values.get("boardingparties") == null ? 0 : (Integer) values.get("boardingparties");
+		crewUnits   = values.get("crew")        == null ? 0 : (Integer) values.get("crew");
 		minimumCrew = values.get("minimumcrew") == null ? 0 : (Integer) values.get("minimumcrew");
-		deckCrews = values.get("deckcrews") == null ? 2 : (Integer) values.get("deckcrews");
+		deckCrews   = values.get("deckcrews")   == null ? 2 : (Integer) values.get("deckcrews");
+
+		int normalBPs   = values.get("boardingparties") == null ? 0 : (Integer) values.get("boardingparties");
+		int commandoBPs = values.get("commandos")       == null ? 0 : (Integer) values.get("commandos");
+		friendlyTroops.normal    = normalBPs;
+		friendlyTroops.commandos = commandoBPs;
+
+		String quality = (String) values.get("crewquality");
+		if ("outstanding".equalsIgnoreCase(quality))   crewQuality = CrewQuality.OUTSTANDING;
+		else if ("poor".equalsIgnoreCase(quality))     crewQuality = CrewQuality.POOR;
+		else                                           crewQuality = CrewQuality.NORMAL;
+
 		availableCrewUnits = crewUnits;
-		availableBoardingParties = boardingParties;
 		availableDeckCrews = deckCrews;
 	}
 
+	// --- Friendly troops ---
+
+	public TroopCount getFriendlyTroops() {
+		return friendlyTroops;
+	}
+
+	/** Convenience: total available boarding parties (normal + commandos). */
+	public int getAvailableBoardingParties() {
+		return friendlyTroops.total();
+	}
+
 	/**
-	 * Checks if the crew has dropped below the minimum and, therefore,
-	 * the ship is running on a skeleton crew.
-	 * 
-	 * @return True if the ship is below minimum crew, false otherwise.
+	 * Backward-compatible setter used by existing H&R code that adjusts the
+	 * total by subtracting losses. Removes from normal first, then commandos.
 	 */
+	public void setAvailableBoardingParties(int total) {
+		int current = friendlyTroops.total();
+		int loss = current - total;
+		if (loss > 0) friendlyTroops.removeCasualties(loss);
+		else if (loss < 0) friendlyTroops.normal += (-loss); // gaining parties (e.g. reinforcements)
+	}
+
+	// --- Crew quality ---
+
+	public CrewQuality getCrewQuality() {
+		return crewQuality;
+	}
+
+	public void setCrewQuality(CrewQuality crewQuality) {
+		this.crewQuality = crewQuality;
+	}
+
+	// --- Crew units ---
+
 	public boolean isSkeleton() {
 		return availableCrewUnits < minimumCrew;
 	}
@@ -49,17 +93,11 @@ public class Crew implements Systems {
 		this.availableCrewUnits = availableCrewUnits;
 	}
 
-	public int getAvailableBoardingParties() {
-		return availableBoardingParties;
-	}
-
-	public void setAvailableBoardingParties(int availableBoardingParties) {
-		this.availableBoardingParties = availableBoardingParties;
-	}
-
 	public int getMinimumCrew() {
 		return this.minimumCrew;
 	}
+
+	// --- Deck crews ---
 
 	public int getDeckCrews() {
 		return this.deckCrews;
@@ -92,5 +130,4 @@ public class Crew implements Systems {
 	public Unit fetchOwningUnit() {
 		return this.owningUnit;
 	}
-
 }

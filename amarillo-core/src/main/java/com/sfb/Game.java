@@ -3,12 +3,16 @@ package com.sfb;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.sfb.commands.Command;
 import com.sfb.exceptions.CapacitorException;
+import com.sfb.scenario.ScenarioLoader;
+import com.sfb.scenario.ScenarioSpec;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.weapons.ADD;
@@ -80,6 +84,9 @@ public class Game {
     private final Set<Ship> movedThisImpulse = new HashSet<>();
     private final Set<com.sfb.objects.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
+    // UIM: tracks which disruptors on each ship fired under UIM this impulse.
+    // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
+    private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
 
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
@@ -154,6 +161,44 @@ public class Game {
         TurnTracker.reset();
         inProgress = true;
         startTurn(); // run energy allocation and turn setup before impulse 1
+    }
+
+    /**
+     * Populate the game from a ScenarioSpec.
+     * Replaces the hardcoded setup(). Ships are loaded from the ShipLibrary via
+     * faction + hull, named per the scenario, and placed at their starting positions
+     * with the correct weapon status applied.
+     */
+    public void setupFromScenario(ScenarioSpec scenario) {
+        if (!ShipLibrary.isLoaded())
+            ShipLibrary.loadAllSpecs("data/factions");
+
+        ships.clear();
+        players.clear();
+        seekers.clear();
+        activeShuttles.clear();
+        mines.clear();
+
+        List<List<Ship>> sideShips = ScenarioLoader.loadShips(scenario);
+        for (int i = 0; i < scenario.sides.size(); i++) {
+            ScenarioSpec.SideSpec side = scenario.sides.get(i);
+            List<Ship> shipList = i < sideShips.size() ? sideShips.get(i) : new ArrayList<>();
+
+            Player player = new Player();
+            player.setName(side.name);
+            try {
+                player.setFaction(Faction.valueOf(side.faction));
+            } catch (IllegalArgumentException ignored) {
+                // Faction not in enum yet — player faction left null
+            }
+            players.add(player);
+
+            ships.addAll(shipList);
+        }
+
+        TurnTracker.reset();
+        inProgress = true;
+        startTurn();
     }
 
     /**
@@ -252,17 +297,69 @@ public class Game {
                 continue; // D6.1143: no fire control = no lock-on
             int sensorRating = ship.getSpecialFunctions().getSensor();
             for (Ship target : ships) {
-                if (target == ship)
-                    continue;
+                if (target == ship) continue;
                 // Fully cloaked ships cannot be locked onto
                 if (target.getCloakingDevice() != null && target.getCloakingDevice().breaksLockOn())
                     continue;
                 int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
-                if (roll <= sensorRating) {
+                if (roll <= sensorRating)
                     ship.addLockOn(target);
-                }
             }
         }
+    }
+
+    /**
+     * Mid-turn lock-on re-check for a specific target (D6.113).
+     * Called when a condition changes for {@code target} — e.g. it uncloaks,
+     * emerges from behind a planet, etc.
+     *
+     * Each other ship with active fire control that does NOT already have
+     * lock-on rolls to re-acquire. Ships that already have lock-on keep it
+     * (no need to re-roll — they haven't lost it).
+     *
+     * If the target is cloaked, all lock-ons to it are removed immediately.
+     * (Future: G13.332/G13.333 will replace this with a cloaked re-acquisition
+     * roll instead of a hard remove.)
+     *
+     * @param target The ship whose conditions just changed.
+     * @return Log lines describing the re-check results.
+     */
+    public List<String> checkLockOnsForUnit(Ship target) {
+        List<String> log = new ArrayList<>();
+
+        // If the target is cloaked, no one can lock onto it (D6.111)
+        // Future hook: replace this block with cloaked lock-on attempt (G13.332)
+        boolean targetCloaked = target.getCloakingDevice() != null
+                && target.getCloakingDevice().breaksLockOn();
+        if (targetCloaked) {
+            for (Ship attacker : ships) {
+                if (attacker == target) continue;
+                if (attacker.hasLockOn(target)) {
+                    attacker.removeLockOn(target);
+                    log.add(attacker.getName() + " lost lock-on to " + target.getName() + " (cloaked)");
+                }
+            }
+            return log;
+        }
+
+        // Target is visible — ships without lock-on roll to re-acquire (D6.113)
+        DiceRoller dice = new DiceRoller();
+        for (Ship attacker : ships) {
+            if (attacker == target) continue;
+            if (!attacker.isActiveFireControl()) continue;
+            if (attacker.hasLockOn(target)) continue; // already locked on — keep it
+
+            int sensorRating = attacker.getSpecialFunctions().getSensor();
+            int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
+            if (roll <= sensorRating) {
+                attacker.addLockOn(target);
+                log.add(attacker.getName() + " re-acquired lock-on to " + target.getName());
+            } else {
+                log.add(attacker.getName() + " failed to re-acquire lock-on to " + target.getName()
+                        + " (rolled " + roll + ", needs ≤" + sensorRating + ")");
+            }
+        }
+        return log;
     }
 
     /**
@@ -288,11 +385,29 @@ public class Game {
      * End-of-turn cleanup. Resets per-turn weapon states, shield reinforcement,
      * etc. Then starts the next turn's energy allocation.
      */
-    public void endTurn() {
+    /** Log lines from the most recent end-of-turn boarding combat resolution. */
+    private final List<String> lastBoardingLog = new ArrayList<>();
+
+    public List<String> getLastBoardingLog() {
+        return lastBoardingLog;
+    }
+
+    public ActionResult endTurn() {
+        // Final Activity Phase (D7.32): resolve boarding party combat on every
+        // ship that has enemy troops aboard before per-turn cleanup.
+        lastBoardingLog.clear();
+        for (Ship ship : ships) {
+            if (!ship.getEnemyTroops().isEmpty()) {
+                BoardingCombatResult result = performBoardingCombat(ship);
+                lastBoardingLog.add(result.log);
+            }
+        }
         for (Ship ship : ships) {
             ship.cleanUp();
         }
         startTurn();
+        String msg = lastBoardingLog.isEmpty() ? "" : String.join("\n", lastBoardingLog);
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -322,9 +437,26 @@ public class Game {
                 currentPhase = ImpulsePhase.END_OF_IMPULSE;
                 break;
             case END_OF_IMPULSE:
+                // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
+                if (!uimUsedThisImpulse.isEmpty()) {
+                    int eoi = TurnTracker.getImpulse();
+                    for (Map.Entry<Ship, List<com.sfb.weapons.Disruptor>> entry : uimUsedThisImpulse.entrySet()) {
+                        Ship uimShip = entry.getKey();
+                        com.sfb.systemgroups.UIM activeUim = uimShip.getActiveUim(eoi);
+                        if (activeUim == null) continue;
+                        boolean burnout = activeUim.checkBurnout(eoi, entry.getValue());
+                        if (burnout) {
+                            log.add(uimShip.getName() + ": UIM BURNOUT! Disruptors locked for 32 impulses.");
+                            uimShip.activateNextStandby(activeUim, eoi);
+                        }
+                    }
+                    uimUsedThisImpulse.clear();
+                }
                 // Roll over to next impulse (or next turn)
                 if (TurnTracker.getLocalImpulse() >= 32) {
-                    endTurn();
+                    ActionResult boardingResult = endTurn();
+                    if (!boardingResult.getMessage().isEmpty())
+                        log.add(boardingResult.getMessage());
                 } else {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
@@ -340,14 +472,22 @@ public class Game {
                         continue;
                     com.sfb.systemgroups.CloakingDevice.CloakState before = cd.getState();
                     cd.updateState(TurnTracker.getImpulse());
+                    com.sfb.systemgroups.CloakingDevice.CloakState after = cd.getState();
+
                     if (before != com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED
-                            && cd.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED) {
-                        // Clear all lock-ons on the newly-cloaked ship, then
-                        // release any drones whose controller lost lock-on (D6.122)
+                            && after == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED) {
+                        // Ship just became fully cloaked — remove all lock-ons (D6.111)
                         for (Ship attacker : ships) {
                             attacker.removeLockOn(ship);
                         }
+                        log.add(ship.getName() + " is now fully cloaked — all lock-ons lost.");
                         log.addAll(releaseOrphanedDrones());
+
+                    } else if (before == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED
+                            && after != com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED) {
+                        // Ship just became visible again — roll re-acquisition (D6.113)
+                        log.add(ship.getName() + " is decloaking — rolling re-acquisition.");
+                        log.addAll(checkLockOnsForUnit(ship));
                     }
                 }
                 currentPhase = ImpulsePhase.MOVEMENT;
@@ -780,13 +920,12 @@ public class Game {
             }
         }
 
-        // UIM burnout check (D6.521): roll at end of impulse if UIM was used this fire
+        // UIM: accumulate disruptors that fired under UIM this impulse.
+        // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not here.
         if (uimInUse && !uimFiredDisruptors.isEmpty()) {
-            boolean burnout = activeUim.checkBurnout(currentImpulse, uimFiredDisruptors);
-            if (burnout) {
-                log.append("  UIM BURNOUT! Disruptors locked for 32 impulses.\n");
-                attacker.activateNextStandby(activeUim, currentImpulse);
-            }
+            uimUsedThisImpulse
+                .computeIfAbsent(attacker, k -> new ArrayList<>())
+                .addAll(uimFiredDisruptors);
         }
 
         if (addHit) {
@@ -1704,10 +1843,126 @@ public class Game {
     }
 
     /**
+     * Shared transporter precondition check used by both boarding and H&R actions.
+     *
+     * <p>Validates phase, cloak, range, lock-on, boarding party count, transporter
+     * availability, and shield passability. Auto-lowers the acting ship's facing
+     * shield if needed. Spends transporter energy on success.
+     *
+     * @return null if all preconditions pass (energy already spent), or a failure
+     *         {@link ActionResult} describing the first violated condition.
+     */
+    private ActionResult checkAndSpendTransporterResources(
+            Ship actingShip, Ship target, int numParties) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(actingShip);
+        if (cloakBlock != null)
+            return cloakBlock;
+
+        // Range check
+        int range = getRange(actingShip, target);
+        if (range > 5)
+            return ActionResult.fail("Target is out of transporter range (" + range + " hexes, max 5)");
+
+        // Lock-on check (D6.124)
+        if (!actingShip.hasLockOn(target))
+            return ActionResult.fail("No sensor lock-on to " + target.getName()
+                    + " — cannot use transporters (D6.124)");
+
+        // Resource checks
+        int availableParties = actingShip.getCrew().getAvailableBoardingParties();
+        if (numParties > availableParties)
+            return ActionResult.fail("Not enough boarding parties (have " + availableParties
+                    + ", need " + numParties + ")");
+        int availableTrans = actingShip.getTransporters().getAvailableTrans();
+        if (numParties > availableTrans)
+            return ActionResult.fail("Not enough transporters (have " + availableTrans
+                    + ", need " + numParties + ")");
+        int availableUses = actingShip.getTransporters().availableUses();
+        if (numParties > availableUses)
+            return ActionResult.fail("Not enough transporter energy (have " + availableUses
+                    + " use(s), need " + numParties + ")");
+
+        // Shield checks — acting ship's shield facing target must be passable
+        int actingShieldNum = getShieldNumber(target, actingShip);
+        if (!actingShip.getShields().isTransportable(actingShieldNum)) {
+            boolean lowered = actingShip.getShields().lowerShield(actingShieldNum);
+            if (!lowered)
+                return ActionResult.fail("Cannot lower shield #" + actingShieldNum
+                        + " on " + actingShip.getName()
+                        + " — must wait 8 impulses since last toggle");
+        }
+
+        // Target's shield facing the acting ship must already be passable
+        int targetShieldNum = getShieldNumber(actingShip, target);
+        if (!target.getShields().isTransportable(targetShieldNum))
+            return ActionResult.fail(target.getName() + " shield #" + targetShieldNum
+                    + " is active — cannot beam through");
+
+        // Spend transporter energy
+        for (int i = 0; i < numParties; i++)
+            actingShip.getTransporters().useTransporter();
+
+        return null; // all clear
+    }
+
+    /**
+     * Transport boarding parties onto an enemy ship (D7.31).
+     *
+     * <p>Same preconditions as H&amp;R: Activity phase, range ≤ 5, lock-on,
+     * enough boarding parties and transporter energy, shields passable.
+     * The acting ship's facing shield is auto-lowered if needed.
+     *
+     * <p>On success the parties are deducted from the acting ship and added to
+     * the target's enemy troop count. Combat resolves at end of turn via
+     * {@link #performBoardingCombat(Ship)}.
+     *
+     * @param actingShip the ship sending boarding parties
+     * @param target     the ship being boarded
+     * @param normal     number of normal boarding parties to transport
+     * @param commandos  number of commandos to transport
+     */
+    public ActionResult performBoardingAction(Ship actingShip, Ship target,
+            int normal, int commandos) {
+        int numParties = normal + commandos;
+        if (numParties <= 0)
+            return ActionResult.fail("Must send at least one boarding party");
+
+        // Check commandos available separately
+        if (commandos > actingShip.getCrew().getFriendlyTroops().commandos)
+            return ActionResult.fail("Not enough commandos (have "
+                    + actingShip.getCrew().getFriendlyTroops().commandos
+                    + ", need " + commandos + ")");
+
+        ActionResult check = checkAndSpendTransporterResources(actingShip, target, numParties);
+        if (check != null) return check;
+
+        // Deduct from acting ship
+        actingShip.getCrew().getFriendlyTroops().commandos -= commandos;
+        actingShip.getCrew().getFriendlyTroops().removeCasualties(normal); // removes normal first
+
+        // Place on target
+        target.addEnemyBoardingParties(normal);
+        target.addEnemyCommandos(commandos);
+
+        StringBuilder log = new StringBuilder();
+        log.append("=== Boarding Action: ").append(actingShip.getName())
+                .append("  →  ").append(target.getName()).append(" ===\n");
+        log.append("  Transported: ").append(normal).append(" BP(s)");
+        if (commandos > 0) log.append(" + ").append(commandos).append(" commando(s)");
+        log.append("\n");
+        log.append("  Enemy troops now aboard ").append(target.getName())
+                .append(": ").append(target.getEnemyTroops()).append("\n");
+        log.append("  Combat resolves at end of turn (Final Activity Phase).\n");
+
+        return ActionResult.ok(log.toString());
+    }
+
+    /**
      * Execute a Hit &amp; Run boarding raid.
      *
-     * <p>
-     * Pre-conditions checked here: range ≤ 5, enough boarding parties and
+     * <p>Pre-conditions checked here: range ≤ 5, enough boarding parties and
      * transporter energy, target shield passable. The acting ship's facing
      * shield is lowered automatically if it has remaining strength (triggering
      * the 8-impulse lockout).
@@ -1719,67 +1974,22 @@ public class Game {
      */
     public ActionResult performHitAndRun(Ship actingShip, Ship target,
             List<SystemTarget> targetSystems) {
-        if (currentPhase != ImpulsePhase.ACTIVITY)
-            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
-        if (targetSystems.isEmpty()) {
+        if (targetSystems.isEmpty())
             return ActionResult.fail("No boarding parties assigned");
-        }
 
-        // Range check
-        int range = getRange(actingShip, target);
-        if (range > 5) {
-            return ActionResult.fail("Target is out of transporter range (" + range + " hexes, max 5)");
-        }
+        ActionResult check = checkAndSpendTransporterResources(actingShip, target, targetSystems.size());
+        if (check != null) return check;
 
-        // Lock-on check (D6.124)
-        if (!actingShip.hasLockOn(target)) {
-            return ActionResult.fail("No sensor lock-on to " + target.getName()
-                    + " — cannot use transporters (D6.124)");
-        }
-
-        // Resource checks
-        int numParties = targetSystems.size();
-        int availableParties = actingShip.getCrew().getAvailableBoardingParties();
-        if (numParties > availableParties) {
-            return ActionResult.fail("Not enough boarding parties (have " + availableParties
-                    + ", need " + numParties + ")");
-        }
-        int availableTrans = actingShip.getTransporters().getAvailableTrans();
-        if (numParties > availableTrans) {
-            return ActionResult.fail("Not enough transporters (have " + availableTrans
-                    + ", need " + numParties + ")");
-        }
-        int availableUses = actingShip.getTransporters().availableUses();
-        if (numParties > availableUses) {
-            return ActionResult.fail("Not enough transporter energy (have " + availableUses
-                    + " use(s), need " + numParties + ")");
-        }
-
-        // Shield checks — acting ship's shield facing target must be passable
         int actingShieldNum = getShieldNumber(target, actingShip);
-        if (!actingShip.getShields().isTransportable(actingShieldNum)) {
-            boolean lowered = actingShip.getShields().lowerShield(actingShieldNum);
-            if (!lowered) {
-                return ActionResult.fail("Cannot lower shield #" + actingShieldNum
-                        + " on " + actingShip.getName()
-                        + " — must wait 8 impulses since last toggle");
-            }
-        }
 
-        // Target's shield facing the acting ship must already be passable
-        int targetShieldNum = getShieldNumber(actingShip, target);
-        if (!target.getShields().isTransportable(targetShieldNum)) {
-            return ActionResult.fail(target.getName() + " shield #" + targetShieldNum
-                    + " is active — cannot beam through");
-        }
-
-        // Spend transporter energy
-        for (int i = 0; i < numParties; i++) {
-            actingShip.getTransporters().useTransporter();
-        }
+        // Defending crew quality modifier (D7.73)
+        int crewMod = 0;
+        com.sfb.systemgroups.Crew.CrewQuality cq = target.getCrew().getCrewQuality();
+        if (cq == com.sfb.systemgroups.Crew.CrewQuality.OUTSTANDING) crewMod = +1;
+        else if (cq == com.sfb.systemgroups.Crew.CrewQuality.POOR)        crewMod = -1;
 
         // Roll and apply results
         DiceRoller dice = new DiceRoller();
@@ -1791,9 +2001,32 @@ public class Game {
 
         int partiesLost = 0;
         for (SystemTarget st : targetSystems) {
-            int roll = dice.rollOneDie();
-            boolean systemHit = (roll == 1 || roll == 2);
-            boolean partyLost = (roll >= 2 && roll <= 5);
+            com.sfb.properties.BoardingPartyQuality quality = st.getAttackerQuality();
+            int roll = Math.min(6, Math.max(1, dice.rollOneDie() + crewMod));
+
+            // Guard check (D7.831) — if a guard is assigned, resolve guard table first
+            if (target.isGuarded(st.getType())) {
+                com.sfb.properties.BoardingPartyQuality guardQuality = target.getGuardQuality(st.getType());
+                HarGuardResult guardResult = resolveGuardTable(roll, guardQuality);
+                log.append("  Guard present (").append(guardQuality).append(")  roll ").append(roll)
+                        .append(" → ").append(guardResult).append("\n");
+                if (guardResult == HarGuardResult.BP_DESTROYED) {
+                    partiesLost++;
+                    log.append("    Boarding party destroyed by guard\n");
+                    continue;
+                } else if (guardResult == HarGuardResult.BP_RETURNS) {
+                    log.append("    Boarding party repelled — returns safely\n");
+                    continue;
+                }
+                // CONDUCT_HR: fall through to normal H&R roll with a fresh die
+                roll = Math.min(6, Math.max(1, dice.rollOneDie() + crewMod));
+                log.append("    Guard repelled — conducting H&R roll ").append(roll).append("\n");
+            }
+
+            // Normal H&R resolution (D7.81)
+            HarResult result = resolveHarTable(roll, quality);
+            boolean systemHit  = (result == HarResult.SYSTEM_BP_RETURNS || result == HarResult.BOTH_DESTROYED);
+            boolean partyLost  = (result == HarResult.BOTH_DESTROYED    || result == HarResult.BP_DESTROYED);
 
             String hitResult;
             if (systemHit) {
@@ -1804,7 +2037,8 @@ public class Game {
                 hitResult = st.getDisplayName() + " not damaged";
             }
 
-            log.append("  Roll ").append(roll).append(": ").append(hitResult)
+            log.append("  Roll ").append(roll).append(" [").append(quality).append("]: ")
+                    .append(hitResult)
                     .append(",  boarding party ").append(partyLost ? "lost" : "safe").append("\n");
             if (partyLost)
                 partiesLost++;
@@ -1816,7 +2050,7 @@ public class Game {
         }
 
         log.append("  Boarding parties lost: ").append(partiesLost)
-                .append(" / ").append(numParties).append(" sent");
+                .append(" / ").append(targetSystems.size()).append(" sent");
 
         return ActionResult.ok(log.toString());
     }
@@ -1886,6 +2120,254 @@ public class Game {
             }
             default:
                 return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Boarding party combat (D7.3 / D7.4)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Result of one round of boarding party combat (D7.4).
+     *
+     * <p>Step 3 (specific allocation) is not yet implemented — casualty points
+     * are applied directly to boarding parties in Step 4. The fields here expose
+     * all intermediate values so Step 3 can be added later without changing the
+     * overall structure.
+     */
+    public static class BoardingCombatResult {
+        public final int attackerPointsScored;   // casualty pts scored against defender
+        public final int defenderPointsScored;   // casualty pts scored against attacker
+        public final int defenderBPsLost;        // friendly BPs removed from defender
+        public final int attackerBPsLost;        // enemy BPs removed from board
+        public final int controlRoomsCaptured;   // rooms captured this round (Step 4 fallback)
+        public final boolean shipCaptured;       // D7.50 condition met
+        public final String log;
+
+        public BoardingCombatResult(int attackerPts, int defenderPts,
+                int defenderBPsLost, int attackerBPsLost,
+                int controlRoomsCaptured, boolean shipCaptured, String log) {
+            this.attackerPointsScored  = attackerPts;
+            this.defenderPointsScored  = defenderPts;
+            this.defenderBPsLost       = defenderBPsLost;
+            this.attackerBPsLost       = attackerBPsLost;
+            this.controlRoomsCaptured  = controlRoomsCaptured;
+            this.shipCaptured          = shipCaptured;
+            this.log                   = log;
+        }
+    }
+
+    /**
+     * Resolve one round of boarding party combat on {@code defender} (D7.4).
+     *
+     * <p>Called during the Final Activity Phase (D7.32) for each ship that has
+     * enemy boarding parties on board.
+     *
+     * <p>Step 3 (specific allocation) is skipped — casualty points go straight
+     * to Step 4. The {@link BoardingCombatResult} carries all intermediate
+     * values so Step 3 can be inserted later.
+     *
+     * @param defender the ship being boarded
+     */
+    public BoardingCombatResult performBoardingCombat(Ship defender) {
+        com.sfb.objects.TroopCount attackers = defender.getEnemyTroops();
+        com.sfb.objects.TroopCount defenders = defender.getCrew().getFriendlyTroops();
+
+        StringBuilder log = new StringBuilder();
+        log.append("=== Boarding Combat: ").append(defender.getName()).append(" ===\n");
+        log.append("  Attackers: ").append(attackers).append("\n");
+        log.append("  Defenders: ").append(defenders).append("\n");
+
+        // D7.422: Klingon security station die roll modifier for defender
+        int securityMod = klingonSecurityMod(defender);
+        if (securityMod > 0)
+            log.append("  Security station modifier: +").append(securityMod).append("\n");
+
+        // Step 1 — combat power (D7.41)
+        int attackerPower = attackers.total();
+        int defenderPower = defenders.total();
+
+        // Step 2 — roll casualty points (D7.42); groups of up to 10
+        int attackerPts = rollCasualtyPoints(attackerPower, 0,    log, "Attacker");
+        int defenderPts = rollCasualtyPoints(defenderPower, securityMod, log, "Defender");
+
+        // Step 3 — specific allocation: DEFERRED (future hook)
+        // int attackerPtsAfterStep3 = attackerPts;  // will be reduced by captured rooms
+        // int defenderPtsAfterStep3 = defenderPts;
+
+        // Step 4 — apply casualties (D7.44)
+        // Attacker casualty points kill defender BPs; then capture control rooms if BPs exhausted.
+        int defenderBPsLost    = 0;
+        int controlRoomsCaptured = 0;
+
+        // 4a: kill defender BPs
+        int defBPsToRemove = Math.min(attackerPts, defenderPower);
+        defenderBPsLost = defenders.removeCasualties(defBPsToRemove);
+        int remainingAttackerPts = attackerPts - defenderBPsLost;
+        log.append("  Defender loses ").append(defenderBPsLost).append(" BP(s). Remaining: ")
+                .append(defenders).append("\n");
+
+        // 4b: excess points capture control rooms (simplified D7.361 fallback)
+        if (remainingAttackerPts > 0) {
+            com.sfb.systemgroups.ControlSpaces cs = defender.getControlSpaces();
+            for (com.sfb.systemgroups.ControlSpaces.RoomType room
+                    : com.sfb.systemgroups.ControlSpaces.RoomType.values()) {
+                while (remainingAttackerPts >= com.sfb.systemgroups.ControlSpaces.captureCost(room)
+                        && cs.captureRoom(room)) {
+                    remainingAttackerPts -= com.sfb.systemgroups.ControlSpaces.captureCost(room);
+                    controlRoomsCaptured++;
+                    log.append("  Control room captured: ").append(room).append("\n");
+                }
+            }
+        }
+
+        // Defender casualty points kill attacker BPs
+        int attackerBPsLost = Math.min(defenderPts, attackerPower);
+        attackers.removeCasualties(attackerBPsLost);
+        log.append("  Attacker loses ").append(attackerBPsLost).append(" BP(s). Remaining: ")
+                .append(attackers).append("\n");
+
+        // Capture check (D7.50)
+        boolean shipCaptured = defender.getControlSpaces().allControlRoomsCaptured();
+        if (shipCaptured) {
+            defender.setCaptured(true);
+            log.append("  *** ").append(defender.getName()).append(" CAPTURED ***\n");
+        }
+
+        return new BoardingCombatResult(attackerPts, defenderPts,
+                defenderBPsLost, attackerBPsLost, controlRoomsCaptured, shipCaptured,
+                log.toString());
+    }
+
+    /**
+     * Roll casualty points for one side using groups of up to 10 (D7.42).
+     * The {@code dieMod} is added to each group's roll (clamped 1–6).
+     */
+    private int rollCasualtyPoints(int totalBPs, int dieMod, StringBuilder log, String side) {
+        if (totalBPs == 0) {
+            log.append("  ").append(side).append(": 0 BPs — no roll\n");
+            return 0;
+        }
+        DiceRoller dice = new DiceRoller();
+        int totalPoints = 0;
+        int remaining   = totalBPs;
+        int groupNum    = 1;
+        while (remaining > 0) {
+            int groupSize = Math.min(remaining, 10);
+            int roll      = Math.min(6, Math.max(1, dice.rollOneDie() + dieMod));
+            int pts       = D7421_TABLE[roll - 1][groupSize - 1];
+            totalPoints  += pts;
+            log.append("  ").append(side).append(" group ").append(groupNum)
+               .append(" (").append(groupSize).append(" BPs): roll ").append(roll)
+               .append(" → ").append(pts).append(" pt(s)\n");
+            remaining -= groupSize;
+            groupNum++;
+        }
+        log.append("  ").append(side).append(" total casualty pts: ").append(totalPoints).append("\n");
+        return totalPoints;
+    }
+
+    /**
+     * D7.421 Marine Casualty Resolution Table.
+     * Index: [dieRoll-1][groupSize-1], values are casualty points.
+     *
+     * <pre>
+     * Roll  1  2  3  4  5  6  7  8  9 10
+     *   1   0  0  0  0  1  1  1  1  2  2
+     *   2   0  0  1  1  1  2  2  2  2  2
+     *   3   0  1  1  1  2  2  2  2  3  3
+     *   4   0  1  1  2  2  2  3  3  3  4
+     *   5   1  1  2  2  3  3  4  4  5  5
+     *   6   1  1  2  2  3  4  4  5  5  6
+     * </pre>
+     */
+    static final int[][] D7421_TABLE = {
+        { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2 }, // roll 1
+        { 0, 0, 1, 1, 1, 2, 2, 2, 2, 2 }, // roll 2
+        { 0, 1, 1, 1, 2, 2, 2, 2, 3, 3 }, // roll 3
+        { 0, 1, 1, 2, 2, 2, 3, 3, 3, 4 }, // roll 4
+        { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5 }, // roll 5
+        { 1, 1, 2, 2, 3, 4, 4, 5, 5, 6 }, // roll 6
+    };
+
+    /**
+     * Klingon security station die-roll modifier for defender (D7.422).
+     * +1 per undestroyed, uncaptured security station box, max +2.
+     */
+    int klingonSecurityMod(Ship ship) {
+        if (ship.getFaction() != com.sfb.properties.Faction.Klingon) return 0;
+        int stations = ship.getControlSpaces().getAvailableSecurity()
+                     - ship.getControlSpaces().getCapturedSecurity();
+        return Math.min(2, Math.max(0, stations));
+    }
+
+    // -------------------------------------------------------------------------
+    // H&R table resolution helpers
+    // -------------------------------------------------------------------------
+
+    enum HarResult {
+        SYSTEM_BP_RETURNS,  // System destroyed, BP returns safely
+        BOTH_DESTROYED,     // Both system and BP destroyed
+        BP_DESTROYED,       // BP destroyed, system ok
+        BP_RETURNS          // BP returns safely, system ok
+    }
+
+    enum HarGuardResult {
+        BP_DESTROYED,       // Attacking BP destroyed by guard
+        BP_RETURNS,         // Attacking BP repelled, returns safely
+        CONDUCT_HR          // Guard fails to stop raid — proceed to normal H&R roll
+    }
+
+    /**
+     * Resolve the D7.81 Hit-and-Run table for the given die roll and attacker quality.
+     * Roll is already clamped 1-6 with crew quality modifier applied.
+     */
+    HarResult resolveHarTable(int roll, com.sfb.properties.BoardingPartyQuality quality) {
+        switch (quality) {
+            case OUTSTANDING:
+                if (roll <= 2) return HarResult.SYSTEM_BP_RETURNS;
+                if (roll == 3) return HarResult.BOTH_DESTROYED;
+                if (roll == 4) return HarResult.BP_DESTROYED;
+                return HarResult.BP_RETURNS;
+            case COMMANDO:
+                if (roll == 1) return HarResult.SYSTEM_BP_RETURNS;
+                if (roll <= 3) return HarResult.BOTH_DESTROYED;
+                if (roll == 4) return HarResult.BP_DESTROYED;
+                return HarResult.BP_RETURNS;
+            case POOR:
+                // Roll 1 on POOR column is a blank (treated as BOTH_DESTROYED — best POOR can do)
+                if (roll == 1) return HarResult.BOTH_DESTROYED;
+                if (roll <= 4) return HarResult.BP_DESTROYED;
+                return HarResult.BP_RETURNS;
+            default: // NORMAL
+                if (roll == 1) return HarResult.SYSTEM_BP_RETURNS;
+                if (roll == 2) return HarResult.BOTH_DESTROYED;
+                if (roll <= 5) return HarResult.BP_DESTROYED;
+                return HarResult.BP_RETURNS;
+        }
+    }
+
+    /**
+     * Resolve the D7.831 guard table for the given die roll and guard quality.
+     */
+    HarGuardResult resolveGuardTable(int roll, com.sfb.properties.BoardingPartyQuality guardQuality) {
+        switch (guardQuality) {
+            case OUTSTANDING:
+                if (roll <= 2) return HarGuardResult.BP_DESTROYED;
+                if (roll <= 4) return HarGuardResult.BP_RETURNS;
+                return HarGuardResult.CONDUCT_HR;
+            case COMMANDO:
+                if (roll <= 2) return HarGuardResult.BP_DESTROYED;
+                if (roll == 3) return HarGuardResult.BP_RETURNS;
+                return HarGuardResult.CONDUCT_HR;
+            case POOR:
+                if (roll <= 4) return HarGuardResult.BP_DESTROYED;
+                if (roll == 5) return HarGuardResult.BP_RETURNS;
+                return HarGuardResult.CONDUCT_HR;
+            default: // NORMAL
+                if (roll <= 3) return HarGuardResult.BP_DESTROYED;
+                if (roll <= 5) return HarGuardResult.BP_RETURNS;
+                return HarGuardResult.CONDUCT_HR;
         }
     }
 

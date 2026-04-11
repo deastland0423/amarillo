@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="9" failures="0" name="com.sfb.objects.InternalDamageTest" time="0.01" errors="0" skipped="0">
+<testsuite tests="9" failures="0" name="com.sfb.objects.InternalDamageTest" time="0.008" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -46,7 +46,7 @@
     <property name="java.class.path" value="D:\apache-maven-3.6.0\bin\..\boot\plexus-classworlds-2.5.2.jar"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -63,13 +63,13 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="repeatedDamageEventuallyReducesHull" time="0.001"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="dacResetsAfterVolley" time="0.001"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="logCountMatchesDamagePoints" time="0.001"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="repeatedDamageEventuallyReducesHull" time="0"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="dacResetsAfterVolley" time="0"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="logCountMatchesDamagePoints" time="0"/>
   <testcase classname="com.sfb.objects.InternalDamageTest" name="logEntriesAreNonEmpty" time="0"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="zeroDamageReturnsEmptyLog" time="0.001"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="oneDamagePointReturnsOneLogEntry" time="0"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="phasersCanBeDestroyedByInternalDamage" time="0.003"/>
-  <testcase classname="com.sfb.objects.InternalDamageTest" name="droneRacksCanBeDestroyedByInternalDamage" time="0.003"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="zeroDamageReturnsEmptyLog" time="0"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="oneDamagePointReturnsOneLogEntry" time="0.001"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="phasersCanBeDestroyedByInternalDamage" time="0.005"/>
+  <testcase classname="com.sfb.objects.InternalDamageTest" name="droneRacksCanBeDestroyedByInternalDamage" time="0.002"/>
   <testcase classname="com.sfb.objects.InternalDamageTest" name="destroyedDroneRackIsMarkedNonFunctional" time="0"/>
 </testsuite>

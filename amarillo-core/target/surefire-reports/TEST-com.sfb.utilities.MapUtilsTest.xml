@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="44" failures="0" name="com.sfb.utilities.MapUtilsTest" time="0" errors="0" skipped="0">
+<testsuite tests="44" failures="0" name="com.sfb.utilities.MapUtilsTest" time="0.001" errors="0" skipped="0">
   <properties>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="java.vm.version" value="25.0.2+10-LTS"/>
@@ -46,7 +46,7 @@
     <property name="java.class.path" value="D:\apache-maven-3.6.0\bin\..\boot\plexus-classworlds-2.5.2.jar"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -104,7 +104,7 @@
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRangePurelyHorizontal" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentSWFromEvenColumn" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testAdjacentNWFromOddColumn" time="0"/>
-  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testTrueBearingFacingNorth" time="0"/>
+  <testcase classname="com.sfb.utilities.MapUtilsTest" name="testTrueBearingFacingNorth" time="0.001"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testRangeNortheastDiagonal" time="0"/>
   <testcase classname="com.sfb.utilities.MapUtilsTest" name="testTrueBearingFacingEast" time="0"/>
 </testsuite>

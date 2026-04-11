@@ -46,7 +46,7 @@
     <property name="java.class.path" value="D:\apache-maven-3.6.0\bin\..\boot\plexus-classworlds-2.5.2.jar"/>
     <property name="java.vm.specification.version" value="25"/>
     <property name="sun.arch.data.model" value="64"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install -pl amarillo-core"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
     <property name="java.home" value="C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
@@ -63,17 +63,17 @@
     <property name="java.vendor.version" value="Temurin-25.0.2+10"/>
     <property name="sun.cpu.isalist" value="amd64"/>
   </properties>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_logIncludesDroneCount" time="0.013"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_fillsSixSpaces" time="0.001"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_typeIItakesMoreSpace" time="0.001"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_logIncludesDroneCount" time="0.016"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_fillsSixSpaces" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_typeIItakesMoreSpace" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="newPack_hasEmptyPayload" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="newPack_isNotReleased" time="0.001"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="notReadyToRelease_before8ImpulsesElapsed" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="newPack_isPlayerControlled" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="endurance_isEffectivelyUnlimited" time="0.001"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_setsTargetAndController" time="0"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_succeedsWhenAllConditionsMet" time="0.001"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="notReadyToRelease_whenAlreadyReleased" time="0.001"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_succeedsWhenAllConditionsMet" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="notReadyToRelease_whenAlreadyReleased" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_rejectsWhenFull" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_failsWhenNotActivityPhase" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="addDrone_succeedsWhenSpaceAvailable" time="0.001"/>
@@ -82,13 +82,13 @@
   <testcase classname="com.sfb.objects.ScatterPackTest" name="readyToRelease_after9ImpulsesElapsed" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_failsWithoutLockOn" time="0.001"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="release_marksAsReleased" time="0"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="isSelfGuiding_false" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="isSelfGuiding_false" time="0.001"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="readyToRelease_after8ImpulsesElapsed" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_addsPackToSeekers" time="0"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="afterRelease_notPlayerControlled" time="0.001"/>
   <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_failsWithEmptyPayload" time="0"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_removesPackFromBay" time="0.001"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="warheadDamage_isZero" time="0"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="seekerType_isShuttle" time="0.001"/>
-  <testcase classname="com.sfb.objects.ScatterPackTest" name="release_clearsTarget" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="launch_removesPackFromBay" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="warheadDamage_isZero" time="0.001"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="seekerType_isShuttle" time="0"/>
+  <testcase classname="com.sfb.objects.ScatterPackTest" name="release_clearsTarget" time="0.001"/>
 </testsuite>

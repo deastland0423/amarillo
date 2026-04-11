@@ -1,0 +1,56 @@
+{
+  "id": "TRAINING",
+  "name": "Standard Training Engagement",
+  "year": 175,
+  "description": "A standard Federation vs Klingon training scenario. Two ships per side, closing from opposite ends of the map.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "Federation",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CA",
+          "shipName": "USS Enterprise",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "FFG",
+          "shipName": "USS Reliant",
+          "startHex": "1601",
+          "startHeading": "D",
+          "startSpeed": 20,
+          "weaponStatus": 2
+        }
+      ]
+    },
+    {
+      "name": "Klingon",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D7",
+          "shipName": "IKV Vengeance",
+          "startHex": "1212",
+          "startHeading": "A",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "F5",
+          "shipName": "IKV Swift",
+          "startHex": "1612",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 2
+        }
+      ]
+    }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

@@ -253,7 +253,9 @@ public class GameSession {
                 e.setImpulseMovement(requestedSpeed > 30 ? 1 : 0);
 
                 // Phaser capacitor
-                if (request.isTopOffCap()) {
+                if (request.isEnergizeCaps() && !ship.isCapacitorsCharged()) {
+                    e.setEnergizeCaps(true);
+                } else if (request.isTopOffCap() && ship.isCapacitorsCharged()) {
                     double capNeeded = ship.getWeapons().getAvailablePhaserCapacitor()
                             - ship.getWeapons().getPhaserCapacitorEnergy();
                     e.setPhaserCapacitor(Math.max(0, capNeeded));
@@ -290,6 +292,12 @@ public class GameSession {
                 }
 
                 e.setCloakPaid(request.isCloakPaid());
+
+                // Transporter energy
+                if (request.getTransUses() > 0) {
+                    e.setTransporters(request.getTransUses()
+                            * com.sfb.systemgroups.Transporters.energyPerUse());
+                }
 
                 return game.submitAllocation(ship, e);
             }
@@ -510,6 +518,19 @@ public class GameSession {
                     }
                 }
                 return game.execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
+            }
+
+            case "BOARDING_ACTION": {
+                Ship actingShip = findShip(request.getShipName());
+                if (actingShip == null)
+                    return ActionResult.fail("Acting ship not found: " + request.getShipName());
+                Ship targetShip = findShip(request.getTargetName());
+                if (targetShip == null)
+                    return ActionResult.fail("Target ship not found: " + request.getTargetName());
+                return game.execute(new com.sfb.commands.BoardingActionCommand(
+                        actingShip, targetShip,
+                        request.getNormalParties(),
+                        request.getCommandoParties()));
             }
 
             case "CLOAK": {

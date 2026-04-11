@@ -59,9 +59,11 @@ com\sfb\properties\TurnMode.class
 com\sfb\properties\Faction.class
 com\sfb\objects\Seeker.class
 com\sfb\commands\PlaceTBombCommand.class
+com\sfb\dto\GameStateDto$ScatterPackDto.class
 com\sfb\utilities\DAC$DACItem.class
 com\sfb\properties\ProbeArmingType.class
 com\sfb\commands\LaunchDroneCommand.class
+com\sfb\dto\GameStateDto$SuicideShuttleDto.class
 com\sfb\systemgroups\Shields.class
 com\sfb\weapons\Phaser3.class
 com\sfb\systemgroups\CloakingDevice$CloakState.class
@@ -70,6 +72,7 @@ com\sfb\objects\PlasmaTorpedo$1.class
 com\sfb\weapons\PlasmaLauncher$1.class
 com\sfb\systemgroups\CloakingDevice.class
 com\sfb\weapons\ADD.class
+com\sfb\systemgroups\UIM.class
 com\sfb\commands\FireCommand.class
 com\sfb\objects\ShipSpec$HullSpec.class
 com\sfb\weapons\Disruptor.class

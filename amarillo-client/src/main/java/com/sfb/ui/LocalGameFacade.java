@@ -83,6 +83,9 @@ public class LocalGameFacade implements GameFacade {
     @Override public ActionResult hitAndRun(Ship acting, Ship target, List<SystemTarget> targets) {
         return game.execute(new HitAndRunCommand(acting, target, targets));
     }
+    @Override public ActionResult boardingAction(Ship acting, Ship target, int normal, int commandos) {
+        return game.execute(new BoardingActionCommand(acting, target, normal, commandos));
+    }
     @Override public ActionResult placeTBomb(Ship ship, Location loc, boolean isReal) {
         return game.execute(new PlaceTBombCommand(ship, loc, isReal));
     }

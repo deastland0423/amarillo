@@ -2,6 +2,7 @@ package com.sfb.objects;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +12,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.sfb.constants.Constants;
 import com.sfb.exceptions.CapacitorException;
+import com.sfb.properties.BoardingPartyQuality;
 import com.sfb.properties.Faction;
 import com.sfb.properties.ShieldStatus;
+import com.sfb.properties.SystemTarget;
 import com.sfb.systemgroups.CloakingDevice;
 import com.sfb.systemgroups.ControlSpaces;
 import com.sfb.systemgroups.Crew;
@@ -78,7 +81,14 @@ public class Ship extends Unit {
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
-	private int enemyBoardingParties = 0; // Number of enemy boarding parties currently on board.
+	/** Enemy boarding parties currently on board (D7.31). */
+	private final TroopCount enemyTroops = new TroopCount();
+
+	/** True if this ship has been captured (D7.50). */
+	private boolean captured = false;
+
+	/** Guards assigned to defend specific system types this turn (D7.83). Key = system type, Value = quality of the guarding party. */
+	private final Map<SystemTarget.Type, BoardingPartyQuality> guards = new EnumMap<>(SystemTarget.Type.class);
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -88,6 +98,8 @@ public class Ship extends Unit {
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
+	/** False only at WS-0 start; costs 1 energy to energize; true for all other weapon status levels. */
+	private boolean capacitorsCharged = true;
 	private ShieldStatus shieldsStatus = ShieldStatus.Inactive;
 	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields. Active is normal shields. Minimal is
 																															// 5-point shields. Inactive is no shields at all.
@@ -219,11 +231,15 @@ public class Ship extends Unit {
 		}
 
 		// Phaser Capacitor
-		try {
-			chargeCapacitor(energyAllocated.getPhaserCapacitor());
-		} catch (CapacitorException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if (energyAllocated.isEnergizeCaps() && !capacitorsCharged) {
+			capacitorsCharged = true; // takes effect this turn; player can fill cap next EA
+		}
+		if (capacitorsCharged) {
+			try {
+				chargeCapacitor(energyAllocated.getPhaserCapacitor());
+			} catch (CapacitorException e) {
+				e.printStackTrace();
+			}
 		}
 
 		// Transporters
@@ -243,7 +259,7 @@ public class Ship extends Unit {
 				DroneRack rack = (DroneRack) weapon;
 				java.util.List<com.sfb.objects.Drone> reloadSet = energyAllocated.getReloadAssignments().get(rack);
 				if (reloadSet != null) {
-					rack.applyReload(reloadSet);
+					rack.stagePendingReload(reloadSet);
 				}
 			}
 		}
@@ -373,23 +389,65 @@ public class Ship extends Unit {
 	}
 
 
-	public int setEnemyBoardingParties(int enemyBoardingParties) {
-		this.enemyBoardingParties = enemyBoardingParties;
-		return this.enemyBoardingParties;
+	// --- Guards (D7.83) ---
+
+	/**
+	 * Assign a boarding party as a guard for the given system type (D7.83).
+	 * No more than one guard per system type; calling again replaces the previous assignment.
+	 */
+	public void assignGuard(SystemTarget.Type systemType, BoardingPartyQuality guardQuality) {
+		guards.put(systemType, guardQuality);
 	}
 
+	/** Remove a guard assignment from the given system type. */
+	public void removeGuard(SystemTarget.Type systemType) {
+		guards.remove(systemType);
+	}
+
+	/** Returns true if the given system type has a guard assigned. */
+	public boolean isGuarded(SystemTarget.Type systemType) {
+		return guards.containsKey(systemType);
+	}
+
+	/** Returns the quality of the guard assigned to the given system, or null if unguarded. */
+	public BoardingPartyQuality getGuardQuality(SystemTarget.Type systemType) {
+		return guards.get(systemType);
+	}
+
+	/** Clear all guard assignments (called at start of turn after re-posting per D7.834). */
+	public void clearGuards() {
+		guards.clear();
+	}
+
+	// --- Enemy troops (D7.31) ---
+
+	public TroopCount getEnemyTroops() {
+		return enemyTroops;
+	}
+
+	/** Convenience: total enemy boarding parties on board. */
 	public int getEnemyBoardingParties() {
-		return this.enemyBoardingParties;
+		return enemyTroops.total();
 	}
 
-	public int addEnemyBoardingParties(int boardingParties) {
-		this.enemyBoardingParties += boardingParties;
-		return this.enemyBoardingParties;
+	/** Add enemy normal boarding parties (e.g. after a successful H&R transport). */
+	public void addEnemyBoardingParties(int normal) {
+		enemyTroops.normal += normal;
 	}
 
-	public int removeEnemyBoardingParties(int boardingParties) {
-		this.enemyBoardingParties = Math.max(0, this.enemyBoardingParties - boardingParties);
-		return this.enemyBoardingParties;
+	/** Add enemy commandos on board. */
+	public void addEnemyCommandos(int commandos) {
+		enemyTroops.commandos += commandos;
+	}
+
+	// --- Capture state (D7.50) ---
+
+	public boolean isCaptured() {
+		return captured;
+	}
+
+	public void setCaptured(boolean captured) {
+		this.captured = captured;
 	}
 
 	/**
@@ -494,6 +552,14 @@ public class Ship extends Unit {
 	 * 
 	 * @return True if fire control is active, false otherwise.
 	 */
+	public boolean isCapacitorsCharged() {
+		return capacitorsCharged;
+	}
+
+	public void setCapacitorsCharged(boolean capacitorsCharged) {
+		this.capacitorsCharged = capacitorsCharged;
+	}
+
 	public boolean isActiveFireControl() {
 		return this.activeFireControl;
 	}
