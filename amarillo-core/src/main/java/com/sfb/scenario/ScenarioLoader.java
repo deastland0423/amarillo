@@ -1,13 +1,17 @@
 package com.sfb.scenario;
 
 import com.sfb.exceptions.CapacitorException;
+import com.sfb.objects.Drone;
+import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.properties.Location;
+import com.sfb.weapons.DroneRack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Converts a ScenarioSpec into configured Ship objects ready to be added to a Game.
@@ -77,6 +81,117 @@ public class ScenarioLoader {
     }
 
     /**
+     * Apply Commander's Option Items to a ship.
+     *
+     * Call this after buildShip() and before the game starts. Each item is
+     * validated (within budget, within limits); violations are logged and
+     * that item is skipped rather than throwing.
+     *
+     * @param ship    the fully constructed ship
+     * @param loadout the COI selections for this ship
+     * @param spec    the scenario spec (used to read commanderOptions and year)
+     */
+    public static void applyCoi(Ship ship, CoiLoadout loadout, ScenarioSpec spec) {
+        if (loadout == null) return;
+
+        int budgetPercent = spec.commanderOptions != null ? spec.commanderOptions.budgetPercent : 20;
+        double budget = CoiLoadout.budget(ship.getBattlePointValue(), budgetPercent);
+        double spent  = 0;
+
+        // --- Extra boarding parties ---
+        int extraBPs = Math.min(loadout.extraBoardingParties, CoiLoadout.MAX_EXTRA_BP);
+        double bpCost = extraBPs * CoiLoadout.COST_EXTRA_BP;
+        if (spent + bpCost <= budget) {
+            ship.getCrew().getFriendlyTroops().normal += extraBPs;
+            spent += bpCost;
+        } else {
+            System.err.println("COI: skipping " + extraBPs + " extra BPs — over budget");
+        }
+
+        // --- Convert normal BPs to commandos ---
+        int conversions = Math.min(loadout.convertBpToCommando, CoiLoadout.MAX_CONVERT_TO_COMMANDO);
+        conversions = Math.min(conversions, ship.getCrew().getFriendlyTroops().normal);
+        double convCost = conversions * CoiLoadout.COST_CONVERT_TO_COMMANDO;
+        if (spent + convCost <= budget) {
+            ship.getCrew().getFriendlyTroops().normal    -= conversions;
+            ship.getCrew().getFriendlyTroops().commandos += conversions;
+            spent += convCost;
+        } else {
+            System.err.println("COI: skipping " + conversions + " BP→commando conversions — over budget");
+        }
+
+        // --- Extra commando squads ---
+        int extraCommandos = Math.min(loadout.extraCommandoSquads, CoiLoadout.MAX_EXTRA_COMMANDOS);
+        double cmdCost = extraCommandos * CoiLoadout.COST_EXTRA_COMMANDO;
+        if (spent + cmdCost <= budget) {
+            ship.getCrew().getFriendlyTroops().commandos += extraCommandos;
+            spent += cmdCost;
+        } else {
+            System.err.println("COI: skipping " + extraCommandos + " extra commando squads — over budget");
+        }
+
+        // --- T-bombs (4 BPV each; each purchased T-bomb includes 1 free dummy) ---
+        boolean allowTBombs = spec.commanderOptions == null || spec.commanderOptions.allowTBombs;
+        if (allowTBombs && loadout.extraTBombs > 0) {
+            double tbCost = loadout.extraTBombs * CoiLoadout.COST_TBOMB;
+            if (spent + tbCost <= budget) {
+                ship.setTBombs(ship.getTBombs() + loadout.extraTBombs);
+                ship.setDummyTBombs(ship.getDummyTBombs() + loadout.extraTBombs); // 1 free dummy per purchased
+                spent += tbCost;
+            } else {
+                System.err.println("COI: skipping " + loadout.extraTBombs + " T-bombs — over budget");
+            }
+        }
+
+        // --- Drone rack loadouts (free; year/speed limits enforced) ---
+        if (!loadout.droneRackLoadouts.isEmpty()) {
+            Integer maxSpeed = spec.commanderOptions != null ? spec.commanderOptions.maxDroneSpeed : null;
+            int year = spec.year;
+
+            List<DroneRack> racks = new ArrayList<>();
+            for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                if (w instanceof DroneRack) racks.add((DroneRack) w);
+            }
+
+            for (Map.Entry<Integer, List<DroneType>> entry : loadout.droneRackLoadouts.entrySet()) {
+                int rackIndex = entry.getKey();
+                if (rackIndex < 0 || rackIndex >= racks.size()) {
+                    System.err.println("COI: drone rack index " + rackIndex + " out of range — skipped");
+                    continue;
+                }
+                DroneRack rack = racks.get(rackIndex);
+                List<DroneType> requestedTypes = entry.getValue();
+
+                // Validate each type against year and speed cap; check total rack size
+                List<Drone> drones = new ArrayList<>();
+                double totalRackSize = 0;
+                boolean valid = true;
+                for (DroneType dt : requestedTypes) {
+                    if (!dt.availableIn(year)) {
+                        System.err.println("COI: " + dt + " not available in year " + year
+                                + " — rack " + rackIndex + " skipped");
+                        valid = false; break;
+                    }
+                    if (maxSpeed != null && dt.speed > maxSpeed) {
+                        System.err.println("COI: " + dt + " speed " + dt.speed
+                                + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
+                        valid = false; break;
+                    }
+                    totalRackSize += dt.rack;
+                }
+                if (!valid) continue;
+                if (totalRackSize > rack.getSpaces()) {
+                    System.err.println("COI: loadout for rack " + rackIndex + " exceeds rack size ("
+                            + totalRackSize + " > " + rack.getSpaces() + ") — skipped");
+                    continue;
+                }
+                for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
+                rack.setAmmo(drones);
+            }
+        }
+    }
+
+    /**
      * Apply weapon status initial conditions to a ship (S4.10–S4.13).
      */
     static void applyWeaponStatus(Ship ship, int weaponStatus) {
@@ -86,13 +201,15 @@ public class ScenarioLoader {
                 ship.setCapacitorsCharged(false);
                 break;
             case 1:
-                // WS-1: phasers energized, caps empty
+                // WS-1: phasers energized, caps empty, fire control active
                 ship.setCapacitorsCharged(true);
+                ship.setActiveFireControl(true);
                 break;
             case 2:
             case 3:
-                // WS-2/3: caps fully charged
+                // WS-2/3: caps fully charged, fire control active
                 ship.setCapacitorsCharged(true);
+                ship.setActiveFireControl(true);
                 double capSize = ship.getWeapons().getAvailablePhaserCapacitor();
                 if (capSize > 0) {
                     try {
@@ -105,6 +222,7 @@ public class ScenarioLoader {
             default:
                 System.err.println("ScenarioLoader: unknown weaponStatus " + weaponStatus + " — treating as WS-2");
                 ship.setCapacitorsCharged(true);
+                ship.setActiveFireControl(true);
         }
     }
 }

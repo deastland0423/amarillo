@@ -250,6 +250,25 @@ public class DroneRack extends Weapon implements Launcher {
 		return cost;
 	}
 
+	/**
+	 * Returns all drone types available to load in this rack for the given scenario year
+	 * and optional speed cap. Only types whose rack size fits within this rack's space
+	 * count are included (a TYPE_A rack with 4 spaces can hold TypeIV at 2.0 spaces).
+	 *
+	 * @param year          the scenario year
+	 * @param maxDroneSpeed maximum allowed drone speed, or null for year-based only
+	 */
+	public static java.util.List<com.sfb.objects.DroneType> availableTypes(
+			int year, Integer maxDroneSpeed) {
+		java.util.List<com.sfb.objects.DroneType> result = new java.util.ArrayList<>();
+		for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
+			if (!dt.availableIn(year)) continue;
+			if (maxDroneSpeed != null && dt.speed > maxDroneSpeed) continue;
+			result.add(dt);
+		}
+		return result;
+	}
+
 	@Override
 	public void cleanUp() {
 		super.cleanUp();

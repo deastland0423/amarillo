@@ -50,6 +50,7 @@ public class ScenarioSpec {
     public String lengthCondition;      // "STANDARD" = last side standing
     public List<SideSpec> sides;
     public VictoryConditions victoryConditions;
+    public CommanderOptions commanderOptions = new CommanderOptions(); // defaults if omitted
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SideSpec {
@@ -71,6 +72,21 @@ public class ScenarioSpec {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class VictoryConditions {
         public String type;             // "STANDARD" for now
+    }
+
+    /**
+     * Commander's Option Items rules for this scenario.
+     * budgetPercent: each ship may spend this % of its BPV on options (default 20).
+     * maxDroneSpeed: caps drone speed regardless of year (null = use year-based availability).
+     * allowTBombs: whether T-bombs may be purchased (default true).
+     * allowCommandos: whether commando units may be purchased (default true).
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class CommanderOptions {
+        public int     budgetPercent  = 20;
+        public Integer maxDroneSpeed  = null;   // null = year determines availability
+        public boolean allowTBombs    = true;
+        public boolean allowCommandos = true;
     }
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

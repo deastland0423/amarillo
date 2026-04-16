@@ -58,8 +58,6 @@ public class KzintiShips {
         s.put("controlmod", 1.0);
 
         s.put("trans", 5);
-        s.put("tbombs", 1);
-        s.put("dummytbombs", 1);
         s.put("tractor", 2);
         s.put("lab", 6);
         s.put("probe", 1);
@@ -222,8 +220,6 @@ public class KzintiShips {
         s.put("controlmod", 1.0);
 
         s.put("trans", 5);
-        s.put("tbombs", 1);
-        s.put("dummytbombs", 1);
         s.put("tractor", 2);
         s.put("lab", 6);
         s.put("probe", 1);

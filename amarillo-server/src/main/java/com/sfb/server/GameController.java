@@ -3,10 +3,15 @@ package com.sfb.server;
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
+import com.sfb.scenario.ScenarioSpec;
+import com.sfb.utilities.MapUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -14,9 +19,10 @@ import java.util.stream.Collectors;
 /**
  * REST API for game session management.
  *
+ *   GET   /api/scenarios           — list available scenarios
  *   POST  /api/games              — create a game (host)
  *   POST  /api/games/{id}/join    — join a game
- *   POST  /api/games/{id}/start   — start the game (host only)
+ *   POST  /api/games/{id}/start   — start the game (host only); body: { scenarioId }
  *   GET   /api/games/{id}/status  — current session info
  */
 @RestController
@@ -50,6 +56,32 @@ public class GameController {
             "/topic/games/" + session.getId() + "/lobby",
             new LobbyStateDto(session)
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // List scenarios
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/scenarios")
+    public ResponseEntity<List<Map<String, String>>> listScenarios() {
+        File scenarioDir = new File("data/scenarios");
+        List<Map<String, String>> result = new ArrayList<>();
+        File[] files = scenarioDir.listFiles((d, name) -> name.endsWith(".json"));
+        if (files != null) {
+            for (File f : files) {
+                try {
+                    ScenarioSpec spec = ScenarioSpec.fromJson(f);
+                    result.add(Map.of(
+                            "id",          spec.id          != null ? spec.id          : "",
+                            "name",        spec.name        != null ? spec.name        : "",
+                            "description", spec.description != null ? spec.description : ""
+                    ));
+                } catch (Exception e) {
+                    System.err.println("Could not parse scenario file: " + f.getName());
+                }
+            }
+        }
+        return ResponseEntity.ok(result);
     }
 
     // -------------------------------------------------------------------------
@@ -100,7 +132,8 @@ public class GameController {
     @PostMapping("/{id}/start")
     public ResponseEntity<Map<String, String>> startGame(
             @PathVariable String id,
-            @RequestHeader("X-Player-Token") String token) {
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, String> body) {
 
         GameSession session = sessionService.getSession(id);
         if (session == null)
@@ -110,13 +143,20 @@ public class GameController {
         if (session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
-        session.start();
+        String scenarioId = body.get("scenarioId");
+        if (scenarioId == null || scenarioId.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "scenarioId is required"));
+
+        try {
+            session.start(scenarioId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+
         broadcastLobby(session);
         broadcastState(session);
 
-        return ResponseEntity.ok(Map.of(
-                "message", "Game started — impulse 1 begins now"
-        ));
+        return ResponseEntity.ok(Map.of("message", "Game started — impulse 1 begins now"));
     }
 
     // -------------------------------------------------------------------------
@@ -173,6 +213,66 @@ public class GameController {
 
         broadcastLobby(session);
         return ResponseEntity.ok(Map.of("message", shipName + " assigned successfully"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Fire options — range, shield, and weapons in arc for a prospective shot
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/fire-options")
+    public ResponseEntity<?> getFireOptions(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker,
+            @RequestParam String target) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null) return ResponseEntity.notFound().build();
+
+        Ship attackerShip = session.getGame().getShips().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(attacker))
+                .findFirst().orElse(null);
+        if (attackerShip == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Attacker not found: " + attacker));
+
+        // Target may be a ship or a seeker
+        Unit targetUnit = session.getGame().getShips().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(target))
+                .map(s -> (Unit) s)
+                .findFirst().orElse(null);
+        if (targetUnit == null) {
+            targetUnit = session.getGame().getSeekers().stream()
+                    .filter(s -> s instanceof Unit && target.equalsIgnoreCase(((Unit) s).getName()))
+                    .map(s -> (Unit) s)
+                    .findFirst().orElse(null);
+        }
+        if (targetUnit == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
+
+        int range        = MapUtils.getRange(attackerShip, targetUnit);
+        int scannerBonus = attackerShip.getSpecialFunctions().getScanner();
+        int adjRange     = Math.max(0, range - scannerBonus);
+
+        // Shield number (1-6) on the target ship facing the attacker
+        int shieldNumber = 0;
+        if (targetUnit instanceof Ship) {
+            Ship targetShip = (Ship) targetUnit;
+            int absFacing   = MapUtils.getAbsoluteShieldFacing(targetShip, attackerShip);
+            int relFacing   = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
+            shieldNumber    = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
+            shieldNumber    = Math.max(1, Math.min(6, shieldNumber));
+        }
+
+        List<String> weaponsInArc = attackerShip.fetchAllBearingWeapons(targetUnit).stream()
+                .map(w -> w.getName())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+                "range",         range,
+                "adjustedRange", adjRange,
+                "shieldNumber",  shieldNumber,
+                "weaponsInArc",  weaponsInArc
+        ));
     }
 
     // -------------------------------------------------------------------------

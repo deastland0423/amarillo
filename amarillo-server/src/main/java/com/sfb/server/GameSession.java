@@ -176,8 +176,11 @@ public class GameSession {
     // Game lifecycle
     // -------------------------------------------------------------------------
 
-    public void start() {
-        game.setup();
+    public void start(String scenarioId) throws java.io.IOException {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        com.sfb.scenario.ScenarioSpec spec =
+                com.sfb.scenario.ScenarioSpec.fromJson("data/scenarios/" + scenarioId.toLowerCase() + ".json");
+        game.setupFromScenario(spec);
         started = true;
     }
 
@@ -297,6 +300,17 @@ public class GameSession {
                 if (request.getTransUses() > 0) {
                     e.setTransporters(request.getTransUses()
                             * com.sfb.systemgroups.Transporters.energyPerUse());
+                }
+
+                // Batteries
+                e.setBatteryDraw(Math.max(0, request.getBatteryDraw()));
+                e.setBatteryRecharge(Math.max(0, request.getBatteryRecharge()));
+
+                // Shield reinforcement
+                e.setGeneralReinforcement(Math.max(0, request.getGeneralReinforcement()));
+                int[] specReinf = request.getSpecificReinforcement();
+                if (specReinf != null && specReinf.length == 6) {
+                    e.setSpecificReinforcement(specReinf);
                 }
 
                 return game.submitAllocation(ship, e);

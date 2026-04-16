@@ -11,6 +11,7 @@ import java.util.Set;
 
 import com.sfb.commands.Command;
 import com.sfb.exceptions.CapacitorException;
+import com.sfb.scenario.CoiLoadout;
 import com.sfb.scenario.ScenarioLoader;
 import com.sfb.scenario.ScenarioSpec;
 import com.sfb.exceptions.TargetOutOfRangeException;
@@ -164,22 +165,26 @@ public class Game {
     }
 
     /**
-     * Populate the game from a ScenarioSpec.
-     * Replaces the hardcoded setup(). Ships are loaded from the ShipLibrary via
-     * faction + hull, named per the scenario, and placed at their starting positions
-     * with the correct weapon status applied.
+     * Populate the game from a ScenarioSpec with pre-built ships and COI loadouts.
+     *
+     * Intended flow:
+     *   1. Call ScenarioLoader.loadShips(spec) to build ships.
+     *   2. Show the COI dialog against those ships to collect loadouts.
+     *   3. Call this method — COI is applied, players registered, game starts.
+     *
+     * @param scenario    the scenario specification
+     * @param sideShips   pre-built ships grouped by side (same order as scenario.sides)
+     * @param coiLoadouts COI selections per ship; ships absent from the map get no COI applied
      */
-    public void setupFromScenario(ScenarioSpec scenario) {
-        if (!ShipLibrary.isLoaded())
-            ShipLibrary.loadAllSpecs("data/factions");
-
+    public void setupFromScenario(ScenarioSpec scenario,
+                                  List<List<Ship>> sideShips,
+                                  Map<Ship, CoiLoadout> coiLoadouts) {
         ships.clear();
         players.clear();
         seekers.clear();
         activeShuttles.clear();
         mines.clear();
 
-        List<List<Ship>> sideShips = ScenarioLoader.loadShips(scenario);
         for (int i = 0; i < scenario.sides.size(); i++) {
             ScenarioSpec.SideSpec side = scenario.sides.get(i);
             List<Ship> shipList = i < sideShips.size() ? sideShips.get(i) : new ArrayList<>();
@@ -193,12 +198,27 @@ public class Game {
             }
             players.add(player);
 
-            ships.addAll(shipList);
+            for (Ship ship : shipList) {
+                if (coiLoadouts != null) {
+                    ScenarioLoader.applyCoi(ship, coiLoadouts.get(ship), scenario);
+                }
+                ships.add(ship);
+            }
         }
 
         TurnTracker.reset();
         inProgress = true;
         startTurn();
+    }
+
+    /**
+     * Convenience overload — loads ships from the ShipLibrary and starts the game
+     * with no COI selections. Useful for automated tests and quick-start scenarios.
+     */
+    public void setupFromScenario(ScenarioSpec scenario) {
+        if (!ShipLibrary.isLoaded())
+            ShipLibrary.loadAllSpecs("data/factions");
+        setupFromScenario(scenario, ScenarioLoader.loadShips(scenario), null);
     }
 
     /**

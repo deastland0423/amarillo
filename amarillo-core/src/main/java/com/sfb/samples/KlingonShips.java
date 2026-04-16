@@ -61,8 +61,6 @@ public class KlingonShips {
         s.put("controlmod", 1.0);
 
         s.put("trans", 5);
-        s.put("tbombs", 1);
-        s.put("dummytbombs", 1);
         s.put("tractor", 3);
         s.put("lab", 4);
         s.put("probe", 1);

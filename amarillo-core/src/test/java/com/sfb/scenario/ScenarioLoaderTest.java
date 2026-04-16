@@ -1,12 +1,16 @@
 package com.sfb.scenario;
 
+import com.sfb.objects.Drone;
+import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
+import com.sfb.weapons.DroneRack;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -81,6 +85,7 @@ public class ScenarioLoaderTest {
         ScenarioLoader.applyWeaponStatus(ship, 0);
         assertFalse(ship.isCapacitorsCharged());
         assertEquals(0.0, ship.getWeapons().getPhaserCapacitorEnergy(), 0.001);
+        assertFalse("WS-0 must not activate fire control", ship.isActiveFireControl());
     }
 
     @Test
@@ -89,6 +94,7 @@ public class ScenarioLoaderTest {
         ScenarioLoader.applyWeaponStatus(ship, 1);
         assertTrue(ship.isCapacitorsCharged());
         assertEquals(0.0, ship.getWeapons().getPhaserCapacitorEnergy(), 0.001);
+        assertTrue("WS-1 must activate fire control", ship.isActiveFireControl());
     }
 
     @Test
@@ -98,6 +104,7 @@ public class ScenarioLoaderTest {
         assertTrue(ship.isCapacitorsCharged());
         double capMax = ship.getWeapons().getAvailablePhaserCapacitor();
         assertEquals(capMax, ship.getWeapons().getPhaserCapacitorEnergy(), 0.001);
+        assertTrue("WS-2 must activate fire control", ship.isActiveFireControl());
     }
 
     @Test
@@ -107,6 +114,7 @@ public class ScenarioLoaderTest {
         assertTrue(ship.isCapacitorsCharged());
         double capMax = ship.getWeapons().getAvailablePhaserCapacitor();
         assertEquals(capMax, ship.getWeapons().getPhaserCapacitorEnergy(), 0.001);
+        assertTrue("WS-3 must activate fire control", ship.isActiveFireControl());
     }
 
     // ---- ScenarioSpec JSON parsing ----
@@ -154,6 +162,161 @@ public class ScenarioLoaderTest {
         assertTrue(enterprise.isCapacitorsCharged());
         double cap = enterprise.getWeapons().getAvailablePhaserCapacitor();
         assertEquals(cap, enterprise.getWeapons().getPhaserCapacitorEnergy(), 0.001);
+    }
+
+    // ---- applyCoi ----
+
+    /** FedCA: BPV=125, 10 BPs, 0 commandos. Budget @20% = floor(25) = 25 BPV. */
+    private ScenarioSpec makeSpec() {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.year = 175;
+        spec.commanderOptions = new ScenarioSpec.CommanderOptions();
+        return spec;
+    }
+
+    @Test
+    public void coi_extraBoardingParties_added() {
+        Ship ship = makeShip();
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraBoardingParties = 4; // cost 2.0 BPV — well within budget
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(14, ship.getCrew().getFriendlyTroops().normal);
+    }
+
+    @Test
+    public void coi_extraBoardingParties_capped_at_10() {
+        Ship ship = makeShip();
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraBoardingParties = 99; // over limit, capped to 10
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        // 10 extra × 0.5 = 5 BPV, within budget; result = 10 base + 10 extra = 20
+        assertEquals(20, ship.getCrew().getFriendlyTroops().normal);
+    }
+
+    @Test
+    public void coi_convertBpToCommando() {
+        Ship ship = makeShip();
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.convertBpToCommando = 2; // cost 1.0 BPV
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(8,  ship.getCrew().getFriendlyTroops().normal);
+        assertEquals(2,  ship.getCrew().getFriendlyTroops().commandos);
+    }
+
+    @Test
+    public void coi_extraCommandoSquads_added() {
+        Ship ship = makeShip();
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraCommandoSquads = 2; // cost 2.0 BPV
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(2, ship.getCrew().getFriendlyTroops().commandos);
+    }
+
+    @Test
+    public void coi_tBombs_add_with_free_dummy() {
+        Ship ship = makeShip(); // FedCA starts with 0 T-bombs by default
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraTBombs = 3; // cost 12.0 BPV, within 25 BPV budget; adds 3 T-bombs + 3 free dummies
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(3, ship.getTBombs());
+        assertEquals(3, ship.getDummyTBombs()); // 1 free dummy per purchased T-bomb
+    }
+
+    @Test
+    public void coi_tBombs_skipped_when_over_budget() {
+        Ship ship = makeShip();
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraTBombs = 7; // cost 28.0 BPV, over 25 BPV budget — skipped
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(0, ship.getTBombs());
+        assertEquals(0, ship.getDummyTBombs());
+    }
+
+    @Test
+    public void coi_tBombs_blocked_when_scenario_disallows() {
+        Ship ship = makeShip();
+        ScenarioSpec spec = makeSpec();
+        spec.commanderOptions.allowTBombs = false;
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraTBombs = 1;
+        ScenarioLoader.applyCoi(ship, loadout, spec);
+        assertEquals(0, ship.getTBombs());
+    }
+
+    @Test
+    public void coi_droneRackLoadout_replaces_default_ammo() {
+        Ship ship = makeShip(); // FedCA has drone racks
+        // Find how many drone racks the ship has
+        List<DroneRack> racks = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) racks.add((DroneRack) w);
+        }
+        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+
+        CoiLoadout loadout = new CoiLoadout();
+        // Load rack 0 with TypeIM drones (medium-speed TypeI, available Y165)
+        loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeIM, DroneType.TypeIM,
+                DroneType.TypeIM, DroneType.TypeIM));
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+
+        DroneRack rack0 = racks.get(0);
+        List<Drone> ammo = rack0.getAmmo();
+        assertFalse("Rack should have drones after COI", ammo.isEmpty());
+        for (Drone d : ammo) {
+            assertEquals(DroneType.TypeIM, d.getDroneType());
+        }
+    }
+
+    @Test
+    public void coi_droneRackLoadout_rejects_unavailable_year() {
+        Ship ship = makeShip();
+        ScenarioSpec spec = makeSpec();
+        spec.year = 160; // TypeIM not available until Y165
+
+        List<DroneRack> racks = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) racks.add((DroneRack) w);
+        }
+        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+
+        List<Drone> originalAmmo = new java.util.ArrayList<>(racks.get(0).getAmmo());
+
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeIM));
+        ScenarioLoader.applyCoi(ship, loadout, spec);
+
+        // Rack ammo should be unchanged (TypeIM rejected)
+        assertEquals(originalAmmo.size(), racks.get(0).getAmmo().size());
+    }
+
+    @Test
+    public void coi_droneRackLoadout_rejects_speed_cap_violation() {
+        Ship ship = makeShip();
+        ScenarioSpec spec = makeSpec();
+        spec.commanderOptions.maxDroneSpeed = 12; // cap at speed 12, TypeIM=20 rejected
+
+        List<DroneRack> racks = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) racks.add((DroneRack) w);
+        }
+        assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
+
+        List<Drone> originalAmmo = new java.util.ArrayList<>(racks.get(0).getAmmo());
+
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.setDroneRackLoadout(0, Arrays.asList(DroneType.TypeIM, DroneType.TypeIM,
+                DroneType.TypeIM, DroneType.TypeIM));
+        ScenarioLoader.applyCoi(ship, loadout, spec);
+
+        assertEquals(originalAmmo.size(), racks.get(0).getAmmo().size());
+    }
+
+    @Test
+    public void coi_null_loadout_is_noop() {
+        Ship ship = makeShip();
+        int normalBefore = ship.getCrew().getFriendlyTroops().normal;
+        ScenarioLoader.applyCoi(ship, null, makeSpec());
+        assertEquals(normalBefore, ship.getCrew().getFriendlyTroops().normal);
     }
 
     // ---- helpers ----

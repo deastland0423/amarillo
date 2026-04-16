@@ -68,6 +68,12 @@ public class GameStateDto {
         public boolean functional;
         public String  plasmaType;        // PlasmaLauncher only: "F", "G", "S", "R", or null
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
+        public boolean isHeavy;           // true for HeavyWeapon (disruptors, plasma, photon)
+        // Energy-allocation helpers for heavy weapons
+        public int     armingCost;        // energy to arm/hold this turn
+        public int     totalArmingTurns;  // turns to fully arm (0 for instant)
+        public boolean isRolling;         // PlasmaLauncher only: currently in rolling mode
+        public int     rollingCost;       // PlasmaLauncher only: energy to keep rolling
     }
 
     public static class DroneInRackDto {
@@ -110,6 +116,7 @@ public class GameStateDto {
         public int                  cloakFadeStep;
         public int                  cloakTransitionImpulse;
         public double               phaserCapacitor;
+        public double               phaserCapacitorMax;
         public boolean              capacitorsCharged;
         public boolean              activeFireControl;
         public int                  scannerBonus;
@@ -121,6 +128,7 @@ public class GameStateDto {
         public int                  transporterUses;
         public int                  boardingParties;
         public int                  availableTransporters;
+        public double               transporterEnergyCost;
         // Hull box damage state
         public int                  availableFhull;
         public int                  availableAhull;
@@ -130,12 +138,23 @@ public class GameStateDto {
         public int                  availableRWarp;
         public int                  availableCWarp;
         public int                  availableImpulse;
+        public int                  availableApr;
+        public int                  availableAwr;
         public int                  availableBattery;
         // Control space damage state
         public int                  availableBridge;
         public int                  availableEmer;
         public int                  availableAuxcon;
         // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
+        // Energy Allocation helper fields
+        public int    totalPower;        // total power available for allocation
+        public double moveCost;          // warp energy per speed point
+        public double lifeSupportCost;   // housekeeping cost
+        public int    fireControlCost;   // always 1
+        public int    activeShieldCost;  // energy to keep shields fully active
+        public double minimumShieldCost; // energy for minimum shields
+        public int    batteryCharge;     // current battery energy available to draw
+        public int    cloakCost;         // energy to maintain cloak (0 if no cloaking device)
     }
 
     // -------------------------------------------------------------------------
@@ -310,6 +329,7 @@ public class GameStateDto {
         }
 
         dto.phaserCapacitor    = ship.getWeapons().getPhaserCapacitorEnergy();
+        dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged  = ship.isCapacitorsCharged();
         dto.activeFireControl  = ship.isActiveFireControl();
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
@@ -317,7 +337,8 @@ public class GameStateDto {
         dto.dummyTBombs           = ship.getDummyTBombs();
         dto.transporterUses       = ship.getTransporters().availableUses();
         dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
-        dto.availableTransporters = ship.getTransporters().getAvailableTrans();
+        dto.availableTransporters    = ship.getTransporters().getAvailableTrans();
+        dto.transporterEnergyCost    = com.sfb.constants.Constants.TRANS_ENERGY;
 
         // Hull box damage state
         com.sfb.systemgroups.HullBoxes hb = ship.getHullBoxes();
@@ -331,7 +352,19 @@ public class GameStateDto {
         dto.availableRWarp   = ps.getAvailableRWarp();
         dto.availableCWarp   = ps.getAvailableCWarp();
         dto.availableImpulse = ps.getAvailableImpulse();
+        dto.availableApr     = ps.getAvailableApr();
+        dto.availableAwr     = ps.getAvailableAwr();
         dto.availableBattery = ps.getAvailableBattery();
+
+        // Energy Allocation helper fields
+        dto.totalPower        = ps.getTotalAvailablePower();
+        dto.moveCost          = ship.getPerformanceData().getMovementCost();
+        dto.lifeSupportCost   = ship.getLifeSupportCost();
+        dto.fireControlCost   = ship.getFireControlCost();
+        dto.activeShieldCost  = ship.getActiveShieldCost();
+        dto.minimumShieldCost = ship.getMinimumShieldCost();
+        dto.batteryCharge     = ps.getBatteryPower();
+        dto.cloakCost         = cloak != null ? cloak.getPowerToActivate() : 0;
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -347,14 +380,19 @@ public class GameStateDto {
             wd.functional       = w.isFunctional();
             if (w instanceof com.sfb.weapons.HeavyWeapon) {
                 com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
-                wd.armed      = hw.isArmed();
-                wd.armingTurn = hw.getArmingTurn();
-                wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
+                wd.armed           = hw.isArmed();
+                wd.armingTurn      = hw.getArmingTurn();
+                wd.armingType      = hw.getArmingType() != null ? hw.getArmingType().name() : null;
+                wd.isHeavy         = true;
+                wd.armingCost      = hw.energyToArm();
+                wd.totalArmingTurns = hw.totalArmingTurns();
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
                 wd.plasmaType        = pl.getPlasmaType() != null ? pl.getPlasmaType().name() : null;
                 wd.pseudoPlasmaReady = pl.isPseudoPlasmaReady();
+                wd.isRolling         = pl.isRolling();
+                wd.rollingCost       = pl.isRolling() ? pl.rollingCost() : 0;
             }
             dto.weapons.add(wd);
         }

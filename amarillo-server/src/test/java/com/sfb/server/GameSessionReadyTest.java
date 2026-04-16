@@ -19,8 +19,8 @@ class GameSessionReadyTest {
 
     @BeforeEach
     void setUp() {
+        // ADVANCE_PHASE and UNREADY do not require a started game — no scenario loading needed.
         session = new GameSession("game-1", HOST, "Alice");
-        session.start();
     }
 
     // -------------------------------------------------------------------------

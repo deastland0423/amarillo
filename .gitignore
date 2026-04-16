@@ -1,4 +1,8 @@
-/target/
+**/target/
 *.class
 hs_err_pid*.log
 replay_pid*.log
+
+# Web
+amarillo-web/node_modules/
+amarillo-web/dist/

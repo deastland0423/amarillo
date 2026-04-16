@@ -29,12 +29,16 @@ public class ActionRequest {
     private boolean      useUim;
 
     // ALLOCATE fields
-    private int                 speed;        // warp speed requested
-    private boolean             topOffCap;    // true = charge phaser capacitor to full
-    private String              shieldMode;   // "ACTIVE", "MINIMUM", or "OFF"
-    private Map<String, String> weaponArming; // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "DISCHARGE"
-    private boolean             cloakPaid;    // true if the player paid the cloak cost this turn
-    private boolean             energizeCaps; // true if player paid 1 pt to energize capacitors (WS-0)
+    private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
+    private boolean             topOffCap;              // true = charge phaser capacitor to full
+    private String              shieldMode;             // "ACTIVE", "MINIMUM", or "OFF"
+    private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH"
+    private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
+    private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
+    private int                 batteryDraw;            // energy drawn from batteries this turn
+    private int                 batteryRecharge;        // energy put into batteries this turn
+    private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
+    private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -83,6 +87,18 @@ public class ActionRequest {
 
     public boolean isEnergizeCaps()                        { return energizeCaps; }
     public void    setEnergizeCaps(boolean energizeCaps)   { this.energizeCaps = energizeCaps; }
+
+    public int  getBatteryDraw()                       { return batteryDraw; }
+    public void setBatteryDraw(int batteryDraw)        { this.batteryDraw = batteryDraw; }
+
+    public int  getBatteryRecharge()                   { return batteryRecharge; }
+    public void setBatteryRecharge(int batteryRecharge){ this.batteryRecharge = batteryRecharge; }
+
+    public int  getGeneralReinforcement()                          { return generalReinforcement; }
+    public void setGeneralReinforcement(int generalReinforcement)  { this.generalReinforcement = generalReinforcement; }
+
+    public int[]  getSpecificReinforcement()                         { return specificReinforcement; }
+    public void   setSpecificReinforcement(int[] specificReinforcement) { this.specificReinforcement = specificReinforcement; }
 
     // LAUNCH_PLASMA fields
     private boolean pseudo;
