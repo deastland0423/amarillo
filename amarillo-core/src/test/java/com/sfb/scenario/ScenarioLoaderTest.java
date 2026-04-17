@@ -225,9 +225,12 @@ public class ScenarioLoaderTest {
     @Test
     public void coi_tBombs_skipped_when_over_budget() {
         Ship ship = makeShip();
+        // Use a 5% budget → floor(125 * 0.05) = 6 BPV; 2 T-bombs = 8 BPV > 6 — skipped
+        ScenarioSpec spec = makeSpec();
+        spec.commanderOptions.budgetPercent = 5;
         CoiLoadout loadout = new CoiLoadout();
-        loadout.extraTBombs = 7; // cost 28.0 BPV, over 25 BPV budget — skipped
-        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        loadout.extraTBombs = 2;
+        ScenarioLoader.applyCoi(ship, loadout, spec);
         assertEquals(0, ship.getTBombs());
         assertEquals(0, ship.getDummyTBombs());
     }
@@ -309,6 +312,47 @@ public class ScenarioLoaderTest {
         ScenarioLoader.applyCoi(ship, loadout, spec);
 
         assertEquals(originalAmmo.size(), racks.get(0).getAmmo().size());
+    }
+
+    @Test
+    public void coi_tBombs_capped_by_size_class() {
+        // FedCA is size class 3 → MAX_TBOMBS[3] = 4; requesting 6 should be capped to 4
+        Ship ship = makeShip();
+        assertEquals(3, ship.getSizeClass());
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.extraTBombs = 6;
+        ScenarioLoader.applyCoi(ship, loadout, makeSpec());
+        assertEquals(4, ship.getTBombs());
+        assertEquals(4, ship.getDummyTBombs());
+    }
+
+    @Test
+    public void weaponStatus3_heavyWeaponsArmed() {
+        Ship ship = makeShip(); // FedCA has photon torpedoes
+        ScenarioLoader.applyWeaponStatus(ship, 3);
+        boolean anyHeavyArmed = false;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.HeavyWeapon) {
+                com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+                if (hw.isArmed()) { anyHeavyArmed = true; break; }
+            }
+        }
+        assertTrue("WS-3: at least one heavy weapon should start armed", anyHeavyArmed);
+    }
+
+    @Test
+    public void weaponStatus3_armingTurnIsMax() {
+        Ship ship = makeShip();
+        ScenarioLoader.applyWeaponStatus(ship, 3);
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.HeavyWeapon)) continue;
+            if (w instanceof com.sfb.weapons.Fusion) continue;
+            com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+            if (hw.isArmed()) {
+                assertEquals("Armed weapon armingTurn should equal totalArmingTurns",
+                        hw.totalArmingTurns(), hw.getArmingTurn());
+            }
+        }
     }
 
     @Test

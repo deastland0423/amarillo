@@ -27,6 +27,16 @@ export interface WeaponState {
   rollingCost:       number;
 }
 
+export interface DroneRackState {
+  name:               string;
+  functional:         boolean;
+  canFire:            boolean;
+  drones:             { droneType: string; warheadDamage: number; speed: number; endurance: number }[];
+  reloadCount:        number;
+  reloadDeckCrewCost: number;
+  reloadingThisTurn:  boolean;
+}
+
 interface MapObjectBase {
   name:     string;
   location: string | null;
@@ -41,6 +51,7 @@ export interface ShipObject extends MapObjectBase {
   shields: ShieldState[];
   // Weapons
   weapons:          WeaponState[];
+  droneRacks:       DroneRackState[];
   phaserCapacitor:    number;
   phaserCapacitorMax: number;
   capacitorsCharged:  boolean;
@@ -64,9 +75,16 @@ export interface ShipObject extends MapObjectBase {
   tBombs:           number;
   dummyTBombs:      number;
   boardingParties:  number;
+  // Crew
+  availableCrewUnits:  number;
+  minimumCrew:         number;
+  availableDeckCrews:  number;
+  crewQuality:         string;   // "POOR" | "NORMAL" | "OUTSTANDING"
   availableTransporters?:   number;
   transporterEnergyCost?:   number;
-  cloakState?:              string;
+  cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
+  cloakFadeStep?:           number;   // 1–5 during fade transitions
+  cloakTransitionImpulse?:  number;
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;
@@ -76,6 +94,7 @@ export interface ShipObject extends MapObjectBase {
   minimumShieldCost: number;
   batteryCharge:     number;
   cloakCost:         number;
+  maxSpeedNextTurn:  number;   // C2.2 acceleration cap
 }
 
 export interface ShuttleObject extends MapObjectBase {

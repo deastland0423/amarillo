@@ -42,10 +42,90 @@ export interface PlayerListing {
   token: string;
 }
 
+export interface ScenarioShip {
+  hull:         string;
+  shipName:     string;
+  startHex:     string;
+  startHeading: string;
+  startSpeed:   number;
+  weaponStatus: number;
+  refits:       string[];
+}
+
+export interface ScenarioSide {
+  faction:             string;
+  name:                string;
+  ships:               ScenarioShip[];
+  reinforcementGroups: number;
+}
+
 export interface ScenarioSummary {
-  id: string;
-  name: string;
-  description: string;
+  id:               string;
+  name:             string;
+  year:             number;
+  numPlayers:       number;
+  mapType:          string;
+  description:      string;
+  specialRules:     string[];
+  victoryType:      string;
+  victoryNotes:     string;
+  warpBoosterPacks: boolean;
+  megapacks:        boolean;
+  mrsShuttles:      boolean;
+  pfs:              boolean;
+  sides:            ScenarioSide[];
+}
+
+// ---- COI data types ----
+
+export interface CoiHeavyWeapon {
+  designator: string;
+  type:       string;  // "Photon", "Disruptor", etc.
+}
+
+export interface CoiDroneRack {
+  index:      number;
+  designator: string;
+  spaces:     number;
+}
+
+export interface CoiDroneType {
+  name:   string;
+  speed:  number;
+  damage: number;
+  rack:   number;   // spaces consumed per drone
+}
+
+export interface CoiShipData {
+  shipName:            string;
+  bpv:                 number;
+  weaponStatus:        number;
+  coiBudget:           number;
+  allowTBombs:         boolean;
+  allowCommandos:      boolean;
+  maxTBombs:           number;
+  maxDroneSpeed:       number | null;
+  heavyWeapons:        CoiHeavyWeapon[];
+  droneRacks:          CoiDroneRack[];
+  availableDroneTypes: CoiDroneType[];
+}
+
+export interface CoiSideData {
+  faction: string;
+  name:    string;
+  ships:   CoiShipData[];
+}
+
+/** Per-ship COI selections to POST to /api/games/{id}/coi */
+export interface CoiSubmission {
+  [shipName: string]: {
+    extraBoardingParties?: number;
+    convertBpToCommando?:  number;
+    extraCommandoSquads?:  number;
+    extraTBombs?:          number;
+    droneRackLoadouts?:    Record<string, string[]>;
+    weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL'>;
+  };
 }
 
 export const gameApi = {
@@ -110,6 +190,18 @@ export const gameApi = {
       `/api/games/${gameId}/fire-options?attacker=${encodeURIComponent(attacker)}&target=${encodeURIComponent(target)}`,
       { headers: { 'X-Player-Token': playerToken } },
     );
+  },
+
+  getCoiData(scenarioId: string): Promise<CoiSideData[]> {
+    return request(`/api/games/scenarios/${scenarioId}/coi-data`);
+  },
+
+  submitCoi(gameId: string, playerToken: string, body: CoiSubmission): Promise<{ message: string }> {
+    return request(`/api/games/${gameId}/coi`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify(body),
+    });
   },
 
   submitAction(

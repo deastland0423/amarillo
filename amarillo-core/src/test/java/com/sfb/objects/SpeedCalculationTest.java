@@ -34,6 +34,9 @@ public class SpeedCalculationTest {
     private Ship buildAndStart(Map<String, Object> spec) {
         Ship ship = new Ship();
         ship.init(spec);
+        // Seed C2.2 history so acceleration cap never interferes with speed calculation tests
+        ship.setSpeedPreviousTurn(31);
+        ship.setSpeedTwoTurnsAgo(31);
         ship.allocateEnergy(ship.buildAutoAllocation());
         ship.startTurn();
         return ship;
@@ -123,5 +126,78 @@ public class SpeedCalculationTest {
         // moveCost=1, 4+4 warp, 1 impulse → speed 9
         Ship ship = buildAndStart(spec(4, 4, 1, 1.0));
         assertEquals(9, ship.getSpeed());
+    }
+
+    // -------------------------------------------------------------------------
+    // C2.2 Acceleration cap
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void accelCap_fromZero_allows10() {
+        // Previous speed = 0: max(0+10, 0*2) = 10
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(0);
+        ship.setSpeedTwoTurnsAgo(0);
+        assertEquals(10, ship.getMaxAccelerationSpeed());
+    }
+
+    @Test
+    public void accelCap_fromSpeed5_allows15() {
+        // Previous speed = 5: max(5+10, 5*2) = max(15,10) = 15
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(5);
+        ship.setSpeedTwoTurnsAgo(5);
+        assertEquals(15, ship.getMaxAccelerationSpeed());
+    }
+
+    @Test
+    public void accelCap_fromSpeed16_isUnlimited() {
+        // Previous speed = 16: max(16+10, 16*2) = max(26,32) = 32, capped to 31
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(16);
+        ship.setSpeedTwoTurnsAgo(16);
+        assertEquals(31, ship.getMaxAccelerationSpeed());
+    }
+
+    @Test
+    public void accelCap_usesLowestOfTwoTurns() {
+        // speedPreviousTurn=20, speedTwoTurnsAgo=5 → lowest=5 → max(15,10)=15
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(20);
+        ship.setSpeedTwoTurnsAgo(5);
+        assertEquals(15, ship.getMaxAccelerationSpeed());
+    }
+
+    @Test
+    public void accelCap_enforcedAtStartTurn() {
+        // Ship was at speed 5 both prior turns: cap = 15; allocate speed 20 → capped to 15
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(5);
+        ship.setSpeedTwoTurnsAgo(5);
+        ship.allocateEnergy(ship.buildAutoAllocation());
+        // Manually set warpMovement to request speed 20
+        com.sfb.systems.Energy e = ship.buildAutoAllocation();
+        e.setWarpMovement(20 * ship.getPerformanceData().getMovementCost());
+        ship.allocateEnergy(e);
+        ship.startTurn();
+        assertEquals(15, ship.getSpeed());
+    }
+
+    @Test
+    public void speedHistory_rollsAfterCleanUp() {
+        // After cleanUp(): speedTwoTurnsAgo ← speedPreviousTurn ← getSpeed()
+        Ship ship = new Ship();
+        ship.init(spec(15, 15, 0, 1.0));
+        ship.setSpeedPreviousTurn(10);
+        ship.setSpeedTwoTurnsAgo(5);
+        ship.setSpeed(20);
+        ship.cleanUp();
+        assertEquals(20, ship.getSpeedPreviousTurn());
+        assertEquals(10, ship.getSpeedTwoTurnsAgo());
     }
 }

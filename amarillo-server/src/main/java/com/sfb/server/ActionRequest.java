@@ -39,6 +39,7 @@ public class ActionRequest {
     private int                 batteryRecharge;        // energy put into batteries this turn
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
+    private List<String>        droneReloads;           // rack names to reload this turn
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -99,6 +100,9 @@ public class ActionRequest {
 
     public int[]  getSpecificReinforcement()                         { return specificReinforcement; }
     public void   setSpecificReinforcement(int[] specificReinforcement) { this.specificReinforcement = specificReinforcement; }
+
+    public List<String> getDroneReloads()                            { return droneReloads; }
+    public void         setDroneReloads(List<String> droneReloads)   { this.droneReloads = droneReloads; }
 
     // LAUNCH_PLASMA fields
     private boolean pseudo;

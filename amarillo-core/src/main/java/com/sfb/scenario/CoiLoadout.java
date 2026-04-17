@@ -1,6 +1,7 @@
 package com.sfb.scenario;
 
 import com.sfb.objects.DroneType;
+import com.sfb.properties.WeaponArmingType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,6 +41,14 @@ public class CoiLoadout {
      * that rack. If a rack index is absent, the rack keeps its default ammo.
      */
     public Map<Integer, List<DroneType>> droneRackLoadouts = new LinkedHashMap<>();
+
+    /**
+     * Arming mode overrides for WS-3 heavy weapons, keyed by weapon designator
+     * (e.g. "A", "B"). Only applies to weapons that are already fully armed at
+     * game start. Absent entries keep their default STANDARD mode.
+     * SPECIAL = Proximity. Plasma-R and Fusion beams cannot be overridden (ignored).
+     */
+    public Map<String, WeaponArmingType> weaponArmingModes = new LinkedHashMap<>();
 
     // --- Cost calculation helpers ---
 

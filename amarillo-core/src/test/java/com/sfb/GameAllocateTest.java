@@ -28,6 +28,10 @@ public class GameAllocateTest {
         ship.setName("USS Enterprise");
         ship.setActiveFireControl(true);  // pre-set as WS-2 would
 
+        // Seed C2.2 history so the acceleration cap never interferes with allocation tests
+        ship.setSpeedPreviousTurn(31);
+        ship.setSpeedTwoTurnsAgo(31);
+
         // Add ship and put game into allocation state
         game.getShips().add(ship);
         game.startTurn();

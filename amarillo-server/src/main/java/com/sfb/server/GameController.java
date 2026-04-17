@@ -63,25 +63,181 @@ public class GameController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/scenarios")
-    public ResponseEntity<List<Map<String, String>>> listScenarios() {
+    public ResponseEntity<List<Map<String, Object>>> listScenarios() {
         File scenarioDir = new File("data/scenarios");
-        List<Map<String, String>> result = new ArrayList<>();
+        List<Map<String, Object>> result = new ArrayList<>();
         File[] files = scenarioDir.listFiles((d, name) -> name.endsWith(".json"));
         if (files != null) {
             for (File f : files) {
                 try {
                     ScenarioSpec spec = ScenarioSpec.fromJson(f);
-                    result.add(Map.of(
-                            "id",          spec.id          != null ? spec.id          : "",
-                            "name",        spec.name        != null ? spec.name        : "",
-                            "description", spec.description != null ? spec.description : ""
-                    ));
+                    Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                    entry.put("id",          spec.id   != null ? spec.id   : "");
+                    entry.put("name",        spec.name != null ? spec.name : "");
+                    entry.put("year",        spec.year);
+                    entry.put("numPlayers",  spec.numPlayers);
+                    entry.put("mapType",     spec.mapType != null ? spec.mapType : "STANDARD");
+                    entry.put("description", spec.description != null ? spec.description : "");
+                    entry.put("specialRules", spec.specialRules != null ? spec.specialRules : List.of());
+
+                    // Victory conditions summary
+                    if (spec.victoryConditions != null) {
+                        entry.put("victoryType",  spec.victoryConditions.type  != null ? spec.victoryConditions.type  : "STANDARD");
+                        entry.put("victoryNotes", spec.victoryConditions.notes != null ? spec.victoryConditions.notes : "");
+                    } else {
+                        entry.put("victoryType",  "STANDARD");
+                        entry.put("victoryNotes", "");
+                    }
+
+                    // Shuttle rules
+                    if (spec.shuttleRules != null) {
+                        entry.put("warpBoosterPacks", spec.shuttleRules.warpBoosterPacks);
+                        entry.put("megapacks",        spec.shuttleRules.megapacks);
+                        entry.put("mrsShuttles",      spec.shuttleRules.mrsShuttles);
+                        entry.put("pfs",              spec.shuttleRules.pfs);
+                    }
+
+                    // Sides summary: faction, name, ship list
+                    List<Map<String, Object>> sides = new ArrayList<>();
+                    if (spec.sides != null) {
+                        for (ScenarioSpec.SideSpec side : spec.sides) {
+                            Map<String, Object> s = new java.util.LinkedHashMap<>();
+                            s.put("faction", side.faction != null ? side.faction : "");
+                            s.put("name",    side.name    != null ? side.name    : "");
+                            List<Map<String, Object>> ships = new ArrayList<>();
+                            if (side.ships != null) {
+                                for (ScenarioSpec.ShipSetup ship : side.ships) {
+                                    Map<String, Object> sh = new java.util.LinkedHashMap<>();
+                                    sh.put("hull",          ship.hull          != null ? ship.hull     : "");
+                                    sh.put("shipName",      ship.shipName      != null ? ship.shipName : "");
+                                    sh.put("startHex",      ship.startHex      != null ? ship.startHex : "");
+                                    sh.put("startHeading",  ship.startHeading  != null ? ship.startHeading : "");
+                                    sh.put("startSpeed",    ship.startSpeed);
+                                    sh.put("weaponStatus",  ship.weaponStatus);
+                                    sh.put("refits",        ship.refits != null ? ship.refits : List.of());
+                                    ships.add(sh);
+                                }
+                            }
+                            s.put("ships", ships);
+                            int reinforcements = 0;
+                            if (side.reinforcements != null) reinforcements = side.reinforcements.size();
+                            s.put("reinforcementGroups", reinforcements);
+                            sides.add(s);
+                        }
+                    }
+                    entry.put("sides", sides);
+                    result.add(entry);
                 } catch (Exception e) {
                     System.err.println("Could not parse scenario file: " + f.getName());
                 }
             }
         }
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Returns COI-relevant ship data for a scenario: heavy weapons and drone racks
+     * per ship, grouped by side. Used by the pre-game COI dialog.
+     * Does not start a game — read-only.
+     */
+    @GetMapping("/scenarios/{scenarioId}/coi-data")
+    public ResponseEntity<List<Map<String, Object>>> getCoiData(
+            @PathVariable String scenarioId) {
+
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            ScenarioSpec spec = ScenarioSpec.fromJson(
+                    "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+            List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (int i = 0; i < spec.sides.size(); i++) {
+                ScenarioSpec.SideSpec side = spec.sides.get(i);
+                List<Ship> ships = i < sideShips.size() ? sideShips.get(i) : List.of();
+
+                List<Map<String, Object>> shipList = new ArrayList<>();
+                for (Ship ship : ships) {
+                    Map<String, Object> s = new java.util.LinkedHashMap<>();
+                    s.put("shipName",     ship.getName());
+                    s.put("bpv",          ship.getBattlePointValue());
+
+                    // Find this ship's weaponStatus from the spec
+                    int ws = side.ships.stream()
+                            .filter(ss -> ship.getName().equals(ss.shipName))
+                            .mapToInt(ss -> ss.weaponStatus).findFirst().orElse(0);
+                    s.put("weaponStatus", ws);
+
+                    // Heavy weapons that can have arming modes chosen at WS-3
+                    List<Map<String, Object>> heavy = new ArrayList<>();
+                    int droneIndex = 0;
+                    List<Map<String, Object>> drones = new ArrayList<>();
+                    for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                        if (w instanceof com.sfb.weapons.HeavyWeapon
+                                && !(w instanceof com.sfb.weapons.Fusion)
+                                && !(w instanceof com.sfb.weapons.DroneRack)) {
+                            boolean canHold = !(w instanceof com.sfb.weapons.PlasmaLauncher)
+                                    || ((com.sfb.weapons.PlasmaLauncher) w).canHold();
+                            if (canHold) {
+                                Map<String, Object> hw = new java.util.LinkedHashMap<>();
+                                hw.put("designator", w.getDesignator());
+                                hw.put("type",       w.getType());
+                                heavy.add(hw);
+                            }
+                        }
+                        if (w instanceof com.sfb.weapons.DroneRack) {
+                            com.sfb.weapons.DroneRack rack = (com.sfb.weapons.DroneRack) w;
+                            Map<String, Object> dr = new java.util.LinkedHashMap<>();
+                            dr.put("index",       droneIndex++);
+                            dr.put("designator",  w.getDesignator());
+                            dr.put("spaces",      rack.getSpaces());
+                            drones.add(dr);
+                        }
+                    }
+                    s.put("heavyWeapons", heavy);
+                    s.put("droneRacks",   drones);
+
+                    // Commander's options budget
+                    int budgetPct = spec.commanderOptions != null
+                            ? spec.commanderOptions.budgetPercent : 20;
+                    s.put("coiBudget", com.sfb.scenario.CoiLoadout.budget(
+                            ship.getBattlePointValue(), budgetPct));
+                    s.put("allowTBombs",    spec.commanderOptions == null
+                            || spec.commanderOptions.allowTBombs);
+                    s.put("allowCommandos", spec.commanderOptions == null
+                            || spec.commanderOptions.allowCommandos);
+                    s.put("maxTBombs", com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()]);
+                    s.put("maxDroneSpeed",  spec.commanderOptions != null
+                            ? spec.commanderOptions.maxDroneSpeed : null);
+
+                    // Available drone types — filtered by scenario year and speed cap
+                    Integer maxSpeed = spec.commanderOptions != null
+                            ? spec.commanderOptions.maxDroneSpeed : null;
+                    List<Map<String, Object>> droneTypes = new ArrayList<>();
+                    for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
+                        if (!dt.availableIn(spec.year)) continue;
+                        if (maxSpeed != null && dt.speed > maxSpeed) continue;
+                        Map<String, Object> dtMap = new java.util.LinkedHashMap<>();
+                        dtMap.put("name",   dt.name());
+                        dtMap.put("speed",  dt.speed);
+                        dtMap.put("damage", dt.damage);
+                        dtMap.put("rack",   dt.rack);
+                        droneTypes.add(dtMap);
+                    }
+                    s.put("availableDroneTypes", droneTypes);
+
+                    shipList.add(s);
+                }
+
+                Map<String, Object> sideMap = new java.util.LinkedHashMap<>();
+                sideMap.put("faction", side.faction != null ? side.faction : "");
+                sideMap.put("name",    side.name    != null ? side.name    : "");
+                sideMap.put("ships",   shipList);
+                result.add(sideMap);
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -128,6 +284,36 @@ public class GameController {
     // -------------------------------------------------------------------------
     // Start game (host only)
     // -------------------------------------------------------------------------
+
+    /**
+     * Submit COI selections for this player's ships.
+     * Body: { "shipName": { "extraBoardingParties": N, "convertBpToCommando": N,
+     *   "extraCommandoSquads": N, "extraTBombs": N,
+     *   "droneRackLoadouts": { "0": ["TypeIM", ...] },
+     *   "weaponArmingModes": { "A": "OVERLOAD", "B": "SPECIAL" } } }
+     * Can be called multiple times before start(); later calls overwrite earlier ones.
+     */
+    @PostMapping("/{id}/coi")
+    public ResponseEntity<Map<String, String>> submitCoi(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, CoiRequest> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.hasPlayer(token))
+            return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+        if (session.isStarted())
+            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+        Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
+            loadouts.put(entry.getKey(), entry.getValue().toLoadout());
+        }
+        session.submitCoi(token, loadouts);
+        return ResponseEntity.ok(Map.of("message", "COI selections saved"));
+    }
 
     @PostMapping("/{id}/start")
     public ResponseEntity<Map<String, String>> startGame(
@@ -249,9 +435,8 @@ public class GameController {
         if (targetUnit == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-        int range        = MapUtils.getRange(attackerShip, targetUnit);
-        int scannerBonus = attackerShip.getSpecialFunctions().getScanner();
-        int adjRange     = Math.max(0, range - scannerBonus);
+        int range    = MapUtils.getRange(attackerShip, targetUnit);
+        int adjRange = session.getGame().getEffectiveRange(attackerShip, targetUnit);
 
         // Shield number (1-6) on the target ship facing the attacker
         int shieldNumber = 0;

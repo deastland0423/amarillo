@@ -87,7 +87,10 @@ public class GameStateDto {
         public String              name;
         public boolean             functional;
         public boolean             canFire;
-        public List<DroneInRackDto> drones; // currently loaded drones
+        public List<DroneInRackDto> drones;       // currently loaded drones
+        public int                  reloadCount;  // number of reload sets remaining
+        public double               reloadDeckCrewCost; // deck crew cost to reload (0 if no reloads)
+        public boolean              reloadingThisTurn;  // already staged for reload this turn
     }
 
     public static class ShuttleInBayDto {
@@ -127,6 +130,11 @@ public class GameStateDto {
         public int                  dummyTBombs;
         public int                  transporterUses;
         public int                  boardingParties;
+        // Crew
+        public int                  availableCrewUnits;
+        public int                  minimumCrew;
+        public int                  availableDeckCrews;
+        public String               crewQuality;       // "POOR" | "NORMAL" | "OUTSTANDING"
         public int                  availableTransporters;
         public double               transporterEnergyCost;
         // Hull box damage state
@@ -155,6 +163,7 @@ public class GameStateDto {
         public double minimumShieldCost; // energy for minimum shields
         public int    batteryCharge;     // current battery energy available to draw
         public int    cloakCost;         // energy to maintain cloak (0 if no cloaking device)
+        public int    maxSpeedNextTurn;  // C2.2 acceleration cap for this turn's EA
     }
 
     // -------------------------------------------------------------------------
@@ -337,6 +346,10 @@ public class GameStateDto {
         dto.dummyTBombs           = ship.getDummyTBombs();
         dto.transporterUses       = ship.getTransporters().availableUses();
         dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
+        dto.availableCrewUnits    = ship.getCrew().getAvailableCrewUnits();
+        dto.minimumCrew           = ship.getCrew().getMinimumCrew();
+        dto.availableDeckCrews    = ship.getCrew().getAvailableDeckCrews();
+        dto.crewQuality           = ship.getCrew().getCrewQuality().name();
         dto.availableTransporters    = ship.getTransporters().getAvailableTrans();
         dto.transporterEnergyCost    = com.sfb.constants.Constants.TRANS_ENERGY;
 
@@ -365,6 +378,7 @@ public class GameStateDto {
         dto.minimumShieldCost = ship.getMinimumShieldCost();
         dto.batteryCharge     = ps.getBatteryPower();
         dto.cloakCost         = cloak != null ? cloak.getPowerToActivate() : 0;
+        dto.maxSpeedNextTurn  = ship.getMaxAccelerationSpeed();
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -414,6 +428,10 @@ public class GameStateDto {
                 dd.endurance    = d.getEndurance();
                 rd.drones.add(dd);
             }
+            rd.reloadCount       = rack.getNumberOfReloads();
+            rd.reloadingThisTurn = rack.isReloadingThisTurn();
+            rd.reloadDeckCrewCost = rack.getReloads().isEmpty() ? 0
+                    : DroneRack.reloadCost(rack.getReloads().get(0));
             dto.droneRacks.add(rd);
         }
 

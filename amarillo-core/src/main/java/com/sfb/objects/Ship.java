@@ -84,6 +84,15 @@ public class Ship extends Unit {
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
 
+	/**
+	 * Speed history for C2.2 acceleration limits.
+	 * Max speed this turn = max(lowestRecent + 10, lowestRecent * 2), capped at 31.
+	 * lowestRecent = min(speedPreviousTurn, speedTwoTurnsAgo).
+	 * Both seeded from startSpeed at scenario load.
+	 */
+	private int speedPreviousTurn = 0;
+	private int speedTwoTurnsAgo  = 0;
+
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
@@ -184,7 +193,8 @@ public class Ship extends Unit {
 		// (max +1, giving speed 31)
 		int warpSpeed = (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost());
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
-		setSpeed(Math.min(warpSpeed + impulseSpeed, 31));
+		int requestedSpeed = Math.min(warpSpeed + impulseSpeed, 31);
+		setSpeed(Math.min(requestedSpeed, getMaxAccelerationSpeed()));
 
 		// Life support
 		if (energyAllocated.getLifeSupport() >= lifeSupportCost) {
@@ -275,6 +285,10 @@ public class Ship extends Unit {
 		// For example, if there is recharge energy remaining - put it into the
 		// batteries
 
+		// Roll speed history for C2.2 acceleration tracking
+		speedTwoTurnsAgo  = speedPreviousTurn;
+		speedPreviousTurn = getSpeed();
+
 		shields.cleanUp();
 		hullBoxes.cleanUp();
 		powerSystems.cleanUp();
@@ -288,6 +302,23 @@ public class Ship extends Unit {
 		crew.cleanUp();
 		performanceData.cleanUp();
 	}
+
+	/**
+	 * Maximum speed this ship may allocate next turn (C2.2).
+	 * Based on the lowest speed in the last 32 impulses (= last 2 turns).
+	 * Formula: max(lowestRecent + 10, lowestRecent * 2), capped at 31.
+	 * Nimble ships and civilian freighters will have different rules (future).
+	 */
+	public int getMaxAccelerationSpeed() {
+		int lowest = Math.min(speedPreviousTurn, speedTwoTurnsAgo);
+		return Math.min(31, Math.max(lowest + 10, lowest * 2));
+	}
+
+	public int getSpeedPreviousTurn()            { return speedPreviousTurn; }
+	public int getSpeedTwoTurnsAgo()             { return speedTwoTurnsAgo; }
+
+	public void setSpeedPreviousTurn(int speed)  { this.speedPreviousTurn = speed; }
+	public void setSpeedTwoTurnsAgo(int speed)   { this.speedTwoTurnsAgo  = speed; }
 
 	/// BASIC SHIP DATA ///
 	public void setType(String type) {

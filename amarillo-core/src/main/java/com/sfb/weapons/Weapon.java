@@ -128,7 +128,7 @@ public abstract class Weapon {
 	 * 
 	 * @return The name of the weapon
 	 */
-	public String geDesignator() {
+	public String getDesignator() {
 		return designator;
 	}
 

@@ -12,6 +12,7 @@ interface Props {
   allShips:     ShipObject[];
   onDone:       (log: string) => void;
   onError:      (msg: string) => void;
+  onTabChange?: (shipName: string) => void;
 }
 
 type ShieldMode = 'ACTIVE' | 'MINIMUM' | 'OFF';
@@ -26,6 +27,7 @@ interface ShipAlloc {
   topOffCap:            boolean;
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
+  droneReloads:         Record<string, boolean>;  // rackName → reload this turn
   transUses:            number;
   cloakPaid:            boolean;
   batteryDraw:          number;
@@ -54,6 +56,7 @@ function defaultAlloc(ship: ShipObject): ShipAlloc {
     topOffCap:       ship.capacitorsCharged,
     energizeCaps:    false,
     weaponArming:    arming,
+    droneReloads:    {},
     transUses:       0,
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     batteryDraw:     0,
@@ -106,8 +109,13 @@ function weaponLabel(w: WeaponState): string {
 }
 
 function armingStatus(w: WeaponState): string {
-  if (w.isRolling)  return `[rolling — roll ${w.rollingCost} / finish ${w.armingCost}]`;
-  if (w.armed)      return w.armingCost > 0 ? `[armed — hold ${w.armingCost}]` : '[armed]';
+  if (w.isRolling) return `[rolling — roll ${w.rollingCost} / finish ${w.armingCost}]`;
+  if (w.armed) {
+    const mode = w.armingType === 'OVERLOAD' ? 'OVL'
+               : w.armingType === 'SPECIAL'  ? 'SPL'
+               : 'STD';
+    return w.armingCost > 0 ? `[${mode} — hold ${w.armingCost}]` : `[${mode}]`;
+  }
   if (w.armingTurn > 0) return `[arming ${w.armingTurn}/${w.totalArmingTurns}]`;
   return '[unarmed]';
 }
@@ -144,7 +152,7 @@ function Collapsible({ title, color, children }: { title: string; color: string;
 // ---- Main component ----
 
 export default function EnergyAllocationDialog({
-  gameId, playerToken, myShipNames, pendingNames, allShips, onDone, onError,
+  gameId, playerToken, myShipNames, pendingNames, allShips, onDone, onError, onTabChange,
 }: Props) {
   const [myPending] = useState(() => myShipNames.filter(n => pendingNames.includes(n)));
 
@@ -158,7 +166,11 @@ export default function EnergyAllocationDialog({
     return map;
   });
 
-  const [activeTab, setActiveTab] = useState(myPending[0] ?? '');
+  const [activeTab, setActiveTab] = useState(() => {
+    const initial = myPending[0] ?? '';
+    if (initial) onTabChange?.(initial);
+    return initial;
+  });
 
   const ship  = allShips.find(s => s.name === activeTab);
   const alloc = allocMap[activeTab];
@@ -249,10 +261,11 @@ export default function EnergyAllocationDialog({
           batteryRecharge:       a.batteryRecharge,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
+          droneReloads:          Object.keys(a.droneReloads).filter(k => a.droneReloads[k]),
         });
         if (!res.success) {
           setErrMsg(`${name}: ${res.message}`);
-          setActiveTab(name);  // jump to the failing ship's tab
+          setActiveTab(name); onTabChange?.(name);  // jump to the failing ship's tab
           return;
         }
       }
@@ -266,8 +279,10 @@ export default function EnergyAllocationDialog({
     }
   }
 
-  const warpEnginePower = (ship.availableLWarp ?? 0) + (ship.availableRWarp ?? 0) + (ship.availableCWarp ?? 0);
-  const maxWarpSpeed    = Math.min(30, Math.floor(warpEnginePower / (ship.moveCost ?? 1)));
+  const warpEnginePower  = (ship.availableLWarp ?? 0) + (ship.availableRWarp ?? 0) + (ship.availableCWarp ?? 0);
+  const maxWarpSpeed     = Math.min(30, Math.floor(warpEnginePower / (ship.moveCost ?? 1)));
+  const accelCap         = ship.maxSpeedNextTurn ?? 31;
+  const effectiveMaxWarp = Math.min(maxWarpSpeed, accelCap);
 
   return (
     <div className="ea-dialog" style={{ left: pos.left, top: pos.top }}>
@@ -288,7 +303,7 @@ export default function EnergyAllocationDialog({
               <button
                 key={name}
                 className={`ea-tab ${name === activeTab ? 'ea-tab-active' : ''} ${isOver ? 'ea-tab-over' : ''}`}
-                onClick={() => setActiveTab(name)}
+                onClick={() => { setActiveTab(name); onTabChange?.(name); }}
               >
                 {name}
               </button>
@@ -352,11 +367,11 @@ export default function EnergyAllocationDialog({
           <div className="ea-section-title" style={{ color: '#79c0ff' }}>Movement</div>
           <div className="ea-speed-row">
             <input type="number" className="ea-speed-input"
-              min={0} max={maxWarpSpeed}
+              min={0} max={effectiveMaxWarp}
               value={alloc.speed}
               onChange={e => setAlloc(a => ({
                 ...a,
-                speed: Math.max(0, Math.min(maxWarpSpeed, Number(e.target.value))),
+                speed: Math.max(0, Math.min(effectiveMaxWarp, Number(e.target.value))),
                 impulse: false,
               }))}
             />
@@ -364,16 +379,21 @@ export default function EnergyAllocationDialog({
               {(Math.min(alloc.speed, 30) * (ship.moveCost ?? 1)).toFixed(1)} energy
             </span>
           </div>
-          {(ship.availableImpulse ?? 0) > 0 && (
+          {accelCap < maxWarpSpeed && (
+            <div className="ea-note" style={{ color: '#f0c040' }}>
+              Accel limit: max speed {accelCap} (C2.2)
+            </div>
+          )}
+          {(ship.availableImpulse ?? 0) > 0 && accelCap > maxWarpSpeed && (
             <label className="ea-check-label">
               <input type="checkbox" checked={alloc.impulse}
                 onChange={e => setAlloc(a => ({
                   ...a,
                   impulse: e.target.checked,
-                  speed: e.target.checked ? maxWarpSpeed : a.speed,
+                  speed: e.target.checked ? effectiveMaxWarp : a.speed,
                 }))}
               />
-              +1 Impulse (speed {maxWarpSpeed + 1}, cost 1 extra)
+              +1 Impulse (speed {effectiveMaxWarp + 1}, cost 1 extra)
             </label>
           )}
         </div>
@@ -421,7 +441,7 @@ export default function EnergyAllocationDialog({
           <div className="ea-section-title" style={{ color: '#f0c040' }}>Phaser Capacitor</div>
           {ship.capacitorsCharged ? (
             <>
-              <div className="ea-note">{(ship.phaserCapacitor ?? 0).toFixed(1)} charged</div>
+              <div className="ea-note">{(ship.phaserCapacitor ?? 0).toFixed(1)} of {(ship.phaserCapacitorMax ?? 0).toFixed(1)} charged</div>
               {!capFull ? (
                 <label className="ea-check-label">
                   <input type="checkbox" checked={alloc.topOffCap}
@@ -467,9 +487,11 @@ export default function EnergyAllocationDialog({
                         </>
                       ) : (
                         <>
-                          <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}     current={choice} color="#56d364" onChange={setArming} />
-                          <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
-                          <ArmOption name={w.name} value="SKIP"     label="Skip"                          current={choice} color="#8b949e" onChange={setArming} />
+                          <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}      current={choice} color="#56d364" onChange={setArming} />
+                          {!w.plasmaType && (
+                            <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                          )}
+                          <ArmOption name={w.name} value="SKIP"     label="Skip"                           current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       )}
                     </div>
@@ -477,6 +499,41 @@ export default function EnergyAllocationDialog({
                 );
               })}
             </div>
+          </Collapsible>
+        )}
+
+        {/* ---- Drone Rack Reloads ---- */}
+        {(ship.droneRacks ?? []).some(r => r.functional && r.reloadCount > 0 && !r.reloadingThisTurn) && (
+          <Collapsible title="Drone Reloads" color="#d5a03a">
+            <div className="ea-note">
+              Deck crews available: {ship.availableDeckCrews}
+              {' '}(each reload costs deck crews shown)
+            </div>
+            {(ship.droneRacks ?? []).map(r => {
+              if (!r.functional || r.reloadCount === 0) return null;
+              const checked = alloc.droneReloads[r.name] ?? false;
+              const usedCrews = Object.entries(alloc.droneReloads)
+                .filter(([, v]) => v)
+                .reduce((sum, [name]) => {
+                  const rack = (ship.droneRacks ?? []).find(dr => dr.name === name);
+                  return sum + (rack?.reloadDeckCrewCost ?? 0);
+                }, 0);
+              const wouldExceed = !checked && (usedCrews + r.reloadDeckCrewCost) > ship.availableDeckCrews;
+              return (
+                <div key={r.name} className="ea-reinf-row">
+                  <label className={`ea-check-label ${wouldExceed ? 'ea-disabled' : ''}`}>
+                    <input type="checkbox" checked={checked} disabled={wouldExceed && !checked}
+                      onChange={e => setAlloc(a => ({
+                        ...a,
+                        droneReloads: { ...a.droneReloads, [r.name]: e.target.checked },
+                      }))}
+                    />
+                    {r.name} — {r.reloadCount} reload{r.reloadCount !== 1 ? 's' : ''} left
+                    <span className="ea-note-dim"> ({r.reloadDeckCrewCost} deck crew)</span>
+                  </label>
+                </div>
+              );
+            })}
           </Collapsible>
         )}
 

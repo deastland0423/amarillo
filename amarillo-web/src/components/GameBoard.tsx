@@ -86,7 +86,10 @@ function WeaponRow({ w }: { w: WeaponState }) {
   } else if (phaser) {
     dotClass += ' ready';
   } else if (w.armed) {
-    dotClass += ' armed'; statusText = w.armingType === 'OVERLOAD' ? 'OVL' : 'RDY';
+    dotClass += ' armed';
+    statusText = w.armingType === 'OVERLOAD' ? 'OVL'
+               : w.armingType === 'SPECIAL'  ? 'SPL'
+               : 'RDY';
   } else if (w.armingType) {
     dotClass += ' arming'; statusText = 'ARM';
   } else {
@@ -242,6 +245,8 @@ interface SidebarProps {
   onClearTarget:   () => void;
   fireError:       string | null;
   onMove:          (action: string) => void;
+  onCloak:         () => void;
+  onUncloak:       () => void;
   onClose:         () => void;
 }
 
@@ -249,7 +254,7 @@ function ShipSidebar({
   ship, canMove, phase,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
   onToggleWeapon, onFire, onClearTarget, fireError,
-  onMove, onClose,
+  onMove, onCloak, onUncloak, onClose,
 }: SidebarProps) {
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
@@ -298,6 +303,19 @@ function ShipSidebar({
           </div>
         </div>
       )}
+
+      <div className="sidebar-section">
+        <div className="sidebar-section-title">Crew</div>
+        <StatRow label="Units"       value={`${ship.availableCrewUnits} (min ${ship.minimumCrew})`} />
+        <StatRow label="Deck Crews"  value={ship.availableDeckCrews} />
+        <StatRow label="B-Parties"   value={ship.boardingParties} />
+        {(ship.tBombs > 0 || ship.dummyTBombs > 0) && (
+          <StatRow label="T-Bombs" value={`${ship.tBombs} real / ${ship.dummyTBombs} dummy`} />
+        )}
+        {ship.crewQuality !== 'NORMAL' && (
+          <StatRow label="Quality" value={ship.crewQuality} />
+        )}
+      </div>
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Hull</div>
@@ -355,6 +373,31 @@ function ShipSidebar({
           ))}
         </div>
       </div>
+
+      {(ship.cloakCost ?? 0) > 0 && (
+        <div className="sidebar-section">
+          <div className="sidebar-section-title" style={{ color: '#b388ff' }}>Cloaking Device</div>
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">State</span>
+            <span className="sidebar-stat-value" style={{ color: '#b388ff' }}>
+              {(ship.cloakState ?? 'INACTIVE').toLowerCase().replace(/_/g, ' ')}
+              {ship.cloakFadeStep ? ` (${ship.cloakFadeStep}/5)` : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button className="secondary"
+              disabled={ship.cloakState === 'FADING_OUT' || ship.cloakState === 'FULLY_CLOAKED'}
+              onClick={onCloak}>
+              Cloak
+            </button>
+            <button className="secondary"
+              disabled={ship.cloakState === 'INACTIVE' || ship.cloakState === 'FADING_IN' || ship.cloakState === 'NONE'}
+              onClick={onUncloak}>
+              Uncloak
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -391,9 +434,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     prevAwaitingRef.current = nowAwaiting;
   }, [gameState?.awaitingAllocation]);
 
-  // Reset ready state and log phase changes whenever the phase advances
+  // Log phase label whenever the phase name changes
   useEffect(() => {
-    setIsReady(false);
     if (phase) {
       const turn    = gameState?.turn    ?? '?';
       const impulse = gameState?.impulse ?? '?';
@@ -405,6 +447,12 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // Reset ready state whenever the server advances (phase OR impulse changes)
+  const impulse = gameState?.impulse ?? 0;
+  useEffect(() => {
+    setIsReady(false);
+  }, [phase, impulse]);
 
   // Auto-scroll log to bottom
   useEffect(() => {
@@ -494,8 +542,11 @@ export default function GameBoard({ session, onLeave }: Props) {
         setFireError(res.message);
         addLog(res.message, 'error');
       } else {
+        const rangeLabel = fireOptions.adjustedRange !== fireOptions.range
+          ? `range ${fireOptions.range} (adj ${fireOptions.adjustedRange})`
+          : `range ${fireOptions.range}`;
         addLog(
-          `${liveShip.name} → ${fireTarget.name} (range ${fireOptions.range}, shield #${fireOptions.shieldNumber})\n${res.message}`,
+          `${liveShip.name} → ${fireTarget.name} (${rangeLabel}, shield #${fireOptions.shieldNumber})\n${res.message}`,
           'combat',
         );
         setFireTarget(null);
@@ -517,6 +568,32 @@ export default function GameBoard({ session, onLeave }: Props) {
       if (!res.success) setActionError(res.message);
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Move failed');
+    }
+  }
+
+  async function handleCloak() {
+    if (!liveShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'CLOAK', shipName: liveShip.name,
+      });
+      if (!res.success) setActionError(res.message);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Cloak failed');
+    }
+  }
+
+  async function handleUncloak() {
+    if (!liveShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'UNCLOAK', shipName: liveShip.name,
+      });
+      if (!res.success) setActionError(res.message);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Uncloak failed');
     }
   }
 
@@ -582,6 +659,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onClearTarget={() => { setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); }}
             fireError={fireError}
             onMove={handleMove}
+            onCloak={handleCloak}
+            onUncloak={handleUncloak}
             onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); }}
           />
         )}
@@ -606,6 +685,10 @@ export default function GameBoard({ session, onLeave }: Props) {
           myShipNames={gameState.myShips ?? []}
           pendingNames={gameState.pendingAllocation ?? []}
           allShips={(gameState.mapObjects.filter(o => o.type === 'SHIP') as ShipObject[])}
+          onTabChange={name => {
+            const ship = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === name);
+            if (ship) setSelected(ship);
+          }}
           onDone={msg => {
             addLog(msg, 'phase');
             setEaDismissed(true);

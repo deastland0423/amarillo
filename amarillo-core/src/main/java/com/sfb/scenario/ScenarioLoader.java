@@ -8,6 +8,7 @@ import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.properties.Location;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.HeavyWeapon;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,9 @@ public class ScenarioLoader {
         ship.setLocation(parseHex(setup.startHex));
         ship.setFacing(parseHeading(setup.startHeading));
         ship.setSpeed(setup.startSpeed);
+        // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
+        ship.setSpeedPreviousTurn(setup.startSpeed);
+        ship.setSpeedTwoTurnsAgo(setup.startSpeed);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -133,13 +137,19 @@ public class ScenarioLoader {
         // --- T-bombs (4 BPV each; each purchased T-bomb includes 1 free dummy) ---
         boolean allowTBombs = spec.commanderOptions == null || spec.commanderOptions.allowTBombs;
         if (allowTBombs && loadout.extraTBombs > 0) {
-            double tbCost = loadout.extraTBombs * CoiLoadout.COST_TBOMB;
+            int maxTBombs = com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()];
+            int requested = Math.min(loadout.extraTBombs, maxTBombs);
+            if (requested < loadout.extraTBombs) {
+                System.err.println("COI: capping T-bombs at " + maxTBombs
+                        + " for size class " + ship.getSizeClass());
+            }
+            double tbCost = requested * CoiLoadout.COST_TBOMB;
             if (spent + tbCost <= budget) {
-                ship.setTBombs(ship.getTBombs() + loadout.extraTBombs);
-                ship.setDummyTBombs(ship.getDummyTBombs() + loadout.extraTBombs); // 1 free dummy per purchased
+                ship.setTBombs(ship.getTBombs() + requested);
+                ship.setDummyTBombs(ship.getDummyTBombs() + requested); // 1 free dummy per purchased
                 spent += tbCost;
             } else {
-                System.err.println("COI: skipping " + loadout.extraTBombs + " T-bombs — over budget");
+                System.err.println("COI: skipping " + requested + " T-bombs — over budget");
             }
         }
 
@@ -189,6 +199,37 @@ public class ScenarioLoader {
                 rack.setAmmo(drones);
             }
         }
+
+        // --- Heavy weapon arming mode overrides (WS-3 only; weapon must already be armed) ---
+        if (!loadout.weaponArmingModes.isEmpty()) {
+            for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                if (!(w instanceof HeavyWeapon)) continue;
+                if (w instanceof com.sfb.weapons.Fusion) continue;
+                if (w instanceof com.sfb.weapons.PlasmaLauncher
+                        && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
+
+                com.sfb.properties.WeaponArmingType mode =
+                        loadout.weaponArmingModes.get(w.getDesignator());
+                if (mode == null || mode == com.sfb.properties.WeaponArmingType.STANDARD) continue;
+
+                HeavyWeapon hw = (HeavyWeapon) w;
+                if (!hw.isArmed()) {
+                    System.err.println("COI: weapon " + w.getName()
+                            + " is not armed — arming mode override skipped");
+                    continue;
+                }
+
+                // Reset and re-arm in the requested mode
+                hw.reset();
+                switch (mode) {
+                    case OVERLOAD: hw.setOverload(); break;
+                    case SPECIAL:  hw.setSpecial();  break;
+                    default: break;
+                }
+                hw.setArmed(true);
+                hw.setArmingTurn(hw.totalArmingTurns());
+            }
+        }
     }
 
     /**
@@ -216,6 +257,19 @@ public class ScenarioLoader {
                         ship.chargeCapacitor(capSize);
                     } catch (CapacitorException e) {
                         // Already full — safe to ignore
+                    }
+                }
+                // WS-3: multi-turn arming weapons start fully armed and held (S4.13).
+                // Excludes Plasma-R (cannot hold) and Fusion beams (not multi-turn arming).
+                if (weaponStatus == 3) {
+                    for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                        if (!(w instanceof HeavyWeapon)) continue;
+                        if (w instanceof com.sfb.weapons.Fusion) continue;
+                        if (w instanceof com.sfb.weapons.PlasmaLauncher
+                                && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
+                        HeavyWeapon hw = (HeavyWeapon) w;
+                        hw.setArmed(true);
+                        hw.setArmingTurn(hw.totalArmingTurns());
                     }
                 }
                 break;

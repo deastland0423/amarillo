@@ -7,6 +7,7 @@ import com.sfb.commands.AdvancePhaseCommand;
 import com.sfb.commands.CloakCommand;
 import com.sfb.commands.FireCommand;
 import com.sfb.commands.LaunchDroneCommand;
+import com.sfb.weapons.DroneRack;
 import com.sfb.commands.LaunchPlasmaCommand;
 import com.sfb.commands.MoveCommand;
 import com.sfb.commands.ShuttleMoveCommand;
@@ -70,6 +71,12 @@ public class GameSession {
 
     /** Tokens of players who have clicked "Ready" for the current phase. */
     private final Set<String> readyPlayers = new HashSet<>();
+
+    /**
+     * COI selections submitted by each player, keyed by player token then ship name.
+     * Collected during the pre-game lobby; applied when start() is called.
+     */
+    private final Map<String, Map<String, com.sfb.scenario.CoiLoadout>> pendingCoi = new LinkedHashMap<>();
 
     private boolean started = false;
 
@@ -176,11 +183,40 @@ public class GameSession {
     // Game lifecycle
     // -------------------------------------------------------------------------
 
+    /**
+     * Submit COI selections for one or more ships owned by the given player.
+     * shipLoadouts maps ship name → CoiLoadout.
+     * Can be called multiple times before start(); later calls overwrite earlier ones.
+     */
+    public void submitCoi(String playerToken, Map<String, com.sfb.scenario.CoiLoadout> shipLoadouts) {
+        pendingCoi.put(playerToken, new LinkedHashMap<>(shipLoadouts));
+    }
+
     public void start(String scenarioId) throws java.io.IOException {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
         com.sfb.scenario.ScenarioSpec spec =
                 com.sfb.scenario.ScenarioSpec.fromJson("data/scenarios/" + scenarioId.toLowerCase() + ".json");
-        game.setupFromScenario(spec);
+
+        // Build ships, then map COI loadouts from ship-name keys to Ship objects
+        java.util.List<java.util.List<com.sfb.objects.Ship>> sideShips =
+                com.sfb.scenario.ScenarioLoader.loadShips(spec);
+
+        // Flatten ship name → CoiLoadout from all players' submissions
+        Map<String, com.sfb.scenario.CoiLoadout> byName = new LinkedHashMap<>();
+        for (Map<String, com.sfb.scenario.CoiLoadout> playerMap : pendingCoi.values()) {
+            byName.putAll(playerMap);
+        }
+
+        // Build Ship → CoiLoadout map for setupFromScenario
+        Map<com.sfb.objects.Ship, com.sfb.scenario.CoiLoadout> coiMap = new LinkedHashMap<>();
+        for (java.util.List<com.sfb.objects.Ship> side : sideShips) {
+            for (com.sfb.objects.Ship ship : side) {
+                com.sfb.scenario.CoiLoadout loadout = byName.get(ship.getName());
+                if (loadout != null) coiMap.put(ship, loadout);
+            }
+        }
+
+        game.setupFromScenario(spec, sideShips, coiMap.isEmpty() ? null : coiMap);
         started = true;
     }
 
@@ -311,6 +347,22 @@ public class GameSession {
                 int[] specReinf = request.getSpecificReinforcement();
                 if (specReinf != null && specReinf.length == 6) {
                     e.setSpecificReinforcement(specReinf);
+                }
+
+                // Drone rack reloads — stage each requested rack
+                List<String> reloadNames = request.getDroneReloads();
+                if (reloadNames != null && !reloadNames.isEmpty()) {
+                    int deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
+                    for (String rackName : reloadNames) {
+                        DroneRack rack = (DroneRack) ship.getWeapons().fetchAllWeapons().stream()
+                                .filter(w -> w instanceof DroneRack && w.getName().equalsIgnoreCase(rackName))
+                                .findFirst().orElse(null);
+                        if (rack == null || !rack.isFunctional() || rack.getReloads().isEmpty()) continue;
+                        double cost = DroneRack.reloadCost(rack.getReloads().get(0));
+                        if (cost > deckCrewsLeft) continue;
+                        rack.stagePendingReload(rack.getReloads().get(0));
+                        deckCrewsLeft -= cost;
+                    }
                 }
 
                 return game.submitAllocation(ship, e);

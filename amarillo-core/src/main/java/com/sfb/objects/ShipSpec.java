@@ -77,6 +77,7 @@ public class ShipSpec {
         public int cwarp;
         public int impulse;
         public int apr;
+        public int awr;
         public int battery;
     }
 
@@ -215,6 +216,8 @@ public class ShipSpec {
                 m.put("impulse", power.impulse);
             if (power.apr > 0)
                 m.put("apr", power.apr);
+            if (power.awr > 0)
+                m.put("awr", power.awr);
             if (power.battery > 0)
                 m.put("battery", power.battery);
         }

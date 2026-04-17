@@ -1,0 +1,82 @@
+{
+  "id": "SH80",
+  "name": "Dictator's Diplomat",
+  "year": 171,
+  "numPlayers": 3,
+  "description": "At the close of Y171, the Klingon Emperor dispatched the D7N Dictator to address the Romulan Imperial Senate — but the Federation command cruiser Lexington intercepted her in the Neutral Zone.",
+  "mapType": "FLOATING",
+  "lengthCondition": "STANDARD",
+  "specialRules": [
+    "MAP: Use a floating map, but keep track of the distance the original xx30 hex row is shifted as a result of the map floating. Any unit which disengages in an illegal direction is considered to have been destroyed.",
+    "TERRAIN: All territory below the xx30 hex row (in direction D) is Tholian territory. Any ship entering this area, even if pushed there by tractor, is considered destroyed immediately.",
+    "DISENGAGEMENT: Federation units can only disengage in direction A. The Klingon ship can only disengage in directions B, C, E, or F; however, it cannot disengage by any means in direction B or C unless a Romulan crew unit has transferred to the Klingon ship. The Romulan ship can only disengage in directions B or C.",
+    "ALLIANCE: The Klingon and Romulan ships are allied; they cannot damage one another in any way (unless the target has been captured by the Federation).",
+    "VAK KALEEN: Vak Kaleen initially occupies one of the bridge boxes on the Dictator. Special rules govern his movement, injury, and capture (SH80.46-SH80.467)."
+  ],
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CC+a",
+          "shipName": "Lexington",
+          "startHex": "1712",
+          "startHeading": "C",
+          "startSpeed": 16,
+          "weaponStatus": 3,
+          "refits": []
+        }
+      ],
+      "reinforcements": []
+    },
+    {
+      "name": "Klingon Empire",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D7N",
+          "shipName": "Dictator",
+          "startHex": "0126",
+          "startHeading": "B",
+          "startSpeed": 5,
+          "weaponStatus": 1,
+          "refits": ["uim"]
+        }
+      ],
+      "reinforcements": []
+    },
+    {
+      "name": "Romulan Star Empire",
+      "faction": "Romulan",
+      "ships": [
+        {
+          "hull": "K5RB",
+          "shipName": "Centaurii",
+          "startHex": "4222",
+          "startHeading": "F",
+          "startSpeed": 5,
+          "weaponStatus": 1,
+          "refits": []
+        }
+      ],
+      "reinforcements": []
+    }
+  ],
+  "victoryConditions": {
+    "type": "MODIFIED",
+    "notes": "Use Modified Victory Conditions (S2.201). The Klingons receive a 100-point bonus if Vak Kaleen disengages on the Dictator or Centaurii in directions B or C. The Romulans receive a 100-point bonus if Vak Kaleen disengages on the Centaurii in directions B or C. The Federation receives a 200-point bonus if Vak Kaleen is captured, 100 points if he is killed. Klingon and Romulan point totals are compared independently to the Federation total."
+  },
+  "shuttleRules": {
+    "warpBoosterPacks": false,
+    "megapacks": false,
+    "mrsShuttles": true,
+    "pfs": false
+  },
+  "commanderOptions": {
+    "budgetPercent": 20,
+    "maxDroneSpeed": 20,
+    "allowTBombs": true,
+    "allowCommandos": true
+  }
+}

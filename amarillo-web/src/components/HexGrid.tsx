@@ -115,6 +115,15 @@ function drawShields(
   }
 }
 
+function cloakAlpha(cloakState?: string, fadeStep?: number): number {
+  switch (cloakState) {
+    case 'FULLY_CLOAKED': return 0.18;
+    case 'FADING_OUT':    return 1.0 - ((fadeStep ?? 0) / 5) * 0.82;
+    case 'FADING_IN':     return 0.18 + ((fadeStep ?? 0) / 5) * 0.82;
+    default:              return 1.0;
+  }
+}
+
 function drawShip(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -126,6 +135,9 @@ function drawShip(
   const r     = SIZE * 0.42;
   const color = factionColor(ship.faction);
   const angle = facingToAngle(ship.facing);
+
+  const prevAlpha  = ctx.globalAlpha;
+  ctx.globalAlpha *= cloakAlpha(ship.cloakState, ship.cloakFadeStep);
 
   if (isSelected) {
     ctx.strokeStyle = '#f0c040';
@@ -171,6 +183,8 @@ function drawShip(
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText(ship.name, cx, cy + r + 2);
+
+  ctx.globalAlpha = prevAlpha;
 }
 
 function drawObjects(

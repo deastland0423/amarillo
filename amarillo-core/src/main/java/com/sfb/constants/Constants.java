@@ -21,6 +21,8 @@ public class Constants {
 	public static final int[] ACTIVE_SHIELD_COST = { 0, 7, 4, 2, 1, 1, 0, 0 }; // Cost of active shields for size
 																																							// class[index]
 
+	public static final int[] MAX_TBOMBS = { 0, 12, 6, 4, 2, 0, 0, 4 }; // Max T-bombs for size class [index]
+
 	// The cost to arm a torpedo on: 0) First two turns 1) Final turn 2) hold cost.
 	public static final int[] fArmingCost = new int[] { 1, 3, 0 };
 	public static final int[] gArmingCost = new int[] { 2, 3, 1 };
