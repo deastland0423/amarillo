@@ -8,6 +8,7 @@ export default defineConfig({
     global: 'globalThis',  // sockjs-client uses Node's `global`; map it to the browser equivalent
   },
   server: {
+    host: true,          // bind to 0.0.0.0 so other machines on the LAN can connect
     port: 5173,         // frontend dev server port
     proxy: {
       // REST API calls — change 8080 here if you change server.port in application.properties

@@ -16,7 +16,7 @@ interface Props {
 }
 
 type ShieldMode = 'ACTIVE' | 'MINIMUM' | 'OFF';
-type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD';
+type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD' | 'EPT';
 
 interface ShipAlloc {
   speed:                number;
@@ -27,7 +27,7 @@ interface ShipAlloc {
   topOffCap:            boolean;
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
-  droneReloads:         Record<string, boolean>;  // rackName → reload this turn
+  droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
   transUses:            number;
   cloakPaid:            boolean;
   batteryDraw:          number;
@@ -43,7 +43,10 @@ function defaultAlloc(ship: ShipObject): ShipAlloc {
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
     if (w.isRolling)    arming[w.name] = 'ROLL';
-    else if (w.armed)   arming[w.name] = 'HOLD';
+    else if (w.armed && !(w.launcherType && w.armingType === 'OVERLOAD')) arming[w.name] = 'HOLD';
+    else if (w.armed)   arming[w.name] = 'SKIP';  // EPT (plasma OVERLOAD) cannot be held — must launch or discharge
+    else if (w.launcherType && w.armingTurn >= w.totalArmingTurns - 1)
+                        arming[w.name] = 'FINISH'; // plasma final turn: default to standard completion
     else                arming[w.name] = 'STANDARD';
   }
 
@@ -85,6 +88,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
     if      (choice === 'STANDARD' || choice === 'FINISH' || choice === 'HOLD') arm += w.armingCost;
     else if (choice === 'OVERLOAD') arm += w.armingCost * 2;
     else if (choice === 'ROLL')     arm += w.rollingCost;
+    else if (choice === 'EPT')      arm += w.eptCost ?? 0;
   }
 
   const genReinf  = alloc.generalReinf;
@@ -102,10 +106,12 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
 // ---- Weapon label ----
 
 function weaponLabel(w: WeaponState): string {
+  if (w.launcherType) {
+    return w.name.replace(/^Plasma-/, `Plas${w.launcherType}-`);
+  }
   return w.name
     .replace(/^Phaser(\d)-/, 'Ph$1-')
-    .replace(/^Disruptor-/, 'Dis-')
-    .replace(/^Plasma[A-Z]-/, m => 'Pla' + m[6] + '-');
+    .replace(/^Disruptor-/, 'Dis-');
 }
 
 function armingStatus(w: WeaponState): string {
@@ -218,13 +224,18 @@ export default function EnergyAllocationDialog({
   const { spent, total } = calcBudget(ship, alloc);
   const overBudget = spent > total;
 
-  // Check if any ship is over budget (blocks submit)
+  // Check if any ship is over energy budget or over deck crew limit (blocks submit)
   const anyOverBudget = myPending.some(name => {
     const s = allShips.find(sh => sh.name === name);
     const a = allocMap[name];
     if (!s || !a) return false;
     const { spent: sp, total: tot } = calcBudget(s, a);
-    return sp > tot;
+    if (sp > tot) return true;
+    const crewUsed = Object.entries(a.droneReloads).reduce((sum, [rackName, sel]) => {
+      const rack = (s.droneRacks ?? []).find(dr => dr.name === rackName);
+      return sum + (rack?.reloadPool ?? []).reduce((ss, e) => ss + (sel[e.droneType] ?? 0) * e.rackSize, 0);
+    }, 0);
+    return crewUsed > (s.availableDeckCrews ?? 0);
   });
 
   function setArming(name: string, choice: ArmChoice) {
@@ -261,7 +272,13 @@ export default function EnergyAllocationDialog({
           batteryRecharge:       a.batteryRecharge,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
-          droneReloads:          Object.keys(a.droneReloads).filter(k => a.droneReloads[k]),
+          droneReloadSelections: Object.fromEntries(
+            Object.entries(a.droneReloads)
+              .map(([rack, sel]) => [rack, Object.fromEntries(
+                Object.entries(sel).filter(([, c]) => c > 0)
+              )])
+              .filter(([, sel]) => Object.keys(sel as Record<string,number>).length > 0)
+          ),
         });
         if (!res.success) {
           setErrMsg(`${name}: ${res.message}`);
@@ -478,20 +495,44 @@ export default function EnergyAllocationDialog({
                         <>
                           <ArmOption name={w.name} value="ROLL"    label={`Roll (${w.rollingCost})`}    current={choice} color="#f0c040" onChange={setArming} />
                           <ArmOption name={w.name} value="FINISH"  label={`Finish (${w.armingCost})`}   current={choice} color="#56d364" onChange={setArming} />
+                          {w.canEpt && (
+                            <ArmOption name={w.name} value="EPT"   label={`EPT (${w.eptCost})`}         current={choice} color="#ff6060" onChange={setArming} />
+                          )}
                           <ArmOption name={w.name} value="SKIP"    label="Discharge"                     current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       ) : w.armed ? (
                         <>
-                          <ArmOption name={w.name} value="HOLD"   label={`Hold (${w.armingCost})`}      current={choice} color="#56d364" onChange={setArming} />
+                          {/* Plasma-R cannot hold (armingCost=0); EPT (OVERLOAD plasma) cannot hold */}
+                          {(!w.launcherType || (w.armingCost > 0 && w.armingType !== 'OVERLOAD')) && (
+                            <ArmOption name={w.name} value="HOLD"   label={`Hold (${w.armingCost})`}    current={choice} color="#56d364" onChange={setArming} />
+                          )}
                           <ArmOption name={w.name} value="SKIP"   label="Discharge"                      current={choice} color="#8b949e" onChange={setArming} />
                         </>
+                      ) : w.launcherType ? (
+                        /* Plasma-specific unarmed options — vary by arming turn */
+                        w.armingTurn >= w.totalArmingTurns - 1 ? (
+                          /* Final turn: Finish (standard), Roll, EPT (if available), Discharge */
+                          <>
+                            <ArmOption name={w.name} value="FINISH"  label={`Finish (${w.armingCost})`} current={choice} color="#56d364" onChange={setArming} />
+                            <ArmOption name={w.name} value="ROLL"    label={`Roll (${w.rollingCost})`}   current={choice} color="#f0c040" onChange={setArming} />
+                            {w.canEpt && (
+                              <ArmOption name={w.name} value="EPT"   label={`EPT (${w.eptCost})`}        current={choice} color="#ff6060" onChange={setArming} />
+                            )}
+                            <ArmOption name={w.name} value="SKIP"    label="Discharge"                   current={choice} color="#8b949e" onChange={setArming} />
+                          </>
+                        ) : (
+                          /* Early turns: only Standard arm or Discharge */
+                          <>
+                            <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}   current={choice} color="#56d364" onChange={setArming} />
+                            <ArmOption name={w.name} value="SKIP"     label="Discharge"                  current={choice} color="#8b949e" onChange={setArming} />
+                          </>
+                        )
                       ) : (
+                        /* Non-plasma: STANDARD, OVERLOAD (photons etc.), SKIP */
                         <>
                           <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}      current={choice} color="#56d364" onChange={setArming} />
-                          {!w.plasmaType && (
-                            <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
-                          )}
-                          <ArmOption name={w.name} value="SKIP"     label="Skip"                           current={choice} color="#8b949e" onChange={setArming} />
+                          <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                          <ArmOption name={w.name} value="SKIP"     label="Skip"                          current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       )}
                     </div>
@@ -503,34 +544,76 @@ export default function EnergyAllocationDialog({
         )}
 
         {/* ---- Drone Rack Reloads ---- */}
-        {(ship.droneRacks ?? []).some(r => r.functional && r.reloadCount > 0 && !r.reloadingThisTurn) && (
+        {(ship.droneRacks ?? []).some(r => r.functional && r.reloadPool?.length && !r.reloadingThisTurn) && (
           <Collapsible title="Drone Reloads" color="#d5a03a">
-            <div className="ea-note">
-              Deck crews available: {ship.availableDeckCrews}
-              {' '}(each reload costs deck crews shown)
-            </div>
-            {(ship.droneRacks ?? []).map(r => {
-              if (!r.functional || r.reloadCount === 0) return null;
-              const checked = alloc.droneReloads[r.name] ?? false;
-              const usedCrews = Object.entries(alloc.droneReloads)
-                .filter(([, v]) => v)
-                .reduce((sum, [name]) => {
-                  const rack = (ship.droneRacks ?? []).find(dr => dr.name === name);
-                  return sum + (rack?.reloadDeckCrewCost ?? 0);
-                }, 0);
-              const wouldExceed = !checked && (usedCrews + r.reloadDeckCrewCost) > ship.availableDeckCrews;
+            {/* Total deck crew cost across all racks */}
+            {(() => {
+              const totalUsed = Object.entries(alloc.droneReloads).reduce((sum, [rackName, sel]) => {
+                const rack = (ship.droneRacks ?? []).find(dr => dr.name === rackName);
+                return sum + (rack?.reloadPool ?? []).reduce(
+                  (s, e) => s + (sel[e.droneType] ?? 0) * e.rackSize, 0);
+              }, 0);
+              const over = totalUsed > ship.availableDeckCrews;
               return (
-                <div key={r.name} className="ea-reinf-row">
-                  <label className={`ea-check-label ${wouldExceed ? 'ea-disabled' : ''}`}>
-                    <input type="checkbox" checked={checked} disabled={wouldExceed && !checked}
-                      onChange={e => setAlloc(a => ({
-                        ...a,
-                        droneReloads: { ...a.droneReloads, [r.name]: e.target.checked },
-                      }))}
-                    />
-                    {r.name} — {r.reloadCount} reload{r.reloadCount !== 1 ? 's' : ''} left
-                    <span className="ea-note-dim"> ({r.reloadDeckCrewCost} deck crew)</span>
-                  </label>
+                <div className={`ea-note ${over ? 'ea-budget-over' : ''}`}>
+                  Deck crews: {totalUsed.toFixed(1)} / {ship.availableDeckCrews} used
+                  {over && ' — OVER LIMIT'}
+                </div>
+              );
+            })()}
+            {(ship.droneRacks ?? []).map(r => {
+              if (!r.functional || !r.reloadPool?.length || r.reloadingThisTurn) return null;
+              const sel = alloc.droneReloads[r.name] ?? {};
+              const rackCrewCost = r.reloadPool.reduce(
+                (s, e) => s + (sel[e.droneType] ?? 0) * e.rackSize, 0);
+              const totalUsed = Object.entries(alloc.droneReloads).reduce((sum, [rackName, s]) => {
+                const rack = (ship.droneRacks ?? []).find(dr => dr.name === rackName);
+                return sum + (rack?.reloadPool ?? []).reduce(
+                  (ss, e) => ss + (s[e.droneType] ?? 0) * e.rackSize, 0);
+              }, 0);
+              return (
+                <div key={r.name} className="ea-weapon-alloc-block">
+                  <div className="ea-weapon-alloc-name">
+                    {r.name}
+                    {rackCrewCost > 0 && (
+                      <span className="ea-weapon-alloc-status">
+                        {' '}({rackCrewCost.toFixed(1)} deck crew{rackCrewCost !== 1 ? 's' : ''})
+                      </span>
+                    )}
+                  </div>
+                  {r.reloadPool.map(entry => {
+                    const count = sel[entry.droneType] ?? 0;
+                    const label = entry.droneType.replace('TYPE_', 'Type ').replace(/_/g, ' ');
+                    const crewPerDrone = entry.rackSize;
+                    const crewIfAdd = totalUsed - (count * crewPerDrone) + ((count + 1) * crewPerDrone);
+                    const canAdd = count < entry.count && crewIfAdd <= ship.availableDeckCrews;
+                    return (
+                      <div key={entry.droneType} className="ea-stepper">
+                        <button className="ea-step-btn"
+                          onClick={() => setAlloc(a => ({
+                            ...a,
+                            droneReloads: {
+                              ...a.droneReloads,
+                              [r.name]: { ...sel, [entry.droneType]: Math.max(0, count - 1) },
+                            },
+                          }))}
+                          disabled={count <= 0}>−</button>
+                        <span className="ea-step-value">{count}</span>
+                        <button className="ea-step-btn"
+                          onClick={() => setAlloc(a => ({
+                            ...a,
+                            droneReloads: {
+                              ...a.droneReloads,
+                              [r.name]: { ...sel, [entry.droneType]: count + 1 },
+                            },
+                          }))}
+                          disabled={!canAdd}>+</button>
+                        <span className="ea-step-label">
+                          {label} <span className="ea-note-dim">({entry.count} avail, {crewPerDrone} crew each)</span>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

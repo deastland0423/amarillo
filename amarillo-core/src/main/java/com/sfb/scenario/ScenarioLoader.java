@@ -7,6 +7,7 @@ import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.properties.Location;
+import com.sfb.weapons.ADD;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 
@@ -38,7 +39,7 @@ public class ScenarioLoader {
         for (ScenarioSpec.SideSpec side : spec.sides) {
             List<Ship> ships = new ArrayList<>();
             for (ScenarioSpec.ShipSetup setup : side.ships) {
-                Ship ship = buildShip(side.faction, setup);
+                Ship ship = buildShip(side.faction, setup, spec.year);
                 if (ship != null) ships.add(ship);
             }
             result.add(ships);
@@ -46,14 +47,14 @@ public class ScenarioLoader {
         return result;
     }
 
-    private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup) {
-        ShipSpec spec = ShipLibrary.get(faction, setup.hull);
-        if (spec == null) {
+    private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup, int year) {
+        ShipSpec shipSpec = ShipLibrary.get(faction, setup.hull);
+        if (shipSpec == null) {
             System.err.println("ScenarioLoader: no spec found for "
                     + faction + "/" + setup.hull + " — ship skipped");
             return null;
         }
-        Ship ship = ShipLibrary.createShip(spec);
+        Ship ship = ShipLibrary.createShip(shipSpec);
         ship.setName(setup.shipName);
         ship.setLocation(parseHex(setup.startHex));
         ship.setFacing(parseHeading(setup.startHeading));
@@ -61,6 +62,7 @@ public class ScenarioLoader {
         // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
         ship.setSpeedPreviousTurn(setup.startSpeed);
         ship.setSpeedTwoTurnsAgo(setup.startSpeed);
+        applyYearUpgrades(ship, faction, year, shipSpec);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -233,6 +235,96 @@ public class ScenarioLoader {
     }
 
     /**
+     * Apply Y175 universal and faction-specific ship upgrades.
+     * Universal: all ADD_6 → ADD_12.
+     * Faction defaults apply unless shipSpec.y175Upgrades is non-null (explicit override).
+     */
+    static void applyYearUpgrades(Ship ship, String faction, int year, ShipSpec shipSpec) {
+        if (year < 175) return;
+
+        // Universal: ADD_6 → ADD_12
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof ADD) {
+                ADD add = (ADD) w;
+                if (add.getAddType() == ADD.AddType.ADD_6) {
+                    add.upgradeTo(ADD.AddType.ADD_12);
+                }
+            }
+        }
+
+        // Explicit per-ship override list takes precedence over faction defaults
+        if (shipSpec.y175Upgrades != null) {
+            if (shipSpec.y175Upgrades.refitCost != 0) {
+                ship.setBattlePointValue(ship.getBattlePointValue() + shipSpec.y175Upgrades.refitCost);
+            }
+            for (ShipSpec.Y175RackUpgrade ru : shipSpec.y175Upgrades.racks) {
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (!(w instanceof DroneRack)) continue;
+                    if (!ru.designator.equals(w.getDesignator())) continue;
+                    DroneRack rack = (DroneRack) w;
+                    rack.upgradeRackType(DroneRack.DroneRackType.valueOf(ru.upgradeTo));
+                    if (ru.extraReloads > 0) rack.addReloads(ru.extraReloads);
+                }
+            }
+            for (ShipSpec.Y175AddUpgrade au : shipSpec.y175Upgrades.adds) {
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (!(w instanceof ADD)) continue;
+                    if (!au.designator.equals(w.getDesignator())) continue;
+                    ((ADD) w).upgradeTo(ADD.AddType.valueOf(au.upgradeTo));
+                }
+            }
+            return;
+        }
+
+        // Faction defaults
+        List<DroneRack> typeARacks = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) {
+                DroneRack rack = (DroneRack) w;
+                if (rack.getRackType() == DroneRack.DroneRackType.TYPE_A) {
+                    typeARacks.add(rack);
+                }
+            }
+        }
+
+        switch (faction.toUpperCase()) {
+            case "FEDERATION":
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (w instanceof DroneRack) {
+                        DroneRack rack = (DroneRack) w;
+                        if (rack.getRackType() == DroneRack.DroneRackType.TYPE_G) {
+                            rack.addReloads(1);
+                        }
+                    }
+                }
+                break;
+
+            case "KLINGON":
+                for (DroneRack rack : typeARacks) {
+                    rack.upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+                }
+                break;
+
+            case "KZINTI":
+                if (typeARacks.size() >= 4) {
+                    // First two → TYPE_C, remainder → TYPE_B
+                    for (int i = 0; i < typeARacks.size(); i++) {
+                        if (i < 2) typeARacks.get(i).upgradeRackType(DroneRack.DroneRackType.TYPE_C);
+                        else       typeARacks.get(i).upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+                    }
+                } else {
+                    for (DroneRack rack : typeARacks) {
+                        rack.upgradeRackType(DroneRack.DroneRackType.TYPE_B);
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /**
      * Apply weapon status initial conditions to a ship (S4.10–S4.13).
      */
     static void applyWeaponStatus(Ship ship, int weaponStatus) {
@@ -257,6 +349,20 @@ public class ScenarioLoader {
                         ship.chargeCapacitor(capSize);
                     } catch (CapacitorException e) {
                         // Already full — safe to ignore
+                    }
+                }
+                // WS-2: all-but-final arming turn completed (S4.12).
+                // armingTurn = totalArmingTurns - 1 for all eligible heavy weapons.
+                // Excludes Disruptors (always ready) and Fusion beams (not multi-turn).
+                if (weaponStatus == 2) {
+                    for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                        if (!(w instanceof HeavyWeapon)) continue;
+                        if (w instanceof com.sfb.weapons.Fusion) continue;
+                        if (w instanceof com.sfb.weapons.Disruptor) continue;
+                        if (w instanceof com.sfb.weapons.PlasmaLauncher
+                                && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
+                        HeavyWeapon hw = (HeavyWeapon) w;
+                        hw.setArmingTurn(hw.totalArmingTurns() - 1);
                     }
                 }
                 // WS-3: multi-turn arming weapons start fully armed and held (S4.13).

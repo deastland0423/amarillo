@@ -13,16 +13,24 @@ interface Props {
 
 export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const lobby = useLobbySocket(session.gameId);
-  const [players, setPlayers] = useState<PlayerListing[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState<Record<string, string>>({});
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
-  const [selectedScenario, setSelectedScenario] = useState('');
-  const [coiData, setCoiData]       = useState<CoiSideData[] | null>(null);
-  const [coiSubmitted, setCoiSubmitted] = useState(false);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
 
-  // Load scenario list for the host picker
+  // Host-only: player list with tokens (needed for assignment dropdowns)
+  const [players,         setPlayers]         = useState<PlayerListing[]>([]);
+  // Host-only: which player token is selected per ship in the assignment UI
+  const [selectedPlayer,  setSelectedPlayer]  = useState<Record<string, string>>({});
+  // Host-only: scenario list + selection
+  const [scenarios,       setScenarios]       = useState<ScenarioSummary[]>([]);
+  const [selectedScenario,setSelectedScenario]= useState('');
+  // Raw COI data for the whole scenario (fetched once per scenario)
+  const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
+  // Filtered to this player's assigned ships
+  const [coiData,         setCoiData]         = useState<CoiSideData[] | null>(null);
+  const [coiSubmitted,    setCoiSubmitted]    = useState(false);
+
+  const [error,  setError]  = useState('');
+  const [busy,   setBusy]   = useState(false);
+
+  // ---- Load scenario list for host picker ----
   useEffect(() => {
     if (session.isHost) {
       gameApi.listScenarios()
@@ -34,54 +42,57 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     }
   }, [session.isHost]);
 
-  // Host fetches token-bearing player list once the game starts (needed for assignment)
+  // ---- Host: refresh token-bearing player list whenever lobby player count changes ----
   useEffect(() => {
-    if (session.isHost && lobby?.started) {
+    if (session.isHost) {
       gameApi.getPlayers(session.gameId, session.playerToken)
         .then(setPlayers)
         .catch(() => {/* non-fatal */});
     }
-  }, [session.isHost, session.gameId, session.playerToken, lobby?.started]);
+  }, [session.isHost, session.gameId, session.playerToken, lobby?.players.length]);
 
-  // Transition to game board once all ships are assigned
+  // ---- Fetch raw COI data once when a scenario is loaded ----
   useEffect(() => {
-    if (lobby?.started && lobby.unassignedShips.length === 0 && lobby.players.some(p => p.assignedShips.length > 0)) {
-      onGameStarted();
-    }
-  }, [lobby, onGameStarted]);
+    if (!lobby?.scenarioLoaded || !lobby.scenarioId) return;
+    gameApi.getCoiData(lobby.scenarioId)
+      .then(setRawCoiData)
+      .catch(() => setError('Could not load COI data.'));
+  }, [lobby?.scenarioLoaded, lobby?.scenarioId]);
 
-  async function handleScenarioChange(id: string) {
-    setSelectedScenario(id);
+  // ---- Re-filter COI data whenever assignments or raw data change ----
+  useEffect(() => {
+    if (!rawCoiData) { setCoiData(null); return; }
+    const myShips = lobby?.players
+      .find(p => p.name === session.playerName)?.assignedShips ?? [];
+    if (myShips.length === 0) { setCoiData(null); return; }
+    const filtered = rawCoiData.map(side => ({
+      ...side,
+      ships: side.ships.filter(s => myShips.includes(s.shipName)),
+    })).filter(side => side.ships.length > 0);
+    setCoiData(filtered.length > 0 ? filtered : null);
+  }, [rawCoiData, lobby?.players, session.playerName]);
+
+  // ---- Transition to game board once started ----
+  useEffect(() => {
+    if (lobby?.started) onGameStarted();
+  }, [lobby?.started, onGameStarted]);
+
+  // ---- Reset COI state if scenario reloaded ----
+  useEffect(() => {
+    setRawCoiData(null);
     setCoiData(null);
     setCoiSubmitted(false);
+  }, [lobby?.scenarioId]);
+
+  async function handleScenarioLoad(id: string) {
+    setSelectedScenario(id);
     if (!id) return;
-    try {
-      const data = await gameApi.getCoiData(id);
-      setCoiData(data);
-    } catch {
-      setError('Could not load COI data.');
-    }
-  }
-
-  async function handleCoiSubmit(submission: CoiSubmission) {
     setBusy(true); setError('');
     try {
-      await gameApi.submitCoi(session.gameId, session.playerToken, submission);
-      setCoiSubmitted(true);
+      await gameApi.loadScenario(session.gameId, session.playerToken, id);
+      // lobby WebSocket will push the updated state (scenarioLoaded + unassignedShips)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Could not save COI selections.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleStart() {
-    if (!selectedScenario) { setError('Pick a scenario first.'); return; }
-    setBusy(true); setError('');
-    try {
-      await gameApi.startGame(session.gameId, session.playerToken, selectedScenario);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Could not start game.');
+      setError(e instanceof Error ? e.message : 'Could not load scenario.');
     } finally {
       setBusy(false);
     }
@@ -101,19 +112,58 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     }
   }
 
+  async function handleCoiSubmit(submission: CoiSubmission) {
+    setBusy(true); setError('');
+    try {
+      await gameApi.submitCoi(session.gameId, session.playerToken, submission);
+      setCoiSubmitted(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save COI selections.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCoiSkip() {
+    setBusy(true); setError('');
+    try {
+      await gameApi.submitCoi(session.gameId, session.playerToken, {});
+      setCoiSubmitted(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not skip COI.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleStart() {
+    setBusy(true); setError('');
+    try {
+      await gameApi.startGame(session.gameId, session.playerToken);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not start game.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const activeScenario = scenarios.find(s => s.id === selectedScenario);
+  const myLobbyEntry   = lobby?.players.find(p => p.name === session.playerName);
+  const myShips        = myLobbyEntry?.assignedShips ?? [];
+  const iAmCoiDone     = myLobbyEntry?.coiDone ?? false;
 
   return (
     <div className="lobby">
       <h1>Amarillo</h1>
 
+      {/* Game code */}
       <div className="pregame-header">
         <span className="game-id-label">Game ID</span>
         <span className="game-id">{session.gameId}</span>
-        {!lobby?.started && <span className="subtitle">Share this ID with other players</span>}
+        <span className="subtitle">Share this ID with other players</span>
       </div>
 
-      {/* Player list */}
+      {/* Player list with COI status */}
       <div className="card" style={{ width: '100%', maxWidth: 480 }}>
         <h3 style={{ margin: 0 }}>Players</h3>
         {(!lobby || lobby.players.length === 0) && (
@@ -124,61 +174,121 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             <li key={p.name} className="player-row">
               <span className="player-name">
                 {p.name}
-                {p.isHost && <span className="badge">host</span>}
+                {p.isHost  && <span className="badge">host</span>}
                 {p.name === session.playerName && <span className="badge you">you</span>}
               </span>
-              {p.assignedShips.length > 0 && (
-                <span className="ship-tags">
-                  {p.assignedShips.map(s => <span key={s} className="ship-tag">{s}</span>)}
-                </span>
-              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {p.assignedShips.length > 0 && (
+                  <span className="ship-tags">
+                    {p.assignedShips.map(s => <span key={s} className="ship-tag">{s}</span>)}
+                  </span>
+                )}
+                {lobby?.scenarioLoaded && (
+                  <span style={{ fontSize: 12, color: p.coiDone ? '#56d364' : '#8b949e' }}>
+                    {p.coiDone ? '✓ COI' : '○ COI'}
+                  </span>
+                )}
+              </span>
             </li>
           ))}
         </ul>
 
-        {/* Host: scenario picker + start */}
-        {session.isHost && !lobby?.started && (
-          <>
-            <div className="scenario-picker">
-              <label htmlFor="scenario-select">Scenario</label>
-              <select
-                id="scenario-select"
-                value={selectedScenario}
-                onChange={e => handleScenarioChange(e.target.value)}
-              >
-                <option value="">— choose a scenario —</option>
-                {scenarios.map(s => (
-                  <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
-                ))}
-              </select>
-            </div>
-            {error && <p className="error">{error}</p>}
-            {coiSubmitted && (
-              <div className="button-row">
-                <button onClick={handleStart} disabled={busy}>
-                  {busy ? 'Starting…' : 'Start game'}
-                </button>
-                <button className="secondary" onClick={onLeave}>Leave</button>
-              </div>
-            )}
-          </>
+        {/* Host: scenario picker */}
+        {session.isHost && (
+          <div className="scenario-picker">
+            <label htmlFor="scenario-select">Scenario</label>
+            <select
+              id="scenario-select"
+              value={selectedScenario}
+              onChange={e => handleScenarioLoad(e.target.value)}
+              disabled={busy}
+            >
+              <option value="">— choose a scenario —</option>
+              {scenarios.map(s => (
+                <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
+              ))}
+            </select>
+          </div>
         )}
 
-        {/* Non-host waiting */}
-        {!session.isHost && !lobby?.started && (
-          <p className="subtitle">Waiting for host to start the game…</p>
+        {/* Non-host: waiting message when no scenario yet */}
+        {!session.isHost && !lobby?.scenarioLoaded && (
+          <p className="subtitle">Waiting for host to select a scenario…</p>
+        )}
+
+        {error && <p className="error">{error}</p>}
+
+        {/* Host: Start button — enabled only when all COI done */}
+        {session.isHost && lobby?.scenarioLoaded && (
+          <div className="button-row" style={{ marginTop: 12 }}>
+            <button
+              onClick={handleStart}
+              disabled={busy || !lobby.allCoiReady}
+              title={lobby.allCoiReady ? '' : 'Waiting for all players to submit COI'}
+            >
+              {busy ? 'Starting…' : lobby.allCoiReady ? 'Start game' : 'Waiting for COI…'}
+            </button>
+            <button className="secondary" onClick={onLeave}>Leave</button>
+          </div>
+        )}
+
+        {!session.isHost && (
+          <button className="secondary" style={{ marginTop: 12 }} onClick={onLeave}>Leave game</button>
         )}
       </div>
 
-      {/* COI dialog — appears after scenario selected, before start */}
-      {session.isHost && !lobby?.started && coiData && !coiSubmitted && (
+      {/* Host: ship assignment panel (after scenario loaded) */}
+      {session.isHost && lobby?.scenarioLoaded && lobby.unassignedShips.length > 0 && (
+        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+          <h3 style={{ margin: 0 }}>Assign ships</h3>
+          {lobby.unassignedShips.map(ship => (
+            <div key={ship} className="assign-row">
+              <span className="assign-ship">{ship}</span>
+              <select
+                value={selectedPlayer[ship] ?? ''}
+                onChange={e => setSelectedPlayer(prev => ({ ...prev, [ship]: e.target.value }))}
+              >
+                <option value="">— pick player —</option>
+                {players.map(p => (
+                  <option key={p.token} value={p.token}>{p.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleAssign(ship)}
+                disabled={busy || !selectedPlayer[ship]}
+              >
+                Assign
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* COI dialog — appears when this player has ships and hasn't submitted yet */}
+      {myShips.length > 0 && !iAmCoiDone && coiData && (
         <CoiDialog
           sides={coiData}
           playerToken={session.playerToken}
           onSubmit={handleCoiSubmit}
-          onSkip={() => setCoiSubmitted(true)}
+          onSkip={handleCoiSkip}
           busy={busy}
         />
+      )}
+
+      {/* Waiting message when ships assigned but COI data not loaded yet */}
+      {myShips.length > 0 && !iAmCoiDone && !coiData && lobby?.scenarioLoaded && (
+        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+          <p className="subtitle">Loading COI options…</p>
+        </div>
+      )}
+
+      {/* Confirmation once COI submitted */}
+      {iAmCoiDone && !lobby?.started && (
+        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+          <p className="subtitle" style={{ color: '#56d364' }}>
+            ✓ COI submitted — waiting for other players…
+          </p>
+        </div>
       )}
 
       {/* Scenario detail card */}
@@ -200,7 +310,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             <span>Victory: {activeScenario.victoryType}</span>
           </div>
 
-          {/* Sides and ships */}
           <div className="scenario-sides">
             {activeScenario.sides.map((side: ScenarioSide) => (
               <div key={side.faction} className="scenario-side">
@@ -213,13 +322,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                 <table className="scenario-ship-table">
                   <thead>
                     <tr>
-                      <th>Ship</th>
-                      <th>Hull</th>
-                      <th>Hex</th>
-                      <th>Hdg</th>
-                      <th>Spd</th>
-                      <th>WS</th>
-                      <th>Refits</th>
+                      <th>Ship</th><th>Hull</th><th>Hex</th>
+                      <th>Hdg</th><th>Spd</th><th>WS</th><th>Refits</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -240,7 +344,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             ))}
           </div>
 
-          {/* Victory conditions notes */}
           {activeScenario.victoryNotes && (
             <div className="scenario-section">
               <div className="scenario-section-title">Victory Conditions</div>
@@ -248,8 +351,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           )}
 
-          {/* Shuttle rules */}
-          {(!activeScenario.warpBoosterPacks || !activeScenario.megapacks || !activeScenario.mrsShuttles || !activeScenario.pfs) && (
+          {(!activeScenario.warpBoosterPacks || !activeScenario.megapacks ||
+            !activeScenario.mrsShuttles || !activeScenario.pfs) && (
             <div className="scenario-section">
               <div className="scenario-section-title">Shuttle / PF Rules</div>
               <ul className="scenario-rules-list">
@@ -261,7 +364,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           )}
 
-          {/* Special rules */}
           {activeScenario.specialRules.length > 0 && (
             <div className="scenario-section">
               <div className="scenario-section-title">Special Rules</div>
@@ -271,42 +373,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           )}
         </div>
-      )}
-
-      {/* Ship assignment (host only, after start) */}
-      {session.isHost && lobby?.started && lobby.unassignedShips.length > 0 && (
-        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
-          <h3 style={{ margin: 0 }}>Assign ships</h3>
-          {error && <p className="error">{error}</p>}
-          {lobby.unassignedShips.map(ship => (
-            <div key={ship} className="assign-row">
-              <span className="assign-ship">{ship}</span>
-              <select
-                value={selectedPlayer[ship] ?? ''}
-                onChange={e => setSelectedPlayer(prev => ({ ...prev, [ship]: e.target.value }))}
-              >
-                <option value="">— pick player —</option>
-                {players.map(p => (
-                  <option key={p.token} value={p.token}>{p.name}</option>
-                ))}
-              </select>
-              <button onClick={() => handleAssign(ship)} disabled={busy || !selectedPlayer[ship]}>
-                Assign
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Non-host: waiting for ship assignment */}
-      {!session.isHost && lobby?.started && (
-        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
-          <p className="subtitle">Waiting for host to assign ships…</p>
-        </div>
-      )}
-
-      {!session.isHost && (
-        <button className="secondary" style={{ marginTop: '1rem' }} onClick={onLeave}>Leave game</button>
       )}
     </div>
   );

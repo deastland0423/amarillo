@@ -9,7 +9,9 @@ import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.weapons.DroneRack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serializable snapshot of all game state, broadcast over WebSocket after
@@ -54,7 +56,8 @@ public class GameStateDto {
 
     public static class ShieldDto {
         public int     shieldNum;
-        public int     current;
+        public int     current;      // includes specific reinforcement (owner-only display)
+        public int     baseStrength; // without reinforcement (public display)
         public int     max;
         public boolean active;
     }
@@ -65,15 +68,23 @@ public class GameStateDto {
         public int     armingTurn;
         public String  armingType;        // "STANDARD", "OVERLOAD", "SPECIAL", or null
         public int     lastImpulseFired;  // for canFire() checks client-side
+        public boolean readyToFire;       // functional + armed (if heavy) + impulse gap satisfied
+        public String  arcLabel;          // e.g. "FA", "FX + 13", "LF + L + RR + 5"       // functional + armed (if heavy) + impulse gap satisfied
         public boolean functional;
-        public String  plasmaType;        // PlasmaLauncher only: "F", "G", "S", "R", or null
+        public String  plasmaType;        // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
+        public String  launcherType;      // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
         public boolean isHeavy;           // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
         public int     armingCost;        // energy to arm/hold this turn
         public int     totalArmingTurns;  // turns to fully arm (0 for instant)
         public boolean isRolling;         // PlasmaLauncher only: currently in rolling mode
-        public int     rollingCost;       // PlasmaLauncher only: energy to keep rolling
+        public int     rollingCost;       // PlasmaLauncher only: energy to keep rolling (always sent for plasma)
+        public boolean canEpt;            // PlasmaLauncher only: can fire as Enveloping Plasma Torpedo
+        public int     eptCost;           // PlasmaLauncher only: energy cost for EPT on final arming turn
+        public int     maxShotsPerTurn;   // how many times this weapon may fire per turn
+        public int     shotsThisTurn;     // shots already fired this turn
+        public int     minImpulseGap;     // minimum global impulses between shots (0 = same-impulse multi-shot ok)
     }
 
     public static class DroneInRackDto {
@@ -83,14 +94,22 @@ public class GameStateDto {
         public int    endurance;
     }
 
+    /** One entry per distinct drone type in the reload pool. */
+    public static class ReloadPoolEntryDto {
+        public String droneType;  // e.g. "TYPE_I", "TYPE_IV"
+        public double rackSize;   // spaces this drone type consumes
+        public int    count;      // how many drones of this type are available
+    }
+
     public static class DroneRackDto {
         public String              name;
         public boolean             functional;
         public boolean             canFire;
-        public List<DroneInRackDto> drones;       // currently loaded drones
-        public int                  reloadCount;  // number of reload sets remaining
-        public double               reloadDeckCrewCost; // deck crew cost to reload (0 if no reloads)
-        public boolean              reloadingThisTurn;  // already staged for reload this turn
+        public List<DroneInRackDto>    drones;          // currently loaded drones
+        public int                     reloadCount;     // number of reload sets remaining
+        public double                  reloadDeckCrewCost; // legacy: cost for first full set (0 if none)
+        public boolean                 reloadingThisTurn;  // already staged for reload this turn
+        public List<ReloadPoolEntryDto> reloadPool;     // available drones by type with counts
     }
 
     public static class ShuttleInBayDto {
@@ -128,8 +147,10 @@ public class GameStateDto {
         public List<ShuttleBayDto>  shuttleBays;
         public int                  tBombs;
         public int                  dummyTBombs;
+        public int                  nuclearSpaceMines;
         public int                  transporterUses;
         public int                  boardingParties;
+        public int                  commandos;
         // Crew
         public int                  availableCrewUnits;
         public int                  minimumCrew;
@@ -149,12 +170,20 @@ public class GameStateDto {
         public int                  availableApr;
         public int                  availableAwr;
         public int                  availableBattery;
-        // Control space damage state
+        // Control space damage state (current / max)
         public int                  availableBridge;
+        public int                  maxBridge;
+        public int                  availableFlag;
+        public int                  maxFlag;
         public int                  availableEmer;
+        public int                  maxEmer;
         public int                  availableAuxcon;
+        public int                  maxAuxcon;
+        public int                  availableSecurity;
+        public int                  maxSecurity;
         // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
         // Energy Allocation helper fields
+        public boolean uimFunctional;     // true if ship has a functional UIM this impulse
         public int    totalPower;        // total power available for allocation
         public double moveCost;          // warp energy per speed point
         public double lifeSupportCost;   // housekeeping cost
@@ -164,6 +193,7 @@ public class GameStateDto {
         public int    batteryCharge;     // current battery energy available to draw
         public int    cloakCost;         // energy to maintain cloak (0 if no cloaking device)
         public int    maxSpeedNextTurn;  // C2.2 acceleration cap for this turn's EA
+        public int    commandRating;
     }
 
     // -------------------------------------------------------------------------
@@ -207,14 +237,19 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class DroneDto extends MapObjectDto {
-        public int    facing;
-        public int    speed;
-        public String droneType;          // "I", "II", etc.
-        public int    warheadDamage;
-        public int    hull;
-        public String targetName;
-        public String controllerFaction;
-        public String controllerName;     // name of the controlling ship
+        public int     facing;
+        public int     speed;
+        public String  droneType;          // "I", "II", etc. — revealed on identification
+        public int     warheadDamage;      // revealed on identification
+        public int     hull;               // current hull remaining
+        public int     damageTaken;        // maxHull - hull — always public (visible on the drone)
+        public int     maxHull;            // hull at launch (from DroneType) — revealed on identification
+        public int     endurance;          // revealed on identification
+        public String  targetName;         // revealed on identification
+        public String  controllerFaction;
+        public String  controllerName;     // name of the controlling ship — always public
+        public int     launchImpulse;      // always public
+        public boolean isIdentified;       // true once identified by an enemy
     }
 
     // -------------------------------------------------------------------------
@@ -222,14 +257,18 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class PlasmaTorpedoDto extends MapObjectDto {
-        public int    facing;
-        public int    speed;
-        public int    currentStrength;
-        public String controllerFaction;
-        public String  plasmaType;       // "F", "G", "S", "R", etc.
+        public int     facing;
+        public int     speed;
+        public int     currentStrength;   // always public
+        public String  controllerFaction;
+        public String  controllerName;    // name of the launching ship — always public
+        public String  plasmaType;        // "F", "G", "S", "R" — never revealed to enemy
         public int     distanceTraveled;
-        public boolean pseudo;
+        public boolean pseudo;            // never revealed to enemy
         public double  damageTaken;
+        public int     launchImpulse;     // always public
+        public String  targetName;        // revealed on identification
+        public boolean isIdentified;      // true once identified by an enemy
     }
 
     // -------------------------------------------------------------------------
@@ -256,6 +295,7 @@ public class GameStateDto {
     public List<MapObjectDto> mapObjects;
     public int               readyCount;       // players who have clicked Ready this phase
     public int               playerCount;      // total players in the session
+    public List<String>      combatLog = new ArrayList<>();  // fire/damage events since last broadcast
 
     // -------------------------------------------------------------------------
     // Constructor — builds from live Game state
@@ -320,9 +360,10 @@ public class GameStateDto {
         for (int s = 1; s <= 6; s++) {
             ShieldDto sd  = new ShieldDto();
             sd.shieldNum  = s;
-            sd.current    = ship.getShields().getShieldStrength(s);
-            sd.max        = ship.getShields().getMaxShieldStrength(s);
-            sd.active     = ship.getShields().isShieldActive(s);
+            sd.current      = ship.getShields().getShieldStrength(s);
+            sd.baseStrength = ship.getShields().getBaseShieldStrength(s);
+            sd.max          = ship.getShields().getMaxShieldStrength(s);
+            sd.active       = ship.getShields().isShieldActive(s);
             dto.shields.add(sd);
         }
 
@@ -344,8 +385,10 @@ public class GameStateDto {
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
         dto.tBombs                = ship.getTBombs();
         dto.dummyTBombs           = ship.getDummyTBombs();
+        dto.nuclearSpaceMines     = ship.getNuclearSpaceMines();
         dto.transporterUses       = ship.getTransporters().availableUses();
         dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
+        dto.commandos             = ship.getCrew().getFriendlyTroops().commandos;
         dto.availableCrewUnits    = ship.getCrew().getAvailableCrewUnits();
         dto.minimumCrew           = ship.getCrew().getMinimumCrew();
         dto.availableDeckCrews    = ship.getCrew().getAvailableDeckCrews();
@@ -379,12 +422,21 @@ public class GameStateDto {
         dto.batteryCharge     = ps.getBatteryPower();
         dto.cloakCost         = cloak != null ? cloak.getPowerToActivate() : 0;
         dto.maxSpeedNextTurn  = ship.getMaxAccelerationSpeed();
+        dto.commandRating     = ship.getCommandRating();
+        dto.uimFunctional     = ship.getActiveUim(com.sfb.TurnTracker.getImpulse()) != null;
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
         dto.availableBridge  = cs.getAvailableBridge();
+        dto.maxBridge        = cs.getBridge();
+        dto.availableFlag    = cs.getAvailableFlag();
+        dto.maxFlag          = cs.getFlag();
         dto.availableEmer    = cs.getAvailableEmer();
+        dto.maxEmer          = cs.getEmer();
         dto.availableAuxcon  = cs.getAvailableAuxcon();
+        dto.maxAuxcon        = cs.getAuxcon();
+        dto.availableSecurity = cs.getAvailableSecurity();
+        dto.maxSecurity      = cs.getSecurity();
 
         dto.weapons = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -392,6 +444,10 @@ public class GameStateDto {
             wd.name             = w.getName();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional       = w.isFunctional();
+            wd.arcLabel         = w.getArcLabel();
+            boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
+                    || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
+            wd.readyToFire      = w.isFunctional() && armedIfNeeded && w.canFire();
             if (w instanceof com.sfb.weapons.HeavyWeapon) {
                 com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
                 wd.armed           = hw.isArmed();
@@ -403,11 +459,17 @@ public class GameStateDto {
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
-                wd.plasmaType        = pl.getPlasmaType() != null ? pl.getPlasmaType().name() : null;
+                wd.plasmaType        = pl.getPlasmaType()     != null ? pl.getPlasmaType().name()     : null;
+                wd.launcherType      = pl.getLauncherType()   != null ? pl.getLauncherType().name()   : null;
                 wd.pseudoPlasmaReady = pl.isPseudoPlasmaReady();
                 wd.isRolling         = pl.isRolling();
-                wd.rollingCost       = pl.isRolling() ? pl.rollingCost() : 0;
+                wd.rollingCost       = pl.rollingCost(); // always sent so UI can show Roll button on final turn
+                wd.canEpt            = pl.canEpt();
+                wd.eptCost           = pl.eptCost();
             }
+            wd.maxShotsPerTurn  = w.getMaxShotsPerTurn();
+            wd.shotsThisTurn    = w.getShotsThisTurn();
+            wd.minImpulseGap    = w.getMinImpulseGap();
             dto.weapons.add(wd);
         }
 
@@ -432,6 +494,22 @@ public class GameStateDto {
             rd.reloadingThisTurn = rack.isReloadingThisTurn();
             rd.reloadDeckCrewCost = rack.getReloads().isEmpty() ? 0
                     : DroneRack.reloadCost(rack.getReloads().get(0));
+            // Build flat pool: count available drones by type across all reload sets
+            Map<String, ReloadPoolEntryDto> poolMap = new LinkedHashMap<>();
+            for (List<Drone> set : rack.getReloads()) {
+                for (Drone d : set) {
+                    String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+                    ReloadPoolEntryDto entry = poolMap.computeIfAbsent(type, t -> {
+                        ReloadPoolEntryDto e = new ReloadPoolEntryDto();
+                        e.droneType = t;
+                        e.rackSize  = d.getRackSize();
+                        e.count     = 0;
+                        return e;
+                    });
+                    entry.count++;
+                }
+            }
+            rd.reloadPool = new ArrayList<>(poolMap.values());
             dto.droneRacks.add(rd);
         }
 
@@ -509,9 +587,14 @@ public class GameStateDto {
         dto.droneType         = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
         dto.warheadDamage     = drone.getWarheadDamage();
         dto.hull              = drone.getHull();
+        dto.maxHull           = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+        dto.damageTaken       = dto.maxHull - drone.getHull();
         dto.targetName        = drone.getTarget() != null ? drone.getTarget().getName() : null;
         dto.controllerFaction = controllerFaction(drone.getController());
         dto.controllerName    = drone.getController() != null ? drone.getController().getName() : null;
+        dto.endurance         = drone.getEndurance();
+        dto.launchImpulse     = drone.getLaunchImpulse();
+        dto.isIdentified      = drone.isIdentified();
         return dto;
     }
 
@@ -523,10 +606,14 @@ public class GameStateDto {
         dto.speed             = torp.getSpeed();
         dto.currentStrength   = torp.getCurrentStrength();
         dto.controllerFaction = controllerFaction(torp.getController());
+        dto.controllerName    = torp.getController() != null ? torp.getController().getName() : null;
         dto.plasmaType        = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
         dto.distanceTraveled  = torp.getDistanceTraveled();
         dto.pseudo            = torp.isPseudoPlasma();
         dto.damageTaken       = torp.getDamageTaken();
+        dto.launchImpulse     = torp.getLaunchImpulse();
+        dto.targetName        = torp.getTarget() != null ? torp.getTarget().getName() : null;
+        dto.isIdentified      = torp.isIdentified();
         return dto;
     }
 

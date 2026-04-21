@@ -1,0 +1,89 @@
+{
+  "faction": "Kzinti",
+  "hull": "CL+",
+  "name": "KHS Spectyr",
+  "serviceYear": 166,
+  "bpv": 96,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [18, 16, 16, 16, 16, 16],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 8
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "centerWarp": 6,
+    "impulse": 3,
+    "apr": 4,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 4, 1, 0],
+    "scanner": [0, 1, 2, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 2,
+    "labs": 4,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 30,
+    "boardingParties": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ],
+
+    "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 0 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 0 },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": []
+  }
+}

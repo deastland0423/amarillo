@@ -22,7 +22,7 @@ public class ScenarioLoaderTest {
     @Test
     public void parseHex_standardNotation() {
         Location loc = ScenarioLoader.parseHex("0515");
-        assertEquals(5,  loc.getX());
+        assertEquals(5, loc.getX());
         assertEquals(15, loc.getY());
     }
 
@@ -130,12 +130,12 @@ public class ScenarioLoaderTest {
         assertEquals("Federation", spec.sides.get(0).faction);
         assertEquals(2, spec.sides.get(0).ships.size());
         ScenarioSpec.ShipSetup enterprise = spec.sides.get(0).ships.get(0);
-        assertEquals("CA",             enterprise.hull);
+        assertEquals("CA+", enterprise.hull);
         assertEquals("USS Enterprise", enterprise.shipName);
-        assertEquals("1201",           enterprise.startHex);
-        assertEquals("D",              enterprise.startHeading);
-        assertEquals(16,               enterprise.startSpeed);
-        assertEquals(2,                enterprise.weaponStatus);
+        assertEquals("1201", enterprise.startHex);
+        assertEquals("D", enterprise.startHeading);
+        assertEquals(16, enterprise.startSpeed);
+        assertEquals(2, enterprise.weaponStatus);
     }
 
     // ---- full load from JSON (requires ShipLibrary) ----
@@ -156,8 +156,8 @@ public class ScenarioLoaderTest {
         Ship enterprise = sideShips.get(0).get(0);
         assertEquals("USS Enterprise", enterprise.getName());
         assertEquals(12, enterprise.getLocation().getX());
-        assertEquals(1,  enterprise.getLocation().getY());
-        assertEquals(13, enterprise.getFacing());   // heading D = 13
+        assertEquals(1, enterprise.getLocation().getY());
+        assertEquals(13, enterprise.getFacing()); // heading D = 13
         assertEquals(16, enterprise.getSpeed());
         assertTrue(enterprise.isCapacitorsCharged());
         double cap = enterprise.getWeapons().getAvailablePhaserCapacitor();
@@ -199,8 +199,8 @@ public class ScenarioLoaderTest {
         CoiLoadout loadout = new CoiLoadout();
         loadout.convertBpToCommando = 2; // cost 1.0 BPV
         ScenarioLoader.applyCoi(ship, loadout, makeSpec());
-        assertEquals(8,  ship.getCrew().getFriendlyTroops().normal);
-        assertEquals(2,  ship.getCrew().getFriendlyTroops().commandos);
+        assertEquals(8, ship.getCrew().getFriendlyTroops().normal);
+        assertEquals(2, ship.getCrew().getFriendlyTroops().commandos);
     }
 
     @Test
@@ -252,7 +252,8 @@ public class ScenarioLoaderTest {
         // Find how many drone racks the ship has
         List<DroneRack> racks = new java.util.ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof DroneRack) racks.add((DroneRack) w);
+            if (w instanceof DroneRack)
+                racks.add((DroneRack) w);
         }
         assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
 
@@ -278,7 +279,8 @@ public class ScenarioLoaderTest {
 
         List<DroneRack> racks = new java.util.ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof DroneRack) racks.add((DroneRack) w);
+            if (w instanceof DroneRack)
+                racks.add((DroneRack) w);
         }
         assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
 
@@ -300,7 +302,8 @@ public class ScenarioLoaderTest {
 
         List<DroneRack> racks = new java.util.ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof DroneRack) racks.add((DroneRack) w);
+            if (w instanceof DroneRack)
+                racks.add((DroneRack) w);
         }
         assumeTrue("Ship must have at least one drone rack", !racks.isEmpty());
 
@@ -327,6 +330,24 @@ public class ScenarioLoaderTest {
     }
 
     @Test
+    public void weaponStatus2_heavyWeaponsPartiallyArmed() {
+        Ship ship = makeShip(); // FedCA has photon torpedoes (totalArmingTurns = 2)
+        ScenarioLoader.applyWeaponStatus(ship, 2);
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.HeavyWeapon))
+                continue;
+            if (w instanceof com.sfb.weapons.Fusion)
+                continue;
+            if (w instanceof com.sfb.weapons.Disruptor)
+                continue;
+            com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+            assertFalse("WS-2: weapon should not be fully armed", hw.isArmed());
+            assertEquals("WS-2: armingTurn should be totalArmingTurns - 1",
+                    hw.totalArmingTurns() - 1, hw.getArmingTurn());
+        }
+    }
+
+    @Test
     public void weaponStatus3_heavyWeaponsArmed() {
         Ship ship = makeShip(); // FedCA has photon torpedoes
         ScenarioLoader.applyWeaponStatus(ship, 3);
@@ -334,7 +355,10 @@ public class ScenarioLoaderTest {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof com.sfb.weapons.HeavyWeapon) {
                 com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
-                if (hw.isArmed()) { anyHeavyArmed = true; break; }
+                if (hw.isArmed()) {
+                    anyHeavyArmed = true;
+                    break;
+                }
             }
         }
         assertTrue("WS-3: at least one heavy weapon should start armed", anyHeavyArmed);
@@ -345,8 +369,10 @@ public class ScenarioLoaderTest {
         Ship ship = makeShip();
         ScenarioLoader.applyWeaponStatus(ship, 3);
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (!(w instanceof com.sfb.weapons.HeavyWeapon)) continue;
-            if (w instanceof com.sfb.weapons.Fusion) continue;
+            if (!(w instanceof com.sfb.weapons.HeavyWeapon))
+                continue;
+            if (w instanceof com.sfb.weapons.Fusion)
+                continue;
             com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
             if (hw.isArmed()) {
                 assertEquals("Armed weapon armingTurn should equal totalArmingTurns",
@@ -371,7 +397,10 @@ public class ScenarioLoaderTest {
         return ship;
     }
 
-    /** Skip test gracefully if a precondition isn't met (avoids CI failures for missing files). */
+    /**
+     * Skip test gracefully if a precondition isn't met (avoids CI failures for
+     * missing files).
+     */
     private static void assumeTrue(String msg, boolean condition) {
         org.junit.Assume.assumeTrue(msg, condition);
     }

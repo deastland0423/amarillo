@@ -36,6 +36,7 @@ public abstract class Weapon {
 	private String designator; // The unique designator for the weapon (A, B, C...1, 2, 3...etc.)'
 	private String dacHitLocaiton; // What DAC 'hit' destroys this weapon //TODO: should this be an enum?
 	private int arcs = ArcUtils.FULL; // Bitmask of the 24 directions (1-24) into which the weapon can fire.
+	private String arcLabel = "FULL"; // Human-readable arc label, e.g. "FA", "FX + 13", "LF + L"
 	private boolean functional = true; // True if the weapon is undamaged, false otherwise.
 	private int lastImpulseFired = -9; // The last impulse on which this weapon was fired.
 	private int lastTurnFired = -1; // The last turn on which this weapon was fired. -1 = never fired. (used by
@@ -88,6 +89,11 @@ public abstract class Weapon {
 	@JsonProperty("arcs")
 	public void setArcsFromJSON(List<String> arcList) {
 		this.arcs = ArcUtils.calculateMask(arcList);
+		this.arcLabel = String.join(" + ", arcList);
+	}
+
+	public String getArcLabel() {
+		return arcLabel;
 	}
 
 	/**

@@ -12,6 +12,7 @@ import com.sfb.commands.LaunchPlasmaCommand;
 import com.sfb.commands.MoveCommand;
 import com.sfb.commands.ShuttleMoveCommand;
 import com.sfb.commands.UncloakCommand;
+import com.sfb.objects.Drone;
 import com.sfb.objects.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.constants.Constants;
@@ -72,11 +73,26 @@ public class GameSession {
     /** Tokens of players who have clicked "Ready" for the current phase. */
     private final Set<String> readyPlayers = new HashSet<>();
 
+    /** Combat events accumulated since the last broadcast; drained by drainCombatLog(). */
+    private final List<String> pendingCombatLog = new ArrayList<>();
+
     /**
      * COI selections submitted by each player, keyed by player token then ship name.
      * Collected during the pre-game lobby; applied when start() is called.
      */
     private final Map<String, Map<String, com.sfb.scenario.CoiLoadout>> pendingCoi = new LinkedHashMap<>();
+
+    /** Tokens of players who have submitted (or skipped) their COI. */
+    private final Set<String> coiDoneTokens = new HashSet<>();
+
+    /** shipName → playerToken, recorded before start() so ships can be assigned in the lobby. */
+    private final Map<String, String> pendingAssignments = new LinkedHashMap<>();
+
+    // Scenario loaded but not yet started
+    private boolean                              scenarioLoaded   = false;
+    private String                               loadedScenarioId = null;
+    private com.sfb.scenario.ScenarioSpec        loadedSpec       = null;
+    private List<List<com.sfb.objects.Ship>>     loadedSideShips  = null;
 
     private boolean started = false;
 
@@ -111,6 +127,16 @@ public class GameSession {
 
     public int getReadyCount()   { return readyPlayers.size(); }
     public int getPlayerCount()  { return players.size(); }
+
+    /** Append a combat event to the pending log (broadcast on next state push). */
+    public void appendCombatLog(String entry) { pendingCombatLog.add(entry); }
+
+    /** Return all pending combat log entries and clear the list. */
+    public List<String> drainCombatLog() {
+        List<String> copy = new ArrayList<>(pendingCombatLog);
+        pendingCombatLog.clear();
+        return copy;
+    }
     public boolean allReady()    { return readyPlayers.size() >= players.size(); }
 
     /** Clear ready flags — called automatically when the phase actually advances. */
@@ -121,42 +147,64 @@ public class GameSession {
     // -------------------------------------------------------------------------
 
     /**
-     * Assigns a ship to a player by setting ship.owner on the core Game object.
-     * Must be called after start() so ships exist.
+     * Records a ship assignment in the pre-game lobby.
+     * Works before start() — ships are in pendingAssignments until start() resolves them.
      * Returns an error string on failure, null on success.
      */
     public String assignShip(String playerToken, String shipName) {
-        if (!started)
-            return "Game must be started before assigning ships";
+        if (!scenarioLoaded)
+            return "Load a scenario before assigning ships";
 
-        PlayerInfo target = players.get(playerToken);
-        if (target == null)
+        if (!players.containsKey(playerToken))
             return "Player token not found";
 
-        Ship ship = findShip(shipName);
-        if (ship == null)
+        boolean exists = getAllShipNames().contains(shipName);
+        if (!exists)
             return "Ship not found: " + shipName;
 
-        // Check not already owned by someone else
-        if (ship.getOwner() != null) {
-            boolean ownedByTarget = target.getCorePlayer() != null
-                    && ship.getOwner() == target.getCorePlayer();
-            if (ownedByTarget)
-                return "Ship already assigned to this player";
+        String existing = pendingAssignments.get(shipName);
+        if (existing != null && !existing.equals(playerToken))
             return "Ship already assigned to another player";
-        }
 
-        // Lazily create a core Player for this PlayerInfo if needed
-        if (target.getCorePlayer() == null) {
-            Player p = new Player();
-            p.setName(target.getName());
-            game.getPlayers().add(p);
-            target.setCorePlayer(p);
-        }
-
-        ship.setOwner(target.getCorePlayer());
-        target.getCorePlayer().getPlayerUnits().add(ship);
+        pendingAssignments.put(shipName, playerToken);
         return null;
+    }
+
+    /** All ship names across all scenario sides, in order. */
+    public List<String> getAllShipNames() {
+        if (loadedSideShips == null) return List.of();
+        return loadedSideShips.stream()
+                .flatMap(List::stream)
+                .map(Ship::getName)
+                .toList();
+    }
+
+    /** Ships not yet assigned to any player. */
+    public List<String> getUnassignedShipNames() {
+        if (!scenarioLoaded) return List.of();
+        // Post-start: read from live game objects
+        if (started) {
+            return game.getShips().stream()
+                    .filter(s -> s.getOwner() == null)
+                    .map(Ship::getName)
+                    .toList();
+        }
+        // Pre-start: read from pending map
+        return getAllShipNames().stream()
+                .filter(name -> !pendingAssignments.containsKey(name))
+                .toList();
+    }
+
+    /** Ships assigned to a specific player token (pre- or post-start). */
+    public List<String> getAssignedShipsFor(String playerToken) {
+        if (started) {
+            PlayerInfo info = players.get(playerToken);
+            return info != null ? info.getShipNames() : List.of();
+        }
+        return pendingAssignments.entrySet().stream()
+                .filter(e -> e.getValue().equals(playerToken))
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
     /**
@@ -183,23 +231,50 @@ public class GameSession {
     // Game lifecycle
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // COI tracking
+    // -------------------------------------------------------------------------
+
     /**
-     * Submit COI selections for one or more ships owned by the given player.
-     * shipLoadouts maps ship name → CoiLoadout.
-     * Can be called multiple times before start(); later calls overwrite earlier ones.
+     * Submit COI selections and mark this player as COI-done.
+     * May be called with an empty map to skip COI.
      */
     public void submitCoi(String playerToken, Map<String, com.sfb.scenario.CoiLoadout> shipLoadouts) {
         pendingCoi.put(playerToken, new LinkedHashMap<>(shipLoadouts));
+        coiDoneTokens.add(playerToken);
     }
 
-    public void start(String scenarioId) throws java.io.IOException {
-        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-        com.sfb.scenario.ScenarioSpec spec =
-                com.sfb.scenario.ScenarioSpec.fromJson("data/scenarios/" + scenarioId.toLowerCase() + ".json");
+    public boolean isCoiDone(String token)  { return coiDoneTokens.contains(token); }
+    public boolean allCoiDone()             { return coiDoneTokens.containsAll(players.keySet()); }
 
-        // Build ships, then map COI loadouts from ship-name keys to Ship objects
-        java.util.List<java.util.List<com.sfb.objects.Ship>> sideShips =
-                com.sfb.scenario.ScenarioLoader.loadShips(spec);
+    // -------------------------------------------------------------------------
+    // Game lifecycle
+    // -------------------------------------------------------------------------
+
+    /**
+     * Load a scenario into the lobby without starting the game clock.
+     * Ships become available for assignment immediately after this call.
+     */
+    public void loadScenario(String scenarioId) throws java.io.IOException {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        loadedSpec       = com.sfb.scenario.ScenarioSpec.fromJson(
+                "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+        loadedSideShips  = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
+        loadedScenarioId = scenarioId;
+        scenarioLoaded   = true;
+        // Reset any prior assignments/COI when a new scenario is loaded
+        pendingAssignments.clear();
+        coiDoneTokens.clear();
+        pendingCoi.clear();
+    }
+
+    /**
+     * Start the game clock. Scenario must already be loaded and all players
+     * must have submitted (or skipped) their COI.
+     */
+    public void start() throws java.io.IOException {
+        if (!scenarioLoaded)
+            throw new IllegalStateException("Load a scenario before starting");
 
         // Flatten ship name → CoiLoadout from all players' submissions
         Map<String, com.sfb.scenario.CoiLoadout> byName = new LinkedHashMap<>();
@@ -209,16 +284,38 @@ public class GameSession {
 
         // Build Ship → CoiLoadout map for setupFromScenario
         Map<com.sfb.objects.Ship, com.sfb.scenario.CoiLoadout> coiMap = new LinkedHashMap<>();
-        for (java.util.List<com.sfb.objects.Ship> side : sideShips) {
+        for (List<com.sfb.objects.Ship> side : loadedSideShips) {
             for (com.sfb.objects.Ship ship : side) {
                 com.sfb.scenario.CoiLoadout loadout = byName.get(ship.getName());
                 if (loadout != null) coiMap.put(ship, loadout);
             }
         }
 
-        game.setupFromScenario(spec, sideShips, coiMap.isEmpty() ? null : coiMap);
+        game.setupFromScenario(loadedSpec, loadedSideShips, coiMap.isEmpty() ? null : coiMap);
+
+        // Resolve pending assignments to live Ship objects
+        for (Map.Entry<String, String> entry : pendingAssignments.entrySet()) {
+            String shipName   = entry.getKey();
+            String pToken     = entry.getValue();
+            PlayerInfo info   = players.get(pToken);
+            if (info == null) continue;
+            Ship ship = findShip(shipName);
+            if (ship == null) continue;
+            if (info.getCorePlayer() == null) {
+                Player p = new Player();
+                p.setName(info.getName());
+                game.getPlayers().add(p);
+                info.setCorePlayer(p);
+            }
+            ship.setOwner(info.getCorePlayer());
+            info.getCorePlayer().getPlayerUnits().add(ship);
+        }
+
         started = true;
     }
+
+    public boolean isScenarioLoaded()   { return scenarioLoaded; }
+    public String  getLoadedScenarioId() { return loadedScenarioId; }
 
     // -------------------------------------------------------------------------
     // Action dispatch
@@ -323,8 +420,14 @@ public class GameSession {
                             e.getArmingEnergy().put(w, (double) ((HeavyWeapon) w).energyToArm());
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
+                        case "EPT":
+                            // Enveloping Plasma Torpedo — double final-turn cost, OVERLOAD arming type
+                            if (w instanceof PlasmaLauncher)
+                                e.getArmingEnergy().put(w, (double) ((PlasmaLauncher) w).eptCost());
+                            e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
+                            break;
                         default: // STANDARD
-                            e.getArmingEnergy().put(w, (double) Constants.gArmingCost[0]);
+                            e.getArmingEnergy().put(w, (double) ((HeavyWeapon) w).energyToArm());
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
                     }
@@ -349,18 +452,50 @@ public class GameSession {
                     e.setSpecificReinforcement(specReinf);
                 }
 
-                // Drone rack reloads — stage each requested rack
-                List<String> reloadNames = request.getDroneReloads();
-                if (reloadNames != null && !reloadNames.isEmpty()) {
-                    int deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
-                    for (String rackName : reloadNames) {
+                // Drone rack reloads — player picks individual drones by type and count
+                Map<String, Map<String, Integer>> reloadSelections = request.getDroneReloadSelections();
+                if (reloadSelections != null && !reloadSelections.isEmpty()) {
+                    double deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
+                    for (Map.Entry<String, Map<String, Integer>> entry : reloadSelections.entrySet()) {
+                        String rackName = entry.getKey();
+                        Map<String, Integer> typeCountMap = entry.getValue();
+                        if (typeCountMap == null || typeCountMap.isEmpty()) continue;
+
                         DroneRack rack = (DroneRack) ship.getWeapons().fetchAllWeapons().stream()
                                 .filter(w -> w instanceof DroneRack && w.getName().equalsIgnoreCase(rackName))
                                 .findFirst().orElse(null);
-                        if (rack == null || !rack.isFunctional() || rack.getReloads().isEmpty()) continue;
-                        double cost = DroneRack.reloadCost(rack.getReloads().get(0));
+                        if (rack == null || !rack.isFunctional()) continue;
+
+                        // Pass 1: collect candidate Drone objects by reference (without removing yet)
+                        List<Drone> candidates = new ArrayList<>();
+                        for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
+                            String droneType = tc.getKey();
+                            int needed = tc.getValue() != null ? tc.getValue() : 0;
+                            outer:
+                            for (List<Drone> set : rack.getReloads()) {
+                                for (Drone d : set) {
+                                    if (needed <= 0) break outer;
+                                    if (d.getDroneType() != null
+                                            && d.getDroneType().toString().equals(droneType)
+                                            && !candidates.contains(d)) {
+                                        candidates.add(d);
+                                        needed--;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (candidates.isEmpty()) continue;
+                        double cost = DroneRack.reloadCost(candidates);
                         if (cost > deckCrewsLeft) continue;
-                        rack.stagePendingReload(rack.getReloads().get(0));
+
+                        // Pass 2: remove the chosen drones from their sets, then stage
+                        for (Drone d : candidates) {
+                            for (List<Drone> set : rack.getReloads()) {
+                                if (set.remove(d)) break; // remove by reference identity
+                            }
+                        }
+                        rack.stagePendingReload(candidates);
                         deckCrewsLeft -= cost;
                     }
                 }
@@ -391,10 +526,13 @@ public class GameSession {
                     weapons.add(w);
                 }
 
-                return game.execute(new FireCommand(
+                ActionResult fireResult = game.execute(new FireCommand(
                         attacker, target, weapons,
                         request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
                         request.isUseUim()));
+                if (fireResult.isSuccess())
+                    appendCombatLog(fireResult.getMessage());
+                return fireResult;
             }
 
             case "LAUNCH_SHUTTLE": {
@@ -549,6 +687,17 @@ public class GameSession {
                 }
                 boolean isReal = !request.isPseudo();
                 return game.placeTBomb(ship, loc, isReal);
+            }
+
+            case "DROP_MINE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                // mineType: "TBOMB", "DUMMY_TBOMB", or "NSM" — passed in action field
+                String mineType = request.getAction();
+                if (mineType == null || mineType.isBlank())
+                    return ActionResult.fail("No mine type specified");
+                return game.dropMine(ship, mineType);
             }
 
             case "HIT_AND_RUN": {

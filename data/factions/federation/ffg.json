@@ -59,6 +59,8 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}

@@ -32,12 +32,23 @@ public class Shields implements Systems {
 
 	/**
 	 * Get the strength of a specific shield, including reinforcement (if any)
-	 * 
+	 *
 	 * @param shieldNumber The shield to be checked.
 	 * @return The value of the shield.
 	 */
 	public int getShieldStrength(int shieldNumber) {
 		return currentShieldValues[shieldNumber - 1] + specificReinforcement[shieldNumber - 1];
+	}
+
+	/**
+	 * Get the base strength of a specific shield, without reinforcement.
+	 * Use this for the public view visible to enemy players.
+	 *
+	 * @param shieldNumber The shield to be checked.
+	 * @return The current shield value excluding any reinforcement.
+	 */
+	public int getBaseShieldStrength(int shieldNumber) {
+		return currentShieldValues[shieldNumber - 1];
 	}
 
 	/**

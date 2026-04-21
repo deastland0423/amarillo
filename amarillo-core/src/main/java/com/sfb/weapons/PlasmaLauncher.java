@@ -332,13 +332,12 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 				break;
 			case S:
 				if (armingTurn == 0) {
-					// Start arming an S (or G)
+					// Start arming an S or downgrade to F
 					if (energy == Constants.sArmingCost[0]) {
 						armingTurn++;
 						okayToArm = true;
 						setStandard();
 						plasmaType = PlasmaType.S;
-						// Start arming an F
 					} else if (energy == Constants.fArmingCost[0]) {
 						armingTurn++;
 						okayToArm = true;
@@ -346,18 +345,78 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 						plasmaType = PlasmaType.F;
 					}
 				} else if (armingTurn == 1) {
-					// Continue arming an S (or G)
+					// Continue arming S or F
 					if (plasmaType == PlasmaType.S && energy == Constants.sArmingCost[0]) {
 						armingTurn++;
 						okayToArm = true;
-						// Continue arming an F
 					} else if (plasmaType == PlasmaType.F && energy == Constants.fArmingCost[0]) {
 						armingTurn++;
 						okayToArm = true;
 					}
+				} else if (armingTurn >= 2) {
+					// Final turn: finish, envelop, roll, or downgrade
+					if (plasmaType == PlasmaType.S && energy == Constants.sArmingCost[1]) {
+						// Finish as standard S
+						armingTurn++;
+						okayToArm = true;
+						rolling = false;
+					} else if (plasmaType == PlasmaType.S && energy == Constants.sArmingCost[1] * 2) {
+						// Finish as enveloping S (EPT)
+						armingTurn++;
+						okayToArm = true;
+						rolling = false;
+						setEnveloping();
+					} else if (plasmaType == PlasmaType.S && energy == Constants.sArmingCost[0]) {
+						// Continue rolling S
+						armingTurn++;
+						okayToArm = true;
+						rolling = true;
+					} else if (plasmaType == PlasmaType.F && energy == Constants.fArmingCost[1]) {
+						// Finish as F
+						armingTurn++;
+						okayToArm = true;
+						rolling = false;
+					} else if (plasmaType == PlasmaType.F && energy == Constants.fArmingCost[0]) {
+						// Continue rolling F
+						armingTurn++;
+						okayToArm = true;
+						rolling = true;
+					}
 				}
 				break;
 			case R:
+				if (armingTurn == 0) {
+					// Start arming R (no downgrade — R is already the largest type)
+					if (energy == Constants.rArmingCost[0]) {
+						armingTurn++;
+						okayToArm = true;
+						setStandard();
+						plasmaType = PlasmaType.R;
+					}
+				} else if (armingTurn == 1) {
+					if (energy == Constants.rArmingCost[0]) {
+						armingTurn++;
+						okayToArm = true;
+					}
+				} else if (armingTurn >= 2) {
+					if (energy == Constants.rArmingCost[1]) {
+						// Finish as standard R
+						armingTurn++;
+						okayToArm = true;
+						rolling = false;
+					} else if (energy == Constants.rArmingCost[1] * 2) {
+						// Finish as enveloping R (EPT)
+						armingTurn++;
+						okayToArm = true;
+						rolling = false;
+						setEnveloping();
+					} else if (energy == Constants.rArmingCost[0]) {
+						// Continue rolling R
+						armingTurn++;
+						okayToArm = true;
+						rolling = true;
+					}
+				}
 				break;
 			default:
 				break;
@@ -376,29 +435,44 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	@Override
 	public int energyToArm() {
 		if (armed) {
-			// Cost to hold an armed plasma torpedo (0 for F, 1 for G)
+			// Hold cost per type (R cannot hold — return 0 as sentinel)
 			switch (launcherType) {
-				case G:
-					return Constants.gArmingCost[2];
-				default:
-					return Constants.fArmingCost[2];
+				case S: return Constants.sArmingCost[2]; // 2
+				case G: return Constants.gArmingCost[2]; // 1
+				case F: return Constants.fArmingCost[2]; // 0
+				default: return 0; // R
 			}
 		}
 		if (armingTurn < 2) {
-			// First two turns cost the base rate for the current plasma type
+			// Turns 1 and 2 cost the same for all types
 			switch (launcherType) {
-				case G:
-					return Constants.gArmingCost[0];
-				default:
-					return Constants.fArmingCost[0];
+				case R:
+				case S: return Constants.sArmingCost[0]; // 2
+				case G: return Constants.gArmingCost[0]; // 2
+				default: return Constants.fArmingCost[0]; // 1 (F)
 			}
 		}
-		// Final (3rd+) turn: standard finish cost
+		// Final (3rd+) turn standard completion cost
 		switch (launcherType) {
-			case G:
-				return Constants.gArmingCost[1];
-			default:
-				return Constants.fArmingCost[1];
+			case R: return Constants.rArmingCost[1]; // 5
+			case S: return Constants.sArmingCost[1]; // 4
+			case G: return Constants.gArmingCost[1]; // 3
+			default: return Constants.fArmingCost[1]; // 3 (F)
+		}
+	}
+
+	/** True if this launcher can fire an Enveloping Plasma Torpedo (G, S, R; not F). */
+	public boolean canEpt() {
+		return launcherType != PlasmaType.F;
+	}
+
+	/** Energy cost to fire as EPT on the final arming turn (double the standard turn-3 cost). */
+	public int eptCost() {
+		switch (launcherType) {
+			case R: return Constants.rArmingCost[1] * 2; // 10
+			case S: return Constants.sArmingCost[1] * 2; // 8
+			case G: return Constants.gArmingCost[1] * 2; // 6
+			default: return 0; // F cannot EPT
 		}
 	}
 

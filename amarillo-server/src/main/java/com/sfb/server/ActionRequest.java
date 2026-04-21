@@ -32,14 +32,14 @@ public class ActionRequest {
     private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
     private boolean             topOffCap;              // true = charge phaser capacitor to full
     private String              shieldMode;             // "ACTIVE", "MINIMUM", or "OFF"
-    private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH"
+    private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private int                 batteryDraw;            // energy drawn from batteries this turn
     private int                 batteryRecharge;        // energy put into batteries this turn
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
-    private List<String>        droneReloads;           // rack names to reload this turn
+    private Map<String, Map<String, Integer>> droneReloadSelections; // rack name → {droneType → count}
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -101,8 +101,8 @@ public class ActionRequest {
     public int[]  getSpecificReinforcement()                         { return specificReinforcement; }
     public void   setSpecificReinforcement(int[] specificReinforcement) { this.specificReinforcement = specificReinforcement; }
 
-    public List<String> getDroneReloads()                            { return droneReloads; }
-    public void         setDroneReloads(List<String> droneReloads)   { this.droneReloads = droneReloads; }
+    public Map<String, Map<String, Integer>> getDroneReloadSelections()                                              { return droneReloadSelections; }
+    public void                              setDroneReloadSelections(Map<String, Map<String, Integer>> selections) { this.droneReloadSelections = selections; }
 
     // LAUNCH_PLASMA fields
     private boolean pseudo;

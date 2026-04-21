@@ -1,0 +1,109 @@
+{
+  "faction": "Klingon",
+  "hull": "C8B",
+  "name": "IKS Terror",
+  "serviceYear": 168,
+  "bpv": 218,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 10,
+  
+  "shields": [44, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 20
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 8,
+    "apr": 4,
+    "battery": 8
+  },
+  
+  "control": {
+    "bridge": 4,
+    "emergency": 4,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 1, 2, 3, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 8,
+    "tractors": 3,
+    "labs": 6,
+    "uim": 2,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 62,
+    "boardingParties": 24,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["LF", "L"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RF", "R"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["RF", "R"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["LF", "L", "5"] },
+    { "type": "Phaser2", "designator": "8", "arcs": ["LF", "L", "5"] },
+    { "type": "Phaser2", "designator": "9", "arcs": ["RF", "R", "21"] },
+    { "type": "Phaser2", "designator": "10", "arcs": ["RF", "R", "21"] },
+    { "type": "Phaser2", "designator": "11", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "14", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "15", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "E", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 8,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 5", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 6", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": []
+  }
+}

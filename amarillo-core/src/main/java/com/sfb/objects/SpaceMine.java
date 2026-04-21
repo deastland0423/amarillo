@@ -10,13 +10,11 @@ package com.sfb.objects;
  * implemented.
  *
  * <h3>Activation</h3>
- * A tBomb starts inactive. It becomes permanently active once BOTH of the
- * following conditions are true simultaneously:
- * <ul>
- * <li>At least 2 impulses have elapsed since placement.</li>
- * <li>The laying ship is more than 1 hex away.</li>
- * </ul>
- * Once active it never deactivates, even if the laying ship returns to range.
+ * A tBomb starts inactive. Per M3.223, it becomes permanently active at the
+ * end of the transporter step of the second subsequent impulse after placement
+ * (i.e., placed on impulse N → arms end of impulse N+2 → cannot trigger until
+ * impulse N+3). The laying ship's position does not affect the arming timer;
+ * see M3.32 for the separate adjacency restriction.
  *
  * <h3>Detection and detonation</h3>
  * Each impulse, every unit within range 1 (the mine's hex plus its 6
@@ -56,7 +54,11 @@ public class SpaceMine extends Marker {
         }
     }
 
+    /** How the mine was placed — determines arming logic. */
+    public enum PlacementMethod { TRANSPORTER, DROPPED }
+
     private final MineType mineType;
+    private final PlacementMethod placementMethod;
     private final boolean isReal;
     private final Ship layingShip;
     private final int placedOnImpulse;
@@ -66,44 +68,47 @@ public class SpaceMine extends Marker {
 
     /** Minimal instance for client-side rendering only — no game logic. */
     public static SpaceMine forRendering() {
-        return new SpaceMine(MineType.T_BOMB, null, 0, true);
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, null, 0, true);
     }
 
-    public SpaceMine(MineType mineType, Ship layingShip, int placedOnImpulse, boolean isReal) {
-        this.mineType = mineType;
-        this.layingShip = layingShip;
+    public SpaceMine(MineType mineType, PlacementMethod placementMethod,
+                     Ship layingShip, int placedOnImpulse, boolean isReal) {
+        this.mineType        = mineType;
+        this.placementMethod = placementMethod;
+        this.layingShip      = layingShip;
         this.placedOnImpulse = placedOnImpulse;
-        this.isReal = (mineType == MineType.NSM || isReal); // NSMs are always real, TBombs can be real or dummy
-        this.name = mineType.label;
+        this.isReal          = (mineType == MineType.NSM || isReal);
+        this.name            = mineType.label;
     }
 
     // -------------------------------------------------------------------------
     // Activation
     // -------------------------------------------------------------------------
 
-    /**
-     * Returns true if this tBomb is currently armed and will check for targets.
-     */
-    public boolean isActive() {
-        return active;
-    }
+    public boolean isActive() { return active; }
+
+    public PlacementMethod getPlacementMethod() { return placementMethod; }
 
     /**
-     * Attempt to activate this tBomb. Should be called each impulse while the
-     * bomb is still inactive. Activates (permanently) if both conditions are met:
-     * at least {@code impulsesElapsed} impulses have passed AND the laying ship
-     * is more than 1 hex away.
+     * Attempt to arm this mine. Call each impulse while inactive.
      *
-     * @param currentImpulse The current absolute impulse number.
-     * @param layerRange     Hex distance from this tBomb to the laying ship.
+     * <p>Transporter mines (M3.223): arm after 2 complete impulses regardless
+     * of ship position. Caller must skip detection the impulse arming occurs.
+     *
+     * <p>Dropped mines (M2.34): arm as soon as the laying ship is more than
+     * 2 hexes away. Caller must skip detection the impulse arming occurs.
+     *
+     * @param currentImpulse absolute impulse number (transporter mines only)
+     * @param layerRange     hex distance from mine to laying ship (dropped mines only)
      */
     public void tryActivate(int currentImpulse, int layerRange) {
-        if (active)
-            return;
-        boolean timeElapsed = (currentImpulse - placedOnImpulse) >= 2;
-        boolean layerGone = layerRange > 1;
-        if (timeElapsed && layerGone) {
-            active = true;
+        if (active) return;
+        if (placementMethod == PlacementMethod.TRANSPORTER) {
+            if ((currentImpulse - placedOnImpulse) >= 2)
+                active = true;
+        } else {
+            if (layerRange > 1)
+                active = true;
         }
     }
 
@@ -171,11 +176,18 @@ public class SpaceMine extends Marker {
     // -------------------------------------------------------------------------
     // Factory methods for specific mine types
     // -------------------------------------------------------------------------
+    /** T-Bomb placed by transporter (M3.22). Timer-based arming (M3.223). */
     public static SpaceMine createTBomb(Ship layingShip, int placedOnImpulse, boolean isReal) {
-        return new SpaceMine(MineType.T_BOMB, layingShip, placedOnImpulse, isReal);
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, layingShip, placedOnImpulse, isReal);
     }
 
-    public static SpaceMine createNSMine(Ship layingShip, int placedOnImpulse) {
-        return new SpaceMine(MineType.NSM, layingShip, placedOnImpulse, true);
+    /** T-Bomb dropped from a shuttle bay (M2.1). Range-based arming (M2.34). */
+    public static SpaceMine createDroppedTBomb(Ship layingShip, int placedOnImpulse, boolean isReal) {
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.DROPPED, layingShip, placedOnImpulse, isReal);
+    }
+
+    /** NSM dropped from a shuttle bay (M2.1). Range-based arming (M2.34). Always real. */
+    public static SpaceMine createDroppedNSM(Ship layingShip, int placedOnImpulse) {
+        return new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, layingShip, placedOnImpulse, true);
     }
 }

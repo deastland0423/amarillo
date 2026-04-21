@@ -40,7 +40,8 @@
     "transporters": 1,
     "tractors": 13,
     "probes": 1,
-    "cloakCost": 6
+    "cloakCost": 6,
+    "nuclearSpaceMines": 1
   },
 
   "shuttleBays": [

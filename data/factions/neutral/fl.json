@@ -1,0 +1,65 @@
+{
+  "faction": "Neutral",
+  "hull": "F-L",
+  "name": "Red Dwarf",
+  "serviceYear": 120,
+  "bpv": 18,
+  "epv": 61,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 1,
+  "bonusHets": 0,
+  
+  "shields": [9, 9, 9, 9, 9, 9],
+  
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 50
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 3, 0],
+    "scanner": [0, 2, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "probes": 0,
+    "maxAccel": 4
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 2,
+    "boardingParties": 0,
+    "minCrew": 1
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] }
+
+  ]
+}

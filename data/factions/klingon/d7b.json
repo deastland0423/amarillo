@@ -76,5 +76,16 @@
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
 
-  ]
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": [
+      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+    ]
+  }
 }

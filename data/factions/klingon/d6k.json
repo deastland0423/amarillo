@@ -1,0 +1,89 @@
+{
+  "faction": "Klingon",
+  "hull": "D6K",
+  "name": "IKS Carnage",
+  "serviceYear": 165,
+  "bpv": 126,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [30, 22, 22, 22, 22, 22],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 7
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 3,
+    "labs": 4,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 44,
+    "boardingParties": 14,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": [
+      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+    ]
+  }
+}

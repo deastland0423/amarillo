@@ -47,7 +47,7 @@ public class SpaceMineTest {
 
     @Test
     public void createNSMine_isAlwaysReal() {
-        SpaceMine mine = SpaceMine.createNSMine(layingShip, 1);
+        SpaceMine mine = SpaceMine.createDroppedNSM(layingShip, 1);
         assertTrue(mine.isReal());
         assertEquals(MineType.NSM, mine.getMineType());
     }
@@ -105,28 +105,54 @@ public class SpaceMineTest {
     }
 
     // -------------------------------------------------------------------------
-    // tryActivate — layer-gone condition
+    // tryActivate — transporter mines arm on timer only (M3.223), layer irrelevant
     // -------------------------------------------------------------------------
 
     @Test
-    public void notActivated_whenLayerWithin1Hex() {
+    public void transporterMine_activates_regardlessOfLayerRange_whenTimeElapsed() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
-        // Time has elapsed but layer is still adjacent
+        // 3 impulses elapsed, layer still adjacent (range 1) — must still arm
         mine.tryActivate(13, 1);
-        assertFalse(mine.isActive());
+        assertTrue(mine.isActive());
     }
 
     @Test
-    public void notActivated_whenLayerAtRange0() {
+    public void transporterMine_activates_whenLayerAtRange0() {
         SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        // Layer in same hex — timer-only rule still arms it
         mine.tryActivate(13, 0);
+        assertTrue(mine.isActive());
+    }
+
+    // -------------------------------------------------------------------------
+    // tryActivate — dropped mine arms on range (M2.34), not timer
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void droppedMine_notActivated_whenLayerWithin1Hex() {
+        SpaceMine mine = SpaceMine.createDroppedTBomb(layingShip, 10, true);
+        mine.tryActivate(999, 1);
         assertFalse(mine.isActive());
     }
 
     @Test
-    public void activated_whenLayerAt2Hexes() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
-        mine.tryActivate(13, 2);
+    public void droppedMine_activates_whenLayerAt2Hexes() {
+        SpaceMine mine = SpaceMine.createDroppedTBomb(layingShip, 10, true);
+        mine.tryActivate(999, 2);
+        assertTrue(mine.isActive());
+    }
+
+    @Test
+    public void droppedMine_activates_whenLayerBeyond2Hexes() {
+        SpaceMine mine = SpaceMine.createDroppedTBomb(layingShip, 10, true);
+        mine.tryActivate(999, 3);
+        assertTrue(mine.isActive());
+    }
+
+    @Test
+    public void droppedNSM_activates_whenLayerBeyond2Hexes() {
+        SpaceMine mine = SpaceMine.createDroppedNSM(layingShip, 10);
+        mine.tryActivate(999, 3);
         assertTrue(mine.isActive());
     }
 
@@ -140,8 +166,8 @@ public class SpaceMineTest {
         mine.tryActivate(12, 5);
         assertTrue(mine.isActive());
 
-        // Even if the layer returns to range 1 — still armed
-        mine.tryActivate(13, 1);
+        // Calling again with any range — stays armed
+        mine.tryActivate(13, 0);
         assertTrue(mine.isActive());
     }
 
@@ -241,7 +267,7 @@ public class SpaceMineTest {
 
     @Test
     public void nsmIsAlwaysRealAndCannotBeRevealed() {
-        SpaceMine nsm = SpaceMine.createNSMine(layingShip, 1);
+        SpaceMine nsm = SpaceMine.createDroppedNSM(layingShip, 1);
         nsm.reveal();
         assertFalse(nsm.isRevealed());
     }

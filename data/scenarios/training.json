@@ -6,11 +6,11 @@
   "lengthCondition": "STANDARD",
   "sides": [
     {
-      "name": "Federation",
+      "name": "United Federation of Planets",
       "faction": "Federation",
       "ships": [
         {
-          "hull": "CA",
+          "hull": "CA+",
           "shipName": "USS Enterprise",
           "startHex": "1201",
           "startHeading": "D",
@@ -28,11 +28,11 @@
       ]
     },
     {
-      "name": "Klingon",
+      "name": "Klingon Empire",
       "faction": "Klingon",
       "ships": [
         {
-          "hull": "D7",
+          "hull": "D7Bu",
           "shipName": "IKV Vengeance",
           "startHex": "1212",
           "startHeading": "A",

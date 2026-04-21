@@ -68,7 +68,8 @@ public class Ship extends Unit {
 	private Crew crew = new Crew(this); // Crew
 	private CloakingDevice cloak = null; // Cloaking Device (null if none installed).
 	private com.sfb.systemgroups.DERFACS derfacs = null; // DERFACS targeting system (null if none installed).
-	private java.util.ArrayList<com.sfb.systemgroups.UIM> uims = new java.util.ArrayList<>(); // UIM modules (up to 4: 1 active + 3 standby).
+	private java.util.ArrayList<com.sfb.systemgroups.UIM> uims = new java.util.ArrayList<>(); // UIM modules (up to 4: 1
+																																														// active + 3 standby).
 
 	private Energy energyAllocated = new Energy(); // Where all the ship's energy is allocated
 
@@ -91,12 +92,15 @@ public class Ship extends Unit {
 	 * Both seeded from startSpeed at scenario load.
 	 */
 	private int speedPreviousTurn = 0;
-	private int speedTwoTurnsAgo  = 0;
+	private int speedTwoTurnsAgo = 0;
 
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
-	/** Guards assigned to defend specific system types this turn (D7.83). Key = system type, Value = quality of the guarding party. */
+	/**
+	 * Guards assigned to defend specific system types this turn (D7.83). Key =
+	 * system type, Value = quality of the guarding party.
+	 */
 	private final Map<SystemTarget.Type, BoardingPartyQuality> guards = new EnumMap<>(SystemTarget.Type.class);
 
 	// Other data
@@ -104,14 +108,19 @@ public class Ship extends Unit {
 	private String hullType = null; // Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
+	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
-	/** False only at WS-0 start; costs 1 energy to energize; true for all other weapon status levels. */
+	/**
+	 * False only at WS-0 start; costs 1 energy to energize; true for all other
+	 * weapon status levels.
+	 */
 	private boolean capacitorsCharged = true;
 	private ShieldStatus shieldsStatus = ShieldStatus.Inactive;
-	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields. Active is normal shields. Minimal is
-																															// 5-point shields. Inactive is no shields at all.
+	private Set<Unit> lockOns = new HashSet<>(); // Units this ship currently has sensor lock-on to. // Status of shields.
+																								// Active is normal shields. Minimal is
+																								// 5-point shields. Inactive is no shields at all.
 	private boolean lifeSupportActive = false; // True if life support is active, false otherwise.
 
 	/**
@@ -133,6 +142,7 @@ public class Ship extends Unit {
 		hullType = values.get("hull") == null ? null : (String) values.get("hull");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
+		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -170,7 +180,8 @@ public class Ship extends Unit {
 		uims.clear();
 		for (int i = 0; i < specialFunctions.getUim(); i++) {
 			com.sfb.systemgroups.UIM uim = new com.sfb.systemgroups.UIM(this);
-			if (i > 0) uim.scheduleActivation(Integer.MAX_VALUE); // cold standby — not yet needed
+			if (i > 0)
+				uim.scheduleActivation(Integer.MAX_VALUE); // cold standby — not yet needed
 			uims.add(uim);
 		}
 	}
@@ -286,7 +297,7 @@ public class Ship extends Unit {
 		// batteries
 
 		// Roll speed history for C2.2 acceleration tracking
-		speedTwoTurnsAgo  = speedPreviousTurn;
+		speedTwoTurnsAgo = speedPreviousTurn;
 		speedPreviousTurn = getSpeed();
 
 		shields.cleanUp();
@@ -314,11 +325,21 @@ public class Ship extends Unit {
 		return Math.min(31, Math.max(lowest + 10, lowest * 2));
 	}
 
-	public int getSpeedPreviousTurn()            { return speedPreviousTurn; }
-	public int getSpeedTwoTurnsAgo()             { return speedTwoTurnsAgo; }
+	public int getSpeedPreviousTurn() {
+		return speedPreviousTurn;
+	}
 
-	public void setSpeedPreviousTurn(int speed)  { this.speedPreviousTurn = speed; }
-	public void setSpeedTwoTurnsAgo(int speed)   { this.speedTwoTurnsAgo  = speed; }
+	public int getSpeedTwoTurnsAgo() {
+		return speedTwoTurnsAgo;
+	}
+
+	public void setSpeedPreviousTurn(int speed) {
+		this.speedPreviousTurn = speed;
+	}
+
+	public void setSpeedTwoTurnsAgo(int speed) {
+		this.speedTwoTurnsAgo = speed;
+	}
 
 	/// BASIC SHIP DATA ///
 	public void setType(String type) {
@@ -419,12 +440,12 @@ public class Ship extends Unit {
 		return lockOns;
 	}
 
-
 	// --- Guards (D7.83) ---
 
 	/**
 	 * Assign a boarding party as a guard for the given system type (D7.83).
-	 * No more than one guard per system type; calling again replaces the previous assignment.
+	 * No more than one guard per system type; calling again replaces the previous
+	 * assignment.
 	 */
 	public void assignGuard(SystemTarget.Type systemType, BoardingPartyQuality guardQuality) {
 		guards.put(systemType, guardQuality);
@@ -440,12 +461,18 @@ public class Ship extends Unit {
 		return guards.containsKey(systemType);
 	}
 
-	/** Returns the quality of the guard assigned to the given system, or null if unguarded. */
+	/**
+	 * Returns the quality of the guard assigned to the given system, or null if
+	 * unguarded.
+	 */
 	public BoardingPartyQuality getGuardQuality(SystemTarget.Type systemType) {
 		return guards.get(systemType);
 	}
 
-	/** Clear all guard assignments (called at start of turn after re-posting per D7.834). */
+	/**
+	 * Clear all guard assignments (called at start of turn after re-posting per
+	 * D7.834).
+	 */
 	public void clearGuards() {
 		guards.clear();
 	}
@@ -461,7 +488,9 @@ public class Ship extends Unit {
 		return enemyTroops.total();
 	}
 
-	/** Add enemy normal boarding parties (e.g. after a successful H&R transport). */
+	/**
+	 * Add enemy normal boarding parties (e.g. after a successful H&R transport).
+	 */
 	public void addEnemyBoardingParties(int normal) {
 		enemyTroops.normal += normal;
 	}
@@ -516,6 +545,14 @@ public class Ship extends Unit {
 
 	public int getBattlePointValue() {
 		return this.battlePointValue;
+	}
+
+	public void setBattlePointValue(int bpv) {
+		this.battlePointValue = bpv;
+	}
+
+	public int getCommandRating() {
+		return this.commandRating;
 	}
 
 	/// SHIELDS ///
@@ -707,7 +744,8 @@ public class Ship extends Unit {
 	 */
 	public com.sfb.systemgroups.UIM getActiveUim(int currentImpulse) {
 		for (com.sfb.systemgroups.UIM uim : uims) {
-			if (uim.isFunctional(currentImpulse)) return uim;
+			if (uim.isFunctional(currentImpulse))
+				return uim;
 		}
 		return null;
 	}
@@ -723,7 +761,8 @@ public class Ship extends Unit {
 	public void activateNextStandby(com.sfb.systemgroups.UIM burned, int currentImpulse) {
 		int activateAt = currentImpulse + 8;
 		for (com.sfb.systemgroups.UIM uim : uims) {
-			if (uim == burned || uim.isDamaged()) continue;
+			if (uim == burned || uim.isDamaged())
+				continue;
 			// First undamaged non-burned UIM becomes the next standby
 			uim.scheduleActivation(activateAt);
 			return;
@@ -931,14 +970,16 @@ public class Ship extends Unit {
 				case "fhull": {
 					boolean fAvail = hullBoxes.getAvailableFhull() > 0;
 					hit = hullBoxes.damageFhull();
-					if (hit && !fAvail) system = "chull (fhull exhausted)";
+					if (hit && !fAvail)
+						system = "chull (fhull exhausted)";
 					break;
 				}
 				case "ahull":
 				case "afthull": {
 					boolean aAvail = hullBoxes.getAvailableAhull() > 0;
 					hit = hullBoxes.damageAhull();
-					if (hit && !aAvail) system = "chull (ahull exhausted)";
+					if (hit && !aAvail)
+						system = "chull (ahull exhausted)";
 					break;
 				}
 				case "cargo":

@@ -13,27 +13,43 @@ export function useGameSocket(gameId: string, playerToken: string): GameState | 
   const [state, setState] = useState<GameState | null>(null);
 
   useEffect(() => {
+    // Guard against React Strict Mode double-invocation: ignore callbacks from
+    // the first (discarded) effect run once cleanup has fired.
+    let active = true;
+
     // Fetch initial snapshot immediately
     gameApi
       .getGameState(gameId, playerToken)
-      .then(s => setState(s as GameState))
+      .then(s => { if (active) setState(s as GameState); })
       .catch(console.error);
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_WS_URL ?? ''}/ws`),
+      webSocketFactory: () => new SockJS(`http://${window.location.hostname}:8080/ws`),
       reconnectDelay: 3000,
       onConnect: () => {
+        if (!active) return;  // already cleaned up before this connection completed
         client.subscribe(`/topic/games/${gameId}/state`, (message) => {
+          if (!active) return;  // discard if this subscription was already cleaned up
           const incoming = JSON.parse(message.body) as GameState;
-          // Broadcasts never contain myShips (server can't know who is receiving).
-          // Preserve the value from the initial REST fetch.
-          setState(prev => ({ ...incoming, myShips: incoming.myShips ?? prev?.myShips ?? null }));
+          setState(prev => {
+            const knownShips = incoming.myShips ?? prev?.myShips ?? null;
+            if (knownShips === null) {
+              // Ships not assigned yet — re-fetch REST to pick up any new assignment.
+              gameApi.getGameState(gameId, playerToken)
+                .then(s => { if (active) setState(s as GameState); })
+                .catch(console.error);
+            }
+            return { ...incoming, myShips: knownShips };
+          });
         });
       },
     });
 
     client.activate();
-    return () => { client.deactivate(); };
+    return () => {
+      active = false;
+      client.deactivate();
+    };
   }, [gameId, playerToken]);
 
   return state;

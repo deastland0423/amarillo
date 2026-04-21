@@ -4,10 +4,11 @@
  */
 
 export interface ShieldState {
-  shieldNum: number;
-  current:   number;
-  max:       number;
-  active:    boolean;
+  shieldNum:    number;
+  current:      number;  // includes reinforcement — owner-only
+  baseStrength: number;  // without reinforcement — public
+  max:          number;
+  active:       boolean;
 }
 
 export interface WeaponState {
@@ -16,15 +17,29 @@ export interface WeaponState {
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null
   lastImpulseFired:  number;
+  readyToFire:       boolean;  // functional + armed (if heavy) + impulse gap satisfied
+  arcLabel:          string;   // e.g. "FA", "FX + 13", "LF + L + RR + 5"
   functional:        boolean;
-  plasmaType:        string | null;
+  plasmaType:        string | null;   // currently arming torpedo type, or null
+  launcherType:      string | null;   // fixed launcher type: "F" | "G" | "S" | "R" | null
   pseudoPlasmaReady: boolean;
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)
   armingCost:        number;
   totalArmingTurns:  number;
   isRolling:         boolean;
-  rollingCost:       number;
+  rollingCost:       number;  // always sent for plasma; 0 for non-plasma
+  canEpt:            boolean; // plasma only: can fire as Enveloping Plasma Torpedo
+  eptCost:           number;  // plasma only: energy cost for EPT on final arming turn
+  maxShotsPerTurn:   number;
+  shotsThisTurn:     number;
+  minImpulseGap:     number;
+}
+
+export interface ReloadPoolEntry {
+  droneType: string;   // e.g. "TYPE_I"
+  rackSize:  number;   // deck crew cost per drone
+  count:     number;   // how many available
 }
 
 export interface DroneRackState {
@@ -35,6 +50,7 @@ export interface DroneRackState {
   reloadCount:        number;
   reloadDeckCrewCost: number;
   reloadingThisTurn:  boolean;
+  reloadPool:         ReloadPoolEntry[];  // available drones by type with counts
 }
 
 interface MapObjectBase {
@@ -67,14 +83,23 @@ export interface ShipObject extends MapObjectBase {
   availableFhull:   number;
   availableAhull:   number;
   availableChull:   number;
-  // Control spaces
-  availableBridge:  number;
-  availableEmer:    number;
-  availableAuxcon:  number;
+  // Control spaces (current / max)
+  availableBridge:   number;
+  maxBridge:         number;
+  availableFlag:     number;
+  maxFlag:           number;
+  availableEmer:     number;
+  maxEmer:           number;
+  availableAuxcon:   number;
+  maxAuxcon:         number;
+  availableSecurity: number;
+  maxSecurity:       number;
   // Misc
   tBombs:           number;
   dummyTBombs:      number;
+  nuclearSpaceMines: number;
   boardingParties:  number;
+  commandos:        number;
   // Crew
   availableCrewUnits:  number;
   minimumCrew:         number;
@@ -82,6 +107,7 @@ export interface ShipObject extends MapObjectBase {
   crewQuality:         string;   // "POOR" | "NORMAL" | "OUTSTANDING"
   availableTransporters?:   number;
   transporterEnergyCost?:   number;
+  uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
   cloakFadeStep?:           number;   // 1–5 during fade transitions
   cloakTransitionImpulse?:  number;
@@ -104,19 +130,34 @@ export interface ShuttleObject extends MapObjectBase {
 }
 
 export interface DroneObject extends MapObjectBase {
-  type:            'DRONE';
-  facing:          number;
-  speed:           number;
-  warheadDamage:   number;
+  type:              'DRONE';
+  facing:            number;
+  speed:             number;
+  droneType:         string;       // revealed when identified
+  warheadDamage:     number;       // revealed when identified
+  hull:              number;
+  damageTaken:       number;       // maxHull - hull; always public
+  maxHull:           number;       // revealed when identified
+  endurance:         number;       // revealed when identified
+  targetName:        string | null; // revealed when identified
   controllerFaction: string;
+  controllerName:    string | null;
+  launchImpulse:     number;
+  isIdentified:      boolean;
 }
 
 export interface PlasmaObject extends MapObjectBase {
   type:              'PLASMA';
   facing:            number;
+  speed:             number;
   currentStrength:   number;
   controllerFaction: string;
-  pseudo:            boolean;
+  controllerName:    string | null;
+  pseudo:            boolean;       // never revealed to enemy
+  plasmaType:        string | null; // never revealed to enemy
+  targetName:        string | null; // revealed when identified
+  launchImpulse:     number;
+  isIdentified:      boolean;
 }
 
 export interface MineObject extends MapObjectBase {
@@ -143,6 +184,7 @@ export interface GameState {
   myShips:            string[] | null;
   readyCount:         number;
   playerCount:        number;
+  combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
 }
 
 /** Parse location string → [col, row] (1-indexed), or null.
@@ -170,7 +212,8 @@ export function factionColor(faction: string): string {
     case 'klingon':    return '#d53a3a';
     case 'romulan':    return '#3ab87a';
     case 'kzinti':     return '#d5a03a';
-    case 'orion':      return '#9b3ad5';
+    case 'orion':      return '#ec6fd1';
+    case 'hydran':     return '#9b3ad5';
     default:           return '#888888';
   }
 }

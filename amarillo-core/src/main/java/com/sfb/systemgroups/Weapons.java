@@ -11,6 +11,7 @@ import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.PhaserG;
+import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -34,7 +35,7 @@ public class Weapons implements Systems {
 	private int          availableDrones;							// Items hit on 'drone' in the DAC
 	private double       availablePhaserCapacitor;					// Current size of the phaser capacitor.
 	
-	private int          phaserCapacitorEnergy;						// Energy currently in the phaser capacitor.
+	private double       phaserCapacitorEnergy;						// Energy currently in the phaser capacitor.
 	
 	private Unit         owningShip;								// The ship on which this weapons system is mounted.
 	
@@ -85,8 +86,9 @@ public class Weapons implements Systems {
 	
 	@Override
 	public void cleanUp() {
-		// TODO Auto-generated method stub
-		
+		for (Weapon w : weapons) {
+			w.cleanUp();
+		}
 	}
 
 	/**
@@ -108,8 +110,14 @@ public class Weapons implements Systems {
 			int relativeBearingToTarget = MapUtils.getRelativeBearing(trueBearingOfTarget, source.getFacing());
 			boolean inArc = weapon.inArc(relativeBearingToTarget);
 			
-			// If it is in range AND in arc, add it to the list of weapons.
-			if (inRange && inArc) {
+			// Heavy weapons must be armed before they appear as fireable options.
+			boolean armed = !(weapon instanceof HeavyWeapon) || ((HeavyWeapon) weapon).isArmed();
+
+			// Impulse gap and shots-per-turn must be satisfied.
+			boolean gapOk = weapon.canFire();
+
+			// If it is in range AND in arc AND ready, add it to the list of weapons.
+			if (inRange && inArc && armed && gapOk) {
 				bearingWeapons.add(weapon);
 			}
 		}

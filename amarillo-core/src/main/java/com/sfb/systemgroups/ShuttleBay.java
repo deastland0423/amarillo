@@ -55,6 +55,11 @@ public class ShuttleBay {
         return (currentImpulse - lastLaunchImpulse) >= LAUNCH_COOLDOWN;
     }
 
+    /** Consume this bay's launch slot for the current impulse (e.g. dropping a mine). */
+    public void markUsed(int currentImpulse) {
+        lastLaunchImpulse = currentImpulse;
+    }
+
     /**
      * Launch the given shuttle from this bay.
      * Caller is responsible for checking canLaunch() first.

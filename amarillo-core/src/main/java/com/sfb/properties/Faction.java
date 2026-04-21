@@ -11,5 +11,7 @@ public enum Faction {
 	Lyran,
 	Hydran,
 	Tholian,
-	ISC;
+	ISC,
+	Neutral,
+	Monster;
 }

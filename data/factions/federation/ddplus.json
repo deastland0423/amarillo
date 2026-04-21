@@ -1,0 +1,70 @@
+{
+  "faction": "Federation",
+  "hull": "DD+",
+  "name": "USS Saladin",
+  "serviceYear": 171,
+  "bpv": 100,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  
+  "shields": [20, 18, 16, 16, 16, 18],
+  
+  "hullBoxes": {
+    "chull": 10
+  },
+  
+  "power": {
+    "centerWarp": 15,
+    "impulse": 4,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 8,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 20,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+  ]
+}

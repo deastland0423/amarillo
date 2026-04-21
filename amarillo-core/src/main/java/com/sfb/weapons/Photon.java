@@ -455,7 +455,11 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 			// If the weapon is not armed, set it to the desired type and arm it.
 		} else {
-			this.armingType = type;
+			switch (type) {
+				case OVERLOAD: setOverload(); break;
+				case SPECIAL:  setSpecial();  break;
+				default:       /* already STANDARD from reset() */ break;
+			}
 			arm(energySupplied);
 		}
 

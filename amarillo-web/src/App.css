@@ -204,6 +204,16 @@ button.secondary:hover:not(:disabled) {
 .log-text.phase  { color: #56d364; }
 .log-text.error  { color: #f85149; }
 
+.log-pending-banner {
+  font-size: 0.72rem;
+  font-family: monospace;
+  color: #6e7681;
+  font-style: italic;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid #21262d;
+  margin-bottom: 0.2rem;
+}
+
 .board-canvas-area {
   flex: 1;
   overflow: hidden;   /* HexGrid manages its own scroll */
@@ -296,6 +306,62 @@ button.secondary:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Sidebar action strip ---- */
+
+.sidebar-action-strip {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #30363d;
+  background: #0d1117;
+}
+
+.action-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.action-strip-btn {
+  flex: 1 1 auto;
+  min-width: 52px;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #21262d;
+  color: #8b949e;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.action-strip-btn:hover:not(:disabled) {
+  background: #2d333b;
+  color: #e6edf3;
+  border-color: #58a6ff;
+}
+
+.action-strip-btn.active {
+  background: #1f3547;
+  color: #58a6ff;
+  border-color: #58a6ff;
+}
+
+.action-strip-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sidebar-action-detail {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #30363d;
+  background: #0d1117;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 /* ---- Topbar action group ---- */
 
 .topbar-actions {
@@ -371,7 +437,14 @@ button.secondary:hover:not(:disabled) {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
+}
+
+.fire-weapon-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   cursor: pointer;
+  flex: 1;
 }
 
 .fire-weapon-row input[type='checkbox'] {
@@ -384,10 +457,64 @@ button.secondary:hover:not(:disabled) {
   cursor: default;
 }
 
+.shot-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.shot-step-btn {
+  background: #2d333b;
+  border: 1px solid #444c56;
+  color: #cdd9e5;
+  border-radius: 3px;
+  width: 1.3rem;
+  height: 1.3rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shot-step-btn:hover {
+  background: #444c56;
+}
+
+.shot-count {
+  font-size: 0.78rem;
+  color: #f0a050;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
 .fire-ooa {
   font-size: 0.7rem;
   color: #6e7681;
   font-style: italic;
+}
+
+.fire-ooa.fire-cooldown {
+  color: #f0c040;
+  font-style: normal;
+}
+
+.fire-uim-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: #c9a227;
+  cursor: pointer;
+}
+
+.fire-uim-row input[type='checkbox'] {
+  accent-color: #c9a227;
+  cursor: pointer;
 }
 
 .fire-btn {
@@ -407,6 +534,13 @@ button.secondary:hover:not(:disabled) {
   font-size: 0.8rem;
   color: #f85149;
   margin-top: 0.25rem;
+}
+
+.launch-weapon-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
 }
 
 /* ---- Sidebar divider ---- */
@@ -439,16 +573,21 @@ button.secondary:hover:not(:disabled) {
   flex-shrink: 0;
 }
 
-.weapon-dot.ready  { background: #56d364; }
-.weapon-dot.armed  { background: #79c0ff; }
-.weapon-dot.arming { background: #f0c040; }
-.weapon-dot.idle   { background: #444c56; }
-.weapon-dot.dmg    { background: #f85149; }
+.weapon-dot.ready    { background: #56d364; }
+.weapon-dot.cooldown { background: #f0c040; }
+.weapon-dot.idle     { background: #444c56; }
+.weapon-dot.dmg      { background: #f85149; }
 
 .weapon-name {
-  flex: 1;
   color: #e6edf3;
   font-variant-numeric: tabular-nums;
+}
+
+.weapon-arc {
+  font-size: 0.7rem;
+  color: #6e7681;
+  flex: 1;
+  padding-left: 0.2rem;
 }
 
 .weapon-status {
@@ -460,8 +599,9 @@ button.secondary:hover:not(:disabled) {
   color: #8b949e;
 }
 
-.weapon-status.armed { background: #1c3a5e; color: #79c0ff; }
-.weapon-status.dmg   { background: #3d1c1c; color: #f85149; }
+.weapon-status.ready    { background: #1c3a2e; color: #56d364; }
+.weapon-status.cooldown { background: #3a2e0a; color: #f0c040; }
+.weapon-status.dmg      { background: #3d1c1c; color: #f85149; }
 
 /* ---- Move button grid ---- */
 
@@ -523,6 +663,10 @@ button.secondary:hover:not(:disabled) {
 .shield-bar-fill.medium { background: #f0c040; }
 .shield-bar-fill.low    { background: #f85149; }
 .shield-bar-fill.zero   { background: #30363d; }
+.shield-bar-fill.down   { background: repeating-linear-gradient(45deg, #30363d 0px, #30363d 3px, #1c2128 3px, #1c2128 6px); }
+
+.shield-cell.shield-down .shield-label { color: #484f58; }
+.shield-down-label { color: #6e7681; font-style: italic; }
 
 /* ---- Pre-game ---- */
 
@@ -1194,6 +1338,24 @@ h3 {
   color: #e6edf3;
   width: 32px;
   flex-shrink: 0;
+}
+
+/* ---- EA select dropdown ---- */
+
+.ea-select {
+  background: #21262d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.ea-select:focus {
+  outline: none;
+  border-color: #58a6ff;
 }
 
 /* ---- EA heavy weapon allocation block ---- */

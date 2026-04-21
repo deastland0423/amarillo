@@ -248,15 +248,15 @@ public class TBombGameTest {
     }
 
     @Test
-    public void placedMine_doesNotActivateWhileLayerIsClose() {
+    public void placedMine_activatesOnTimerRegardlessOfLayerPosition() {
         game.placeTBomb(ship, new Location(10, 11), true);
 
         SpaceMine mine = game.getMines().get(0);
         int placedImpulse = mine.getPlacedOnImpulse();
 
-        // 5 impulses elapsed but layer is still adjacent (range 1)
-        mine.tryActivate(placedImpulse + 5, 1);
+        // Transporter mines arm on timer alone (M3.223) — layer range is irrelevant
+        mine.tryActivate(placedImpulse + 2, 1);
 
-        assertFalse(mine.isActive());
+        assertTrue(mine.isActive());
     }
 }

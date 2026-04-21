@@ -98,12 +98,13 @@ public class InternalDamageTest {
 
     @Test
     public void droneRacksCanBeDestroyedByInternalDamage() {
-        // D7 has 2 drone racks; heavy damage must eventually produce a "drone" DAC hit
+        // "drone" is at line 3 (roll=3) in the DAC, probability 2/36 per roll.
+        // With 300 rolls P(never hitting drone) = (34/36)^300 ≈ 1e-8 — negligible.
         long dronesBefore = ship.getWeapons().getDroneList().stream()
                 .filter(Weapon::isFunctional).count();
         assertTrue("D7 should start with functional drone racks", dronesBefore > 0);
 
-        ship.applyInternalDamage(50);
+        ship.applyInternalDamage(300);
 
         long dronesAfter = ship.getWeapons().getDroneList().stream()
                 .filter(Weapon::isFunctional).count();
@@ -130,7 +131,8 @@ public class InternalDamageTest {
                 .mapToInt(w -> w.isFunctional() ? 1 : 0).sum();
 
         // Apply heavy damage — enough that at least one "phaser" DAC result fires.
-        ship.applyInternalDamage(50);
+        // "phaser" appears on lines 3 and 4; 300 rolls makes failure negligible.
+        ship.applyInternalDamage(300);
 
         int phasersAfter = ship.getWeapons().getPhaserList().stream()
                 .mapToInt(w -> w.isFunctional() ? 1 : 0).sum();

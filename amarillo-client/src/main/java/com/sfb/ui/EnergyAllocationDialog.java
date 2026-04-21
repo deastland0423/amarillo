@@ -707,7 +707,7 @@ public class EnergyAllocationDialog extends Stage {
                 case "HOLD":
                 case "FINISH":
                     e.getArmingEnergy().put((Weapon) hw, (double) hw.energyToArm());
-                    e.getArmingType().put((Weapon) hw, WeaponArmingType.STANDARD);
+                    e.getArmingType().put((Weapon) hw, hw.getArmingType());
                     break;
                 case "ROLL":
                     int rollCost = ((com.sfb.weapons.PlasmaLauncher) hw).rollingCost();

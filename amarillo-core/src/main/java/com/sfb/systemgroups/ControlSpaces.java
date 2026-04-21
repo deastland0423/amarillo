@@ -53,23 +53,30 @@ public class ControlSpaces implements Systems {
 		availableSecurity = security = values.get("security") == null ? 0 : (Integer)values.get("security");
 	}
 	
-	////// VALUE CALLS /////////
+	////// MAX (original) VALUE CALLS /////////
+	public int getBridge()   { return bridge; }
+	public int getFlag()     { return flag; }
+	public int getEmer()     { return emer; }
+	public int getAuxcon()   { return auxcon; }
+	public int getSecurity() { return security; }
+
+	////// CURRENT VALUE CALLS /////////
 	public int getAvailableBridge() {
 		return this.availableBridge;
 	}
-	
+
 	public int getAvailableFlag() {
 		return this.availableFlag;
 	}
-	
+
 	public int getAvailableEmer() {
 		return this.availableEmer;
 	}
-	
+
 	public int getAvailableAuxcon() {
 		return this.availableAuxcon;
 	}
-	
+
 	public int getAvailableSecurity() {
 		return this.availableSecurity;
 	}

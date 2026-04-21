@@ -147,15 +147,26 @@ export const gameApi = {
     return request(`/api/games/${gameId}/status`);
   },
 
+  getLobbyState(gameId: string): Promise<unknown> {
+    return request(`/api/games/${gameId}/lobby`);
+  },
+
   listScenarios(): Promise<ScenarioSummary[]> {
     return request('/api/games/scenarios');
   },
 
-  startGame(gameId: string, playerToken: string, scenarioId: string): Promise<{ message: string }> {
+  loadScenario(gameId: string, hostToken: string, scenarioId: string): Promise<{ message: string }> {
+    return request(`/api/games/${gameId}/scenario`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+      body: JSON.stringify({ scenarioId }),
+    });
+  },
+
+  startGame(gameId: string, playerToken: string): Promise<{ message: string }> {
     return request(`/api/games/${gameId}/start`, {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },
-      body: JSON.stringify({ scenarioId }),
     });
   },
 
@@ -196,6 +207,18 @@ export const gameApi = {
     return request(`/api/games/scenarios/${scenarioId}/coi-data`);
   },
 
+  getHarOptions(
+    gameId: string,
+    playerToken: string,
+    attacker: string,
+    target: string,
+  ): Promise<{ code: string; label: string }[]> {
+    return request(
+      `/api/games/${gameId}/har-options?attacker=${encodeURIComponent(attacker)}&target=${encodeURIComponent(target)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
   submitCoi(gameId: string, playerToken: string, body: CoiSubmission): Promise<{ message: string }> {
     return request(`/api/games/${gameId}/coi`, {
       method: 'POST',
@@ -213,6 +236,47 @@ export const gameApi = {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },
       body: JSON.stringify(body),
+    });
+  },
+
+  boardingAction(
+    gameId: string,
+    playerToken: string,
+    shipName: string,
+    targetName: string,
+    normalParties: number,
+    commandoParties: number,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({
+        type:            'BOARDING_ACTION',
+        shipName,
+        targetName,
+        normalParties,
+        commandoParties,
+      }),
+    });
+  },
+
+  placeTBomb(
+    gameId: string,
+    playerToken: string,
+    shipName: string,
+    col: number,
+    row: number,
+    isReal: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({
+        type:     'PLACE_TBOMB',
+        shipName,
+        action:   `${col}|${row}`,
+        pseudo:   !isReal,   // server treats pseudo=true as dummy
+      }),
     });
   },
 };

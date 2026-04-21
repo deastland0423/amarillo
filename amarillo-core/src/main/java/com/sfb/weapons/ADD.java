@@ -36,7 +36,8 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         ADD_6, ADD_12
     }
 
-    private final int capacity; // shots per full load (6 or 12)
+    private AddType addType;
+    private int capacity; // shots per full load (6 or 12)
     private int shots; // shots remaining in current load
     private int reloadsAvailable; // individual shots remaining in reserve
 
@@ -47,6 +48,7 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         setMaxShotsPerTurn(Integer.MAX_VALUE);
         setMaxRange(3);
 
+        this.addType = type;
         switch (type) {
             case ADD_12:
                 this.capacity = 12;
@@ -58,6 +60,19 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         }
         this.shots = capacity;
         this.reloadsAvailable = numberOfReloads * capacity;
+    }
+
+    public AddType getAddType() { return addType; }
+
+    /** Upgrade this ADD to a new type (e.g. ADD_6 → ADD_12).
+     *  Refills current load to new capacity; scales reserve proportionally. */
+    public void upgradeTo(AddType newType) {
+        int oldCapacity = this.capacity;
+        this.addType = newType;
+        this.capacity = (newType == AddType.ADD_12) ? 12 : 6;
+        int reloadSets = oldCapacity > 0 ? reloadsAvailable / oldCapacity : 0;
+        this.shots = capacity;
+        this.reloadsAvailable = reloadSets * capacity;
     }
 
     @Override

@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "note": "This is the workhorse of the Federation.",
   
   "shields": [30, 24, 20, 20, 20, 24],
   

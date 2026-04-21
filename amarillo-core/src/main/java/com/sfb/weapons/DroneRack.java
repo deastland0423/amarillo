@@ -42,7 +42,7 @@ public class DroneRack extends Weapon implements Launcher {
 				break;
 			case TYPE_B:
 				this.spaces = 6;
-				this.numberOfReloads = 2;
+				this.numberOfReloads = 1;
 				break;
 			case TYPE_C:
 				this.spaces = 4;
@@ -96,6 +96,67 @@ public class DroneRack extends Weapon implements Launcher {
 
 	public void setType(DroneRackType type) {
 		this.type = type;
+	}
+
+	/**
+	 * Re-initialize this rack as a new type, preserving designator, arcs, and ammo
+	 * (capped to new space limit).
+	 */
+	public void upgradeRackType(DroneRackType newType) {
+		this.type = newType;
+		setMaxShotsPerTurn(1);
+		setMinImpulseGap(8);
+		switch (newType) {
+			case TYPE_A:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_B:
+				this.spaces = 6;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_C:
+				this.spaces = 4;
+				this.numberOfReloads = 2;
+				setMaxShotsPerTurn(2);
+				setMinImpulseGap(12);
+				break;
+			case TYPE_D:
+				this.spaces = 12;
+				this.numberOfReloads = 2;
+				break;
+			case TYPE_E:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_F:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_G:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+			case TYPE_H:
+				this.spaces = 20;
+				this.numberOfReloads = 2;
+				break;
+			default:
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				break;
+		}
+		// Trim loaded ammo to new space limit
+		double usedSpaces = ammoList.stream().mapToDouble(d -> d.getRackSize()).sum();
+		while (usedSpaces > spaces && !ammoList.isEmpty()) {
+			usedSpaces -= ammoList.remove(ammoList.size() - 1).getRackSize();
+		}
+		reloads.clear();
+	}
+
+	/** Add N extra reload sets (for faction upgrades like Federation TYPE_G). */
+	public void addReloads(int count) {
+		this.numberOfReloads += count;
 	}
 
 	@Override
@@ -156,9 +217,11 @@ public class DroneRack extends Weapon implements Launcher {
 		for (int i = 0; i < numberOfReloads; i++) {
 			List<Drone> set = new ArrayList<>();
 			for (Drone d : ammoList) {
-				if (d.getDroneType() != null) set.add(new Drone(d.getDroneType()));
+				if (d.getDroneType() != null)
+					set.add(new Drone(d.getDroneType()));
 			}
-			if (!set.isEmpty()) this.reloads.add(set);
+			if (!set.isEmpty())
+				this.reloads.add(set);
 		}
 	}
 
@@ -212,10 +275,15 @@ public class DroneRack extends Weapon implements Launcher {
 	 * pending drones are returned to reloads so they are not lost.
 	 */
 	public void completePendingReload() {
-		if (pendingReloadSet == null) return;
+		if (pendingReloadSet == null)
+			return;
 		if (isFunctional()) {
 			this.ammoList = new ArrayList<>(pendingReloadSet);
+			// For full-set reloads the list is reference-identical, so remove() finds it.
+			// For custom (partial) reloads the drones were already removed from their sets
+			// during staging, so remove() is a no-op; clean up any now-empty sets instead.
 			this.reloads.remove(pendingReloadSet);
+			this.reloads.removeIf(List::isEmpty);
 		} else {
 			// Rack was destroyed — return drones to reloads (they survive)
 			if (!this.reloads.contains(pendingReloadSet)) {
@@ -251,9 +319,12 @@ public class DroneRack extends Weapon implements Launcher {
 	}
 
 	/**
-	 * Returns all drone types available to load in this rack for the given scenario year
-	 * and optional speed cap. Only types whose rack size fits within this rack's space
-	 * count are included (a TYPE_A rack with 4 spaces can hold TypeIV at 2.0 spaces).
+	 * Returns all drone types available to load in this rack for the given scenario
+	 * year
+	 * and optional speed cap. Only types whose rack size fits within this rack's
+	 * space
+	 * count are included (a TYPE_A rack with 4 spaces can hold TypeIV at 2.0
+	 * spaces).
 	 *
 	 * @param year          the scenario year
 	 * @param maxDroneSpeed maximum allowed drone speed, or null for year-based only
@@ -262,8 +333,10 @@ public class DroneRack extends Weapon implements Launcher {
 			int year, Integer maxDroneSpeed) {
 		java.util.List<com.sfb.objects.DroneType> result = new java.util.ArrayList<>();
 		for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
-			if (!dt.availableIn(year)) continue;
-			if (maxDroneSpeed != null && dt.speed > maxDroneSpeed) continue;
+			if (!dt.availableIn(year))
+				continue;
+			if (maxDroneSpeed != null && dt.speed > maxDroneSpeed)
+				continue;
 			result.add(dt);
 		}
 		return result;

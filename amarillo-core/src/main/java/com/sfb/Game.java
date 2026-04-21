@@ -80,6 +80,7 @@ public class Game {
     private final List<Player> players = new ArrayList<>();
     private final List<Ship> ships = new ArrayList<>();
     private final List<Seeker> seekers = new ArrayList<>();
+    private int seekerSeq = 0; // monotonic counter for unique seeker names
     private final List<com.sfb.objects.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
     private final List<SpaceMine> mines = new ArrayList<>();
     private final Set<Ship> movedThisImpulse = new HashSet<>();
@@ -376,6 +377,40 @@ public class Game {
                 log.add(attacker.getName() + " re-acquired lock-on to " + target.getName());
             } else {
                 log.add(attacker.getName() + " failed to re-acquire lock-on to " + target.getName()
+                        + " (rolled " + roll + ", needs ≤" + sensorRating + ")");
+            }
+        }
+        return log;
+    }
+
+    /**
+     * Lock-on acquisition for a newly launched seeker (D6.121 / D6.113).
+     * <p>
+     * The launcher automatically has lock-on to the seeker it just launched.
+     * Every other ship with active fire control rolls 1d6 per its sensor rating
+     * to acquire lock-on on the new unit (same mechanic as {@link #checkLockOnsForUnit}).
+     *
+     * @param launcher The ship that launched the new seeker.
+     * @param newUnit  The newly launched seeker (drone, plasma, suicide shuttle, scatter pack).
+     * @return Log lines describing the acquisition results.
+     */
+    private List<String> checkLockOnsForNewUnit(Ship launcher, Unit newUnit) {
+        List<String> log = new ArrayList<>();
+
+        // Launcher always has lock-on to its own seeker
+        launcher.addLockOn(newUnit);
+
+        // All other ships with active fire control roll to acquire lock-on
+        DiceRoller dice = new DiceRoller();
+        for (Ship ship : ships) {
+            if (ship == launcher) continue;
+            if (!ship.isActiveFireControl()) continue;
+
+            int sensorRating = ship.getSpecialFunctions().getSensor();
+            int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
+            if (roll <= sensorRating) {
+                ship.addLockOn(newUnit);
+                log.add(ship.getName() + " acquired lock-on to " + newUnit.getName()
                         + " (rolled " + roll + ", needs ≤" + sensorRating + ")");
             }
         }
@@ -908,6 +943,10 @@ public class Game {
         java.util.List<com.sfb.weapons.Disruptor> uimFiredDisruptors = new java.util.ArrayList<>();
 
         for (Weapon w : selected) {
+            if (!w.isFunctional()) {
+                log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
+                continue;
+            }
             try {
                 int dmg;
                 if (uimInUse && w instanceof com.sfb.weapons.Disruptor) {
@@ -1053,6 +1092,7 @@ public class Game {
 
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
+        drone.setName(launcher.getName() + "-Drone-" + (++seekerSeq));
         drone.setLocation(launcher.getLocation());
         drone.setFacing(MapUtils.getBearing(launcher, target));
         drone.setTarget(target);
@@ -1060,9 +1100,12 @@ public class Game {
         drone.setLaunchImpulse(TurnTracker.getImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
         seekers.add(drone);
+        List<String> lockLog = checkLockOnsForNewUnit(launcher, drone);
 
-        return ActionResult.ok(launcher.getName() + " launched " + drone.getDroneType()
-                + " drone at " + target.getName());
+        String msg = launcher.getName() + " launched " + drone.getDroneType()
+                + " drone at " + target.getName();
+        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -1084,6 +1127,7 @@ public class Game {
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch");
 
+        torpedo.setName(launcher.getName() + "-Plasma-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
@@ -1091,9 +1135,12 @@ public class Game {
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         seekers.add(torpedo);
+        List<String> lockLog = checkLockOnsForNewUnit(launcher, torpedo);
 
-        return ActionResult.ok(launcher.getName() + " launched plasma-"
-                + torpedo.getPlasmaType() + " at " + target.getName());
+        String msg = launcher.getName() + " launched plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName();
+        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon) {
@@ -1110,6 +1157,7 @@ public class Game {
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
 
+        torpedo.setName(launcher.getName() + "-Pseudo-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
@@ -1117,9 +1165,12 @@ public class Game {
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         seekers.add(torpedo);
+        List<String> lockLog = checkLockOnsForNewUnit(launcher, torpedo);
 
-        return ActionResult.ok(launcher.getName() + " launched pseudo plasma-"
-                + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]");
+        String msg = launcher.getName() + " launched pseudo plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";
+        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     // -------------------------------------------------------------------------
@@ -1168,13 +1219,18 @@ public class Game {
             return ActionResult.fail("No control channels available (limit: " + launcher.getControlLimit() + ")");
 
         bay.launch(shuttle, shuttle.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        shuttle.setName(launcher.getName() + "-Suicide-" + (++seekerSeq));
         shuttle.setLocation(launcher.getLocation());
         shuttle.setTarget(target);
         shuttle.setController(launcher);
         shuttle.setLaunchImpulse(TurnTracker.getImpulse());
         seekers.add(shuttle);
-        return ActionResult.ok(launcher.getName() + " launched suicide shuttle at " + target.getName()
-                + " (warhead " + shuttle.getWarheadDamage() + ")");
+        List<String> lockLog = checkLockOnsForNewUnit(launcher, shuttle);
+
+        String msg = launcher.getName() + " launched suicide shuttle at " + target.getName()
+                + " (warhead " + shuttle.getWarheadDamage() + ")";
+        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -1195,13 +1251,18 @@ public class Game {
             return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
 
         bay.launch(pack, pack.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        pack.setName(launcher.getName() + "-Pack-" + (++seekerSeq));
         pack.setLocation(launcher.getLocation());
         pack.setTarget(target);
         pack.setController(launcher);
         pack.setLaunchImpulse(TurnTracker.getImpulse());
         seekers.add(pack);
-        return ActionResult.ok(launcher.getName() + " launched scatter pack ("
-                + pack.getPayload().size() + " drones) at " + target.getName());
+        List<String> lockLog = checkLockOnsForNewUnit(launcher, pack);
+
+        String msg = launcher.getName() + " launched scatter pack ("
+                + pack.getPayload().size() + " drones) at " + target.getName();
+        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -1334,7 +1395,7 @@ public class Game {
         Set<Seeker> placed = new HashSet<>();
         for (Seeker s : seekers) {
             Unit target = (s instanceof Drone) ? ((Drone) s).getTarget() : null;
-            if (target instanceof Seeker && seekerSet.contains(target) && !placed.contains(target)) {
+            if (target instanceof Seeker && seekerSet.contains((Seeker) target) && !placed.contains((Seeker) target)) {
                 ordered.add((Seeker) target);
                 placed.add((Seeker) target);
             }
@@ -1656,6 +1717,66 @@ public class Game {
                 + " at " + targetHex);
     }
 
+    /**
+     * Drop a mine from a shuttle bay into the ship's current hex (M2.1).
+     * Works for T-Bombs (real or dummy) and NSMs. Consumes one shuttle-bay use.
+     * Arming is range-based: the mine becomes active once the laying ship moves
+     * more than 2 hexes away (M2.34).
+     *
+     * @param actingShip the ship dropping the mine
+     * @param mineType   "TBOMB", "DUMMY_TBOMB", or "NSM"
+     */
+    public ActionResult dropMine(Ship actingShip, String mineType) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Mines can only be dropped during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(actingShip);
+        if (cloakBlock != null) return cloakBlock;
+
+        if (actingShip.getLocation() == null)
+            return ActionResult.fail("Ship has no location");
+
+        // Find an available shuttle bay
+        int currentImpulse = TurnTracker.getImpulse();
+        com.sfb.systemgroups.ShuttleBay availableBay = null;
+        for (com.sfb.systemgroups.ShuttleBay bay : actingShip.getShuttles().getBays()) {
+            if (bay.canLaunch(currentImpulse)) {
+                availableBay = bay;
+                break;
+            }
+        }
+        if (availableBay == null)
+            return ActionResult.fail("No shuttle bay available to drop a mine this impulse");
+
+        // Check inventory and deduct
+        boolean isNsm = "NSM".equalsIgnoreCase(mineType);
+        boolean isDummy = "DUMMY_TBOMB".equalsIgnoreCase(mineType);
+        if (isNsm) {
+            if (actingShip.getNuclearSpaceMines() < 1)
+                return ActionResult.fail("No nuclear space mines remaining");
+            actingShip.setNuclearSpaceMines(actingShip.getNuclearSpaceMines() - 1);
+        } else if (isDummy) {
+            if (actingShip.getDummyTBombs() < 1)
+                return ActionResult.fail("No dummy T-Bombs remaining");
+            actingShip.setDummyTBombs(actingShip.getDummyTBombs() - 1);
+        } else {
+            if (actingShip.getTBombs() < 1)
+                return ActionResult.fail("No T-Bombs remaining");
+            actingShip.setTBombs(actingShip.getTBombs() - 1);
+        }
+
+        // Consume the bay slot and place the mine
+        availableBay.markUsed(currentImpulse);
+        SpaceMine mine = isNsm
+                ? SpaceMine.createDroppedNSM(actingShip, currentImpulse)
+                : SpaceMine.createDroppedTBomb(actingShip, currentImpulse, !isDummy);
+        mine.setLocation(actingShip.getLocation());
+        mines.add(mine);
+
+        return ActionResult.ok(actingShip.getName() + " dropped a "
+                + (isNsm ? "Nuclear Space Mine" : isDummy ? "dummy T-Bomb" : "T-Bomb")
+                + " at " + actingShip.getLocation());
+    }
+
     // -------------------------------------------------------------------------
     // Cloaking
     // -------------------------------------------------------------------------
@@ -1665,6 +1786,8 @@ public class Game {
      * Transitions the device to FADING_OUT.
      */
     public ActionResult cloak(Ship ship) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Cloaking device can only be activated during the Activity phase");
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak == null)
             return ActionResult.fail(ship.getName() + " has no cloaking device");
@@ -1679,6 +1802,8 @@ public class Game {
      * Begin decloaking. Transitions the device to FADING_IN.
      */
     public ActionResult uncloak(Ship ship) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Cloaking device can only be deactivated during the Activity phase");
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak == null)
             return ActionResult.fail(ship.getName() + " has no cloaking device");
@@ -1712,13 +1837,15 @@ public class Game {
             if (mine.getLocation() == null)
                 continue;
 
-            // Try to arm inactive mines
+            // Try to arm inactive mines; skip detection the impulse they arm
             if (!mine.isActive()) {
-                int layerRange = MapUtils.getRange(mine, mine.getLayingShip());
+                int layerRange = mine.getLayingShip() != null
+                        ? MapUtils.getRange(mine, mine.getLayingShip()) : Integer.MAX_VALUE;
                 mine.tryActivate(currentImpulse, layerRange);
                 if (!mine.isActive())
                     continue;
-                log.add("  tBomb at " + mine.getLocation() + " is now ARMED");
+                log.add("  " + mine.getMineType().label + " at " + mine.getLocation() + " is now ARMED");
+                continue; // cannot trigger until the next impulse
             }
 
             // Find units within range 1

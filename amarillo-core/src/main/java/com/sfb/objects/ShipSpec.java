@@ -16,9 +16,11 @@ import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.ADD;
 import com.sfb.weapons.Disruptor;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.Fusion;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.Phaser3;
+import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Photon;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
@@ -36,6 +38,7 @@ public class ShipSpec {
     public int serviceYear;
     public int bpv;
     public int epv;
+    public int commandRating;
     public String turnMode;
     public int sizeClass;
     public double moveCost;
@@ -55,6 +58,8 @@ public class ShipSpec {
 
     public List<WeaponSpec> weapons;
     public List<ShuttleBaySpec> shuttleBays;
+    /** If present, applied instead of faction default Y175 upgrades. Empty lists = fully exempt. */
+    public Y175Upgrades y175Upgrades;
 
     // -------------------------------------------------------------------------
     // Inner spec classes
@@ -127,6 +132,26 @@ public class ShipSpec {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Y175RackUpgrade {
+        public String designator;   // matches weapon designator in the ship JSON
+        public String upgradeTo;    // DroneRackType name, e.g. "TYPE_B", "TYPE_C"
+        public int    extraReloads; // additional reload sets (e.g. Federation TYPE_G +1)
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Y175AddUpgrade {
+        public String designator;  // matches weapon designator
+        public String upgradeTo;   // AddType name, e.g. "ADD_12"
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Y175Upgrades {
+        public List<Y175RackUpgrade> racks = new ArrayList<>();
+        public List<Y175AddUpgrade>  adds  = new ArrayList<>();
+        public int refitCost = 0;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class WeaponSpec {
         public String type;
         public String designator;
@@ -172,6 +197,8 @@ public class ShipSpec {
         m.put("serviceyear", serviceYear);
         m.put("bpv", bpv);
         m.put("epv", epv);
+        if (commandRating > 0)
+            m.put("commandrating", commandRating);
         m.put("turnmode", TurnMode.valueOf(turnMode));
         m.put("sizeclass", sizeClass);
         m.put("movecost", moveCost);
@@ -294,10 +321,13 @@ public class ShipSpec {
     private List<Weapon> buildWeapons() {
         List<Weapon> list = new ArrayList<>();
         for (WeaponSpec ws : weapons) {
-            int arcMask = ws.arcs == null || ws.arcs.isEmpty() ? ArcUtils.FULL : ArcUtils.calculateMask(ws.arcs);
+            List<String> arcs = (ws.arcs == null || ws.arcs.isEmpty()) ? List.of("FULL") : ws.arcs;
+            int arcMask = ArcUtils.calculateMask(arcs);
             Weapon w = buildWeapon(ws, arcMask);
-            if (w != null)
+            if (w != null) {
+                w.setArcsFromJSON(arcs);  // sets both bitmask and arcLabel
                 list.add(w);
+            }
         }
         return list;
     }
@@ -360,6 +390,18 @@ public class ShipSpec {
                 }
                 rack.setAmmo(ammo);
                 return rack;
+            }
+            case "PhaserG": {
+                PhaserG pg = new PhaserG();
+                pg.setArcs(arcMask);
+                pg.setDesignator(ws.designator);
+                return pg;
+            }
+            case "Fusion": {
+                Fusion f = new Fusion();
+                f.setArcs(arcMask);
+                f.setDesignator(ws.designator);
+                return f;
             }
             case "ADD": {
                 AddType addType = ws.addType != null

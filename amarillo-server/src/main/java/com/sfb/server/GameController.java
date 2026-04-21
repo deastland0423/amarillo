@@ -37,17 +37,22 @@ public class GameController {
         this.broker         = broker;
     }
 
-    private GameStateDto buildState(GameSession session) {
+    /** Snapshot for REST GET — never drains the combat log. */
+    private GameStateDto snapshotState(GameSession session) {
         GameStateDto dto = new GameStateDto(session.getGame());
-        dto.readyCount   = session.getReadyCount();
-        dto.playerCount  = session.getPlayerCount();
+        dto.readyCount  = session.getReadyCount();
+        dto.playerCount = session.getPlayerCount();
+        // combatLog intentionally empty — events are delivered exclusively via WebSocket
         return dto;
     }
 
+    /** Broadcast for WebSocket — drains the combat log so it is delivered exactly once. */
     private void broadcastState(GameSession session) {
+        GameStateDto dto = snapshotState(session);
+        dto.combatLog    = session.drainCombatLog();
         broker.convertAndSend(
             "/topic/games/" + session.getId() + "/state",
-            buildState(session)
+            dto
         );
     }
 
@@ -293,6 +298,38 @@ public class GameController {
      *   "weaponArmingModes": { "A": "OVERLOAD", "B": "SPECIAL" } } }
      * Can be called multiple times before start(); later calls overwrite earlier ones.
      */
+    // -------------------------------------------------------------------------
+    // Load scenario (host only, before start)
+    // -------------------------------------------------------------------------
+
+    @PostMapping("/{id}/scenario")
+    public ResponseEntity<Map<String, String>> loadScenario(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, String> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.isHost(token))
+            return ResponseEntity.status(403).body(Map.of("error", "Only the host can select the scenario"));
+        if (session.isStarted())
+            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+        String scenarioId = body.get("scenarioId");
+        if (scenarioId == null || scenarioId.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "scenarioId is required"));
+
+        try {
+            session.loadScenario(scenarioId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+
+        broadcastLobby(session);
+        return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
+    }
+
     @PostMapping("/{id}/coi")
     public ResponseEntity<Map<String, String>> submitCoi(
             @PathVariable String id,
@@ -304,6 +341,8 @@ public class GameController {
             return ResponseEntity.notFound().build();
         if (!session.hasPlayer(token))
             return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+        if (!session.isScenarioLoaded())
+            return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
         if (session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
@@ -312,36 +351,35 @@ public class GameController {
             loadouts.put(entry.getKey(), entry.getValue().toLoadout());
         }
         session.submitCoi(token, loadouts);
+        broadcastLobby(session);
         return ResponseEntity.ok(Map.of("message", "COI selections saved"));
     }
 
     @PostMapping("/{id}/start")
     public ResponseEntity<Map<String, String>> startGame(
             @PathVariable String id,
-            @RequestHeader("X-Player-Token") String token,
-            @RequestBody Map<String, String> body) {
+            @RequestHeader("X-Player-Token") String token) {
 
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
         if (!session.isHost(token))
             return ResponseEntity.status(403).body(Map.of("error", "Only the host can start the game"));
+        if (!session.isScenarioLoaded())
+            return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
         if (session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
-
-        String scenarioId = body.get("scenarioId");
-        if (scenarioId == null || scenarioId.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "scenarioId is required"));
+        if (!session.allCoiDone())
+            return ResponseEntity.badRequest().body(Map.of("error", "Waiting for all players to submit COI"));
 
         try {
-            session.start(scenarioId);
+            session.start();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
 
         broadcastLobby(session);
         broadcastState(session);
-
         return ResponseEntity.ok(Map.of("message", "Game started — impulse 1 begins now"));
     }
 
@@ -385,8 +423,6 @@ public class GameController {
             return ResponseEntity.notFound().build();
         if (!session.isHost(token))
             return ResponseEntity.status(403).body(Map.of("error", "Only the host can assign ships"));
-        if (!session.isStarted())
-            return ResponseEntity.badRequest().body(Map.of("error", "Start the game before assigning ships"));
 
         String playerToken = body.get("playerToken");
         String shipName    = body.get("shipName");
@@ -398,6 +434,7 @@ public class GameController {
             return ResponseEntity.badRequest().body(Map.of("error", result));
 
         broadcastLobby(session);
+        if (session.isStarted()) broadcastState(session);  // notify GameBoard clients
         return ResponseEntity.ok(Map.of("message", shipName + " assigned successfully"));
     }
 
@@ -461,6 +498,45 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Hit & Run target options — systems on the target ship available for raiding
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/har-options")
+    public ResponseEntity<?> getHarOptions(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker,
+            @RequestParam String target) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null) return ResponseEntity.notFound().build();
+
+        Ship targetShip = session.getGame().getShips().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(target))
+                .findFirst().orElse(null);
+        if (targetShip == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
+
+        List<com.sfb.properties.SystemTarget> systems =
+                session.getGame().getTargetableSystems(targetShip);
+
+        List<Map<String, String>> result = systems.stream()
+                .map(st -> {
+                    Map<String, String> m = new java.util.LinkedHashMap<>();
+                    if (st.getType() == com.sfb.properties.SystemTarget.Type.WEAPON) {
+                        m.put("code",  "WEAPON:" + st.getDisplayName());
+                    } else {
+                        m.put("code",  st.getType().name());
+                    }
+                    m.put("label", st.getDisplayName());
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
+    }
+
+    // -------------------------------------------------------------------------
     // Action
     // -------------------------------------------------------------------------
 
@@ -492,6 +568,17 @@ public class GameController {
                 "success", result.isSuccess(),
                 "message", result.getMessage()
         ));
+    }
+
+    // -------------------------------------------------------------------------
+    // Lobby state (read-only snapshot — same payload as the WebSocket broadcasts)
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/lobby")
+    public ResponseEntity<?> getLobbyState(@PathVariable String id) {
+        GameSession session = sessionService.getSession(id);
+        if (session == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(new LobbyStateDto(session));
     }
 
     // -------------------------------------------------------------------------
@@ -537,7 +624,7 @@ public class GameController {
         if (!session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game has not started"));
 
-        GameStateDto dto = buildState(session);
+        GameStateDto dto = snapshotState(session);
 
         // Populate myShips if the caller identifies themselves
         if (token != null && session.hasPlayer(token)) {

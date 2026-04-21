@@ -1,7 +1,7 @@
 {
   "faction": "Klingon",
   "hull": "D7",
-  "name": "IKS Barbarous",
+  "name": "IKS Klodode",
   "serviceYear": 135,
   "bpv": 121,
   "turnMode": "B",
@@ -44,11 +44,7 @@
     "transporters": 5,
     "tractors": 3,
     "labs": 4,
-    "probes": 1,
-    "derfacs": true,
-    "uim": 4,
-    "tBombs": 1,
-    "dummyTBombs": 1
+    "probes": 1
   },
 
   "shuttleBays": [

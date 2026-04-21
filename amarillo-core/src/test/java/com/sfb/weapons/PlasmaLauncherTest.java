@@ -114,6 +114,115 @@ public class PlasmaLauncherTest {
     }
 
     // -------------------------------------------------------------------------
+    // Plasma-S arming
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void plasmaSArmsAfterThreeTurns() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        assertTrue(launcher.arm(2));  // turn 1: sArmingCost[0]
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.arm(2));  // turn 2
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.arm(4));  // turn 3: sArmingCost[1]
+        assertTrue(launcher.isArmed());
+        assertEquals(PlasmaType.S, launcher.getPlasmaType());
+        assertEquals(WeaponArmingType.STANDARD, launcher.getArmingType());
+    }
+
+    @Test
+    public void plasmaSEnveloping() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        launcher.arm(2);
+        launcher.arm(2);
+        assertTrue(launcher.arm(8));  // double cost = EPT
+        assertTrue(launcher.isArmed());
+        assertEquals(WeaponArmingType.OVERLOAD, launcher.getArmingType());
+    }
+
+    @Test
+    public void plasmaSRollingThenFinish() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        launcher.arm(2);
+        launcher.arm(2);
+        assertTrue(launcher.arm(2));  // roll instead of finish
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.isRolling());
+        assertTrue(launcher.arm(4));  // finish next turn
+        assertTrue(launcher.isArmed());
+    }
+
+    @Test
+    public void plasmaSCanArmFInside() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        assertTrue(launcher.arm(1));  // fArmingCost[0]: start as F
+        assertEquals(PlasmaType.F, launcher.getPlasmaType());
+        assertTrue(launcher.arm(1));
+        assertTrue(launcher.arm(3));  // fArmingCost[1]
+        assertTrue(launcher.isArmed());
+        assertEquals(PlasmaType.F, launcher.getPlasmaType());
+    }
+
+    @Test
+    public void plasmaSWrongEnergyRejected() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        assertFalse(launcher.arm(5));  // nonsense value
+        assertEquals(0, launcher.getArmingTurn());
+    }
+
+    // -------------------------------------------------------------------------
+    // Plasma-R arming
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void plasmaRArmsAfterThreeTurns() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        assertTrue(launcher.arm(2));  // rArmingCost[0]
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.arm(2));
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.arm(5));  // rArmingCost[1]
+        assertTrue(launcher.isArmed());
+        assertEquals(PlasmaType.R, launcher.getPlasmaType());
+        assertEquals(WeaponArmingType.STANDARD, launcher.getArmingType());
+    }
+
+    @Test
+    public void plasmaREnveloping() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        launcher.arm(2);
+        launcher.arm(2);
+        assertTrue(launcher.arm(10));  // double final cost = EPT
+        assertTrue(launcher.isArmed());
+        assertEquals(WeaponArmingType.OVERLOAD, launcher.getArmingType());
+    }
+
+    @Test
+    public void plasmaRRollingThenFinish() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        launcher.arm(2);
+        launcher.arm(2);
+        assertTrue(launcher.arm(2));  // roll
+        assertFalse(launcher.isArmed());
+        assertTrue(launcher.isRolling());
+        assertTrue(launcher.arm(5));  // finish
+        assertTrue(launcher.isArmed());
+    }
+
+    @Test
+    public void plasmaRCannotHold() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        assertFalse(launcher.canHold());
+    }
+
+    @Test
+    public void plasmaRWrongEnergyRejected() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        assertFalse(launcher.arm(5));  // wrong first-turn energy
+        assertEquals(0, launcher.getArmingTurn());
+    }
+
+    // -------------------------------------------------------------------------
     // Launch
     // -------------------------------------------------------------------------
 

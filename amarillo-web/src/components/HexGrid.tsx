@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MapObject, ShipObject } from '../types/gameState';
+import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
 import { parseLocation, facingToAngle, factionColor } from '../types/gameState';
 
 const COLS    = 42;
 const ROWS    = 32;
-const SIZE    = 28;   // circumradius: center → corner
+const SIZE    = 38;   // circumradius: center → corner
 const PADDING = 12;
 const SQRT3   = Math.sqrt(3);
 
@@ -85,6 +85,7 @@ function drawShields(
   cy: number,
   ship: ShipObject,
   bowAngle: number,
+  isMine: boolean,
 ) {
   if (!ship.shields || ship.shields.length === 0) return;
   const shieldR  = SIZE * 0.42 + 9;   // just outside selection ring
@@ -94,23 +95,27 @@ function drawShields(
   for (let i = 0; i < 6; i++) {
     const sh = ship.shields[i];
     if (!sh) continue;
-    const center = bowAngle + i * arcSpan;
-    const color  = shieldArcColor(sh.current, sh.max);
+    const visible  = isMine ? sh.current : sh.baseStrength;
+    const center   = bowAngle + i * arcSpan;
+    const isDown   = !sh.active;
+    const color    = isDown ? '#3a3a3a' : shieldArcColor(visible, sh.max);
 
     ctx.strokeStyle = color;
-    ctx.lineWidth   = 3.5;
+    ctx.lineWidth   = isDown ? 2 : 3.5;
+    ctx.setLineDash(isDown ? [3, 4] : []);
     ctx.beginPath();
     ctx.arc(cx, cy, shieldR, center - arcSpan / 2 + gap, center + arcSpan / 2 - gap);
     ctx.stroke();
+    ctx.setLineDash([]);
 
     // Strength number, placed just outside the arc
     if (sh.max > 0) {
       const labelR = shieldR + 7;
-      ctx.fillStyle    = color;
+      ctx.fillStyle    = isDown ? '#484f58' : color;
       ctx.font         = '7px monospace';
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(sh.current), cx + Math.cos(center) * labelR, cy + Math.sin(center) * labelR);
+      ctx.fillText(String(visible), cx + Math.cos(center) * labelR, cy + Math.sin(center) * labelR);
     }
   }
 }
@@ -176,7 +181,7 @@ function drawShip(
   ctx.lineTo(bowX, bowY);
   ctx.stroke();
 
-  drawShields(ctx, cx, cy, ship, angle);
+  drawShields(ctx, cx, cy, ship, angle, isMine);
 
   ctx.fillStyle    = '#e6edf3';
   ctx.font         = '8px monospace';
@@ -229,13 +234,28 @@ function drawObjects(
       ctx.beginPath();
       ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 7, cy + 6); ctx.lineTo(cx - 7, cy + 6);
       ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Strength label
+      const strength = obj.currentStrength ?? 0;
+      ctx.fillStyle    = '#ffffff';
+      ctx.font         = '8px monospace';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(strength), cx, cy + 1);
       continue;
     }
     if (obj.type === 'MINE') {
-      ctx.strokeStyle = '#888888'; ctx.lineWidth = 1.5;
+      const r = 7;
+      ctx.strokeStyle = obj.active ? '#f85149' : '#f0c040';
+      ctx.lineWidth   = 1.5;
       ctx.beginPath();
-      ctx.moveTo(cx - 6, cy - 6); ctx.lineTo(cx + 6, cy + 6);
-      ctx.moveTo(cx + 6, cy - 6); ctx.lineTo(cx - 6, cy + 6);
+      // Horizontal
+      ctx.moveTo(cx - r, cy);     ctx.lineTo(cx + r, cy);
+      // Vertical
+      ctx.moveTo(cx,     cy - r); ctx.lineTo(cx,     cy + r);
+      // Diagonal \
+      ctx.moveTo(cx - r * 0.707, cy - r * 0.707); ctx.lineTo(cx + r * 0.707, cy + r * 0.707);
+      // Diagonal /
+      ctx.moveTo(cx + r * 0.707, cy - r * 0.707); ctx.lineTo(cx - r * 0.707, cy + r * 0.707);
       ctx.stroke();
       continue;
     }
@@ -253,19 +273,106 @@ const H        = SQRT3 * SIZE;
 const CANVAS_W = Math.ceil(PADDING * 2 + SIZE + (COLS - 1) * SIZE * 1.5 + SIZE);
 const CANVAS_H = Math.ceil(PADDING * 2 + H * ROWS + H / 2);
 
+/** Convert an absolute impulse number to a human-readable "T1:I5" string. */
+function absImpulseLabel(abs: number): string {
+  if (!abs || abs <= 0) return '?';
+  const turn    = Math.ceil(abs / 32);
+  const impulse = ((abs - 1) % 32) + 1;
+  return `T${turn}:I${impulse}`;
+}
+
+/** Collect all DRONE and PLASMA objects at hex (col, row). */
+function seekersAt(objects: MapObject[], col: number, row: number): (DroneObject | PlasmaObject)[] {
+  const loc = `<${col}|${row}>`;
+  return objects.filter(
+    (o): o is DroneObject | PlasmaObject =>
+      (o.type === 'DRONE' || o.type === 'PLASMA') && o.location === loc
+  );
+}
+
+/** Build tooltip lines for a list of seekers.
+ *  myShips: the set of ship names owned by the viewing player (null = spectator). */
+function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: string[] | null | undefined): string[] {
+  const lines: string[] = [];
+  for (let i = 0; i < seekers.length; i++) {
+    if (i > 0) lines.push('──────────────────');
+    const s = seekers[i];
+    const isMine = myShips != null && s.controllerName != null && myShips.includes(s.controllerName);
+    const canSeeTarget = isMine || s.isIdentified;
+
+    if (s.type === 'PLASMA') {
+      // Type label and strength are always public
+      lines.push(`Type:       Plasma`);
+      lines.push(`Controller: ${s.controllerName ?? '?'}`);
+      lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
+      lines.push(`Speed:      ${s.speed}`);
+      lines.push(`Str:        ${s.currentStrength}`);
+      if (canSeeTarget) lines.push(`Target:     ${s.targetName ?? '?'}`);
+      // plasmaType and pseudo are never revealed to enemy
+    } else {
+      // Drone type name is public only when identified (or mine)
+      const typeLabel = (isMine || s.isIdentified) ? `Drone ${s.droneType}` : 'Drone';
+      lines.push(`Type:       ${typeLabel}`);
+      lines.push(`Controller: ${s.controllerName ?? '?'}`);
+      lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
+      lines.push(`Speed:      ${s.speed}`);
+      // Damage taken is always public; max hull only revealed when identified
+      const hullMax = (isMine || s.isIdentified) ? `${s.maxHull}` : '?';
+      lines.push(`Damage:     ${s.damageTaken} / ${hullMax}`);
+      if (canSeeTarget)    lines.push(`Target:     ${s.targetName ?? '?'}`);
+      if (isMine || s.isIdentified) {
+        lines.push(`Warhead:    ${s.warheadDamage}`);
+        lines.push(`Endurance:  ${s.endurance}`);
+      }
+    }
+  }
+  return lines;
+}
+
+interface Tooltip {
+  x:     number;   // container-relative pixels
+  y:     number;
+  lines: string[];
+}
+
+interface HexPicker {
+  x:     number;   // container-relative pixels
+  y:     number;
+  units: MapObject[];
+}
+
+/** Short label shown in the hex picker for any map object. */
+function pickerLabel(o: MapObject): string {
+  switch (o.type) {
+    case 'SHIP':         return `Ship: ${o.name}`;
+    case 'DRONE':        return `Drone (${(o as DroneObject).controllerName ?? '?'})`;
+    case 'PLASMA':       return `Plasma (${(o as PlasmaObject).controllerName ?? '?'})`;
+    case 'SHUTTLE':      return `Shuttle: ${o.name}`;
+    case 'SUICIDE_SHUTTLE': return `Shuttle: ${o.name}`;
+    case 'SCATTER_PACK': return `Shuttle: ${o.name}`;
+    default:             return o.name ?? o.type;
+  }
+}
+
 interface Props {
   mapObjects?:      MapObject[];
   myShips?:         string[] | null;
   selectedName?:    string | null;
   fireTargetName?:  string | null;
   onSelect?:        (obj: MapObject | null) => void;
+  /** When set, clicks call this with hex col/row instead of unit selection. */
+  onHexClick?:      (col: number, row: number) => void;
+  /** Switches cursor to crosshair to signal hex-pick mode. */
+  pickingHex?:      boolean;
 }
 
-export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect }: Props) {
-  const [zoom, setZoom]     = useState(1.0);
-  const zoomRef             = useRef(1.0);        // always current, no stale-closure risk
-  const containerRef        = useRef<HTMLDivElement>(null);
-  const canvasRef           = useRef<HTMLCanvasElement>(null);
+export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex }: Props) {
+  const [zoom, setZoom]         = useState(1.0);
+  const [tooltip, setTooltip]   = useState<Tooltip | null>(null);
+  const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
+  const zoomRef                 = useRef(1.0);        // always current, no stale-closure risk
+  const containerRef            = useRef<HTMLDivElement>(null);
+  const canvasRef               = useRef<HTMLCanvasElement>(null);
 
   // Drag-to-pan state
   const dragging   = useRef(false);
@@ -335,45 +442,95 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!dragging.current) return;
-    const dx = e.clientX - dragOrigin.current.x;
-    const dy = e.clientY - dragOrigin.current.y;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.current = true;
-    if (dragMoved.current) {
-      containerRef.current!.scrollLeft = dragOrigin.current.sl - dx;
-      containerRef.current!.scrollTop  = dragOrigin.current.st - dy;
+    // Pan logic
+    if (dragging.current) {
+      const dx = e.clientX - dragOrigin.current.x;
+      const dy = e.clientY - dragOrigin.current.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.current = true;
+      if (dragMoved.current) {
+        containerRef.current!.scrollLeft = dragOrigin.current.sl - dx;
+        containerRef.current!.scrollTop  = dragOrigin.current.st - dy;
+      }
     }
+
+    // Tooltip hit-test (skip if dragging or no seeker objects to check)
+    if (!mapObjects) { setTooltip(null); return; }
+    const canvas  = canvasRef.current!;
+    const rect    = canvas.getBoundingClientRect();
+    const scaleX  = CANVAS_W / rect.width;
+    const scaleY  = CANVAS_H / rect.height;
+    const px      = (e.clientX - rect.left) * scaleX;
+    const py      = (e.clientY - rect.top)  * scaleY;
+    const hex     = pixelToHex(px, py);
+    if (!hex) { setTooltip(null); return; }
+    const [col, row] = hex;
+    const seekers = seekersAt(mapObjects, col, row);
+    if (seekers.length === 0) { setTooltip(null); return; }
+
+    // Position tooltip relative to the container div
+    const containerRect = containerRef.current!.getBoundingClientRect();
+    setTooltip({
+      x:     e.clientX - containerRect.left + 14,
+      y:     e.clientY - containerRect.top  + 14,
+      lines: seekerTooltipLines(seekers, myShips),
+    });
   }
 
   function handleMouseUp() {
     dragging.current = false;
   }
 
+  function handleMouseLeave() {
+    dragging.current = false;
+    setTooltip(null);
+  }
+
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
     // Ignore clicks that were actually drags
     if (dragMoved.current) return;
-    if (!onSelect || !mapObjects) return;
+
+    // Dismiss any open picker on canvas click
+    setHexPicker(null);
+
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
-    // rect.width == CANVAS_W * zoom, so this converts back to canvas pixels
     const scaleX = CANVAS_W / rect.width;
     const scaleY = CANVAS_H / rect.height;
     const px     = (e.clientX - rect.left) * scaleX;
     const py     = (e.clientY - rect.top)  * scaleY;
 
     const hex = pixelToHex(px, py);
+
+    // Hex-pick mode: deliver coordinates, skip unit selection
+    if (pickingHex && onHexClick) {
+      if (hex) onHexClick(hex[0], hex[1]);
+      return;
+    }
+
+    if (!onSelect || !mapObjects) return;
     if (!hex) { onSelect(null); return; }
     const [col, row] = hex;
-    const hit = mapObjects.find(o => o.location === `<${col}|${row}>`) ?? null;
-    onSelect(hit);
+    const hits = mapObjects.filter(o => o.location === `<${col}|${row}>`);
+
+    if (hits.length === 0) { onSelect(null); return; }
+    if (hits.length === 1) { onSelect(hits[0]); return; }
+
+    // Multiple units — show picker at click position (viewport coords for position:fixed)
+    setHexPicker({
+      x:     e.clientX + 8,
+      y:     e.clientY + 8,
+      units: hits,
+    });
   }
 
-  const cursor = dragging.current && dragMoved.current ? 'grabbing' : 'grab';
+  const cursor = pickingHex ? 'crosshair'
+               : (dragging.current && dragMoved.current) ? 'grabbing'
+               : 'grab';
 
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', overflow: 'auto' }}
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'auto' }}
     >
       <canvas
         ref={canvasRef}
@@ -388,9 +545,65 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       />
+      {tooltip && (
+        <div style={{
+          position:        'fixed',
+          left:            tooltip.x,
+          top:             tooltip.y,
+          background:      'rgba(13,26,13,0.92)',
+          border:          '1px solid #2d5a2d',
+          borderRadius:    4,
+          padding:         '4px 8px',
+          pointerEvents:   'none',
+          zIndex:          999,
+          fontFamily:      'monospace',
+          fontSize:        11,
+          color:           '#e6edf3',
+          whiteSpace:      'nowrap',
+          lineHeight:      '1.6',
+        }}>
+          {tooltip.lines.map((line, i) => <div key={i}>{line}</div>)}
+        </div>
+      )}
+
+      {hexPicker && (
+        <div style={{
+          position:      'fixed',
+          left:          hexPicker.x,
+          top:           hexPicker.y,
+          background:    'rgba(13,26,13,0.97)',
+          border:        '1px solid #2d5a2d',
+          borderRadius:  4,
+          padding:       '4px 0',
+          zIndex:        1000,
+          fontFamily:    'monospace',
+          fontSize:      12,
+          color:         '#e6edf3',
+          minWidth:      160,
+          boxShadow:     '0 2px 8px rgba(0,0,0,0.5)',
+        }}>
+          <div style={{ padding: '2px 10px 4px', fontSize: 10, color: '#8b949e' }}>
+            Select unit
+          </div>
+          {hexPicker.units.map((unit, i) => (
+            <div
+              key={i}
+              style={{ padding: '4px 10px', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#1f3d1f')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              onClick={() => {
+                setHexPicker(null);
+                onSelect?.(unit);
+              }}
+            >
+              {pickerLabel(unit)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
