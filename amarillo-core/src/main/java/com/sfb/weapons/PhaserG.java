@@ -4,7 +4,6 @@ import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
-import com.sfb.utilities.DiceRoller;
 
 /**
  * Gatling Phaser
@@ -60,9 +59,7 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire {
 			throw new TargetOutOfRangeException("Target is out of weapon range.");
 		}
 
-		DiceRoller diceRoller = new DiceRoller();
-		int roll = diceRoller.rollOneDie();
-
+		int roll = rollAndRecord();
 		// Return the value that matches the die roll and the range.
 		registerFire();
 		return hitChart[roll - 1][range];
@@ -70,10 +67,19 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire {
 
 	/**
 	 * Fetch the energy needed from the capacitor to fire this weapon.
-	 * 
+	 *
 	 * @return The energy needed to fire the weapon.
 	 */
 	public double energyToFire() {
 		return 0.25;
+	}
+
+	/** J1.3321: when a fighter carrying a Ph-G is crippled, reduce it to Ph-3 (max 1 shot/turn). */
+	public void reduceToPhaserThree() {
+		setMaxShotsPerTurn(1);
+	}
+
+	public boolean isReducedToPhaserThree() {
+		return getMaxShotsPerTurn() == 1;
 	}
 }

@@ -44,6 +44,7 @@ public abstract class Weapon {
 	private int maxShotsPerTurn = 1; // How many times this weapon may fire per turn (default 1).
 	private int minImpulseGap = 8; // Minimum global impulses between shots (default 8).
 	private int shotsThisTurn = 0; // Shots fired so far this turn; reset by cleanUp().
+	private int lastRoll = 0;      // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
 
 	private int maxRange; // The maximum distance that this weapon can do damage.
 	private int minRange; // The range below which this weapon can not fire.
@@ -257,4 +258,7 @@ public abstract class Weapon {
 	public int getShotsThisTurn() {
 		return shotsThisTurn;
 	}
+
+	public int getLastRoll() { return lastRoll; }
+	protected void setLastRoll(int roll) { this.lastRoll = roll; }
 }

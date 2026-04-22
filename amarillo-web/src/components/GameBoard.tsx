@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, DroneObject, PlasmaObject, ShieldState, WeaponState } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, ShieldState, WeaponState } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
+import { FacingPicker } from './FacingPicker';
 
 interface Props {
   session: LobbyResult;
@@ -334,6 +335,8 @@ interface FirePanelProps {
   onSetShotCount:  (name: string, count: number) => void;
   useUim:          boolean;
   onToggleUim:     () => void;
+  directFire:      boolean;
+  onToggleDirectFire: () => void;
   onFire:          () => void;
   onClearTarget:   () => void;
   error:           string | null;
@@ -342,7 +345,7 @@ interface FirePanelProps {
 function FirePanel({
   attacker, target, options, loadingOptions,
   selectedWeapons, onToggleWeapon, shotCounts, onSetShotCount,
-  useUim, onToggleUim, onFire, onClearTarget, error,
+  useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, error,
 }: FirePanelProps) {
   const targetColor = target ? mapObjectColor(target) : '#888';
 
@@ -393,7 +396,7 @@ function FirePanel({
           <div className="sidebar-divider" />
           <div className="fire-weapon-list">
             {attacker.weapons
-              .filter(w => w.functional)
+              .filter(w => w.functional && !w.launcherType)
               .map(w => {
                 const inArc = options.weaponsInArc.includes(w.name);
                 const checked = selectedWeapons.has(w.name);
@@ -434,6 +437,43 @@ function FirePanel({
                 );
               })}
           </div>
+
+          {/* Plasma bolt section — armed plasma launchers fire as direct-fire bolts here */}
+          {attacker.weapons.some(w => w.functional && w.launcherType) && (
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-stat-label" style={{ marginBottom: 4, color: '#f0a050' }}>Plasma Bolts</div>
+              <div className="fire-weapon-list">
+                {attacker.weapons
+                  .filter(w => w.functional && w.launcherType)
+                  .map(w => {
+                    const inArc    = options.weaponsInArc.includes(w.name);
+                    const checked  = selectedWeapons.has(w.name);
+                    const disabled = !inArc;
+                    const unavailLabel = !inArc
+                      ? (w.isHeavy && !w.armed ? 'unarmed' : 'out of arc')
+                      : null;
+                    return (
+                      <div key={w.name} className={`fire-weapon-row ${disabled ? 'out-of-arc' : ''}`}>
+                        <label className="fire-weapon-label">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => onToggleWeapon(w.name)}
+                          />
+                          <span className="weapon-name">{weaponLabel(w)}</span>
+                          {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
+                          {!disabled && <span className="weapon-arc" style={{ color: '#f0a050' }}>bolt</span>}
+                          {unavailLabel && <span className="fire-ooa">{unavailLabel}</span>}
+                        </label>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+
           {attacker.uimFunctional && (
             <label className="fire-uim-row">
               <input
@@ -442,6 +482,18 @@ function FirePanel({
                 onChange={onToggleUim}
               />
               <span>Use UIM targeting (D6.51)</span>
+            </label>
+          )}
+          {Array.from(selectedWeapons).some(name =>
+            attacker.weapons.find(w => w.name === name)?.name.startsWith('Hellbore')
+          ) && (
+            <label className="fire-uim-row">
+              <input
+                type="checkbox"
+                checked={directFire}
+                onChange={onToggleDirectFire}
+              />
+              <span>Direct Fire mode — half dmg, facing shield (E10.7)</span>
             </label>
           )}
           <button
@@ -466,6 +518,183 @@ function FirePanel({
         <div className="fire-hint">No weapons bear on this target</div>
       )}
 
+      {/* ADD section — always visible when ship carries ADDs */}
+      {attacker.weapons.some(w => w.functional && w.addCapacity) && (
+        <>
+          <div className="sidebar-divider" />
+          <div className="sidebar-stat-label" style={{ marginBottom: 4, color: '#50d0f0' }}>
+            Anti-Drone (ADD)
+          </div>
+          <div className="fire-weapon-list">
+            {attacker.weapons
+              .filter(w => w.functional && w.addCapacity)
+              .map(w => {
+                const inArc    = options?.weaponsInArc.includes(w.name) ?? false;
+                const checked  = selectedWeapons.has(w.name);
+                const noAmmo   = (w.addShots ?? 0) === 0;
+                const noTarget = !options;
+                let unavailLabel: string | null = null;
+                if (noAmmo)        unavailLabel = 'no shots';
+                else if (noTarget) unavailLabel = 'select drone/shuttle target';
+                else if (!inArc)   unavailLabel = 'out of range (1-3)';
+                return (
+                  <div key={w.name} className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
+                    <label className="fire-weapon-label">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!!unavailLabel}
+                        onChange={() => onToggleWeapon(w.name)}
+                      />
+                      <span className="weapon-name">{w.name}</span>
+                      <span className="weapon-arc" style={{ color: '#50d0f0' }}>
+                        {w.addShots}/{w.addCapacity}
+                        {(w.addReloads ?? 0) > 0 && ` (+${w.addReloads})`}
+                      </span>
+                      {unavailLabel && <span className="fire-ooa">{unavailLabel}</span>}
+                    </label>
+                  </div>
+                );
+              })}
+          </div>
+        </>
+      )}
+
+      {error && <div className="fire-error">{error}</div>}
+    </div>
+  );
+}
+
+// ---- Fighter fire panel ----
+
+interface FighterFirePanelProps {
+  fighter:         ShuttleObject;
+  target:          MapObject | null;
+  options:         FireOptions | null;
+  loadingOptions:  boolean;
+  selectedWeapons: Set<string>;
+  onToggleWeapon:  (name: string) => void;
+  shotModes:       Record<string, 'SINGLE' | 'DOUBLE'>;
+  onSetShotMode:   (name: string, mode: 'SINGLE' | 'DOUBLE') => void;
+  onFire:          () => void;
+  onClear:         () => void;
+  error:           string | null;
+}
+
+function FighterFirePanel({
+  fighter, target, options, loadingOptions,
+  selectedWeapons, onToggleWeapon,
+  shotModes, onSetShotMode,
+  onFire, onClear, error,
+}: FighterFirePanelProps) {
+  const weapons = fighter.weapons ?? [];
+  const targetColor = target ? mapObjectColor(target) : '#888';
+  const shortName = fighter.name.includes('-')
+    ? fighter.name.slice(fighter.name.lastIndexOf('-', fighter.name.lastIndexOf('-') - 1) + 1)
+    : fighter.name;
+
+  return (
+    <div className="sidebar-section fire-panel" style={{ borderColor: '#9b3ad5' }}>
+      <div className="sidebar-section-title fire-title" style={{ color: fighter.crippled ? '#e05050' : '#9b3ad5' }}>
+        Fighter: {shortName}{fighter.crippled ? ' ⚠ CRIPPLED' : ''}
+      </div>
+
+      <div className="fire-target-row">
+        <span className="sidebar-stat-label">Target</span>
+        {target ? (
+          <span className="fire-target-name">
+            <span className="sidebar-faction-dot" style={{ background: targetColor, display: 'inline-block' }} />
+            {target.name}
+            <button className="fire-clear-btn secondary" onClick={onClear}>✕</button>
+          </span>
+        ) : (
+          <span className="fire-hint">Click enemy on map</span>
+        )}
+      </div>
+
+      {options && (
+        <>
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Range</span>
+            <span className="sidebar-stat-value">{options.range}</span>
+          </div>
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Shield hit</span>
+            <span className="sidebar-stat-value">#{options.shieldNumber} {SHIELD_NAMES[options.shieldNumber] ?? ''}</span>
+          </div>
+        </>
+      )}
+
+      {loadingOptions && <div className="fire-hint">Calculating…</div>}
+
+      {options && weapons.length > 0 && (
+        <>
+          <div className="sidebar-divider" />
+          <div className="fire-weapon-list">
+            {weapons.map(w => {
+              const inArc   = options.weaponsInArc.includes(w.name);
+              const checked = selectedWeapons.has(w.name);
+              const isFusion = w.chargesRemaining !== undefined;
+              const mode = shotModes[w.name] ?? 'SINGLE';
+              let unavailLabel: string | null = null;
+              if (!inArc) {
+                if ((w.chargesRemaining ?? 1) === 0) unavailLabel = 'no charges';
+                else if (!w.readyToFire)             unavailLabel = 'on cooldown';
+                else                                  unavailLabel = 'out of arc';
+              }
+              return (
+                <div key={w.name} className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
+                  <label className="fire-weapon-label">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!!unavailLabel}
+                      onChange={() => onToggleWeapon(w.name)}
+                    />
+                    <span className="weapon-name">{weaponLabel(w)}</span>
+                    {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
+                    {isFusion && (
+                      <span className="weapon-arc" style={{ color: '#f0c040' }}>⚡{w.chargesRemaining}</span>
+                    )}
+                    {unavailLabel && (
+                      <span className={`fire-ooa${unavailLabel === 'on cooldown' ? ' fire-cooldown' : ''}`}>
+                        {unavailLabel}
+                      </span>
+                    )}
+                  </label>
+                  {isFusion && checked && !unavailLabel && (
+                    <div className="shot-stepper">
+                      <button
+                        className={`shot-step-btn${mode === 'SINGLE' ? ' active' : ''}`}
+                        title="Single shot (1 charge, range 0-3)"
+                        onClick={e => { e.preventDefault(); onSetShotMode(w.name, 'SINGLE'); }}
+                      >1×</button>
+                      <button
+                        className={`shot-step-btn${mode === 'DOUBLE' ? ' active' : ''}`}
+                        disabled={!w.canFireDouble}
+                        title="Double shot (2 charges, range 0-10)"
+                        onClick={e => { e.preventDefault(); onSetShotMode(w.name, 'DOUBLE'); }}
+                      >2×</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <button
+            className="fire-btn"
+            disabled={selectedWeapons.size === 0}
+            onClick={onFire}
+          >
+            Fire ({selectedWeapons.size} weapon{selectedWeapons.size !== 1 ? 's' : ''})
+          </button>
+        </>
+      )}
+
+      {options && weapons.length === 0 && (
+        <div className="fire-hint">No weapons on this fighter</div>
+      )}
+
       {error && <div className="fire-error">{error}</div>}
     </div>
   );
@@ -474,12 +703,12 @@ function FirePanel({
 // ---- Move button grid ----
 
 const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; alwaysDisabled?: boolean }[] = [
-  { label: '↖',    action: 'SIDESLIP_LEFT',   row: 1, col: 1 },
-  { label: '▲',    action: 'FORWARD',          row: 1, col: 2 },
-  { label: '↗',    action: 'SIDESLIP_RIGHT',   row: 1, col: 3 },
-  { label: '↺',    action: 'TURN_LEFT',        row: 2, col: 1 },
-  { label: 'STOP', action: 'EMERGENCY_DECEL',  row: 2, col: 2, alwaysDisabled: true },
-  { label: '↻',    action: 'TURN_RIGHT',       row: 2, col: 3 },
+  { label: '↖',  action: 'SIDESLIP_LEFT',   row: 1, col: 1 },
+  { label: '▲',  action: 'FORWARD',          row: 1, col: 2 },
+  { label: '↗',  action: 'SIDESLIP_RIGHT',   row: 1, col: 3 },
+  { label: '↰',  action: 'TURN_LEFT',        row: 2, col: 1 },
+  { label: 'STOP', action: 'EMERGENCY_DECEL', row: 2, col: 2, alwaysDisabled: true },
+  { label: '↱',  action: 'TURN_RIGHT',       row: 2, col: 3 },
 ];
 
 // ---- Ship sidebar ----
@@ -496,12 +725,15 @@ interface SidebarProps {
   onToggleWeapon:  (name: string) => void;
   shotCounts:      Map<string, number>;
   onSetShotCount:  (name: string, count: number) => void;
-  useUim:          boolean;
-  onToggleUim:     () => void;
-  onFire:          () => void;
-  onClearTarget:   () => void;
-  fireError:       string | null;
+  useUim:             boolean;
+  onToggleUim:        () => void;
+  directFire:         boolean;
+  onToggleDirectFire: () => void;
+  onFire:             () => void;
+  onClearTarget:      () => void;
+  fireError:          string | null;
   onMove:          (action: string) => void;
+  onHet:           (facing: number) => Promise<void>;
   onCloak:         () => void;
   onUncloak:       () => void;
   onClose:         () => void;
@@ -533,6 +765,15 @@ interface SidebarProps {
   onSetBoardingNormal:    (n: number) => void;
   onSetBoardingCommandos: (n: number) => void;
   onSubmitBoarding: () => void;
+  // Lab seeker identification
+  idMode:           boolean;
+  idSeekers:        { name: string; type: string }[];
+  idSelected:       Set<string>;
+  idError:          string | null;
+  onStartId:        () => void;
+  onCancelId:       () => void;
+  onToggleIdSeeker: (name: string) => void;
+  onSubmitId:       () => void;
   // Hit & Run
   harMode:      boolean;
   harTarget:    ShipObject | null;
@@ -549,16 +790,20 @@ interface SidebarProps {
 function ShipSidebar({
   ship, isMine, canMove, phase,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
-  onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, onFire, onClearTarget, fireError,
-  onMove, onCloak, onUncloak, onClose,
+  onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
+  onMove, onHet, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
+  idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
 }: SidebarProps) {
+  const [hetMode,   setHetMode]   = useState(false);
+  const [hetFacing, setHetFacing] = useState<number | null>(null);
+
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
                  + (ship.availableCWarp  ?? 0) + (ship.availableImpulse ?? 0)
@@ -578,6 +823,10 @@ function ShipSidebar({
   const canHar          = isActivityPhase && isMine
                         && ship.boardingParties > 0
                         && (ship.availableTransporters ?? 0) > 0;
+  const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
+  const canHet          = phase === 'Movement' && isMine && canMove
+                        && (ship.hetCost ?? 0) > 0
+                        && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
   const maxBoardingTotal = Math.min(
     ship.boardingParties + ship.commandos,
@@ -618,6 +867,42 @@ function ShipSidebar({
                   </button>
                 ))}
               </div>
+
+              {/* HET button + facing picker */}
+              {isMine && (ship.hetCost ?? 0) > 0 && (
+                <div className="het-strip">
+                  <button
+                    className={`action-strip-btn${hetMode ? ' active' : ''}`}
+                    disabled={!canHet}
+                    onClick={() => { setHetMode(m => !m); setHetFacing(null); }}
+                    title={`High Energy Turn — costs ${ship.hetCost ?? '?'} warp (${ship.reserveWarp ?? 0} reserved)`}
+                  >
+                    HET
+                  </button>
+                  {hetMode && (
+                    <div className="het-picker-panel">
+                      <FacingPicker
+                        value={hetFacing}
+                        onChange={setHetFacing}
+                        label="New facing"
+                      />
+                      <button
+                        className="secondary"
+                        style={{ marginTop: '0.35rem', width: '100%', fontSize: '0.75rem' }}
+                        disabled={hetFacing === null}
+                        onClick={async () => {
+                          if (hetFacing === null) return;
+                          await onHet(hetFacing);
+                          setHetMode(false);
+                          setHetFacing(null);
+                        }}
+                      >
+                        Execute HET →{hetFacing !== null ? ` facing ${['A','B','C','D','E','F'][[1,5,9,13,17,21].indexOf(hetFacing)]}` : ''}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -667,6 +952,15 @@ function ShipSidebar({
                   title="Hit & Run raid"
                 >
                   H&amp;R
+                </button>
+              )}
+              {canIdentify && (
+                <button
+                  className={`action-strip-btn${idMode ? ' active' : ''}`}
+                  onClick={idMode ? onCancelId : onStartId}
+                  title={`Identify seekers (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
+                >
+                  ID
                 </button>
               )}
               {(ship.cloakCost ?? 0) > 0 && (
@@ -788,6 +1082,34 @@ function ShipSidebar({
         </div>
       )}
 
+      {idMode && (
+        <div className="sidebar-action-detail">
+          <div className="sidebar-section-title">Identify Seekers ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
+          {idSeekers.length === 0 ? (
+            <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy seekers in range.</div>
+          ) : (
+            <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: 4 }}>
+              Select up to {ship.availableLab} seeker{ship.availableLab !== 1 ? 's' : ''} to attempt identification.
+            </div>
+          )}
+          {idSeekers.map(s => {
+            const checked = idSelected.has(s.name);
+            const disabled = !checked && idSelected.size >= (ship.availableLab ?? 0);
+            return (
+              <label key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }}>
+                <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggleIdSeeker(s.name)} />
+                <span style={{ fontSize: '0.8rem' }}>{s.name} <span style={{ color: '#888' }}>({s.type})</span></span>
+              </label>
+            );
+          })}
+          {idError && <div style={{ color: '#f85149', fontSize: '0.75rem', margin: '4px 0' }}>{idError}</div>}
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button disabled={idSelected.size === 0} onClick={onSubmitId}>Attempt ID</button>
+            <button className="secondary" onClick={onCancelId}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {harMode && (
         <div className="sidebar-action-detail">
           {harTarget ? (
@@ -860,6 +1182,8 @@ function ShipSidebar({
           onSetShotCount={onSetShotCount}
           useUim={useUim}
           onToggleUim={onToggleUim}
+          directFire={directFire}
+          onToggleDirectFire={onToggleDirectFire}
           onFire={onFire}
           onClearTarget={onClearTarget}
           error={fireError}
@@ -895,6 +1219,11 @@ function ShipSidebar({
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Crew</div>
+        {ship.skeleton && (
+          <div style={{ color: '#f85149', fontSize: '0.7rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+            ⚠ SKELETON CREW
+          </div>
+        )}
         <StatRow label="Units"       value={`${ship.availableCrewUnits} (min ${ship.minimumCrew})`} />
         <StatRow label="Deck Crews"  value={ship.availableDeckCrews} />
         {isMine && <StatRow label="B-Parties" value={ship.boardingParties} />}
@@ -932,7 +1261,7 @@ function ShipSidebar({
         <StatRow label="Impulse" value={ship.availableImpulse} />
         {ship.availableApr > 0 && <StatRow label="APR"     value={ship.availableApr} />}
         {ship.availableAwr > 0 && <StatRow label="AWR"     value={ship.availableAwr} />}
-        <StatRow label="Battery" value={ship.availableBattery} />
+        <StatRow label="Battery" value={`${ship.batteryPower} / ${ship.availableBattery}`} />
         <div className="sidebar-divider" />
         <StatRow label="Total"   value={totalPower} />
       </div>
@@ -1000,6 +1329,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const gameState = useGameSocket(session.gameId, session.playerToken);
   const [selected, setSelected]             = useState<MapObject | null>(null);
   const [actionError, setActionError]       = useState<string | null>(null);
+  const [snapTo, setSnapTo]                 = useState<{ name: string } | null>(null);
   // Fire state
   const [fireTarget, setFireTarget]         = useState<MapObject | null>(null);
   const [fireOptions, setFireOptions]       = useState<FireOptions | null>(null);
@@ -1007,7 +1337,11 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [selectedWeapons, setSelectedWeapons] = useState<Set<string>>(new Set());
   const [shotCounts, setShotCounts]           = useState<Map<string, number>>(new Map());
   const [useUim, setUseUim]                 = useState(false);
+  const [directFire, setDirectFire]         = useState(false);
   const [fireError, setFireError]           = useState<string | null>(null);
+  // Fighter fire state
+  const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
+  const [fighterShotModes, setFighterShotModes]   = useState<Record<string, 'SINGLE' | 'DOUBLE'>>({});
   // Launch state
   const [launchMode,   setLaunchMode]   = useState(false);
   const [launchTarget, setLaunchTarget] = useState<ShipObject | null>(null);
@@ -1023,6 +1357,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [boardingNormal,  setBoardingNormal]  = useState(0);
   const [boardingCommandos, setBoardingCommandos] = useState(0);
   const [boardingError,   setBoardingError]   = useState<string | null>(null);
+  // Lab seeker ID state
+  const [idMode,     setIdMode]     = useState(false);
+  const [idSelected, setIdSelected] = useState<Set<string>>(new Set());
+  const [idError,    setIdError]    = useState<string | null>(null);
   // Hit & Run state
   const [harMode,    setHarMode]    = useState(false);
   const [harTarget,  setHarTarget]  = useState<ShipObject | null>(null);
@@ -1041,7 +1379,26 @@ export default function GameBoard({ session, onLeave }: Props) {
   const phase      = gameState?.phase ?? '';
   const myShips    = new Set(gameState?.myShips ?? []);
   const movableNow = gameState?.movableNow ?? [];
-  const isFirePhase = phase === 'Direct Fire';
+  const isMovementPhase = phase === 'Movement';
+  const isFirePhase     = phase === 'Direct Fire';
+
+  const myMovablePending       = movableNow.filter(n => myShips.has(n));
+  const opponentMovablePending = movableNow.filter(n => !myShips.has(n));
+
+  // Snap to my next ship when movableNow changes during movement phase
+  const prevMovableKeyRef = useRef('');
+  useEffect(() => {
+    const list = gameState?.movableNow ?? [];
+    const key  = list.join(',');
+    if (key === prevMovableKeyRef.current) return;
+    prevMovableKeyRef.current = key;
+    const mine = list.find(name => (gameState?.myShips ?? []).includes(name));
+    if (mine) {
+      setSnapTo({ name: mine });
+      const shipObj = (gameState?.mapObjects ?? []).find(o => o.name === mine && o.type === 'SHIP');
+      if (shipObj) setSelected(shipObj);
+    }
+  }, [gameState?.movableNow]);
 
   // Reset EA dismissed flag each time a new allocation window opens
   const prevAwaitingRef = useRef(false);
@@ -1171,13 +1528,36 @@ export default function GameBoard({ session, onLeave }: Props) {
         return;
       }
     }
+    // Clicking own fighter in Direct Fire phase makes it the attacker
+    if (isFirePhase && obj?.type === 'SHUTTLE') {
+      const shuttle = obj as ShuttleObject;
+      const owned = myShips.has(shuttle.parentShipName ?? '');
+      if (owned && (shuttle.weapons?.length ?? 0) > 0) {
+        setFighterAttacker(shuttle);
+        setFireTarget(null);
+        setFireOptions(null);
+        setSelectedWeapons(new Set());
+        setFighterShotModes({});
+        setFireError(null);
+        return;
+      }
+    }
+    // When fighter is the attacker, clicking an enemy picks the target
+    if (isFirePhase && fighterAttacker && obj && canBeFireTarget(obj, myShips)) {
+      setFireTarget(obj);
+      fetchFireOptions(fighterAttacker.name, obj.name);
+      return;
+    }
     if (isFirePhase && liveShip && obj && canBeFireTarget(obj, myShips)) {
       setFireTarget(obj);
       fetchFireOptions(liveShip.name, obj.name);
       return;
     }
     // Normal: select the clicked ship as the attacker / info ship
+    setFighterAttacker(null);
+    setFighterShotModes({});
     setSelected(obj);
+    setSnapTo(obj ? { name: obj.name } : null);
     setFireTarget(null);
     setFireOptions(null);
     setSelectedWeapons(new Set());
@@ -1186,7 +1566,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchTarget(null);
     setLaunchError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFirePhase, launchMode, boardingMode, harMode, liveShip, myShips, session.gameId, session.playerToken]);
+  }, [isFirePhase, launchMode, boardingMode, harMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
   function toggleWeapon(name: string) {
     setSelectedWeapons(prev => {
@@ -1212,25 +1592,42 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   async function handleFire() {
-    if (!liveShip || !fireTarget || !fireOptions) return;
+    if ((!liveShip && !fighterAttacker) || !fireTarget || !fireOptions) return;
     setFireError(null);
     try {
-      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      // Build base request
+      const req: Record<string, unknown> = {
         type:          'FIRE',
-        shipName:      liveShip.name,
+        shipName:      fighterAttacker ? fighterAttacker.name : liveShip!.name,
         targetName:    fireTarget.name,
-        weaponNames:   Array.from(selectedWeapons).flatMap(name => {
-          const w = liveShip.weapons.find(x => x.name === name);
+        range:         fireOptions.range,
+        adjustedRange: fireOptions.adjustedRange,
+        shieldNumber:  fireOptions.shieldNumber,
+      };
+      if (fighterAttacker) {
+        req.weaponNames = Array.from(selectedWeapons);
+        req.useUim      = false;
+        req.directFire  = false;
+        // Include shotModes for FighterFusion weapons
+        const modes: Record<string, string> = {};
+        for (const wName of selectedWeapons) {
+          const w = (fighterAttacker.weapons ?? []).find(x => x.name === wName);
+          if (w?.chargesRemaining !== undefined)
+            modes[wName] = fighterShotModes[wName] ?? 'SINGLE';
+        }
+        if (Object.keys(modes).length > 0) req.shotModes = modes;
+      } else {
+        req.weaponNames = Array.from(selectedWeapons).flatMap(name => {
+          const w = liveShip!.weapons.find(x => x.name === name);
           const n = w && w.minImpulseGap === 0 && w.maxShotsPerTurn > 1
             ? Math.min(shotCounts.get(name) ?? 1, w.maxShotsPerTurn - w.shotsThisTurn)
             : 1;
           return Array(n).fill(name);
-        }),
-        range:         fireOptions.range,
-        adjustedRange: fireOptions.adjustedRange,
-        shieldNumber:  fireOptions.shieldNumber,
-        useUim:        useUim,
-      });
+        });
+        req.useUim     = useUim;
+        req.directFire = directFire;
+      }
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, req);
       if (!res.success) {
         setFireError(res.message);
         addLog(res.message, 'error');
@@ -1242,6 +1639,9 @@ export default function GameBoard({ session, onLeave }: Props) {
         setSelectedWeapons(new Set());
         setShotCounts(new Map());
         setUseUim(false);
+        setDirectFire(false);
+        // Keep fighterAttacker so the player can fire again at a new target
+        setFighterShotModes({});
       }
     } catch (e: unknown) {
       setFireError(e instanceof Error ? e.message : 'Fire failed');
@@ -1259,6 +1659,20 @@ export default function GameBoard({ session, onLeave }: Props) {
       else if (res.message) addLog(res.message, 'combat');
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Move failed');
+    }
+  }
+
+  async function handleHet(facing: number) {
+    if (!selectedShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'PERFORM_HET', shipName: selectedShip.name, facing,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'HET failed');
     }
   }
 
@@ -1338,6 +1752,54 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
     } catch (e: unknown) {
       setBoardingError(e instanceof Error ? e.message : 'Boarding action failed');
+    }
+  }
+
+  // Unidentified enemy seekers for lab ID panel
+  const idSeekers = (gameState?.mapObjects ?? [])
+    .filter(o => (o.type === 'DRONE' || o.type === 'PLASMA') && !o.isIdentified
+      && o.controllerFaction !== liveShip?.faction)
+    .map(o => ({ name: o.name, type: o.type === 'DRONE' ? 'Drone' : 'Plasma' }));
+
+  function handleStartId() {
+    setIdMode(true);
+    setIdSelected(new Set());
+    setIdError(null);
+    setBoardingMode(false);
+    setBoardingTarget(null);
+    setLaunchMode(false);
+    setTBombMode(false);
+  }
+
+  function handleCancelId() {
+    setIdMode(false);
+    setIdSelected(new Set());
+    setIdError(null);
+  }
+
+  function handleToggleIdSeeker(name: string) {
+    setIdSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  async function handleSubmitId() {
+    if (!liveShip || idSelected.size === 0) return;
+    setIdError(null);
+    try {
+      const res = await gameApi.identifySeekers(
+        session.gameId, session.playerToken,
+        liveShip.name, Array.from(idSelected),
+      );
+      if (!res.success) setIdError(res.message);
+      else {
+        addLog(res.message, 'combat');
+        handleCancelId();
+      }
+    } catch (e: unknown) {
+      setIdError(e instanceof Error ? e.message : 'Identification failed');
     }
   }
 
@@ -1513,8 +1975,19 @@ export default function GameBoard({ session, onLeave }: Props) {
         <span className="board-phase">{phaseLabel}</span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
+          {isMovementPhase && myMovablePending.length > 0 && (
+            <span className="topbar-move-warn">
+              Move: <strong>{myMovablePending[0]}</strong>
+            </span>
+          )}
+          {isMovementPhase && myMovablePending.length === 0 && opponentMovablePending.length > 0 && (
+            <span className="topbar-move-wait">
+              Waiting for: <strong>{opponentMovablePending[0]}</strong>
+            </span>
+          )}
           <button
             onClick={handleAdvancePhase}
+            disabled={isMovementPhase && myMovablePending.length > 0}
             className={isReady ? 'secondary' : ''}
           >
             {isReady ? 'Cancel' : 'Ready'}
@@ -1533,6 +2006,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSelect={handleMapSelect}
             onHexClick={handleHexClick}
             pickingHex={tBombMode}
+            snapTo={snapTo}
           />
         </div>
 
@@ -1551,10 +2025,13 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSetShotCount={setShotCount}
             useUim={useUim}
             onToggleUim={() => setUseUim(v => !v)}
+            directFire={directFire}
+            onToggleDirectFire={() => setDirectFire(v => !v)}
             onFire={handleFire}
-            onClearTarget={() => { setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); setShotCounts(new Map()); setUseUim(false); }}
+            onClearTarget={() => { setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); setShotCounts(new Map()); setUseUim(false); setDirectFire(false); }}
             fireError={fireError}
             onMove={handleMove}
+            onHet={handleHet}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
             onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); }}
@@ -1582,6 +2059,14 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSetBoardingNormal={setBoardingNormal}
             onSetBoardingCommandos={setBoardingCommandos}
             onSubmitBoarding={handleSubmitBoarding}
+            idMode={idMode}
+            idSeekers={idSeekers}
+            idSelected={idSelected}
+            idError={idError}
+            onStartId={handleStartId}
+            onCancelId={handleCancelId}
+            onToggleIdSeeker={handleToggleIdSeeker}
+            onSubmitId={handleSubmitId}
             harMode={harMode}
             harTarget={harTarget}
             harOptions={harOptions}
@@ -1593,6 +2078,25 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSetHarParties={setHarParties}
             onSubmitHar={handleSubmitHar}
           />
+        )}
+
+        {/* Fighter fire panel — shown when a fighter is the attacker */}
+        {isFirePhase && fighterAttacker && (
+          <div className="board-sidebar">
+            <FighterFirePanel
+              fighter={fighterAttacker}
+              target={fireTarget}
+              options={fireOptions}
+              loadingOptions={loadingOptions}
+              selectedWeapons={selectedWeapons}
+              onToggleWeapon={toggleWeapon}
+              shotModes={fighterShotModes}
+              onSetShotMode={(name, mode) => setFighterShotModes(prev => ({ ...prev, [name]: mode }))}
+              onFire={handleFire}
+              onClear={() => { setFighterAttacker(null); setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); setFighterShotModes({}); setFireError(null); }}
+              error={fireError}
+            />
+          </div>
         )}
       </div>
 
@@ -1620,9 +2124,11 @@ export default function GameBoard({ session, onLeave }: Props) {
           myShipNames={gameState.myShips ?? []}
           pendingNames={gameState.pendingAllocation ?? []}
           allShips={(gameState.mapObjects.filter(o => o.type === 'SHIP') as ShipObject[])}
+          activeShuttles={(gameState.mapObjects.filter(o => o.type === 'SHUTTLE') as ShuttleObject[])}
           onTabChange={name => {
             const ship = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === name);
             if (ship) setSelected(ship);
+            setSnapTo({ name });
           }}
           onDone={msg => {
             addLog(msg, 'phase');

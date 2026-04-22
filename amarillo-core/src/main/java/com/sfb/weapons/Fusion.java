@@ -96,11 +96,20 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 
 	/**
 	 * Set the fusion to suicide overload mode.
-	 * 
+	 *
 	 * @return True if this is a valid request, false otherwise.
 	 */
 	public boolean setSuicideOverload() {
 		return setSpecial();
+	}
+
+	@Override public boolean supportsOverload() { return true; }
+	@Override public boolean supportsSuicide()  { return true; }
+
+	/** Fusion standard hold costs 1 energy; other modes cannot be held. */
+	@Override
+	public int holdEnergyCost() {
+		return (armed && armingType == WeaponArmingType.STANDARD) ? 1 : 0;
 	}
 
 	@Override
@@ -242,6 +251,7 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 		// Throw the dice!
 		DiceRoller roller = new DiceRoller();
 		int roll = roller.rollOneDie();
+		setLastRoll(roll);
 
 		switch (this.armingType) {
 			case STANDARD:

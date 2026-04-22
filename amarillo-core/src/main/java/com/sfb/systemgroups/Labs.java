@@ -44,6 +44,14 @@ public class Labs implements Systems {
 		return availableLab;
 	}
 
+	public void decrementLab() {
+		if (availableLab > 0) availableLab--;
+	}
+
+	public void resetForTurn() {
+		availableLab = lab;
+	}
+
 	/// DAMAGE ///
 	public boolean damage() {
 		if (availableLab == 0) {
@@ -65,10 +73,7 @@ public class Labs implements Systems {
 	}
 
 	@Override
-	public void cleanUp() {
-		// TODO Auto-generated method stub
-
-	}
+	public void cleanUp() { }
 
 	@Override
 	public Unit fetchOwningUnit() {

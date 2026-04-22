@@ -4,77 +4,49 @@ import java.util.Map;
 
 public class PerformanceData {
 
-	// Performance statistics for this spaceframe.
-	
 	// Base values
-	private double  movementCost		= 0;
-	private boolean nimble				= false;	// Nimble ships can do cheap EM
-	private int     breakdownChance		= 0;		// Chance on a d6 that a breakdown will occur when performing an HET maneuver.
-	private int     bonusHets			= 0;		// Number of times this ship get's a -2 to the HET breakdown roll.
-	
+	private double  movementCost    = 0;
+	private boolean nimble          = false;
+	private int     breakdownChance = 0;
+	private int     bonusHets       = 0; // total -2 bonuses for breakdown roll (C6.52 / C6.521)
+
 	// Calculated values
-	private double hetCost				= 0;
-	private double erraticCost			= 0;
+	private double hetCost     = 0;
+	private double erraticCost = 0;
 
 	// Real-time values
-	private int bonusHetsRemaining		= 0;		// Number of HETs remaining with the bonus to the breakdown roll
+	private int bonusHetsRemaining = 0;
 
-	public PerformanceData() {
-		
-	}
-	
+	public PerformanceData() {}
+
 	public void init(Map<String, Object> values) {
-		
-		movementCost    = values.get("movecost")    == null ? 1     : (Double)values.get("movecost");
-		nimble          = values.get("nimble")      == null ? false : true;
-		breakdownChance = values.get("breakdown")   == null ? 4     : (Integer)values.get("breakdown");
-		bonusHets       = values.get("bonushets")   == null ? 0     : (Integer)values.get("bonushets");
-		
-		// Calculate cost of HET
-		hetCost = movementCost * 5;
+		movementCost    = values.get("movecost")   == null ? 1     : (Double)  values.get("movecost");
+		nimble          = values.get("nimble")     != null;
+		breakdownChance = values.get("breakdown")  == null ? 4     : (Integer) values.get("breakdown");
+		bonusHets       = values.get("bonushets")  == null ? 1     : (Integer) values.get("bonushets");
 
-		// Calculate cost of EM
-		if (nimble) {
-			erraticCost = movementCost * 3;
-		} else {
-			erraticCost = movementCost * 6;
-		}
+		bonusHetsRemaining = bonusHets;
+
+		hetCost     = movementCost * 5;
+		erraticCost = nimble ? movementCost * 3 : movementCost * 6;
 	}
-	
-	public void cleanUp() {
-		//TODO: Figure out what to do here, if anything.
-	}
-	
-	public double getMovementCost() {
-		return this.movementCost;
-	}
-	
-	public boolean isNimble() {
-		return this.nimble;
-	}
-	
-	public int getBreakdownChance() {
-		return this.breakdownChance;
-	}
-	
-	public int getBonusHets() {
-		return this.bonusHets;
-	}
-	
-	public int getBonusHetsRemaining() {
-		return bonusHetsRemaining;
-	}
-	
+
+	public void cleanUp() {}
+
+	public double getMovementCost()      { return movementCost; }
+	public boolean isNimble()            { return nimble; }
+	public int getBreakdownChance()      { return breakdownChance; }
+	public int getBonusHets()            { return bonusHets; }
+	public int getBonusHetsRemaining()   { return bonusHetsRemaining; }
+	public double getHetCost()           { return hetCost; }
+	public double getErraticCost()       { return erraticCost; }
+
 	public void useBonusHet() {
-		this.bonusHetsRemaining--;
+		if (bonusHetsRemaining > 0) bonusHetsRemaining--;
 	}
 
-	public double getHetCost() {
-		return this.hetCost;
+	/** C6.544: Reduce breakdown rating by 1 each time the ship breaks down (minimum 1). */
+	public void decrementBreakdownRating() {
+		if (breakdownChance > 1) breakdownChance--;
 	}
-	
-	public double getErraticCost() {
-		return this.erraticCost;
-	}
-
 }

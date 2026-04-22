@@ -330,6 +330,30 @@ public class GameSession {
 
             case "ADVANCE_PHASE": {
                 String token = request.getPlayerToken();
+                // During movement phase, reject ready if this player still has ships or shuttles to move
+                if (game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT) {
+                    PlayerInfo pi = players.get(token);
+                    if (pi != null) {
+                        List<String> myNames = pi.getShipNames();
+                        // Check ships first
+                        String pending = game.getMovableShips().stream()
+                                .map(s -> s.getName())
+                                .filter(myNames::contains)
+                                .findFirst()
+                                .orElse(null);
+                        // Then check player-controlled shuttles (owned by this player's ships)
+                        if (pending == null) {
+                            pending = game.getMovableShuttles().stream()
+                                    .filter(s -> myNames.contains(s.getParentShipName()))
+                                    .map(s -> s.getName())
+                                    .findFirst()
+                                    .orElse(null);
+                        }
+                        if (pending != null) {
+                            return ActionResult.fail("MUST_MOVE:" + pending);
+                        }
+                    }
+                }
                 readyPlayers.add(token);
                 int ready = readyPlayers.size();
                 int total = players.size();
@@ -337,7 +361,9 @@ public class GameSession {
                     return ActionResult.ok("WAITING:" + ready + "/" + total);
                 }
                 clearReady();
-                return game.execute(new AdvancePhaseCommand());
+                ActionResult phaseResult = game.execute(new AdvancePhaseCommand());
+                transferCapturedShipOwnership();
+                return phaseResult;
             }
 
             case "UNREADY": {
@@ -357,6 +383,13 @@ public class GameSession {
                     return ActionResult.fail("Unknown move action: " + request.getAction());
                 }
                 return game.execute(new MoveCommand(ship, action));
+            }
+
+            case "PERFORM_HET": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.performHet(ship, request.getFacing());
             }
 
             case "ALLOCATE": {
@@ -385,7 +418,15 @@ public class GameSession {
                 double moveCost = ship.getPerformanceData().getMovementCost();
                 int requestedSpeed = request.getSpeed();
                 int warpSpeed = Math.min(requestedSpeed, 30);
-                e.setWarpMovement(warpSpeed * moveCost);
+                double warpEngineCapacity = ship.getPowerSysetems().getAvailableLWarp()
+                        + ship.getPowerSysetems().getAvailableRWarp()
+                        + ship.getPowerSysetems().getAvailableCWarp();
+                double movementEnergyNeeded = warpSpeed * moveCost;
+                if (movementEnergyNeeded > warpEngineCapacity + 0.001) {
+                    return ActionResult.fail("Insufficient warp engine power for speed " + requestedSpeed
+                            + " — need " + movementEnergyNeeded + ", have " + warpEngineCapacity);
+                }
+                e.setWarpMovement(movementEnergyNeeded);
                 e.setImpulseMovement(requestedSpeed > 30 ? 1 : 0);
 
                 // Phaser capacitor
@@ -403,10 +444,29 @@ public class GameSession {
                     if (!(w instanceof HeavyWeapon)) continue;
                     String choice = arming != null ? arming.get(w.getName()) : null;
                     if (choice == null) choice = "STANDARD";
+                    HeavyWeapon hw = (HeavyWeapon) w;
                     switch (choice.toUpperCase()) {
+                        case "HOLD":
+                            e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());
+                            e.getArmingType().put(w, WeaponArmingType.STANDARD);
+                            break;
                         case "OVERLOAD":
-                            e.getArmingEnergy().put(w, (double) Constants.gArmingCost[0] * 2);
+                            e.getArmingEnergy().put(w, (double) hw.energyToArm() * 2);
                             e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
+                            break;
+                        case "SUICIDE":
+                            e.getArmingEnergy().put(w, 7.0);
+                            e.getArmingType().put(w, WeaponArmingType.SPECIAL);
+                            break;
+                        case "UPGRADE_OVL":
+                            // Armed Fusion standard → hold(1) + arm(2) = 3 total
+                            e.getArmingEnergy().put(w, 3.0);
+                            e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
+                            break;
+                        case "UPGRADE_SUICIDE":
+                            // Armed Fusion standard → hold(1) + arm(5) = 6 total
+                            e.getArmingEnergy().put(w, 6.0);
+                            e.getArmingType().put(w, WeaponArmingType.SPECIAL);
                             break;
                         case "SKIP":
                             // No energy allocated — weapon won't arm
@@ -417,7 +477,7 @@ public class GameSession {
                             e.getArmingType().put(w, WeaponArmingType.SPECIAL);
                             break;
                         case "FINISH":
-                            e.getArmingEnergy().put(w, (double) ((HeavyWeapon) w).energyToArm());
+                            e.getArmingEnergy().put(w, (double) hw.energyToArm());
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
                         case "EPT":
@@ -427,7 +487,7 @@ public class GameSession {
                             e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
                             break;
                         default: // STANDARD
-                            e.getArmingEnergy().put(w, (double) ((HeavyWeapon) w).energyToArm());
+                            e.getArmingEnergy().put(w, (double) hw.energyToArm());
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
                     }
@@ -444,6 +504,15 @@ public class GameSession {
                 // Batteries
                 e.setBatteryDraw(Math.max(0, request.getBatteryDraw()));
                 e.setBatteryRecharge(Math.max(0, request.getBatteryRecharge()));
+
+                // Reserve warp for HETs (C6.2) — must come from warp engines
+                double hetEnergy = Math.max(0, request.getHetEnergy());
+                if (movementEnergyNeeded + hetEnergy > warpEngineCapacity + 0.001) {
+                    return ActionResult.fail("Insufficient warp engine power for speed " + requestedSpeed
+                            + " plus HET reserve — need " + (movementEnergyNeeded + hetEnergy)
+                            + ", have " + warpEngineCapacity);
+                }
+                e.setHighEnergyTurns(hetEnergy);
 
                 // Shield reinforcement
                 e.setGeneralReinforcement(Math.max(0, request.getGeneralReinforcement()));
@@ -500,11 +569,26 @@ public class GameSession {
                     }
                 }
 
+                // Apply shuttle/fighter speeds for shuttles owned by this ship
+                Map<String, Integer> shuttleSpeeds = request.getShuttleSpeeds();
+                if (shuttleSpeeds != null && !shuttleSpeeds.isEmpty()) {
+                    for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
+                        if (!ship.getName().equals(shuttle.getParentShipName())) continue;
+                        Integer reqSpeed = shuttleSpeeds.get(shuttle.getName());
+                        if (reqSpeed != null) {
+                            int clamped = Math.max(0, Math.min(reqSpeed, shuttle.getMaxSpeed()));
+                            shuttle.setCurrentSpeed(clamped);
+                            shuttle.setSpeed(clamped);
+                        }
+                    }
+                }
+
                 return game.submitAllocation(ship, e);
             }
 
             case "FIRE": {
-                Ship attacker = findShip(request.getShipName());
+                // Attacker may be a ship or an active shuttle/fighter
+                Unit attacker = findUnit(request.getShipName());
                 if (attacker == null)
                     return ActionResult.fail("Attacker not found: " + request.getShipName());
 
@@ -516,9 +600,28 @@ public class GameSession {
                 if (weaponNames == null || weaponNames.isEmpty())
                     return ActionResult.fail("No weapons specified");
 
+                com.sfb.systemgroups.Weapons attackerWeapons =
+                        attacker instanceof Ship
+                            ? ((Ship) attacker).getWeapons()
+                            : ((Shuttle) attacker).getWeapons();
+
+                // Apply FighterFusion shot modes before resolving weapon list
+                Map<String, String> shotModes = request.getShotModes();
+                if (shotModes != null && !shotModes.isEmpty()) {
+                    for (Weapon w : attackerWeapons.fetchAllWeapons()) {
+                        if (w instanceof com.sfb.weapons.FighterFusion) {
+                            String mode = shotModes.get(w.getName());
+                            if ("DOUBLE".equalsIgnoreCase(mode))
+                                ((com.sfb.weapons.FighterFusion) w).setShotMode(com.sfb.weapons.FighterFusion.ShotMode.DOUBLE);
+                            else if ("SINGLE".equalsIgnoreCase(mode))
+                                ((com.sfb.weapons.FighterFusion) w).setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
+                        }
+                    }
+                }
+
                 List<Weapon> weapons = new ArrayList<>();
                 for (String wName : weaponNames) {
-                    Weapon w = attacker.getWeapons().fetchAllWeapons().stream()
+                    Weapon w = attackerWeapons.fetchAllWeapons().stream()
                             .filter(x -> x.getName().equalsIgnoreCase(wName))
                             .findFirst().orElse(null);
                     if (w == null)
@@ -529,7 +632,7 @@ public class GameSession {
                 ActionResult fireResult = game.execute(new FireCommand(
                         attacker, target, weapons,
                         request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
-                        request.isUseUim()));
+                        request.isUseUim(), request.isDirectFire()));
                 if (fireResult.isSuccess())
                     appendCombatLog(fireResult.getMessage());
                 return fireResult;
@@ -748,6 +851,12 @@ public class GameSession {
                         request.getCommandoParties()));
             }
 
+            case "IDENTIFY_SEEKERS": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.identifySeekers(ship, request.getSeekerNames());
+            }
+
             case "CLOAK": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
@@ -772,15 +881,46 @@ public class GameSession {
                 .findFirst().orElse(null);
     }
 
-    /** Find any Unit (ship or seeker) by name. */
+    /** Find any Unit (ship, active shuttle, or seeker) by name. */
     private Unit findUnit(String name) {
         if (name == null) return null;
         Ship ship = findShip(name);
         if (ship != null) return ship;
+        Shuttle shuttle = game.getActiveShuttles().stream()
+                .filter(s -> name.equalsIgnoreCase(s.getName()))
+                .findFirst().orElse(null);
+        if (shuttle != null) return shuttle;
         return game.getSeekers().stream()
                 .filter(s -> s instanceof Unit && name.equalsIgnoreCase(((Unit) s).getName()))
                 .map(s -> (Unit) s)
                 .findFirst().orElse(null);
+    }
+
+    /**
+     * After each phase advance, transfer ownership of any ships captured during
+     * endTurn() boarding combat to the opposing player (D7.503).
+     * In a 2-player game the capturing player is unambiguously the opponent.
+     */
+    private void transferCapturedShipOwnership() {
+        List<com.sfb.objects.Ship> captured = game.getCapturedThisTurn();
+        if (captured.isEmpty()) return;
+
+        List<PlayerInfo> playerList = new ArrayList<>(players.values());
+        if (playerList.size() != 2) return; // only handle 2-player for now
+
+        for (com.sfb.objects.Ship ship : captured) {
+            com.sfb.Player currentOwner = ship.getOwner();
+            PlayerInfo newOwnerInfo = playerList.stream()
+                    .filter(pi -> pi.getCorePlayer() != currentOwner)
+                    .findFirst().orElse(null);
+            if (newOwnerInfo == null || newOwnerInfo.getCorePlayer() == null) continue;
+
+            // Move ship from old owner's unit list to new owner's unit list
+            if (currentOwner != null)
+                currentOwner.getPlayerUnits().remove(ship);
+            newOwnerInfo.getCorePlayer().getPlayerUnits().add(ship);
+            ship.setOwner(newOwnerInfo.getCorePlayer());
+        }
     }
 
     // -------------------------------------------------------------------------

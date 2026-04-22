@@ -147,6 +147,10 @@ public class Shields implements Systems {
 		generalReinforcement += amount;
 	}
 
+	public int getGeneralReinforcement() {
+		return generalReinforcement;
+	}
+
 	/**
 	 * Clear all general reinforcement.
 	 */

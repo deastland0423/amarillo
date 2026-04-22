@@ -196,6 +196,30 @@ public class Weapons implements Systems {
 		return this.droneList;
 	}
 
+	/**
+	 * Add a single weapon programmatically (used by Fighter subclasses that build
+	 * their weapon loadout in the constructor rather than from a JSON init map).
+	 */
+	public void addWeapon(Weapon weapon) {
+		weapon.setOwningShip(owningShip);
+		weapons.add(weapon);
+
+		if ("phaser".equals(weapon.getDacHitLocaiton())) {
+			phaserList.add(weapon);
+			if (weapon instanceof Phaser1 || weapon instanceof Phaser2) phaserCapacitor += 1.0;
+			else if (weapon instanceof Phaser3)                          phaserCapacitor += 0.5;
+			else if (weapon instanceof PhaserG)                          phaserCapacitor += 1.0;
+			availablePhasers          = phaserList.size();
+			availablePhaserCapacitor  = phaserCapacitor;
+		} else if ("torp".equals(weapon.getDacHitLocaiton())) {
+			torpList.add(weapon);
+			availableTorps = torpList.size();
+		} else if ("drone".equals(weapon.getDacHitLocaiton())) {
+			droneList.add(weapon);
+			availableDrones = droneList.size();
+		}
+	}
+
 
 }
 

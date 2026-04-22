@@ -146,8 +146,6 @@ public class Drone extends Unit implements Seeker {
 
 	@Override
 	public int impact() {
-		// TODO Work out what happens here. We will need to destroy this object.
-
 		return this.warheadDamage;
 	}
 

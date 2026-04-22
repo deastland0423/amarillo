@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.weapons.Weapon;
 
@@ -16,21 +15,27 @@ import com.sfb.weapons.Weapon;
  */
 public class FireCommand implements Command {
 
-    private final Ship         attacker;
+    private final Unit         attacker;
     private final Unit         target;
     private final List<Weapon> selected;
     private final int          range;
     private final int          adjustedRange;
     private final int          shieldNumber;
     private final boolean      useUim;
+    private final boolean      directFire;
 
-    public FireCommand(Ship attacker, Unit target, List<Weapon> selected,
+    public FireCommand(Unit attacker, Unit target, List<Weapon> selected,
                        int range, int adjustedRange, int shieldNumber) {
-        this(attacker, target, selected, range, adjustedRange, shieldNumber, false);
+        this(attacker, target, selected, range, adjustedRange, shieldNumber, false, false);
     }
 
-    public FireCommand(Ship attacker, Unit target, List<Weapon> selected,
+    public FireCommand(Unit attacker, Unit target, List<Weapon> selected,
                        int range, int adjustedRange, int shieldNumber, boolean useUim) {
+        this(attacker, target, selected, range, adjustedRange, shieldNumber, useUim, false);
+    }
+
+    public FireCommand(Unit attacker, Unit target, List<Weapon> selected,
+                       int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
         this.attacker      = attacker;
         this.target        = target;
         this.selected      = selected;
@@ -38,11 +43,12 @@ public class FireCommand implements Command {
         this.adjustedRange = adjustedRange;
         this.shieldNumber  = shieldNumber;
         this.useUim        = useUim;
+        this.directFire    = directFire;
     }
 
     @Override
     public ActionResult execute(Game game) {
-        String log = game.fireWeapons(attacker, target, selected, range, adjustedRange, shieldNumber, useUim);
+        String log = game.fireWeapons(attacker, target, selected, range, adjustedRange, shieldNumber, useUim, directFire);
         return ActionResult.ok(log);
     }
 }

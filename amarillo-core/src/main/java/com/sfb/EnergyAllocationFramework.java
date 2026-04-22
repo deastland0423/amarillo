@@ -88,17 +88,17 @@ public class EnergyAllocationFramework {
 
 		// Torp Energy
 		for (Weapon weapon : weapons.getTorpList()) {
-			torpEnergy.put(weapon, new Double(0));
+			torpEnergy.put(weapon, 0.0);
 		}
 
 		// Drone Energy
 		for (Weapon weapon : weapons.getDroneList()) {
-			droneEnergy.put(weapon, new Double(0));
+			droneEnergy.put(weapon, 0.0);
 		}
 
 		// Shuttle Energy
 		for (Shuttle shuttle : ship.getShuttles().getAllShuttles()) {
-			shuttleEnergy.put(shuttle, new Integer(0));
+			shuttleEnergy.put(shuttle, 0);
 		}
 
 	}

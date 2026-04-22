@@ -71,20 +71,22 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		DiceRoller diceRoller = new DiceRoller();
 
 		// Based on arming type, calculate damage (0 on a miss).
+		int roll = diceRoller.rollOneDie();
+		setLastRoll(roll);
 		switch (armingType) {
 			case STANDARD:
-				if (diceRoller.rollOneDie() <= hitChart[range]) {
+				if (roll <= hitChart[range]) {
 					damage = 8;
 				}
 				break;
 			case OVERLOAD:
 				// Overloaded photons can't fire at targets above range 8.
-				if (diceRoller.rollOneDie() <= overloadHitChart[range]) {
+				if (roll <= overloadHitChart[range]) {
 					damage = (int) (armingEnergy * 2);
 				}
 				break;
 			case SPECIAL:
-				if (diceRoller.rollOneDie() <= proximityHitChart[range]) {
+				if (roll <= proximityHitChart[range]) {
 					damage = 4;
 				}
 				break;
@@ -115,19 +117,21 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		int damage = 0;
 		DiceRoller diceRoller = new DiceRoller();
 
+		int roll = diceRoller.rollOneDie();
+		setLastRoll(roll);
 		switch (armingType) {
 			case STANDARD:
-				if (diceRoller.rollOneDie() <= hitChart[clampedAdj])
+				if (roll <= hitChart[clampedAdj])
 					damage = 8;
 				break;
 			case OVERLOAD:
 				int clampedAdjOvl = Math.min(adjustedRange, overloadHitChart.length - 1);
-				if (diceRoller.rollOneDie() <= overloadHitChart[clampedAdjOvl])
+				if (roll <= overloadHitChart[clampedAdjOvl])
 					damage = (int) (armingEnergy * 2);
 				break;
 			case SPECIAL:
 				int clampedAdjPrx = Math.min(adjustedRange, proximityHitChart.length - 1);
-				if (diceRoller.rollOneDie() <= proximityHitChart[clampedAdjPrx])
+				if (roll <= proximityHitChart[clampedAdjPrx])
 					damage = 4;
 				break;
 			default:
@@ -296,6 +300,15 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		setMinRange(0);
 		setMaxRange(8);
 		return true;
+	}
+
+	@Override public boolean supportsOverload() { return true; }
+
+	/** STANDARD hold costs 1; OVERLOAD hold costs 2; SPECIAL cannot be held (handled by rules). */
+	@Override
+	public int holdEnergyCost() {
+		if (!armed) return 0;
+		return armingType == WeaponArmingType.OVERLOAD ? 2 : 1;
 	}
 
 	/**

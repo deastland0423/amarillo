@@ -260,6 +260,19 @@ export const gameApi = {
     });
   },
 
+  identifySeekers(
+    gameId: string,
+    playerToken: string,
+    shipName: string,
+    seekerNames: string[],
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({ type: 'IDENTIFY_SEEKERS', shipName, seekerNames }),
+    });
+  },
+
   placeTBomb(
     gameId: string,
     playerToken: string,

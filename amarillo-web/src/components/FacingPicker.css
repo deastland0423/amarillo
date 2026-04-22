@@ -1,0 +1,49 @@
+.facing-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.facing-picker-label {
+  font-size: 0.7rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 5-col × 4-row grid; buttons sit in the ring positions only */
+.facing-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1.8rem);
+  grid-template-rows: repeat(4, 1.8rem);
+  gap: 2px;
+}
+
+.facing-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid #444c56;
+  border-radius: 4px;
+  background: #161b22;
+  color: #8b949e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.facing-btn:hover {
+  background: #2d333b;
+  color: #e6edf3;
+  border-color: #58a6ff;
+}
+
+.facing-btn.selected {
+  background: #1f3547;
+  color: #58a6ff;
+  border-color: #58a6ff;
+}

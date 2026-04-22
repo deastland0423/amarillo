@@ -4,7 +4,6 @@ import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
-import com.sfb.utilities.DiceRoller;
 
 public class Phaser1 extends VariableDamageWeapon implements DirectFire {
 
@@ -55,9 +54,7 @@ public class Phaser1 extends VariableDamageWeapon implements DirectFire {
 			throw new TargetOutOfRangeException("Target not in weapon range.");
 		}
 		// Roll the 1d6 to determing damage
-		DiceRoller diceRoller = new DiceRoller();
-		int roll = diceRoller.rollOneDie();
-		
+		int roll = rollAndRecord();
 		// Return the value that matches the die roll and the range.
 		registerFire();
 		return hitChart[roll - 1][range];

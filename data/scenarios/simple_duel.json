@@ -1,0 +1,52 @@
+{
+  "id": "SIMPLE_DUEL",
+  "name": "Simple Duel",
+  "year": 175,
+  "description": "A simple Federation vs Klingon duel scenario. One ship per side, closing from opposite ends of the map.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CA+",
+          "shipName": "USS Enterprise",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        }
+      ]
+    },
+    {
+      "name": "Klingon Empire",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D7Bu",
+          "shipName": "IKV Vengeance",
+          "startHex": "1212",
+          "startHeading": "A",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        }
+      ]
+    }
+  ],
+  "terrain": [
+    { "type": "PLANET", "name": "Donatu V", "hex": "1406" },
+    { "type": "ASTEROID", "hex": "1105" },
+    { "type": "ASTEROID", "hex": "1005" },
+    { "type": "ASTEROID", "hex": "0906" },
+    { "type": "ASTEROID", "hex": "0907" },
+    { "type": "ASTEROID", "hex": "1006" },
+    { "type": "ASTEROID", "hex": "0905" },
+    { "type": "ASTEROID", "hex": "0805" },
+    { "type": "ASTEROID", "hex": "0904" },
+    { "type": "ASTEROID", "hex": "0806" }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

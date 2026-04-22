@@ -6,8 +6,7 @@ package com.sfb.objects;
  * <h1>Transporter Bombs (tBombs)</h1>
  * A tBomb (transporter bomb) is a mine placed on the map via transporter.
  * 
- * A tBomb may also be dropped out the shuttle bay, but this is not yet
- * implemented.
+ * A tBomb may also be dropped out the shuttle bay (M2.1).
  *
  * <h3>Activation</h3>
  * A tBomb starts inactive. Per M3.223, it becomes permanently active at the
@@ -63,22 +62,26 @@ public class SpaceMine extends Marker {
     private final Ship layingShip;
     private final int placedOnImpulse;
 
+    /** M3.32: true if transported into the laying ship's adjacent hex (range 1). */
+    private final boolean placedAdjacent;
+
     private boolean active = false;
     private boolean revealed = false; // true once a dummy has been exposed
 
     /** Minimal instance for client-side rendering only — no game logic. */
     public static SpaceMine forRendering() {
-        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, null, 0, true);
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, null, 0, true, false);
     }
 
     public SpaceMine(MineType mineType, PlacementMethod placementMethod,
-                     Ship layingShip, int placedOnImpulse, boolean isReal) {
+                     Ship layingShip, int placedOnImpulse, boolean isReal, boolean placedAdjacent) {
         this.mineType        = mineType;
         this.placementMethod = placementMethod;
         this.layingShip      = layingShip;
         this.placedOnImpulse = placedOnImpulse;
         this.isReal          = (mineType == MineType.NSM || isReal);
         this.name            = mineType.label;
+        this.placedAdjacent  = placedAdjacent;
     }
 
     // -------------------------------------------------------------------------
@@ -92,19 +95,22 @@ public class SpaceMine extends Marker {
     /**
      * Attempt to arm this mine. Call each impulse while inactive.
      *
-     * <p>Transporter mines (M3.223): arm after 2 complete impulses regardless
-     * of ship position. Caller must skip detection the impulse arming occurs.
+     * <p>Transporter mines (M3.223): arm after 2 complete impulses. If placed
+     * adjacent (M3.32), also requires the laying ship to be outside the
+     * detection zone (range > 1). Both conditions run concurrently.
      *
      * <p>Dropped mines (M2.34): arm as soon as the laying ship is more than
-     * 2 hexes away. Caller must skip detection the impulse arming occurs.
+     * 1 hex away (outside the detection zone).
      *
-     * @param currentImpulse absolute impulse number (transporter mines only)
-     * @param layerRange     hex distance from mine to laying ship (dropped mines only)
+     * @param currentImpulse absolute impulse number
+     * @param layerRange     hex distance from mine to laying ship
      */
     public void tryActivate(int currentImpulse, int layerRange) {
         if (active) return;
         if (placementMethod == PlacementMethod.TRANSPORTER) {
-            if ((currentImpulse - placedOnImpulse) >= 2)
+            boolean timerMet = (currentImpulse - placedOnImpulse) >= 2;
+            boolean rangeMet = !placedAdjacent || layerRange > 1;
+            if (timerMet && rangeMet)
                 active = true;
         } else {
             if (layerRange > 1)
@@ -176,18 +182,18 @@ public class SpaceMine extends Marker {
     // -------------------------------------------------------------------------
     // Factory methods for specific mine types
     // -------------------------------------------------------------------------
-    /** T-Bomb placed by transporter (M3.22). Timer-based arming (M3.223). */
-    public static SpaceMine createTBomb(Ship layingShip, int placedOnImpulse, boolean isReal) {
-        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, layingShip, placedOnImpulse, isReal);
+    /** T-Bomb placed by transporter (M3.22). Timer-based arming; M3.32 applies if placed adjacent. */
+    public static SpaceMine createTBomb(Ship layingShip, int placedOnImpulse, boolean isReal, boolean placedAdjacent) {
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.TRANSPORTER, layingShip, placedOnImpulse, isReal, placedAdjacent);
     }
 
     /** T-Bomb dropped from a shuttle bay (M2.1). Range-based arming (M2.34). */
     public static SpaceMine createDroppedTBomb(Ship layingShip, int placedOnImpulse, boolean isReal) {
-        return new SpaceMine(MineType.T_BOMB, PlacementMethod.DROPPED, layingShip, placedOnImpulse, isReal);
+        return new SpaceMine(MineType.T_BOMB, PlacementMethod.DROPPED, layingShip, placedOnImpulse, isReal, false);
     }
 
     /** NSM dropped from a shuttle bay (M2.1). Range-based arming (M2.34). Always real. */
     public static SpaceMine createDroppedNSM(Ship layingShip, int placedOnImpulse) {
-        return new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, layingShip, placedOnImpulse, true);
+        return new SpaceMine(MineType.NSM, PlacementMethod.DROPPED, layingShip, placedOnImpulse, true, false);
     }
 }

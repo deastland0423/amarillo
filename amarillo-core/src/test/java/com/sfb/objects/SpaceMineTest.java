@@ -34,14 +34,14 @@ public class SpaceMineTest {
 
     @Test
     public void createTBomb_isRealByDefault() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, true, false);
         assertTrue(mine.isReal());
         assertEquals(MineType.T_BOMB, mine.getMineType());
     }
 
     @Test
     public void createDummyTBomb_isNotReal() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, false);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, false, false);
         assertFalse(mine.isReal());
     }
 
@@ -54,13 +54,13 @@ public class SpaceMineTest {
 
     @Test
     public void newMine_isInactive() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, true, false);
         assertFalse(mine.isActive());
     }
 
     @Test
     public void newMine_isNotRevealed() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, false);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 1, false, false);
         assertFalse(mine.isRevealed());
     }
 
@@ -76,7 +76,7 @@ public class SpaceMineTest {
 
     @Test
     public void notActivated_whenLessThan2ImpulsesElapsed() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         // Only 1 impulse elapsed — not enough
         mine.tryActivate(11, 5);
         assertFalse(mine.isActive());
@@ -84,14 +84,14 @@ public class SpaceMineTest {
 
     @Test
     public void notActivated_atExactly1ImpulseElapsed() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(11, 5);
         assertFalse(mine.isActive());
     }
 
     @Test
     public void activated_whenAtLeast2ImpulsesElapsed_andLayerGone() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         // 2 impulses elapsed, layer at range 5
         mine.tryActivate(12, 5);
         assertTrue(mine.isActive());
@@ -99,7 +99,7 @@ public class SpaceMineTest {
 
     @Test
     public void activated_onExactly2ImpulsesElapsed() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 2);
         assertTrue(mine.isActive());
     }
@@ -110,7 +110,7 @@ public class SpaceMineTest {
 
     @Test
     public void transporterMine_activates_regardlessOfLayerRange_whenTimeElapsed() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         // 3 impulses elapsed, layer still adjacent (range 1) — must still arm
         mine.tryActivate(13, 1);
         assertTrue(mine.isActive());
@@ -118,7 +118,7 @@ public class SpaceMineTest {
 
     @Test
     public void transporterMine_activates_whenLayerAtRange0() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         // Layer in same hex — timer-only rule still arms it
         mine.tryActivate(13, 0);
         assertTrue(mine.isActive());
@@ -162,7 +162,7 @@ public class SpaceMineTest {
 
     @Test
     public void activeState_isPermanent() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
         assertTrue(mine.isActive());
 
@@ -177,14 +177,14 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_returnsFalse_whenMineInactive() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         // Mine not yet activated
         assertFalse(mine.detectsUnit(8, 1));
     }
 
     @Test
     public void detectsUnit_autoDetects_whenSpeedAtLeast6() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         assertTrue(mine.detectsUnit(6, 1));   // speed == 6, any roll
@@ -194,7 +194,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_rollGreaterThanSpeed_detects() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         // speed 3 → detected if roll > 3
@@ -205,7 +205,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_rollEqualToSpeed_notDetected() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         // speed 3, roll 3 → not detected
@@ -214,7 +214,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_rollLessThanSpeed_notDetected() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         // speed 4, roll 2 → not detected
@@ -223,7 +223,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_stationary_rollOf1_notDetected() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         // speed 0 → detected only on roll > 0, i.e. always detected!
@@ -233,7 +233,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_speed5_roll6_detects() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         assertTrue(mine.detectsUnit(5, 6));
@@ -241,7 +241,7 @@ public class SpaceMineTest {
 
     @Test
     public void detectsUnit_speed5_roll5_notDetected() {
-        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true);
+        SpaceMine mine = SpaceMine.createTBomb(layingShip, 10, true, false);
         mine.tryActivate(12, 5);
 
         assertFalse(mine.detectsUnit(5, 5));
@@ -253,14 +253,14 @@ public class SpaceMineTest {
 
     @Test
     public void reveal_marksRevealedOnDummy() {
-        SpaceMine dummy = SpaceMine.createTBomb(layingShip, 1, false);
+        SpaceMine dummy = SpaceMine.createTBomb(layingShip, 1, false, false);
         dummy.reveal();
         assertTrue(dummy.isRevealed());
     }
 
     @Test
     public void reveal_hasNoEffectOnRealMine() {
-        SpaceMine real = SpaceMine.createTBomb(layingShip, 1, true);
+        SpaceMine real = SpaceMine.createTBomb(layingShip, 1, true, false);
         real.reveal();
         assertFalse(real.isRevealed());  // real mines cannot be "revealed"
     }

@@ -243,6 +243,43 @@ function drawObjects(
       ctx.fillText(String(strength), cx, cy + 1);
       continue;
     }
+    if (obj.type === 'TERRAIN') {
+      if (obj.terrainType === 'ASTEROID') {
+        const rocks = [
+          { dx: -13, dy:  -8, r: 3.5 },
+          { dx:   4, dy: -13, r: 2.5 },
+          { dx:  14, dy:  -3, r: 3 },
+          { dx:  -4, dy:  13, r: 4 },
+          { dx:   1, dy:   1, r: 2 },
+          { dx: -14, dy:   6, r: 2.5 },
+          { dx:  10, dy:   9, r: 2 },
+        ];
+        ctx.fillStyle   = '#7a6248';
+        ctx.strokeStyle = '#a08060';
+        ctx.lineWidth   = 0.5;
+        for (const rock of rocks) {
+          ctx.beginPath();
+          ctx.arc(cx + rock.dx, cy + rock.dy, rock.r, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (obj.terrainType === 'PLANET') {
+        ctx.fillStyle   = '#2d6a8a';
+        ctx.strokeStyle = '#4a9aba';
+        ctx.lineWidth   = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 17.5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+        // label
+        ctx.fillStyle  = '#ffffff';
+        ctx.font       = 'bold 7px sans-serif';
+        ctx.textAlign  = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(obj.name ?? 'Planet', cx, cy);
+      }
+      continue;
+    }
     if (obj.type === 'MINE') {
       const r = 7;
       ctx.strokeStyle = obj.active ? '#f85149' : '#f0c040';
@@ -364,9 +401,11 @@ interface Props {
   onHexClick?:      (col: number, row: number) => void;
   /** Switches cursor to crosshair to signal hex-pick mode. */
   pickingHex?:      boolean;
+  /** When set, the map pans to center on this object's hex. New object every call ensures re-pan even for same name. */
+  snapTo?:          { name: string } | null;
 }
 
-export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex }: Props) {
+export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
   const [zoom, setZoom]         = useState(1.0);
   const [tooltip, setTooltip]   = useState<Tooltip | null>(null);
   const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
@@ -391,6 +430,21 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null);
     }
   }, [mapObjects, myShips, selectedName, fireTargetName]);
+
+  // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
+  useEffect(() => {
+    if (!snapTo || !mapObjects) return;
+    const obj = mapObjects.find(o => o.name === snapTo.name);
+    if (!obj?.location) return;
+    const loc = parseLocation(obj.location);
+    if (!loc) return;
+    const [hx, hy] = hexCenter(loc[0], loc[1]);
+    const container = containerRef.current;
+    if (!container) return;
+    const z = zoomRef.current;
+    container.scrollLeft = hx * z - container.clientWidth  / 2;
+    container.scrollTop  = hy * z - container.clientHeight / 2;
+  }, [snapTo, mapObjects]);
 
   // Non-passive wheel listener so we can preventDefault
   useEffect(() => {

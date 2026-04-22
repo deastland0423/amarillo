@@ -1,22 +1,23 @@
 import { useRef, useState } from 'react';
-import type { ShipObject, WeaponState } from '../types/gameState';
+import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 
 // ---- Types ----
 
 interface Props {
-  gameId:       string;
-  playerToken:  string;
-  myShipNames:  string[];
-  pendingNames: string[];
-  allShips:     ShipObject[];
-  onDone:       (log: string) => void;
-  onError:      (msg: string) => void;
-  onTabChange?: (shipName: string) => void;
+  gameId:          string;
+  playerToken:     string;
+  myShipNames:     string[];
+  pendingNames:    string[];
+  allShips:        ShipObject[];
+  activeShuttles?: ShuttleObject[];  // on-map shuttles (all players); dialog filters by parentShipName
+  onDone:          (log: string) => void;
+  onError:         (msg: string) => void;
+  onTabChange?:    (shipName: string) => void;
 }
 
 type ShieldMode = 'ACTIVE' | 'MINIMUM' | 'OFF';
-type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD' | 'EPT';
+type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SUICIDE' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD' | 'EPT' | 'UPGRADE_OVL' | 'UPGRADE_SUICIDE';
 
 interface ShipAlloc {
   speed:                number;
@@ -32,19 +33,23 @@ interface ShipAlloc {
   cloakPaid:            boolean;
   batteryDraw:          number;
   batteryRecharge:      number;
+  hetEnergy:            number;   // warp energy reserved for HETs (C6.2)
+  shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
 }
 
 const SHIELD_NAMES = ['#1', '#2', '#3', '#4', '#5', '#6'];
 
 // ---- Default allocation ----
 
-function defaultAlloc(ship: ShipObject): ShipAlloc {
+function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipAlloc {
+  const shuttleSpeeds: Record<string, number> = {};
+  for (const s of myShuttles) shuttleSpeeds[s.name] = s.speed;
   const arming: Record<string, ArmChoice> = {};
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
     if (w.isRolling)    arming[w.name] = 'ROLL';
-    else if (w.armed && !(w.launcherType && w.armingType === 'OVERLOAD')) arming[w.name] = 'HOLD';
-    else if (w.armed)   arming[w.name] = 'SKIP';  // EPT (plasma OVERLOAD) cannot be held — must launch or discharge
+    else if (w.armed && w.holdCost > 0 && w.armingType === 'STANDARD') arming[w.name] = 'HOLD';
+    else if (w.armed && w.holdCost > 0) arming[w.name] = 'SKIP';  // OVERLOAD/SPECIAL armed — must fire or discharge
     else if (w.launcherType && w.armingTurn >= w.totalArmingTurns - 1)
                         arming[w.name] = 'FINISH'; // plasma final turn: default to standard completion
     else                arming[w.name] = 'STANDARD';
@@ -64,6 +69,8 @@ function defaultAlloc(ship: ShipObject): ShipAlloc {
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     batteryDraw:     0,
     batteryRecharge: 0,
+    hetEnergy:       0,
+    shuttleSpeeds,
   };
 }
 
@@ -85,10 +92,14 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
     const choice = alloc.weaponArming[w.name] ?? 'SKIP';
-    if      (choice === 'STANDARD' || choice === 'FINISH' || choice === 'HOLD') arm += w.armingCost;
-    else if (choice === 'OVERLOAD') arm += w.armingCost * 2;
-    else if (choice === 'ROLL')     arm += w.rollingCost;
-    else if (choice === 'EPT')      arm += w.eptCost ?? 0;
+    if      (choice === 'HOLD')                        arm += w.holdCost;
+    else if (choice === 'STANDARD' || choice === 'FINISH') arm += w.armingCost;
+    else if (choice === 'OVERLOAD')                    arm += w.armingCost * 2;
+    else if (choice === 'SUICIDE')                     arm += 7;
+    else if (choice === 'UPGRADE_OVL')                 arm += 3;
+    else if (choice === 'UPGRADE_SUICIDE')             arm += 6;
+    else if (choice === 'ROLL')                        arm += w.rollingCost;
+    else if (choice === 'EPT')                         arm += w.eptCost ?? 0;
   }
 
   const genReinf  = alloc.generalReinf;
@@ -97,8 +108,9 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const trans     = alloc.transUses * transCost;
   const cloak     = alloc.cloakPaid ? (ship.cloakCost ?? 0) : 0;
   const recharge  = alloc.batteryRecharge;
+  const het       = alloc.hetEnergy;
 
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het;
   const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
   return { spent, total };
 }
@@ -120,7 +132,7 @@ function armingStatus(w: WeaponState): string {
     const mode = w.armingType === 'OVERLOAD' ? 'OVL'
                : w.armingType === 'SPECIAL'  ? 'SPL'
                : 'STD';
-    return w.armingCost > 0 ? `[${mode} — hold ${w.armingCost}]` : `[${mode}]`;
+    return w.holdCost > 0 ? `[${mode} — hold ${w.holdCost}]` : `[${mode}]`;
   }
   if (w.armingTurn > 0) return `[arming ${w.armingTurn}/${w.totalArmingTurns}]`;
   return '[unarmed]';
@@ -158,7 +170,7 @@ function Collapsible({ title, color, children }: { title: string; color: string;
 // ---- Main component ----
 
 export default function EnergyAllocationDialog({
-  gameId, playerToken, myShipNames, pendingNames, allShips, onDone, onError, onTabChange,
+  gameId, playerToken, myShipNames, pendingNames, allShips, activeShuttles = [], onDone, onError, onTabChange,
 }: Props) {
   const [myPending] = useState(() => myShipNames.filter(n => pendingNames.includes(n)));
 
@@ -167,7 +179,10 @@ export default function EnergyAllocationDialog({
     const map: Record<string, ShipAlloc> = {};
     for (const name of myShipNames.filter(n => pendingNames.includes(n))) {
       const ship = allShips.find(s => s.name === name);
-      if (ship) map[name] = defaultAlloc(ship);
+      if (ship) {
+        const myShuttles = activeShuttles.filter(s => s.parentShipName === name);
+        map[name] = defaultAlloc(ship, myShuttles);
+      }
     }
     return map;
   });
@@ -270,6 +285,7 @@ export default function EnergyAllocationDialog({
           cloakPaid:             a.cloakPaid,
           batteryDraw:           a.batteryDraw,
           batteryRecharge:       a.batteryRecharge,
+          hetEnergy:             a.hetEnergy,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
           droneReloadSelections: Object.fromEntries(
@@ -279,6 +295,7 @@ export default function EnergyAllocationDialog({
               )])
               .filter(([, sel]) => Object.keys(sel as Record<string,number>).length > 0)
           ),
+          shuttleSpeeds: Object.keys(a.shuttleSpeeds).length > 0 ? a.shuttleSpeeds : undefined,
         });
         if (!res.success) {
           setErrMsg(`${name}: ${res.message}`);
@@ -413,6 +430,23 @@ export default function EnergyAllocationDialog({
               +1 Impulse (speed {effectiveMaxWarp + 1}, cost 1 extra)
             </label>
           )}
+          {(ship.hetCost ?? 0) > 0 && (() => {
+            const hetCost = ship.hetCost ?? 1;
+            const budgetRemaining = total - (spent - alloc.hetEnergy);
+            const maxHets = Math.floor(budgetRemaining / hetCost);
+            const currentHets = alloc.hetEnergy > 0 ? Math.round(alloc.hetEnergy / hetCost) : 0;
+            return (
+              <div className="ea-het-row">
+                <Stepper
+                  value={currentHets}
+                  min={0}
+                  max={Math.max(currentHets, maxHets)}
+                  onChange={v => setAlloc(a => ({ ...a, hetEnergy: v * hetCost }))}
+                  label={`HET reserve${currentHets > 0 ? ` (${alloc.hetEnergy} energy)` : ` (${hetCost}/HET)`}`}
+                />
+              </div>
+            );
+          })()}
         </div>
 
         {/* ---- Shields ---- */}
@@ -500,13 +534,17 @@ export default function EnergyAllocationDialog({
                           )}
                           <ArmOption name={w.name} value="SKIP"    label="Discharge"                     current={choice} color="#8b949e" onChange={setArming} />
                         </>
-                      ) : w.armed ? (
+                      ) : w.armed && w.holdCost > 0 ? (
                         <>
-                          {/* Plasma-R cannot hold (armingCost=0); EPT (OVERLOAD plasma) cannot hold */}
-                          {(!w.launcherType || (w.armingCost > 0 && w.armingType !== 'OVERLOAD')) && (
-                            <ArmOption name={w.name} value="HOLD"   label={`Hold (${w.armingCost})`}    current={choice} color="#56d364" onChange={setArming} />
+                          {/* Pay-to-hold weapons (Photon, Fusion): hold, optional upgrade, or discharge */}
+                          <ArmOption name={w.name} value="HOLD"             label={`Hold (${w.holdCost})`} current={choice} color="#56d364" onChange={setArming} />
+                          {w.canOverload && w.armingType === 'STANDARD' && (
+                            <ArmOption name={w.name} value="UPGRADE_OVL"    label="→ Ovld (3)"            current={choice} color="#ffa050" onChange={setArming} />
                           )}
-                          <ArmOption name={w.name} value="SKIP"   label="Discharge"                      current={choice} color="#8b949e" onChange={setArming} />
+                          {w.canSuicide && w.armingType === 'STANDARD' && (
+                            <ArmOption name={w.name} value="UPGRADE_SUICIDE" label="→ Suicide (6)"        current={choice} color="#ff6060" onChange={setArming} />
+                          )}
+                          <ArmOption name={w.name} value="SKIP"             label="Discharge"             current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       ) : w.launcherType ? (
                         /* Plasma-specific unarmed options — vary by arming turn */
@@ -528,10 +566,15 @@ export default function EnergyAllocationDialog({
                           </>
                         )
                       ) : (
-                        /* Non-plasma: STANDARD, OVERLOAD (photons etc.), SKIP */
+                        /* Non-plasma unarmed: Arm, Overload (if supported), Suicide (Fusion only), Skip */
                         <>
                           <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}      current={choice} color="#56d364" onChange={setArming} />
-                          <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                          {w.canOverload && (!w.overloadFinalTurnOnly || w.armingTurn >= w.totalArmingTurns - 1) && (
+                            <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                          )}
+                          {w.canSuicide && (
+                            <ArmOption name={w.name} value="SUICIDE" label="Suicide (7)"                  current={choice} color="#ff6060" onChange={setArming} />
+                          )}
                           <ArmOption name={w.name} value="SKIP"     label="Skip"                          current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       )}
@@ -643,6 +686,29 @@ export default function EnergyAllocationDialog({
             </label>
           </div>
         )}
+
+        {/* ---- Active Shuttles / Fighters ---- */}
+        {(() => {
+          const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
+          if (myShuttles.length === 0) return null;
+          const shortName = (s: ShuttleObject) =>
+            s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
+          return (
+            <div className="ea-section">
+              <div className="ea-section-title" style={{ color: '#f0c040' }}>Shuttle / Fighter Speeds</div>
+              {myShuttles.map(s => (
+                <Stepper
+                  key={s.name}
+                  value={alloc.shuttleSpeeds[s.name] ?? s.speed}
+                  min={0}
+                  max={s.maxSpeed}
+                  onChange={v => setAlloc(a => ({ ...a, shuttleSpeeds: { ...a.shuttleSpeeds, [s.name]: v } }))}
+                  label={`${shortName(s)}${s.crippled ? ' ⚠' : ''} (max ${s.maxSpeed}${s.crippled ? ' — crippled' : ''})`}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {errMsg && <div className="ea-error">{errMsg}</div>}
 

@@ -63,7 +63,7 @@ public interface Seeker {
 	 */
 	public int getWarheadDamage();
 
-	public void setWarheadDamage(int warheadDamage); // TODO: Should this be exposed or hidden in each implementation?
+	public void setWarheadDamage(int warheadDamage);
 
 	public void setController(Unit controllingUnit);
 

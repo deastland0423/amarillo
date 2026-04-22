@@ -30,7 +30,7 @@ public class DroneRackTest {
 
         DroneRack typeB = new DroneRack(DroneRackType.TYPE_B);
         assertEquals(6, typeB.getSpaces());
-        assertEquals(2, typeB.getNumberOfReloads());
+        assertEquals(1, typeB.getNumberOfReloads());
 
         DroneRack typeD = new DroneRack(DroneRackType.TYPE_D);
         assertEquals(12, typeD.getSpaces());

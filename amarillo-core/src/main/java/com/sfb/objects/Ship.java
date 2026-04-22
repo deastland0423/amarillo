@@ -16,6 +16,7 @@ import com.sfb.properties.BoardingPartyQuality;
 import com.sfb.properties.Faction;
 import com.sfb.properties.ShieldStatus;
 import com.sfb.properties.SystemTarget;
+import com.sfb.properties.TurnMode;
 import com.sfb.systemgroups.CloakingDevice;
 import com.sfb.systemgroups.ControlSpaces;
 import com.sfb.systemgroups.Crew;
@@ -96,6 +97,17 @@ public class Ship extends Unit {
 
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
+
+	// HET tracking
+	private int  lastHetImpulse           = -99; // large negative so first-turn gap check passes
+	private int  hetsThisTurn             = 0;
+	private int  immobileUntilImpulse     = 0;   // 0 = not immobile; set to currentImpulse+16 on breakdown
+	private int  breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
+
+	// Internal damage crew/BP casualty tracking (G9.21, D7.21)
+	private int  internalDamagePointsTotal   = 0; // cumulative internal damage points scored on this ship
+	private int  crewKilledByInternalDamage  = 0; // crew kill events already applied
+	private int  bpCasualtiesProcessed       = 0; // BP casualty events already processed (after 4-event grace)
 
 	/**
 	 * Guards assigned to defend specific system types this turn (D7.83). Key =
@@ -251,6 +263,9 @@ public class Ship extends Unit {
 			getPowerSysetems().chargeBattery(energyAllocated.getBatteryRecharge());
 		}
 
+		// Reserve warp for HETs (C6.2)
+		getPowerSysetems().setReserveWarp((int) energyAllocated.getHighEnergyTurns());
+
 		// Phaser Capacitor
 		if (energyAllocated.isEnergizeCaps() && !capacitorsCharged) {
 			capacitorsCharged = true; // takes effect this turn; player can fill cap next EA
@@ -270,10 +285,13 @@ public class Ship extends Unit {
 
 		// Weapons
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
-			// For heavy weapons, apply the arming type and energy
+			// For heavy weapons, apply the arming type and energy (null energy = SKIP, don't arm)
 			if (weapon instanceof HeavyWeapon) {
-				((HeavyWeapon) weapon).applyAllocationEnergy(energyAllocated.getArmingEnergy().get(weapon),
-						energyAllocated.getArmingType().get(weapon));
+				Double armEnergy = energyAllocated.getArmingEnergy().get(weapon);
+				if (armEnergy != null) {
+					((HeavyWeapon) weapon).applyAllocationEnergy(armEnergy,
+							energyAllocated.getArmingType().get(weapon));
+				}
 			}
 			// For drone racks, apply any assigned reload
 			if (weapon instanceof DroneRack) {
@@ -310,6 +328,7 @@ public class Ship extends Unit {
 		probes.cleanUp();
 		shuttles.cleanUp();
 		weapons.cleanUp();
+		clearGuards(); // D7.834: guards must be re-assigned each turn during EA
 		crew.cleanUp();
 		performanceData.cleanUp();
 	}
@@ -339,6 +358,51 @@ public class Ship extends Unit {
 
 	public void setSpeedTwoTurnsAgo(int speed) {
 		this.speedTwoTurnsAgo = speed;
+	}
+
+	// ---- HET tracking ----
+
+	public int  getLastHetImpulse()              { return lastHetImpulse; }
+	public void setLastHetImpulse(int impulse)   { this.lastHetImpulse = impulse; }
+
+	public int  getHetsThisTurn()                { return hetsThisTurn; }
+	public void incrementHetsThisTurn()          { hetsThisTurn++; }
+	public void resetHetsThisTurn()              { hetsThisTurn = 0; }
+
+	public int  getImmobileUntilImpulse()           { return immobileUntilImpulse; }
+	public void setImmobileUntilImpulse(int impulse){ this.immobileUntilImpulse = impulse; }
+	public boolean isImmobile(int currentImpulse)   { return currentImpulse <= immobileUntilImpulse; }
+
+	/** C6.38: true during the HET impulse and for 4 impulses thereafter. */
+	public boolean isInPostHetWindow(int currentImpulse) {
+		return lastHetImpulse >= 0 && (currentImpulse - lastHetImpulse) <= 4;
+	}
+
+	/** C6.547: true for 8 impulses after a breakdown (weapons, shuttles, transporters locked out). */
+	public boolean isInBreakdownLockout(int currentImpulse) {
+		return currentImpulse <= breakdownLockoutUntilImpulse;
+	}
+
+	public int  getBreakdownLockoutUntilImpulse()            { return breakdownLockoutUntilImpulse; }
+	public void setBreakdownLockoutUntilImpulse(int impulse) { this.breakdownLockoutUntilImpulse = impulse; }
+
+	// ---- Skeleton crew (G9.4) ----
+
+	/**
+	 * G9.421: When on skeleton crew, effective turn mode is one step worse.
+	 * Capped at F (the worst turn mode for ships).
+	 */
+	public TurnMode effectiveTurnMode() {
+		TurnMode base = getTurnMode();
+		if (!getCrew().isSkeleton()) return base;
+		TurnMode[] values = TurnMode.values();
+		int next = Math.min(base.ordinal() + 1, TurnMode.F.ordinal());
+		return values[next];
+	}
+
+	@Override
+	public int getTurnHexes() {
+		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed());
 	}
 
 	/// BASIC SHIP DATA ///
@@ -773,45 +837,65 @@ public class Ship extends Unit {
 		return java.util.Collections.unmodifiableList(uims);
 	}
 
-	@Override
-	public boolean performHet(int absoluteFacing) {
-
-		// Roll for breakdown chance
+	/**
+	 * Rolls for HET breakdown, applies the HET if successful, and returns the
+	 * effective roll (after bonus HET modifier). Game.performHet() uses the roll
+	 * value for combat-log reporting; breakdown is indicated by
+	 * roll >= breakdownChance (caller must then invoke applyBreakdown()).
+	 */
+	public int rollAndPerformHet(int absoluteFacing) {
 		DiceRoller roller = new DiceRoller();
 		int breakdownRoll = roller.rollOneDie();
 
-		// If there is still a bonus to be had, use it
-		// and decrement the number of bonus HETs remaining.
 		if (performanceData.getBonusHetsRemaining() > 0) {
 			breakdownRoll -= 2;
 			performanceData.useBonusHet();
 		}
 
-		if (breakdownRoll >= performanceData.getBreakdownChance()) {
-			doBreakdown();
-			return false;
+		if (breakdownRoll < performanceData.getBreakdownChance()) {
+			super.performHet(absoluteFacing);
 		}
 
-		super.performHet(absoluteFacing);
-
-		return true;
+		return breakdownRoll;
 	}
 
-	private void doBreakdown() {
+	@Override
+	public boolean performHet(int absoluteFacing) {
+		return rollAndPerformHet(absoluteFacing) < performanceData.getBreakdownChance();
+	}
 
-		/*
-		 * Here's what happens in a breakdown.
-		 * 1. The ship immediately stops moving and sets its speed to 0.
-		 * 2. Roll one die (d6) and face the ship in the resulting direction (A-F).
-		 * 3. The ship may not move by any means for 16 impulses, not even for tactical
-		 * maneuvers or HETs
-		 * 4. 1/3 of the crew units are lost (round up).
-		 * 5. 1/5 of of all remaining warp power is lost (round up).
-		 * 6. The ship suffers 2 internal damage points that penetrate the armor. Apply
-		 * these to the DAC as normal.
-		 * 7. The ships breakdown rating is reduced by 1 for the rest of the game
-		 * (minimum 1).
-		 */
+	/**
+	 * Apply all breakdown effects (C6.54). Call only when performHet() returns false.
+	 * Returns the number of internal DAC hits to queue (always 2 per C6.5423).
+	 */
+	public int applyBreakdown(int currentImpulse) {
+		// C6.541: stop ship, random facing, immobile for 16 impulses
+		setSpeed(0);
+		int randomFacing = new DiceRoller().rollOneDie() - 1; // 1–6 → 0–5
+		super.performHet(randomFacing); // sets facing + resets turn/sideslip counts
+
+		immobileUntilImpulse          = currentImpulse + 16;
+		breakdownLockoutUntilImpulse  = currentImpulse + 8;  // C6.547
+
+		// C6.5421: kill 1/3 crew (round up)
+		int crewLoss = (int) Math.ceil(getCrew().getAvailableCrewUnits() / 3.0);
+		getCrew().setAvailableCrewUnits(Math.max(0, getCrew().getAvailableCrewUnits() - crewLoss));
+
+		// C6.5422: destroy every 5th warp engine box (round down)
+		int totalWarp = getPowerSysetems().getAvailableLWarp()
+				+ getPowerSysetems().getAvailableRWarp()
+				+ getPowerSysetems().getAvailableCWarp();
+		int toDestroy = totalWarp / 5;
+		for (int i = 0; i < toDestroy; i++) {
+			if (!getPowerSysetems().damageLWarp())
+				if (!getPowerSysetems().damageRWarp())
+					getPowerSysetems().damageCWarp();
+		}
+
+		// C6.544: reduce breakdown rating by 1 (minimum 1)
+		performanceData.decrementBreakdownRating();
+
+		return 2; // C6.5423: 2 internal DAC hits, queued by Game
 	}
 
 	/**
@@ -927,6 +1011,38 @@ public class Ship extends Unit {
 		DiceRoller roller = new DiceRoller();
 
 		for (int i = 0; i < bleedThrough; i++) {
+			internalDamagePointsTotal++;
+
+			// G9.21: every 10th internal damage point kills 1 crew unit
+			int killThreshold = internalDamagePointsTotal / 10;
+			int newCrewKills = killThreshold - crewKilledByInternalDamage;
+			if (newCrewKills > 0) {
+				crewKilledByInternalDamage += newCrewKills;
+				int current = getCrew().getAvailableCrewUnits();
+				int actual = Math.min(newCrewKills, Math.max(0, current - 1)); // G9.22: last crew unit protected
+				if (actual > 0) {
+					getCrew().setAvailableCrewUnits(current - actual);
+					log.add("  crew casualty: " + actual + " crew unit(s) lost to internal damage (G9.21)");
+				}
+			}
+
+			// D7.21: every 10th point also generates a BP casualty; first 4 events ignored, last 2 BPs protected.
+			// Casualties are normal parties first, commandos last. Floor applies only to internal damage;
+			// boarding combat and H&R raids can kill the last 2 BPs freely.
+			// TODO: multi-faction support (D7.21 para 2) — requires per-faction BP tracking on the defending
+			//   ship, which the data model does not yet support.
+			int effectiveBpEvents = Math.max(0, killThreshold - 4);
+			int newBpEvents = effectiveBpEvents - bpCasualtiesProcessed;
+			if (newBpEvents > 0) {
+				bpCasualtiesProcessed += newBpEvents;
+				int currentBp = getCrew().getAvailableBoardingParties();
+				int actual = Math.min(newBpEvents, Math.max(0, currentBp - 2)); // last 2 BPs protected
+				if (actual > 0) {
+					getCrew().getFriendlyTroops().removeCasualties(actual);
+					log.add("  boarding party casualty: " + actual + " BP(s) lost to internal damage (D7.21)");
+				}
+			}
+
 			int roll = roller.rollTwoDice();
 			String system = dac.fetchNextHit(roll);
 			if (system == null) {
@@ -1048,6 +1164,11 @@ public class Ship extends Unit {
 
 	public void chargeCapacitor(double energy) throws CapacitorException {
 		this.weapons.chargePhaserCapacitor(energy);
+	}
+
+	/** True if this ship has taken at least one internal damage point (used for victory point scoring). */
+	public boolean isDamaged() {
+		return internalDamagePointsTotal > 0;
 	}
 
 	// The ship may be crippled if half or more of its boxes

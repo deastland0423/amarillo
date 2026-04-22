@@ -4,7 +4,6 @@ import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
-import com.sfb.utilities.DiceRoller;
 
 /**
  * Type-3 Defensive Phaser
@@ -58,9 +57,7 @@ public class Phaser3 extends VariableDamageWeapon implements DirectFire {
 			throw new TargetOutOfRangeException("Target is out of weapon range.");
 		}
 		
-		DiceRoller diceRoller = new DiceRoller();
-		int roll = diceRoller.rollOneDie();
-		
+		int roll = rollAndRecord();
 		// Return the value that matches the die roll and the range.
 		registerFire();
 		return hitChart[roll - 1][range];

@@ -50,6 +50,18 @@
       ]
     }
   ],
+  "terrain": [
+    { "type": "PLANET", "name": "Donatu V", "hex": "1406" },
+    { "type": "ASTEROID", "hex": "1105" },
+    { "type": "ASTEROID", "hex": "1005" },
+    { "type": "ASTEROID", "hex": "0906" },
+    { "type": "ASTEROID", "hex": "0907" },
+    { "type": "ASTEROID", "hex": "1006" },
+    { "type": "ASTEROID", "hex": "0905" },
+    { "type": "ASTEROID", "hex": "0805" },
+    { "type": "ASTEROID", "hex": "0904" },
+    { "type": "ASTEROID", "hex": "0806" }
+  ],
   "victoryConditions": {
     "type": "STANDARD"
   }

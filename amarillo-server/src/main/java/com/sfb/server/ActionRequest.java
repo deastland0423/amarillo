@@ -27,6 +27,7 @@ public class ActionRequest {
     private int          adjustedRange;
     private int          shieldNumber;
     private boolean      useUim;
+    private boolean      directFire;   // true = Hellbore fires in direct-fire mode (E10.7)
 
     // ALLOCATE fields
     private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
@@ -40,6 +41,8 @@ public class ActionRequest {
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
     private Map<String, Map<String, Integer>> droneReloadSelections; // rack name → {droneType → count}
+    private Map<String, Integer> shuttleSpeeds;                      // shuttle name → requested speed (active shuttles only)
+    private Map<String, String>  shotModes;                          // weapon name → "SINGLE" or "DOUBLE" (FighterFusion)
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -70,6 +73,9 @@ public class ActionRequest {
 
     public boolean isUseUim()                      { return useUim; }
     public void    setUseUim(boolean useUim)        { this.useUim = useUim; }
+
+    public boolean isDirectFire()                      { return directFire; }
+    public void    setDirectFire(boolean directFire)   { this.directFire = directFire; }
 
     public int  getSpeed()                         { return speed; }
     public void setSpeed(int speed)                { this.speed = speed; }
@@ -104,6 +110,12 @@ public class ActionRequest {
     public Map<String, Map<String, Integer>> getDroneReloadSelections()                                              { return droneReloadSelections; }
     public void                              setDroneReloadSelections(Map<String, Map<String, Integer>> selections) { this.droneReloadSelections = selections; }
 
+    public Map<String, Integer> getShuttleSpeeds()                              { return shuttleSpeeds; }
+    public void                 setShuttleSpeeds(Map<String, Integer> speeds)   { this.shuttleSpeeds = speeds; }
+
+    public Map<String, String>  getShotModes()                                  { return shotModes; }
+    public void                 setShotModes(Map<String, String> shotModes)     { this.shotModes = shotModes; }
+
     // LAUNCH_PLASMA fields
     private boolean pseudo;
 
@@ -125,4 +137,20 @@ public class ActionRequest {
 
     public int  getCommandoParties()                     { return commandoParties; }
     public void setCommandoParties(int commandoParties)  { this.commandoParties = commandoParties; }
+
+    // IDENTIFY_SEEKERS fields
+    private List<String> seekerNames;
+
+    public List<String> getSeekerNames()                       { return seekerNames; }
+    public void         setSeekerNames(List<String> seekerNames) { this.seekerNames = seekerNames; }
+
+    // PERFORM_HET fields
+    private int facing;
+    private int hetEnergy;
+
+    public int  getFacing()              { return facing; }
+    public void setFacing(int facing)    { this.facing = facing; }
+
+    public int  getHetEnergy()           { return hetEnergy; }
+    public void setHetEnergy(int e)      { this.hetEnergy = e; }
 }

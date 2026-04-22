@@ -104,10 +104,25 @@ public interface HeavyWeapon {
 	/**
 	 * This is where the weapon is affected by energy allocation at the start
 	 * of the turn. Weapons can be held, armed, or allowed to discharge.
-	 * 
+	 *
 	 * @param energy The amount of energy to put into this weapon. Null means to discharge the
-	 * weapon regardless of state. Negative value means to discharge the weapon and then begin 
+	 * weapon regardless of state. Negative value means to discharge the weapon and then begin
 	 * a new arming cycle.
 	 */
-	public void applyAllocationEnergy(Double energy, WeaponArmingType type);	
+	public void applyAllocationEnergy(Double energy, WeaponArmingType type);
+
+	/** Energy required to hold this weapon per turn; 0 means hold is not supported. */
+	default int holdEnergyCost() { return 0; }
+
+	/** True if this weapon supports an OVERLOAD arming mode. */
+	default boolean supportsOverload() { return false; }
+
+	/** True if this weapon supports a SPECIAL/SUICIDE arming mode (Fusion only). */
+	default boolean supportsSuicide() { return false; }
+
+	/**
+	 * True if overload can only be chosen on the final arming turn (Hellbore E10.6).
+	 * When true the UI hides the Ovld button until armingTurn >= totalArmingTurns - 1.
+	 */
+	default boolean overloadFinalTurnOnly() { return false; }
 }

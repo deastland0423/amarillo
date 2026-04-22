@@ -60,9 +60,21 @@ public class ScenarioSpec {
     public String       lengthCondition;              // "STANDARD" = last side standing
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;
+    public List<TerrainSetup>    terrain;          // optional — asteroid/planet hexes
     public VictoryConditions     victoryConditions;
     public ShuttleRules          shuttleRules    = new ShuttleRules();
     public CommanderOptions      commanderOptions = new CommanderOptions();
+
+    // -------------------------------------------------------------------------
+    // Terrain
+    // -------------------------------------------------------------------------
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TerrainSetup {
+        public String type; // "ASTEROID" | "PLANET"
+        public String hex;  // CCRR notation, e.g. "0515"
+        public String name; // optional display name (mainly for planets)
+    }
 
     // -------------------------------------------------------------------------
     // Side

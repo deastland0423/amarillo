@@ -248,14 +248,42 @@ public class TBombGameTest {
     }
 
     @Test
-    public void placedMine_activatesOnTimerRegardlessOfLayerPosition() {
+    public void nonAdjacentMine_armsOnTimerAlone() {
+        // Placed at range 2 — M3.32 does not apply, timer alone governs arming
+        game.placeTBomb(ship, new Location(10, 12), true);
+
+        SpaceMine mine = game.getMines().get(0);
+        int placedImpulse = mine.getPlacedOnImpulse();
+
+        // Layer still adjacent to mine — irrelevant because mine was not placed adjacent
+        mine.tryActivate(placedImpulse + 2, 1);
+
+        assertTrue(mine.isActive());
+    }
+
+    @Test
+    public void adjacentMine_doesNotArmWhileLayerStillInZone() {
+        // Placed at range 1 — M3.32 requires layer to leave detection zone before arming
         game.placeTBomb(ship, new Location(10, 11), true);
 
         SpaceMine mine = game.getMines().get(0);
         int placedImpulse = mine.getPlacedOnImpulse();
 
-        // Transporter mines arm on timer alone (M3.223) — layer range is irrelevant
+        // Timer met but layer still at range 1 — should not arm
         mine.tryActivate(placedImpulse + 2, 1);
+
+        assertFalse(mine.isActive());
+    }
+
+    @Test
+    public void adjacentMine_armsWhenBothConditionsMet() {
+        game.placeTBomb(ship, new Location(10, 11), true);
+
+        SpaceMine mine = game.getMines().get(0);
+        int placedImpulse = mine.getPlacedOnImpulse();
+
+        // Timer met and layer now at range 2 — both M3.223 and M3.32 satisfied
+        mine.tryActivate(placedImpulse + 2, 2);
 
         assertTrue(mine.isActive());
     }

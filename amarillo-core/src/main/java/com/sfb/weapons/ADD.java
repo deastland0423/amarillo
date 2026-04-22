@@ -88,6 +88,7 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         registerFire();
 
         int roll = new DiceRoller().rollOneDie();
+        setLastRoll(roll);
         return roll <= HIT_CHART[range] ? HIT : 0;
     }
 
@@ -97,31 +98,24 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
     }
 
     /**
-     * At end of turn: auto-reload from reserve if the ADD did not fire this turn.
+     * At end of turn (8C): auto-reload up to 4 rounds from reserve if the rack
+     * did not fire this turn (E5.74).
      * Must check getShotsThisTurn() before super.cleanUp() resets it.
      */
     @Override
     public void cleanUp() {
         if (getShotsThisTurn() == 0 && shots < capacity && reloadsAvailable > 0) {
-            int needed = capacity - shots;
-            int reloading = Math.min(needed, reloadsAvailable);
-            shots += reloading;
+            int needed    = capacity - shots;
+            int reloading = Math.min(4, Math.min(needed, reloadsAvailable));
+            shots            += reloading;
             reloadsAvailable -= reloading;
         }
         super.cleanUp();
     }
 
-    public int getShots() {
-        return shots;
-    }
-
-    public int getReloadsAvailable() {
-        return reloadsAvailable;
-    }
-
-    public int getCapacity() {
-        return capacity;
-    }
+    public int getShots()            { return shots; }
+    public int getReloadsAvailable() { return reloadsAvailable; }
+    public int getCapacity()         { return capacity; }
 
     @Override
     public int[] getHitChart() {

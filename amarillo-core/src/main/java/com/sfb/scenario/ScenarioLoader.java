@@ -6,7 +6,9 @@ import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
+import com.sfb.objects.Terrain;
 import com.sfb.properties.Location;
+import com.sfb.properties.TerrainType;
 import com.sfb.weapons.ADD;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
@@ -56,6 +58,7 @@ public class ScenarioLoader {
         }
         Ship ship = ShipLibrary.createShip(shipSpec);
         ship.setName(setup.shipName);
+        ship.getShuttles().prefixShuttleNames(setup.shipName);
         ship.setLocation(parseHex(setup.startHex));
         ship.setFacing(parseHeading(setup.startHeading));
         ship.setSpeed(setup.startSpeed);
@@ -65,6 +68,29 @@ public class ScenarioLoader {
         applyYearUpgrades(ship, faction, year, shipSpec);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
+    }
+
+    /**
+     * Build all terrain objects defined in the scenario.
+     * Each entry in spec.terrain becomes one Terrain hex on the map.
+     */
+    public static List<Terrain> loadTerrain(ScenarioSpec spec) {
+        List<Terrain> result = new ArrayList<>();
+        if (spec.terrain == null) return result;
+        for (ScenarioSpec.TerrainSetup setup : spec.terrain) {
+            TerrainType type;
+            try {
+                type = TerrainType.valueOf(setup.type.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.err.println("ScenarioLoader: unknown terrain type '" + setup.type + "' — skipped");
+                continue;
+            }
+            Location loc = parseHex(setup.hex);
+            Terrain t = new Terrain(type, loc.getX(), loc.getY());
+            t.setName(setup.name != null ? setup.name : setup.type + "-" + setup.hex);
+            result.add(t);
+        }
+        return result;
     }
 
     /**
@@ -365,12 +391,16 @@ public class ScenarioLoader {
                         hw.setArmingTurn(hw.totalArmingTurns() - 1);
                     }
                 }
-                // WS-3: multi-turn arming weapons start fully armed and held (S4.13).
-                // Excludes Plasma-R (cannot hold) and Fusion beams (not multi-turn arming).
+                // WS-3: all heavy weapons start fully armed (S4.13).
+                // Excludes Plasma-R (cannot hold/launch as seeker from armed state).
+                // Excludes Disruptors: single-turn arming, reset every turn — pre-arming is
+                // meaningless since they re-arm in turn 1 EA anyway.
+                // Fusion beams are single-turn arming but still start armed at WS-3.
+                // Hellbores start armed but cannot hold — rolling delay applies in turn 1 EA.
                 if (weaponStatus == 3) {
                     for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
                         if (!(w instanceof HeavyWeapon)) continue;
-                        if (w instanceof com.sfb.weapons.Fusion) continue;
+                        if (w instanceof com.sfb.weapons.Disruptor) continue;
                         if (w instanceof com.sfb.weapons.PlasmaLauncher
                                 && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
                         HeavyWeapon hw = (HeavyWeapon) w;

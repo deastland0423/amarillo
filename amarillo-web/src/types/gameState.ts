@@ -26,6 +26,10 @@ export interface WeaponState {
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)
   armingCost:        number;
+  holdCost:          number;   // energy to hold per turn; 0 = hold not supported
+  canOverload:            boolean;  // weapon supports OVERLOAD mode
+  canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+  overloadFinalTurnOnly:  boolean;  // OVERLOAD only choosable on the final arming turn
   totalArmingTurns:  number;
   isRolling:         boolean;
   rollingCost:       number;  // always sent for plasma; 0 for non-plasma
@@ -34,6 +38,11 @@ export interface WeaponState {
   maxShotsPerTurn:   number;
   shotsThisTurn:     number;
   minImpulseGap:     number;
+  chargesRemaining?: number;  // FighterFusion only
+  canFireDouble?:    boolean; // FighterFusion only
+  addShots?:         number;  // ADD only: shots remaining in current load
+  addReloads?:       number;  // ADD only: reserve shots remaining
+  addCapacity?:      number;  // ADD only: shots per full load
 }
 
 export interface ReloadPoolEntry {
@@ -79,6 +88,10 @@ export interface ShipObject extends MapObjectBase {
   availableApr:     number;
   availableAwr:     number;
   availableBattery: number;
+  batteryPower:     number;
+  skeleton:         boolean;
+  reserveWarp:      number;
+  hetCost:          number;
   // Hull boxes
   availableFhull:   number;
   availableAhull:   number;
@@ -100,6 +113,7 @@ export interface ShipObject extends MapObjectBase {
   nuclearSpaceMines: number;
   boardingParties:  number;
   commandos:        number;
+  availableLab:     number;
   // Crew
   availableCrewUnits:  number;
   minimumCrew:         number;
@@ -124,9 +138,13 @@ export interface ShipObject extends MapObjectBase {
 }
 
 export interface ShuttleObject extends MapObjectBase {
-  type:   'SHUTTLE' | 'SUICIDE_SHUTTLE' | 'SCATTER_PACK';
-  facing: number;
-  speed:  number;
+  type:           'SHUTTLE' | 'SUICIDE_SHUTTLE' | 'SCATTER_PACK';
+  facing:         number;
+  speed:          number;
+  maxSpeed:       number;
+  parentShipName: string | null;
+  weapons?:       WeaponState[];  // non-null for fighters
+  crippled?:      boolean;
 }
 
 export interface DroneObject extends MapObjectBase {
@@ -166,12 +184,18 @@ export interface MineObject extends MapObjectBase {
   revealed: boolean;
 }
 
+export interface TerrainObject extends MapObjectBase {
+  type:        'TERRAIN';
+  terrainType: 'ASTEROID' | 'PLANET';
+}
+
 export type MapObject =
   | ShipObject
   | ShuttleObject
   | DroneObject
   | PlasmaObject
-  | MineObject;
+  | MineObject
+  | TerrainObject;
 
 export interface GameState {
   turn:               number;

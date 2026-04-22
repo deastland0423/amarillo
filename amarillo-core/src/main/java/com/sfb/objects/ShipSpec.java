@@ -79,7 +79,7 @@ public class ShipSpec {
     public static class PowerSpec {
         public int leftWarp;
         public int rightWarp;
-        public int cwarp;
+        public int centerWarp;
         public int impulse;
         public int apr;
         public int awr;
@@ -106,7 +106,8 @@ public class ShipSpec {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShuttleBaySpec {
-        public List<String> shuttles; // e.g. ["admin", "admin", "gas"]
+        public List<String> shuttles;  // e.g. ["admin", "admin", "gas"]
+        public int          launchTubes; // J1.54 — 0 means standard hatch only
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -128,6 +129,7 @@ public class ShipSpec {
     public static class CrewSpec {
         public int totalCrew;
         public int boardingParties;
+        public int deckCrews;
         public int minCrew;
     }
 
@@ -237,8 +239,8 @@ public class ShipSpec {
                 m.put("lwarp", power.leftWarp);
             if (power.rightWarp > 0)
                 m.put("rwarp", power.rightWarp);
-            if (power.cwarp > 0)
-                m.put("cwarp", power.cwarp);
+            if (power.centerWarp > 0)
+                m.put("cwarp", power.centerWarp);
             if (power.impulse > 0)
                 m.put("impulse", power.impulse);
             if (power.apr > 0)
@@ -290,11 +292,19 @@ public class ShipSpec {
                 m.put("uim", auxiliary.uim);
         }
 
-        // Shuttle bays
+        // Shuttle bays — use object format when launch tubes are specified (J1.54)
         if (shuttleBays != null && !shuttleBays.isEmpty()) {
-            List<List<String>> bayList = new ArrayList<>();
+            List<Object> bayList = new ArrayList<>();
             for (ShuttleBaySpec bay : shuttleBays) {
-                bayList.add(bay.shuttles != null ? bay.shuttles : new ArrayList<>());
+                List<String> shuttles = bay.shuttles != null ? bay.shuttles : new ArrayList<>();
+                if (bay.launchTubes > 0) {
+                    Map<String, Object> bayMap = new HashMap<>();
+                    bayMap.put("shuttles", shuttles);
+                    bayMap.put("launchTubes", bay.launchTubes);
+                    bayList.add(bayMap);
+                } else {
+                    bayList.add(shuttles);
+                }
             }
             m.put("shuttlebays", bayList);
         }
@@ -304,6 +314,8 @@ public class ShipSpec {
             m.put("crew", crewData.totalCrew);
             m.put("boardingparties", crewData.boardingParties);
             m.put("minimumcrew", crewData.minCrew);
+            if (crewData.deckCrews > 0)
+                m.put("deckcrews", crewData.deckCrews);
         }
 
         // Weapons
@@ -402,6 +414,12 @@ public class ShipSpec {
                 f.setArcs(arcMask);
                 f.setDesignator(ws.designator);
                 return f;
+            }
+            case "Hellbore": {
+                com.sfb.weapons.Hellbore h = new com.sfb.weapons.Hellbore();
+                h.setArcs(arcMask);
+                h.setDesignator(ws.designator);
+                return h;
             }
             case "ADD": {
                 AddType addType = ws.addType != null

@@ -549,6 +549,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 			throw new TargetOutOfRangeException("Plasma bolt has no strength at range " + range);
 
 		int roll = new DiceRoller().rollOneDie();
+		setLastRoll(roll);
 		int hit = roll <= BOLT_HIT_CHART[range] ? boltDamage : 0;
 		registerFire();
 		reset();

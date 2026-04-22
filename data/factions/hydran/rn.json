@@ -1,0 +1,76 @@
+{
+  "faction": "Hydran",
+  "hull": "RN",
+  "name": "HMS Loyalty",
+  "serviceYear": 134,
+  "bpv": 93,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [33, 26, 18, 15, 18, 26],
+  
+  "hullBoxes": {
+    "chull": 21
+  },
+  
+  "power": {
+    "leftWarp": 9,
+    "rightWarp": 9,
+    "centerWarp": 9,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "stinger1", "stinger1", "stinger1"], "launchTubes": 3 },
+    { "shuttles": ["stinger1", "stinger1", "stinger1"], "launchTubes": 3 },
+    { "shuttles": ["stinger1", "stinger1", "stinger1"], "launchTubes": 3 }
+  ],
+
+  "crewData": {
+    "totalCrew": 35,
+    "boardingParties": 12,
+    "deckCrews": 9,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["FA", "R"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
+    { "type": "PhaserG", "designator": "7", "arcs": ["RA"] },
+    { "type": "PhaserG", "designator": "8", "arcs": ["RA"] },
+    { "type": "Fusion",  "designator": "A", "arcs": ["LF", "L"] },
+    { "type": "Fusion",  "designator": "B", "arcs": ["LF", "L"] },
+    { "type": "Fusion",  "designator": "C", "arcs": ["RF", "R"] },
+    { "type": "Fusion",  "designator": "D", "arcs": ["RF", "R"] }
+  ]
+}

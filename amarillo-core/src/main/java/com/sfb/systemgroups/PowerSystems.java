@@ -175,13 +175,8 @@ public class PowerSystems implements Systems {
 		return reserveWarp;
 	}
 	
-	public boolean setReserveWarp(int reserveWarp) {
-		if (reserveWarp > availableBattery) {
-			return false;
-		}
-		
-		this.reserveWarp = reserveWarp;
-		return true;
+	public void setReserveWarp(int reserveWarp) {
+		this.reserveWarp = Math.max(0, reserveWarp);
 	}
 	
 	public int getReservePower() {

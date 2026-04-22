@@ -44,10 +44,15 @@ public class GameStateDto {
         @JsonSubTypes.Type(value = DroneDto.class,            name = "DRONE"),
         @JsonSubTypes.Type(value = PlasmaTorpedoDto.class,    name = "PLASMA"),
         @JsonSubTypes.Type(value = MineDto.class,             name = "MINE"),
+        @JsonSubTypes.Type(value = TerrainDto.class,          name = "TERRAIN"),
     })
     public static abstract class MapObjectDto {
         public String name;
         public String location; // "<x|y>" or null if off-map
+    }
+
+    public static class TerrainDto extends MapObjectDto {
+        public String terrainType; // "ASTEROID" | "PLANET"
     }
 
     // -------------------------------------------------------------------------
@@ -76,7 +81,11 @@ public class GameStateDto {
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
         public boolean isHeavy;           // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
-        public int     armingCost;        // energy to arm/hold this turn
+        public int     armingCost;        // energy to arm (standard, unarmed)
+        public int     holdCost;          // energy to hold per turn; 0 = hold not supported
+        public boolean canOverload;            // weapon supports OVERLOAD mode
+        public boolean canSuicide;             // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+        public boolean overloadFinalTurnOnly;  // OVERLOAD only choosable on the final arming turn
         public int     totalArmingTurns;  // turns to fully arm (0 for instant)
         public boolean isRolling;         // PlasmaLauncher only: currently in rolling mode
         public int     rollingCost;       // PlasmaLauncher only: energy to keep rolling (always sent for plasma)
@@ -85,6 +94,11 @@ public class GameStateDto {
         public int     maxShotsPerTurn;   // how many times this weapon may fire per turn
         public int     shotsThisTurn;     // shots already fired this turn
         public int     minImpulseGap;     // minimum global impulses between shots (0 = same-impulse multi-shot ok)
+        public int     chargesRemaining;  // FighterFusion only: charges left (0-2); ignored for other weapons
+        public boolean canFireDouble;     // FighterFusion only: true when 2 charges remain
+        public int     addShots;          // ADD only: shots remaining in current load
+        public int     addReloads;        // ADD only: reserve shots remaining
+        public int     addCapacity;       // ADD only: shots per full load (6 or 12)
     }
 
     public static class DroneInRackDto {
@@ -125,6 +139,8 @@ public class GameStateDto {
     public static class ShuttleBayDto {
         public int                    bayIndex;
         public boolean                canLaunch;
+        public int                    launchTubeCount;
+        public int                    availableTubes;
         public List<ShuttleInBayDto>  shuttles;
     }
 
@@ -151,6 +167,7 @@ public class GameStateDto {
         public int                  transporterUses;
         public int                  boardingParties;
         public int                  commandos;
+        public int                  availableLab;
         // Crew
         public int                  availableCrewUnits;
         public int                  minimumCrew;
@@ -170,6 +187,7 @@ public class GameStateDto {
         public int                  availableApr;
         public int                  availableAwr;
         public int                  availableBattery;
+        public int                  batteryPower;
         // Control space damage state (current / max)
         public int                  availableBridge;
         public int                  maxBridge;
@@ -181,6 +199,14 @@ public class GameStateDto {
         public int                  maxAuxcon;
         public int                  availableSecurity;
         public int                  maxSecurity;
+        // Crew state
+        public boolean skeleton;
+        // HET state
+        public int    reserveWarp;
+        public int    hetCost;
+        public int    hetsThisTurn;
+        public int    lastHetImpulse;
+        public int    immobileUntilImpulse;
         // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
         // Energy Allocation helper fields
         public boolean uimFunctional;     // true if ship has a functional UIM this impulse
@@ -201,9 +227,13 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class ShuttleDto extends MapObjectDto {
-        public int    facing;
-        public int    speed;
-        public String parentPlayer; // name of the player who owns this shuttle
+        public int             facing;
+        public int             speed;
+        public int             maxSpeed;
+        public String          parentPlayer;    // name of the player who owns this shuttle
+        public String          parentShipName;  // name of the ship that launched this shuttle
+        public List<WeaponDto> weapons;         // non-null for fighters; null for plain shuttles
+        public boolean         crippled;        // true if crippling effects have been applied (J1.33)
     }
 
     // -------------------------------------------------------------------------
@@ -312,6 +342,8 @@ public class GameStateDto {
         this.movableNow = new ArrayList<>();
         for (Ship s : game.getMovableShips())
             movableNow.add(s.getName());
+        for (com.sfb.objects.Shuttle s : game.getMovableShuttles())
+            movableNow.add(s.getName());
 
         this.awaitingAllocation = game.isAwaitingAllocation();
         this.pendingAllocation = new ArrayList<>();
@@ -341,6 +373,9 @@ public class GameStateDto {
 
         for (SpaceMine mine : game.getMines())
             mapObjects.add(fromMine(mine));
+
+        for (Terrain t : game.getTerrain())
+            mapObjects.add(fromTerrain(t));
     }
 
     // -------------------------------------------------------------------------
@@ -389,6 +424,7 @@ public class GameStateDto {
         dto.transporterUses       = ship.getTransporters().availableUses();
         dto.boardingParties       = ship.getCrew().getAvailableBoardingParties();
         dto.commandos             = ship.getCrew().getFriendlyTroops().commandos;
+        dto.availableLab          = ship.getLabs().getAvailableLab();
         dto.availableCrewUnits    = ship.getCrew().getAvailableCrewUnits();
         dto.minimumCrew           = ship.getCrew().getMinimumCrew();
         dto.availableDeckCrews    = ship.getCrew().getAvailableDeckCrews();
@@ -411,6 +447,17 @@ public class GameStateDto {
         dto.availableApr     = ps.getAvailableApr();
         dto.availableAwr     = ps.getAvailableAwr();
         dto.availableBattery = ps.getAvailableBattery();
+        dto.batteryPower     = ps.getBatteryPower();
+        dto.reserveWarp      = ps.getReserveWarp();
+
+        // Crew state
+        dto.skeleton         = ship.getCrew().isSkeleton();
+
+        // HET state
+        dto.hetCost              = (int) Math.ceil(ship.getPerformanceData().getHetCost());
+        dto.hetsThisTurn         = ship.getHetsThisTurn();
+        dto.lastHetImpulse       = ship.getLastHetImpulse();
+        dto.immobileUntilImpulse = ship.getImmobileUntilImpulse();
 
         // Energy Allocation helper fields
         dto.totalPower        = ps.getTotalAvailablePower();
@@ -454,7 +501,11 @@ public class GameStateDto {
                 wd.armingTurn      = hw.getArmingTurn();
                 wd.armingType      = hw.getArmingType() != null ? hw.getArmingType().name() : null;
                 wd.isHeavy         = true;
-                wd.armingCost      = hw.energyToArm();
+                wd.armingCost       = hw.energyToArm();
+                wd.holdCost         = hw.holdEnergyCost();
+                wd.canOverload           = hw.supportsOverload();
+                wd.canSuicide            = hw.supportsSuicide();
+                wd.overloadFinalTurnOnly = hw.overloadFinalTurnOnly();
                 wd.totalArmingTurns = hw.totalArmingTurns();
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
@@ -470,6 +521,17 @@ public class GameStateDto {
             wd.maxShotsPerTurn  = w.getMaxShotsPerTurn();
             wd.shotsThisTurn    = w.getShotsThisTurn();
             wd.minImpulseGap    = w.getMinImpulseGap();
+            if (w instanceof com.sfb.weapons.FighterFusion) {
+                com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
+                wd.chargesRemaining = ff.getChargesRemaining();
+                wd.canFireDouble    = ff.canFireDouble();
+            }
+            if (w instanceof com.sfb.weapons.ADD) {
+                com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
+                wd.addShots    = add.getShots();
+                wd.addReloads  = add.getReloadsAvailable();
+                wd.addCapacity = add.getCapacity();
+            }
             dto.weapons.add(wd);
         }
 
@@ -518,8 +580,10 @@ public class GameStateDto {
         for (int i = 0; i < bays.size(); i++) {
             ShuttleBay bay = bays.get(i);
             ShuttleBayDto bd = new ShuttleBayDto();
-            bd.bayIndex  = i;
-            bd.canLaunch = bay.canLaunch(game.getAbsoluteImpulse());
+            bd.bayIndex        = i;
+            bd.canLaunch       = bay.canLaunch(game.getAbsoluteImpulse());
+            bd.launchTubeCount = bay.getLaunchTubeCount();
+            bd.availableTubes  = bay.getAvailableTubeCount(game.getAbsoluteImpulse());
             bd.shuttles  = new ArrayList<>();
             for (com.sfb.objects.Shuttle s : bay.getInventory()) {
                 ShuttleInBayDto sd = new ShuttleInBayDto();
@@ -543,13 +607,46 @@ public class GameStateDto {
     }
 
     private static ShuttleDto fromShuttle(com.sfb.objects.Shuttle shuttle) {
-        ShuttleDto dto   = new ShuttleDto();
-        dto.name         = shuttle.getName();
-        dto.location     = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
-        dto.facing       = shuttle.getFacing();
-        dto.speed        = shuttle.getSpeed();
-        dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        ShuttleDto dto       = new ShuttleDto();
+        dto.name             = shuttle.getName();
+        dto.location         = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
+        dto.facing           = shuttle.getFacing();
+        dto.speed            = shuttle.getSpeed();
+        dto.maxSpeed         = shuttle.getMaxSpeed();
+        dto.parentPlayer     = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        dto.parentShipName   = shuttle.getParentShipName();
+        dto.crippled         = shuttle.isCrippled();
+        if (shuttle instanceof com.sfb.objects.Fighter)
+            dto.weapons = buildWeaponDtos(shuttle.getWeapons());
         return dto;
+    }
+
+    private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup) {
+        List<WeaponDto> list = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : wGroup.fetchAllWeapons()) {
+            WeaponDto wd = new WeaponDto();
+            wd.name             = w.getName();
+            wd.lastImpulseFired = w.getLastImpulseFired();
+            wd.functional       = w.isFunctional();
+            wd.arcLabel         = w.getArcLabel();
+            wd.readyToFire      = w.isFunctional() && w.canFire();
+            wd.maxShotsPerTurn  = w.getMaxShotsPerTurn();
+            wd.shotsThisTurn    = w.getShotsThisTurn();
+            wd.minImpulseGap    = w.getMinImpulseGap();
+            if (w instanceof com.sfb.weapons.FighterFusion) {
+                com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
+                wd.chargesRemaining = ff.getChargesRemaining();
+                wd.canFireDouble    = ff.canFireDouble();
+            }
+            if (w instanceof com.sfb.weapons.ADD) {
+                com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
+                wd.addShots    = add.getShots();
+                wd.addReloads  = add.getReloadsAvailable();
+                wd.addCapacity = add.getCapacity();
+            }
+            list.add(wd);
+        }
+        return list;
     }
 
     private static SuicideShuttleDto fromSuicideShuttle(com.sfb.objects.SuicideShuttle ss) {
@@ -614,6 +711,14 @@ public class GameStateDto {
         dto.launchImpulse     = torp.getLaunchImpulse();
         dto.targetName        = torp.getTarget() != null ? torp.getTarget().getName() : null;
         dto.isIdentified      = torp.isIdentified();
+        return dto;
+    }
+
+    private static TerrainDto fromTerrain(Terrain t) {
+        TerrainDto dto   = new TerrainDto();
+        dto.name         = t.getName();
+        dto.location     = t.getLocation() != null ? t.getLocation().toString() : null;
+        dto.terrainType  = t.getTerrainType().name();
         return dto;
     }
 

@@ -179,6 +179,7 @@ public class GameController {
                     for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
                         if (w instanceof com.sfb.weapons.HeavyWeapon
                                 && !(w instanceof com.sfb.weapons.Fusion)
+                                && !(w instanceof com.sfb.weapons.Disruptor)
                                 && !(w instanceof com.sfb.weapons.DroneRack)) {
                             boolean canHold = !(w instanceof com.sfb.weapons.PlasmaLauncher)
                                     || ((com.sfb.weapons.PlasmaLauncher) w).canHold();
@@ -452,10 +453,18 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null) return ResponseEntity.notFound().build();
 
-        Ship attackerShip = session.getGame().getShips().stream()
+        // Attacker may be a ship or an active shuttle/fighter
+        Unit attackerUnit = session.getGame().getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(attacker))
+                .map(s -> (Unit) s)
                 .findFirst().orElse(null);
-        if (attackerShip == null)
+        if (attackerUnit == null) {
+            attackerUnit = session.getGame().getActiveShuttles().stream()
+                    .filter(s -> attacker.equalsIgnoreCase(s.getName()))
+                    .map(s -> (Unit) s)
+                    .findFirst().orElse(null);
+        }
+        if (attackerUnit == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Attacker not found: " + attacker));
 
         // Target may be a ship or a seeker
@@ -472,20 +481,31 @@ public class GameController {
         if (targetUnit == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-        int range    = MapUtils.getRange(attackerShip, targetUnit);
-        int adjRange = session.getGame().getEffectiveRange(attackerShip, targetUnit);
+        int range    = MapUtils.getRange(attackerUnit, targetUnit);
+        // Fighters use raw range (no scanner bonus); ships use effectiveRange
+        int adjRange = attackerUnit instanceof Ship
+                ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
+                : range;
 
         // Shield number (1-6) on the target ship facing the attacker
         int shieldNumber = 0;
         if (targetUnit instanceof Ship) {
             Ship targetShip = (Ship) targetUnit;
-            int absFacing   = MapUtils.getAbsoluteShieldFacing(targetShip, attackerShip);
+            int absFacing   = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
             int relFacing   = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
             shieldNumber    = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
             shieldNumber    = Math.max(1, Math.min(6, shieldNumber));
         }
 
-        List<String> weaponsInArc = attackerShip.fetchAllBearingWeapons(targetUnit).stream()
+        com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
+                ? ((Ship) attackerUnit).getWeapons()
+                : ((com.sfb.objects.Shuttle) attackerUnit).getWeapons();
+
+        boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
+                || targetUnit instanceof com.sfb.objects.Shuttle;
+
+        List<String> weaponsInArc = wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
+                .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
                 .map(w -> w.getName())
                 .collect(Collectors.toList());
 

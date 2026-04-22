@@ -1,0 +1,88 @@
+{
+  "faction": "Kzinti",
+  "hull": "DF+",
+  "name": "KHS #420",
+  "serviceYear": 134,
+  "bpv": 75,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333333,
+  "breakdown": 5,
+  "bonusHets": 1,
+  
+  "shields": [15, 12, 12, 12, 12, 12],
+  
+  "hullBoxes": {
+    "fhull": 3,
+    "ahull": 4,
+    "cargo": 2
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "centerWarp": 4,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 1, 4, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 21,
+    "boardingParties": 4,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 5", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 6", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": []
+  }
+}

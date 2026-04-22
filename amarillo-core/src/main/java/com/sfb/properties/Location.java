@@ -41,6 +41,11 @@ public class Location {
 	}
 	
 	@Override
+	public int hashCode() {
+		return 31 * x + y;
+	}
+
+	@Override
 	public String toString() {
 		return "<" + this.x + "|" + this.y + ">";
 	}
