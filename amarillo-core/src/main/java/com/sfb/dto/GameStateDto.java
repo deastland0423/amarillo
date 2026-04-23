@@ -128,8 +128,9 @@ public class GameStateDto {
 
     public static class ShuttleInBayDto {
         public String  name;
-        public String  type;             // "admin", "gas", "hts", "suicide", "scatterpack"
+        public String  type;             // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
         public int     maxSpeed;
+        public boolean canLaunch;        // true if hatch or tube is available for this shuttle right now
         public boolean armed;            // suicide only: true when armingTurnsComplete >= 3
         public int     armingTurnsComplete; // suicide only: 0-3
         public int     warheadDamage;    // suicide only: totalEnergy * 2
@@ -220,6 +221,8 @@ public class GameStateDto {
         public int    cloakCost;         // energy to maintain cloak (0 if no cloaking device)
         public int    maxSpeedNextTurn;  // C2.2 acceleration cap for this turn's EA
         public int    commandRating;
+        public List<String> lockOnTargets;   // names of units this ship has lock-on to
+        public String       tokenArt;        // optional path to PNG token image
     }
 
     // -------------------------------------------------------------------------
@@ -230,10 +233,11 @@ public class GameStateDto {
         public int             facing;
         public int             speed;
         public int             maxSpeed;
-        public String          parentPlayer;    // name of the player who owns this shuttle
-        public String          parentShipName;  // name of the ship that launched this shuttle
-        public List<WeaponDto> weapons;         // non-null for fighters; null for plain shuttles
-        public boolean         crippled;        // true if crippling effects have been applied (J1.33)
+        public String          parentPlayer;       // name of the player who owns this shuttle
+        public String          parentShipName;     // name of the ship that launched this shuttle
+        public List<WeaponDto> weapons;            // non-null for fighters; null for plain shuttles
+        public boolean         crippled;           // true if crippling effects have been applied (J1.33)
+        public boolean         hetUsed;            // fighters only: true if tactical maneuver used this turn
     }
 
     // -------------------------------------------------------------------------
@@ -241,12 +245,13 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class SuicideShuttleDto extends MapObjectDto {
-        public int    facing;
-        public int    speed;
-        public String controllerName;   // name of the controlling ship
-        public String targetName;
-        public int    warheadDamage;    // totalEnergy * 2
-        public int    armingTurnsComplete;
+        public int     facing;
+        public int     speed;
+        public String  controllerName;   // name of the controlling ship
+        public String  targetName;
+        public int     warheadDamage;    // totalEnergy * 2
+        public int     armingTurnsComplete;
+        public boolean isIdentified;
     }
 
     // -------------------------------------------------------------------------
@@ -254,12 +259,13 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class ScatterPackDto extends MapObjectDto {
-        public int    facing;
-        public int    speed;
-        public String controllerName;
-        public String targetName;
-        public int    payloadCount;    // number of drones still loaded
-        public boolean released;       // true after drones have been deployed
+        public int     facing;
+        public int     speed;
+        public String  controllerName;
+        public String  targetName;
+        public int     payloadCount;    // number of drones still loaded
+        public boolean released;        // true after drones have been deployed
+        public boolean isIdentified;
     }
 
     // -------------------------------------------------------------------------
@@ -471,6 +477,10 @@ public class GameStateDto {
         dto.maxSpeedNextTurn  = ship.getMaxAccelerationSpeed();
         dto.commandRating     = ship.getCommandRating();
         dto.uimFunctional     = ship.getActiveUim(com.sfb.TurnTracker.getImpulse()) != null;
+        dto.tokenArt          = ship.getTokenArt();
+        dto.lockOnTargets     = ship.getLockOns().stream()
+                .map(com.sfb.objects.Unit::getName)
+                .collect(java.util.stream.Collectors.toList());
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -587,9 +597,10 @@ public class GameStateDto {
             bd.shuttles  = new ArrayList<>();
             for (com.sfb.objects.Shuttle s : bay.getInventory()) {
                 ShuttleInBayDto sd = new ShuttleInBayDto();
-                sd.name     = s.getName();
-                sd.type     = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
-                sd.maxSpeed = s.getMaxSpeed();
+                sd.name      = s.getName();
+                sd.type      = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
+                sd.maxSpeed  = s.getMaxSpeed();
+                sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
                 if (s instanceof com.sfb.objects.SuicideShuttle) {
                     com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
                     sd.armed               = ss.isArmed();
@@ -616,8 +627,11 @@ public class GameStateDto {
         dto.parentPlayer     = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName   = shuttle.getParentShipName();
         dto.crippled         = shuttle.isCrippled();
-        if (shuttle instanceof com.sfb.objects.Fighter)
-            dto.weapons = buildWeaponDtos(shuttle.getWeapons());
+        if (shuttle instanceof com.sfb.objects.Fighter) {
+            com.sfb.objects.Fighter fighter = (com.sfb.objects.Fighter) shuttle;
+            dto.weapons  = buildWeaponDtos(shuttle.getWeapons());
+            dto.hetUsed  = fighter.isTacticalManeuverUsed();
+        }
         return dto;
     }
 
@@ -659,6 +673,7 @@ public class GameStateDto {
         dto.armingTurnsComplete  = ss.getArmingTurnsComplete();
         dto.controllerName       = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
         dto.targetName           = ss.getTarget() != null ? ss.getTarget().getName() : null;
+        dto.isIdentified         = ss.isIdentified();
         return dto;
     }
 
@@ -672,6 +687,7 @@ public class GameStateDto {
         dto.released          = pack.isReleased();
         dto.controllerName    = pack.getController() != null ? ((com.sfb.objects.Unit) pack.getController()).getName() : null;
         dto.targetName        = pack.getTarget() != null ? pack.getTarget().getName() : null;
+        dto.isIdentified      = pack.isIdentified();
         return dto;
     }
 

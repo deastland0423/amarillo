@@ -509,11 +509,15 @@ public class GameController {
                 .map(w -> w.getName())
                 .collect(Collectors.toList());
 
+        boolean hasLockOn = attackerUnit instanceof Ship
+                && ((Ship) attackerUnit).hasLockOn(targetUnit);
+
         return ResponseEntity.ok(Map.of(
                 "range",         range,
                 "adjustedRange", adjRange,
                 "shieldNumber",  shieldNumber,
-                "weaponsInArc",  weaponsInArc
+                "weaponsInArc",  weaponsInArc,
+                "hasLockOn",     hasLockOn
         ));
     }
 

@@ -118,6 +118,7 @@ public class Ship extends Unit {
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
 	private String hullType = null; // Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
+	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
@@ -152,6 +153,7 @@ public class Ship extends Unit {
 		// Explicit Ship values
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
 		hullType = values.get("hull") == null ? null : (String) values.get("hull");
+		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
@@ -412,6 +414,10 @@ public class Ship extends Unit {
 
 	public String getType() {
 		return this.hullType;
+	}
+
+	public String getTokenArt() {
+		return this.tokenArt;
 	}
 
 	public void setFaction(Faction faction) {

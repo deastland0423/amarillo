@@ -51,6 +51,25 @@ export interface ReloadPoolEntry {
   count:     number;   // how many available
 }
 
+export interface ShuttleInBayState {
+  name:                string;
+  type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
+  maxSpeed:            number;
+  canLaunch:           boolean;  // hatch or tube available for this shuttle right now
+  armed?:              boolean;  // suicide only
+  armingTurnsComplete?: number; // suicide only
+  warheadDamage?:      number;  // suicide only
+  payloadCount?:       number;  // scatterpack only
+}
+
+export interface ShuttleBayState {
+  bayIndex:        number;
+  canLaunch:       boolean;
+  launchTubeCount: number;
+  availableTubes:  number;
+  shuttles:        ShuttleInBayState[];
+}
+
 export interface DroneRackState {
   name:               string;
   functional:         boolean;
@@ -77,6 +96,7 @@ export interface ShipObject extends MapObjectBase {
   // Weapons
   weapons:          WeaponState[];
   droneRacks:       DroneRackState[];
+  shuttleBays:      ShuttleBayState[];
   phaserCapacitor:    number;
   phaserCapacitorMax: number;
   capacitorsCharged:  boolean;
@@ -135,6 +155,8 @@ export interface ShipObject extends MapObjectBase {
   batteryCharge:     number;
   cloakCost:         number;
   maxSpeedNextTurn:  number;   // C2.2 acceleration cap
+  lockOnTargets?:    string[];  // names of units this ship currently has lock-on to
+  tokenArt?:         string;    // path to PNG token image, e.g. "federation/constitution.png"
 }
 
 export interface ShuttleObject extends MapObjectBase {
@@ -145,6 +167,8 @@ export interface ShuttleObject extends MapObjectBase {
   parentShipName: string | null;
   weapons?:       WeaponState[];  // non-null for fighters
   crippled?:      boolean;
+  hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
+  isIdentified?:  boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
 }
 
 export interface DroneObject extends MapObjectBase {
@@ -227,6 +251,11 @@ export function parseLocation(loc: string | null): [number, number] | null {
 /** Convert internal 24-step facing to canvas angle (radians, 0=right, CW). */
 export function facingToAngle(facing: number): number {
   return (facing - 1) * (2 * Math.PI / 24) - Math.PI / 2;
+}
+
+/** Convert internal 24-step facing to SFB letter (A–F). */
+export function facingLabel(facing: number): string {
+  return 'ABCDEF'[Math.floor(((facing - 1) % 24) / 4)] ?? '?';
 }
 
 /** Faction display colour. */

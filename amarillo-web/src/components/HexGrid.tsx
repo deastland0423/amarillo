@@ -1,10 +1,60 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
-import { parseLocation, facingToAngle, factionColor } from '../types/gameState';
+import { parseLocation, facingToAngle, facingLabel, factionColor } from '../types/gameState';
+
+// Cache of loaded token images keyed by tokenArt path.
+// Entries are HTMLImageElement once loaded, or null while loading/failed.
+const tokenImageCache = new Map<string, HTMLImageElement | null>();
+
+function loadTokenImage(path: string, onLoad: () => void): HTMLImageElement | null {
+  if (tokenImageCache.has(path)) return tokenImageCache.get(path)!;
+  tokenImageCache.set(path, null); // mark as loading
+  const img = new Image();
+  img.onload  = () => { tokenImageCache.set(path, img); onLoad(); };
+  img.onerror = () => { tokenImageCache.set(path, null); }; // leave null on failure — fall back to circle
+  img.src = `/tokens/${path}`;
+  return null;
+}
+
+// Starfield background image — loaded once, tiled across hex fills.
+let starfieldImage: HTMLImageElement | null = null;
+let starfieldLoading = false;
+function loadStarfield(onLoad: () => void) {
+  if (starfieldImage || starfieldLoading) return;
+  starfieldLoading = true;
+  const img = new Image();
+  img.onload  = () => { starfieldImage = img; onLoad(); };
+  img.onerror = () => { starfieldLoading = false; }; // fall back to solid fill
+  img.src = '/background/starfield1.png';
+}
+
+// Planet terrain image — loaded once, drawn clipped to a circle.
+let planetImage: HTMLImageElement | null = null;
+let planetLoading = false;
+function loadPlanetImage(onLoad: () => void) {
+  if (planetImage || planetLoading) return;
+  planetLoading = true;
+  const img = new Image();
+  img.onload  = () => { planetImage = img; onLoad(); };
+  img.onerror = () => { planetLoading = false; };
+  img.src = '/tokens/terrain/planet1.png';
+}
+
+// Asteroid terrain image — loaded once, drawn at hex center.
+let asteroidImage: HTMLImageElement | null = null;
+let asteroidLoading = false;
+function loadAsteroidImage(onLoad: () => void) {
+  if (asteroidImage || asteroidLoading) return;
+  asteroidLoading = true;
+  const img = new Image();
+  img.onload  = () => { asteroidImage = img; onLoad(); };
+  img.onerror = () => { asteroidLoading = false; };
+  img.src = '/tokens/terrain/asteroid.png';
+}
 
 const COLS    = 42;
 const ROWS    = 32;
-const SIZE    = 38;   // circumradius: center → corner
+const SIZE    = 48;   // circumradius: center → corner
 const PADDING = 12;
 const SQRT3   = Math.sqrt(3);
 
@@ -45,8 +95,9 @@ function tracePath(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#0d1a0d';
-  ctx.strokeStyle = '#1e3a1e';
+  const pattern = starfieldImage ? ctx.createPattern(starfieldImage, 'repeat') : null;
+  ctx.fillStyle = pattern ?? '#0d1a0d';
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
   ctx.lineWidth = 1;
   for (let col = 1; col <= COLS; col++) {
     for (let row = 1; row <= ROWS; row++) {
@@ -56,16 +107,17 @@ function drawGrid(ctx: CanvasRenderingContext2D) {
       ctx.stroke();
     }
   }
-  ctx.fillStyle = '#2d5a2d';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '9px monospace';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  ctx.textBaseline = 'alphabetic';
+  const labelOffsetY = SIZE * SQRT3 / 2 - 3;  // near bottom edge of hex
   for (let col = 1; col <= COLS; col++) {
     for (let row = 1; row <= ROWS; row++) {
       const [cx, cy] = hexCenter(col, row);
       ctx.fillText(
         `${String(col).padStart(2, '0')}${String(row).padStart(2, '0')}`,
-        cx, cy,
+        cx, cy + labelOffsetY,
       );
     }
   }
@@ -136,6 +188,7 @@ function drawShip(
   ship: ShipObject,
   isMine: boolean,
   isSelected: boolean,
+  onImageLoad: () => void,
 ) {
   const r     = SIZE * 0.42;
   const color = factionColor(ship.faction);
@@ -159,27 +212,38 @@ function drawShip(
     ctx.stroke();
   }
 
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-  ctx.fill();
+  const tokenImg = ship.tokenArt ? loadTokenImage(ship.tokenArt, onImageLoad) : null;
+  if (tokenImg) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle + Math.PI / 2); // token art should point "up" (north) — rotate to facing
+    const tr = r * 0.9;
+    ctx.drawImage(tokenImg, -tr, -tr, tr * 2, tr * 2);
+    ctx.restore();
+  } else {
+    // Default: faction-colored circle with facing triangle
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.fill();
 
-  const bowX = cx + Math.cos(angle) * r;
-  const bowY = cy + Math.sin(angle) * r;
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.beginPath();
-  ctx.moveTo(bowX, bowY);
-  ctx.lineTo(cx + Math.cos(angle + 2.5) * r * 0.6, cy + Math.sin(angle + 2.5) * r * 0.6);
-  ctx.lineTo(cx + Math.cos(angle - 2.5) * r * 0.6, cy + Math.sin(angle - 2.5) * r * 0.6);
-  ctx.closePath();
-  ctx.fill();
+    const bowX = cx + Math.cos(angle) * r;
+    const bowY = cy + Math.sin(angle) * r;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.moveTo(bowX, bowY);
+    ctx.lineTo(cx + Math.cos(angle + 2.5) * r * 0.6, cy + Math.sin(angle + 2.5) * r * 0.6);
+    ctx.lineTo(cx + Math.cos(angle - 2.5) * r * 0.6, cy + Math.sin(angle - 2.5) * r * 0.6);
+    ctx.closePath();
+    ctx.fill();
 
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth   = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(bowX, bowY);
-  ctx.stroke();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(bowX, bowY);
+    ctx.stroke();
+  }
 
   drawShields(ctx, cx, cy, ship, angle, isMine);
 
@@ -198,6 +262,7 @@ function drawObjects(
   myShips: string[] | null,
   selectedName: string | null,
   fireTargetName: string | null,
+  onImageLoad: () => void,
 ) {
   const mySet = new Set(myShips ?? []);
   for (const obj of objects) {
@@ -218,24 +283,48 @@ function drawObjects(
         ctx.arc(cx, cy, SIZE * 0.42 + 6, 0, 2 * Math.PI);
         ctx.stroke();
       }
-      drawShip(ctx, cx, cy, obj, mySet.has(obj.name), obj.name === selectedName);
+      drawShip(ctx, cx, cy, obj, mySet.has(obj.name), obj.name === selectedName, onImageLoad);
       continue;
     }
     if (obj.type === 'DRONE') {
-      ctx.fillStyle = '#d5a03a'; ctx.strokeStyle = '#ffcc66'; ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - 7); ctx.lineTo(cx + 6, cy);
-      ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 6, cy);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
+      const faction = (obj as DroneObject).controllerFaction?.toLowerCase();
+      const dronePath = faction ? `${faction}/drone.png` : null;
+      const droneImg = dronePath ? loadTokenImage(dronePath, onImageLoad) : null;
+      if (droneImg) {
+        const droneAngle = facingToAngle((obj as DroneObject).facing);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(droneAngle + Math.PI / 2);
+        ctx.drawImage(droneImg, -15, -15, 30, 30);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#d5a03a'; ctx.strokeStyle = '#ffcc66'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 7); ctx.lineTo(cx + 6, cy);
+        ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 6, cy);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
       continue;
     }
     if (obj.type === 'PLASMA') {
-      ctx.fillStyle = '#3ab87a'; ctx.strokeStyle = '#66ffaa'; ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 7, cy + 6); ctx.lineTo(cx - 7, cy + 6);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      // Strength label
-      const strength = obj.currentStrength ?? 0;
+      const plasmaFaction = (obj as PlasmaObject).controllerFaction?.toLowerCase();
+      const plasmaPath = plasmaFaction ? `${plasmaFaction}/plasma.png` : null;
+      const plasmaImg = plasmaPath ? loadTokenImage(plasmaPath, onImageLoad) : null;
+      if (plasmaImg) {
+        const plasmaAngle = facingToAngle((obj as PlasmaObject).facing);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(plasmaAngle + Math.PI / 2);
+        ctx.drawImage(plasmaImg, -15, -15, 30, 30);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#3ab87a'; ctx.strokeStyle = '#66ffaa'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 7, cy + 6); ctx.lineTo(cx - 7, cy + 6);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      // Strength label always shown
+      const strength = (obj as PlasmaObject).currentStrength ?? 0;
       ctx.fillStyle    = '#ffffff';
       ctx.font         = '8px monospace';
       ctx.textAlign    = 'center';
@@ -245,36 +334,52 @@ function drawObjects(
     }
     if (obj.type === 'TERRAIN') {
       if (obj.terrainType === 'ASTEROID') {
-        const rocks = [
-          { dx: -13, dy:  -8, r: 3.5 },
-          { dx:   4, dy: -13, r: 2.5 },
-          { dx:  14, dy:  -3, r: 3 },
-          { dx:  -4, dy:  13, r: 4 },
-          { dx:   1, dy:   1, r: 2 },
-          { dx: -14, dy:   6, r: 2.5 },
-          { dx:  10, dy:   9, r: 2 },
-        ];
-        ctx.fillStyle   = '#7a6248';
-        ctx.strokeStyle = '#a08060';
-        ctx.lineWidth   = 0.5;
-        for (const rock of rocks) {
-          ctx.beginPath();
-          ctx.arc(cx + rock.dx, cy + rock.dy, rock.r, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
+        if (asteroidImage) {
+          const ar = 22;
+          ctx.drawImage(asteroidImage, cx - ar, cy - ar, ar * 2, ar * 2);
+        } else {
+          const rocks = [
+            { dx: -13, dy:  -8, r: 3.5 },
+            { dx:   4, dy: -13, r: 2.5 },
+            { dx:  14, dy:  -3, r: 3 },
+            { dx:  -4, dy:  13, r: 4 },
+            { dx:   1, dy:   1, r: 2 },
+            { dx: -14, dy:   6, r: 2.5 },
+            { dx:  10, dy:   9, r: 2 },
+          ];
+          ctx.fillStyle   = '#7a6248';
+          ctx.strokeStyle = '#a08060';
+          ctx.lineWidth   = 0.5;
+          for (const rock of rocks) {
+            ctx.beginPath();
+            ctx.arc(cx + rock.dx, cy + rock.dy, rock.r, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+          }
         }
       } else if (obj.terrainType === 'PLANET') {
-        ctx.fillStyle   = '#2d6a8a';
+        const pr = 30;
+        if (planetImage) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
+          ctx.clip();
+          ctx.drawImage(planetImage, cx - pr, cy - pr, pr * 2, pr * 2);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#2d6a8a';
+          ctx.beginPath();
+          ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
+          ctx.fill();
+        }
         ctx.strokeStyle = '#4a9aba';
         ctx.lineWidth   = 2;
         ctx.beginPath();
-        ctx.arc(cx, cy, 17.5, 0, 2 * Math.PI);
-        ctx.fill();
+        ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
         ctx.stroke();
-        // label
-        ctx.fillStyle  = '#ffffff';
-        ctx.font       = 'bold 7px sans-serif';
-        ctx.textAlign  = 'center';
+        ctx.fillStyle    = '#ffffff';
+        ctx.font         = 'bold 11px sans-serif';
+        ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(obj.name ?? 'Planet', cx, cy);
       }
@@ -325,6 +430,58 @@ function seekersAt(objects: MapObject[], col: number, row: number): (DroneObject
     (o): o is DroneObject | PlasmaObject =>
       (o.type === 'DRONE' || o.type === 'PLASMA') && o.location === loc
   );
+}
+
+/** Collect all SHIP objects at hex (col, row). */
+function shipsAt(objects: MapObject[], col: number, row: number): ShipObject[] {
+  const loc = `<${col}|${row}>`;
+  return objects.filter((o): o is ShipObject => o.type === 'SHIP' && o.location === loc);
+}
+
+/** Collect all shuttle-type objects at hex (col, row). */
+function shuttlesAt(objects: MapObject[], col: number, row: number) {
+  const loc = `<${col}|${row}>`;
+  return objects.filter(
+    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK')
+      && o.location === loc
+  );
+}
+
+function shipTooltipLines(ship: ShipObject): string[] {
+  return [
+    `Faction:  ${ship.faction}`,
+    `Name:     ${ship.name}`,
+    `Hull:     ${ship.hull}`,
+    `Facing:   ${facingLabel(ship.facing)}`,
+    `Speed:    ${ship.speed}`,
+  ];
+}
+
+function shuttleTooltipLines(
+  shuttle: MapObject,
+  isMine: boolean,
+  allObjects: MapObject[],
+): string[] {
+  // Resolve faction from parent ship
+  const parentShip = allObjects.find(
+    o => o.type === 'SHIP' && o.name === (shuttle as any).parentShipName
+  ) as ShipObject | undefined;
+  const faction = parentShip?.faction ?? '?';
+
+  // Fog-of-war: SUICIDE_SHUTTLE and SCATTER_PACK appear as "Shuttle" until owned or identified
+  const revealed = isMine || !!(shuttle as any).isIdentified;
+  let typeLabel: string;
+  if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = revealed ? 'Suicide Shuttle' : 'Shuttle';
+  else if (shuttle.type === 'SCATTER_PACK') typeLabel = revealed ? 'Scatter Pack'   : 'Shuttle';
+  else if ((shuttle as any).weapons?.length > 0) typeLabel = 'Fighter';
+  else typeLabel = 'Admin Shuttle';
+
+  return [
+    `Faction:  ${faction}`,
+    `Type:     ${typeLabel}`,
+    `From:     ${(shuttle as any).parentShipName ?? '?'}`,
+    `Speed:    ${(shuttle as any).speed}`,
+  ];
 }
 
 /** Build tooltip lines for a list of seekers.
@@ -406,9 +563,10 @@ interface Props {
 }
 
 export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
-  const [zoom, setZoom]         = useState(1.0);
-  const [tooltip, setTooltip]   = useState<Tooltip | null>(null);
+  const [zoom, setZoom]           = useState(1.0);
+  const [tooltip, setTooltip]     = useState<Tooltip | null>(null);
   const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
+  const [tokenRevision, setTokenRevision] = useState(0);
   const zoomRef                 = useRef(1.0);        // always current, no stale-closure risk
   const containerRef            = useRef<HTMLDivElement>(null);
   const canvasRef               = useRef<HTMLCanvasElement>(null);
@@ -418,8 +576,11 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
   const dragMoved  = useRef(false);  // true if mouse moved enough to count as a drag
   const dragOrigin = useRef({ x: 0, y: 0, sl: 0, st: 0 });
 
-  // Redraw canvas whenever objects / selection change
+  // Redraw canvas whenever objects / selection change, or when a token image finishes loading
   useEffect(() => {
+    loadStarfield(() => setTokenRevision(r => r + 1));
+    loadPlanetImage(() => setTokenRevision(r => r + 1));
+    loadAsteroidImage(() => setTokenRevision(r => r + 1));
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -427,9 +588,10 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     drawGrid(ctx);
     if (mapObjects && mapObjects.length > 0) {
-      drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null);
+      drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
+        () => setTokenRevision(r => r + 1));
     }
-  }, [mapObjects, myShips, selectedName, fireTargetName]);
+  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {
@@ -518,15 +680,33 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     const hex     = pixelToHex(px, py);
     if (!hex) { setTooltip(null); return; }
     const [col, row] = hex;
-    const seekers = seekersAt(mapObjects, col, row);
-    if (seekers.length === 0) { setTooltip(null); return; }
+    const lines: string[] = [];
 
-    // Position tooltip relative to the container div
+    for (const ship of shipsAt(mapObjects, col, row)) {
+      if (lines.length > 0) lines.push('──────────────────');
+      lines.push(...shipTooltipLines(ship));
+    }
+
+    for (const shuttle of shuttlesAt(mapObjects, col, row)) {
+      if (lines.length > 0) lines.push('──────────────────');
+      const isMine = myShips != null && (shuttle as any).parentShipName != null
+        && myShips.includes((shuttle as any).parentShipName);
+      lines.push(...shuttleTooltipLines(shuttle, isMine, mapObjects));
+    }
+
+    const seekers = seekersAt(mapObjects, col, row);
+    if (seekers.length > 0) {
+      if (lines.length > 0) lines.push('──────────────────');
+      lines.push(...seekerTooltipLines(seekers, myShips));
+    }
+
+    if (lines.length === 0) { setTooltip(null); return; }
+
     const containerRect = containerRef.current!.getBoundingClientRect();
     setTooltip({
       x:     e.clientX - containerRect.left + 14,
       y:     e.clientY - containerRect.top  + 14,
-      lines: seekerTooltipLines(seekers, myShips),
+      lines,
     });
   }
 

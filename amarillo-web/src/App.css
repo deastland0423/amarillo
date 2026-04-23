@@ -373,10 +373,9 @@ button.secondary:hover:not(:disabled) {
 .topbar-error {
   font-size: 0.8rem;
   color: #f85149;
-  max-width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 420px;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .topbar-move-warn {

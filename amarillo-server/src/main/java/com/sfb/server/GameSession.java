@@ -208,7 +208,7 @@ public class GameSession {
     }
 
     /**
-     * Returns true if the token owns the named ship.
+     * Returns true if the token owns the named ship or shuttle.
      * If no ships have been assigned to anyone yet, all players have open access
      * (dev/solo mode).
      */
@@ -222,9 +222,17 @@ public class GameSession {
         if (p == null || p.getCorePlayer() == null) return false;
 
         Ship ship = findShip(shipName);
-        if (ship == null) return false;
+        if (ship != null)
+            return ship.getOwner() == p.getCorePlayer();
 
-        return ship.getOwner() == p.getCorePlayer();
+        // Also accept active shuttle names
+        com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(shipName))
+                .findFirst().orElse(null);
+        if (shuttle != null)
+            return shuttle.getOwner() == p.getCorePlayer();
+
+        return false;
     }
 
     // -------------------------------------------------------------------------
@@ -583,7 +591,11 @@ public class GameSession {
                     }
                 }
 
-                return game.submitAllocation(ship, e);
+                ActionResult allocResult = game.submitAllocation(ship, e);
+                // If this was the last allocation, beginImpulses() ran lock-on rolls — drain them
+                for (String entry : game.drainLastLockOnLog())
+                    appendCombatLog(entry);
+                return allocResult;
             }
 
             case "FIRE": {
@@ -713,6 +725,16 @@ public class GameSession {
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Armed suicide shuttle not found: " + shuttleName);
                 return game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target);
+            }
+
+            case "PERFORM_FIGHTER_HET": {
+                String shuttleName = request.getShipName();
+                com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
+                        .findFirst().orElse(null);
+                if (shuttle == null)
+                    return ActionResult.fail("Active shuttle not found: " + shuttleName);
+                return game.performFighterHet(shuttle, request.getFacing());
             }
 
             case "MOVE_SHUTTLE": {

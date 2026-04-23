@@ -35,6 +35,7 @@ public class ShipSpec {
     public String faction;
     public String hull;
     public String name;
+    public String tokenArt;  // optional path to a PNG token image, e.g. "federation/constitution.png"
     public int serviceYear;
     public int bpv;
     public int epv;
@@ -196,6 +197,7 @@ public class ShipSpec {
         m.put("faction", Faction.valueOf(faction));
         m.put("hull", hull);
         m.put("name", name);
+        if (tokenArt != null) m.put("tokenart", tokenArt);
         m.put("serviceyear", serviceYear);
         m.put("bpv", bpv);
         m.put("epv", epv);

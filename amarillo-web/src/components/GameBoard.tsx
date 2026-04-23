@@ -218,6 +218,15 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
       </div>
 
       {target && (
+        <div className="sidebar-stat-row">
+          <span className="sidebar-stat-label">Lock-on</span>
+          <span className="sidebar-stat-value" style={{ color: ship.lockOnTargets?.includes(target.name) ? '#3fb950' : '#f85149' }}>
+            {ship.lockOnTargets?.includes(target.name) ? 'Yes' : 'No — eff. range ×2'}
+          </span>
+        </div>
+      )}
+
+      {target && (
         <>
           {/* Plasma launchers */}
           {launchablePlasma.length > 0 && (
@@ -315,6 +324,232 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   );
 }
 
+// ---- Shuttle launch panel ----
+
+const SEEKER_TYPES = new Set(['suicide', 'scatterpack']);
+
+function hasLaunchableShuttles(ship: ShipObject): boolean {
+  return (ship.shuttleBays ?? []).some(bay =>
+    bay.shuttles.some(s => !SEEKER_TYPES.has(s.type) && s.canLaunch)
+  );
+}
+
+interface ShuttleLaunchPanelProps {
+  ship:     ShipObject;
+  onLaunch: (shuttleName: string, speed: number, facing: number) => void;
+  onCancel: () => void;
+  error:    string | null;
+}
+
+function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPanelProps) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [speed,    setSpeed]    = useState(1);
+  const [facing,   setFacing]   = useState<number | null>(null);
+
+  const bays = (ship.shuttleBays ?? [])
+    .map(bay => ({
+      ...bay,
+      shuttles: bay.shuttles.filter(s => !SEEKER_TYPES.has(s.type)),
+    }))
+    .filter(bay => bay.shuttles.length > 0);
+
+  const allShuttles = bays.flatMap(b => b.shuttles);
+  const selectedShuttle = allShuttles.find(s => s.name === selected);
+  const multiBay = bays.length > 1;
+
+  const typeLabel = (type: string) => {
+    if (type === 'gas')      return 'GAS';
+    if (type === 'hts')      return 'HTS';
+    if (type === 'stinger1') return 'Stinger-1';
+    if (type === 'stinger2') return 'Stinger-2';
+    if (type === 'stingerh') return 'Stinger-H';
+    return 'Admin';
+  };
+
+  return (
+    <div className="sidebar-section fire-panel">
+      <div className="sidebar-section-title fire-title" style={{ color: '#f0a050' }}>Launch Shuttle</div>
+
+      {allShuttles.length === 0 ? (
+        <div className="sidebar-stat-label" style={{ color: '#8b949e' }}>No shuttles ready to launch</div>
+      ) : (
+        <>
+          {bays.map((bay, bi) => (
+            <div key={bay.bayIndex}>
+              {multiBay && (
+                <div className="sidebar-stat-label" style={{ marginBottom: 2, marginTop: bi > 0 ? 6 : 0 }}>
+                  Bay {bay.bayIndex + 1}
+                  {bay.launchTubeCount > 0 && (
+                    <span className="ea-note-dim" style={{ marginLeft: 6 }}>
+                      {bay.availableTubes}/{bay.launchTubeCount} tube{bay.launchTubeCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              )}
+              {bay.shuttles.map(s => {
+                const isSel = selected === s.name;
+                return (
+                  <div
+                    key={s.name}
+                    className={`launch-weapon-row${isSel ? ' selected' : ''}`}
+                    onClick={() => { if (s.canLaunch) { setSelected(s.name); setSpeed(s.maxSpeed); } }}
+                    style={{
+                      cursor: s.canLaunch ? 'pointer' : 'default',
+                      padding: '2px 4px', borderRadius: 4,
+                      background: isSel ? '#1f3a5a' : 'transparent',
+                      opacity: s.canLaunch ? 1 : 0.4,
+                    }}
+                  >
+                    <span style={{ fontWeight: isSel ? 'bold' : 'normal' }}>{s.name}</span>
+                    <span className="ea-note-dim" style={{ marginLeft: 6 }}>
+                      {typeLabel(s.type)} · max {s.maxSpeed}
+                      {!s.canLaunch && ' · cooldown'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+
+          {selected && (
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-stat-row">
+                <span className="sidebar-stat-label">Speed</span>
+                <input
+                  type="number" min={1} max={selectedShuttle?.maxSpeed ?? 6}
+                  value={speed}
+                  onChange={e => setSpeed(Math.max(1, Math.min(selectedShuttle?.maxSpeed ?? 6, Number(e.target.value))))}
+                  style={{ width: 52, background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
+                           borderRadius: 4, padding: '2px 4px', textAlign: 'center' }}
+                />
+              </div>
+              <FacingPicker value={facing} onChange={setFacing} label="Facing" />
+            </>
+          )}
+        </>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <button disabled={!selected || facing === null} onClick={() => selected && facing !== null && onLaunch(selected, speed, facing)}>Launch</button>
+        <button className="secondary" onClick={onCancel}>Cancel</button>
+      </div>
+
+      {error && <div className="fire-error">{error}</div>}
+    </div>
+  );
+}
+
+// ---- Shuttle movement panel ----
+
+function ShuttleMovementPanel({
+  shuttle, isMine, canMove, phase, onMove, onHet, onClose,
+}: {
+  shuttle:  ShuttleObject;
+  isMine:   boolean;
+  canMove:  boolean;
+  phase:    string;
+  onMove:   (action: string) => void;
+  onHet:    (facing: number) => void;
+  onClose:  () => void;
+}) {
+  const [hetMode, setHetMode]     = useState(false);
+  const [hetFacing, setHetFacing] = useState<number | null>(null);
+
+  const isFighter  = (shuttle.weapons?.length ?? 0) > 0;
+  const canHet     = isFighter && !shuttle.crippled && !shuttle.hetUsed && phase === 'Movement';
+
+  const typeLabel = (s: ShuttleObject) => {
+    if (s.type === 'SUICIDE_SHUTTLE') return 'Suicide Shuttle';
+    if (s.type === 'SCATTER_PACK')    return 'Scatter Pack';
+    if ((s.weapons?.length ?? 0) > 0) return 'Fighter';
+    return 'Shuttle';
+  };
+
+  return (
+    <div className="board-sidebar">
+      <div className="sidebar-section">
+        <div className="sidebar-header-row">
+          <span className="sidebar-ship-name">{shuttle.name}</span>
+          <button className="sidebar-close-btn secondary" onClick={onClose}>✕</button>
+        </div>
+        <div className="sidebar-stat-row">
+          <span className="sidebar-stat-label">Type</span>
+          <span className="sidebar-stat-value">{typeLabel(shuttle)}</span>
+        </div>
+        <div className="sidebar-stat-row">
+          <span className="sidebar-stat-label">From</span>
+          <span className="sidebar-stat-value">{shuttle.parentShipName ?? '—'}</span>
+        </div>
+        <div className="sidebar-stat-row">
+          <span className="sidebar-stat-label">Speed</span>
+          <span className="sidebar-stat-value">{shuttle.speed} / {shuttle.maxSpeed}</span>
+        </div>
+        <div className="sidebar-stat-row">
+          <span className="sidebar-stat-label">Facing</span>
+          <span className="sidebar-stat-value">{facingLabel(shuttle.facing)}</span>
+        </div>
+      </div>
+
+      {isMine && phase === 'Movement' && (
+        <div className="sidebar-section">
+          {!canMove && (
+            <div className="sidebar-stat-label" style={{ color: '#8b949e', marginBottom: 4 }}>
+              Moved this impulse
+            </div>
+          )}
+          <div className="move-grid">
+            {MOVE_BUTTONS.map(btn => (
+              <button
+                key={btn.action}
+                className="move-btn secondary"
+                style={{ gridRow: btn.row, gridColumn: btn.col }}
+                disabled={!canMove || btn.alwaysDisabled}
+                onClick={() => onMove(btn.action)}
+                title={btn.action.replace(/_/g, ' ').toLowerCase()}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Fighter HET (C6.42) */}
+          {isFighter && (
+            <div className="het-strip">
+              <button
+                className={`action-strip-btn${hetMode ? ' active' : ''}`}
+                disabled={!canHet}
+                onClick={() => { setHetMode(m => !m); setHetFacing(null); }}
+                title={shuttle.hetUsed ? 'HET already used this turn (C6.42)' : shuttle.crippled ? 'Crippled fighters cannot HET (J1.336)' : 'Fighter Tactical Maneuver (C6.42)'}
+              >
+                HET
+              </button>
+              {hetMode && (
+                <div className="het-picker-panel">
+                  <FacingPicker value={hetFacing} onChange={setHetFacing} label="New facing" />
+                  <button
+                    className="secondary"
+                    style={{ marginTop: '0.35rem', width: '100%', fontSize: '0.75rem' }}
+                    disabled={hetFacing === null}
+                    onClick={async () => {
+                      if (hetFacing === null) return;
+                      await onHet(hetFacing);
+                      setHetMode(false);
+                      setHetFacing(null);
+                    }}
+                  >
+                    Execute HET →{hetFacing !== null ? ` facing ${['A','B','C','D','E','F'][[1,5,9,13,17,21].indexOf(hetFacing)]}` : ''}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Fire options ----
 
 interface FireOptions {
@@ -322,6 +557,7 @@ interface FireOptions {
   adjustedRange: number;
   shieldNumber:  number;
   weaponsInArc:  string[];
+  hasLockOn:     boolean;
 }
 
 interface FirePanelProps {
@@ -383,6 +619,12 @@ function FirePanel({
             <span className="sidebar-stat-label">Shield hit</span>
             <span className="sidebar-stat-value">
               #{options.shieldNumber} {SHIELD_NAMES[options.shieldNumber] ?? ''}
+            </span>
+          </div>
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Lock-on</span>
+            <span className="sidebar-stat-value" style={{ color: options.hasLockOn ? '#3fb950' : '#f85149' }}>
+              {options.hasLockOn ? 'Yes' : 'No — eff. range ×2'}
             </span>
           </div>
         </>
@@ -774,6 +1016,12 @@ interface SidebarProps {
   onCancelId:       () => void;
   onToggleIdSeeker: (name: string) => void;
   onSubmitId:       () => void;
+  // Shuttle launch
+  shuttleLaunchMode:  boolean;
+  shuttleLaunchError: string | null;
+  onStartShuttleLaunch:  () => void;
+  onCancelShuttleLaunch: () => void;
+  onLaunchShuttle: (shuttleName: string, speed: number, facing: number) => void;
   // Hit & Run
   harMode:      boolean;
   harTarget:    ShipObject | null;
@@ -798,6 +1046,7 @@ function ShipSidebar({
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
+  shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
 }: SidebarProps) {
@@ -824,7 +1073,7 @@ function ShipSidebar({
                         && ship.boardingParties > 0
                         && (ship.availableTransporters ?? 0) > 0;
   const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
-  const canHet          = phase === 'Movement' && isMine && canMove
+  const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
                         && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
@@ -915,7 +1164,16 @@ function ShipSidebar({
                   onClick={launchMode ? onClearLaunch : onStartLaunch}
                   title="Launch seekers"
                 >
-                  Launch
+                  Seekers
+                </button>
+              )}
+              {hasLaunchableShuttles(ship) && (
+                <button
+                  className={`action-strip-btn${shuttleLaunchMode ? ' active' : ''}`}
+                  onClick={shuttleLaunchMode ? onCancelShuttleLaunch : onStartShuttleLaunch}
+                  title="Launch shuttle"
+                >
+                  Shuttle
                 </button>
               )}
               {canTBomb && (
@@ -1001,6 +1259,15 @@ function ShipSidebar({
         />
       )}
 
+      {shuttleLaunchMode && (
+        <ShuttleLaunchPanel
+          ship={ship}
+          onLaunch={onLaunchShuttle}
+          onCancel={onCancelShuttleLaunch}
+          error={shuttleLaunchError}
+        />
+      )}
+
       {tBombMode && (
         <div className="sidebar-action-detail">
           {tBombPendingHex ? (
@@ -1044,6 +1311,12 @@ function ShipSidebar({
           {boardingTarget ? (
             <>
               <div className="sidebar-section-title">Board {boardingTarget.name}</div>
+              <div className="sidebar-stat-row" style={{ marginBottom: 4 }}>
+                <span className="sidebar-stat-label">Lock-on</span>
+                <span className="sidebar-stat-value" style={{ color: ship.lockOnTargets?.includes(boardingTarget.name) ? '#3fb950' : '#f85149' }}>
+                  {ship.lockOnTargets?.includes(boardingTarget.name) ? 'Yes' : 'No — eff. range ×2'}
+                </span>
+              </div>
               <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>
                 Max total: {maxBoardingTotal} (transporter limit)
               </div>
@@ -1115,6 +1388,12 @@ function ShipSidebar({
           {harTarget ? (
             <>
               <div className="sidebar-section-title">H&amp;R Raid: {harTarget.name}</div>
+              <div className="sidebar-stat-row" style={{ marginBottom: 4 }}>
+                <span className="sidebar-stat-label">Lock-on</span>
+                <span className="sidebar-stat-value" style={{ color: ship.lockOnTargets?.includes(harTarget.name) ? '#3fb950' : '#f85149' }}>
+                  {ship.lockOnTargets?.includes(harTarget.name) ? 'Yes' : 'No — eff. range ×2'}
+                </span>
+              </div>
               {harLoading ? (
                 <div style={{ color: '#888', fontSize: '0.75rem' }}>Loading targets…</div>
               ) : (
@@ -1343,9 +1622,11 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
   const [fighterShotModes, setFighterShotModes]   = useState<Record<string, 'SINGLE' | 'DOUBLE'>>({});
   // Launch state
-  const [launchMode,   setLaunchMode]   = useState(false);
-  const [launchTarget, setLaunchTarget] = useState<ShipObject | null>(null);
-  const [launchError,  setLaunchError]  = useState<string | null>(null);
+  const [launchMode,        setLaunchMode]        = useState(false);
+  const [launchTarget,      setLaunchTarget]      = useState<ShipObject | null>(null);
+  const [launchError,       setLaunchError]       = useState<string | null>(null);
+  const [shuttleLaunchMode, setShuttleLaunchMode] = useState(false);
+  const [shuttleLaunchError, setShuttleLaunchError] = useState<string | null>(null);
   // T-bomb placement state
   const [tBombMode,       setTBombMode]       = useState(false);
   const [tBombPendingHex, setTBombPendingHex] = useState<{col: number; row: number} | null>(null);
@@ -1475,6 +1756,12 @@ export default function GameBoard({ session, onLeave }: Props) {
     ? (gameState?.mapObjects.find(o => o.name === selectedShip.name && o.type === 'SHIP') as ShipObject | undefined) ?? selectedShip
     : null;
 
+  const selectedShuttle = selected?.type === 'SHUTTLE' ? (selected as ShuttleObject) : null;
+  const liveShuttle = selectedShuttle
+    ? (gameState?.mapObjects.find(o => o.name === selectedShuttle.name && o.type === 'SHUTTLE') as ShuttleObject | undefined) ?? selectedShuttle
+    : null;
+  const canMoveShuttle = liveShuttle !== null && movableNow.includes(liveShuttle?.name ?? '');
+
   // Fetch fire options whenever attacker + target are both set in Direct Fire phase
   async function fetchFireOptions(attackerName: string, targetName: string) {
     setLoadingOptions(true);
@@ -1565,6 +1852,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchMode(false);
     setLaunchTarget(null);
     setLaunchError(null);
+    setShuttleLaunchMode(false);
+    setShuttleLaunchError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFirePhase, launchMode, boardingMode, harMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
@@ -1662,6 +1951,34 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  async function handleShuttleMove(action: string) {
+    if (!liveShuttle) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'MOVE_SHUTTLE', shipName: liveShuttle.name, action,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Shuttle move failed');
+    }
+  }
+
+  async function handleFighterHet(facing: number) {
+    if (!liveShuttle) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'PERFORM_FIGHTER_HET', shipName: liveShuttle.name, facing,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Fighter HET failed');
+    }
+  }
+
   async function handleHet(facing: number) {
     if (!selectedShip) return;
     setActionError(null);
@@ -1714,6 +2031,18 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchMode(false);
     setLaunchTarget(null);
     setLaunchError(null);
+  }
+
+  function handleStartShuttleLaunch() {
+    setShuttleLaunchMode(true);
+    setShuttleLaunchError(null);
+    setLaunchMode(false);
+    setLaunchTarget(null);
+  }
+
+  function handleCancelShuttleLaunch() {
+    setShuttleLaunchMode(false);
+    setShuttleLaunchError(null);
   }
 
   function handleStartBoarding() {
@@ -1942,6 +2271,23 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (!anyError) handleClearLaunch();
   }
 
+  async function handleLaunchShuttle(shuttleName: string, speed: number, facing: number) {
+    if (!liveShip) return;
+    setShuttleLaunchError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'LAUNCH_SHUTTLE', shipName: liveShip.name,
+        action: shuttleName, speed, range: facing,
+      });
+      if (!res.success) { setShuttleLaunchError(res.message); return; }
+      addLog(`${liveShip.name} launched shuttle ${shuttleName}`, 'combat');
+      setShuttleLaunchMode(false);
+      setShuttleLaunchError(null);
+    } catch (e: unknown) {
+      setShuttleLaunchError(e instanceof Error ? e.message : 'Launch failed');
+    }
+  }
+
   async function handleAdvancePhase() {
     setActionError(null);
     try {
@@ -2067,6 +2413,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelId={handleCancelId}
             onToggleIdSeeker={handleToggleIdSeeker}
             onSubmitId={handleSubmitId}
+            shuttleLaunchMode={shuttleLaunchMode}
+            shuttleLaunchError={shuttleLaunchError}
+            onStartShuttleLaunch={handleStartShuttleLaunch}
+            onCancelShuttleLaunch={handleCancelShuttleLaunch}
+            onLaunchShuttle={handleLaunchShuttle}
             harMode={harMode}
             harTarget={harTarget}
             harOptions={harOptions}
@@ -2077,6 +2428,18 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelHar={handleCancelHar}
             onSetHarParties={setHarParties}
             onSubmitHar={handleSubmitHar}
+          />
+        )}
+
+        {liveShuttle && !liveShip && (
+          <ShuttleMovementPanel
+            shuttle={liveShuttle}
+            isMine={myShips.has(liveShuttle.parentShipName ?? '')}
+            canMove={canMoveShuttle}
+            phase={phase}
+            onMove={handleShuttleMove}
+            onHet={handleFighterHet}
+            onClose={() => setSelected(null)}
           />
         )}
 

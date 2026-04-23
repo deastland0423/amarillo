@@ -109,6 +109,7 @@ public class Game {
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
     private List<String> lastSeekerLog = new ArrayList<>();
+    private List<String> lastLockOnLog = new ArrayList<>();
     private boolean inProgress = false;
     private boolean awaitingAllocation = false;
     private final List<Ship> allocationQueue = new ArrayList<>();
@@ -337,22 +338,66 @@ public class Game {
      * Per D6.113, each ship gets only one roll per turn.
      */
     private void performLockOnRolls() {
+        lastLockOnLog.clear();
         DiceRoller dice = new DiceRoller();
         for (Ship ship : ships) {
             ship.clearLockOns();
             if (!ship.isActiveFireControl())
                 continue; // D6.1143: no fire control = no lock-on
             int sensorRating = ship.getSpecialFunctions().getSensor();
+
+            // Roll for each other ship
             for (Ship target : ships) {
                 if (target == ship) continue;
-                // Fully cloaked ships cannot be locked onto
-                if (target.getCloakingDevice() != null && target.getCloakingDevice().breaksLockOn())
+                if (target.getCloakingDevice() != null && target.getCloakingDevice().breaksLockOn()) {
+                    lastLockOnLog.add(ship.getName() + " cannot acquire lock-on to " + target.getName() + " (fully cloaked)");
                     continue;
-                int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
-                if (roll <= sensorRating)
-                    ship.addLockOn(target);
+                }
+                rollLockOn(ship, target, sensorRating, dice);
+            }
+
+            // Roll for each seeker already on the map; controller always has lock-on to its own
+            for (Seeker seeker : seekers) {
+                if (!(seeker instanceof Unit)) continue;
+                Unit seekerUnit = (Unit) seeker;
+                if (seeker.getController() == ship) {
+                    ship.addLockOn(seekerUnit); // own seeker — automatic
+                    continue;
+                }
+                rollLockOn(ship, seekerUnit, sensorRating, dice);
+            }
+
+            // Roll for each active shuttle on the map (fighters, admin shuttles, etc.)
+            for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+                if (shuttle.getOwner() == ship.getOwner()) {
+                    ship.addLockOn(shuttle); // own-side shuttle — automatic
+                    continue;
+                }
+                rollLockOn(ship, shuttle, sensorRating, dice);
             }
         }
+    }
+
+    private void rollLockOn(Ship ship, Unit target, int sensorRating, DiceRoller dice) {
+        if (sensorRating >= 6) {
+            ship.addLockOn(target);
+        } else {
+            int roll = dice.rollOneDie();
+            if (roll <= sensorRating) {
+                ship.addLockOn(target);
+                lastLockOnLog.add(ship.getName() + " acquired lock-on to " + target.getName()
+                        + " (roll " + roll + " \u2264 " + sensorRating + ")");
+            } else {
+                lastLockOnLog.add(ship.getName() + " failed lock-on to " + target.getName()
+                        + " (roll " + roll + " > " + sensorRating + ")");
+            }
+        }
+    }
+
+    public List<String> drainLastLockOnLog() {
+        List<String> copy = new ArrayList<>(lastLockOnLog);
+        lastLockOnLog.clear();
+        return copy;
     }
 
     /**
@@ -840,6 +885,22 @@ public class Game {
         return ActionResult.ok(log.toString());
     }
 
+    // --- Fighter HET (C6.42) ---
+
+    public ActionResult performFighterHet(com.sfb.objects.Shuttle shuttle, int absoluteFacing) {
+        if (!(shuttle instanceof com.sfb.objects.Fighter))
+            return ActionResult.fail("Only fighters can perform HETs (C6.42)");
+        if (currentPhase != ImpulsePhase.MOVEMENT)
+            return ActionResult.fail("HETs can only be performed during the Movement phase");
+        if (shuttle.isCrippled())
+            return ActionResult.fail("Crippled fighters cannot perform HETs (J1.336)");
+        com.sfb.objects.Fighter fighter = (com.sfb.objects.Fighter) shuttle;
+        boolean performed = fighter.performTacticalManeuver(absoluteFacing);
+        if (!performed)
+            return ActionResult.fail(fighter.getName() + " has already used its HET this turn (C6.42)");
+        return ActionResult.ok(fighter.getName() + " HET → facing " + absoluteFacing);
+    }
+
     // --- Shuttle movement ---
 
     /**
@@ -896,6 +957,24 @@ public class Game {
         if (turned) movedShuttlesThisImpulse.add(shuttle);
         return turned ? ActionResult.ok(shuttle.getName() + " turned right")
                 : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
+    }
+
+    public ActionResult sideslipShuttleLeft(com.sfb.objects.Shuttle shuttle) {
+        if (!canMoveShuttleThisImpulse(shuttle))
+            return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+        boolean moved = shuttle.sideslipLeft();
+        if (moved) movedShuttlesThisImpulse.add(shuttle);
+        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped left")
+                : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
+    }
+
+    public ActionResult sideslipShuttleRight(com.sfb.objects.Shuttle shuttle) {
+        if (!canMoveShuttleThisImpulse(shuttle))
+            return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+        boolean moved = shuttle.sideslipRight();
+        if (moved) movedShuttlesThisImpulse.add(shuttle);
+        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped right")
+                : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
     // --- Weapons fire ---
@@ -1534,6 +1613,7 @@ public class Game {
 
         launched.setLocation(launcher.getLocation());
         launched.setParentShipName(launcher.getName());
+        launched.setOwner(launcher.getOwner());
         launched.setLaunchImpulse(TurnTracker.getImpulse());
         activeShuttles.add(launched);
         return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
