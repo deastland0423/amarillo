@@ -2,6 +2,26 @@ import { useRef, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 
+// Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
+const TURN_MODE_TABLES: Record<string, number[]> = {
+  Seeker:  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  Shuttle: [1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3],
+  AA:      [1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4],
+  A:       [1,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,3,4,4,4,4,4,4,4,5,5,5,5,5,5],
+  B:       [1,1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,6,6,6,6],
+  C:       [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,6,6,6,6,6],
+  D:       [1,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,4,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6],
+  E:       [1,1,1,1,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,7,7,7],
+  F:       [1,1,1,1,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,8,8,8],
+};
+
+function turnHexesForSpeed(turnMode: string | undefined, speed: number): number | null {
+  if (!turnMode) return null;
+  const table = TURN_MODE_TABLES[turnMode];
+  if (!table) return null;
+  return table[Math.min(speed, table.length - 1)];
+}
+
 // ---- Types ----
 
 interface Props {
@@ -17,7 +37,7 @@ interface Props {
 }
 
 type ShieldMode = 'ACTIVE' | 'MINIMUM' | 'OFF';
-type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SUICIDE' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD' | 'EPT' | 'UPGRADE_OVL' | 'UPGRADE_SUICIDE';
+type ArmChoice  = 'STANDARD' | 'OVERLOAD' | 'SUICIDE' | 'SKIP' | 'ROLL' | 'FINISH' | 'HOLD' | 'EPT' | 'UPGRADE_OVL' | 'UPGRADE_SUICIDE' | 'PROX' | 'HOLD_PROX' | 'HOLD_STD';
 
 interface ShipAlloc {
   speed:                number;
@@ -48,11 +68,12 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
     if (w.isRolling)    arming[w.name] = 'ROLL';
-    else if (w.armed && w.holdCost > 0 && w.armingType === 'STANDARD') arming[w.name] = 'HOLD';
-    else if (w.armed && w.holdCost > 0) arming[w.name] = 'SKIP';  // OVERLOAD/SPECIAL armed — must fire or discharge
+    else if (w.armed && w.holdCost > 0)                        arming[w.name] = 'HOLD';     // armed (any mode): hold if supported
     else if (w.launcherType && w.armingTurn >= w.totalArmingTurns - 1)
-                        arming[w.name] = 'FINISH'; // plasma final turn: default to standard completion
-    else                arming[w.name] = 'STANDARD';
+                                                               arming[w.name] = 'FINISH';   // plasma final turn
+    else if (w.armingTurn > 0 && w.armingType === 'OVERLOAD')  arming[w.name] = 'OVERLOAD'; // mid-arm overload: continue
+    else if (w.armingTurn > 0 && w.armingType === 'SPECIAL')   arming[w.name] = 'PROX';     // mid-arm prox: continue
+    else                                                        arming[w.name] = 'STANDARD';
   }
 
   return {
@@ -92,9 +113,10 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
     const choice = alloc.weaponArming[w.name] ?? 'SKIP';
-    if      (choice === 'HOLD')                        arm += w.holdCost;
+    if      (choice === 'HOLD' || choice === 'HOLD_PROX' || choice === 'HOLD_STD') arm += w.holdCost;
     else if (choice === 'STANDARD' || choice === 'FINISH') arm += w.armingCost;
-    else if (choice === 'OVERLOAD')                    arm += w.armingCost * 2;
+    else if (choice === 'PROX')                        arm += w.armed ? w.holdCost : w.armingCost;
+    else if (choice === 'OVERLOAD')                    arm += w.armingTurn > 0 ? w.armingCost : w.armingCost * 2;
     else if (choice === 'SUICIDE')                     arm += 7;
     else if (choice === 'UPGRADE_OVL')                 arm += 3;
     else if (choice === 'UPGRADE_SUICIDE')             arm += 6;
@@ -413,6 +435,12 @@ export default function EnergyAllocationDialog({
               {(Math.min(alloc.speed, 30) * (ship.moveCost ?? 1)).toFixed(1)} energy
             </span>
           </div>
+          {(() => {
+            const th = turnHexesForSpeed(ship.turnMode, alloc.speed);
+            return th != null ? (
+              <div className="ea-note">Turn Mode {th}</div>
+            ) : null;
+          })()}
           {accelCap < maxWarpSpeed && (
             <div className="ea-note" style={{ color: '#f0c040' }}>
               Accel limit: max speed {accelCap} (C2.2)
@@ -536,15 +564,23 @@ export default function EnergyAllocationDialog({
                         </>
                       ) : w.armed && w.holdCost > 0 ? (
                         <>
-                          {/* Pay-to-hold weapons (Photon, Fusion): hold, optional upgrade, or discharge */}
-                          <ArmOption name={w.name} value="HOLD"             label={`Hold (${w.holdCost})`} current={choice} color="#56d364" onChange={setArming} />
+                          {/* Pay-to-hold weapons (Photon, Fusion): hold in current mode, optional switch/upgrade, or discharge */}
+                          <ArmOption name={w.name} value="HOLD"
+                            label={w.launcherType ? `Hold (${w.holdCost})` : w.armingType === 'OVERLOAD' ? `Hold Ovld (${w.holdCost})` : w.armingType === 'SPECIAL' ? `Hold Prox (${w.holdCost})` : `Hold Std (${w.holdCost})`}
+                            current={choice} color="#56d364" onChange={setArming} />
+                          {w.canProximity && w.armingType === 'STANDARD' && (
+                            <ArmOption name={w.name} value="HOLD_PROX"      label={`→ Prox (${w.holdCost})`} current={choice} color="#a0d0ff" onChange={setArming} />
+                          )}
+                          {w.canProximity && w.armingType === 'SPECIAL' && (
+                            <ArmOption name={w.name} value="HOLD_STD"       label={`→ Std (${w.holdCost})`}  current={choice} color="#56d364" onChange={setArming} />
+                          )}
                           {w.canOverload && w.armingType === 'STANDARD' && (
-                            <ArmOption name={w.name} value="UPGRADE_OVL"    label="→ Ovld (3)"            current={choice} color="#ffa050" onChange={setArming} />
+                            <ArmOption name={w.name} value="UPGRADE_OVL"    label="→ Ovld (3)"              current={choice} color="#ffa050" onChange={setArming} />
                           )}
                           {w.canSuicide && w.armingType === 'STANDARD' && (
-                            <ArmOption name={w.name} value="UPGRADE_SUICIDE" label="→ Suicide (6)"        current={choice} color="#ff6060" onChange={setArming} />
+                            <ArmOption name={w.name} value="UPGRADE_SUICIDE" label="→ Suicide (6)"          current={choice} color="#ff6060" onChange={setArming} />
                           )}
-                          <ArmOption name={w.name} value="SKIP"             label="Discharge"             current={choice} color="#8b949e" onChange={setArming} />
+                          <ArmOption name={w.name} value="SKIP"             label="Discharge"               current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       ) : w.launcherType ? (
                         /* Plasma-specific unarmed options — vary by arming turn */
@@ -566,16 +602,38 @@ export default function EnergyAllocationDialog({
                           </>
                         )
                       ) : (
-                        /* Non-plasma unarmed: Arm, Overload (if supported), Suicide (Fusion only), Skip */
+                        /* Non-plasma unarmed */
                         <>
-                          <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}      current={choice} color="#56d364" onChange={setArming} />
-                          {w.canOverload && (!w.overloadFinalTurnOnly || w.armingTurn >= w.totalArmingTurns - 1) && (
-                            <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                          {w.armingTurn > 0 && w.armingType === 'OVERLOAD' ? (
+                            /* Mid-arm overload: mode locked, armingCost already reflects overload rate */
+                            <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost})`}     current={choice} color="#ffa050" onChange={setArming} />
+                          ) : w.armingTurn > 0 ? (
+                            /* Final arming turn (non-overload): choose Standard or Prox now */
+                            <>
+                              <ArmOption name={w.name} value="STANDARD" label={`Std (${w.armingCost})`}    current={choice} color="#56d364" onChange={setArming} />
+                              {w.canProximity && (
+                                <ArmOption name={w.name} value="PROX"   label={`Prox (${w.armingCost})`}   current={choice} color="#a0d0ff" onChange={setArming} />
+                              )}
+                              {w.canOverload && (!w.overloadFinalTurnOnly || w.armingTurn >= w.totalArmingTurns - 1) && (
+                                <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                              )}
+                            </>
+                          ) : (
+                            /* Fresh arm (turn 1): choose arming mode */
+                            <>
+                              <ArmOption name={w.name} value="STANDARD" label={`Arm (${w.armingCost})`}    current={choice} color="#56d364" onChange={setArming} />
+                              {w.canProximity && (
+                                <ArmOption name={w.name} value="PROX"   label={`Prox (${w.armingCost})`}   current={choice} color="#a0d0ff" onChange={setArming} />
+                              )}
+                              {w.canOverload && !w.overloadFinalTurnOnly && (
+                                <ArmOption name={w.name} value="OVERLOAD" label={`Ovld (${w.armingCost * 2})`} current={choice} color="#ffa050" onChange={setArming} />
+                              )}
+                              {w.canSuicide && (
+                                <ArmOption name={w.name} value="SUICIDE" label="Suicide (7)"               current={choice} color="#ff6060" onChange={setArming} />
+                              )}
+                            </>
                           )}
-                          {w.canSuicide && (
-                            <ArmOption name={w.name} value="SUICIDE" label="Suicide (7)"                  current={choice} color="#ff6060" onChange={setArming} />
-                          )}
-                          <ArmOption name={w.name} value="SKIP"     label="Skip"                          current={choice} color="#8b949e" onChange={setArming} />
+                          <ArmOption name={w.name} value="SKIP" label="Skip" current={choice} color="#8b949e" onChange={setArming} />
                         </>
                       )}
                     </div>

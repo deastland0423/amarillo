@@ -4,5 +4,6 @@ public enum WeaponArmingType {
 
 	STANDARD,
 	OVERLOAD,
-	SPECIAL
+	SPECIAL,
+	ROLLING
 }

@@ -9,6 +9,7 @@ export interface ShieldState {
   baseStrength: number;  // without reinforcement — public
   max:          number;
   active:       boolean;
+  impulsesUntilRaiseable: number; // 0 = can raise now; >0 = impulses remaining in lockout
 }
 
 export interface WeaponState {
@@ -19,6 +20,8 @@ export interface WeaponState {
   lastImpulseFired:  number;
   readyToFire:       boolean;  // functional + armed (if heavy) + impulse gap satisfied
   arcLabel:          string;   // e.g. "FA", "FX + 13", "LF + L + RR + 5"
+  arcMask:           number;   // 24-bit bitmask: bit N-1 = direction N in arc
+  launchDirectionsMask: number; // valid launch facings bitmask (plasma/drone); 0 = use arcMask
   functional:        boolean;
   plasmaType:        string | null;   // currently arming torpedo type, or null
   launcherType:      string | null;   // fixed launcher type: "F" | "G" | "S" | "R" | null
@@ -29,6 +32,7 @@ export interface WeaponState {
   holdCost:          number;   // energy to hold per turn; 0 = hold not supported
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+  canProximity:           boolean;  // weapon supports PROXIMITY mode (Photon only)
   overloadFinalTurnOnly:  boolean;  // OVERLOAD only choosable on the final arming turn
   totalArmingTurns:  number;
   isRolling:         boolean;
@@ -71,14 +75,15 @@ export interface ShuttleBayState {
 }
 
 export interface DroneRackState {
-  name:               string;
-  functional:         boolean;
-  canFire:            boolean;
-  drones:             { droneType: string; warheadDamage: number; speed: number; endurance: number }[];
-  reloadCount:        number;
-  reloadDeckCrewCost: number;
-  reloadingThisTurn:  boolean;
-  reloadPool:         ReloadPoolEntry[];  // available drones by type with counts
+  name:                 string;
+  functional:           boolean;
+  canFire:              boolean;
+  drones:               { droneType: string; warheadDamage: number; speed: number; endurance: number }[];
+  reloadCount:          number;
+  reloadDeckCrewCost:   number;
+  reloadingThisTurn:    boolean;
+  reloadPool:           ReloadPoolEntry[];
+  launchDirectionsMask: number;  // valid launch facings bitmask; 0 = unrestricted
 }
 
 interface MapObjectBase {
@@ -107,6 +112,12 @@ export interface ShipObject extends MapObjectBase {
   availableImpulse: number;
   availableApr:     number;
   availableAwr:     number;
+  maxLWarp:         number;
+  maxRWarp:         number;
+  maxCWarp:         number;
+  maxImpulse:       number;
+  maxApr:           number;
+  maxAwr:           number;
   availableBattery: number;
   batteryPower:     number;
   skeleton:         boolean;
@@ -116,6 +127,9 @@ export interface ShipObject extends MapObjectBase {
   availableFhull:   number;
   availableAhull:   number;
   availableChull:   number;
+  maxFhull:         number;
+  maxAhull:         number;
+  maxChull:         number;
   // Control spaces (current / max)
   availableBridge:   number;
   maxBridge:         number;
@@ -157,6 +171,9 @@ export interface ShipObject extends MapObjectBase {
   maxSpeedNextTurn:  number;   // C2.2 acceleration cap
   lockOnTargets?:    string[];  // names of units this ship currently has lock-on to
   tokenArt?:         string;    // path to PNG token image, e.g. "federation/constitution.png"
+  turnMode?:         string;    // e.g. "A", "B", "C"
+  turnHexes?:        number;    // hexes required between turns at current speed
+  hexesUntilTurn?:   number;    // 0 = may turn now; >0 = hexes still needed
 }
 
 export interface ShuttleObject extends MapObjectBase {

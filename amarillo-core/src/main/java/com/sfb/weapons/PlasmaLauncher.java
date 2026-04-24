@@ -216,6 +216,31 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		return this.armed;
 	}
 
+	/** Per-turn hold cost: S=2, G=1, F=0 (rolling only), R=0 (can't hold). */
+	@Override
+	public int holdEnergyCost() {
+		if (launcherType == PlasmaType.S) return com.sfb.constants.Constants.sArmingCost[2];
+		if (launcherType == PlasmaType.G) return com.sfb.constants.Constants.gArmingCost[2];
+		return 0;
+	}
+
+	/** Set up as fully armed for WS-3 game start (ensures plasmaType is populated). */
+	public void setArmedState() {
+		this.plasmaType  = this.launcherType;
+		this.armingType  = WeaponArmingType.STANDARD;
+		this.armed       = true;
+		this.armingTurn  = totalArmingTurns();
+	}
+
+	/** Set up rolling mode for WS-3 game start (armed + rolling). */
+	public void setRollingMode() {
+		this.rolling    = true;
+		this.plasmaType = this.launcherType;
+		this.armingType = WeaponArmingType.STANDARD;
+		this.armed      = true;
+		this.armingTurn = totalArmingTurns();
+	}
+
 	/** True if the launcher is in rolling mode (continuous low-energy arming). */
 	public boolean isRolling() {
 		return this.rolling;
@@ -498,6 +523,10 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 			return;
 		}
 		if (armed) {
+			if (rolling) {
+				// Rolling plasma — energy keeps it rolling; no hold check needed
+				return;
+			}
 			// Already armed — attempt to hold; discharge if hold fails
 			try {
 				if (!hold(energy.intValue()))

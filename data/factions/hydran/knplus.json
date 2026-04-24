@@ -1,0 +1,66 @@
+{
+  "faction": "Hydran",
+  "hull": "KN+",
+  "name": "HMS Invulnerable",
+  "serviceYear": 172,
+  "bpv": 90,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 1,
+  
+  "shields": [24, 18, 18, 18, 18, 18],
+  
+  "hullBoxes": {
+    "chull": 13
+  },
+  
+  "power": {
+    "centerWarp": 15,
+    "impulse": 3,
+    "apr": 7,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 22,
+    "boardingParties": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "PhaserG", "designator": "4", "arcs": ["LS"] },
+    { "type": "PhaserG", "designator": "5", "arcs": ["RS"] },
+    { "type": "Hellbore",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Hellbore",  "designator": "B", "arcs": ["FA"] }
+  ]
+}

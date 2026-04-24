@@ -371,6 +371,10 @@ public class GameSession {
                 clearReady();
                 ActionResult phaseResult = game.execute(new AdvancePhaseCommand());
                 transferCapturedShipOwnership();
+                if (phaseResult.isSuccess() && phaseResult.getMessage() != null
+                        && !phaseResult.getMessage().isBlank()) {
+                    appendCombatLog(phaseResult.getMessage());
+                }
                 return phaseResult;
             }
 
@@ -456,10 +460,27 @@ public class GameSession {
                     switch (choice.toUpperCase()) {
                         case "HOLD":
                             e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());
+                            e.getArmingType().put(w, hw.getArmingType()); // preserve current mode
+                            break;
+                        case "PROX":
+                            e.getArmingEnergy().put(w, hw.isArmed()
+                                ? (double) hw.holdEnergyCost()
+                                : (double) hw.energyToArm());
+                            e.getArmingType().put(w, WeaponArmingType.SPECIAL);
+                            break;
+                        case "HOLD_PROX":
+                            e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());
+                            e.getArmingType().put(w, WeaponArmingType.SPECIAL);
+                            break;
+                        case "HOLD_STD":
+                            e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
                         case "OVERLOAD":
-                            e.getArmingEnergy().put(w, (double) hw.energyToArm() * 2);
+                            double ovlEnergy = hw.getArmingTurn() > 0
+                                ? (double) hw.energyToArm()       // mid-arm: cost already reflects overload rate
+                                : (double) hw.energyToArm() * 2;  // first turn: standard cost × 2 to front-load
+                            e.getArmingEnergy().put(w, ovlEnergy);
                             e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
                             break;
                         case "SUICIDE":
@@ -775,7 +796,7 @@ public class GameSession {
                 if (droneIndex < 0 || droneIndex >= rack.getAmmo().size())
                     return ActionResult.fail("Invalid drone index: " + droneIndex);
                 com.sfb.objects.Drone drone = rack.getAmmo().get(droneIndex);
-                return game.execute(new LaunchDroneCommand(attacker, target, rack, drone));
+                return game.execute(new LaunchDroneCommand(attacker, target, rack, drone, request.getFacing()));
             }
 
             case "LAUNCH_PLASMA": {
@@ -795,7 +816,7 @@ public class GameSession {
                         .findFirst().orElse(null);
                 if (launcher == null)
                     return ActionResult.fail("Plasma launcher not found: " + wName);
-                return game.execute(new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo()));
+                return game.execute(new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.getFacing()));
             }
 
             case "PLACE_TBOMB": {
@@ -811,7 +832,7 @@ public class GameSession {
                     return ActionResult.fail("Invalid location: " + locStr);
                 }
                 boolean isReal = !request.isPseudo();
-                return game.placeTBomb(ship, loc, isReal);
+                return game.placeTBomb(ship, loc, isReal, request.getShieldNumber());
             }
 
             case "DROP_MINE": {

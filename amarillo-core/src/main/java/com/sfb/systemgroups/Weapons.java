@@ -106,7 +106,23 @@ public class Weapons implements Systems {
 			boolean inRange = MapUtils.getRange(source, target) <= weapon.getMaxRange();
 
 			// Check to see that the target is in arc.
+			// At range 0 (same hex), getBearing returns 0. Determine the true bearing
+			// from the entry directions recorded when each unit last moved into this hex.
 			int trueBearingOfTarget = MapUtils.getBearing(source, target);
+			if (trueBearingOfTarget == 0) {
+				int srcEntry = source.getEntryDirection();
+				int tgtEntry = target.getEntryDirection();
+				if (srcEntry != 0) {
+					// Source moved into the hex — target is dead ahead (entry direction)
+					trueBearingOfTarget = srcEntry;
+				} else if (tgtEntry != 0) {
+					// Target moved into source's hex — target arrived from the opposite direction
+					trueBearingOfTarget = (tgtEntry - 1 + 12) % 24 + 1;
+				} else {
+					// Neither has an entry direction recorded; fall back to source's facing
+					trueBearingOfTarget = source.getFacing();
+				}
+			}
 			int relativeBearingToTarget = MapUtils.getRelativeBearing(trueBearingOfTarget, source.getFacing());
 			boolean inArc = weapon.inArc(relativeBearingToTarget);
 			
@@ -116,8 +132,8 @@ public class Weapons implements Systems {
 			// Impulse gap and shots-per-turn must be satisfied.
 			boolean gapOk = weapon.canFire();
 
-			// If it is in range AND in arc AND ready, add it to the list of weapons.
-			if (inRange && inArc && armed && gapOk) {
+			// If it is in range AND in arc AND ready AND functional, add it to the list.
+			if (weapon.isFunctional() && inRange && inArc && armed && gapOk) {
 				bearingWeapons.add(weapon);
 			}
 		}
@@ -165,6 +181,26 @@ public class Weapons implements Systems {
 	
 	public double getAvailablePhaserCapacitor() {
 		return availablePhaserCapacitor;
+	}
+
+	/**
+	 * Recalculates the phaser capacitor size based on functional phasers only.
+	 * Call this whenever a phaser is damaged or repaired.
+	 * Also clamps the stored energy down if it now exceeds the new cap.
+	 */
+	public void recalculatePhaserCapacitor() {
+		double cap = 0;
+		for (Weapon w : phaserList) {
+			if (w.isFunctional()) {
+				if (w instanceof Phaser1 || w instanceof Phaser2) cap += 1.0;
+				else if (w instanceof Phaser3)                    cap += 0.5;
+				else if (w instanceof PhaserG)                    cap += 1.0;
+			}
+		}
+		availablePhaserCapacitor = cap;
+		if (phaserCapacitorEnergy > availablePhaserCapacitor) {
+			phaserCapacitorEnergy = availablePhaserCapacitor;
+		}
 	}
 	
 	public int getAvailablePhasers() {

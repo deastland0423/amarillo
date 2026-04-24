@@ -3,6 +3,7 @@ package com.sfb.dto;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.sfb.Game;
+import com.sfb.TurnTracker;
 import com.sfb.objects.*;
 import com.sfb.systemgroups.CloakingDevice;
 import com.sfb.systemgroups.ShuttleBay;
@@ -65,6 +66,7 @@ public class GameStateDto {
         public int     baseStrength; // without reinforcement (public display)
         public int     max;
         public boolean active;
+        public int     impulsesUntilRaiseable; // 0 = can raise now; >0 = impulses remaining in lockout
     }
 
     public static class WeaponDto {
@@ -74,7 +76,9 @@ public class GameStateDto {
         public String  armingType;        // "STANDARD", "OVERLOAD", "SPECIAL", or null
         public int     lastImpulseFired;  // for canFire() checks client-side
         public boolean readyToFire;       // functional + armed (if heavy) + impulse gap satisfied
-        public String  arcLabel;          // e.g. "FA", "FX + 13", "LF + L + RR + 5"       // functional + armed (if heavy) + impulse gap satisfied
+        public String  arcLabel;          // e.g. "FA", "FX + 13", "LF + L + RR + 5"
+        public int     arcMask;           // 24-bit bitmask: bit N-1 set = direction N in arc
+        public int     launchDirectionsMask; // PlasmaLauncher/DroneRack: valid launch facing bitmask; 0 = use arcMask
         public boolean functional;
         public String  plasmaType;        // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
         public String  launcherType;      // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
@@ -85,6 +89,7 @@ public class GameStateDto {
         public int     holdCost;          // energy to hold per turn; 0 = hold not supported
         public boolean canOverload;            // weapon supports OVERLOAD mode
         public boolean canSuicide;             // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+        public boolean canProximity;           // weapon supports PROXIMITY (prox) mode (Photon only)
         public boolean overloadFinalTurnOnly;  // OVERLOAD only choosable on the final arming turn
         public int     totalArmingTurns;  // turns to fully arm (0 for instant)
         public boolean isRolling;         // PlasmaLauncher only: currently in rolling mode
@@ -119,11 +124,12 @@ public class GameStateDto {
         public String              name;
         public boolean             functional;
         public boolean             canFire;
-        public List<DroneInRackDto>    drones;          // currently loaded drones
-        public int                     reloadCount;     // number of reload sets remaining
-        public double                  reloadDeckCrewCost; // legacy: cost for first full set (0 if none)
-        public boolean                 reloadingThisTurn;  // already staged for reload this turn
-        public List<ReloadPoolEntryDto> reloadPool;     // available drones by type with counts
+        public List<DroneInRackDto>    drones;
+        public int                     reloadCount;
+        public double                  reloadDeckCrewCost;
+        public boolean                 reloadingThisTurn;
+        public List<ReloadPoolEntryDto> reloadPool;
+        public int                     launchDirectionsMask; // 0 = unrestricted
     }
 
     public static class ShuttleInBayDto {
@@ -180,6 +186,9 @@ public class GameStateDto {
         public int                  availableFhull;
         public int                  availableAhull;
         public int                  availableChull;
+        public int                  maxFhull;
+        public int                  maxAhull;
+        public int                  maxChull;
         // Power system damage state
         public int                  availableLWarp;
         public int                  availableRWarp;
@@ -187,6 +196,12 @@ public class GameStateDto {
         public int                  availableImpulse;
         public int                  availableApr;
         public int                  availableAwr;
+        public int                  maxLWarp;
+        public int                  maxRWarp;
+        public int                  maxCWarp;
+        public int                  maxImpulse;
+        public int                  maxApr;
+        public int                  maxAwr;
         public int                  availableBattery;
         public int                  batteryPower;
         // Control space damage state (current / max)
@@ -223,6 +238,10 @@ public class GameStateDto {
         public int    commandRating;
         public List<String> lockOnTargets;   // names of units this ship has lock-on to
         public String       tokenArt;        // optional path to PNG token image
+        // Turn mode display helpers
+        public String       turnMode;        // e.g. "A", "B", "C"
+        public int          turnHexes;       // hexes required between turns at current speed
+        public int          hexesUntilTurn;  // 0 = may turn now; >0 = hexes still needed
     }
 
     // -------------------------------------------------------------------------
@@ -405,6 +424,9 @@ public class GameStateDto {
             sd.baseStrength = ship.getShields().getBaseShieldStrength(s);
             sd.max          = ship.getShields().getMaxShieldStrength(s);
             sd.active       = ship.getShields().isShieldActive(s);
+            int toggled     = ship.getShields().getImpulseShieldToggled(s);
+            int delay       = com.sfb.constants.Constants.IMPULSES_PER_TURN / 4;
+            sd.impulsesUntilRaiseable = Math.max(0, toggled + delay - TurnTracker.getImpulse());
             dto.shields.add(sd);
         }
 
@@ -443,6 +465,9 @@ public class GameStateDto {
         dto.availableFhull  = hb.getAvailableFhull();
         dto.availableAhull  = hb.getAvailableAhull();
         dto.availableChull  = hb.getAvailableChull();
+        dto.maxFhull        = hb.getMaxFhull();
+        dto.maxAhull        = hb.getMaxAhull();
+        dto.maxChull        = hb.getMaxChull();
 
         // Power system damage state
         com.sfb.systemgroups.PowerSystems ps = ship.getPowerSysetems();
@@ -452,6 +477,12 @@ public class GameStateDto {
         dto.availableImpulse = ps.getAvailableImpulse();
         dto.availableApr     = ps.getAvailableApr();
         dto.availableAwr     = ps.getAvailableAwr();
+        dto.maxLWarp         = ps.getMaxLWarp();
+        dto.maxRWarp         = ps.getMaxRWarp();
+        dto.maxCWarp         = ps.getMaxCWarp();
+        dto.maxImpulse       = ps.getMaxImpulse();
+        dto.maxApr           = ps.getMaxApr();
+        dto.maxAwr           = ps.getMaxAwr();
         dto.availableBattery = ps.getAvailableBattery();
         dto.batteryPower     = ps.getBatteryPower();
         dto.reserveWarp      = ps.getReserveWarp();
@@ -478,6 +509,9 @@ public class GameStateDto {
         dto.commandRating     = ship.getCommandRating();
         dto.uimFunctional     = ship.getActiveUim(com.sfb.TurnTracker.getImpulse()) != null;
         dto.tokenArt          = ship.getTokenArt();
+        dto.turnMode          = ship.getTurnMode() != null ? ship.getTurnMode().name() : null;
+        dto.turnHexes         = ship.getTurnHexes();
+        dto.hexesUntilTurn    = Math.max(0, ship.getTurnHexes() - ship.getTurnCount());
         dto.lockOnTargets     = ship.getLockOns().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());
@@ -502,6 +536,7 @@ public class GameStateDto {
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional       = w.isFunctional();
             wd.arcLabel         = w.getArcLabel();
+            wd.arcMask          = w.getArcs();
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
             wd.readyToFire      = w.isFunctional() && armedIfNeeded && w.canFire();
@@ -515,18 +550,20 @@ public class GameStateDto {
                 wd.holdCost         = hw.holdEnergyCost();
                 wd.canOverload           = hw.supportsOverload();
                 wd.canSuicide            = hw.supportsSuicide();
+                wd.canProximity          = hw.supportsProximity();
                 wd.overloadFinalTurnOnly = hw.overloadFinalTurnOnly();
                 wd.totalArmingTurns = hw.totalArmingTurns();
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
-                wd.plasmaType        = pl.getPlasmaType()     != null ? pl.getPlasmaType().name()     : null;
-                wd.launcherType      = pl.getLauncherType()   != null ? pl.getLauncherType().name()   : null;
-                wd.pseudoPlasmaReady = pl.isPseudoPlasmaReady();
-                wd.isRolling         = pl.isRolling();
-                wd.rollingCost       = pl.rollingCost(); // always sent so UI can show Roll button on final turn
-                wd.canEpt            = pl.canEpt();
-                wd.eptCost           = pl.eptCost();
+                wd.plasmaType          = pl.getPlasmaType()     != null ? pl.getPlasmaType().name()     : null;
+                wd.launcherType        = pl.getLauncherType()   != null ? pl.getLauncherType().name()   : null;
+                wd.pseudoPlasmaReady   = pl.isPseudoPlasmaReady();
+                wd.isRolling           = pl.isRolling();
+                wd.rollingCost         = pl.rollingCost();
+                wd.canEpt              = pl.canEpt();
+                wd.eptCost             = pl.eptCost();
+                wd.launchDirectionsMask = pl.getLaunchDirections();
             }
             wd.maxShotsPerTurn  = w.getMaxShotsPerTurn();
             wd.shotsThisTurn    = w.getShotsThisTurn();
@@ -643,6 +680,7 @@ public class GameStateDto {
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional       = w.isFunctional();
             wd.arcLabel         = w.getArcLabel();
+            wd.arcMask          = w.getArcs();
             wd.readyToFire      = w.isFunctional() && w.canFire();
             wd.maxShotsPerTurn  = w.getMaxShotsPerTurn();
             wd.shotsThisTurn    = w.getShotsThisTurn();

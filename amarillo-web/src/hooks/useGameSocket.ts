@@ -24,7 +24,7 @@ export function useGameSocket(gameId: string, playerToken: string): GameState | 
       .catch(console.error);
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`http://${window.location.hostname}:8080/ws`),
+      webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
         if (!active) return;  // already cleaned up before this connection completed

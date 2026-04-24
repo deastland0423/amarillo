@@ -108,6 +108,23 @@ button.secondary {
   border: 1px solid #30363d;
 }
 
+@keyframes holdout-pulse {
+  0%, 100% { background: #b91c1c; box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.5); }
+  50%       { background: #dc2626; box-shadow: 0 0 0 6px rgba(248, 81, 73, 0); }
+}
+
+button.btn-last-holdout {
+  background: #b91c1c;
+  color: #fff;
+  border-color: #f85149;
+  animation: holdout-pulse 1.2s ease-in-out infinite;
+}
+
+button.btn-last-holdout:hover:not(:disabled) {
+  background: #dc2626;
+  opacity: 1;
+}
+
 button.secondary:hover:not(:disabled) {
   color: #e6edf3;
   border-color: #8b949e;

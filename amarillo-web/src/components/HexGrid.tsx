@@ -265,7 +265,10 @@ function drawObjects(
   onImageLoad: () => void,
 ) {
   const mySet = new Set(myShips ?? []);
-  for (const obj of objects) {
+  // Two-pass rendering: terrain first so units always appear on top.
+  const terrain = objects.filter(o => o.type === 'TERRAIN');
+  const units   = objects.filter(o => o.type !== 'TERRAIN');
+  for (const obj of [...terrain, ...units]) {
     if (!obj.location) continue;
     const coords = parseLocation(obj.location);
     if (!coords) continue;
@@ -567,6 +570,7 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
   const [tooltip, setTooltip]     = useState<Tooltip | null>(null);
   const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
   const [tokenRevision, setTokenRevision] = useState(0);
+  const [hoveredHex, setHoveredHex] = useState<[number, number] | null>(null);
   const zoomRef                 = useRef(1.0);        // always current, no stale-closure risk
   const containerRef            = useRef<HTMLDivElement>(null);
   const canvasRef               = useRef<HTMLCanvasElement>(null);
@@ -591,7 +595,17 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
         () => setTokenRevision(r => r + 1));
     }
-  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision]);
+    if (hoveredHex) {
+      const [hcol, hrow] = hoveredHex;
+      const [cx, cy] = hexCenter(hcol, hrow);
+      tracePath(ctx, cx, cy);
+      ctx.fillStyle = 'rgba(255, 255, 100, 0.25)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 100, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {
@@ -678,8 +692,9 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     const px      = (e.clientX - rect.left) * scaleX;
     const py      = (e.clientY - rect.top)  * scaleY;
     const hex     = pixelToHex(px, py);
-    if (!hex) { setTooltip(null); return; }
+    if (!hex) { setTooltip(null); if (pickingHex) setHoveredHex(null); return; }
     const [col, row] = hex;
+    if (pickingHex) { setHoveredHex([col, row]); setTooltip(null); return; }
     const lines: string[] = [];
 
     for (const ship of shipsAt(mapObjects, col, row)) {
@@ -717,6 +732,7 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
   function handleMouseLeave() {
     dragging.current = false;
     setTooltip(null);
+    setHoveredHex(null);
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

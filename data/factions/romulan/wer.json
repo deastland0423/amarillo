@@ -38,7 +38,7 @@
 
   "auxiliary": {
     "transporters": 1,
-    "tractors": 13,
+    "tractors": 1,
     "probes": 1,
     "cloakCost": 6,
     "nuclearSpaceMines": 1

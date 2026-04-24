@@ -58,6 +58,7 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	@Override
 	public void cleanUp() {
 		reset();
+		super.cleanUp();
 	}
 
 	@Override

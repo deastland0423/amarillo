@@ -64,6 +64,8 @@ function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
   if (obj.type === 'SHIP')   return !myShips.has(obj.name);
   if (obj.type === 'DRONE')  return !myShips.has((obj as DroneObject).controllerName ?? '');
   if (obj.type === 'PLASMA') return !myShips.has((obj as PlasmaObject).controllerName ?? '');
+  if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK')
+    return !myShips.has((obj as ShuttleObject).parentShipName ?? '');
   return false;
 }
 
@@ -86,7 +88,13 @@ function ShieldBar({ shield, isMine }: { shield: ShieldState; isMine: boolean })
     <div className={`shield-cell${isDown ? ' shield-down' : ''}`}>
       <span className="shield-label">
         {SHIELD_NAMES[shield.shieldNum]} {visible}/{shield.max}
-        {isDown && <span className="shield-down-label"> (down)</span>}
+        {isDown && (
+          <span className="shield-down-label">
+            {shield.impulsesUntilRaiseable > 0
+              ? ` (down — ${shield.impulsesUntilRaiseable} imp)`
+              : ' (down)'}
+          </span>
+        )}
         {isMine && !isDown && shield.current > shield.baseStrength && (
           <span style={{ color: '#56d364', marginLeft: 4 }}>
             +{shield.current - shield.baseStrength}
@@ -121,7 +129,7 @@ function WeaponRow({ w }: { w: WeaponState }) {
   } else if (!w.readyToFire) {
     // Armed (or non-heavy) but cooldown / shot limit reached
     dotClass   += ' cooldown';
-    statusText  = (w.maxShotsPerTurn > 1 && w.shotsThisTurn >= w.maxShotsPerTurn)
+    statusText  = (w.maxShotsPerTurn > 1 && w.maxShotsPerTurn < 2147483647 && w.shotsThisTurn >= w.maxShotsPerTurn)
                   ? 'MAX'
                   : 'COOL';
     statusClass = 'cooldown';
@@ -132,7 +140,8 @@ function WeaponRow({ w }: { w: WeaponState }) {
                      : w.armingType === 'SPECIAL'  ? 'SPL'
                      : 'RDY';
     dotClass   += ' ready';
-    statusText  = w.maxShotsPerTurn > 1 ? `${baseStatus} ${remaining}×` : baseStatus;
+    const unlimitedShots = w.maxShotsPerTurn >= 2147483647;
+    statusText  = (w.maxShotsPerTurn > 1 && !unlimitedShots) ? `${baseStatus} ${remaining}×` : baseStatus;
     statusClass = 'ready';
   }
 
@@ -159,10 +168,48 @@ function hasLaunchableWeapons(ship: ShipObject): boolean {
 
 // ---- Launch panel ----
 
+// Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an arc bitmask.
+function allowedFacingsFromMask(arcMask: number): Set<number> {
+  const FACING_DIRS = [1, 5, 9, 13, 17, 21];
+  return new Set(FACING_DIRS.filter(d => (arcMask >> (d - 1)) & 1));
+}
+
+// Intersects two Sets.
+function intersectSets<T>(a: Set<T>, b: Set<T>): Set<T> {
+  return new Set([...a].filter(x => b.has(x)));
+}
+
+// Pixel-precise bearing using hex center geometry (same constants as HexGrid).
+// Returns SFB direction 1-24, or 0 if same hex.
+function hexGetBearing(srcCol: number, srcRow: number, tgtCol: number, tgtRow: number): number {
+  if (srcCol === tgtCol && srcRow === tgtRow) return 0;
+  const SIZE = 48;
+  const h    = Math.sqrt(3) * SIZE;
+  const sx = (srcCol - 1) * SIZE * 1.5;
+  const sy = (srcRow - 1) * h + (srcCol % 2 === 0 ? h / 2 : 0);
+  const tx = (tgtCol - 1) * SIZE * 1.5;
+  const ty = (tgtRow - 1) * h + (tgtCol % 2 === 0 ? h / 2 : 0);
+  const dx = tx - sx;   // east component (screen x increases eastward)
+  const dy = sy - ty;   // north component (screen y increases southward, so invert)
+  if (dx === 0 && dy === 0) return 0;
+  const deg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+  return (Math.round(deg / 15) % 24) + 1;
+}
+
+// Port of MapUtils.getRelativeBearing.
+function hexGetRelativeBearing(trueBearing: number, facing: number): number {
+  if (facing === 1) return trueBearing;
+  return trueBearing >= facing ? trueBearing - (facing - 1) : trueBearing + (24 - (facing - 1));
+}
+
+// FA = directions 21-24 and 1-5 (the seeker's forward arc).
+const FA_DIRS = new Set([21, 22, 23, 24, 1, 2, 3, 4, 5]);
+const ALL_FACINGS = new Set([1, 5, 9, 13, 17, 21]);
+
 interface LaunchPanelProps {
   ship:           ShipObject;
   target:         ShipObject | null;
-  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[]) => void;
+  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number) => void;
   onClearTarget:  () => void;
   onCancel:       () => void;
   error:          string | null;
@@ -173,6 +220,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   const [pseudoSet,     setPseudoSet]     = useState<Set<string>>(new Set());
   // Maps rack name → chosen drone index within that rack's ammo list
   const [selRackDrones, setSelRackDrones] = useState<Map<string, number>>(new Map());
+  const [launchFacing,  setLaunchFacing]  = useState<number | null>(null);
 
   // Include any launcher with a real torpedo armed OR a pseudo still available
   const launchablePlasma = (ship.weapons ?? []).filter(w =>
@@ -181,11 +229,19 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   const loadedRacks = (ship.droneRacks ?? []).filter(r => r.functional && r.drones.length > 0 && r.canFire);
   const targetColor = target ? factionColor(target.faction) : '#888';
 
-  function toggleLauncher(name: string) {
-    setSelLaunchers(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  function selectReal(name: string) {
+    setSelLaunchers(prev => { const n = new Set(prev); n.add(name); return n; });
+    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
   }
-  function togglePseudo(name: string) {
-    setPseudoSet(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  function deselectReal(name: string) {
+    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
+  }
+  function selectPseudo(name: string) {
+    setPseudoSet(prev => { const n = new Set(prev); n.add(name); return n; });
+    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
+  }
+  function deselectPseudo(name: string) {
+    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
   }
   function selectDrone(rackName: string, droneIndex: number) {
     setSelRackDrones(prev => {
@@ -197,7 +253,45 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
     });
   }
 
-  const totalSelected = selLaunchers.size + selRackDrones.size;
+  const totalSelected = selLaunchers.size + pseudoSet.size + selRackDrones.size;
+
+  // Compute the intersection of all selected weapons' allowed launch facings.
+  // Start with all 6 facings, then filter by launchDirectionsMask (or arcMask fallback)
+  // and the FA constraint (target must be in the seeker's forward arc at launch).
+  let allowedFacings: Set<number> = new Set(ALL_FACINGS);
+
+  // Launch-direction constraint: each selected plasma launcher (real or pseudo) restricts to its own set.
+  const allSelectedLaunchers = new Set([...selLaunchers, ...pseudoSet]);
+  for (const wName of allSelectedLaunchers) {
+    const w = (ship.weapons ?? []).find(x => x.name === wName);
+    if (w) {
+      const mask = w.launchDirectionsMask || w.arcMask;
+      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(mask));
+    }
+  }
+  // Drone racks: use launchDirectionsMask if set, otherwise all facings allowed.
+  for (const [rackName] of selRackDrones) {
+    const rack = (ship.droneRacks ?? []).find(r => r.name === rackName);
+    if (rack && rack.launchDirectionsMask) {
+      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rack.launchDirectionsMask));
+    }
+  }
+
+  // FA constraint: the target must be in the seeker's FA at the chosen launch facing.
+  // For each candidate facing, check if getRelativeBearing(bearing, facing) is in FA.
+  if (target) {
+    const srcLoc = parseLocation(ship.location ?? null);
+    const tgtLoc = parseLocation(target.location ?? null);
+    if (srcLoc && tgtLoc) {
+      const bearing = hexGetBearing(srcLoc[0], srcLoc[1], tgtLoc[0], tgtLoc[1]);
+      if (bearing > 0) {
+        const faValid = new Set(
+          [1, 5, 9, 13, 17, 21].filter(f => FA_DIRS.has(hexGetRelativeBearing(bearing, f)))
+        );
+        allowedFacings = intersectSets(allowedFacings, faValid);
+      }
+    }
+  }
 
   return (
     <div className="sidebar-section fire-panel">
@@ -233,41 +327,28 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
             <>
               <div className="sidebar-divider" />
               <div className="sidebar-stat-label" style={{ marginBottom: 4 }}>Plasma Torpedoes</div>
-              {launchablePlasma.map(w => {
-                const pseudoOnly = !w.armed; // unarmed — only pseudo available
-                return (
-                  <div key={w.name} className="launch-weapon-row">
-                    {pseudoOnly ? (
-                      /* Unarmed launcher — only pseudo option */
-                      <label className="ea-check-label" style={{ color: '#8b949e' }}>
-                        <input type="checkbox" checked={selLaunchers.has(w.name)}
-                          onChange={() => { toggleLauncher(w.name); if (!pseudoSet.has(w.name)) togglePseudo(w.name); }} />
-                        {weaponLabel(w)}
-                        <span className="ea-note-dim" style={{ marginLeft: 4 }}>PSEUDO</span>
-                      </label>
-                    ) : (
-                      /* Armed launcher — real torpedo + optional pseudo */
-                      <>
-                        <label className="ea-check-label">
-                          <input type="checkbox" checked={selLaunchers.has(w.name)}
-                            onChange={() => { toggleLauncher(w.name); if (pseudoSet.has(w.name)) togglePseudo(w.name); }} />
-                          {weaponLabel(w)}
-                          <span className="ea-note-dim" style={{ marginLeft: 4 }}>
-                            {w.armingType === 'OVERLOAD' ? 'EPT' : 'STD'}
-                          </span>
-                        </label>
-                        {selLaunchers.has(w.name) && w.pseudoPlasmaReady && w.armingType !== 'OVERLOAD' && (
-                          <label className="ea-check-label" style={{ marginLeft: 16, color: '#8b949e' }}>
-                            <input type="checkbox" checked={pseudoSet.has(w.name)}
-                              onChange={() => togglePseudo(w.name)} />
-                            Also launch pseudo
-                          </label>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+              {launchablePlasma.map(w => (
+                <div key={w.name} className="launch-weapon-row">
+                  {w.armed && (
+                    <label className="ea-check-label">
+                      <input type="checkbox" checked={selLaunchers.has(w.name)}
+                        onChange={() => selLaunchers.has(w.name) ? deselectReal(w.name) : selectReal(w.name)} />
+                      {weaponLabel(w)}
+                      <span className="ea-note-dim" style={{ marginLeft: 4 }}>
+                        {w.armingType === 'OVERLOAD' ? 'EPT' : 'Real'}
+                      </span>
+                    </label>
+                  )}
+                  {w.pseudoPlasmaReady && (
+                    <label className="ea-check-label" style={{ marginLeft: w.armed ? 16 : 0, color: '#8b949e' }}>
+                      <input type="checkbox" checked={pseudoSet.has(w.name)}
+                        onChange={() => pseudoSet.has(w.name) ? deselectPseudo(w.name) : selectPseudo(w.name)} />
+                      {w.armed ? 'Pseudo' : weaponLabel(w)}
+                      {!w.armed && <span className="ea-note-dim" style={{ marginLeft: 4 }}>Pseudo</span>}
+                    </label>
+                  )}
+                </div>
+              ))}
             </>
           )}
 
@@ -299,14 +380,29 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
             </>
           )}
 
+          {totalSelected > 0 && (
+            <>
+              <div className="sidebar-divider" />
+              <FacingPicker
+                label="Launch Facing"
+                value={launchFacing}
+                onChange={setLaunchFacing}
+                allowedFacings={allowedFacings}
+              />
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             <button className="fire-btn"
               style={{ flex: 1 }}
-              disabled={totalSelected === 0}
+              disabled={totalSelected === 0 || launchFacing === null}
               onClick={() => onLaunch(
-                launchablePlasma.filter(w => selLaunchers.has(w.name))
-                                .map(w => ({ name: w.name, pseudo: pseudoSet.has(w.name) })),
+                [
+                  ...launchablePlasma.filter(w => selLaunchers.has(w.name)).map(w => ({ name: w.name, pseudo: false })),
+                  ...launchablePlasma.filter(w => pseudoSet.has(w.name)).map(w => ({ name: w.name, pseudo: true })),
+                ],
                 Array.from(selRackDrones.entries()).map(([rackName, droneIndex]) => ({ rackName, droneIndex })),
+                launchFacing ?? 0,
               )}>
               Launch ({totalSelected})
             </button>
@@ -985,13 +1081,14 @@ interface SidebarProps {
   launchError:     string | null;
   onStartLaunch:   () => void;
   onClearLaunch:   () => void;
-  onLaunch:        (plasma: {name: string; pseudo: boolean}[], racks: {rackName: string; droneIndex: number}[]) => void;
+  onLaunch:        (plasma: {name: string; pseudo: boolean}[], racks: {rackName: string; droneIndex: number}[], facing: number) => void;
   // T-bomb (transporter)
-  tBombMode:       boolean;
-  tBombPendingHex: {col: number; row: number} | null;
-  onStartTBomb:    () => void;
-  onCancelTBomb:   () => void;
-  onPlaceTBomb:    (isReal: boolean) => void;
+  tBombMode:        boolean;
+  tBombPendingHex:  {col: number; row: number} | null;
+  tBombShieldChoice: {isReal: boolean; shields: number[]} | null;
+  onStartTBomb:     () => void;
+  onCancelTBomb:    () => void;
+  onPlaceTBomb:     (isReal: boolean, shieldNumber?: number) => void;
   // Drop mine (shuttle bay)
   dropMineMode:    boolean;
   onToggleDropMine: () => void;
@@ -1041,7 +1138,7 @@ function ShipSidebar({
   onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
-  tBombMode, tBombPendingHex, onStartTBomb, onCancelTBomb, onPlaceTBomb,
+  tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
@@ -1270,7 +1367,21 @@ function ShipSidebar({
 
       {tBombMode && (
         <div className="sidebar-action-detail">
-          {tBombPendingHex ? (
+          {tBombShieldChoice ? (
+            <>
+              <div className="sidebar-section-title" style={{ color: '#f0c040' }}>
+                Seam — choose which shield to lower
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                {tBombShieldChoice.shields.map(s => (
+                  <button key={s} onClick={() => onPlaceTBomb(tBombShieldChoice.isReal, s)}>
+                    Shield {s}
+                  </button>
+                ))}
+                <button className="secondary" onClick={onCancelTBomb}>Cancel</button>
+              </div>
+            </>
+          ) : tBombPendingHex ? (
             <>
               <div className="sidebar-section-title">Place T-bomb at {tBombPendingHex.col}|{tBombPendingHex.row}</div>
               <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
@@ -1476,6 +1587,16 @@ function ShipSidebar({
         <StatRow label="Location" value={locationLabel(ship.location)} />
         <StatRow label="Facing"   value={facingLabel(ship.facing)} />
         <StatRow label="Speed"    value={ship.speed} />
+        {ship.turnMode != null && (
+          <StatRow
+            label="Turn Mode"
+            value={
+              (ship.hexesUntilTurn ?? 0) === 0
+                ? `${ship.turnMode}-${ship.turnHexes} (free)`
+                : `${ship.turnMode}-${ship.turnHexes} (${ship.hexesUntilTurn} more)`
+            }
+          />
+        )}
         {(ship.cloakCost ?? 0) > 0 && (
           <StatRow
             label="Cloak"
@@ -1516,9 +1637,9 @@ function ShipSidebar({
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Hull</div>
-        <StatRow label="Forward" value={ship.availableFhull} />
-        <StatRow label="Aft"     value={ship.availableAhull} />
-        {ship.availableChull > 0 && <StatRow label="Center" value={ship.availableChull} />}
+        <StatRow label="Forward" value={ship.availableFhull < ship.maxFhull ? `${ship.availableFhull}/${ship.maxFhull}` : ship.availableFhull} dmg={ship.availableFhull < ship.maxFhull} />
+        <StatRow label="Aft"     value={ship.availableAhull < ship.maxAhull ? `${ship.availableAhull}/${ship.maxAhull}` : ship.availableAhull} dmg={ship.availableAhull < ship.maxAhull} />
+        {ship.maxChull > 0 && <StatRow label="Center" value={ship.availableChull < ship.maxChull ? `${ship.availableChull}/${ship.maxChull}` : ship.availableChull} dmg={ship.availableChull < ship.maxChull} />}
       </div>
 
       {(ship.maxBridge > 0 || ship.maxFlag > 0 || ship.maxEmer > 0 || ship.maxAuxcon > 0 || ship.maxSecurity > 0) && (
@@ -1534,12 +1655,12 @@ function ShipSidebar({
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Power</div>
-        <StatRow label="L-Warp"  value={ship.availableLWarp} />
-        <StatRow label="R-Warp"  value={ship.availableRWarp} />
-        {ship.availableCWarp > 0 && <StatRow label="C-Warp" value={ship.availableCWarp} />}
-        <StatRow label="Impulse" value={ship.availableImpulse} />
-        {ship.availableApr > 0 && <StatRow label="APR"     value={ship.availableApr} />}
-        {ship.availableAwr > 0 && <StatRow label="AWR"     value={ship.availableAwr} />}
+        <StatRow label="L-Warp"  value={ship.availableLWarp  < ship.maxLWarp    ? `${ship.availableLWarp} / ${ship.maxLWarp}`    : ship.availableLWarp}  dmg={ship.availableLWarp  < ship.maxLWarp} />
+        <StatRow label="R-Warp"  value={ship.availableRWarp  < ship.maxRWarp    ? `${ship.availableRWarp} / ${ship.maxRWarp}`    : ship.availableRWarp}  dmg={ship.availableRWarp  < ship.maxRWarp} />
+        {ship.availableCWarp > 0 && <StatRow label="C-Warp"  value={ship.availableCWarp  < ship.maxCWarp    ? `${ship.availableCWarp} / ${ship.maxCWarp}`    : ship.availableCWarp}  dmg={ship.availableCWarp  < ship.maxCWarp} />}
+        <StatRow label="Impulse" value={ship.availableImpulse < ship.maxImpulse ? `${ship.availableImpulse} / ${ship.maxImpulse}` : ship.availableImpulse} dmg={ship.availableImpulse < ship.maxImpulse} />
+        {ship.availableApr > 0 && <StatRow label="APR"       value={ship.availableApr    < ship.maxApr      ? `${ship.availableApr} / ${ship.maxApr}`       : ship.availableApr}    dmg={ship.availableApr    < ship.maxApr} />}
+        {ship.availableAwr > 0 && <StatRow label="AWR"       value={ship.availableAwr    < ship.maxAwr      ? `${ship.availableAwr} / ${ship.maxAwr}`       : ship.availableAwr}    dmg={ship.availableAwr    < ship.maxAwr} />}
         <StatRow label="Battery" value={`${ship.batteryPower} / ${ship.availableBattery}`} />
         <div className="sidebar-divider" />
         <StatRow label="Total"   value={totalPower} />
@@ -1628,8 +1749,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [shuttleLaunchMode, setShuttleLaunchMode] = useState(false);
   const [shuttleLaunchError, setShuttleLaunchError] = useState<string | null>(null);
   // T-bomb placement state
-  const [tBombMode,       setTBombMode]       = useState(false);
-  const [tBombPendingHex, setTBombPendingHex] = useState<{col: number; row: number} | null>(null);
+  const [tBombMode,         setTBombMode]         = useState(false);
+  const [tBombPendingHex,   setTBombPendingHex]   = useState<{col: number; row: number} | null>(null);
+  const [tBombShieldChoice, setTBombShieldChoice] = useState<{isReal: boolean; shields: number[]} | null>(null);
   // Drop mine state
   const [dropMineMode, setDropMineMode] = useState(false);
   // Boarding action state
@@ -2188,6 +2310,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   function handleCancelTBomb() {
     setTBombMode(false);
     setTBombPendingHex(null);
+    setTBombShieldChoice(null);
   }
 
   function handleHexClick(col: number, row: number) {
@@ -2196,21 +2319,30 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  async function handlePlaceTBomb(isReal: boolean) {
+  async function handlePlaceTBomb(isReal: boolean, shieldNumber?: number) {
     if (!liveShip || !tBombPendingHex) return;
     setActionError(null);
     try {
       const res = await gameApi.placeTBomb(
         session.gameId, session.playerToken,
-        liveShip.name, tBombPendingHex.col, tBombPendingHex.row, isReal,
+        liveShip.name, tBombPendingHex.col, tBombPendingHex.row, isReal, shieldNumber,
       );
-      if (!res.success) setActionError(res.message);
-      else addLog(`${liveShip.name} placed ${isReal ? 'T-bomb' : 'dummy T-bomb'} at ${tBombPendingHex.col}|${tBombPendingHex.row}`, 'combat');
+      if (!res.success) {
+        if (res.message?.startsWith('SHIELD_CHOICE:')) {
+          const shields = res.message.slice('SHIELD_CHOICE:'.length).split(',').map(Number);
+          setTBombShieldChoice({ isReal, shields });
+          return; // keep tBombMode/tBombPendingHex; show the picker
+        }
+        setActionError(res.message);
+      } else {
+        addLog(`${liveShip.name} placed ${isReal ? 'T-bomb' : 'dummy T-bomb'} at ${tBombPendingHex.col}|${tBombPendingHex.row}`, 'combat');
+      }
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'T-bomb placement failed');
     }
     setTBombMode(false);
     setTBombPendingHex(null);
+    setTBombShieldChoice(null);
   }
 
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
@@ -2236,6 +2368,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   async function handleLaunch(
     plasmaSelections: { name: string; pseudo: boolean }[],
     rackSelections: { rackName: string; droneIndex: number }[],
+    facing: number,
   ) {
     if (!liveShip || !launchTarget) return;
     setLaunchError(null);
@@ -2244,7 +2377,7 @@ export default function GameBoard({ session, onLeave }: Props) {
       try {
         const res = await gameApi.submitAction(session.gameId, session.playerToken, {
           type: 'LAUNCH_PLASMA', shipName: liveShip.name,
-          targetName: launchTarget.name, weaponNames: [name], pseudo,
+          targetName: launchTarget.name, weaponNames: [name], pseudo, facing,
         });
         if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
         addLog(`${liveShip.name} launched plasma ${name} at ${launchTarget.name}`, 'combat');
@@ -2258,7 +2391,7 @@ export default function GameBoard({ session, onLeave }: Props) {
         try {
           const res = await gameApi.submitAction(session.gameId, session.playerToken, {
             type: 'LAUNCH_DRONE', shipName: liveShip.name,
-            targetName: launchTarget.name, weaponNames: [rackName], range: droneIndex,
+            targetName: launchTarget.name, weaponNames: [rackName], range: droneIndex, facing,
           });
           if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
           addLog(`${liveShip.name} launched drone from ${rackName} at ${launchTarget.name}`, 'combat');
@@ -2304,9 +2437,9 @@ export default function GameBoard({ session, onLeave }: Props) {
           setIsReady(true);
         } else {
           // Phase advanced immediately (this player was last to ready up).
+          // Phase/damage log arrives via WebSocket broadcast — don't add it here too.
           // Don't set isReady — the incoming broadcastState will change phase/impulse
           // and the useEffect will reset it cleanly, avoiding a race condition.
-          if (res.message) addLog(res.message, 'combat');
         }
       }
     } catch (e: unknown) {
@@ -2331,13 +2464,28 @@ export default function GameBoard({ session, onLeave }: Props) {
               Waiting for: <strong>{opponentMovablePending[0]}</strong>
             </span>
           )}
-          <button
-            onClick={handleAdvancePhase}
-            disabled={isMovementPhase && myMovablePending.length > 0}
-            className={isReady ? 'secondary' : ''}
-          >
-            {isReady ? 'Cancel' : 'Ready'}
-          </button>
+          {(() => {
+            const readyCount   = gameState?.readyCount  ?? 0;
+            const playerCount  = gameState?.playerCount ?? 0;
+            const isLastHoldout = !isReady && playerCount > 1 && readyCount === playerCount - 1;
+            const btnClass = isReady ? 'secondary' : isLastHoldout ? 'btn-last-holdout' : '';
+            const label = isReady
+              ? 'Cancel'
+              : isLastHoldout
+                ? `⚠ Ready — ${readyCount}/${playerCount} waiting`
+                : readyCount > 0
+                  ? `Ready (${readyCount}/${playerCount})`
+                  : 'Ready';
+            return (
+              <button
+                onClick={handleAdvancePhase}
+                disabled={isMovementPhase && myMovablePending.length > 0}
+                className={btnClass}
+              >
+                {label}
+              </button>
+            );
+          })()}
           <button className="secondary" onClick={onLeave}>Leave</button>
         </div>
       </div>
@@ -2389,6 +2537,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onLaunch={handleLaunch}
             tBombMode={tBombMode}
             tBombPendingHex={tBombPendingHex}
+            tBombShieldChoice={tBombShieldChoice}
             onStartTBomb={handleStartTBomb}
             onCancelTBomb={handleCancelTBomb}
             onPlaceTBomb={handlePlaceTBomb}

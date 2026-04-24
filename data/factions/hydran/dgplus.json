@@ -1,9 +1,9 @@
 {
   "faction": "Hydran",
-  "hull": "RN+",
-  "name": "HMS Bravery",
+  "hull": "DG+",
+  "name": "HMS Glorious",
   "serviceYear": 170,
-  "bpv": 111,
+  "bpv": 148,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -22,7 +22,7 @@
     "rightWarp": 10,
     "centerWarp": 10,
     "impulse": 4,
-    "apr": 3,
+    "apr": 9,
     "battery": 4
   },
   
@@ -48,15 +48,13 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "stinger2", "stingerH", "stingerH"], "launchTubes": 3 },
-    { "shuttles": ["stinger2", "stinger2", "stinger2"], "launchTubes": 3 },
-    { "shuttles": ["stinger2", "stinger2", "stinger2"], "launchTubes": 3 }
+    { "shuttles": ["admin", "admin", "admin", "stinger2", "stinger2", "stinger2"], "launchTubes": 3 }
   ],
 
   "crewData": {
-    "totalCrew": 35,
-    "boardingParties": 12,
-    "deckCrews": 9,
+    "totalCrew": 36,
+    "boardingParties": 14,
+    "deckCrews": 3,
     "minCrew": 4
   },
 
@@ -69,9 +67,9 @@
     { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["LS"] },
     { "type": "PhaserG", "designator": "8", "arcs": ["RS"] },
-    { "type": "Fusion",  "designator": "A", "arcs": ["LF", "L"] },
-    { "type": "Fusion",  "designator": "B", "arcs": ["LF", "L"] },
-    { "type": "Fusion",  "designator": "C", "arcs": ["RF", "R"] },
-    { "type": "Fusion",  "designator": "D", "arcs": ["RF", "R"] }
+    { "type": "Hellbore",  "designator": "A", "arcs": ["LF", "L"] },
+    { "type": "Hellbore",  "designator": "B", "arcs": ["LF", "L"] },
+    { "type": "Hellbore",  "designator": "C", "arcs": ["RF", "R"] },
+    { "type": "Hellbore",  "designator": "D", "arcs": ["RF", "R"] }
   ]
 }

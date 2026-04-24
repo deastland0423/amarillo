@@ -6,7 +6,9 @@ import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -98,6 +100,9 @@ public class Ship extends Unit {
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
+	/** End-of-battle status — set when ship leaves play. */
+	private com.sfb.properties.BattleStatus battleStatus = com.sfb.properties.BattleStatus.ACTIVE;
+
 	// HET tracking
 	private int  lastHetImpulse           = -99; // large negative so first-turn gap check passes
 	private int  hetsThisTurn             = 0;
@@ -121,6 +126,7 @@ public class Ship extends Unit {
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
+	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 
 	// Real-time data
@@ -155,7 +161,8 @@ public class Ship extends Unit {
 		hullType = values.get("hull") == null ? null : (String) values.get("hull");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
-		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
+		battlePointValue   = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
+		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 
 		// Calculated Ship Values
@@ -436,6 +443,10 @@ public class Ship extends Unit {
 		return this.battlePointValue;
 	}
 
+	public int getEconomicBpv() {
+		return this.economicPointValue;
+	}
+
 	public int getArmor() {
 		return this.armor;
 	}
@@ -568,6 +579,59 @@ public class Ship extends Unit {
 	/** Add enemy commandos on board. */
 	public void addEnemyCommandos(int commandos) {
 		enemyTroops.commandos += commandos;
+	}
+
+	// --- Destroyed state ---
+
+	public com.sfb.properties.BattleStatus getBattleStatus() { return battleStatus; }
+	public void setBattleStatus(com.sfb.properties.BattleStatus status) { this.battleStatus = status; }
+	public boolean isDestroyed() { return battleStatus == com.sfb.properties.BattleStatus.DESTROYED; }
+
+	// --- Crippled state (S2.41) ---
+
+	/**
+	 * A ship is crippled if ANY ONE of the following conditions is met (S2.41):
+	 *   A: 10% or less of original warp engine boxes remaining
+	 *      (skipped for ships with no original warp, e.g. Romulans)
+	 *   B: 50% or more of interior boxes destroyed
+	 *      (excludes shields, armor, sensor, scanner, DamCon, excess damage)
+	 *   C: Any excess damage hits taken
+	 *   D: All control spaces destroyed
+	 *   E: All weapons destroyed
+	 */
+	public boolean isCrippled() {
+		// A: warp engine boxes
+		int originalWarp = powerSystems.getOriginalWarp();
+		if (originalWarp > 0) {
+			int remainingWarp = powerSystems.getRemainingWarp();
+			if (remainingWarp <= Math.floor(originalWarp * 0.1))
+				return true;
+		}
+
+		// B: interior boxes (excludes armor and excess damage from the hull totals)
+		int originalInterior = getTotalSSDBoxes()
+				- hullBoxes.getOriginalArmor()
+				- specialFunctions.getOriginalExcessDamage();
+		int remainingInterior = getCurrentBoxes()
+				- hullBoxes.getAvailableArmor()
+				- specialFunctions.getExcessDamage();
+		int destroyedInterior = originalInterior - remainingInterior;
+		if (originalInterior > 0 && destroyedInterior >= originalInterior * 0.5)
+			return true;
+
+		// C: any excess damage hits
+		if (specialFunctions.getExcessDamage() < specialFunctions.getOriginalExcessDamage())
+			return true;
+
+		// D: all control spaces destroyed
+		if (controlSpaces.fetchRemainingTotalBoxes() == 0)
+			return true;
+
+		// E: all weapons destroyed
+		if (weapons.fetchAllWeapons().stream().noneMatch(com.sfb.weapons.Weapon::isFunctional))
+			return true;
+
+		return false;
 	}
 
 	// --- Capture state (D7.50) ---
@@ -1009,7 +1073,21 @@ public class Ship extends Unit {
 	 * @param bleedThrough The number of damage points that penetrated the shields.
 	 * @return A list of strings describing each system hit (for the combat log).
 	 */
+	private List<Weapon> bearingFunctionalPhasers(Ship attacker) {
+		List<Weapon> all = weapons.getPhaserList().stream()
+				.filter(Weapon::isFunctional).collect(Collectors.toList());
+		if (attacker == null) return all;
+		int trueBearing = MapUtils.getBearing(this, attacker);
+		if (trueBearing == 0) return all; // same hex — all bear
+		int relBearing = MapUtils.getRelativeBearing(trueBearing, getFacing());
+		return all.stream().filter(w -> w.inArc(relBearing)).collect(Collectors.toList());
+	}
+
 	public List<String> applyInternalDamage(int bleedThrough) {
+		return applyInternalDamage(bleedThrough, null);
+	}
+
+	public List<String> applyInternalDamage(int bleedThrough, Ship attacker) {
 		List<String> log = new ArrayList<>();
 		int absorbed = Math.min(armor, bleedThrough);
 		armor -= absorbed;
@@ -1051,9 +1129,21 @@ public class Ship extends Unit {
 
 			int roll = roller.rollTwoDice();
 			String system = dac.fetchNextHit(roll);
+
+			// If "phaser" but none bear on the attacker, advance to the next item on this DAC row.
+			if ("phaser".equals(system) && bearingFunctionalPhasers(attacker).isEmpty()) {
+				log.add("  internal [" + roll + "]: phaser — no bearing phasers, advancing DAC");
+				system = dac.fetchNextHitExcluding(roll, "phaser");
+			}
+
 			if (system == null) {
-				log.add("  internal [" + roll + "]: excess damage");
-				specialFunctions.damageExcessDamage();
+				boolean boxRemaining = specialFunctions.damageExcessDamage();
+				if (!boxRemaining) {
+					battleStatus = com.sfb.properties.BattleStatus.DESTROYED;
+					log.add("  internal [" + roll + "]: excess damage — SHIP DESTROYED");
+					break;
+				}
+				log.add("  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
 				continue;
 			}
 
@@ -1117,11 +1207,11 @@ public class Ship extends Unit {
 					hit = specialFunctions.damageDamCon();
 					break;
 				case "phaser": {
-					List<Weapon> phasers = weapons.getPhaserList();
-					Weapon target = phasers.stream()
-							.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) {
+					List<Weapon> candidates = bearingFunctionalPhasers(attacker);
+					if (!candidates.isEmpty()) {
+						Weapon target = candidates.get(new Random().nextInt(candidates.size()));
 						target.damage();
+						weapons.recalculatePhaserCapacitor();
 						hit = true;
 					}
 					break;
@@ -1175,16 +1265,6 @@ public class Ship extends Unit {
 	/** True if this ship has taken at least one internal damage point (used for victory point scoring). */
 	public boolean isDamaged() {
 		return internalDamagePointsTotal > 0;
-	}
-
-	// The ship may be crippled if half or more of its boxes
-	// are destroyed.
-	public boolean isCrippled() {
-		if (getCurrentBoxes() <= (getTotalSSDBoxes() / 2)) {
-			return true;
-		}
-
-		return false;
 	}
 
 	public boolean movesThisImpulse(int impulse) {

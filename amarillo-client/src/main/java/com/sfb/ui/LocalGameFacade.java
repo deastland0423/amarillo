@@ -72,10 +72,10 @@ public class LocalGameFacade implements GameFacade {
         return ActionResult.fail("Shuttle bay not found for " + shuttle.getName());
     }
     @Override public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone) {
-        return game.execute(new LaunchDroneCommand(launcher, target, rack, drone));
+        return game.execute(new LaunchDroneCommand(launcher, target, rack, drone, 0));
     }
     @Override public ActionResult launchPlasma(Ship attacker, Unit target, PlasmaLauncher weapon, boolean pseudo) {
-        return game.execute(new LaunchPlasmaCommand(attacker, target, weapon, pseudo));
+        return game.execute(new LaunchPlasmaCommand(attacker, target, weapon, pseudo, 0));
     }
     @Override public ActionResult fire(Ship attacker, Unit target, List<Weapon> weapons, int range, int adjustedRange, int shield, boolean useUim) {
         return game.execute(new FireCommand(attacker, target, weapons, range, adjustedRange, shield, useUim));

@@ -1,0 +1,52 @@
+{
+"id": "TEST_SCENARIO",
+  "name": "Test Scenario",
+  "year": 175,
+  "description": "Mission for testing out new code changes and features.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CA+",
+          "shipName": "USS Enterprise",
+          "startHex": "1205",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    },
+    {
+      "name": "Romulan Empire",
+      "faction": "Romulan",
+      "ships": [
+        {
+          "hull": "KRB",
+          "shipName": "RIS Praetor",
+          "startHex": "1707",
+          "startHeading": "F",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    }
+  ],
+  "terrain": [
+    { "type": "PLANET", "name": "Donatu V", "hex": "1406" },
+    { "type": "ASTEROID", "hex": "1105" },
+    { "type": "ASTEROID", "hex": "1005" },
+    { "type": "ASTEROID", "hex": "0906" },
+    { "type": "ASTEROID", "hex": "0907" },
+    { "type": "ASTEROID", "hex": "1006" },
+    { "type": "ASTEROID", "hex": "0905" },
+    { "type": "ASTEROID", "hex": "0805" },
+    { "type": "ASTEROID", "hex": "0904" },
+    { "type": "ASTEROID", "hex": "0806" }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

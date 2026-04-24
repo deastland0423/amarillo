@@ -187,6 +187,7 @@ public class GameController {
                                 Map<String, Object> hw = new java.util.LinkedHashMap<>();
                                 hw.put("designator", w.getDesignator());
                                 hw.put("type",       w.getType());
+                                hw.put("isPlasma",   w instanceof com.sfb.weapons.PlasmaLauncher);
                                 heavy.add(hw);
                             }
                         }
@@ -467,7 +468,7 @@ public class GameController {
         if (attackerUnit == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Attacker not found: " + attacker));
 
-        // Target may be a ship or a seeker
+        // Target may be a ship, seeker, or active shuttle
         Unit targetUnit = session.getGame().getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(target))
                 .map(s -> (Unit) s)
@@ -475,6 +476,12 @@ public class GameController {
         if (targetUnit == null) {
             targetUnit = session.getGame().getSeekers().stream()
                     .filter(s -> s instanceof Unit && target.equalsIgnoreCase(((Unit) s).getName()))
+                    .map(s -> (Unit) s)
+                    .findFirst().orElse(null);
+        }
+        if (targetUnit == null) {
+            targetUnit = session.getGame().getActiveShuttles().stream()
+                    .filter(s -> target.equalsIgnoreCase(s.getName()))
                     .map(s -> (Unit) s)
                     .findFirst().orElse(null);
         }

@@ -1,9 +1,9 @@
 {
   "faction": "Romulan",
-  "hull": "WE",
-  "name": "RIS Senator",
-  "serviceYear": 162,
-  "bpv": 100,
+  "hull": "WB+",
+  "name": "RIS Avian Fury",
+  "serviceYear": 140,
+  "bpv": 60,
   "turnMode": "D",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -18,9 +18,8 @@
   },
   
   "power": {
-    "leftWarp": 10,
-    "rightWarp": 10,
-    "impulse": 6,
+    "impulse": 8,
+    "apr": 3,
     "battery": 6
   },
   

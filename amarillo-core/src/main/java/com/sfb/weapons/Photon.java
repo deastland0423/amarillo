@@ -302,7 +302,8 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		return true;
 	}
 
-	@Override public boolean supportsOverload() { return true; }
+	@Override public boolean supportsOverload()   { return true; }
+	@Override public boolean supportsProximity()  { return true; }
 
 	/** STANDARD hold costs 1; OVERLOAD hold costs 2; SPECIAL cannot be held (handled by rules). */
 	@Override
@@ -326,13 +327,10 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 	@Override
 	public boolean setStandard() {
-		// If arming has already commenced, it is too late
-		// to change back to standard. Instead, try reset().
-		if (armingTurn > 0) {
+		// Can't un-overload once arming has started.
+		if (armingType == WeaponArmingType.OVERLOAD && armingTurn > 0) {
 			return false;
 		}
-
-		// Set the arming type.
 		armingType = WeaponArmingType.STANDARD;
 		setMinRange(2);
 		setMaxRange(30);
@@ -341,17 +339,14 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 	@Override
 	public boolean setSpecial() {
-		// If arming has already commenced, it is too late
-		// to change back to standard.
-		if (armingTurn > 0) {
+		// Can't switch from overload.
+		if (armingType == WeaponArmingType.OVERLOAD) {
 			return false;
 		}
-
 		armingType = WeaponArmingType.SPECIAL;
 		setMinRange(9);
 		setMaxRange(30);
 		return true;
-
 	}
 
 	@Override
@@ -429,7 +424,7 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 	@Override
 	public void cleanUp() {
-		// TODO: figure this out.
+		super.cleanUp();
 	}
 
 	@Override
@@ -456,9 +451,12 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		// Otherwise, process the energy for the weapon.
 		int energySupplied = Math.abs(energy.intValue());
 
-		// If the weapon is armed, then the energy can be used to
-		// hold or hold and overload the weapon.
+		// If the weapon is armed, apply any mode switch then hold.
 		if (isArmed()) {
+			if (type == WeaponArmingType.SPECIAL && armingType != WeaponArmingType.SPECIAL)
+				setSpecial();
+			else if (type == WeaponArmingType.STANDARD && armingType != WeaponArmingType.STANDARD)
+				setStandard();
 			try {
 				hold(energySupplied);
 			} catch (WeaponUnarmedException e) {

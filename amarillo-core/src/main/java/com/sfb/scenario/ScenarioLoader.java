@@ -252,6 +252,10 @@ public class ScenarioLoader {
                 switch (mode) {
                     case OVERLOAD: hw.setOverload(); break;
                     case SPECIAL:  hw.setSpecial();  break;
+                    case ROLLING:
+                        if (hw instanceof com.sfb.weapons.PlasmaLauncher)
+                            ((com.sfb.weapons.PlasmaLauncher) hw).setRollingMode();
+                        break;
                     default: break;
                 }
                 hw.setArmed(true);
@@ -406,6 +410,8 @@ public class ScenarioLoader {
                         HeavyWeapon hw = (HeavyWeapon) w;
                         hw.setArmed(true);
                         hw.setArmingTurn(hw.totalArmingTurns());
+                        if (hw instanceof com.sfb.weapons.PlasmaLauncher)
+                            ((com.sfb.weapons.PlasmaLauncher) hw).setArmedState();
                     }
                 }
                 break;

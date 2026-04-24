@@ -602,6 +602,28 @@ public class MapUtils {
 		}
 	}
 
+	/**
+	 * Pixel-geometry-accurate bearing using flat-top hex centers.
+	 * Returns 1-24 (SFB directions), 0 if same hex.
+	 * Use this for seeker tracking to avoid zone-boundary oscillation.
+	 */
+	public static int getGeometricBearing(Marker source, Marker target) {
+		Location src = source.getLocation();
+		Location tgt = target.getLocation();
+		if (src.equals(tgt)) return 0;
+
+		double sqrt3 = Math.sqrt(3);
+		double sx = (src.getX() - 1) * 1.5;
+		double sy = (src.getY() - 1) * sqrt3 + (src.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
+		double tx = (tgt.getX() - 1) * 1.5;
+		double ty = (tgt.getY() - 1) * sqrt3 + (tgt.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
+
+		double dx = tx - sx;
+		double dy = sy - ty; // flip y: positive = north
+		double deg = (Math.toDegrees(Math.atan2(dx, dy)) + 360) % 360;
+		return ((int) Math.round(deg / 15) % 24) + 1;
+	}
+
 	public static int getBearing(Marker source, Marker target) {
 
 		Location sourceLocation = source.getLocation();

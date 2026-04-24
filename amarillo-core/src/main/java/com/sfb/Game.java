@@ -587,7 +587,7 @@ public class Game {
                 } else {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
-        movedShuttlesThisImpulse.clear();
+                    movedShuttlesThisImpulse.clear();
                 }
                 autoRaiseShields();
                 // Advance cloak fade states now that the impulse has incremented.
@@ -751,7 +751,7 @@ public class Game {
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " moved forward");
             if (isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship, 1)); // shield 1 = forward (P3.21)
+                log.append("\n").append(applyAsteroidCollision(ship));
             List<String> collisions = checkSeekerCollisions(ship);
             if (!collisions.isEmpty())
                 log.append("\n").append(String.join("\n", collisions));
@@ -764,8 +764,13 @@ public class Game {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
         boolean moved = ship.turnLeft();
-        if (moved)
+        if (moved) {
             movedThisImpulse.add(ship);
+            if (isAsteroidHex(ship.getLocation())) {
+                String hit = applyAsteroidCollision(ship);
+                return ActionResult.ok(ship.getName() + " turned left\n" + hit);
+            }
+        }
         return moved ? ActionResult.ok(ship.getName() + " turned left")
                 : ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
     }
@@ -774,8 +779,13 @@ public class Game {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
         boolean moved = ship.turnRight();
-        if (moved)
+        if (moved) {
             movedThisImpulse.add(ship);
+            if (isAsteroidHex(ship.getLocation())) {
+                String hit = applyAsteroidCollision(ship);
+                return ActionResult.ok(ship.getName() + " turned right\n" + hit);
+            }
+        }
         return moved ? ActionResult.ok(ship.getName() + " turned right")
                 : ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
     }
@@ -787,7 +797,7 @@ public class Game {
         if (moved) {
             movedThisImpulse.add(ship);
             if (isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship, 1); // P3.21: sideslip doesn't change shield
+                String hit = applyAsteroidCollision(ship);
                 return ActionResult.ok(ship.getName() + " sideslipped left\n" + hit);
             }
         }
@@ -802,7 +812,7 @@ public class Game {
         if (moved) {
             movedThisImpulse.add(ship);
             if (isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship, 1);
+                String hit = applyAsteroidCollision(ship);
                 return ActionResult.ok(ship.getName() + " sideslipped right\n" + hit);
             }
         }
@@ -1018,6 +1028,25 @@ public class Game {
     }
 
     /**
+     * Returns the shield(s) of {@code target} that face toward {@code attacker}.
+     * Size 1: attacker is directly in front of a shield face.
+     * Size 2: attacker is on the seam between two adjacent shields — caller must
+     *         ask the player which shield to use.
+     */
+    public java.util.List<Integer> getShieldCandidates(Marker attacker, Ship target) {
+        int shieldFacing = target.getRelativeShieldFacing(attacker);
+        if (shieldFacing % 2 != 0) {
+            // Odd = center of a shield face → single candidate
+            return java.util.List.of((shieldFacing + 1) / 2);
+        }
+        // Even = seam between two adjacent shields → two candidates
+        // e.g. 2 → shields 1 & 2,  12 → shields 6 & 1
+        int upper = shieldFacing / 2;
+        int lower = (upper % 6) + 1;
+        return java.util.List.of(upper, lower);
+    }
+
+    /**
      * Mark shield damage from one firing volley (6D2 — Direct-Fire Weapons Fire
      * Stage).
      * Bleed-through is queued as pending internal damage; it will not be resolved
@@ -1028,9 +1057,13 @@ public class Game {
      *         (log is populated later when resolveInternalDamage() runs).
      */
     public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage) {
+        return markShieldDamage(target, shieldNumber, totalDamage, null);
+    }
+
+    public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage, Ship attacker) {
         int bleed = target.damageShield(shieldNumber, totalDamage);
         if (bleed > 0) {
-            pendingInternalDamage.add(new PendingDamage(target, bleed));
+            pendingInternalDamage.add(new PendingDamage(target, bleed, attacker));
         }
         return new FireResult(bleed, new ArrayList<>());
     }
@@ -1337,7 +1370,8 @@ public class Game {
         }
         log.append("  Total damage: ").append(totalDamage);
         if (target instanceof Ship) {
-            FireResult result = markShieldDamage((Ship) target, shieldNumber, totalDamage);
+            Ship attackerShipForDac = attacker instanceof Ship ? (Ship) attacker : null;
+            FireResult result = markShieldDamage((Ship) target, shieldNumber, totalDamage, attackerShipForDac);
             if (result.getBleed() > 0) {
                 log.append("   BLEED-THROUGH: ").append(result.getBleed())
                         .append(" (internal damage resolves at end of Direct-Fire segment)\n");
@@ -1365,11 +1399,18 @@ public class Game {
     private void resolveInternalDamage() {
         lastInternalDamageLog = new ArrayList<>();
         for (PendingDamage pd : pendingInternalDamage) {
-            List<String> entries = pd.target.applyInternalDamage(pd.bleed);
+            List<String> entries = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
             lastInternalDamageLog.add("=== Internal damage — " + pd.target.getName() + " ===");
             lastInternalDamageLog.addAll(entries);
         }
         pendingInternalDamage.clear();
+        ships.removeIf(s -> {
+            if (s.isDestroyed()) {
+                lastInternalDamageLog.add(s.getName() + " has been destroyed and removed from play.");
+                return true;
+            }
+            return false;
+        });
     }
 
     /**
@@ -1475,13 +1516,13 @@ public class Game {
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
 
-        return launchDrone(launcher, target, rack, rack.getAmmo().get(0));
+        return launchDrone(launcher, target, rack, rack.getAmmo().get(0), 0);
     }
 
     /**
      * Launch a specific drone from the given rack at the given target.
      */
-    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone) {
+    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone, int facing) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -1503,7 +1544,7 @@ public class Game {
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + (++seekerSeq));
         drone.setLocation(launcher.getLocation());
-        drone.setFacing(MapUtils.getBearing(launcher, target));
+        drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         drone.setTarget(target);
         drone.setController(launcher);
         drone.setLaunchImpulse(TurnTracker.getImpulse());
@@ -1522,7 +1563,7 @@ public class Game {
      * The launcher must be armed. The torpedo is placed at the launcher's
      * location, faced toward the target, and added to the active seekers list.
      */
-    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon) {
+    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -1540,7 +1581,7 @@ public class Game {
 
         torpedo.setName(launcher.getName() + "-Plasma-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -1554,7 +1595,7 @@ public class Game {
         return ActionResult.ok(msg);
     }
 
-    public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon) {
+    public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -1572,7 +1613,7 @@ public class Game {
 
         torpedo.setName(launcher.getName() + "-Pseudo-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
@@ -1847,7 +1888,7 @@ public class Game {
                     continue;
                 }
 
-                int bearing = MapUtils.getBearing(drone, target);
+                int bearing = MapUtils.getGeometricBearing(drone, target);
                 if (bearing != 0)
                     drone.setFacing(snapToCardinal(bearing));
 
@@ -1857,6 +1898,15 @@ public class Game {
                     log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
                     expired.add(seeker);
                     continue;
+                }
+
+                if (isAsteroidHex(drone.getLocation())) {
+                    String asteroidResult = applyAsteroidCollisionToDrone(drone);
+                    log.add(asteroidResult);
+                    if (drone.getHull() <= 0) {
+                        expired.add(drone);
+                        continue;
+                    }
                 }
 
                 drone.setEndurance(drone.getEndurance() - 1);
@@ -1925,7 +1975,7 @@ public class Game {
                 if (!pack.isReleased() && MovementUtil.moveThisImpulse(impulse, pack.getSpeed())) {
                     Unit target = pack.getTarget();
                     if (target != null) {
-                        int bearing = MapUtils.getBearing(pack, target);
+                        int bearing = MapUtils.getGeometricBearing(pack, target);
                         if (bearing != 0) pack.setFacing(snapToCardinal(bearing));
                     }
                     pack.goForward();
@@ -1946,7 +1996,7 @@ public class Game {
                     expired.add(ss);
                     continue;
                 }
-                int bearing = MapUtils.getBearing(ss, target);
+                int bearing = MapUtils.getGeometricBearing(ss, target);
                 if (bearing != 0) ss.setFacing(snapToCardinal(bearing));
                 ss.goForward();
                 if (ss.getLocation() == null) {
@@ -1978,7 +2028,7 @@ public class Game {
                     continue;
                 }
 
-                int bearing = MapUtils.getBearing(torp, target);
+                int bearing = MapUtils.getGeometricBearing(torp, target);
                 if (bearing != 0)
                     torp.setFacing(snapToCardinal(bearing));
 
@@ -2098,16 +2148,45 @@ public class Game {
     public boolean isPlanetHex(Location loc)    { return loc != null && planetHexes.contains(loc); }
 
     /**
-     * Roll asteroid collision damage and apply to the given shield (P3.2).
+     * Roll asteroid collision damage and apply directly to a drone's hull (P3.2).
+     * Returns a log line; removes the drone from play if hull reaches 0.
+     */
+    private String applyAsteroidCollisionToDrone(Drone drone) {
+        int speed   = drone.getSpeed();
+        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
+        int roll    = new DiceRoller().rollOneDie();
+        int damage  = ASTEROID_DAMAGE[roll - 1][bracket];
+        String base = "  Drone (" + drone.getDroneType() + ") enters asteroid hex"
+                + " (speed " + speed + ", die " + roll + ")";
+        if (damage == 0) return base + " — no damage";
+        int remaining = drone.getHull() - damage;
+        drone.setHull(Math.max(0, remaining));
+        if (drone.getHull() <= 0) {
+            seekers.remove(drone);
+            if (drone.getController() instanceof Ship)
+                ((Ship) drone.getController()).releaseControl(drone);
+            return base + " — " + damage + " hull damage — destroyed";
+        }
+        return base + " — " + damage + " hull damage — " + drone.getHull() + " remaining";
+    }
+
+    /**
+     * Roll asteroid collision damage and apply to the appropriate shield (P3.2).
+     * Shield hit is determined by the direction the ship entered the hex
+     * (entryDirection relative to facing → shield 1-6).
      * Returns a log line describing the result.
      */
-    private String applyAsteroidCollision(Ship ship, int shieldNum) {
+    private String applyAsteroidCollision(Ship ship) {
+        int entryDir = ship.getEntryDirection();
+        int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
+        int shieldNum = (relBearing - 1) / 4 + 1;
+
         int speed   = ship.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int roll    = new DiceRoller().rollOneDie();
         int damage  = ASTEROID_DAMAGE[roll - 1][bracket];
         String base = "  " + ship.getName() + " enters asteroid hex"
-                + " (speed " + speed + ", die " + roll + ")";
+                + " (speed " + speed + ", die " + roll + ", shield " + shieldNum + ")";
         if (damage == 0) return base + " — no damage";
         markShieldDamage(ship, shieldNum, damage);
         return base + " — " + damage + " to shield " + shieldNum;
@@ -2123,6 +2202,15 @@ public class Game {
      * the acting ship.
      */
     public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal) {
+        return placeTBomb(actingShip, targetHex, isReal, -1);
+    }
+
+    /**
+     * @param shieldChoice -1 = auto-select first candidate (no prompt);
+     *                      0 = ask player if on a seam (returns SHIELD_CHOICE sentinel);
+     *                     >0 = player's explicit choice
+     */
+    public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal, int shieldChoice) {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
@@ -2144,8 +2232,19 @@ public class Game {
             return ActionResult.fail("No transporter energy available");
         }
 
-        // Acting ship's facing shield toward target hex must be passable
-        int actingShieldNum = getShieldNumber(targetMarker, actingShip);
+        // Acting ship's facing shield toward target hex must be passable.
+        // On a seam, the player must choose which shield to lower.
+        java.util.List<Integer> candidates = getShieldCandidates(targetMarker, actingShip);
+        int actingShieldNum;
+        if (candidates.size() == 2 && shieldChoice == 0) {
+            // Web client hasn't chosen yet — ask them
+            return ActionResult.fail("SHIELD_CHOICE:" + candidates.get(0) + "," + candidates.get(1));
+        } else if (shieldChoice > 0 && candidates.contains(shieldChoice)) {
+            actingShieldNum = shieldChoice;
+        } else {
+            // shieldChoice == -1 (auto) or invalid: pick first candidate
+            actingShieldNum = candidates.get(0);
+        }
         if (!actingShip.getShields().isTransportable(actingShieldNum)) {
             boolean lowered = actingShip.getShields().lowerShield(actingShieldNum);
             if (!lowered) {
@@ -3079,10 +3178,16 @@ public class Game {
     private static class PendingDamage {
         final Ship target;
         final int bleed;
+        final Ship attacker; // null for self-damage (HET breakdown, fusion suicide, mines, etc.)
 
         PendingDamage(Ship target, int bleed) {
+            this(target, bleed, null);
+        }
+
+        PendingDamage(Ship target, int bleed, Ship attacker) {
             this.target = target;
             this.bleed = bleed;
+            this.attacker = attacker;
         }
     }
 

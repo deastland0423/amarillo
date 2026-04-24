@@ -7,19 +7,6 @@ import com.sfb.utilities.ArcUtils;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type" // This matches the
-																																																// "type" key in your
-																																																// JSON
-)
-@JsonSubTypes({
-		@JsonSubTypes.Type(value = Phaser1.class, name = "Phaser1"),
-		@JsonSubTypes.Type(value = Photon.class, name = "Photon"),
-		@JsonSubTypes.Type(value = Phaser3.class, name = "Phaser3")
-// Add every weapon class here
-})
 
 /**
  * Parent class for all weapons. Contains common functionality shared by weapons
@@ -34,7 +21,7 @@ public abstract class Weapon {
 
 	private String type; // The type of weapon (Phaser1, Disruptor30, Photon, ESG, etc.)
 	private String designator; // The unique designator for the weapon (A, B, C...1, 2, 3...etc.)'
-	private String dacHitLocaiton; // What DAC 'hit' destroys this weapon //TODO: should this be an enum?
+	private String dacHitLocaiton; // What DAC 'hit' destroys this weapon ('phaser', 'drone', etc.)
 	private int arcs = ArcUtils.FULL; // Bitmask of the 24 directions (1-24) into which the weapon can fire.
 	private String arcLabel = "FULL"; // Human-readable arc label, e.g. "FA", "FX + 13", "LF + L"
 	private boolean functional = true; // True if the weapon is undamaged, false otherwise.
@@ -44,7 +31,7 @@ public abstract class Weapon {
 	private int maxShotsPerTurn = 1; // How many times this weapon may fire per turn (default 1).
 	private int minImpulseGap = 8; // Minimum global impulses between shots (default 8).
 	private int shotsThisTurn = 0; // Shots fired so far this turn; reset by cleanUp().
-	private int lastRoll = 0;      // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
+	private int lastRoll = 0; // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
 
 	private int maxRange; // The maximum distance that this weapon can do damage.
 	private int minRange; // The range below which this weapon can not fire.
@@ -233,10 +220,12 @@ public abstract class Weapon {
 	}
 
 	/**
-	 * End of turn cleanup. Resets per-turn shot counter.
+	 * End of turn cleanup. Resets per-turn shot counter and impulse gap tracker
+	 * so the minImpulseGap restriction doesn't carry over into the next turn.
 	 */
 	public void cleanUp() {
 		shotsThisTurn = 0;
+		lastImpulseFired = -9;
 	}
 
 	public int getMaxShotsPerTurn() {
@@ -259,6 +248,11 @@ public abstract class Weapon {
 		return shotsThisTurn;
 	}
 
-	public int getLastRoll() { return lastRoll; }
-	protected void setLastRoll(int roll) { this.lastRoll = roll; }
+	public int getLastRoll() {
+		return lastRoll;
+	}
+
+	protected void setLastRoll(int roll) {
+		this.lastRoll = roll;
+	}
 }

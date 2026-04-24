@@ -34,12 +34,13 @@ function hexPolygonPoints(): string {
 }
 
 interface Props {
-  value:    number | null;
-  onChange: (facing: number) => void;
-  label?:   string;
+  value:         number | null;
+  onChange:      (facing: number) => void;
+  label?:        string;
+  allowedFacings?: Set<number>; // if provided, directions not in this set are dimmed and unclickable
 }
 
-export function FacingPicker({ value, onChange, label }: Props) {
+export function FacingPicker({ value, onChange, label, allowedFacings }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
@@ -55,33 +56,35 @@ export function FacingPicker({ value, onChange, label }: Props) {
         />
 
         {FACINGS.map(f => {
-          const [ex, ey] = polar(HEX_IR, f.angle);          // hex edge midpoint
-          const [lx, ly] = polar(BTN_DIST - BTN_R - 2, f.angle); // line end (button edge)
-          const [bx, by] = polar(BTN_DIST, f.angle);         // button centre
+          const [ex, ey] = polar(HEX_IR, f.angle);
+          const [lx, ly] = polar(BTN_DIST - BTN_R - 2, f.angle);
+          const [bx, by] = polar(BTN_DIST, f.angle);
 
+          const allowed = !allowedFacings || allowedFacings.has(f.value);
           const sel = value === f.value;
-          const hov = hovered === f.value;
-          const accent = '#58a6ff';
+          const hov = hovered === f.value && allowed;
+          const accent  = '#58a6ff';
+          const validHl = '#3fb950'; // green highlight for in-arc directions
 
           return (
             <g
               key={f.value}
-              onClick={() => onChange(f.value)}
+              onClick={() => allowed && onChange(f.value)}
               onMouseEnter={() => setHovered(f.value)}
               onMouseLeave={() => setHovered(null)}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: allowed ? 'pointer' : 'not-allowed', opacity: allowed ? 1 : 0.3 }}
             >
               {/* Connector line from hex edge to button */}
               <line
                 x1={ex} y1={ey} x2={lx} y2={ly}
-                stroke={sel ? accent : '#30363d'}
-                strokeWidth={sel ? 1.5 : 1}
+                stroke={sel ? accent : allowed ? validHl : '#30363d'}
+                strokeWidth={sel || (allowed && !sel) ? 1.5 : 1}
               />
               {/* Button circle */}
               <circle
                 cx={bx} cy={by} r={BTN_R}
-                fill={sel ? '#1f3a5a' : hov ? '#21262d' : '#161b22'}
-                stroke={sel || hov ? accent : '#444c56'}
+                fill={sel ? '#1f3a5a' : hov ? '#21262d' : allowed ? '#1a2f1a' : '#161b22'}
+                stroke={sel ? accent : hov ? accent : allowed ? validHl : '#444c56'}
                 strokeWidth={sel ? 2 : 1.5}
               />
               {/* Label */}
@@ -89,7 +92,7 @@ export function FacingPicker({ value, onChange, label }: Props) {
                 x={bx} y={by}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={sel ? accent : hov ? '#e6edf3' : '#8b949e'}
+                fill={sel ? accent : hov ? '#e6edf3' : allowed ? validHl : '#8b949e'}
                 fontSize="11"
                 fontWeight="600"
                 style={{ userSelect: 'none', pointerEvents: 'none' }}

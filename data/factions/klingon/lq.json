@@ -1,0 +1,76 @@
+{
+  "faction": "Klingon",
+  "hull": "L-Q",
+  "name": "Ambush Predator",
+  "serviceYear": 130,
+  "bpv": 83,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 2,
+  "bonusHets": 0,
+  
+  "shields": [20, 20, 20, 20, 20, 20],
+  
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 20,
+    "armor": 7
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "apr": 10,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "security": 2,
+    "emergency": 1,
+    "controlMod": 1
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 0, 2, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "probes": 0,
+    "slow": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 10,
+    "boardingParties": 10,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RA"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RA"] },
+    { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+  ]
+}

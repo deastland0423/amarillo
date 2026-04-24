@@ -235,6 +235,24 @@ public class DAC {
 		return result;
 	}
 
+	/**
+	 * Same as fetchNextHit but skips any entry whose system name equals excludeSystem.
+	 * Used when a DAC result cannot be applied (e.g. "phaser" with no bearing phasers)
+	 * and the rules say to advance to the next item on the same row.
+	 * Non-special skipped entries are NOT consumed — they remain available for future hits.
+	 */
+	public String fetchNextHitExcluding(int roll, String excludeSystem) {
+		DACItem[] dacLine = this.dacTable[roll - 2];
+		for (DACItem item : dacLine) {
+			if (item.isAvailable() && !item.getSystem().equals(excludeSystem)) {
+				String result = item.getSystem();
+				if (item.isSpecial()) item.setUnavailable();
+				return result;
+			}
+		}
+		return null; // excess damage
+	}
+
 	private class DACItem {
 
 		private String system; // Name of the system

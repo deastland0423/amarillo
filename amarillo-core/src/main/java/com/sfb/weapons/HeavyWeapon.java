@@ -120,6 +120,9 @@ public interface HeavyWeapon {
 	/** True if this weapon supports a SPECIAL/SUICIDE arming mode (Fusion only). */
 	default boolean supportsSuicide() { return false; }
 
+	/** True if this weapon supports a PROXIMITY arming mode (Photon only). */
+	default boolean supportsProximity() { return false; }
+
 	/**
 	 * True if overload can only be chosen on the final arming turn (Hellbore E10.6).
 	 * When true the UI hides the Ovld button until armingTurn >= totalArmingTurns - 1.

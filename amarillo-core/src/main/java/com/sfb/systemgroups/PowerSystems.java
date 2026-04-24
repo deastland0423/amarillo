@@ -128,6 +128,14 @@ public class PowerSystems implements Systems {
 	public int getAvailableLWarp() { return availableLwarp; }
 	public int getAvailableRWarp() { return availableRwarp; }
 	public int getAvailableCWarp() { return availableCwarp; }
+	public int getOriginalWarp()   { return lwarp + rwarp + cwarp; }
+	public int getRemainingWarp()  { return availableLwarp + availableRwarp + availableCwarp; }
+	public int getMaxLWarp()       { return lwarp; }
+	public int getMaxRWarp()       { return rwarp; }
+	public int getMaxCWarp()       { return cwarp; }
+	public int getMaxImpulse()     { return impulse; }
+	public int getMaxApr()         { return apr; }
+	public int getMaxAwr()         { return awr; }
 
 	// Setters for client-side sync from server state
 	public void setAvailableLWarp(int v)   { availableLwarp   = Math.max(0, Math.min(v, lwarp)); }

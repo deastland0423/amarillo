@@ -29,6 +29,8 @@ public class Unit extends Marker {
 	protected int sizeClass = 0; // Size class of the unit (0 through 6...I think?)
 	protected int sideslipCount = 100; // Track number of moves since last sideslip.
 	protected int turnCount = 100; // Track number of moves since last turn.
+	/** Absolute direction (1–24) this unit last moved into its current hex; 0 if not yet moved this impulse. */
+	protected int entryDirection = 0;
 	protected boolean tractored = false; // True if the unit is tractored by another unit.
 	protected Unit tractoringUnit = null; // The unit that is applying a tractor to this unit, if any.
 
@@ -69,6 +71,11 @@ public class Unit extends Marker {
 	public void setFacing(int facing) {
 		this.facing = facing;
 	}
+
+	/** Absolute direction (1–24) this unit entered its current hex; 0 = not moved this impulse. */
+	public int getEntryDirection() { return entryDirection; }
+	public void setEntryDirection(int dir) { this.entryDirection = dir; }
+	public void clearEntryDirection() { this.entryDirection = 0; }
 
 	public int getSpeed() {
 		return speed;
@@ -131,6 +138,10 @@ public class Unit extends Marker {
 		return TurnModeUtil.getTurnMode(this.turnMode, this.speed);
 	}
 
+	public int getTurnCount() {
+		return turnCount;
+	}
+
 	/// PLAYER ///
 	public Player getOwner() {
 		return this.owner;
@@ -159,7 +170,8 @@ public class Unit extends Marker {
 		// Calculate what hex is adjacent in the '21' relative bearing (forward left).
 		// Move the ship to that hex.
 		int relativeBearing = 21;
-		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(relativeBearing, getFacing())));
+		entryDirection = MapUtils.getTrueBearing(relativeBearing, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
 		sideslipCount = 0;
 		return true;
@@ -181,7 +193,8 @@ public class Unit extends Marker {
 		// Calculate what hex is adjacent in the '5' relative bearing (forward right).
 		// Move the ship to that hex.
 		int relativeBearing = 5;
-		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(relativeBearing, getFacing())));
+		entryDirection = MapUtils.getTrueBearing(relativeBearing, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
 		sideslipCount = 0;
 		return true;
@@ -243,8 +256,8 @@ public class Unit extends Marker {
 		sideslipCount++;
 		turnCount++;
 
-		// Find the hex directly in front of the ship and move the ship to that hex.
-		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(1, getFacing())));
+		entryDirection = MapUtils.getTrueBearing(1, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
 		return true;
 	}
@@ -258,8 +271,8 @@ public class Unit extends Marker {
 		sideslipCount++;
 		turnCount++;
 
-		// Find the hex directly behind of the ship and move the ship to that hex.
-		setLocation(MapUtils.getAdjacentHex(getLocation(), MapUtils.getTrueBearing(13, getFacing())));
+		entryDirection = MapUtils.getTrueBearing(13, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
 		return true;
 	}

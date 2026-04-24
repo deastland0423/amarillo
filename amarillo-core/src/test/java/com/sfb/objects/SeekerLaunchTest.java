@@ -68,7 +68,7 @@ public class SeekerLaunchTest {
 
     @Test
     public void launchedDrone_hasNonEmptyName() {
-        ActionResult result = game.launchDrone(launcher, target, rack, firstDrone);
+        ActionResult result = game.launchDrone(launcher, target, rack, firstDrone, 0);
         assertTrue(result.getMessage(), result.isSuccess());
 
         Seeker launched = game.getSeekers().get(0);
@@ -79,7 +79,7 @@ public class SeekerLaunchTest {
 
     @Test
     public void launchedDrone_nameContainsLauncherShipName() {
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
         String name = ((Unit) game.getSeekers().get(0)).getName();
         assertTrue("Drone name should include the launcher's ship name for traceability",
                 name.contains("Burke"));
@@ -87,7 +87,7 @@ public class SeekerLaunchTest {
 
     @Test
     public void launchedDrone_nameContainsDroneLabel() {
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
         String name = ((Unit) game.getSeekers().get(0)).getName();
         assertTrue("Drone name should contain 'Drone'", name.contains("Drone"));
     }
@@ -109,8 +109,8 @@ public class SeekerLaunchTest {
         assertNotNull("FedOCL must have a drone rack", rack2);
         Drone drone2 = rack2.getAmmo().get(0);
 
-        game.launchDrone(launcher,  target, rack,  firstDrone);
-        game.launchDrone(launcher2, target, rack2, drone2);
+        game.launchDrone(launcher,  target, rack,  firstDrone, 0);
+        game.launchDrone(launcher2, target, rack2, drone2, 0);
 
         assertEquals("Two drones should be in the seekers list", 2, game.getSeekers().size());
 
@@ -138,8 +138,8 @@ public class SeekerLaunchTest {
                 .findFirst().orElse(null);
         assertNotNull("FedOCL must have a drone rack", rack2);
 
-        game.launchDrone(launcher,  target, rack,  firstDrone);
-        game.launchDrone(launcher2, target, rack2, rack2.getAmmo().get(0));
+        game.launchDrone(launcher,  target, rack,  firstDrone, 0);
+        game.launchDrone(launcher2, target, rack2, rack2.getAmmo().get(0), 0);
 
         String name1 = ((Unit) game.getSeekers().get(0)).getName();
         String name2 = ((Unit) game.getSeekers().get(1)).getName();
@@ -156,7 +156,7 @@ public class SeekerLaunchTest {
 
     @Test
     public void launcher_alwaysHasLockOnAfterDroneLaunch() {
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
 
         assertTrue("Launcher must always have lock-on to its own drone (auto lock-on rule)",
                 launcher.hasLockOn(firstDrone));
@@ -167,7 +167,7 @@ public class SeekerLaunchTest {
         // Auto lock-on for the launcher is not conditional on fire control —
         // it's implicit because the launcher knows where its own seeker went
         launcher.setActiveFireControl(false);
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
 
         assertTrue("Launcher auto lock-on is unconditional, not gated by fire control",
                 launcher.hasLockOn(firstDrone));
@@ -184,7 +184,7 @@ public class SeekerLaunchTest {
         observer.setActiveFireControl(true);
         game.getShips().add(observer);
 
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
 
         assertTrue("Sensor-6 ship should always acquire lock-on to a newly launched drone",
                 observer.hasLockOn(firstDrone));
@@ -200,7 +200,7 @@ public class SeekerLaunchTest {
         observer.setActiveFireControl(false); // no fire control — cannot lock on
         game.getShips().add(observer);
 
-        game.launchDrone(launcher, target, rack, firstDrone);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
 
         assertFalse("Ship without active fire control must not acquire lock-on",
                 observer.hasLockOn(firstDrone));
@@ -216,7 +216,7 @@ public class SeekerLaunchTest {
         observer.setActiveFireControl(true);
         game.getShips().add(observer);
 
-        ActionResult result = game.launchDrone(launcher, target, rack, firstDrone);
+        ActionResult result = game.launchDrone(launcher, target, rack, firstDrone, 0);
 
         assertTrue("Launch result message should note observer lock-on acquisition",
                 result.getMessage().contains("Observer"));

@@ -18,16 +18,18 @@ public class LaunchDroneCommand implements Command {
     private final Unit     target;
     private final DroneRack rack;
     private final Drone    drone;
+    private final int      facing; // 0 = auto-compute from target
 
-    public LaunchDroneCommand(Ship launcher, Unit target, DroneRack rack, Drone drone) {
+    public LaunchDroneCommand(Ship launcher, Unit target, DroneRack rack, Drone drone, int facing) {
         this.launcher = launcher;
         this.target   = target;
         this.rack     = rack;
         this.drone    = drone;
+        this.facing   = facing;
     }
 
     @Override
     public ActionResult execute(Game game) {
-        return game.launchDrone(launcher, target, rack, drone);
+        return game.launchDrone(launcher, target, rack, drone, facing);
     }
 }

@@ -34,7 +34,7 @@ export function useLobbySocket(gameId: string): LobbyState | null {
       .catch(console.error);
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`http://${window.location.hostname}:8080/ws`),
+      webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
         // Re-fetch on connect in case broadcasts were missed during reconnection.

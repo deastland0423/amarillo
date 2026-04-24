@@ -23,5 +23,9 @@ export default defineConfig({
         ws: true,
       },
     },
+    allowedHosts: [
+      'thyself-unwrapped-chirpy.ngrok-free.dev', // Allow ngrok domain for testing on mobile devices
+    ],
+    hmr: process.env.NGROK ? { clientPort: 443 } : true,
   },
 })

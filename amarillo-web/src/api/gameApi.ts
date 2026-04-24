@@ -80,7 +80,8 @@ export interface ScenarioSummary {
 
 export interface CoiHeavyWeapon {
   designator: string;
-  type:       string;  // "Photon", "Disruptor", etc.
+  type:       string;    // "Photon", "Disruptor", etc.
+  isPlasma:   boolean;
 }
 
 export interface CoiDroneRack {
@@ -124,7 +125,7 @@ export interface CoiSubmission {
     extraCommandoSquads?:  number;
     extraTBombs?:          number;
     droneRackLoadouts?:    Record<string, string[]>;
-    weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL'>;
+    weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
   };
 }
 
@@ -280,15 +281,17 @@ export const gameApi = {
     col: number,
     row: number,
     isReal: boolean,
+    shieldNumber?: number,
   ): Promise<{ success: boolean; message: string }> {
     return request(`/api/games/${gameId}/action`, {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },
       body: JSON.stringify({
-        type:     'PLACE_TBOMB',
+        type:         'PLACE_TBOMB',
         shipName,
-        action:   `${col}|${row}`,
-        pseudo:   !isReal,   // server treats pseudo=true as dummy
+        action:       `${col}|${row}`,
+        pseudo:       !isReal,   // server treats pseudo=true as dummy
+        shieldNumber: shieldNumber ?? 0,
       }),
     });
   },

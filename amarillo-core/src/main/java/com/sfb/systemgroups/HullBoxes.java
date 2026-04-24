@@ -83,6 +83,12 @@ public class HullBoxes implements Systems {
 		return this.availableBarracks;
 	}
 
+	public int getMaxFhull()        { return fhull; }
+	public int getMaxAhull()        { return ahull; }
+	public int getMaxChull()        { return chull; }
+	public int getOriginalArmor()   { return armor; }
+	public int getAvailableArmor()  { return availableArmor; }
+
 	// Total original hull boxes on SSD (cripple calculations).
 	@Override
 	public int fetchOriginalTotalBoxes() {

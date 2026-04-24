@@ -1,0 +1,82 @@
+{
+  "faction": "Lyran",
+  "hull": "CA",
+  "name": "Azure",
+  "serviceYear": 120,
+  "bpv": 133,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 9,
+  "note": "This is the workhorse of the Lyran Alliance.",
+  "tokenArt": "lyran/ca.png",
+  
+  "shields": [33, 22, 18, 17, 18, 22],
+  
+  "hullBoxes": {
+    "fhull": 8,
+    "ahull": 8
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 3,
+    "apr": 4,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 3,
+    "flag": 1,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 42,
+    "boardingParties": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "ESG", "designator": "1"},
+    { "type": "ESG", "designator": "2"}
+  ]
+}

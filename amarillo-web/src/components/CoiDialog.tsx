@@ -9,7 +9,7 @@ interface Props {
   busy:        boolean;
 }
 
-type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL';
+type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING';
 
 interface ShipCoi {
   extraBoardingParties: number;
@@ -172,12 +172,15 @@ function ShipCoiPanel({
               <div key={w.designator} className="coi-row">
                 <label className="coi-label">{w.type} {w.designator}</label>
                 <div className="coi-arm-options">
-                  {(['STANDARD', 'SPECIAL', 'OVERLOAD'] as ArmMode[]).map(m => (
+                  {(w.isPlasma
+                    ? [['STANDARD', 'Armed'], ['ROLLING', 'Rolling']] as [ArmMode, string][]
+                    : [['STANDARD', 'Standard'], ['SPECIAL', 'Proximity'], ['OVERLOAD', 'Overload']] as [ArmMode, string][]
+                  ).map(([m, label]) => (
                     <label key={m} className="coi-arm-option">
                       <input type="radio" name={`${ship.shipName}-${w.designator}`}
                         value={m} checked={mode === m}
                         onChange={() => setArmMode(w.designator, m)} />
-                      {m === 'STANDARD' ? 'Standard' : m === 'SPECIAL' ? 'Proximity' : 'Overload'}
+                      {label}
                     </label>
                   ))}
                 </div>
