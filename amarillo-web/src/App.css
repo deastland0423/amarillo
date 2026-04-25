@@ -465,6 +465,7 @@ button.secondary:hover:not(:disabled) {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
+  position: relative;
 }
 
 .fire-weapon-label {
@@ -483,6 +484,96 @@ button.secondary:hover:not(:disabled) {
 .fire-weapon-row.out-of-arc {
   opacity: 0.4;
   cursor: default;
+}
+
+/* ---- Weapon damage preview tooltip ---- */
+
+.dmg-tooltip {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: #1c2333;
+  border: 1px solid #444c56;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  z-index: 300;
+  min-width: 110px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+
+.dmg-tooltip-header {
+  font-size: 0.72rem;
+  color: #8b949e;
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+}
+
+.dmg-tooltip-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+.dmg-tooltip-table th {
+  color: #8b949e;
+  font-weight: normal;
+  text-align: left;
+  padding: 0 0.3rem 0.2rem 0;
+  border-bottom: 1px solid #30363d;
+}
+
+.dmg-tooltip-table td {
+  padding: 0.1rem 0.3rem 0.1rem 0;
+  color: #cdd9e5;
+}
+
+.dmg-tooltip-table td:last-child {
+  text-align: right;
+  font-weight: bold;
+  color: #f0a050;
+}
+
+.dmg-tooltip-table tr.dmg-zero td {
+  color: #6e7681;
+}
+
+.dmg-tooltip-table tr.dmg-zero td:last-child {
+  color: #6e7681;
+  font-weight: normal;
+}
+
+.dmg-tooltip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dmg-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #cdd9e5;
+}
+
+.dmg-tooltip-row.dmg-zero {
+  color: #6e7681;
+}
+
+.dmg-roll-label {
+  color: #8b949e;
+}
+
+.dmg-val {
+  font-weight: bold;
+  color: #f0a050;
+}
+
+.dmg-tooltip-row.dmg-zero .dmg-val {
+  color: #6e7681;
+  font-weight: normal;
 }
 
 .shot-stepper {

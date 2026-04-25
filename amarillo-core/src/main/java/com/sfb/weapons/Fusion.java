@@ -8,38 +8,58 @@ import com.sfb.utilities.DiceRoller;
 
 public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWeapon {
 
-	// The damage chart for this weapon.
-	private static final int[][] hitChart = {
-			// Range
-			// 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
-			{ 13, 8, 6, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, // Roll 1
-			{ 11, 8, 5, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Roll 2
-			{ 10, 7, 4, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 3
-			{ 9, 6, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 4
-			{ 8, 5, 3, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 5
-			{ 8, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } // Roll 6
-	};
-	private static final int[][] overloadHitChart = {
-			// Range
-			// 0 1 2 3 4 5 6 7 8
-			{ 19, 12, 9, 6, 6, 6, 6, 6, 6 }, // Roll 1
-			{ 16, 12, 7, 4, 4, 4, 4, 4, 4 }, // Roll 2
-			{ 15, 10, 6, 3, 3, 3, 3, 3, 3 }, // Roll 3
-			{ 13, 9, 4, 1, 1, 1, 1, 1, 1 }, // Roll 4
-			{ 12, 7, 4, 1, 1, 1, 1, 1, 1 }, // Roll 5
-			{ 12, 6, 3, 0, 0, 0, 0, 0, 0 } // Roll 6
+
+	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3-10, [4] 11-15, [5] 16-24
+	private static final int[][] bandHitChart = {
+			{ 13, 8, 6, 4, 3, 2 }, // Roll 1
+			{ 11, 8, 5, 3, 2, 1 }, // Roll 2
+			{ 10, 7, 4, 2, 1, 0 }, // Roll 3
+			{ 9, 6, 3, 1, 1, 0 }, // Roll 4
+			{ 8, 5, 3, 1, 0, 0 }, // Roll 5
+			{ 8, 4, 2, 0, 0, 0 }, // Roll 6
 	};
 
-	private static final int[][] suicideOverloadHitChart = {
-			// Range
-			// 0 1 2 3 4 5 6 7 8
-			{ 26, 16, 12, 8, 8, 8, 8, 8, 8 }, // Roll 1
-			{ 22, 16, 10, 6, 6, 6, 6, 6, 6 }, // Roll 2
-			{ 20, 14, 8, 4, 4, 4, 4, 4, 4 }, // Roll 3
-			{ 18, 12, 6, 2, 2, 2, 2, 2, 2 }, // Roll 6
-			{ 16, 10, 6, 2, 2, 2, 2, 2, 2 }, // Roll 5
-			{ 16, 8, 4, 0, 0, 0, 0, 0, 0 } // Roll 4
+	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3-8
+	private static final int[][] bandOverloadHitChart = {
+			{ 19, 12, 9, 6 }, // Roll 1
+			{ 16, 12, 7, 4 }, // Roll 2
+			{ 15, 10, 6, 3 }, // Roll 3
+			{ 13, 9, 4, 1 }, // Roll 4
+			{ 12, 7, 4, 1 }, // Roll 5
+			{ 12, 6, 3, 0 }, // Roll 6
 	};
+
+	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3-8
+	private static final int[][] bandSuicideOverloadHitChart = {
+			{ 26, 16, 12, 8 }, // Roll 1
+			{ 22, 16, 10, 6 }, // Roll 2
+			{ 20, 14, 8, 4 }, // Roll 3
+			{ 18, 12, 6, 2 }, // Roll 4
+			{ 16, 10, 6, 2 }, // Roll 5
+			{ 16, 8, 4, 0 }, // Roll 6
+	};
+
+	// -------------------------------------------------------------------------
+	// Helpers
+	// -------------------------------------------------------------------------
+
+	// Bands: [0] 0, [1] 1, [2] 2, [3] 3-10, [4] 11-15, [5] 16-24
+	static int rangeBand(int range) {
+		if (range <= 0)  return 0;
+		if (range <= 1)  return 1;
+		if (range <= 2)  return 2;
+		if (range <= 10) return 3;
+		if (range <= 15) return 4;
+		return 5;
+	}
+
+	// Bands: [0] 0, [1] 1, [2] 2, [3] 3-8  (overload and suicide overload)
+	static int rangeBandOvld(int range) {
+		if (range <= 0) return 0;
+		if (range <= 1) return 1;
+		if (range <= 2) return 2;
+		return 3;
+	}
 
 	private WeaponArmingType armingType = WeaponArmingType.STANDARD;
 	private int armingTurn = 0;
@@ -103,8 +123,15 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 		return setSpecial();
 	}
 
-	@Override public boolean supportsOverload() { return true; }
-	@Override public boolean supportsSuicide()  { return true; }
+	@Override
+	public boolean supportsOverload() {
+		return true;
+	}
+
+	@Override
+	public boolean supportsSuicide() {
+		return true;
+	}
 
 	/** Fusion standard hold costs 1 energy; other modes cannot be held. */
 	@Override
@@ -255,16 +282,15 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 
 		switch (this.armingType) {
 			case STANDARD:
-				damage = hitChart[roll - 1][range];
+				damage = lookupWithShift(bandHitChart, roll, rangeBand(range));
 				break;
 			case OVERLOAD:
-				damage = overloadHitChart[roll - 1][range];
+				damage = lookupWithShift(bandOverloadHitChart, roll, rangeBandOvld(range));
 				break;
 			case SPECIAL:
-				damage = suicideOverloadHitChart[roll - 1][range];
+				damage = lookupWithShift(bandSuicideOverloadHitChart, roll, rangeBandOvld(range));
 				// This weapon is destroyed after firing in suicide mode.
 				damage();
-				// TODO: Apply 1 internal damage point to owning ship via DAC (E7.421); weapon destruction above counts as the second effect
 				break;
 			default:
 				break;

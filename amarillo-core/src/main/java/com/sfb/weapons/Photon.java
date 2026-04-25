@@ -119,19 +119,20 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 		int roll = diceRoller.rollOneDie();
 		setLastRoll(roll);
+		int adjusted = roll + getEcmShift();
 		switch (armingType) {
 			case STANDARD:
-				if (roll <= hitChart[clampedAdj])
+				if (adjusted <= hitChart[clampedAdj])
 					damage = 8;
 				break;
 			case OVERLOAD:
 				int clampedAdjOvl = Math.min(adjustedRange, overloadHitChart.length - 1);
-				if (roll <= overloadHitChart[clampedAdjOvl])
+				if (adjusted <= overloadHitChart[clampedAdjOvl])
 					damage = (int) (armingEnergy * 2);
 				break;
 			case SPECIAL:
 				int clampedAdjPrx = Math.min(adjustedRange, proximityHitChart.length - 1);
-				if (roll <= proximityHitChart[clampedAdjPrx])
+				if (adjusted <= proximityHitChart[clampedAdjPrx])
 					damage = 4;
 				break;
 			default:

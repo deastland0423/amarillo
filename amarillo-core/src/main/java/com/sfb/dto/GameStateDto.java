@@ -165,6 +165,9 @@ public class GameStateDto {
         public boolean              capacitorsCharged;
         public boolean              activeFireControl;
         public int                  scannerBonus;
+        public int                  sensorRating;
+        public int                  ecmAllocated;
+        public int                  eccmAllocated;
         public List<WeaponDto>      weapons;
         public List<DroneRackDto>   droneRacks;
         public List<ShuttleBayDto>  shuttleBays;
@@ -446,6 +449,9 @@ public class GameStateDto {
         dto.capacitorsCharged  = ship.isCapacitorsCharged();
         dto.activeFireControl  = ship.isActiveFireControl();
         dto.scannerBonus       = ship.getSpecialFunctions().getScanner();
+        dto.sensorRating       = ship.getSpecialFunctions().getSensor();
+        dto.ecmAllocated       = ship.getEcmAllocated();
+        dto.eccmAllocated      = ship.getEccmAllocated();
         dto.tBombs                = ship.getTBombs();
         dto.dummyTBombs           = ship.getDummyTBombs();
         dto.nuclearSpaceMines     = ship.getNuclearSpaceMines();

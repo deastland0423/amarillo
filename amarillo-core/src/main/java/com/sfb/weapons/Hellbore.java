@@ -58,12 +58,13 @@ public class Hellbore extends HitOrMissWeapon implements DirectFire, HeavyWeapon
 
         int roll = new DiceRoller().rollTwoDice();
         setLastRoll(roll);
+        int adjusted = roll + getEcmShift();
         int damage;
         if (armingType == WeaponArmingType.OVERLOAD) {
-            damage = (roll <= HIT_NUMBERS[rangeBand(range)]) ? OVLD_ENV_DAMAGE[range] : 0;
+            damage = (adjusted <= HIT_NUMBERS[rangeBand(range)]) ? OVLD_ENV_DAMAGE[range] : 0;
         } else {
             int band = rangeBand(range);
-            damage = (roll <= HIT_NUMBERS[band]) ? ENV_DAMAGE[band] : 0;
+            damage = (adjusted <= HIT_NUMBERS[band]) ? ENV_DAMAGE[band] : 0;
         }
 
         reset();
@@ -84,12 +85,13 @@ public class Hellbore extends HitOrMissWeapon implements DirectFire, HeavyWeapon
 
         int roll = new DiceRoller().rollTwoDice();
         setLastRoll(roll);
+        int adjusted = roll + getEcmShift();
         int damage;
         if (armingType == WeaponArmingType.OVERLOAD) {
-            damage = (roll <= HIT_NUMBERS[rangeBand(range)]) ? OVLD_DF_DAMAGE[range] : 0;
+            damage = (adjusted <= HIT_NUMBERS[rangeBand(range)]) ? OVLD_DF_DAMAGE[range] : 0;
         } else {
             int band = rangeBand(range);
-            damage = (roll <= HIT_NUMBERS[band]) ? DF_DAMAGE[band] : 0;
+            damage = (adjusted <= HIT_NUMBERS[band]) ? DF_DAMAGE[band] : 0;
         }
 
         reset();

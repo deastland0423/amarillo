@@ -7,6 +7,7 @@ import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { FacingPicker } from './FacingPicker';
+import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
 
 interface Props {
   session: LobbyResult;
@@ -656,6 +657,59 @@ interface FireOptions {
   hasLockOn:     boolean;
 }
 
+// ---- Weapon damage preview tooltip ----
+
+function WeaponDamageTooltip({
+  w, range, adjustedRange, directFire,
+}: {
+  w:             WeaponState;
+  range:         number;
+  adjustedRange: number;
+  directFire:    boolean;
+}) {
+  const rows = w.launcherType
+    ? getPlasmaBoltPreview(w.plasmaType, range)
+    : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, directFire);
+  if (!rows) return null;
+
+  const isRollTable = rows.length === 6;
+  const label       = w.launcherType
+    ? ` — ${w.plasmaType ?? w.launcherType} bolt`
+    : w.armingType && w.armingType !== 'STANDARD'
+      ? ` (${w.armingType.toLowerCase()})`
+      : '';
+
+  return (
+    <div className="dmg-tooltip">
+      <div className="dmg-tooltip-header">Range {range}{label}</div>
+      {isRollTable ? (
+        <table className="dmg-tooltip-table">
+          <thead>
+            <tr><th>Die</th><th>Dmg</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.roll} className={r.damage === 0 ? 'dmg-zero' : ''}>
+                <td>{r.roll}</td>
+                <td>{r.damage}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="dmg-tooltip-rows">
+          {rows.map(r => (
+            <div key={r.roll} className={`dmg-tooltip-row ${r.damage === 0 ? 'dmg-zero' : ''}`}>
+              <span className="dmg-roll-label">{r.roll}</span>
+              <span className="dmg-val">{r.damage}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FirePanelProps {
   attacker:        ShipObject;
   target:          MapObject | null;
@@ -679,7 +733,8 @@ function FirePanel({
   selectedWeapons, onToggleWeapon, shotCounts, onSetShotCount,
   useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, error,
 }: FirePanelProps) {
-  const targetColor = target ? mapObjectColor(target) : '#888';
+  const targetColor    = target ? mapObjectColor(target) : '#888';
+  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
 
   return (
     <div className="sidebar-section fire-panel">
@@ -723,6 +778,23 @@ function FirePanel({
               {options.hasLockOn ? 'Yes' : 'No — eff. range ×2'}
             </span>
           </div>
+          {(() => {
+            const tShip = target && (target as ShipObject).ecmAllocated !== undefined ? target as ShipObject : null;
+            const tEcm  = tShip?.ecmAllocated ?? 0;
+            const aEccm = attacker.eccmAllocated ?? 0;
+            const net   = Math.max(0, tEcm - aEccm);
+            const shift = Math.floor(Math.sqrt(net));
+            if (tEcm === 0 && aEccm === 0) return null;
+            return (
+              <div className="sidebar-stat-row">
+                <span className="sidebar-stat-label">EW</span>
+                <span className="sidebar-stat-value">
+                  ECM {tEcm} / ECCM {aEccm}
+                  {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
+                </span>
+              </div>
+            );
+          })()}
         </>
       )}
 
@@ -752,7 +824,12 @@ function FirePanel({
                 const shots       = Math.min(shotCounts.get(w.name) ?? 1, maxShots);
 
                 return (
-                  <div key={w.name} className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
+                  <div
+                    key={w.name}
+                    className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}
+                    onMouseEnter={() => setHoveredWeapon(w.name)}
+                    onMouseLeave={() => setHoveredWeapon(null)}
+                  >
                     <label className="fire-weapon-label">
                       <input
                         type="checkbox"
@@ -770,6 +847,14 @@ function FirePanel({
                         <span className="shot-count">{shots}×</span>
                         <button className="shot-step-btn" onClick={e => { e.preventDefault(); onSetShotCount(w.name, Math.min(maxShots, shots + 1)); }}>+</button>
                       </div>
+                    )}
+                    {hoveredWeapon === w.name && options && (
+                      <WeaponDamageTooltip
+                        w={w}
+                        range={options.range}
+                        adjustedRange={options.adjustedRange}
+                        directFire={directFire}
+                      />
                     )}
                   </div>
                 );
@@ -792,7 +877,12 @@ function FirePanel({
                       ? (w.isHeavy && !w.armed ? 'unarmed' : 'out of arc')
                       : null;
                     return (
-                      <div key={w.name} className={`fire-weapon-row ${disabled ? 'out-of-arc' : ''}`}>
+                      <div
+                        key={w.name}
+                        className={`fire-weapon-row ${disabled ? 'out-of-arc' : ''}`}
+                        onMouseEnter={() => setHoveredWeapon(w.name)}
+                        onMouseLeave={() => setHoveredWeapon(null)}
+                      >
                         <label className="fire-weapon-label">
                           <input
                             type="checkbox"
@@ -805,6 +895,14 @@ function FirePanel({
                           {!disabled && <span className="weapon-arc" style={{ color: '#f0a050' }}>bolt</span>}
                           {unavailLabel && <span className="fire-ooa">{unavailLabel}</span>}
                         </label>
+                        {hoveredWeapon === w.name && options && (
+                          <WeaponDamageTooltip
+                            w={w}
+                            range={options.range}
+                            adjustedRange={options.adjustedRange}
+                            directFire={directFire}
+                          />
+                        )}
                       </div>
                     );
                   })}

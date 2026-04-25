@@ -144,6 +144,15 @@ public class ActionRequest {
     public List<String> getSeekerNames()                       { return seekerNames; }
     public void         setSeekerNames(List<String> seekerNames) { this.seekerNames = seekerNames; }
 
+    // ALLOCATE — ECM/ECCM fields
+    private int ecm;
+    private int eccm;
+
+    public int  getEcm()          { return ecm;  }
+    public void setEcm(int ecm)   { this.ecm  = ecm;  }
+    public int  getEccm()         { return eccm; }
+    public void setEccm(int eccm) { this.eccm = eccm; }
+
     // PERFORM_HET fields
     private int facing;
     private int hetEnergy;

@@ -13,15 +13,14 @@ import com.sfb.objects.Ship;
  */
 public class PhaserG extends VariableDamageWeapon implements DirectFire {
 
-	// The damage chart for this weapon.
-	private static final int[][] hitChart = {
-			// Ranges 0-15
-			{ 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Roll 1
-			{ 4, 4, 4, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 }, // Roll 2
-			{ 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 3
-			{ 4, 4, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 4
-			{ 4, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 5
-			{ 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 6
+	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3, [4] 4-8, [5] 9-15 (identical to Phaser3)
+	private static final int[][] bandHitChart = {
+			{ 4, 4, 4, 3, 1, 1 }, // Roll 1
+			{ 4, 4, 4, 2, 1, 0 }, // Roll 2
+			{ 4, 4, 4, 1, 0, 0 }, // Roll 3
+			{ 4, 4, 3, 0, 0, 0 }, // Roll 4
+			{ 4, 3, 2, 0, 0, 0 }, // Roll 5
+			{ 3, 3, 1, 0, 0, 0 }, // Roll 6
 	};
 
 	public PhaserG() {
@@ -60,9 +59,8 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire {
 		}
 
 		int roll = rollAndRecord();
-		// Return the value that matches the die roll and the range.
 		registerFire();
-		return hitChart[roll - 1][range];
+		return lookupWithShift(bandHitChart, roll, rangeBand(range));
 	}
 
 	/**
@@ -72,6 +70,15 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire {
 	 */
 	public double energyToFire() {
 		return 0.25;
+	}
+
+	static int rangeBand(int range) {
+		if (range <= 0)  return 0;
+		if (range <= 1)  return 1;
+		if (range <= 2)  return 2;
+		if (range <= 3)  return 3;
+		if (range <= 8)  return 4;
+		return 5; // 9-15, and out of range
 	}
 
 	/** J1.3321: when a fighter carrying a Ph-G is crippled, reduce it to Ph-3 (max 1 shot/turn). */

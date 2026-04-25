@@ -14,24 +14,33 @@ import com.sfb.utilities.DiceRoller;
  */
 public class FighterFusion extends VariableDamageWeapon implements DirectFire {
 
-    public enum ShotMode { SINGLE, DOUBLE }
+    public enum ShotMode {
+        SINGLE, DOUBLE
+    }
 
-    // Same damage table as standard Fusion single-shot (J4.83 — no extra damage for double)
-    private static final int[][] hitChart = {
-        // Range  0   1  2  3  4  5  6  7  8  9 10
-        {        13,  8, 6, 4, 4, 4, 4, 4, 4, 4, 4 }, // Roll 1
-        {        11,  8, 5, 3, 3, 3, 3, 3, 3, 3, 3 }, // Roll 2
-        {        10,  7, 4, 2, 2, 2, 2, 2, 2, 2, 2 }, // Roll 3
-        {         9,  6, 3, 1, 1, 1, 1, 1, 1, 1, 1 }, // Roll 4
-        {         8,  5, 3, 1, 1, 1, 1, 1, 1, 1, 1 }, // Roll 5
-        {         8,  4, 2, 0, 0, 0, 0, 0, 0, 0, 0 }, // Roll 6
+
+    // Range bands: [0] 0, [1] 1, [2] 2, [3] 3-10
+    private static final int[][] bandHitChart = {
+            { 13, 8, 6, 4 }, // Roll 1
+            { 11, 8, 5, 3 }, // Roll 2
+            { 10, 7, 4, 2 }, // Roll 3
+            { 9, 6, 3, 1 }, // Roll 4
+            { 8, 5, 3, 1 }, // Roll 5
+            { 8, 4, 2, 0 }, // Roll 6
     };
 
-    private static final int SINGLE_MAX_RANGE = 3;
-    private static final int DOUBLE_MAX_RANGE  = 10;
+    static int rangeBand(int range) {
+        if (range <= 0) return 0;
+        if (range <= 1) return 1;
+        if (range <= 2) return 2;
+        return 3; // 3-10
+    }
 
-    private int      chargesRemaining = 2;
-    private ShotMode pendingShotMode  = ShotMode.SINGLE;
+    private static final int SINGLE_MAX_RANGE = 3;
+    private static final int DOUBLE_MAX_RANGE = 10;
+
+    private int chargesRemaining = 2;
+    private ShotMode pendingShotMode = ShotMode.SINGLE;
 
     public FighterFusion() {
         setDacHitLocaiton("torp");
@@ -49,7 +58,10 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
         return pendingShotMode;
     }
 
-    /** Set before calling fire() to choose single (1 charge, range 0-3) or double (2 charges, range 0-10). */
+    /**
+     * Set before calling fire() to choose single (1 charge, range 0-3) or double (2
+     * charges, range 0-10).
+     */
     public void setShotMode(ShotMode mode) {
         this.pendingShotMode = mode;
     }
@@ -77,9 +89,9 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
 
         if (chargesRemaining < chargesToUse) {
             throw new WeaponUnarmedException(
-                pendingShotMode == ShotMode.DOUBLE
-                    ? "Not enough charges for double shot."
-                    : "FighterFusion has no charges remaining.");
+                    pendingShotMode == ShotMode.DOUBLE
+                            ? "Not enough charges for double shot."
+                            : "FighterFusion has no charges remaining.");
         }
 
         if (!super.canFire()) {
@@ -88,15 +100,15 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
 
         if (range > effectiveMax) {
             throw new TargetOutOfRangeException(
-                "Target at range " + range + " is beyond " +
-                (pendingShotMode == ShotMode.DOUBLE ? "double" : "single") +
-                " shot max range " + effectiveMax + ".");
+                    "Target at range " + range + " is beyond " +
+                            (pendingShotMode == ShotMode.DOUBLE ? "double" : "single") +
+                            " shot max range " + effectiveMax + ".");
         }
 
         DiceRoller roller = new DiceRoller();
         int roll = roller.rollOneDie();
         setLastRoll(roll);
-        int damage = hitChart[roll - 1][range];
+        int damage = lookupWithShift(bandHitChart, roll, rangeBand(range));
 
         chargesRemaining -= chargesToUse;
         registerFire();

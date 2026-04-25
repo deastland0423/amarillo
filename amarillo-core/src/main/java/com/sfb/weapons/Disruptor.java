@@ -154,14 +154,15 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 		// Based on arming type, calculate damage (0 on a miss).
 		int roll = diceRoller.rollOneDie();
 		setLastRoll(roll);
+		int adjusted = roll + getEcmShift();
 		switch (armingType) {
 			case STANDARD:
-				if (roll <= hitChart[range]) {
+				if (adjusted <= hitChart[range]) {
 					damage = damageChart[range];
 				}
 				break;
 			case OVERLOAD:
-				if (roll <= overloadHitChart[range]) {
+				if (adjusted <= overloadHitChart[range]) {
 					damage = overloadDamageChart[range];
 				}
 				break;
@@ -192,16 +193,17 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 
 		int roll = diceRoller.rollOneDie();
 		setLastRoll(roll);
+		int adjusted = roll + getEcmShift();
 		switch (armingType) {
 			case STANDARD: {
 				int adjIdx = Math.min(adjustedRange, hitChart.length - 1);
-				if (roll <= hitChart[adjIdx])
+				if (adjusted <= hitChart[adjIdx])
 					damage = damageChart[realRange];
 				break;
 			}
 			case OVERLOAD: {
 				int adjIdx = Math.min(adjustedRange, overloadHitChart.length - 1);
-				if (roll <= overloadHitChart[adjIdx])
+				if (adjusted <= overloadHitChart[adjIdx])
 					damage = overloadDamageChart[realRange];
 				break;
 			}
@@ -233,16 +235,17 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 
 		int roll = diceRoller.rollOneDie();
 		setLastRoll(roll);
+		int adjusted = roll + getEcmShift();
 		switch (armingType) {
 			case STANDARD: {
 				int adjIdx = Math.min(adjustedRange, uimHitChart.length - 1);
-				if (roll <= uimHitChart[adjIdx])
+				if (adjusted <= uimHitChart[adjIdx])
 					damage = damageChart[realRange];
 				break;
 			}
 			case OVERLOAD: {
 				int adjIdx = Math.min(adjustedRange, uimOverloadHitChart.length - 1);
-				if (roll <= uimOverloadHitChart[adjIdx])
+				if (adjusted <= uimOverloadHitChart[adjIdx])
 					damage = overloadDamageChart[realRange];
 				break;
 			}
@@ -270,17 +273,18 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 
 		int roll = diceRoller.rollOneDie();
 		setLastRoll(roll);
+		int adjusted = roll + getEcmShift();
 		switch (armingType) {
 			case STANDARD: {
 				int adjIdx = Math.min(adjustedRange, derfacsHitChart.length - 1);
-				if (roll <= derfacsHitChart[adjIdx])
+				if (adjusted <= derfacsHitChart[adjIdx])
 					damage = damageChart[realRange];
 				break;
 			}
 			case OVERLOAD: {
 				// DERFACS does not improve overload accuracy; use standard overload chart
 				int adjIdx = Math.min(adjustedRange, overloadHitChart.length - 1);
-				if (roll <= overloadHitChart[adjIdx])
+				if (adjusted <= overloadHitChart[adjIdx])
 					damage = overloadDamageChart[realRange];
 				break;
 			}

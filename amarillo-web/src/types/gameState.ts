@@ -159,6 +159,10 @@ export interface ShipObject extends MapObjectBase {
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
   cloakFadeStep?:           number;   // 1–5 during fade transitions
   cloakTransitionImpulse?:  number;
+  // Electronic warfare
+  sensorRating:     number;
+  ecmAllocated:     number;
+  eccmAllocated:    number;
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;

@@ -84,6 +84,8 @@ public class Ship extends Unit {
 	private int fireControlCost = 1; // Cost for active fire control (always 1).
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
+	private int ecmAllocated  = 0; // ECM points allocated this turn (hide)
+	private int eccmAllocated = 0; // ECCM points allocated this turn (seek)
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
@@ -340,6 +342,8 @@ public class Ship extends Unit {
 		clearGuards(); // D7.834: guards must be re-assigned each turn during EA
 		crew.cleanUp();
 		performanceData.cleanUp();
+		ecmAllocated  = 0;
+		eccmAllocated = 0;
 	}
 
 	/**
@@ -470,6 +474,11 @@ public class Ship extends Unit {
 	public int getFireControlCost() {
 		return this.fireControlCost;
 	}
+
+	public int getEcmAllocated()  { return ecmAllocated;  }
+	public void setEcmAllocated(int ecm)   { this.ecmAllocated  = ecm;  }
+	public int getEccmAllocated() { return eccmAllocated; }
+	public void setEccmAllocated(int eccm) { this.eccmAllocated = eccm; }
 
 	public int getTBombs() {
 		return this.tBombs;

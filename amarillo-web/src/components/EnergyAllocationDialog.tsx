@@ -54,6 +54,8 @@ interface ShipAlloc {
   batteryDraw:          number;
   batteryRecharge:      number;
   hetEnergy:            number;   // warp energy reserved for HETs (C6.2)
+  ecm:                  number;   // ECM points (hide)
+  eccm:                 number;   // ECCM points (seek)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
 }
 
@@ -91,6 +93,8 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     batteryDraw:     0,
     batteryRecharge: 0,
     hetEnergy:       0,
+    ecm:             0,
+    eccm:            0,
     shuttleSpeeds,
   };
 }
@@ -132,7 +136,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const recharge  = alloc.batteryRecharge;
   const het       = alloc.hetEnergy;
 
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het;
+  const ew    = alloc.ecm + alloc.eccm;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + ew;
   const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
   return { spent, total };
 }
@@ -308,6 +313,8 @@ export default function EnergyAllocationDialog({
           batteryDraw:           a.batteryDraw,
           batteryRecharge:       a.batteryRecharge,
           hetEnergy:             a.hetEnergy,
+          ecm:                   a.ecm,
+          eccm:                  a.eccm,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
           droneReloadSelections: Object.fromEntries(
@@ -476,6 +483,20 @@ export default function EnergyAllocationDialog({
             );
           })()}
         </div>
+
+        {/* ---- Electronic Warfare ---- */}
+        {(ship.sensorRating ?? 0) > 0 && (
+          <div className="ea-section">
+            <Collapsible title={`ELECTRONIC WARFARE  (sensor ${ship.sensorRating ?? 0}, used ${alloc.ecm + alloc.eccm})`} color="#a78bfa">
+              <Stepper value={alloc.ecm}  min={0} max={(ship.sensorRating ?? 0) - alloc.eccm}
+                onChange={v => setAlloc(a => ({ ...a, ecm: v }))}
+                label="ECM (hide)" />
+              <Stepper value={alloc.eccm} min={0} max={(ship.sensorRating ?? 0) - alloc.ecm}
+                onChange={v => setAlloc(a => ({ ...a, eccm: v }))}
+                label="ECCM (seek)" />
+            </Collapsible>
+          </div>
+        )}
 
         {/* ---- Shields ---- */}
         <div className="ea-section">

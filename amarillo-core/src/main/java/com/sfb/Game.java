@@ -1302,7 +1302,18 @@ public class Game {
         boolean uimInUse = activeUim != null;
         java.util.List<com.sfb.weapons.Disruptor> uimFiredDisruptors = new java.util.ArrayList<>();
 
+        // D6.34/D6.35: net ECM = target ECM − attacker ECCM; shift = floor(√net)
+        Ship targetShip = target instanceof Ship ? (Ship) target : null;
+        int targetEcm    = targetShip  != null ? targetShip.getEcmAllocated()   : 0;
+        int attackerEccm = attackerShip != null ? attackerShip.getEccmAllocated() : 0;
+        int netEcm  = Math.max(0, targetEcm - attackerEccm);
+        int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
+        if (ecmShift > 0)
+            log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(targetEcm)
+               .append(", attacker ECCM ").append(attackerEccm).append(")\n");
+
         for (Weapon w : selected) {
+            w.setEcmShift(ecmShift);
             if (!w.isFunctional()) {
                 log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
                 continue;
@@ -1346,6 +1357,8 @@ public class Game {
                 log.append("  ").append(w.getName()).append("  out of range\n");
             } catch (CapacitorException ex) {
                 log.append("  ").append(w.getName()).append("  no capacitor energy\n");
+            } finally {
+                w.setEcmShift(0);
             }
         }
 
