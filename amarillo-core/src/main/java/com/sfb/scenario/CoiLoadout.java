@@ -8,6 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+
+
 /**
  * Commander's Option Items (COI) selections for a single ship.
  *
@@ -41,6 +43,27 @@ public class CoiLoadout {
      * that rack. If a rack index is absent, the rack keeps its default ammo.
      */
     public Map<Integer, List<DroneType>> droneRackLoadouts = new LinkedHashMap<>();
+
+    /**
+     * Pre-game conversion of an admin shuttle into a special weapon (WS-2: max 1, WS-3: max 2).
+     * The named shuttle must be an admin shuttle in the ship's bay; it is replaced by the
+     * converted type at game start.
+     *
+     * Suicide shuttle: converted and fully armed (3 turns × energyPerTurn each).
+     * Scatter pack:   converted and loaded with chosen drones.
+     */
+    public static class SpecialShuttlePrep {
+        /** Name of the admin shuttle to convert (e.g. "Enterprise-Shuttle 1"). */
+        public String shuttleName = "";
+        /** Conversion type: "suicide" or "scatterpack". */
+        public String type = "";
+        /** Suicide only: energy allocated per arming turn (1–3). */
+        public int energyPerTurn = 3;
+        /** Scatter pack only: drone types to load into the pack. */
+        public List<DroneType> drones = new ArrayList<>();
+    }
+
+    public List<SpecialShuttlePrep> specialShuttlePrep = new ArrayList<>();
 
     /**
      * Arming mode overrides for WS-3 heavy weapons, keyed by weapon designator

@@ -153,26 +153,27 @@ public class SpecialFunctions {
 		return true;
 	}
 	
-	public boolean damageSensor() {
-		// If we are at the last position in the track, no further damage can be done.
+	/**
+	 * Advance the sensor damage track one step.
+	 * Returns the list of seekers that were released due to the reduced control limit
+	 * (empty list if no seekers were released, or if sensor was already fully damaged).
+	 * Callers are responsible for attempting auto-transfer before marking them self-guiding.
+	 */
+	public List<Seeker> damageSensor() {
 		if (availableSensor == this.sensor.length - 1) {
-			return false;
+			return null; // already fully damaged — no effect
 		}
-		
-		// Move the pointer to the next value in the track.
-		availableSensor++;
 
-		// Adjust control channels to reflect the new (lower) sensor rating.
+		availableSensor++;
 		controlChannels = (int)(sensor[availableSensor] * controlModifier);
 
-		// Release excess seekers if the limit dropped below current usage.
+		List<Seeker> released = new ArrayList<>();
 		while (controlUsed > controlChannels && !controlledSeekers.isEmpty()) {
-			Seeker released = controlledSeekers.remove(controlledSeekers.size() - 1);
+			Seeker s = controlledSeekers.remove(controlledSeekers.size() - 1);
 			controlUsed--;
-			released.setSelfGuiding(true); // Drone is now free-flying, no longer guided
+			released.add(s);
 		}
-
-		return true;
+		return released;
 	}
 	
 	public boolean damageDamCon() {

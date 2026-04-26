@@ -12,6 +12,8 @@ public class Marker {
 	private Location location = new Location(0,0);
 	protected String name = "";
 
+	private final PersonnelManifest personnel = new PersonnelManifest();
+
 	public Marker() {}
 
 	public Marker(int x, int y) {
@@ -29,5 +31,6 @@ public class Marker {
 		this.location = location;
 	}
 
-	
+	public PersonnelManifest getPersonnel() { return personnel; }
+
 }

@@ -664,6 +664,44 @@ public class Game {
         return players;
     }
 
+    /**
+     * Try to transfer control of a seeker to the first teammate of formerController
+     * that has both free control channels and lock-on to the seeker's target.
+     * On success: updates controller, releases from formerController if still held there,
+     * and returns a log string. Returns null if no valid teammate was found.
+     */
+    private String autoTransferSeekerControl(Seeker seeker, Ship formerController) {
+        Unit target = seeker.getTarget();
+        if (target == null || formerController == null) return null;
+        for (Ship candidate : ships) {
+            if (candidate == formerController) continue;
+            if (!isSameTeam(candidate, formerController)) continue;
+            if (!candidate.hasLockOn(target)) continue;
+            if (!candidate.acquireControl(seeker)) continue;
+            // Release from the former controller if it still holds this seeker
+            Unit current = seeker.getController();
+            if (current instanceof Ship && current != candidate)
+                ((Ship) current).releaseControl(seeker);
+            seeker.setController(candidate);
+            seeker.setSelfGuiding(false);
+            String seekerName = seeker instanceof Unit ? ((Unit) seeker).getName() : "seeker";
+            return "  Control of " + seekerName + " transferred from "
+                    + formerController.getName() + " to " + candidate.getName();
+        }
+        return null;
+    }
+
+    /** True if both units are owned by players on the same team. */
+    public boolean isSameTeam(com.sfb.objects.Unit a, com.sfb.objects.Unit b) {
+        if (!(a instanceof Ship) || !(b instanceof Ship)) return false;
+        Player pa = ((Ship) a).getOwner();
+        Player pb = ((Ship) b).getOwner();
+        if (pa == null || pb == null) return false;
+        String ta = pa.getTeamName();
+        String tb = pb.getTeamName();
+        return ta != null && ta.equals(tb);
+    }
+
     public List<Seeker> getSeekers() {
         return seekers;
     }
@@ -1549,9 +1587,19 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (!rack.getAmmo().contains(drone))
             return ActionResult.fail("Drone is not in " + rack.getName());
-        if (!drone.isSelfGuiding() && !launcher.acquireControl(drone))
-            return ActionResult.fail("No control channels available (limit: "
-                    + launcher.getControlLimit() + ")");
+        String controlXferLog = null;
+        if (!drone.isSelfGuiding()) {
+            if (!launcher.acquireControl(drone)) {
+                // Launcher is at its control limit — try to find a teammate controller
+                drone.setTarget(target); // needed for lock-on check in autoTransfer
+                controlXferLog = autoTransferSeekerControl(drone, launcher);
+                if (controlXferLog == null) {
+                    drone.setTarget(null);
+                    return ActionResult.fail("No control channels available (limit: "
+                            + launcher.getControlLimit() + ") and no teammate could take control");
+                }
+            }
+        }
 
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
@@ -1559,7 +1607,7 @@ public class Game {
         drone.setLocation(launcher.getLocation());
         drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         drone.setTarget(target);
-        drone.setController(launcher);
+        if (drone.getController() == null) drone.setController(launcher);
         drone.setLaunchImpulse(TurnTracker.getImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
         seekers.add(drone);
@@ -1567,6 +1615,7 @@ public class Game {
 
         String msg = launcher.getName() + " launched " + drone.getDroneType()
                 + " drone at " + target.getName();
+        if (controlXferLog != null) msg += "\n" + controlXferLog;
         if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
@@ -1732,6 +1781,10 @@ public class Game {
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
 
+        if (!launcher.acquireControl(pack))
+            return ActionResult.fail("No control channels available (limit: "
+                    + launcher.getControlLimit() + ") — cannot control scatter pack");
+
         bay.launch(pack, pack.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
         pack.setName(launcher.getName() + "-Pack-" + (++seekerSeq));
         pack.setLocation(launcher.getLocation());
@@ -1796,9 +1849,15 @@ public class Game {
                         continue;
                     Ship controlShip = (Ship) controller;
                     if (!controlShip.hasLockOn(target)) {
-                        log.add("  Drone released — " + controlShip.getName()
-                                + " lost lock-on to " + target.getName());
-                        toRemove.add(drone);
+                        String xfer = autoTransferSeekerControl(drone, controlShip);
+                        if (xfer != null) {
+                            log.add(xfer);
+                        } else {
+                            log.add("  Drone released — " + controlShip.getName()
+                                    + " lost lock-on to " + target.getName() + ", no teammate available");
+                            controlShip.releaseControl(drone);
+                            toRemove.add(drone);
+                        }
                     }
                 }
             } else if (s instanceof PlasmaTorpedo) {
@@ -1957,8 +2016,10 @@ public class Game {
                 // Release check happens every impulse, regardless of movement schedule
                 if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
                     Unit target = pack.getTarget();
-                    List<com.sfb.objects.Drone> released = pack.release();
                     Unit controller = pack.getController();
+                    // Free the scatter pack's own control channel before drones compete for capacity
+                    if (controller instanceof Ship) ((Ship) controller).releaseControl(pack);
+                    List<com.sfb.objects.Drone> released = pack.release();
                     for (com.sfb.objects.Drone drone : released) {
                         drone.setLocation(pack.getLocation());
                         drone.setFacing(pack.getFacing());
@@ -1967,9 +2028,14 @@ public class Game {
                             drone.setTarget(target);
                             drone.setController(controller);
                             if (!((Ship) controller).acquireControl(drone)) {
-                                log.add("  Scatter pack drone — no control channel, released");
-                                drone.setTarget(null);
-                                drone.setController(null);
+                                String xfer = autoTransferSeekerControl(drone, (Ship) controller);
+                                if (xfer != null) {
+                                    log.add(xfer);
+                                } else {
+                                    log.add("  Scatter pack drone — no control channel, goes inert");
+                                    drone.setTarget(null);
+                                    drone.setController(null);
+                                }
                             }
                         } else if (drone.isSelfGuiding()) {
                             drone.setTarget(target);
@@ -2450,11 +2516,12 @@ public class Game {
             }
 
             if (!triggered) {
-                // Units in range but not detected — reveal dummy if applicable
+                // Units in range but not detected — reveal and remove dummy if applicable
                 if (!mine.isReal() && !mine.isRevealed()) {
                     mine.reveal();
                     log.add("  Dummy tBomb at " + mine.getLocation()
                             + " revealed — no explosion");
+                    detonated.add(mine);
                 }
                 continue;
             }
@@ -2463,6 +2530,7 @@ public class Game {
                 mine.reveal();
                 log.add("  Dummy tBomb at " + mine.getLocation()
                         + " revealed — no explosion");
+                detonated.add(mine);
                 continue;
             }
 
@@ -2634,6 +2702,89 @@ public class Game {
     }
 
     /**
+     * Transport crew units from one unit to another (G8.32 non-combat rate).
+     *
+     * <p>Non-combat rate: 2 crew units per transporter use. Destination may be
+     * any Unit; shield check is skipped for non-Ship destinations. Lock-on to
+     * the destination is required (G8.17).
+     *
+     * @param source     ship sending crew (must have transporters)
+     * @param dest       receiving unit (ship, shuttle, or other)
+     * @param amount     number of crew units to transport (≥ 1)
+     */
+    public ActionResult transportCrew(Ship source, Unit dest, int amount) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+
+        ActionResult cloakBlock = cloakActionBlock(source);
+        if (cloakBlock != null) return cloakBlock;
+
+        if (amount <= 0)
+            return ActionResult.fail("Must transport at least 1 crew unit");
+
+        int range = getRange(source, dest);
+        if (range > 5)
+            return ActionResult.fail("Destination is out of transporter range (" + range + " hexes, max 5)");
+
+        if (!source.hasLockOn(dest))
+            return ActionResult.fail("No sensor lock-on to " + dest.getName() + " — cannot use transporters (G8.17)");
+
+        int available = source.getCrew().getAvailableCrewUnits();
+        if (amount > available)
+            return ActionResult.fail("Not enough crew units (have " + available + ", need " + amount + ")");
+
+        // Non-combat rate: 2 crew per transporter use (G8.32)
+        int usesNeeded = (int) Math.ceil(amount / 2.0);
+        int availTrans = source.getTransporters().getAvailableTrans();
+        if (usesNeeded > availTrans)
+            return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
+        int availUses = source.getTransporters().availableUses();
+        if (usesNeeded > availUses)
+            return ActionResult.fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
+
+        // Source shield facing dest must be passable (auto-lower if possible)
+        int srcShieldNum = getShieldNumber(dest, source);
+        if (!source.getShields().isTransportable(srcShieldNum)) {
+            boolean lowered = source.getShields().lowerShield(srcShieldNum);
+            if (!lowered)
+                return ActionResult.fail("Cannot lower shield #" + srcShieldNum + " on " + source.getName()
+                        + " — must wait 8 impulses since last toggle");
+        }
+
+        // Destination shield facing source must already be passable (ships only)
+        if (dest instanceof Ship) {
+            Ship destShip = (Ship) dest;
+            int destShieldNum = getShieldNumber(source, destShip);
+            if (!destShip.getShields().isTransportable(destShieldNum))
+                return ActionResult.fail(dest.getName() + " shield #" + destShieldNum
+                        + " is active — cannot beam through (G8.21)");
+        }
+
+        // Spend transporters
+        for (int i = 0; i < usesNeeded; i++)
+            source.getTransporters().useTransporter();
+
+        // Move crew
+        source.getCrew().setAvailableCrewUnits(available - amount);
+        if (dest instanceof Ship) {
+            Ship destShip = (Ship) dest;
+            destShip.getCrew().setAvailableCrewUnits(destShip.getCrew().getAvailableCrewUnits() + amount);
+        } else {
+            dest.getPersonnel().addCrew(amount);
+        }
+
+        StringBuilder log = new StringBuilder();
+        log.append("=== Transport Crew: ").append(source.getName())
+           .append(" → ").append(dest.getName()).append(" ===\n");
+        log.append("  ").append(amount).append(" crew unit(s) transported using ")
+           .append(usesNeeded).append(" transporter(s) (non-combat rate G8.32)\n");
+        if (dest instanceof Ship && ((Ship) dest).isCaptured() && !((Ship) dest).getCrew().isSkeleton()) {
+            log.append("  Skeleton crew established — ").append(dest.getName()).append(" is now operable\n");
+        }
+        return ActionResult.ok(log.toString());
+    }
+
+    /**
      * Transport boarding parties onto an enemy ship (D7.31).
      *
      * <p>Same preconditions as H&amp;R: Activity phase, range ≤ 5, lock-on,
@@ -2670,9 +2821,11 @@ public class Game {
         actingShip.getCrew().getFriendlyTroops().commandos -= commandos;
         actingShip.getCrew().getFriendlyTroops().removeCasualties(normal); // removes normal first
 
-        // Place on target
+        // Place on target; record attacker for ownership transfer if capture occurs (D7.50)
         target.addEnemyBoardingParties(normal);
         target.addEnemyCommandos(commandos);
+        if (target.getBoardingAttacker() == null)
+            target.setBoardingAttacker(actingShip.getOwner());
 
         StringBuilder log = new StringBuilder();
         log.append("=== Boarding Action: ").append(actingShip.getName())
@@ -2808,8 +2961,16 @@ public class Game {
             }
             case IMPULSE:
                 return target.getPowerSysetems().damageImpulse();
-            case SENSORS:
-                return target.getSpecialFunctions().damageSensor();
+            case SENSORS: {
+                List<Seeker> released = target.getSpecialFunctions().damageSensor();
+                if (released == null) return false;
+                for (Seeker s : released) {
+                    String xfer = autoTransferSeekerControl(s, target);
+                    if (xfer != null) lastSeekerLog.add(xfer);
+                    else s.setSelfGuiding(true);
+                }
+                return true;
+            }
             case SCANNERS:
                 return target.getSpecialFunctions().damageScanner();
             case TRANSPORTERS:
@@ -2963,6 +3124,9 @@ public class Game {
             defender.setCaptured(true);
             capturedThisTurn.add(defender);
             applyD753CaptureEffects(defender, log);
+        } else if (attackers.isEmpty()) {
+            // All attackers killed — no longer boarding, clear attacker record
+            defender.setBoardingAttacker(null);
         }
 
         return new BoardingCombatResult(attackerPts, defenderPts,
@@ -2975,6 +3139,30 @@ public class Game {
      */
     private void applyD753CaptureEffects(Ship defender, StringBuilder log) {
         log.append("  *** ").append(defender.getName()).append(" CAPTURED ***\n");
+
+        // D7.50: transfer ownership to the capturing player
+        Player captor = defender.getBoardingAttacker();
+        Player originalOwner = defender.getOwner();
+        if (captor != null && captor != originalOwner) {
+            if (originalOwner != null)
+                originalOwner.getPlayerUnits().remove(defender);
+            captor.getPlayerUnits().add(defender);
+            defender.setOwner(captor);
+            log.append("  D7.50: ").append(defender.getName())
+               .append(" ownership transferred to ").append(captor.getName()).append("\n");
+        }
+
+        // D7.512: original crew become prisoners; ship frozen until skeleton crew arrives
+        int prisonerCount = defender.getCrew().getAvailableCrewUnits();
+        if (prisonerCount > 0) {
+            defender.getCrew().addCapturedCrew(prisonerCount);
+            defender.getCrew().setAvailableCrewUnits(0);
+            log.append("  D7.512: ").append(prisonerCount).append(" crew unit(s) taken prisoner\n");
+        }
+
+        // D7.532: stop ECM/EW
+        defender.setEcmAllocated(0);
+        defender.setEccmAllocated(0);
 
         // D7.531: release/orphan all seeking weapons controlled by this ship
         int seekersReleased = 0;

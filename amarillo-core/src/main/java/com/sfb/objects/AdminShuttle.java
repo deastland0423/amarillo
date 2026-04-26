@@ -11,6 +11,10 @@ import com.sfb.weapons.Weapon;
 
 public class AdminShuttle extends Shuttle {
 
+	@Override public boolean canBecomeSuicide()     { return true; }
+	@Override public boolean canBecomeScatterPack() { return true; }
+	@Override public boolean canBecomeWildWeasel()  { return true; }
+
 	public AdminShuttle() {
 		setHull(6);
 		setMaxSpeed(6);

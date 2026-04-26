@@ -247,11 +247,18 @@ function drawShip(
 
   drawShields(ctx, cx, cy, ship, angle, isMine);
 
-  ctx.fillStyle    = '#e6edf3';
   ctx.font         = '8px monospace';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(ship.name, cx, cy + r + 2);
+  if ((ship as any).captured) {
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fillText('CAPTURED', cx, cy + r + 2);
+    ctx.fillStyle = '#e6edf3';
+    ctx.fillText(ship.name, cx, cy + r + 12);
+  } else {
+    ctx.fillStyle = '#e6edf3';
+    ctx.fillText(ship.name, cx, cy + r + 2);
+  }
 
   ctx.globalAlpha = prevAlpha;
 }

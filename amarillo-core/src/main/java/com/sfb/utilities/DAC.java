@@ -253,6 +253,19 @@ public class DAC {
 		return null; // excess damage
 	}
 
+	/** Advances past all systems in the excluded set, returning the next available system. */
+	public String fetchNextHitExcludingAll(int roll, java.util.Set<String> excludeSystems) {
+		DACItem[] dacLine = this.dacTable[roll - 2];
+		for (DACItem item : dacLine) {
+			if (item.isAvailable() && !excludeSystems.contains(item.getSystem())) {
+				String result = item.getSystem();
+				if (item.isSpecial()) item.setUnavailable();
+				return result;
+			}
+		}
+		return null;
+	}
+
 	private class DACItem {
 
 		private String system; // Name of the system

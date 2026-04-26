@@ -161,10 +161,11 @@ function WeaponRow({ w }: { w: WeaponState }) {
 // ---- Launch helpers ----
 
 function hasLaunchableWeapons(ship: ShipObject): boolean {
-  // A plasma launcher is launchable if it has a real torpedo armed OR a pseudo available
-  const hasPlasma     = (ship.weapons    ?? []).some(w => w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady));
-  const hasLoadedRack = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0 && r.canFire);
-  return hasPlasma || hasLoadedRack;
+  const hasPlasma      = (ship.weapons    ?? []).some(w => w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady));
+  const hasLoadedRack  = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0 && r.canFire);
+  const hasSuicide     = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'suicide' && s.armed && s.canLaunch));
+  const hasScatterPack = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'scatterpack' && s.canLaunch && (s.payloadCount ?? 0) > 0));
+  return hasPlasma || hasLoadedRack || hasSuicide || hasScatterPack;
 }
 
 // ---- Launch panel ----
@@ -209,26 +210,31 @@ const ALL_FACINGS = new Set([1, 5, 9, 13, 17, 21]);
 
 interface LaunchPanelProps {
   ship:           ShipObject;
-  target:         ShipObject | null;
-  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number) => void;
+  target:         MapObject | null;
+  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[]) => void;
   onClearTarget:  () => void;
   onCancel:       () => void;
   error:          string | null;
 }
 
 function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }: LaunchPanelProps) {
-  const [selLaunchers,  setSelLaunchers]  = useState<Set<string>>(new Set());
-  const [pseudoSet,     setPseudoSet]     = useState<Set<string>>(new Set());
-  // Maps rack name → chosen drone index within that rack's ammo list
-  const [selRackDrones, setSelRackDrones] = useState<Map<string, number>>(new Map());
-  const [launchFacing,  setLaunchFacing]  = useState<number | null>(null);
+  const [selLaunchers,     setSelLaunchers]     = useState<Set<string>>(new Set());
+  const [pseudoSet,        setPseudoSet]        = useState<Set<string>>(new Set());
+  const [selRackDrones,    setSelRackDrones]    = useState<Map<string, number>>(new Map());
+  const [selSeekerShuttles,setSelSeekerShuttles]= useState<Set<string>>(new Set());
+  const [launchFacing,     setLaunchFacing]     = useState<number | null>(null);
 
-  // Include any launcher with a real torpedo armed OR a pseudo still available
   const launchablePlasma = (ship.weapons ?? []).filter(w =>
     w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady)
   );
   const loadedRacks = (ship.droneRacks ?? []).filter(r => r.functional && r.drones.length > 0 && r.canFire);
-  const targetColor = target ? factionColor(target.faction) : '#888';
+  const launchableSeekerShuttles = (ship.shuttleBays ?? []).flatMap(bay =>
+    bay.shuttles.filter(s =>
+      (s.type === 'suicide' && s.armed && s.canLaunch) ||
+      (s.type === 'scatterpack' && s.canLaunch && (s.payloadCount ?? 0) > 0)
+    )
+  );
+  const targetColor = target ? mapObjectColor(target) : '#888';
 
   function selectReal(name: string) {
     setSelLaunchers(prev => { const n = new Set(prev); n.add(name); return n; });
@@ -254,7 +260,11 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
     });
   }
 
-  const totalSelected = selLaunchers.size + pseudoSet.size + selRackDrones.size;
+  const totalSelected      = selLaunchers.size + pseudoSet.size + selRackDrones.size;
+  const totalSeekerShuttles = selSeekerShuttles.size;
+  const anythingSelected   = totalSelected > 0 || totalSeekerShuttles > 0;
+  // Facing is required only when plasma/drones are selected (seeker shuttles auto-face target)
+  const facingRequired     = totalSelected > 0;
 
   // Compute the intersection of all selected weapons' allowed launch facings.
   // Start with all 6 facings, then filter by launchDirectionsMask (or arcMask fallback)
@@ -381,7 +391,34 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
             </>
           )}
 
-          {totalSelected > 0 && (
+          {/* Seeker shuttles (suicide + scatter packs) */}
+          {launchableSeekerShuttles.length > 0 && (
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-stat-label" style={{ marginBottom: 4 }}>Seeker Shuttles</div>
+              {launchableSeekerShuttles.map(s => (
+                <div key={s.name} className="launch-weapon-row">
+                  <label className="ea-check-label">
+                    <input type="checkbox"
+                      checked={selSeekerShuttles.has(s.name)}
+                      onChange={() => setSelSeekerShuttles(prev => {
+                        const n = new Set(prev);
+                        n.has(s.name) ? n.delete(s.name) : n.add(s.name);
+                        return n;
+                      })} />
+                    {s.name}
+                    <span className="ea-note-dim" style={{ marginLeft: 4 }}>
+                      {s.type === 'suicide'
+                        ? `Suicide — dmg ${s.warheadDamage}`
+                        : `Scatter Pack — ${s.payloadCount} drones`}
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </>
+          )}
+
+          {facingRequired && (
             <>
               <div className="sidebar-divider" />
               <FacingPicker
@@ -396,7 +433,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             <button className="fire-btn"
               style={{ flex: 1 }}
-              disabled={totalSelected === 0 || launchFacing === null}
+              disabled={!anythingSelected || (facingRequired && launchFacing === null)}
               onClick={() => onLaunch(
                 [
                   ...launchablePlasma.filter(w => selLaunchers.has(w.name)).map(w => ({ name: w.name, pseudo: false })),
@@ -404,8 +441,9 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
                 ],
                 Array.from(selRackDrones.entries()).map(([rackName, droneIndex]) => ({ rackName, droneIndex })),
                 launchFacing ?? 0,
+                launchableSeekerShuttles.filter(s => selSeekerShuttles.has(s.name)).map(s => ({ name: s.name, type: s.type })),
               )}>
-              Launch ({totalSelected})
+              Launch ({totalSelected + totalSeekerShuttles})
             </button>
             <button className="secondary" onClick={onCancel}>Cancel</button>
           </div>
@@ -1175,7 +1213,7 @@ interface SidebarProps {
   onClose:         () => void;
   // Launch
   launchMode:      boolean;
-  launchTarget:    ShipObject | null;
+  launchTarget:    MapObject | null;
   launchError:     string | null;
   onStartLaunch:   () => void;
   onClearLaunch:   () => void;
@@ -1228,6 +1266,18 @@ interface SidebarProps {
   onCancelHar:  () => void;
   onSetHarParties: (parties: (string | null)[]) => void;
   onSubmitHar:  () => void;
+  // Transporters submenu
+  transportersOpen:    boolean;
+  onToggleTransporters: () => void;
+  // Transport crew
+  crewMode:        boolean;
+  crewTarget:      ShipObject | null;
+  crewAmount:      number;
+  crewError:       string | null;
+  onStartCrew:     () => void;
+  onCancelCrew:    () => void;
+  onSetCrewAmount: (n: number) => void;
+  onSubmitCrew:    () => void;
 }
 
 function ShipSidebar({
@@ -1244,6 +1294,9 @@ function ShipSidebar({
   shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
+  transportersOpen, onToggleTransporters,
+  crewMode, crewTarget, crewAmount, crewError,
+  onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1267,6 +1320,10 @@ function ShipSidebar({
   const canHar          = isActivityPhase && isMine
                         && ship.boardingParties > 0
                         && (ship.availableTransporters ?? 0) > 0;
+  const canTransferCrew = isActivityPhase && isMine
+                        && (ship.availableCrewUnits ?? 0) > 0
+                        && (ship.availableTransporters ?? 0) > 0;
+  const canUseTransporters = canTBomb || canBoard || canHar || canTransferCrew;
   const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
@@ -1350,92 +1407,105 @@ function ShipSidebar({
             </>
           )}
 
-          {/* Activity phase: row of action buttons */}
+          {/* Activity phase: row of action buttons + transporter submenu */}
           {phase === 'Activity' && (
-            <div className="action-btn-row">
-              {hasLaunchableWeapons(ship) && (
-                <button
-                  className={`action-strip-btn${launchMode ? ' active' : ''}`}
-                  onClick={launchMode ? onClearLaunch : onStartLaunch}
-                  title="Launch seekers"
-                >
-                  Seekers
-                </button>
+            <>
+              <div className="action-btn-row">
+                {hasLaunchableWeapons(ship) && (
+                  <button
+                    className={`action-strip-btn${launchMode ? ' active' : ''}`}
+                    onClick={launchMode ? onClearLaunch : onStartLaunch}
+                    title="Launch seekers"
+                  >
+                    Seekers
+                  </button>
+                )}
+                {hasLaunchableShuttles(ship) && (
+                  <button
+                    className={`action-strip-btn${shuttleLaunchMode ? ' active' : ''}`}
+                    onClick={shuttleLaunchMode ? onCancelShuttleLaunch : onStartShuttleLaunch}
+                    title="Launch shuttle"
+                  >
+                    Shuttle
+                  </button>
+                )}
+                {(ship.totalTransporters ?? 0) > 0 && (
+                  <button
+                    className={`action-strip-btn${transportersOpen ? ' active' : ''}`}
+                    onClick={onToggleTransporters}
+                    disabled={!canUseTransporters}
+                    title={canUseTransporters ? 'Transporter actions' : 'No transporter actions available'}
+                  >
+                    Transporters
+                  </button>
+                )}
+                {canDropMine && (
+                  <button
+                    className={`action-strip-btn${dropMineMode ? ' active' : ''}`}
+                    onClick={onToggleDropMine}
+                    title="Drop mine from shuttle bay"
+                  >
+                    Drop Mine
+                  </button>
+                )}
+                {canIdentify && (
+                  <button
+                    className={`action-strip-btn${idMode ? ' active' : ''}`}
+                    onClick={idMode ? onCancelId : onStartId}
+                    title={`Identify seekers (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
+                  >
+                    ID
+                  </button>
+                )}
+                {(ship.cloakCost ?? 0) > 0 && (
+                  <>
+                    {(ship.cloakState === 'INACTIVE' || ship.cloakState === 'NONE' || !ship.cloakState) && (
+                      <button className="action-strip-btn" onClick={onCloak} title="Activate cloaking device">
+                        Cloak
+                      </button>
+                    )}
+                    {(ship.cloakState === 'FADING_OUT' || ship.cloakState === 'FULLY_CLOAKED') && (
+                      <button className="action-strip-btn" onClick={onUncloak} title="Deactivate cloaking device">
+                        Uncloak
+                      </button>
+                    )}
+                    {ship.cloakState === 'FADING_IN' && (
+                      <button className="action-strip-btn" disabled title="Decloaking in progress">
+                        Decloaking
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              {transportersOpen && (
+                <div className="transporter-submenu">
+                  <button
+                    className={`action-strip-btn${tBombMode ? ' active' : ''}`}
+                    disabled={!canTBomb}
+                    onClick={tBombMode ? onCancelTBomb : onStartTBomb}
+                    title="Place T-bomb via transporter"
+                  >T-bomb</button>
+                  <button
+                    className={`action-strip-btn${boardingMode ? ' active' : ''}`}
+                    disabled={!canBoard}
+                    onClick={boardingMode ? onCancelBoarding : onStartBoarding}
+                    title="Board enemy ship"
+                  >Board</button>
+                  <button
+                    className={`action-strip-btn${harMode ? ' active' : ''}`}
+                    disabled={!canHar}
+                    onClick={harMode ? onCancelHar : onStartHar}
+                    title="Hit &amp; Run raid"
+                  >H&amp;R</button>
+                  <button
+                    className={`action-strip-btn${crewMode ? ' active' : ''}`}
+                    disabled={!canTransferCrew}
+                    onClick={crewMode ? onCancelCrew : onStartCrew}
+                    title="Transport crew to another unit"
+                  >Send Crew</button>
+                </div>
               )}
-              {hasLaunchableShuttles(ship) && (
-                <button
-                  className={`action-strip-btn${shuttleLaunchMode ? ' active' : ''}`}
-                  onClick={shuttleLaunchMode ? onCancelShuttleLaunch : onStartShuttleLaunch}
-                  title="Launch shuttle"
-                >
-                  Shuttle
-                </button>
-              )}
-              {canTBomb && (
-                <button
-                  className={`action-strip-btn${tBombMode ? ' active' : ''}`}
-                  onClick={tBombMode ? onCancelTBomb : onStartTBomb}
-                  title="Place T-bomb via transporter"
-                >
-                  T-bomb
-                </button>
-              )}
-              {canDropMine && (
-                <button
-                  className={`action-strip-btn${dropMineMode ? ' active' : ''}`}
-                  onClick={onToggleDropMine}
-                  title="Drop mine from shuttle bay"
-                >
-                  Drop Mine
-                </button>
-              )}
-              {canBoard && (
-                <button
-                  className={`action-strip-btn${boardingMode ? ' active' : ''}`}
-                  onClick={boardingMode ? onCancelBoarding : onStartBoarding}
-                  title="Board enemy ship"
-                >
-                  Board
-                </button>
-              )}
-              {canHar && (
-                <button
-                  className={`action-strip-btn${harMode ? ' active' : ''}`}
-                  onClick={harMode ? onCancelHar : onStartHar}
-                  title="Hit & Run raid"
-                >
-                  H&amp;R
-                </button>
-              )}
-              {canIdentify && (
-                <button
-                  className={`action-strip-btn${idMode ? ' active' : ''}`}
-                  onClick={idMode ? onCancelId : onStartId}
-                  title={`Identify seekers (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
-                >
-                  ID
-                </button>
-              )}
-              {(ship.cloakCost ?? 0) > 0 && (
-                <>
-                  {(ship.cloakState === 'INACTIVE' || ship.cloakState === 'NONE' || !ship.cloakState) && (
-                    <button className="action-strip-btn" onClick={onCloak} title="Activate cloaking device">
-                      Cloak
-                    </button>
-                  )}
-                  {(ship.cloakState === 'FADING_OUT' || ship.cloakState === 'FULLY_CLOAKED') && (
-                    <button className="action-strip-btn" onClick={onUncloak} title="Deactivate cloaking device">
-                      Uncloak
-                    </button>
-                  )}
-                  {ship.cloakState === 'FADING_IN' && (
-                    <button className="action-strip-btn" disabled title="Decloaking in progress">
-                      Decloaking
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            </>
           )}
 
         </div>
@@ -1657,6 +1727,37 @@ function ShipSidebar({
         </div>
       )}
 
+      {crewMode && (
+        <div className="sidebar-action-detail">
+          {crewTarget ? (
+            <>
+              <div className="sidebar-section-title">Send Crew → {crewTarget.name}</div>
+              <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: 4 }}>
+                Non-combat rate: 2 crew per transporter use (G8.32)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ flex: 1, fontSize: '0.8rem' }}>Crew ({ship.availableCrewUnits} avail)</span>
+                <button className="secondary" style={{ padding: '2px 6px' }}
+                  onClick={() => onSetCrewAmount(Math.max(1, crewAmount - 1))}>−</button>
+                <span style={{ minWidth: 20, textAlign: 'center' }}>{crewAmount}</span>
+                <button className="secondary" style={{ padding: '2px 6px' }}
+                  onClick={() => onSetCrewAmount(Math.min(ship.availableCrewUnits, crewAmount + 1))}>+</button>
+              </div>
+              {crewError && <div style={{ color: '#f85149', fontSize: '0.75rem', marginBottom: 4 }}>{crewError}</div>}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={onSubmitCrew}>Transport</button>
+                <button className="secondary" onClick={onCancelCrew}>Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sidebar-section-title" style={{ color: '#f0c040' }}>Click a ship to send crew to</div>
+              <button className="secondary" style={{ width: '100%', marginTop: 4 }} onClick={onCancelCrew}>Cancel</button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Fire panel — top of sidebar during Direct Fire */}
       {isFirePhase && (
         <FirePanel
@@ -1842,7 +1943,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [fighterShotModes, setFighterShotModes]   = useState<Record<string, 'SINGLE' | 'DOUBLE'>>({});
   // Launch state
   const [launchMode,        setLaunchMode]        = useState(false);
-  const [launchTarget,      setLaunchTarget]      = useState<ShipObject | null>(null);
+  const [launchTarget,      setLaunchTarget]      = useState<MapObject | null>(null);
   const [launchError,       setLaunchError]       = useState<string | null>(null);
   const [shuttleLaunchMode, setShuttleLaunchMode] = useState(false);
   const [shuttleLaunchError, setShuttleLaunchError] = useState<string | null>(null);
@@ -1869,6 +1970,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [harParties, setHarParties] = useState<(string | null)[]>([null]);
   const [harError,   setHarError]   = useState<string | null>(null);
   const [harLoading, setHarLoading] = useState(false);
+  // Transporters submenu + transport crew state
+  const [transportersOpen, setTransportersOpen] = useState(false);
+  const [crewMode,    setCrewMode]    = useState(false);
+  const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
+  const [crewAmount,  setCrewAmount]  = useState(1);
+  const [crewError,   setCrewError]   = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [eaDismissed, setEaDismissed]       = useState(false);
   const [log, setLog] = useState<{ stamp: string; text: string; kind: 'combat' | 'phase' | 'error' | 'info' }[]>([]);
@@ -2028,12 +2135,15 @@ export default function GameBoard({ session, onLeave }: Props) {
         return;
       }
     }
-    if (launchMode && liveShip && obj?.type === 'SHIP') {
-      const clicked = obj as ShipObject;
-      if (!myShips.has(clicked.name)) {
-        setLaunchTarget(clicked);
-        return;
-      }
+    if (crewMode && liveShip && obj?.type === 'SHIP') {
+      setCrewTarget(obj as ShipObject);
+      setCrewAmount(1);
+      setCrewError(null);
+      return;
+    }
+    if (launchMode && liveShip && obj && canBeFireTarget(obj, myShips)) {
+      setLaunchTarget(obj);
+      return;
     }
     // Clicking own fighter in Direct Fire phase makes it the attacker
     if (isFirePhase && obj?.type === 'SHUTTLE') {
@@ -2075,7 +2185,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     setShuttleLaunchMode(false);
     setShuttleLaunchError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFirePhase, launchMode, boardingMode, harMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
+  }, [isFirePhase, launchMode, boardingMode, harMode, crewMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
   function toggleWeapon(name: string) {
     setSelectedWeapons(prev => {
@@ -2375,6 +2485,55 @@ export default function GameBoard({ session, onLeave }: Props) {
     setHarError(null);
   }
 
+  function handleToggleTransporters() {
+    const closing = transportersOpen;
+    setTransportersOpen(!closing);
+    if (closing) {
+      setTBombMode(false); setTBombPendingHex(null); setTBombShieldChoice(null);
+      setBoardingMode(false); setBoardingTarget(null);
+      setHarMode(false); setHarTarget(null);
+      setCrewMode(false); setCrewTarget(null);
+    }
+  }
+
+  function handleStartCrew() {
+    setCrewMode(true);
+    setCrewTarget(null);
+    setCrewAmount(1);
+    setCrewError(null);
+    setBoardingMode(false); setBoardingTarget(null);
+    setHarMode(false); setHarTarget(null);
+    setTBombMode(false); setTBombPendingHex(null);
+  }
+
+  function handleCancelCrew() {
+    setCrewMode(false);
+    setCrewTarget(null);
+    setCrewAmount(1);
+    setCrewError(null);
+  }
+
+  async function handleSubmitCrew() {
+    if (!liveShip || !crewTarget) return;
+    setCrewError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'TRANSPORT_CREW',
+        shipName: liveShip.name,
+        targetName: crewTarget.name,
+        crewAmount,
+      });
+      if (!res.success) setCrewError(res.message);
+      else {
+        addLog(`${liveShip.name} transported ${crewAmount} crew to ${crewTarget.name}`, 'combat');
+        handleCancelCrew();
+        setTransportersOpen(false);
+      }
+    } catch (e: unknown) {
+      setCrewError(e instanceof Error ? e.message : 'Crew transfer failed');
+    }
+  }
+
   async function handleSubmitHar() {
     if (!liveShip || !harTarget) return;
     const codes = harParties.filter((c): c is string => !!c);
@@ -2467,6 +2626,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     plasmaSelections: { name: string; pseudo: boolean }[],
     rackSelections: { rackName: string; droneIndex: number }[],
     facing: number,
+    seekerShuttles: { name: string; type: string }[] = [],
   ) {
     if (!liveShip || !launchTarget) return;
     setLaunchError(null);
@@ -2493,6 +2653,23 @@ export default function GameBoard({ session, onLeave }: Props) {
           });
           if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
           addLog(`${liveShip.name} launched drone from ${rackName} at ${launchTarget.name}`, 'combat');
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Launch failed';
+          setLaunchError(msg); anyError = true; break;
+        }
+      }
+    }
+    if (!anyError) {
+      for (const { name, type } of seekerShuttles) {
+        const actionType = type === 'suicide' ? 'LAUNCH_SUICIDE_SHUTTLE' : 'LAUNCH_SCATTER_PACK';
+        try {
+          const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+            type: actionType, shipName: liveShip.name,
+            action: name, targetName: launchTarget!.name,
+          });
+          if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
+          const label = type === 'suicide' ? 'suicide shuttle' : 'scatter pack';
+          addLog(`${liveShip.name} launched ${label} ${name} at ${launchTarget!.name}`, 'combat');
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : 'Launch failed';
           setLaunchError(msg); anyError = true; break;
@@ -2626,7 +2803,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onHet={handleHet}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
-            onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); }}
+            onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
             launchMode={launchMode}
             launchTarget={launchTarget}
             launchError={launchError}
@@ -2675,6 +2852,16 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelHar={handleCancelHar}
             onSetHarParties={setHarParties}
             onSubmitHar={handleSubmitHar}
+            transportersOpen={transportersOpen}
+            onToggleTransporters={handleToggleTransporters}
+            crewMode={crewMode}
+            crewTarget={crewTarget}
+            crewAmount={crewAmount}
+            crewError={crewError}
+            onStartCrew={handleStartCrew}
+            onCancelCrew={handleCancelCrew}
+            onSetCrewAmount={setCrewAmount}
+            onSubmitCrew={handleSubmitCrew}
           />
         )}
 

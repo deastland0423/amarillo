@@ -35,7 +35,20 @@ public abstract class Shuttle extends Unit {
 	 * Auto-drifting objects (e.g. released ScatterPack) override this to return false.
 	 */
 	public boolean isPlayerControlled() { return true; }
-	
+
+	// -------------------------------------------------------------------------
+	// Pre-game conversion eligibility (COI special shuttle prep)
+	// -------------------------------------------------------------------------
+
+	/** True if this shuttle can be converted to a suicide shuttle before game start. */
+	public boolean canBecomeSuicide()     { return false; }
+
+	/** True if this shuttle can be converted to a scatter pack before game start. */
+	public boolean canBecomeScatterPack() { return false; }
+
+	/** True if this shuttle can be converted to a wild weasel before game start. */
+	public boolean canBecomeWildWeasel()  { return false; }
+
 	public int getMaxSpeed() {
 		return maxSpeed;
 	}

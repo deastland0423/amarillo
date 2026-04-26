@@ -88,6 +88,9 @@ public class GameSession {
     /** shipName → playerToken, recorded before start() so ships can be assigned in the lobby. */
     private final Map<String, String> pendingAssignments = new LinkedHashMap<>();
 
+    /** shipName → team name (side display name), built when scenario loads. */
+    private final Map<String, String> shipTeamName = new LinkedHashMap<>();
+
     // Scenario loaded but not yet started
     private boolean                              scenarioLoaded   = false;
     private String                               loadedScenarioId = null;
@@ -274,6 +277,15 @@ public class GameSession {
         pendingAssignments.clear();
         coiDoneTokens.clear();
         pendingCoi.clear();
+        // Build shipName → team name index from scenario sides
+        shipTeamName.clear();
+        for (int i = 0; i < loadedSpec.sides.size(); i++) {
+            String teamName = loadedSpec.sides.get(i).name;
+            if (teamName == null || teamName.isBlank())
+                teamName = "Team " + (i + 1);
+            for (com.sfb.objects.Ship ship : loadedSideShips.get(i))
+                shipTeamName.put(ship.getName(), teamName);
+        }
     }
 
     /**
@@ -312,6 +324,7 @@ public class GameSession {
             if (info.getCorePlayer() == null) {
                 Player p = new Player();
                 p.setName(info.getName());
+                p.setTeamName(shipTeamName.getOrDefault(shipName, "Team 1"));
                 game.getPlayers().add(p);
                 info.setCorePlayer(p);
             }
@@ -477,9 +490,12 @@ public class GameSession {
                             e.getArmingType().put(w, WeaponArmingType.STANDARD);
                             break;
                         case "OVERLOAD":
-                            double ovlEnergy = hw.getArmingTurn() > 0
-                                ? (double) hw.energyToArm()       // mid-arm: cost already reflects overload rate
-                                : (double) hw.energyToArm() * 2;  // first turn: standard cost × 2 to front-load
+                            // Use the OVERLOAD per-turn cost regardless of current armingType.
+                            // If already in OVERLOAD mode, energyToArm() returns the overload rate.
+                            // If still in STANDARD mode (e.g. WS-2 first game turn), multiply by 2.
+                            double ovlEnergy = hw.getArmingType() == com.sfb.properties.WeaponArmingType.OVERLOAD
+                                ? (double) hw.energyToArm()
+                                : (double) hw.energyToArm() * 2;
                             e.getArmingEnergy().put(w, ovlEnergy);
                             e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
                             break;
@@ -887,7 +903,10 @@ public class GameSession {
                         }
                     }
                 }
-                return game.execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
+                ActionResult harResult = game.execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
+                if (harResult.isSuccess())
+                    appendCombatLog(harResult.getMessage());
+                return harResult;
             }
 
             case "BOARDING_ACTION": {
@@ -897,10 +916,21 @@ public class GameSession {
                 Ship targetShip = findShip(request.getTargetName());
                 if (targetShip == null)
                     return ActionResult.fail("Target ship not found: " + request.getTargetName());
-                return game.execute(new com.sfb.commands.BoardingActionCommand(
+                ActionResult boardResult = game.execute(new com.sfb.commands.BoardingActionCommand(
                         actingShip, targetShip,
                         request.getNormalParties(),
                         request.getCommandoParties()));
+                if (boardResult.isSuccess())
+                    appendCombatLog(boardResult.getMessage());
+                return boardResult;
+            }
+
+            case "TRANSPORT_CREW": {
+                Ship source = findShip(request.getShipName());
+                if (source == null) return ActionResult.fail("Source ship not found: " + request.getShipName());
+                com.sfb.objects.Unit dest = findUnit(request.getTargetName());
+                if (dest == null) return ActionResult.fail("Destination not found: " + request.getTargetName());
+                return game.transportCrew(source, dest, request.getCrewAmount());
             }
 
             case "IDENTIFY_SEEKERS": {
@@ -983,5 +1013,18 @@ public class GameSession {
     public Game getGame()                             { return game; }
     public String getHostToken()                      { return hostToken; }
     public Map<String, PlayerInfo> getPlayers()       { return players; }
+
+    /** Team name for the given player token — from live Player if started, else from shipTeamName map. */
+    public String getTeamNameFor(String token) {
+        PlayerInfo info = players.get(token);
+        if (info == null) return null;
+        if (info.getCorePlayer() != null) return info.getCorePlayer().getTeamName();
+        // Pre-start: derive from the first ship assigned to this player
+        return pendingAssignments.entrySet().stream()
+                .filter(e -> e.getValue().equals(token))
+                .map(e -> shipTeamName.get(e.getKey()))
+                .filter(t -> t != null)
+                .findFirst().orElse(null);
+    }
     public boolean isStarted()                        { return started; }
 }

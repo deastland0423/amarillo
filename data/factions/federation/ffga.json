@@ -46,7 +46,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "scatterpack"] }
+    { "shuttles": ["admin", "admin"] }
   ],
 
   "crewData": {

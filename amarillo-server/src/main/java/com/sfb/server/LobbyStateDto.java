@@ -12,12 +12,14 @@ public class LobbyStateDto {
 
     public static class PlayerDto {
         public final String       name;
+        public final String       teamName;
         public final boolean      isHost;
         public final List<String> assignedShips;
         public final boolean      coiDone;
 
-        PlayerDto(String name, boolean isHost, List<String> ships, boolean coiDone) {
+        PlayerDto(String name, String teamName, boolean isHost, List<String> ships, boolean coiDone) {
             this.name          = name;
+            this.teamName      = teamName;
             this.isHost        = isHost;
             this.assignedShips = ships;
             this.coiDone       = coiDone;
@@ -42,6 +44,7 @@ public class LobbyStateDto {
         this.players = session.getPlayers().entrySet().stream()
                 .map(e -> new PlayerDto(
                         e.getValue().getName(),
+                        session.getTeamNameFor(e.getKey()),
                         session.isHost(e.getKey()),
                         session.getAssignedShipsFor(e.getKey()),
                         session.isCoiDone(e.getKey())

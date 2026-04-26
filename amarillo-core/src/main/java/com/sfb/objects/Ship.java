@@ -89,6 +89,8 @@ public class Ship extends Unit {
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
+	/** Player whose boarding parties are aboard (set when troops land; used for ownership transfer on capture). */
+	private com.sfb.Player boardingAttacker = null;
 
 	/**
 	 * Speed history for C2.2 acceleration limits.
@@ -589,6 +591,9 @@ public class Ship extends Unit {
 	public void addEnemyCommandos(int commandos) {
 		enemyTroops.commandos += commandos;
 	}
+
+	public com.sfb.Player getBoardingAttacker() { return boardingAttacker; }
+	public void setBoardingAttacker(com.sfb.Player player) { this.boardingAttacker = player; }
 
 	// --- Destroyed state ---
 
@@ -1139,12 +1144,6 @@ public class Ship extends Unit {
 			int roll = roller.rollTwoDice();
 			String system = dac.fetchNextHit(roll);
 
-			// If "phaser" but none bear on the attacker, advance to the next item on this DAC row.
-			if ("phaser".equals(system) && bearingFunctionalPhasers(attacker).isEmpty()) {
-				log.add("  internal [" + roll + "]: phaser — no bearing phasers, advancing DAC");
-				system = dac.fetchNextHitExcluding(roll, "phaser");
-			}
-
 			if (system == null) {
 				boolean boxRemaining = specialFunctions.damageExcessDamage();
 				if (!boxRemaining) {
@@ -1156,110 +1155,88 @@ public class Ship extends Unit {
 				continue;
 			}
 
-			boolean hit = false;
-			switch (system) {
-				case "bridge":
-					hit = controlSpaces.damageBridge();
-					break;
-				case "flag":
-					hit = controlSpaces.damageFlag();
-					break;
-				case "emer":
-					hit = controlSpaces.damageEmer();
-					break;
-				case "auxcon":
-					hit = controlSpaces.damageAuxcon();
-					break;
-				case "lwarp":
-					hit = powerSystems.damageLWarp();
-					break;
-				case "rwarp":
-					hit = powerSystems.damageRWarp();
-					break;
-				case "cwarp":
-					hit = powerSystems.damageCWarp();
-					break;
-				case "impulse":
-					hit = powerSystems.damageImpulse();
-					break;
-				case "apr":
-					hit = powerSystems.damageApr();
-					break;
-				case "battery":
-					hit = powerSystems.damageBattery();
-					break;
-				case "fhull": {
-					boolean fAvail = hullBoxes.getAvailableFhull() > 0;
-					hit = hullBoxes.damageFhull();
-					if (hit && !fAvail)
-						system = "chull (fhull exhausted)";
-					break;
+			// Try to apply damage; if that system has no boxes, advance the DAC (C3.14).
+			java.util.Set<String> tried = new java.util.HashSet<>();
+			StringBuilder chain = new StringBuilder();
+			String hitLabel = null;
+			while (hitLabel == null) {
+				hitLabel = tryApplySystemHit(system, attacker);
+				if (hitLabel == null) {
+					tried.add(system);
+					chain.append(system).append(" (no boxes) → ");
+					String next = dac.fetchNextHitExcludingAll(roll, tried);
+					if (next == null) break; // all entries exhausted — damage wasted
+					system = next;
 				}
-				case "ahull":
-				case "afthull": {
-					boolean aAvail = hullBoxes.getAvailableAhull() > 0;
-					hit = hullBoxes.damageAhull();
-					if (hit && !aAvail)
-						system = "chull (ahull exhausted)";
-					break;
-				}
-				case "cargo":
-					hit = hullBoxes.damageCargo();
-					break;
-				case "scanner":
-					hit = specialFunctions.damageScanner();
-					break;
-				case "sensor":
-					hit = specialFunctions.damageSensor();
-					break;
-				case "damcon":
-					hit = specialFunctions.damageDamCon();
-					break;
-				case "phaser": {
-					List<Weapon> candidates = bearingFunctionalPhasers(attacker);
-					if (!candidates.isEmpty()) {
-						Weapon target = candidates.get(new Random().nextInt(candidates.size()));
-						target.damage();
-						weapons.recalculatePhaserCapacitor();
-						hit = true;
-					}
-					break;
-				}
-				case "drone": {
-					List<Weapon> drones = weapons.getDroneList();
-					Weapon target = drones.stream()
-							.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) {
-						target.damage();
-						hit = true;
-					}
-					break;
-				}
-				case "torp":
-				case "weapon": {
-					List<Weapon> all = weapons.fetchAllWeapons();
-					Weapon target = all.stream()
-							.filter(Weapon::isFunctional).findFirst().orElse(null);
-					if (target != null) {
-						target.damage();
-						hit = true;
-					}
-					break;
-				}
-				default:
-					hit = false;
-					break;
 			}
-
-			if (hit) {
-				log.add("  internal [" + roll + "]: " + system + " HIT");
+			if (hitLabel != null) {
+				log.add("  internal [" + roll + "]: " + chain + hitLabel);
 			} else {
-				log.add("  internal [" + roll + "]: " + system + " (no boxes remaining)");
+				log.add("  internal [" + roll + "]: " + chain + system + " (wasted)");
 			}
 		}
 
 		dac.reset();
 		return log;
+	}
+
+	/**
+	 * Attempts to apply one internal damage point to the named system.
+	 * Returns the log label (e.g. "fhull HIT") on success, or null if the system
+	 * has no remaining boxes (caller should advance the DAC and retry).
+	 */
+	private String tryApplySystemHit(String system, Ship attacker) {
+		switch (system) {
+			case "bridge":    return controlSpaces.damageBridge()  ? "bridge HIT"  : null;
+			case "flag":      return controlSpaces.damageFlag()    ? "flag HIT"    : null;
+			case "emer":      return controlSpaces.damageEmer()    ? "emer HIT"    : null;
+			case "auxcon":    return controlSpaces.damageAuxcon()  ? "auxcon HIT"  : null;
+			case "lwarp":     return powerSystems.damageLWarp()    ? "lwarp HIT"   : null;
+			case "rwarp":     return powerSystems.damageRWarp()    ? "rwarp HIT"   : null;
+			case "cwarp":     return powerSystems.damageCWarp()    ? "cwarp HIT"   : null;
+			case "impulse":   return powerSystems.damageImpulse()  ? "impulse HIT" : null;
+			case "apr":       return powerSystems.damageApr()      ? "apr HIT"     : null;
+			case "battery":   return powerSystems.damageBattery()  ? "battery HIT" : null;
+			case "scanner":   return specialFunctions.damageScanner()  ? "scanner HIT"  : null;
+			case "sensor":    return specialFunctions.damageSensor() != null ? "sensor HIT" : null;
+			case "damcon":    return specialFunctions.damageDamCon()   ? "damcon HIT"   : null;
+			case "cargo":     return hullBoxes.damageCargo()           ? "cargo HIT"    : null;
+			case "fhull": {
+				boolean fAvail = hullBoxes.getAvailableFhull() > 0;
+				if (!hullBoxes.damageFhull()) return null;
+				return fAvail ? "fhull HIT" : "chull (fhull exhausted) HIT";
+			}
+			case "ahull":
+			case "afthull": {
+				boolean aAvail = hullBoxes.getAvailableAhull() > 0;
+				if (!hullBoxes.damageAhull()) return null;
+				return aAvail ? system + " HIT" : "chull (ahull exhausted) HIT";
+			}
+			case "phaser": {
+				List<Weapon> candidates = bearingFunctionalPhasers(attacker);
+				if (candidates.isEmpty()) return null;
+				Weapon target = candidates.get(new Random().nextInt(candidates.size()));
+				target.damage();
+				weapons.recalculatePhaserCapacitor();
+				return "phaser HIT (" + target.getName() + ")";
+			}
+			case "drone": {
+				Weapon target = weapons.getDroneList().stream()
+						.filter(Weapon::isFunctional).findFirst().orElse(null);
+				if (target == null) return null;
+				target.damage();
+				return "drone HIT (" + target.getName() + ")";
+			}
+			case "torp":
+			case "weapon": {
+				Weapon target = weapons.fetchAllWeapons().stream()
+						.filter(Weapon::isFunctional).findFirst().orElse(null);
+				if (target == null) return null;
+				target.damage();
+				return system + " HIT (" + target.getName() + ")";
+			}
+			default: return null;
+		}
 	}
 
 	/// PHASER CAPACITORS ///

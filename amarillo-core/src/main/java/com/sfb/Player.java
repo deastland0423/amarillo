@@ -9,6 +9,7 @@ import com.sfb.properties.Faction;
 public class Player {
 
 	private String name = null;
+	private String teamName = null;
 	private Faction faction = null;
 	private List<Unit> playerUnits = new ArrayList<>();
 	
@@ -30,6 +31,14 @@ public class Player {
 
 	public void setFaction(Faction faction) {
 		this.faction = faction;
+	}
+
+	public String getTeamName() {
+		return teamName;
+	}
+
+	public void setTeamName(String teamName) {
+		this.teamName = teamName;
 	}
 
 	public List<Unit> getPlayerUnits() {

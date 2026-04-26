@@ -3,17 +3,22 @@ package com.sfb.scenario;
 import com.sfb.exceptions.CapacitorException;
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
+import com.sfb.objects.ScatterPack;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
+import com.sfb.objects.Shuttle;
+import com.sfb.objects.SuicideShuttle;
 import com.sfb.objects.Terrain;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
+import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.weapons.ADD;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -200,7 +205,10 @@ public class ScenarioLoader {
                 DroneRack rack = racks.get(rackIndex);
                 List<DroneType> requestedTypes = entry.getValue();
 
-                // Validate each type against year and speed cap; check total rack size
+                // Validate each type against year, speed cap, and rack capability
+                boolean canTypeVI = rack.getRackType() == DroneRack.DroneRackType.TYPE_E
+                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_G
+                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_H;
                 List<Drone> drones = new ArrayList<>();
                 double totalRackSize = 0;
                 boolean valid = true;
@@ -215,6 +223,11 @@ public class ScenarioLoader {
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
+                    if (dt.isTypeVI() && !canTypeVI) {
+                        System.err.println("COI: " + dt + " cannot be loaded in rack type "
+                                + rack.getRackType() + " — rack " + rackIndex + " skipped");
+                        valid = false; break;
+                    }
                     totalRackSize += dt.rack;
                 }
                 if (!valid) continue;
@@ -225,6 +238,84 @@ public class ScenarioLoader {
                 }
                 for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
                 rack.setAmmo(drones);
+            }
+        }
+
+        // --- Special shuttle conversions (WS-2: max 1, WS-3: max 2) ---
+        // Admin shuttles are converted in-bay to the requested special type.
+        if (!loadout.specialShuttlePrep.isEmpty()) {
+            int ws = spec.sides.stream()
+                    .flatMap(side -> side.ships.stream())
+                    .filter(ss -> ship.getName().equals(ss.shipName))
+                    .mapToInt(ss -> ss.weaponStatus)
+                    .findFirst().orElse(0);
+            int maxPrep = ws >= 3 ? 2 : ws == 2 ? 1 : 0;
+
+            int applied = 0;
+            for (CoiLoadout.SpecialShuttlePrep prep : loadout.specialShuttlePrep) {
+                if (applied >= maxPrep) {
+                    System.err.println("COI: special shuttle limit (" + maxPrep + ") reached — skipping "
+                            + prep.shuttleName);
+                    continue;
+                }
+                // Find the admin shuttle in the ship's bays
+                ShuttleBay foundBay = null;
+                Shuttle foundShuttle = null;
+                for (ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (Shuttle s : bay.getInventory()) {
+                        if (s.getName().equalsIgnoreCase(prep.shuttleName)) {
+                            foundBay    = bay;
+                            foundShuttle = s;
+                            break;
+                        }
+                    }
+                    if (foundBay != null) break;
+                }
+                if (foundBay == null || foundShuttle == null) {
+                    System.err.println("COI: shuttle not found: " + prep.shuttleName + " — skipped");
+                    continue;
+                }
+                // Replace the base shuttle in the bay inventory with the converted type
+                List<Shuttle> inv = foundBay.getInventory();
+                int idx = inv.indexOf(foundShuttle);
+
+                if ("suicide".equalsIgnoreCase(prep.type)) {
+                    if (!foundShuttle.canBecomeSuicide()) {
+                        System.err.println("COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
+                        continue;
+                    }
+                    SuicideShuttle ss = new SuicideShuttle(foundShuttle);
+                    int energy = Math.max(1, Math.min(3, prep.energyPerTurn));
+                    for (int t = 0; t < 3; t++) ss.arm(energy);
+                    inv.set(idx, ss);
+                    applied++;
+
+                } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
+                    if (!foundShuttle.canBecomeScatterPack()) {
+                        System.err.println("COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
+                        continue;
+                    }
+                    ScatterPack sp = new ScatterPack(foundShuttle);
+                    for (DroneType dt : prep.drones) {
+                        // Pull one drone of this type from any rack's ammo, then reloads
+                        if (!pullDroneFromRacks(ship, dt)) {
+                            System.err.println("COI: no " + dt + " available in racks for scatter pack "
+                                    + prep.shuttleName + " — drone skipped");
+                            continue;
+                        }
+                        if (!sp.addDrone(new Drone(dt))) {
+                            System.err.println("COI: scatter pack " + prep.shuttleName
+                                    + " payload full — remaining drones skipped");
+                            break;
+                        }
+                    }
+                    inv.set(idx, sp);
+                    applied++;
+
+                } else {
+                    System.err.println("COI: unknown conversion type '" + prep.type
+                            + "' for shuttle " + prep.shuttleName + " — skipped");
+                }
             }
         }
 
@@ -260,8 +351,41 @@ public class ScenarioLoader {
                 }
                 hw.setArmed(true);
                 hw.setArmingTurn(hw.totalArmingTurns());
+                if (w instanceof com.sfb.weapons.Photon) {
+                    ((com.sfb.weapons.Photon) w).setArmingEnergy(
+                        (double) hw.energyToArm() * hw.totalArmingTurns());
+                }
             }
         }
+    }
+
+    /**
+     * Remove one drone of the given type from the ship's rack ammo or reloads.
+     * Searches ammo lists first, then reload sets across all racks.
+     * Returns true if a drone was found and removed, false if none available.
+     */
+    private static boolean pullDroneFromRacks(Ship ship, DroneType type) {
+        List<DroneRack> racks = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof DroneRack) racks.add((DroneRack) w);
+        }
+        // Check reload sets first — preserve ammo so the rack is ready to fire on Turn 1
+        for (DroneRack rack : racks) {
+            for (List<Drone> reloadSet : rack.getReloads()) {
+                Iterator<Drone> it = reloadSet.iterator();
+                while (it.hasNext()) {
+                    if (it.next().getDroneType() == type) { it.remove(); return true; }
+                }
+            }
+        }
+        // Fall back to ammo only if no matching drone exists in any reload set
+        for (DroneRack rack : racks) {
+            Iterator<Drone> it = rack.getAmmo().iterator();
+            while (it.hasNext()) {
+                if (it.next().getDroneType() == type) { it.remove(); return true; }
+            }
+        }
+        return false;
     }
 
     /**
@@ -410,6 +534,10 @@ public class ScenarioLoader {
                         HeavyWeapon hw = (HeavyWeapon) w;
                         hw.setArmed(true);
                         hw.setArmingTurn(hw.totalArmingTurns());
+                        if (w instanceof com.sfb.weapons.Photon) {
+                            ((com.sfb.weapons.Photon) w).setArmingEnergy(
+                                (double) hw.energyToArm() * hw.totalArmingTurns());
+                        }
                         if (hw instanceof com.sfb.weapons.PlasmaLauncher)
                             ((com.sfb.weapons.PlasmaLauncher) hw).setArmedState();
                     }

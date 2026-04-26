@@ -197,6 +197,19 @@ public class GameController {
                             dr.put("index",       droneIndex++);
                             dr.put("designator",  w.getDesignator());
                             dr.put("spaces",      rack.getSpaces());
+                            dr.put("reloadCount", rack.getNumberOfReloads());
+                            // Default ammo as list of type names (what's in the rack before any COI)
+                            List<String> defAmmo = new ArrayList<>();
+                            for (com.sfb.objects.Drone d : rack.getAmmo()) {
+                                defAmmo.add(d.getDroneType() != null ? d.getDroneType().name() : "TypeI");
+                            }
+                            dr.put("defaultAmmo", defAmmo);
+                            // Only TYPE_E, TYPE_G, and TYPE_H can load TypeVI variants
+                            com.sfb.weapons.DroneRack.DroneRackType rt = rack.getRackType();
+                            dr.put("canLoadTypeVI",
+                                rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_E
+                                || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_G
+                                || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_H);
                             drones.add(dr);
                         }
                     }
@@ -231,6 +244,26 @@ public class GameController {
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);
+
+                    // Shuttles eligible for pre-game conversion, with supported types per shuttle
+                    List<Map<String, Object>> convertibleShuttles = new ArrayList<>();
+                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                        for (com.sfb.objects.Shuttle sh : bay.getInventory()) {
+                            List<String> types = new ArrayList<>();
+                            if (sh.canBecomeSuicide())     types.add("suicide");
+                            if (sh.canBecomeScatterPack()) types.add("scatterpack");
+                            if (sh.canBecomeWildWeasel())  types.add("wildweasel");
+                            if (!types.isEmpty()) {
+                                Map<String, Object> shMap = new java.util.LinkedHashMap<>();
+                                shMap.put("name",  sh.getName());
+                                shMap.put("types", types);
+                                convertibleShuttles.add(shMap);
+                            }
+                        }
+                    }
+                    s.put("convertibleShuttles", convertibleShuttles);
+                    // Max shuttle conversions allowed based on weapon status
+                    s.put("maxPreparedShuttles", ws >= 3 ? 2 : ws == 2 ? 1 : 0);
 
                     shipList.add(s);
                 }

@@ -154,6 +154,7 @@ export interface ShipObject extends MapObjectBase {
   availableDeckCrews:  number;
   crewQuality:         string;   // "POOR" | "NORMAL" | "OUTSTANDING"
   availableTransporters?:   number;
+  totalTransporters?:       number;
   transporterEnergyCost?:   number;
   uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
@@ -178,6 +179,9 @@ export interface ShipObject extends MapObjectBase {
   turnMode?:         string;    // e.g. "A", "B", "C"
   turnHexes?:        number;    // hexes required between turns at current speed
   hexesUntilTurn?:   number;    // 0 = may turn now; >0 = hexes still needed
+  captured?:         boolean;   // true after all control rooms taken (D7.50)
+  ownerName?:        string;    // controlling player name (may change on capture)
+  teamName?:         string;    // display name of the team/side this ship belongs to
 }
 
 export interface ShuttleObject extends MapObjectBase {

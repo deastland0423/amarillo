@@ -379,6 +379,10 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		return this.armingEnergy;
 	}
 
+	public void setArmingEnergy(double energy) {
+		this.armingEnergy = energy;
+	}
+
 	@Override
 	public int totalArmingTurns() {
 		return 2;

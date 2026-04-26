@@ -59,4 +59,9 @@ public enum DroneType {
   public boolean availableIn(int year) {
     return year >= availableFromYear;
   }
+
+  /** True if this is a TypeVI variant (TypeVI, TypeVIM, TypeVIF) — only loadable in TYPE_E/G/H racks. */
+  public boolean isTypeVI() {
+    return this == TypeVI || this == TypeVIM || this == TypeVIF;
+  }
 }

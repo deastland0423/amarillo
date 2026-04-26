@@ -279,122 +279,87 @@ public class MapUtils {
 				break;
 			case 5:
 				switch (absoluteShieldfacing) {
-					case 1:
-						returnValue = 11;
-						break;
-					case 3:
-						returnValue = 1;
-						break;
-					case 5:
-						returnValue = 3;
-						break;
-					case 7:
-						returnValue = 5;
-						break;
-					case 9:
-						returnValue = 7;
-						break;
-					case 11:
-						returnValue = 9;
-						break;
-					default:
-						break;
+					case 1:  returnValue = 11; break;
+					case 2:  returnValue = 12; break;
+					case 3:  returnValue = 1;  break;
+					case 4:  returnValue = 2;  break;
+					case 5:  returnValue = 3;  break;
+					case 6:  returnValue = 4;  break;
+					case 7:  returnValue = 5;  break;
+					case 8:  returnValue = 6;  break;
+					case 9:  returnValue = 7;  break;
+					case 10: returnValue = 8;  break;
+					case 11: returnValue = 9;  break;
+					case 12: returnValue = 10; break;
+					default: break;
 				}
 				break;
 			case 9:
 				switch (absoluteShieldfacing) {
-					case 1:
-						returnValue = 9;
-						break;
-					case 3:
-						returnValue = 11;
-						break;
-					case 5:
-						returnValue = 1;
-						break;
-					case 7:
-						returnValue = 3;
-						break;
-					case 9:
-						returnValue = 5;
-						break;
-					case 11:
-						returnValue = 7;
-						break;
-					default:
-						break;
+					case 1:  returnValue = 9;  break;
+					case 2:  returnValue = 10; break;
+					case 3:  returnValue = 11; break;
+					case 4:  returnValue = 12; break;
+					case 5:  returnValue = 1;  break;
+					case 6:  returnValue = 2;  break;
+					case 7:  returnValue = 3;  break;
+					case 8:  returnValue = 4;  break;
+					case 9:  returnValue = 5;  break;
+					case 10: returnValue = 6;  break;
+					case 11: returnValue = 7;  break;
+					case 12: returnValue = 8;  break;
+					default: break;
 				}
 				break;
 			case 13:
 				switch (absoluteShieldfacing) {
-					case 1:
-						returnValue = 7;
-						break;
-					case 3:
-						returnValue = 9;
-						break;
-					case 5:
-						returnValue = 11;
-						break;
-					case 7:
-						returnValue = 1;
-						break;
-					case 9:
-						returnValue = 3;
-						break;
-					case 11:
-						returnValue = 5;
-						break;
-					default:
-						break;
+					case 1:  returnValue = 7;  break;
+					case 2:  returnValue = 8;  break;
+					case 3:  returnValue = 9;  break;
+					case 4:  returnValue = 10; break;
+					case 5:  returnValue = 11; break;
+					case 6:  returnValue = 12; break;
+					case 7:  returnValue = 1;  break;
+					case 8:  returnValue = 2;  break;
+					case 9:  returnValue = 3;  break;
+					case 10: returnValue = 4;  break;
+					case 11: returnValue = 5;  break;
+					case 12: returnValue = 6;  break;
+					default: break;
 				}
 				break;
 			case 17:
 				switch (absoluteShieldfacing) {
-					case 1:
-						returnValue = 5;
-						break;
-					case 3:
-						returnValue = 7;
-						break;
-					case 5:
-						returnValue = 9;
-						break;
-					case 7:
-						returnValue = 11;
-						break;
-					case 9:
-						returnValue = 1;
-						break;
-					case 11:
-						returnValue = 3;
-						break;
-					default:
-						break;
+					case 1:  returnValue = 5;  break;
+					case 2:  returnValue = 6;  break;
+					case 3:  returnValue = 7;  break;
+					case 4:  returnValue = 8;  break;
+					case 5:  returnValue = 9;  break;
+					case 6:  returnValue = 10; break;
+					case 7:  returnValue = 11; break;
+					case 8:  returnValue = 12; break;
+					case 9:  returnValue = 1;  break;
+					case 10: returnValue = 2;  break;
+					case 11: returnValue = 3;  break;
+					case 12: returnValue = 4;  break;
+					default: break;
 				}
 				break;
 			case 21:
 				switch (absoluteShieldfacing) {
-					case 1:
-						returnValue = 3;
-						break;
-					case 3:
-						returnValue = 5;
-						break;
-					case 5:
-						returnValue = 7;
-						break;
-					case 7:
-						returnValue = 9;
-						break;
-					case 9:
-						returnValue = 11;
-						break;
-					case 11:
-						returnValue = 1;
-						break;
-					default:
-						break;
+					case 1:  returnValue = 3;  break;
+					case 2:  returnValue = 4;  break;
+					case 3:  returnValue = 5;  break;
+					case 4:  returnValue = 6;  break;
+					case 5:  returnValue = 7;  break;
+					case 6:  returnValue = 8;  break;
+					case 7:  returnValue = 9;  break;
+					case 8:  returnValue = 10; break;
+					case 9:  returnValue = 11; break;
+					case 10: returnValue = 12; break;
+					case 11: returnValue = 1;  break;
+					case 12: returnValue = 2;  break;
+					default: break;
 				}
 				break;
 			default:

@@ -180,10 +180,12 @@ public class GameStateDto {
         public int                  availableLab;
         // Crew
         public int                  availableCrewUnits;
+        public int                  capturedCrew;
         public int                  minimumCrew;
         public int                  availableDeckCrews;
         public String               crewQuality;       // "POOR" | "NORMAL" | "OUTSTANDING"
         public int                  availableTransporters;
+        public int                  totalTransporters;
         public double               transporterEnergyCost;
         // Hull box damage state
         public int                  availableFhull;
@@ -245,6 +247,10 @@ public class GameStateDto {
         public String       turnMode;        // e.g. "A", "B", "C"
         public int          turnHexes;       // hexes required between turns at current speed
         public int          hexesUntilTurn;  // 0 = may turn now; >0 = hexes still needed
+        // Capture state
+        public boolean      captured;
+        public String       ownerName;       // name of the controlling player (may change on capture)
+        public String       teamName;        // display name of the team/side this ship belongs to
     }
 
     // -------------------------------------------------------------------------
@@ -460,10 +466,12 @@ public class GameStateDto {
         dto.commandos             = ship.getCrew().getFriendlyTroops().commandos;
         dto.availableLab          = ship.getLabs().getAvailableLab();
         dto.availableCrewUnits    = ship.getCrew().getAvailableCrewUnits();
+        dto.capturedCrew          = ship.getCrew().getCapturedCrew();
         dto.minimumCrew           = ship.getCrew().getMinimumCrew();
         dto.availableDeckCrews    = ship.getCrew().getAvailableDeckCrews();
         dto.crewQuality           = ship.getCrew().getCrewQuality().name();
         dto.availableTransporters    = ship.getTransporters().getAvailableTrans();
+        dto.totalTransporters        = ship.getTransporters().fetchOriginalTotalBoxes();
         dto.transporterEnergyCost    = com.sfb.constants.Constants.TRANS_ENERGY;
 
         // Hull box damage state
@@ -521,6 +529,9 @@ public class GameStateDto {
         dto.lockOnTargets     = ship.getLockOns().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());
+        dto.captured          = ship.isCaptured();
+        dto.ownerName         = ship.getOwner() != null ? ship.getOwner().getName() : null;
+        dto.teamName          = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();

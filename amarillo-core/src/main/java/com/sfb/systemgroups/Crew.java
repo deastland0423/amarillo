@@ -15,6 +15,7 @@ public class Crew implements Systems {
 	private int deckCrews    = 2; // Most ships have 2 deck crews for drone reloads or shuttle operations.
 
 	private int availableCrewUnits = 0;
+	private int capturedCrew       = 0; // enemy crew taken prisoner (D7.50)
 	private int availableDeckCrews = 0;
 
 	/** Friendly boarding parties available on this ship. */
@@ -96,6 +97,10 @@ public class Crew implements Systems {
 	public int getMinimumCrew() {
 		return this.minimumCrew;
 	}
+
+	public int getCapturedCrew() { return capturedCrew; }
+	public void setCapturedCrew(int n) { this.capturedCrew = n; }
+	public void addCapturedCrew(int n) { this.capturedCrew += n; }
 
 	// --- Deck crews ---
 

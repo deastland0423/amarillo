@@ -261,7 +261,7 @@ export default function EnergyAllocationDialog({
   const batMax   = ship.availableBattery ?? 0;
   const batCharge = ship.batteryCharge ?? 0;
   const capFull  = ship.capacitorsCharged
-    && (ship.phaserCapacitor ?? 0) >= (ship.minimumShieldCost ?? 0);
+    && (ship.phaserCapacitor ?? 0) >= (ship.phaserCapacitorMax ?? 0);
 
   const { spent, total } = calcBudget(ship, alloc);
   const overBudget = spent > total;

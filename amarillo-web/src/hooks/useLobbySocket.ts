@@ -5,6 +5,7 @@ import { gameApi } from '../api/gameApi';
 
 export interface LobbyPlayer {
   name: string;
+  teamName: string | null;
   isHost: boolean;
   assignedShips: string[];
   coiDone: boolean;

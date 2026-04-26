@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType } from '../api/gameApi';
+import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiShuttlePrepEntry } from '../api/gameApi';
 
 interface Props {
   sides:       CoiSideData[];
@@ -11,6 +11,12 @@ interface Props {
 
 type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING';
 
+interface ShuttlePrep {
+  type:          string;       // 'suicide' | 'scatterpack'
+  energyPerTurn: number;       // suicide only
+  drones:        string[];     // scatterpack only
+}
+
 interface ShipCoi {
   extraBoardingParties: number;
   convertBpToCommando:  number;
@@ -18,6 +24,7 @@ interface ShipCoi {
   extraTBombs:          number;
   weaponArmingModes:    Record<string, ArmMode>;
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
+  shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
 }
 
 function defaultShipCoi(): ShipCoi {
@@ -28,6 +35,7 @@ function defaultShipCoi(): ShipCoi {
     extraTBombs:          0,
     weaponArmingModes:    {},
     droneRackLoadouts:    {},
+    shuttlePrep:          {},
   };
 }
 
@@ -45,6 +53,38 @@ function droneSpaceUsed(drones: string[], allTypes: CoiDroneType[]): number {
   }, 0);
 }
 
+/**
+ * Compute how many drones of each type are available across all racks,
+ * using custom loadouts where set, defaultAmmo otherwise.
+ * Each rack contributes ammo × (1 + reloadCount) total drones.
+ */
+function computeDronePool(
+  racks: CoiDroneRack[],
+  loadouts: Record<number, string[]>,
+): Record<string, number> {
+  const pool: Record<string, number> = {};
+  for (const rack of racks) {
+    const ammo = loadouts[rack.index] ?? rack.defaultAmmo;
+    const copies = 1 + rack.reloadCount;
+    for (const name of ammo) {
+      pool[name] = (pool[name] ?? 0) + copies;
+    }
+  }
+  return pool;
+}
+
+/** Sum of drones committed to ALL scatter packs in the current COI state. */
+function computePackCommitments(shuttlePrep: Record<string, ShuttlePrep | null>): Record<string, number> {
+  const committed: Record<string, number> = {};
+  for (const prep of Object.values(shuttlePrep)) {
+    if (!prep || prep.type !== 'scatterpack') continue;
+    for (const name of prep.drones) {
+      committed[name] = (committed[name] ?? 0) + 1;
+    }
+  }
+  return committed;
+}
+
 function ShipCoiPanel({
   ship,
   coi,
@@ -57,6 +97,13 @@ function ShipCoiPanel({
   const cost     = coiCost(coi);
   const overBudget = cost > ship.coiBudget;
   const hasWs3Heavy = ship.weaponStatus === 3 && ship.heavyWeapons.length > 0;
+  const hasSpecialShuttles = (ship.convertibleShuttles?.length ?? 0) > 0 && ship.maxPreparedShuttles > 0;
+
+  const CONVERSION_LABELS: Record<string, string> = {
+    suicide:     'Suicide Shuttle',
+    scatterpack: 'Scatter Pack',
+    wildweasel:  'Wild Weasel',
+  };
 
   function setNum(field: keyof ShipCoi, val: number) {
     onChange({ ...coi, [field]: Math.max(0, val) });
@@ -64,6 +111,47 @@ function ShipCoiPanel({
 
   function setArmMode(designator: string, mode: ArmMode) {
     onChange({ ...coi, weaponArmingModes: { ...coi.weaponArmingModes, [designator]: mode } });
+  }
+
+  const prepCount = Object.values(coi.shuttlePrep).filter(v => v !== null).length;
+
+  function toggleShuttle(shuttleName: string) {
+    const current = coi.shuttlePrep[shuttleName];
+    if (current !== undefined && current !== null) {
+      onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: null } });
+    } else if (prepCount < ship.maxPreparedShuttles) {
+      const shInfo = ship.convertibleShuttles?.find(s => s.name === shuttleName);
+      const defaultType = shInfo?.types[0] ?? 'suicide';
+      onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { type: defaultType, energyPerTurn: 3, drones: [] } } });
+    }
+  }
+
+  function setShuttleType(shuttleName: string, type: string) {
+    const prep = coi.shuttlePrep[shuttleName];
+    if (!prep) return;
+    onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { ...prep, type, drones: [] } } });
+  }
+
+  function setSuicideEnergy(shuttleName: string, val: number) {
+    const prep = coi.shuttlePrep[shuttleName];
+    if (!prep) return;
+    onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { ...prep, energyPerTurn: Math.max(1, Math.min(3, val)) } } });
+  }
+
+  function addScatterDrone(shuttleName: string, typeName: string) {
+    const prep = coi.shuttlePrep[shuttleName];
+    if (!prep) return;
+    const dt = ship.availableDroneTypes.find(t => t.name === typeName);
+    if (!dt) return;
+    const used = prep.drones.reduce((s, n) => { const d = ship.availableDroneTypes.find(t => t.name === n); return s + (d?.rack ?? 0); }, 0);
+    if (used + dt.rack > 6) return;
+    onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { ...prep, drones: [...prep.drones, typeName] } } });
+  }
+
+  function removeScatterDrone(shuttleName: string, idx: number) {
+    const prep = coi.shuttlePrep[shuttleName];
+    if (!prep) return;
+    onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { ...prep, drones: prep.drones.filter((_, i) => i !== idx) } } });
   }
 
   return (
@@ -147,7 +235,8 @@ function ShipCoiPanel({
                 {remaining > 0 && (
                   <div className="coi-drone-add-row">
                     {ship.availableDroneTypes
-                      .filter(dt => dt.rack <= remaining)
+                      .filter(dt => dt.rack <= remaining
+                        && (rack.canLoadTypeVI || !dt.name.startsWith('TypeVI')))
                       .map(dt => (
                         <button key={dt.name} className="secondary coi-drone-add-btn"
                           onClick={() => addDrone(dt.name)}>
@@ -189,6 +278,114 @@ function ShipCoiPanel({
           })}
         </div>
       )}
+
+      {/* Special shuttle conversion (WS-2: max 1, WS-3: max 2) */}
+      {hasSpecialShuttles && (
+        <div className="coi-section">
+          <div className="coi-section-title">
+            Shuttle Conversions (WS-{ship.weaponStatus}: up to {ship.maxPreparedShuttles})
+          </div>
+          {(ship.convertibleShuttles ?? []).map(sh => {
+            const shuttleName = sh.name;
+            const prep = coi.shuttlePrep[shuttleName];
+            const selected = prep !== null && prep !== undefined;
+            const canSelect = !selected && prepCount < ship.maxPreparedShuttles;
+            return (
+              <div key={shuttleName} className="coi-rack-block">
+                <div className="coi-rack-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    disabled={!selected && !canSelect}
+                    onChange={() => toggleShuttle(shuttleName)}
+                  />
+                  <span>{shuttleName}</span>
+                  {selected && prep && (
+                    <select
+                      value={prep.type}
+                      onChange={e => setShuttleType(shuttleName, e.target.value)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {sh.types.map(t => (
+                        <option key={t} value={t}>{CONVERSION_LABELS[t] ?? t}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {selected && prep && prep.type === 'suicide' && (
+                  <div className="coi-row" style={{ marginTop: 6 }}>
+                    <label className="coi-label">
+                      Energy/turn (1–3) — warhead: {prep.energyPerTurn * 6} dmg
+                    </label>
+                    <div className="coi-arm-options">
+                      {[1, 2, 3].map(e => (
+                        <label key={e} className="coi-arm-option">
+                          <input
+                            type="radio"
+                            name={`${ship.shipName}-${shuttleName}-energy`}
+                            value={e}
+                            checked={prep.energyPerTurn === e}
+                            onChange={() => setSuicideEnergy(shuttleName, e)}
+                          />
+                          {e} ({e * 6} dmg)
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selected && prep && prep.type === 'scatterpack' && (() => {
+                  const spaceUsed = droneSpaceUsed(prep.drones, ship.availableDroneTypes);
+                  const spaceLeft = 6 - spaceUsed;
+                  const pool = computeDronePool(ship.droneRacks, coi.droneRackLoadouts);
+                  const committed = computePackCommitments(coi.shuttlePrep);
+                  return (
+                    <div style={{ marginTop: 6 }}>
+                      <div className="coi-rack-header">{spaceUsed.toFixed(1)} / 6 spaces loaded</div>
+                      <div className="coi-rack-loadout">
+                        {prep.drones.map((name, i) => {
+                          const dt = ship.availableDroneTypes.find(t => t.name === name);
+                          return (
+                            <span key={i} className="coi-drone-chip">
+                              {name} ({dt?.damage}dmg, spd {dt?.speed})
+                              <button className="coi-drone-remove" onClick={() => removeScatterDrone(shuttleName, i)}>✕</button>
+                            </span>
+                          );
+                        })}
+                        {prep.drones.length === 0 && <span className="coi-note">No drones loaded</span>}
+                      </div>
+                      {spaceLeft > 0 && (
+                        <div className="coi-drone-add-row">
+                          {ship.availableDroneTypes
+                            .filter(dt => {
+                              const inPool = pool[dt.name] ?? 0;
+                              const used   = committed[dt.name] ?? 0;
+                              return dt.rack <= spaceLeft && inPool - used > 0;
+                            })
+                            .map(dt => {
+                              const avail = (pool[dt.name] ?? 0) - (committed[dt.name] ?? 0);
+                              return (
+                                <button key={dt.name} className="secondary coi-drone-add-btn"
+                                  onClick={() => addScatterDrone(shuttleName, dt.name)}>
+                                  + {dt.name} ({dt.rack}sp) ×{avail}
+                                </button>
+                              );
+                            })}
+                          {ship.availableDroneTypes.every(dt => {
+                            const avail = (pool[dt.name] ?? 0) - (committed[dt.name] ?? 0);
+                            return dt.rack > spaceLeft || avail <= 0;
+                          }) && <span className="coi-note">No drones available in racks</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -216,6 +413,17 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
           )
         : undefined;
 
+      // Build specialShuttlePrep entries for selected shuttles
+      const shuttlePrep: import('../api/gameApi').CoiShuttlePrepEntry[] = [];
+      for (const [shuttleName, prep] of Object.entries(coi.shuttlePrep)) {
+        if (!prep) continue;
+        if (prep.type === 'suicide') {
+          shuttlePrep.push({ shuttleName, type: 'suicide', energyPerTurn: prep.energyPerTurn });
+        } else if (prep.type === 'scatterpack') {
+          shuttlePrep.push({ shuttleName, type: 'scatterpack', drones: prep.drones });
+        }
+      }
+
       sub[shipName] = {
         extraBoardingParties: coi.extraBoardingParties,
         convertBpToCommando:  coi.convertBpToCommando,
@@ -224,6 +432,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         droneRackLoadouts:    rackLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
                               ? coi.weaponArmingModes : undefined,
+        specialShuttlePrep:   shuttlePrep.length > 0 ? shuttlePrep : undefined,
       };
     }
     return sub;

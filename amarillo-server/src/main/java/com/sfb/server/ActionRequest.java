@@ -138,6 +138,12 @@ public class ActionRequest {
     public int  getCommandoParties()                     { return commandoParties; }
     public void setCommandoParties(int commandoParties)  { this.commandoParties = commandoParties; }
 
+    // TRANSPORT_CREW fields  (shipName = source, targetName = destination)
+    private int crewAmount;
+
+    public int  getCrewAmount()                { return crewAmount; }
+    public void setCrewAmount(int crewAmount)  { this.crewAmount = crewAmount; }
+
     // IDENTIFY_SEEKERS fields
     private List<String> seekerNames;
 

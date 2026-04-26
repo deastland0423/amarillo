@@ -15,6 +15,8 @@ import com.sfb.weapons.Weapon;
  */
 public class GASShuttle extends Shuttle {
 
+    @Override public boolean canBecomeWildWeasel() { return true; }
+
     public GASShuttle() {
         setHull(8);
         setMaxSpeed(6);

@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * JSON body for a single ship's COI selections in POST /api/games/{id}/coi.
  */
@@ -24,6 +25,15 @@ public class CoiRequest {
 
     /** Weapon designator → arming mode name ("STANDARD", "OVERLOAD", "SPECIAL"). */
     public Map<String, String> weaponArmingModes = new LinkedHashMap<>();
+
+    /** Pre-game special shuttle preparations. */
+    public static class ShuttlePrepRequest {
+        public String shuttleName   = "";
+        public String type          = "";   // "suicide" or "scatterpack"
+        public int    energyPerTurn = 3;    // suicide only
+        public List<String> drones  = new ArrayList<>();  // scatterpack only
+    }
+    public List<ShuttlePrepRequest> specialShuttlePrep = new ArrayList<>();
 
     public CoiLoadout toLoadout() {
         CoiLoadout out = new CoiLoadout();
@@ -48,6 +58,23 @@ public class CoiRequest {
             try {
                 out.weaponArmingModes.put(entry.getKey(), WeaponArmingType.valueOf(entry.getValue()));
             } catch (IllegalArgumentException e) { /* skip unknown modes */ }
+        }
+
+        if (specialShuttlePrep != null) {
+            for (ShuttlePrepRequest req : specialShuttlePrep) {
+                if (req.shuttleName == null || req.shuttleName.isBlank()) continue;
+                CoiLoadout.SpecialShuttlePrep prep = new CoiLoadout.SpecialShuttlePrep();
+                prep.shuttleName   = req.shuttleName;
+                prep.type          = req.type;
+                prep.energyPerTurn = Math.max(1, Math.min(3, req.energyPerTurn));
+                if (req.drones != null) {
+                    for (String name : req.drones) {
+                        try { prep.drones.add(DroneType.valueOf(name)); }
+                        catch (IllegalArgumentException e) { /* skip unknown types */ }
+                    }
+                }
+                out.specialShuttlePrep.add(prep);
+            }
         }
 
         return out;

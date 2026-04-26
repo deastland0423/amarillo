@@ -163,35 +163,51 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         <span className="subtitle">Share this ID with other players</span>
       </div>
 
-      {/* Player list with COI status */}
+      {/* Player list with COI status, grouped by team */}
       <div className="card" style={{ width: '100%', maxWidth: 480 }}>
         <h3 style={{ margin: 0 }}>Players</h3>
         {(!lobby || lobby.players.length === 0) && (
           <p className="subtitle">Waiting for players…</p>
         )}
-        <ul className="player-list">
-          {(lobby?.players ?? []).map(p => (
-            <li key={p.name} className="player-row">
-              <span className="player-name">
-                {p.name}
-                {p.isHost  && <span className="badge">host</span>}
-                {p.name === session.playerName && <span className="badge you">you</span>}
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {p.assignedShips.length > 0 && (
-                  <span className="ship-tags">
-                    {p.assignedShips.map(s => <span key={s} className="ship-tag">{s}</span>)}
-                  </span>
-                )}
-                {lobby?.scenarioLoaded && (
-                  <span style={{ fontSize: 12, color: p.coiDone ? '#56d364' : '#8b949e' }}>
-                    {p.coiDone ? '✓ COI' : '○ COI'}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {(() => {
+          const allPlayers = lobby?.players ?? [];
+          // Collect unique team names in order of first appearance; null → ungrouped
+          const teams: (string | null)[] = [];
+          for (const p of allPlayers) {
+            if (!teams.includes(p.teamName)) teams.push(p.teamName);
+          }
+          const grouped = teams.length > 1 || teams[0] !== null;
+          return teams.map(team => (
+            <div key={team ?? '__none__'}>
+              {grouped && team && (
+                <div className="team-header">{team}</div>
+              )}
+              <ul className="player-list">
+                {allPlayers.filter(p => p.teamName === team).map(p => (
+                  <li key={p.name} className="player-row">
+                    <span className="player-name">
+                      {p.name}
+                      {p.isHost && <span className="badge">host</span>}
+                      {p.name === session.playerName && <span className="badge you">you</span>}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {p.assignedShips.length > 0 && (
+                        <span className="ship-tags">
+                          {p.assignedShips.map(s => <span key={s} className="ship-tag">{s}</span>)}
+                        </span>
+                      )}
+                      {lobby?.scenarioLoaded && (
+                        <span style={{ fontSize: 12, color: p.coiDone ? '#56d364' : '#8b949e' }}>
+                          {p.coiDone ? '✓ COI' : '○ COI'}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ));
+        })()}
 
         {/* Host: scenario picker */}
         {session.isHost && (

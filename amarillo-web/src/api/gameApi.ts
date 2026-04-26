@@ -85,9 +85,12 @@ export interface CoiHeavyWeapon {
 }
 
 export interface CoiDroneRack {
-  index:      number;
-  designator: string;
-  spaces:     number;
+  index:        number;
+  designator:   string;
+  spaces:       number;
+  reloadCount:  number;
+  defaultAmmo:  string[];  // drone type names before any COI loadout
+  canLoadTypeVI: boolean;  // only TYPE_E, TYPE_G, TYPE_H
 }
 
 export interface CoiDroneType {
@@ -96,6 +99,7 @@ export interface CoiDroneType {
   damage: number;
   rack:   number;   // spaces consumed per drone
 }
+
 
 export interface CoiShipData {
   shipName:            string;
@@ -109,12 +113,21 @@ export interface CoiShipData {
   heavyWeapons:        CoiHeavyWeapon[];
   droneRacks:          CoiDroneRack[];
   availableDroneTypes: CoiDroneType[];
+  convertibleShuttles: { name: string; types: string[] }[];
+  maxPreparedShuttles: number;        // WS2=1, WS3=2, else 0
 }
 
 export interface CoiSideData {
   faction: string;
   name:    string;
   ships:   CoiShipData[];
+}
+
+export interface CoiShuttlePrepEntry {
+  shuttleName:    string;
+  type:           string;          // "suicide" | "scatterpack"
+  energyPerTurn?: number;          // suicide only
+  drones?:        string[];        // scatterpack only
 }
 
 /** Per-ship COI selections to POST to /api/games/{id}/coi */
@@ -126,6 +139,7 @@ export interface CoiSubmission {
     extraTBombs?:          number;
     droneRackLoadouts?:    Record<string, string[]>;
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
+    specialShuttlePrep?:   CoiShuttlePrepEntry[];
   };
 }
 
