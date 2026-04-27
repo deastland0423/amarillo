@@ -1282,6 +1282,8 @@ interface SidebarProps {
   onCancelCrew:    () => void;
   onSetCrewAmount: (n: number) => void;
   onSubmitCrew:    () => void;
+  // Disengagement
+  onDisengageSeparation: () => void;
 }
 
 function ShipSidebar({
@@ -1301,6 +1303,7 @@ function ShipSidebar({
   transportersOpen, onToggleTransporters,
   crewMode, crewTarget, crewAmount, crewError,
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
+  onDisengageSeparation,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1510,6 +1513,18 @@ function ShipSidebar({
                 </div>
               )}
             </>
+          )}
+
+          {/* Separation disengagement — available any phase when conditions met */}
+          {ship.canDisengageBySeparation && (
+            <button
+              className="action-strip-btn"
+              style={{ marginTop: 4, borderColor: '#f85149', color: '#f85149' }}
+              onClick={onDisengageSeparation}
+              title="Disengage by separation — no enemies within 50 hexes (C7.2)"
+            >
+              Disengage
+            </button>
           )}
 
         </div>
@@ -2075,8 +2090,11 @@ export default function GameBoard({ session, onLeave }: Props) {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [log]);
 
+  const turnLabel  = gameState
+    ? (gameState.maxTurns > 0 ? `Turn ${gameState.turn}/${gameState.maxTurns}` : `Turn ${gameState.turn}`)
+    : 'Turn ?';
   const phaseLabel = gameState
-    ? `Turn ${gameState.turn}  |  Impulse ${gameState.impulse}  |  ${phase}`
+    ? `${turnLabel}  |  Impulse ${gameState.impulse}  |  ${phase}`
     : 'Loading…';
 
   const selectedShip = selected?.type === 'SHIP' ? (selected as ShipObject) : null;
@@ -2418,6 +2436,45 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  async function handleConfirmAccelDisengage(shipName: string, confirm: boolean) {
+    const ship = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === shipName) as ShipObject | undefined;
+    if (confirm && ship) {
+      const dirs = ship.destructionDirections ?? [];
+      if (dirs.length > 0) {
+        const dir = String.fromCharCode(65 + Math.floor((ship.facing - 1) / 4));
+        if (dirs.includes(dir)) {
+          if (!window.confirm(
+            `Warning: ${shipName} is facing direction ${dir}, which is a destruction zone for your side.\n\nDisengaging in this direction will result in destruction. Continue?`
+          )) return;
+        }
+      }
+    }
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'CONFIRM_ACCEL_DISENGAGE', shipName, declare: confirm,
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`Accel disengage failed: ${res.message}`, 'error');
+  }
+
+  async function handleDisengageSeparation() {
+    if (!liveShip) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'DISENGAGE_SEPARATION', shipName: liveShip.name,
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`Disengage failed: ${res.message}`, 'error');
+  }
+
+  async function handleConcede() {
+    if (!window.confirm('Concede the battle? All your ships will be marked DESTROYED and the game may end.'))
+      return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'CONCEDE',
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`Concede failed: ${res.message}`, 'error');
+  }
+
   // Unidentified enemy seekers for lab ID panel
   const idSeekers = (gameState?.mapObjects ?? [])
     .filter(o => (o.type === 'DRONE' || o.type === 'PLASMA') && !o.isIdentified
@@ -2728,6 +2785,139 @@ export default function GameBoard({ session, onLeave }: Props) {
 
   return (
     <div className="board-layout">
+
+      {/* ---- Accel disengage confirmation prompt (C7.1) ---- */}
+      {(() => {
+        const myPending = (gameState?.pendingAccelDisengage ?? []).filter(n => myShips.has(n));
+        if (myPending.length === 0) return null;
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 998,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              background: '#161b22', border: '1px solid #f0c040',
+              borderRadius: 10, padding: '1.5rem', width: 420,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.75rem', color: '#f0c040' }}>
+                Disengagement by Acceleration (C7.1)
+              </div>
+              {myPending.map(name => {
+                const ship = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === name) as ShipObject | undefined;
+                const dirs = ship?.destructionDirections ?? [];
+                const dir = ship ? String.fromCharCode(65 + Math.floor((ship.facing - 1) / 4)) : '?';
+                const isDanger = dirs.includes(dir);
+                return (
+                  <div key={name} style={{ marginBottom: '1rem', padding: '0.75rem', background: '#0d1117', borderRadius: 6 }}>
+                    <div style={{ marginBottom: '0.4rem' }}>
+                      <strong>{name}</strong> has met the speed and warp requirements.
+                      Do you wish to disengage?
+                    </div>
+                    {isDanger && (
+                      <div style={{ color: '#f85149', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+                        ⚠ Currently facing direction {dir} — a destruction zone for your side. Disengaging will destroy this ship.
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => handleConfirmAccelDisengage(name, true)}>
+                        Yes — Disengage
+                      </button>
+                      <button className="secondary" onClick={() => handleConfirmAccelDisengage(name, false)}>
+                        No — Stay
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ---- Game-over scoreboard overlay ---- */}
+      {gameState?.gameOver && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.82)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflowY: 'auto', padding: '2rem',
+        }}>
+          <div style={{
+            background: '#161b22', border: '1px solid #30363d',
+            borderRadius: 12, padding: '2rem', width: '100%', maxWidth: 700,
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>
+                {gameState.winnerTeam ? 'Battle Complete' : '— Draw —'}
+              </div>
+              {gameState.winnerTeam && (
+                <div style={{ fontSize: '1.3rem', color: '#79c0ff', marginTop: '0.25rem' }}>
+                  {gameState.winnerTeam} wins
+                </div>
+              )}
+              <div style={{ color: '#8b949e', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                {gameState.endReason}
+              </div>
+            </div>
+
+            {/* Per-team ship lists */}
+            {gameState.scoreboard && (() => {
+              const STATUS_COLOR: Record<string, string> = {
+                DESTROYED:  '#f85149',
+                CAPTURED:   '#9b3ad5',
+                CRIPPLED:   '#f0c040',
+                DISENGAGED: '#79c0ff',
+                DAMAGED:    '#d29922',
+                INTACT:     '#3fb950',
+              };
+              return gameState.scoreboard!.teams.map(team => {
+                const ships = gameState.scoreboard!.ships.filter(s => s.teamName === team.teamName);
+                const victoryColor = team.levelOfVictory.includes('Victory') ? '#3fb950'
+                                   : team.levelOfVictory === 'Draw'           ? '#f0c040'
+                                   : '#f85149';
+                return (
+                  <div key={team.teamName} style={{
+                    background: '#0d1117', borderRadius: 8,
+                    border: '1px solid #30363d', padding: '1rem', marginBottom: '1rem',
+                  }}>
+                    {/* Team header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.6rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#79c0ff' }}>{team.teamName}</span>
+                      <span style={{ fontSize: '0.82rem', color: victoryColor, fontWeight: 600 }}>
+                        {team.vpScored} VP — {team.levelOfVictory}
+                      </span>
+                    </div>
+                    {/* Ship rows */}
+                    {ships.map(s => (
+                      <div key={s.shipName} style={{
+                        display: 'flex', justifyContent: 'space-between',
+                        fontSize: '0.85rem', padding: '3px 0',
+                        borderTop: '1px solid #21262d',
+                      }}>
+                        <span style={{ color: '#e6edf3' }}>{s.shipName}</span>
+                        <span>
+                          <span style={{ color: STATUS_COLOR[s.status] ?? '#8b949e', marginRight: '0.75rem' }}>
+                            {s.status}
+                          </span>
+                          <span style={{ color: '#8b949e', minWidth: 60, display: 'inline-block', textAlign: 'right' }}>
+                            {s.vpScored > 0 ? `${s.vpScored} vp` : '—'}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+            <button onClick={onLeave}>Leave Game</button>
+          </div>
+        </div>
+      )}
+
       <div className="board-topbar">
         <span className="board-title">Amarillo</span>
         <span className="board-phase">{phaseLabel}</span>
@@ -2765,6 +2955,16 @@ export default function GameBoard({ session, onLeave }: Props) {
               </button>
             );
           })()}
+          {!gameState?.gameOver && (
+            <button
+              className="secondary"
+              style={{ borderColor: '#f85149', color: '#f85149' }}
+              onClick={handleConcede}
+              title="Concede — all your ships are destroyed"
+            >
+              Concede
+            </button>
+          )}
           <button className="secondary" onClick={onLeave}>Leave</button>
         </div>
       </div>
@@ -2868,6 +3068,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelCrew={handleCancelCrew}
             onSetCrewAmount={setCrewAmount}
             onSubmitCrew={handleSubmitCrew}
+            onDisengageSeparation={handleDisengageSeparation}
           />
         )}
 

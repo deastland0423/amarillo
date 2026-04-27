@@ -12,6 +12,7 @@
         {
           "hull": "CA+",
           "shipName": "USS Enterprise",
+          "faction": "Federation",
           "startHex": "1201",
           "startHeading": "D",
           "startSpeed": 16,
@@ -20,6 +21,7 @@
         {
           "hull": "FFG",
           "shipName": "USS Reliant",
+          "faction": "Federation",
           "startHex": "1601",
           "startHeading": "D",
           "startSpeed": 20,
@@ -35,6 +37,7 @@
           "hull": "D7Bu",
           "shipName": "IKV Vengeance",
           "startHex": "1212",
+          "faction": "Klingon",
           "startHeading": "A",
           "startSpeed": 16,
           "weaponStatus": 2
@@ -43,6 +46,7 @@
           "hull": "F5",
           "shipName": "IKV Swift",
           "startHex": "1612",
+          "faction": "Klingon",
           "startHeading": "A",
           "startSpeed": 20,
           "weaponStatus": 2

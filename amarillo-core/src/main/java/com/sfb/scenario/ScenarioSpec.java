@@ -59,6 +59,7 @@ public class ScenarioSpec {
     public String       mapType      = "STANDARD";   // "STANDARD" | "FLOATING"
     public int          mapCols      = 42;            // map width in hexes (default 42)
     public int          mapRows      = 32;            // map height in hexes (default 32)
+    public int          maxTurns     = 0;             // 0 = no turn limit
     public String       lengthCondition;              // "STANDARD" = last side standing
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;
@@ -88,6 +89,10 @@ public class ScenarioSpec {
         public String            name;             // display name, e.g. "Orion Pirates"
         public List<ShipSetup>   ships;
         public List<Reinforcement> reinforcements; // ships arriving later (optional)
+        /** Map edges that are destruction zones for this side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT". */
+        public java.util.Set<String> destructionEdges = new java.util.HashSet<>();
+        /** SFB directions (A–F) that are destruction zones for accel disengagement (C7.1). */
+        public java.util.Set<String> destructionDirections = new java.util.HashSet<>();
     }
 
     // -------------------------------------------------------------------------
@@ -96,6 +101,7 @@ public class ScenarioSpec {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShipSetup {
+        public String       faction;        // overrides side faction for this ship (e.g. "Lyran" on a Klingon side)
         public String       hull;           // e.g. "CC", "DD+"
         public String       shipName;       // scenario-specific name, e.g. "Kongo"
         public String       startHex;       // SFB CCRR notation, e.g. "0515"

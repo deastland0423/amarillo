@@ -42,16 +42,16 @@ public class CrippledStatusTest {
     public void conditionA_crippledWhenWarpAtTenPercent() {
         // Fed CA has 35 total warp boxes (15+15+5); 10% = 3.5 → floor = 3
         // Damage down to exactly 3 remaining (35 - 3 = 32 damaged)
-        int originalWarp = ship.getPowerSysetems().getOriginalWarp();
+        int originalWarp = ship.getPowerSystems().getOriginalWarp();
         int target = (int) Math.floor(originalWarp * 0.1);
         int toDamage = originalWarp - target;
         for (int i = 0; i < toDamage; i++)
-            ship.getPowerSysetems().damageLWarp();
+            ship.getPowerSystems().damageLWarp();
         for (int i = 0; i < toDamage; i++)
-            ship.getPowerSysetems().damageRWarp();
+            ship.getPowerSystems().damageRWarp();
         // Drain all warp
-        while (ship.getPowerSysetems().getRemainingWarp() > target)
-            ship.getPowerSysetems().damageCWarp();
+        while (ship.getPowerSystems().getRemainingWarp() > target)
+            ship.getPowerSystems().damageCWarp();
 
         assertTrue(ship.isCrippled());
     }
@@ -59,20 +59,20 @@ public class CrippledStatusTest {
     @Test
     public void conditionA_notCrippledWhenWarpAboveTenPercent() {
         // Damage only 1 warp box — well above 10%
-        ship.getPowerSysetems().damageLWarp();
+        ship.getPowerSystems().damageLWarp();
         assertFalse(ship.isCrippled());
     }
 
     @Test
     public void conditionA_crippledWhenAllWarpDestroyed() {
         // Destroy every warp box — 0 remaining is clearly <= 10%
-        int originalWarp = ship.getPowerSysetems().getOriginalWarp();
+        int originalWarp = ship.getPowerSystems().getOriginalWarp();
         for (int i = 0; i < originalWarp; i++) {
-            ship.getPowerSysetems().damageLWarp();
-            ship.getPowerSysetems().damageRWarp();
-            ship.getPowerSysetems().damageCWarp();
+            ship.getPowerSystems().damageLWarp();
+            ship.getPowerSystems().damageRWarp();
+            ship.getPowerSystems().damageCWarp();
         }
-        assertEquals(0, ship.getPowerSysetems().getRemainingWarp());
+        assertEquals(0, ship.getPowerSystems().getRemainingWarp());
         assertTrue(ship.isCrippled());
     }
 
@@ -83,12 +83,12 @@ public class CrippledStatusTest {
     @Test
     public void conditionB_crippledWhenHalfInteriorDestroyed() {
         // Destroy warp boxes (interior) until >= 50% of interior is gone
-        int originalWarp = ship.getPowerSysetems().getOriginalWarp();
+        int originalWarp = ship.getPowerSystems().getOriginalWarp();
         // Damage all warp — that's a large chunk of interior boxes
         for (int i = 0; i < originalWarp; i++) {
-            ship.getPowerSysetems().damageLWarp();
-            ship.getPowerSysetems().damageRWarp();
-            ship.getPowerSysetems().damageCWarp();
+            ship.getPowerSystems().damageLWarp();
+            ship.getPowerSystems().damageRWarp();
+            ship.getPowerSystems().damageCWarp();
         }
         assertTrue(ship.isCrippled());
     }
@@ -96,10 +96,11 @@ public class CrippledStatusTest {
     @Test
     public void conditionB_notCrippledWhenUnderHalfInteriorDestroyed() {
         // Damage just one interior box
-        ship.getPowerSysetems().damageLWarp();
+        ship.getPowerSystems().damageLWarp();
         // Condition B alone should not trigger
         // (condition A may or may not trigger separately — test independently)
-        // Reset to avoid condition A interference: use a fresh ship and damage 1 hull box
+        // Reset to avoid condition A interference: use a fresh ship and damage 1 hull
+        // box
         Ship s = new Ship();
         s.init(FederationShips.getFedCa());
         s.getHullBoxes().damageFhull();
@@ -120,9 +121,8 @@ public class CrippledStatusTest {
     public void conditionC_notCrippledWithNoExcessDamage() {
         // Fresh ship has all excess damage boxes intact
         assertEquals(
-            ship.getSpecialFunctions().getOriginalExcessDamage(),
-            ship.getSpecialFunctions().getExcessDamage()
-        );
+                ship.getSpecialFunctions().getOriginalExcessDamage(),
+                ship.getSpecialFunctions().getExcessDamage());
         assertFalse(ship.isCrippled());
     }
 
@@ -133,11 +133,16 @@ public class CrippledStatusTest {
     @Test
     public void conditionD_crippledWhenAllControlSpacesDestroyed() {
         // Destroy all bridge, aux con, emergency, flag, security boxes
-        while (ship.getControlSpaces().damageBridge())   ;
-        while (ship.getControlSpaces().damageAuxcon())   ;
-        while (ship.getControlSpaces().damageEmer())     ;
-        while (ship.getControlSpaces().damageFlag())     ;
-        while (ship.getControlSpaces().damageSecurity()) ;
+        while (ship.getControlSpaces().damageBridge())
+            ;
+        while (ship.getControlSpaces().damageAuxcon())
+            ;
+        while (ship.getControlSpaces().damageEmer())
+            ;
+        while (ship.getControlSpaces().damageFlag())
+            ;
+        while (ship.getControlSpaces().damageSecurity())
+            ;
         assertTrue(ship.isCrippled());
     }
 
@@ -147,10 +152,14 @@ public class CrippledStatusTest {
         int bridge = ship.getControlSpaces().getAvailableBridge();
         for (int i = 0; i < bridge - 1; i++)
             ship.getControlSpaces().damageBridge();
-        while (ship.getControlSpaces().damageAuxcon())   ;
-        while (ship.getControlSpaces().damageEmer())     ;
-        while (ship.getControlSpaces().damageFlag())     ;
-        while (ship.getControlSpaces().damageSecurity()) ;
+        while (ship.getControlSpaces().damageAuxcon())
+            ;
+        while (ship.getControlSpaces().damageEmer())
+            ;
+        while (ship.getControlSpaces().damageFlag())
+            ;
+        while (ship.getControlSpaces().damageSecurity())
+            ;
         assertFalse(ship.isCrippled());
     }
 

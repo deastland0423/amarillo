@@ -59,20 +59,20 @@ public class InternalDamageTest {
         // With 20 rolls across the DAC the odds of zero hull hits are negligible.
         int fhullBefore = ship.getHullBoxes().getAvailableFhull();
         int ahullBefore = ship.getHullBoxes().getAvailableAhull();
-        int lwarpBefore = ship.getPowerSysetems().getAvailableLWarp();
-        int rwarpBefore = ship.getPowerSysetems().getAvailableRWarp();
+        int lwarpBefore = ship.getPowerSystems().getAvailableLWarp();
+        int rwarpBefore = ship.getPowerSystems().getAvailableRWarp();
         int bridgeBefore = ship.getControlSpaces().getAvailableBridge();
 
         ship.applyInternalDamage(20);
 
-        int fhullAfter  = ship.getHullBoxes().getAvailableFhull();
-        int ahullAfter  = ship.getHullBoxes().getAvailableAhull();
-        int lwarpAfter  = ship.getPowerSysetems().getAvailableLWarp();
-        int rwarpAfter  = ship.getPowerSysetems().getAvailableRWarp();
+        int fhullAfter = ship.getHullBoxes().getAvailableFhull();
+        int ahullAfter = ship.getHullBoxes().getAvailableAhull();
+        int lwarpAfter = ship.getPowerSystems().getAvailableLWarp();
+        int rwarpAfter = ship.getPowerSystems().getAvailableRWarp();
         int bridgeAfter = ship.getControlSpaces().getAvailableBridge();
 
         int totalBefore = fhullBefore + ahullBefore + lwarpBefore + rwarpBefore + bridgeBefore;
-        int totalAfter  = fhullAfter  + ahullAfter  + lwarpAfter  + rwarpAfter  + bridgeAfter;
+        int totalAfter = fhullAfter + ahullAfter + lwarpAfter + rwarpAfter + bridgeAfter;
 
         assertTrue("20 damage points should reduce at least one system box", totalAfter < totalBefore);
     }

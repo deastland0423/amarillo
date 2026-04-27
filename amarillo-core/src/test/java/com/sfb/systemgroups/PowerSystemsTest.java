@@ -19,18 +19,18 @@ public class PowerSystemsTest {
 		Ship testShip = new Ship();
 		testShip.init(FederationShips.getFedCa());
 
-		PowerSystems testPs = testShip.getPowerSysetems();
-//		PowerSystems testPs = TestObjects.testPowerSystems;
-		
+		PowerSystems testPs = testShip.getPowerSystems();
+		// PowerSystems testPs = TestObjects.testPowerSystems;
+
 		// CA has 4 APR
 		assertEquals(0, testPs.getAvailableApr());
-		
+
 		// CA has 4 battery
 		assertEquals(3, testPs.getAvailableBattery());
-		
+
 		// CA has 38 total power
 		assertEquals(34, testPs.getTotalAvailablePower());
-		
+
 		// No CWarp on the ship, this should return false
 		assertFalse(testPs.damageCWarp());
 
@@ -41,15 +41,15 @@ public class PowerSystemsTest {
 
 		// Check to see that there are 12 remaining boxes
 		assertEquals(testPs.getAvailableLWarp(), 12);
-		
+
 		// Check that total available power is 3 less
 		assertEquals(31, testPs.getTotalAvailablePower());
-		
+
 		// Try to damage an 5th APR.
 		// Should faile because there are none
 		assertFalse(testPs.damageApr());
 	}
-	
+
 	@Test
 	public void testBatteries() {
 		// Get the test power system (Fed CA)
@@ -57,7 +57,7 @@ public class PowerSystemsTest {
 		Ship testShip = new Ship();
 		testShip.init(FederationShips.getFedCa());
 
-		PowerSystems testPs = testShip.getPowerSysetems();
+		PowerSystems testPs = testShip.getPowerSystems();
 
 		// Batteries start fully charged (Fed CA has 3 battery)
 		assertEquals(3, testPs.getBatteryPower());

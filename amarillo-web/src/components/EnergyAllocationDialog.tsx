@@ -98,9 +98,9 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     batteryDraw:     0,
     batteryRecharge: 0,
-    hetEnergy:       0,
-    ecm:             0,
-    eccm:            0,
+    hetEnergy:         0,
+    ecm:               0,
+    eccm:              0,
     shuttleSpeeds,
   };
 }
@@ -190,8 +190,8 @@ function Stepper({
 
 // ---- Collapsible section ----
 
-function Collapsible({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+function Collapsible({ title, color, children, defaultOpen = false }: { title: string; color: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="ea-section">
       <button className="ea-toggle-btn" style={{ color }} onClick={() => setOpen(o => !o)}>
@@ -359,7 +359,7 @@ export default function EnergyAllocationDialog({
         });
         if (!res.success) {
           setErrMsg(`${name}: ${res.message}`);
-          setActiveTab(name); onTabChange?.(name);  // jump to the failing ship's tab
+          setActiveTab(name); onTabChange?.(name);
           return;
         }
       }
@@ -754,155 +754,152 @@ export default function EnergyAllocationDialog({
           </Collapsible>
         )}
 
-        {/* ---- Suicide Shuttle Arming ---- */}
+        {/* ---- Shuttles (collapsible) ---- */}
         {(() => {
-          const candidates = (ship.shuttleBays ?? []).flatMap(bay =>
+          const suicideCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
             bay.shuttles.filter(s =>
               s.type === 'suicide' ||
               (s.type === 'admin' && (s as any).canBecomeSuicide !== false)
             )
           );
-          if (candidates.length === 0) return null;
-          return (
-            <Collapsible title="Suicide Shuttle Arming" color="#ff6060">
-              <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
-              {candidates.map(s => {
-                const turns = (s as any).armingTurnsComplete ?? 0;
-                const armed = turns >= 3;
-                const dmg   = (s as any).warheadDamage ?? 0;
-                if (armed) {
-                  const holding = alloc.suicideHold?.[s.name] ?? false;
-                  return (
-                    <div key={s.name} className="ea-weapon-alloc-block">
-                      <div className="ea-weapon-alloc-name">
-                        {s.name}
-                        <span className="ea-note-dim"> — Armed (dmg {dmg})</span>
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={holding}
-                          onChange={e => setAlloc(a => ({
-                            ...a,
-                            suicideHold: { ...a.suicideHold, [s.name]: e.target.checked },
-                          }))} />
-                        Hold (1 energy) — uncheck to release
-                      </label>
-                    </div>
-                  );
-                } else {
-                  const energy = alloc.suicideArming?.[s.name] ?? 0;
-                  return (
-                    <div key={s.name} className="ea-weapon-alloc-block">
-                      <div className="ea-weapon-alloc-name">
-                        {s.name}
-                        <span className="ea-note-dim"> — Turn {turns}/3{energy > 0 ? `, dmg will be ${(((s as any).totalEnergy ?? 0) + energy) * 2}` : ''}</span>
-                      </div>
-                      <div className="ea-stepper">
-                        <button className="ea-step-btn"
-                          onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.max(0, energy - 1) } }))}
-                          disabled={energy <= 0}>−</button>
-                        <span className="ea-step-value">{energy}</span>
-                        <button className="ea-step-btn"
-                          onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.min(3, energy + 1) } }))}
-                          disabled={energy >= 3 || turns === 0 && s.type !== 'admin'}>+</button>
-                        <span className="ea-step-label">energy this turn <span className="ea-note-dim">(1–3)</span></span>
-                      </div>
-                    </div>
-                  );
-                }
-              })}
-            </Collapsible>
-          );
-        })()}
-
-        {/* ---- Scatter Pack Loading ---- */}
-        {(() => {
-          const eligibleShuttles = (ship.shuttleBays ?? []).flatMap(bay =>
+          const spEligible = (ship.shuttleBays ?? []).flatMap(bay =>
             bay.shuttles.filter(s => s.type === 'admin' || s.type === 'scatterpack')
           );
-          if (eligibleShuttles.length === 0) return null;
-
-          // Combined stockpile: aggregate reload pools across all racks
           const stockpile: Record<string, { rackSize: number; count: number }> = {};
-          for (const r of ship.droneRacks ?? []) {
+          for (const r of ship.droneRacks ?? [])
             for (const e of r.reloadPool ?? []) {
               if (!stockpile[e.droneType]) stockpile[e.droneType] = { rackSize: e.rackSize, count: 0 };
               stockpile[e.droneType].count += e.count;
             }
-          }
-          if (Object.keys(stockpile).length === 0) return null;
+          const hasScatterPack = spEligible.length > 0 && Object.keys(stockpile).length > 0;
+          const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
+          if (suicideCandidates.length === 0 && !hasScatterPack && myShuttles.length === 0) return null;
 
-          // Total deck crew spaces committed to SP loading this EA
-          const totalSpLoading = Object.values(alloc.scatterPackLoading ?? {}).reduce((sum, sel) => {
-            return sum + Object.entries(sel).reduce((s, [dt, cnt]) => {
-              return s + (stockpile[dt]?.rackSize ?? 1) * cnt;
-            }, 0);
-          }, 0);
-          const deckCrewsAvail = ship.availableDeckCrews ?? 2;
-          const deckCrewsOver  = totalSpLoading > deckCrewsAvail;
-
+          const shortName = (s: ShuttleObject) =>
+            s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
           return (
-            <Collapsible title="Scatter Pack Loading" color="#79c0ff">
-              <div className={`ea-note${deckCrewsOver ? ' ea-budget-over' : ''}`}>
-                Deck crews: {totalSpLoading.toFixed(1)} / {deckCrewsAvail} used
-                {deckCrewsOver && ' — OVER LIMIT'}
-              </div>
-              {eligibleShuttles.map(s => {
-                const sel = alloc.scatterPackLoading?.[s.name] ?? {};
-                const shuttleMax = s.maxDroneSpaces ?? 6;
-                const payloadNote  = s.type === 'scatterpack'
-                  ? ` — ${(s.committedSpaces ?? 0).toFixed(1)} / ${shuttleMax} spaces used`
-                  : '';
+            <Collapsible title="Shuttles" color="#f0c040" defaultOpen={false}>
 
-                return (
-                  <div key={s.name} className="ea-weapon-alloc-block">
-                    <div className="ea-weapon-alloc-name">
-                      {s.name}
-                      <span className="ea-note-dim">{payloadNote}</span>
-                    </div>
-                    {(() => {
-                      const thisShuttleSpaces = Object.entries(sel).reduce(
-                        (sum, [dt, cnt]) => sum + (stockpile[dt]?.rackSize ?? 1) * cnt, 0
-                      );
-                      const shuttleMax = s.maxDroneSpaces ?? 6;
-                      const alreadyOnShuttle = s.committedSpaces ?? 0;
-                      return Object.entries(stockpile).map(([dt, info]) => {
-                        const count = sel[dt] ?? 0;
-                        const label = dt.replace('Type', 'Type ');
-                        const spaceIfAdd = totalSpLoading + info.rackSize;
-                        const shuttleSpaceIfAdd = alreadyOnShuttle + thisShuttleSpaces + info.rackSize;
-                        const canAdd = count < info.count && spaceIfAdd <= deckCrewsAvail
-                          && shuttleSpaceIfAdd <= shuttleMax;
-                        return (
-                          <div key={dt} className="ea-stepper">
-                            <button className="ea-step-btn"
-                              onClick={() => setAlloc(a => ({
-                                ...a,
-                                scatterPackLoading: {
-                                  ...a.scatterPackLoading,
-                                  [s.name]: { ...sel, [dt]: Math.max(0, count - 1) },
-                                },
-                              }))}
-                              disabled={count <= 0}>−</button>
-                            <span className="ea-step-value">{count}</span>
-                            <button className="ea-step-btn"
-                              onClick={() => setAlloc(a => ({
-                                ...a,
-                                scatterPackLoading: {
-                                  ...a.scatterPackLoading,
-                                  [s.name]: { ...sel, [dt]: count + 1 },
-                                },
-                              }))}
-                              disabled={!canAdd}>+</button>
-                            <span className="ea-step-label">
-                              {label} <span className="ea-note-dim">({info.count} avail, {info.rackSize} space{info.rackSize !== 1 ? 's' : ''} each)</span>
-                            </span>
+              {/* Suicide Shuttle Arming */}
+              {suicideCandidates.length > 0 && (
+                <div className="ea-section">
+                  <div className="ea-section-title" style={{ color: '#ff6060' }}>Suicide Shuttle Arming</div>
+                  <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
+                  {suicideCandidates.map(s => {
+                    const turns = (s as any).armingTurnsComplete ?? 0;
+                    const armed = turns >= 3;
+                    const dmg   = (s as any).warheadDamage ?? 0;
+                    if (armed) {
+                      const holding = alloc.suicideHold?.[s.name] ?? false;
+                      return (
+                        <div key={s.name} className="ea-weapon-alloc-block">
+                          <div className="ea-weapon-alloc-name">
+                            {s.name}<span className="ea-note-dim"> — Armed (dmg {dmg})</span>
                           </div>
-                        );
-                      });
-                    })()}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={holding}
+                              onChange={e => setAlloc(a => ({
+                                ...a,
+                                suicideHold: { ...a.suicideHold, [s.name]: e.target.checked },
+                              }))} />
+                            Hold (1 energy) — uncheck to release
+                          </label>
+                        </div>
+                      );
+                    } else {
+                      const energy = alloc.suicideArming?.[s.name] ?? 0;
+                      return (
+                        <div key={s.name} className="ea-weapon-alloc-block">
+                          <div className="ea-weapon-alloc-name">
+                            {s.name}
+                            <span className="ea-note-dim"> — Turn {turns}/3{energy > 0 ? `, dmg will be ${(((s as any).totalEnergy ?? 0) + energy) * 2}` : ''}</span>
+                          </div>
+                          <div className="ea-stepper">
+                            <button className="ea-step-btn"
+                              onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.max(0, energy - 1) } }))}
+                              disabled={energy <= 0}>−</button>
+                            <span className="ea-step-value">{energy}</span>
+                            <button className="ea-step-btn"
+                              onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.min(3, energy + 1) } }))}
+                              disabled={energy >= 3 || turns === 0 && s.type !== 'admin'}>+</button>
+                            <span className="ea-step-label">energy this turn <span className="ea-note-dim">(1–3)</span></span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              )}
+
+              {/* Scatter Pack Loading */}
+              {hasScatterPack && (() => {
+                const totalSpLoading = Object.values(alloc.scatterPackLoading ?? {}).reduce((sum, sel) =>
+                  sum + Object.entries(sel).reduce((s, [dt, cnt]) => s + (stockpile[dt]?.rackSize ?? 1) * cnt, 0), 0);
+                const deckCrewsAvail = ship.availableDeckCrews ?? 2;
+                const deckCrewsOver  = totalSpLoading > deckCrewsAvail;
+                return (
+                  <div className="ea-section">
+                    <div className="ea-section-title" style={{ color: '#79c0ff' }}>Scatter Pack Loading</div>
+                    <div className={`ea-note${deckCrewsOver ? ' ea-budget-over' : ''}`}>
+                      Deck crews: {totalSpLoading.toFixed(1)} / {deckCrewsAvail} used{deckCrewsOver && ' — OVER LIMIT'}
+                    </div>
+                    {spEligible.map(s => {
+                      const sel = alloc.scatterPackLoading?.[s.name] ?? {};
+                      const shuttleMax = s.maxDroneSpaces ?? 6;
+                      const payloadNote = s.type === 'scatterpack'
+                        ? ` — ${(s.committedSpaces ?? 0).toFixed(1)} / ${shuttleMax} spaces used` : '';
+                      const thisShuttleSpaces = Object.entries(sel).reduce(
+                        (sum, [dt, cnt]) => sum + (stockpile[dt]?.rackSize ?? 1) * cnt, 0);
+                      const alreadyOnShuttle = s.committedSpaces ?? 0;
+                      return (
+                        <div key={s.name} className="ea-weapon-alloc-block">
+                          <div className="ea-weapon-alloc-name">
+                            {s.name}<span className="ea-note-dim">{payloadNote}</span>
+                          </div>
+                          {Object.entries(stockpile).map(([dt, info]) => {
+                            const count = sel[dt] ?? 0;
+                            const spaceIfAdd = totalSpLoading + info.rackSize;
+                            const shuttleSpaceIfAdd = alreadyOnShuttle + thisShuttleSpaces + info.rackSize;
+                            const canAdd = count < info.count && spaceIfAdd <= deckCrewsAvail && shuttleSpaceIfAdd <= shuttleMax;
+                            return (
+                              <div key={dt} className="ea-stepper">
+                                <button className="ea-step-btn"
+                                  onClick={() => setAlloc(a => ({ ...a, scatterPackLoading: { ...a.scatterPackLoading, [s.name]: { ...sel, [dt]: Math.max(0, count - 1) } } }))}
+                                  disabled={count <= 0}>−</button>
+                                <span className="ea-step-value">{count}</span>
+                                <button className="ea-step-btn"
+                                  onClick={() => setAlloc(a => ({ ...a, scatterPackLoading: { ...a.scatterPackLoading, [s.name]: { ...sel, [dt]: count + 1 } } }))}
+                                  disabled={!canAdd}>+</button>
+                                <span className="ea-step-label">
+                                  {dt.replace('Type', 'Type ')} <span className="ea-note-dim">({info.count} avail, {info.rackSize} space{info.rackSize !== 1 ? 's' : ''} each)</span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
+              })()}
+
+              {/* Active Shuttle / Fighter Speeds */}
+              {myShuttles.length > 0 && (
+                <div className="ea-section">
+                  <div className="ea-section-title" style={{ color: '#f0c040' }}>Shuttle / Fighter Speeds</div>
+                  {myShuttles.map(s => (
+                    <Stepper
+                      key={s.name}
+                      value={alloc.shuttleSpeeds[s.name] ?? s.speed}
+                      min={0}
+                      max={s.maxSpeed}
+                      onChange={v => setAlloc(a => ({ ...a, shuttleSpeeds: { ...a.shuttleSpeeds, [s.name]: v } }))}
+                      label={`${shortName(s)}${s.crippled ? ' ⚠' : ''} (max ${s.maxSpeed}${s.crippled ? ' — crippled' : ''})`}
+                    />
+                  ))}
+                </div>
+              )}
+
             </Collapsible>
           );
         })()}
@@ -931,28 +928,6 @@ export default function EnergyAllocationDialog({
           </div>
         )}
 
-        {/* ---- Active Shuttles / Fighters ---- */}
-        {(() => {
-          const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
-          if (myShuttles.length === 0) return null;
-          const shortName = (s: ShuttleObject) =>
-            s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
-          return (
-            <div className="ea-section">
-              <div className="ea-section-title" style={{ color: '#f0c040' }}>Shuttle / Fighter Speeds</div>
-              {myShuttles.map(s => (
-                <Stepper
-                  key={s.name}
-                  value={alloc.shuttleSpeeds[s.name] ?? s.speed}
-                  min={0}
-                  max={s.maxSpeed}
-                  onChange={v => setAlloc(a => ({ ...a, shuttleSpeeds: { ...a.shuttleSpeeds, [s.name]: v } }))}
-                  label={`${shortName(s)}${s.crippled ? ' ⚠' : ''} (max ${s.maxSpeed}${s.crippled ? ' — crippled' : ''})`}
-                />
-              ))}
-            </div>
-          );
-        })()}
 
         {errMsg && <div className="ea-error">{errMsg}</div>}
 

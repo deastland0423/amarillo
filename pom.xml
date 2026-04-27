@@ -12,13 +12,11 @@
 
     <modules>
         <module>amarillo-core</module>
-        <module>amarillo-client</module>
         <module>amarillo-server</module>
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>21</javafx.version>
         <jackson.version>2.17.0</jackson.version>
     </properties>
 
@@ -67,18 +65,6 @@
                 <artifactId>mockito-core</artifactId>
                 <version>4.11.0</version>
                 <scope>test</scope>
-            </dependency>
-
-            <!-- JavaFX -->
-            <dependency>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-controls</artifactId>
-                <version>${javafx.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-fxml</artifactId>
-                <version>${javafx.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

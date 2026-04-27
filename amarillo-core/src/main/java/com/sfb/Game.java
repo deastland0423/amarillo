@@ -35,13 +35,9 @@ import com.sfb.properties.SystemTarget;
 import com.sfb.systemgroups.HullBoxes;
 import com.sfb.systemgroups.PowerSystems;
 import com.sfb.systems.SpecialFunctions;
-import com.sfb.utilities.ArcUtils;
 import com.sfb.utilities.DiceRoller;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
-import com.sfb.samples.FederationShips;
-import com.sfb.samples.KlingonShips;
-import com.sfb.samples.RomulanShips;
 import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
 import com.sfb.weapons.DroneRack;
@@ -82,25 +78,31 @@ public class Game {
     private final List<Player> players = new ArrayList<>();
     private int mapCols = 42; // map width in hexes
     private int mapRows = 32; // map height in hexes
+    private int maxTurns = 0; // 0 = no turn limit
+    private Map<String, Set<String>> destructionEdgesByTeam      = new HashMap<>(); // teamName → destruction edges
+    private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions (A–F) for accel disengage
+    private GameEndResult gameEndResult = null;
 
     private final List<Ship> ships = new ArrayList<>();
+    private final List<Ship> destroyedShips = new ArrayList<>(); // ships removed from play; kept for VP scoring
+    private final List<Ship> pendingAccelDisengage = new ArrayList<>(); // ships awaiting player YES/NO at end of turn (C7.1)
     private final List<Seeker> seekers = new ArrayList<>();
     private final List<Ship> capturedThisTurn = new ArrayList<>(); // ships captured in the current endTurn()
     private int seekerSeq = 0; // monotonic counter for unique seeker names
     private final List<com.sfb.objects.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
-    private final List<SpaceMine> mines    = new ArrayList<>();
-    private final List<Terrain>   terrain  = new ArrayList<>();
-    private final Set<Location>   asteroidHexes = new HashSet<>();
-    private final Set<Location>   planetHexes   = new HashSet<>();
+    private final List<SpaceMine> mines = new ArrayList<>();
+    private final List<Terrain> terrain = new ArrayList<>();
+    private final Set<Location> asteroidHexes = new HashSet<>();
+    private final Set<Location> planetHexes = new HashSet<>();
 
     private static final int[][] ASTEROID_DAMAGE = {
-        // Speed bracket: 0=1-6, 1=7-14, 2=15-25, 3=26+   (P3.2)
-        {0,  0,  0,  0},  // die 1
-        {0,  0,  0,  5},  // die 2
-        {0,  0,  3, 10},  // die 3
-        {0,  2,  6, 15},  // die 4
-        {0,  6, 10, 20},  // die 5
-        {0, 10, 15, 30},  // die 6
+            // Speed bracket: 0=1-6, 1=7-14, 2=15-25, 3=26+ (P3.2)
+            { 0, 0, 0, 0 }, // die 1
+            { 0, 0, 0, 5 }, // die 2
+            { 0, 0, 3, 10 }, // die 3
+            { 0, 2, 6, 15 }, // die 4
+            { 0, 6, 10, 20 }, // die 5
+            { 0, 10, 15, 30 }, // die 6
     };
     private final Set<Ship> movedThisImpulse = new HashSet<>();
     private final Set<com.sfb.objects.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
@@ -120,88 +122,36 @@ public class Game {
     // --- Setup ---
 
     /**
-     * Populate the game with two players and four sample ships.
-     * Call this once before starting the impulse loop.
-     */
-    public void setup() {
-        ShipLibrary.loadAllSpecs("data/factions");
-
-        try {
-            ShipSpec caSpec = ShipLibrary.get("Federation", "CA");
-            Ship fedCa = caSpec != null ? createShip(caSpec) : new Ship();
-            if (caSpec == null)
-                fedCa.init(FederationShips.getFedCa());
-            fedCa.setLocation(new Location(12, 1));
-            fedCa.setFacing(13);
-            fedCa.setSpeed(16);
-            fedCa.chargeCapacitor(6);
-            ships.add(fedCa);
-
-            ShipSpec ffgSpec = ShipLibrary.get("Federation", "FFG");
-            Ship fedFfg = ffgSpec != null ? createShip(ffgSpec) : new Ship();
-            if (ffgSpec == null)
-                fedFfg.init(FederationShips.getFedFfg());
-            fedFfg.setLocation(new Location(16, 1));
-            fedFfg.setFacing(13);
-            fedFfg.setSpeed(20);
-            fedFfg.chargeCapacitor(3);
-            ships.add(fedFfg);
-
-            ShipSpec d7Spec = ShipLibrary.get("Klingon", "D7");
-            Ship klnD7 = d7Spec != null ? createShip(d7Spec) : new Ship();
-            if (d7Spec == null)
-                klnD7.init(KlingonShips.getD7());
-            klnD7.setLocation(new Location(12, 12));
-            klnD7.setFacing(1);
-            klnD7.setSpeed(16);
-            klnD7.chargeCapacitor(9);
-            ships.add(klnD7);
-
-            ShipSpec f5Spec = ShipLibrary.get("Klingon", "F5");
-            Ship klnF5 = f5Spec != null ? createShip(f5Spec) : new Ship();
-            if (f5Spec == null)
-                klnF5.init(KlingonShips.getF5());
-            klnF5.setLocation(new Location(16, 12));
-            klnF5.setFacing(1);
-            klnF5.setSpeed(20);
-            klnF5.chargeCapacitor(5);
-            ships.add(klnF5);
-
-            ShipSpec krSpec = ShipLibrary.get("Romulan", "KR");
-            Ship romKr = krSpec != null ? createShip(krSpec) : new Ship();
-            if (krSpec == null)
-                romKr.init(RomulanShips.getRomKr());
-            romKr.setLocation(new Location(8, 12));
-            romKr.setFacing(1);
-            romKr.setSpeed(16);
-            romKr.chargeCapacitor(7);
-            ships.add(romKr);
-        } catch (CapacitorException e) {
-            System.err.println("Error during game setup: " + e.getMessage());
-        }
-
-        TurnTracker.reset();
-        inProgress = true;
-        startTurn(); // run energy allocation and turn setup before impulse 1
-    }
-
     /**
      * Populate the game from a ScenarioSpec with pre-built ships and COI loadouts.
      *
      * Intended flow:
-     *   1. Call ScenarioLoader.loadShips(spec) to build ships.
-     *   2. Show the COI dialog against those ships to collect loadouts.
-     *   3. Call this method — COI is applied, players registered, game starts.
+     * 1. Call ScenarioLoader.loadShips(spec) to build ships.
+     * 2. Show the COI dialog against those ships to collect loadouts.
+     * 3. Call this method — COI is applied, players registered, game starts.
      *
      * @param scenario    the scenario specification
-     * @param sideShips   pre-built ships grouped by side (same order as scenario.sides)
-     * @param coiLoadouts COI selections per ship; ships absent from the map get no COI applied
+     * @param sideShips   pre-built ships grouped by side (same order as
+     *                    scenario.sides)
+     * @param coiLoadouts COI selections per ship; ships absent from the map get no
+     *                    COI applied
      */
     public void setupFromScenario(ScenarioSpec scenario,
-                                  List<List<Ship>> sideShips,
-                                  Map<Ship, CoiLoadout> coiLoadouts) {
+            List<List<Ship>> sideShips,
+            Map<Ship, CoiLoadout> coiLoadouts) {
         mapCols = scenario.mapCols > 0 ? scenario.mapCols : 42;
         mapRows = scenario.mapRows > 0 ? scenario.mapRows : 32;
+        maxTurns = scenario.maxTurns >= 0 ? scenario.maxTurns : 0;
+        destructionEdgesByTeam.clear();
+        destructionDirectionsByTeam.clear();
+        if (scenario.sides != null) {
+            for (ScenarioSpec.SideSpec side : scenario.sides) {
+                if (side.destructionEdges != null && !side.destructionEdges.isEmpty())
+                    destructionEdgesByTeam.put(side.name, side.destructionEdges);
+                if (side.destructionDirections != null && !side.destructionDirections.isEmpty())
+                    destructionDirectionsByTeam.put(side.name, side.destructionDirections);
+            }
+        }
 
         ships.clear();
         players.clear();
@@ -354,17 +304,21 @@ public class Game {
 
             // Roll for each other ship
             for (Ship target : ships) {
-                if (target == ship) continue;
+                if (target == ship)
+                    continue;
                 if (target.getCloakingDevice() != null && target.getCloakingDevice().breaksLockOn()) {
-                    lastLockOnLog.add(ship.getName() + " cannot acquire lock-on to " + target.getName() + " (fully cloaked)");
+                    lastLockOnLog.add(
+                            ship.getName() + " cannot acquire lock-on to " + target.getName() + " (fully cloaked)");
                     continue;
                 }
                 rollLockOn(ship, target, sensorRating, dice);
             }
 
-            // Roll for each seeker already on the map; controller always has lock-on to its own
+            // Roll for each seeker already on the map; controller always has lock-on to its
+            // own
             for (Seeker seeker : seekers) {
-                if (!(seeker instanceof Unit)) continue;
+                if (!(seeker instanceof Unit))
+                    continue;
                 Unit seekerUnit = (Unit) seeker;
                 if (seeker.getController() == ship) {
                     ship.addLockOn(seekerUnit); // own seeker — automatic
@@ -431,7 +385,8 @@ public class Game {
                 && target.getCloakingDevice().breaksLockOn();
         if (targetCloaked) {
             for (Ship attacker : ships) {
-                if (attacker == target) continue;
+                if (attacker == target)
+                    continue;
                 if (attacker.hasLockOn(target)) {
                     attacker.removeLockOn(target);
                     log.add(attacker.getName() + " lost lock-on to " + target.getName() + " (cloaked)");
@@ -443,9 +398,12 @@ public class Game {
         // Target is visible — ships without lock-on roll to re-acquire (D6.113)
         DiceRoller dice = new DiceRoller();
         for (Ship attacker : ships) {
-            if (attacker == target) continue;
-            if (!attacker.isActiveFireControl()) continue;
-            if (attacker.hasLockOn(target)) continue; // already locked on — keep it
+            if (attacker == target)
+                continue;
+            if (!attacker.isActiveFireControl())
+                continue;
+            if (attacker.hasLockOn(target))
+                continue; // already locked on — keep it
 
             int sensorRating = attacker.getSpecialFunctions().getSensor();
             int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
@@ -465,10 +423,12 @@ public class Game {
      * <p>
      * The launcher automatically has lock-on to the seeker it just launched.
      * Every other ship with active fire control rolls 1d6 per its sensor rating
-     * to acquire lock-on on the new unit (same mechanic as {@link #checkLockOnsForUnit}).
+     * to acquire lock-on on the new unit (same mechanic as
+     * {@link #checkLockOnsForUnit}).
      *
      * @param launcher The ship that launched the new seeker.
-     * @param newUnit  The newly launched seeker (drone, plasma, suicide shuttle, scatter pack).
+     * @param newUnit  The newly launched seeker (drone, plasma, suicide shuttle,
+     *                 scatter pack).
      * @return Log lines describing the acquisition results.
      */
     private List<String> checkLockOnsForNewUnit(Ship launcher, Unit newUnit) {
@@ -480,8 +440,10 @@ public class Game {
         // All other ships with active fire control roll to acquire lock-on
         DiceRoller dice = new DiceRoller();
         for (Ship ship : ships) {
-            if (ship == launcher) continue;
-            if (!ship.isActiveFireControl()) continue;
+            if (ship == launcher)
+                continue;
+            if (!ship.isActiveFireControl())
+                continue;
 
             int sensorRating = ship.getSpecialFunctions().getSensor();
             int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
@@ -525,10 +487,11 @@ public class Game {
     }
 
     public ActionResult endTurn() {
-        // Final Activity Phase (D7.32): resolve boarding party combat on every
-        // ship that has enemy troops aboard before per-turn cleanup.
         lastBoardingLog.clear();
         capturedThisTurn.clear();
+
+        // Final Activity Phase (D7.32): resolve boarding party combat on every
+        // ship that has enemy troops aboard before per-turn cleanup.
         for (Ship ship : ships) {
             if (!ship.getEnemyTroops().isEmpty()) {
                 BoardingCombatResult result = performBoardingCombat(ship);
@@ -538,7 +501,27 @@ public class Game {
         for (Ship ship : ships) {
             ship.cleanUp();
         }
-        startTurn();
+
+        // C7.1: identify ships eligible for disengagement by acceleration.
+        // Players must confirm YES/NO before the next turn's EA begins.
+        pendingAccelDisengage.clear();
+        for (Ship ship : ships) {
+            if (ship.getLocation() == null || ship.isDisengaged()) continue;
+            int originalWarp = ship.getPowerSystems().getOriginalWarp();
+            if (originalWarp == 0) continue; // no warp engines
+            int currentWarp = ship.getPowerSystems().getWarpEnginePower();
+            int threshold = Math.min((int) Math.ceil(originalWarp * 0.5), 15);
+            if (ship.getSpeed() >= ship.getMaxAccelerationSpeed() && currentWarp >= threshold)
+                pendingAccelDisengage.add(ship);
+        }
+
+        if (pendingAccelDisengage.isEmpty()) {
+            startTurn();
+            if (gameEndResult == null)
+                gameEndResult = checkEndConditions();
+        }
+        // else: startTurn() is deferred until all confirmAccelDisengage() calls are processed
+
         String msg = lastBoardingLog.isEmpty() ? "" : String.join("\n", lastBoardingLog);
         return ActionResult.ok(msg);
     }
@@ -576,7 +559,8 @@ public class Game {
                     for (Map.Entry<Ship, List<com.sfb.weapons.Disruptor>> entry : uimUsedThisImpulse.entrySet()) {
                         Ship uimShip = entry.getKey();
                         com.sfb.systemgroups.UIM activeUim = uimShip.getActiveUim(eoi);
-                        if (activeUim == null) continue;
+                        if (activeUim == null)
+                            continue;
                         boolean burnout = activeUim.checkBurnout(eoi, entry.getValue());
                         if (burnout) {
                             log.add(uimShip.getName() + ": UIM BURNOUT! Disruptors locked for 32 impulses.");
@@ -656,8 +640,180 @@ public class Game {
         return TurnTracker.getLocalImpulse();
     }
 
-    public int getMapCols() { return mapCols; }
-    public int getMapRows() { return mapRows; }
+    public int getMapCols() {
+        return mapCols;
+    }
+
+    public int getMapRows() {
+        return mapRows;
+    }
+
+    public int getMaxTurns() {
+        return maxTurns;
+    }
+
+    public GameEndResult getGameEnd() {
+        return gameEndResult;
+    }
+
+    /**
+     * Check whether the game has ended.
+     * Returns null if the game is still ongoing, or a GameEndResult describing the
+     * outcome.
+     */
+    public GameEndResult checkEndConditions() {
+        // Turn limit
+        if (maxTurns > 0 && TurnTracker.getTurn() > maxTurns)
+            return new GameEndResult(null, "Turn limit reached (" + maxTurns + " turns)");
+
+        // Collect teams that still have ships on the map
+        java.util.Set<String> activeTeams = new java.util.LinkedHashSet<>();
+        for (Ship ship : ships) {
+            if (ship.getLocation() != null && !ship.isDisengaged()) {
+                Player owner = ship.getOwner();
+                if (owner != null && owner.getTeamName() != null)
+                    activeTeams.add(owner.getTeamName());
+            }
+        }
+        if (activeTeams.size() == 1)
+            return new GameEndResult(activeTeams.iterator().next(),
+                    "All opposing ships destroyed, disengaged, or captured");
+        if (activeTeams.isEmpty())
+            return new GameEndResult(null, "All ships eliminated — draw");
+
+        return null; // game ongoing
+    }
+
+    public record GameEndResult(String winnerTeam, String reason) {
+    }
+
+    // -------------------------------------------------------------------------
+    // Victory point calculation (S2.21 / S2.23)
+    // -------------------------------------------------------------------------
+
+    public record ShipVpRow(
+            String shipName, String teamName, int gabpv,
+            String status, // "DESTROYED" | "CAPTURED" | "DISENGAGED" | "CRIPPLED" | "DAMAGED" | "INTACT"
+            int vpScored // points scored AGAINST this ship by the enemy
+    ) {
+    }
+
+    public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory) {
+    }
+
+    public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
+    }
+
+    /** Round to nearest integer using SFB S2.24 rule (0.5+ → up). */
+    private static int sfbRound(double v) {
+        return (int) Math.floor(v + 0.5);
+    }
+
+    private static String levelOfVictory(int myScore, int theirScore) {
+        if (theirScore == 0)
+            return myScore > 0 ? "Astounding Victory" : "Draw";
+        double pct = 100.0 * myScore / theirScore;
+        if (pct >= 500)
+            return "Astounding Victory";
+        if (pct >= 300)
+            return "Decisive Victory";
+        if (pct >= 200)
+            return "Substantive Victory";
+        if (pct >= 150)
+            return "Tactical Victory";
+        if (pct >= 110)
+            return "Marginal Victory";
+        if (pct >= 91)
+            return "Draw";
+        if (pct >= 67)
+            return "Marginal Defeat";
+        if (pct >= 50)
+            return "Tactical Defeat";
+        if (pct >= 33)
+            return "Brutal Defeat";
+        if (pct >= 20)
+            return "Crushing Defeat";
+        return "Devastating Defeat";
+    }
+
+    public Scoreboard calculateVictoryPoints() {
+        // Gather all ships (active + destroyed; disengaged/captured still in ships
+        // list)
+        java.util.List<Ship> allShips = new java.util.ArrayList<>(ships);
+        allShips.addAll(destroyedShips);
+
+        java.util.List<ShipVpRow> rows = new java.util.ArrayList<>();
+
+        for (Ship ship : allShips) {
+            String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
+
+            // GABPV: base BPV (already includes y175 refit) + fighter BPV
+            int fighterBpv = 0;
+            for (com.sfb.objects.Shuttle s : ship.getShuttles().getAllShuttles()) {
+                if (s instanceof com.sfb.objects.Fighter f)
+                    fighterBpv += f.getBpv();
+            }
+            // Also count fighters that launched and are on the map as active shuttles
+            for (com.sfb.objects.Shuttle s : activeShuttles) {
+                if (s instanceof com.sfb.objects.Fighter f
+                        && ship.getName().equals(s.getParentShipName())) {
+                    fighterBpv += f.getBpv();
+                }
+            }
+            int gabpv = ship.getBattlePointValue() + fighterBpv;
+
+            // Determine status — apply greatest-applies rule (S2.21)
+            String status;
+            int vpScored;
+            if (ship.isDestroyed()) {
+                status = "DESTROYED";
+                vpScored = sfbRound(gabpv * 1.00);
+            } else if (ship.isCaptured()) {
+                status = "CAPTURED";
+                vpScored = sfbRound(gabpv * 2.00);
+            } else if (ship.isDisengaged()) {
+                status = "DISENGAGED";
+                vpScored = sfbRound(gabpv * 0.25);
+            } else if (ship.isCrippled()) {
+                status = "CRIPPLED";
+                vpScored = sfbRound(gabpv * 0.50);
+            } else if (ship.isDamaged()) {
+                status = "DAMAGED";
+                vpScored = sfbRound(gabpv * 0.10);
+            } else {
+                status = "INTACT";
+                vpScored = 0;
+            }
+
+            rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored));
+        }
+
+        // Sum VPs per team: a team scores the VPs from ships belonging to OTHER teams
+        java.util.Map<String, Integer> vpByTeam = new java.util.LinkedHashMap<>();
+        java.util.Set<String> allTeams = new java.util.LinkedHashSet<>();
+        for (ShipVpRow row : rows)
+            allTeams.add(row.teamName());
+        for (String t : allTeams)
+            vpByTeam.put(t, 0);
+
+        for (ShipVpRow row : rows) {
+            for (String scorer : allTeams) {
+                if (!scorer.equals(row.teamName()))
+                    vpByTeam.merge(scorer, row.vpScored(), Integer::sum);
+            }
+        }
+
+        java.util.List<TeamScore> teams = new java.util.ArrayList<>();
+        for (String team : allTeams) {
+            int myScore = vpByTeam.get(team);
+            int theirScore = allTeams.stream()
+                    .filter(t -> !t.equals(team))
+                    .mapToInt(vpByTeam::get).sum();
+            teams.add(new TeamScore(team, myScore, theirScore, levelOfVictory(myScore, theirScore)));
+        }
+
+        return new Scoreboard(rows, teams);
+    }
 
     public int getAbsoluteImpulse() {
         return TurnTracker.getImpulse();
@@ -676,17 +832,23 @@ public class Game {
     /**
      * Try to transfer control of a seeker to the first teammate of formerController
      * that has both free control channels and lock-on to the seeker's target.
-     * On success: updates controller, releases from formerController if still held there,
+     * On success: updates controller, releases from formerController if still held
+     * there,
      * and returns a log string. Returns null if no valid teammate was found.
      */
     private String autoTransferSeekerControl(Seeker seeker, Ship formerController) {
         Unit target = seeker.getTarget();
-        if (target == null || formerController == null) return null;
+        if (target == null || formerController == null)
+            return null;
         for (Ship candidate : ships) {
-            if (candidate == formerController) continue;
-            if (!isSameTeam(candidate, formerController)) continue;
-            if (!candidate.hasLockOn(target)) continue;
-            if (!candidate.acquireControl(seeker)) continue;
+            if (candidate == formerController)
+                continue;
+            if (!isSameTeam(candidate, formerController))
+                continue;
+            if (!candidate.hasLockOn(target))
+                continue;
+            if (!candidate.acquireControl(seeker))
+                continue;
             // Release from the former controller if it still holds this seeker
             Unit current = seeker.getController();
             if (current instanceof Ship && current != candidate)
@@ -702,10 +864,12 @@ public class Game {
 
     /** True if both units are owned by players on the same team. */
     public boolean isSameTeam(com.sfb.objects.Unit a, com.sfb.objects.Unit b) {
-        if (!(a instanceof Ship) || !(b instanceof Ship)) return false;
+        if (!(a instanceof Ship) || !(b instanceof Ship))
+            return false;
         Player pa = ((Ship) a).getOwner();
         Player pb = ((Ship) b).getOwner();
-        if (pa == null || pb == null) return false;
+        if (pa == null || pb == null)
+            return false;
         String ta = pa.getTeamName();
         String tb = pb.getTeamName();
         return ta != null && ta.equals(tb);
@@ -785,6 +949,125 @@ public class Game {
         return ActionResult.fail(ship.getName() + " cannot move this impulse");
     }
 
+    /**
+     * Declare or cancel disengagement by acceleration (C7.1).
+     * Must be called during the energy allocation phase.
+     * When declared, the ship's speed must equal its maximum accelerable speed this
+     * turn.
+     */
+    public List<Ship> getPendingAccelDisengage() {
+        return Collections.unmodifiableList(pendingAccelDisengage);
+    }
+
+    /**
+     * Player confirms or declines disengagement by acceleration for a ship (C7.1).
+     * Called after endTurn() has identified eligible ships. Once all pending ships
+     * are resolved, the next turn's EA begins automatically.
+     */
+    public ActionResult confirmAccelDisengage(Ship ship, boolean confirm) {
+        if (!pendingAccelDisengage.contains(ship))
+            return ActionResult.fail(ship.getName() + " is not awaiting accel disengage confirmation");
+
+        pendingAccelDisengage.remove(ship);
+
+        String result;
+        if (confirm) {
+            String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+            Set<String> badDirs = teamName != null
+                    ? destructionDirectionsByTeam.getOrDefault(teamName, new HashSet<>())
+                    : new HashSet<>();
+            String exitDir = String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
+            if (badDirs.contains(exitDir)) {
+                ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
+                ship.setLocation(null);
+                destroyedShips.add(ship);
+                ships.remove(ship);
+                gameEndResult = checkEndConditions();
+                result = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir + " (destruction zone)";
+            } else {
+                ship.setDisengaged(true);
+                ship.setLocation(null);
+                result = ship.getName() + " has disengaged by acceleration (C7.1)";
+            }
+        } else {
+            result = ship.getName() + " remained in the battle";
+        }
+
+        if (pendingAccelDisengage.isEmpty()) {
+            startTurn();
+            if (gameEndResult == null)
+                gameEndResult = checkEndConditions();
+        }
+
+        return ActionResult.ok(result);
+    }
+
+    /**
+     * Check whether the given ship currently qualifies for disengagement by
+     * separation (C7.2):
+     * no enemy ship within 50 hexes, and no in-flight seekers targeting it.
+     */
+    public boolean canDisengageBySeparation(Ship ship) {
+        if (ship.getLocation() == null || ship.isDisengaged())
+            return false;
+        for (Ship other : ships) {
+            if (other == ship || isSameTeam(ship, other))
+                continue;
+            if (other.getLocation() == null)
+                continue;
+            if (MapUtils.getRange(ship, other) <= 50)
+                return false;
+        }
+        for (Seeker s : seekers) {
+            if (ship.equals(s.getTarget()))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * Disengage by separation (C7.2) — player-initiated after confirming
+     * eligibility.
+     */
+    public List<String> getDestructionDirections(Ship ship) {
+        String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+        if (teamName == null) return List.of();
+        Set<String> dirs = destructionDirectionsByTeam.get(teamName);
+        return dirs != null ? new ArrayList<>(dirs) : List.of();
+    }
+
+    public ActionResult disengageBySeparation(Ship ship) {
+        if (!canDisengageBySeparation(ship))
+            return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
+        ship.setDisengaged(true);
+        ship.setLocation(null);
+        return ActionResult.ok(ship.getName() + " has disengaged by separation (C7.2)");
+    }
+
+    /**
+     * Concede — mark all ships belonging to the named player as DESTROYED and
+     * remove them from active play. Triggers end-condition check immediately.
+     */
+    public ActionResult concede(String playerName) {
+        List<Ship> toDestroy = ships.stream()
+                .filter(s -> s.getOwner() != null && playerName.equals(s.getOwner().getName()))
+                .toList();
+        if (toDestroy.isEmpty())
+            return ActionResult.fail("No active ships found for player: " + playerName);
+
+        List<String> names = new ArrayList<>();
+        for (Ship ship : toDestroy) {
+            ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
+            ship.setLocation(null);
+            destroyedShips.add(ship);
+            names.add(ship.getName());
+        }
+        ships.removeAll(toDestroy);
+
+        gameEndResult = checkEndConditions();
+        return ActionResult.ok(playerName + " has conceded. Ships lost: " + String.join(", ", names));
+    }
+
     public ActionResult moveForward(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
@@ -792,7 +1075,27 @@ public class Game {
         Location nextHex = MapUtils.getAdjacentHex(ship.getLocation(),
                 MapUtils.getTrueBearing(1, ship.getFacing()), mapCols, mapRows);
         if (nextHex == null) {
-            // Ship exits the map — mark as disengaged and remove from play
+            // Determine which edge the ship is exiting
+            Location cur = ship.getLocation();
+            String exitEdge;
+            if      (cur.getX() <= 1)       exitEdge = "LEFT";
+            else if (cur.getX() >= mapCols) exitEdge = "RIGHT";
+            else if (cur.getY() <= 1)       exitEdge = "TOP";
+            else                             exitEdge = "BOTTOM";
+
+            String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+            Set<String> teamEdges = teamName != null ? destructionEdgesByTeam.getOrDefault(teamName, new HashSet<>()) : new HashSet<>();
+            if (teamEdges.contains(exitEdge)) {
+                // Destruction edge — ship is destroyed, not disengaged
+                ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
+                ship.setLocation(null);
+                destroyedShips.add(ship);
+                ships.remove(ship);
+                gameEndResult = checkEndConditions();
+                return ActionResult.ok(ship.getName() + " has been destroyed (exited a destruction edge)");
+            }
+
+            // Safe edge — mark as disengaged and remove from play
             ship.setDisengaged(true);
             ship.setLocation(null);
             movedThisImpulse.add(ship);
@@ -878,7 +1181,7 @@ public class Game {
      * Attempt a High Energy Turn (C6.0). The ship snaps to a new facing,
      * spending reserve warp energy and rolling for possible breakdown (C6.5).
      *
-     * @param ship          The acting ship.
+     * @param ship           The acting ship.
      * @param absoluteFacing New facing (0–5).
      */
     public ActionResult performHet(Ship ship, int absoluteFacing) {
@@ -887,7 +1190,8 @@ public class Game {
         if (ship.isCaptured())
             return ActionResult.fail("Captured ships cannot perform HETs (D7.55)");
 
-        // Note: cloaked ships CAN HET; docked ships cannot, but docking is not yet implemented.
+        // Note: cloaked ships CAN HET; docked ships cannot, but docking is not yet
+        // implemented.
 
         int currentImpulse = TurnTracker.getImpulse();
 
@@ -918,9 +1222,9 @@ public class Game {
 
         // C6.2: costs reserve warp energy
         int hetCost = (int) Math.ceil(ship.getPerformanceData().getHetCost());
-        if (!ship.getPowerSysetems().useReserveWarp(hetCost))
+        if (!ship.getPowerSystems().useReserveWarp(hetCost))
             return ActionResult.fail("Not enough reserve warp power for HET — need "
-                    + hetCost + ", have " + ship.getPowerSysetems().getReserveWarp() + " (C6.2)");
+                    + hetCost + ", have " + ship.getPowerSystems().getReserveWarp() + " (C6.2)");
 
         // Update tracking before the roll so breakdown log has accurate values
         ship.setLastHetImpulse(currentImpulse);
@@ -932,16 +1236,16 @@ public class Game {
 
         if (success) {
             log.append(ship.getName()).append(" HET → facing ").append(absoluteFacing)
-               .append(" (roll: ").append(breakdownRoll).append(")");
+                    .append(" (roll: ").append(breakdownRoll).append(")");
         } else {
             // Breakdown: apply effects and queue 2 internal DAC hits
             int internalHits = ship.applyBreakdown(currentImpulse);
             for (int i = 0; i < internalHits; i++)
                 pendingInternalDamage.add(new PendingDamage(ship, 1));
             log.append(ship.getName())
-               .append(" BREAKDOWN during HET! (roll: ").append(breakdownRoll)
-               .append(") Speed→0, random facing, immobile for 16 impulses,")
-               .append(" crew -1/3, warp -1/5, 2 internal DAC hits pending.");
+                    .append(" BREAKDOWN during HET! (roll: ").append(breakdownRoll)
+                    .append(") Speed→0, random facing, immobile for 16 impulses,")
+                    .append(" crew -1/3, warp -1/5, 2 internal DAC hits pending.");
         }
 
         List<String> result = new ArrayList<>();
@@ -972,11 +1276,13 @@ public class Game {
      * ships have already moved (shuttles move after all ships).
      */
     public List<com.sfb.objects.Shuttle> getMovableShuttles() {
-        if (!getMovableShips().isEmpty()) return java.util.Collections.emptyList();
+        if (!getMovableShips().isEmpty())
+            return java.util.Collections.emptyList();
         int impulse = TurnTracker.getLocalImpulse();
         List<com.sfb.objects.Shuttle> movable = new ArrayList<>();
         for (com.sfb.objects.Shuttle s : activeShuttles) {
-            if (!s.isPlayerControlled()) continue;
+            if (!s.isPlayerControlled())
+                continue;
             if (MovementUtil.moveThisImpulse(impulse, s.getSpeed())
                     && !movedShuttlesThisImpulse.contains(s)) {
                 movable.add(s);
@@ -986,10 +1292,14 @@ public class Game {
     }
 
     public boolean canMoveShuttleThisImpulse(com.sfb.objects.Shuttle shuttle) {
-        if (currentPhase != ImpulsePhase.MOVEMENT) return false;
-        if (!shuttle.isPlayerControlled()) return false;
-        if (!getMovableShips().isEmpty()) return false;
-        if (!MovementUtil.moveThisImpulse(TurnTracker.getLocalImpulse(), shuttle.getSpeed())) return false;
+        if (currentPhase != ImpulsePhase.MOVEMENT)
+            return false;
+        if (!shuttle.isPlayerControlled())
+            return false;
+        if (!getMovableShips().isEmpty())
+            return false;
+        if (!MovementUtil.moveThisImpulse(TurnTracker.getLocalImpulse(), shuttle.getSpeed()))
+            return false;
         return !movedShuttlesThisImpulse.contains(shuttle);
     }
 
@@ -1009,7 +1319,8 @@ public class Game {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean turned = shuttle.turnLeft();
-        if (turned) movedShuttlesThisImpulse.add(shuttle);
+        if (turned)
+            movedShuttlesThisImpulse.add(shuttle);
         return turned ? ActionResult.ok(shuttle.getName() + " turned left")
                 : ActionResult.fail(shuttle.getName() + " cannot turn left yet (turn mode)");
     }
@@ -1018,7 +1329,8 @@ public class Game {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean turned = shuttle.turnRight();
-        if (turned) movedShuttlesThisImpulse.add(shuttle);
+        if (turned)
+            movedShuttlesThisImpulse.add(shuttle);
         return turned ? ActionResult.ok(shuttle.getName() + " turned right")
                 : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
     }
@@ -1027,7 +1339,8 @@ public class Game {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean moved = shuttle.sideslipLeft();
-        if (moved) movedShuttlesThisImpulse.add(shuttle);
+        if (moved)
+            movedShuttlesThisImpulse.add(shuttle);
         return moved ? ActionResult.ok(shuttle.getName() + " sideslipped left")
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
@@ -1036,7 +1349,8 @@ public class Game {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean moved = shuttle.sideslipRight();
-        if (moved) movedShuttlesThisImpulse.add(shuttle);
+        if (moved)
+            movedShuttlesThisImpulse.add(shuttle);
         return moved ? ActionResult.ok(shuttle.getName() + " sideslipped right")
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
@@ -1085,7 +1399,7 @@ public class Game {
      * Returns the shield(s) of {@code target} that face toward {@code attacker}.
      * Size 1: attacker is directly in front of a shield face.
      * Size 2: attacker is on the seam between two adjacent shields — caller must
-     *         ask the player which shield to use.
+     * ask the player which shield to use.
      */
     public java.util.List<Integer> getShieldCandidates(Marker attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
@@ -1094,7 +1408,7 @@ public class Game {
             return java.util.List.of((shieldFacing + 1) / 2);
         }
         // Even = seam between two adjacent shields → two candidates
-        // e.g. 2 → shields 1 & 2,  12 → shields 6 & 1
+        // e.g. 2 → shields 1 & 2, 12 → shields 6 & 1
         int upper = shieldFacing / 2;
         int lower = (upper % 6) + 1;
         return java.util.List.of(upper, lower);
@@ -1127,16 +1441,17 @@ public class Game {
      *
      * Step A: consume general shield reinforcement against the total damage.
      * Step B: find the weakest shield(s); apply one equal damage group to each.
-     *         Fractional groups: round up for weak shields when fraction >= 0.5,
-     *         down otherwise (E10.412).
+     * Fractional groups: round up for weak shields when fraction >= 0.5,
+     * down otherwise (E10.412).
      * Step C: distribute the remaining group across non-weakest shields one point
-     *         at a time, weakest first.
+     * at a time, weakest first.
      *
      * @return log lines describing how damage was distributed.
      */
     List<String> applyHellboreEnvelopingDamage(Ship target, int damage) {
         List<String> log = new ArrayList<>();
-        if (damage <= 0) return log;
+        if (damage <= 0)
+            return log;
 
         // Step A: consume general reinforcement
         int genReinf = target.getShields().getGeneralReinforcement();
@@ -1145,38 +1460,45 @@ public class Game {
             target.getShields().clearGeneralReinforcement();
             damage -= absorbed;
             log.add("  Enveloping — general reinforcement absorbed " + absorbed);
-            if (damage <= 0) return log;
+            if (damage <= 0)
+                return log;
         }
 
-        // Collect current shield strengths (1-indexed), including specific reinforcement
+        // Collect current shield strengths (1-indexed), including specific
+        // reinforcement
         int[] strength = new int[6];
         for (int i = 0; i < 6; i++)
             strength[i] = target.getShields().getShieldStrength(i + 1);
 
         // Step B: find the weakest shield strength
         int minStrength = strength[0];
-        for (int s : strength) if (s < minStrength) minStrength = s;
+        for (int s : strength)
+            if (s < minStrength)
+                minStrength = s;
 
         int weakCount = 0;
-        for (int s : strength) if (s == minStrength) weakCount++;
+        for (int s : strength)
+            if (s == minStrength)
+                weakCount++;
 
         int stepCDamage;
         if (weakCount == 6) {
             // All shields equal — skip Step B, distribute everything in Step C
             stepCDamage = damage;
         } else {
-            int groups    = 1 + weakCount;
-            int perGroup  = damage / groups;
+            int groups = 1 + weakCount;
+            int perGroup = damage / groups;
             int remainder = damage % groups;
             // Round up for weak shields when fractional part >= 0.5 (E10.412)
-            int eachWeak  = (remainder * 2 >= groups) ? perGroup + 1 : perGroup;
-            stepCDamage   = damage - weakCount * eachWeak;
+            int eachWeak = (remainder * 2 >= groups) ? perGroup + 1 : perGroup;
+            stepCDamage = damage - weakCount * eachWeak;
 
             for (int i = 0; i < 6; i++) {
                 if (strength[i] == minStrength) {
                     int bleed = target.damageShield(i + 1, eachWeak);
                     strength[i] = Math.max(0, strength[i] - eachWeak); // track for Step C ordering
-                    if (bleed > 0) pendingInternalDamage.add(new PendingDamage(target, bleed));
+                    if (bleed > 0)
+                        pendingInternalDamage.add(new PendingDamage(target, bleed));
                     log.add("  Enveloping step B — shield #" + (i + 1) + " (weakest)  " + eachWeak);
                 }
             }
@@ -1194,7 +1516,8 @@ public class Game {
                 // Find shield with lowest current strength (track externally)
                 int minNow = Integer.MAX_VALUE;
                 for (int i = 0; i < 6; i++)
-                    if (strength[i] < minNow) minNow = strength[i];
+                    if (strength[i] < minNow)
+                        minNow = strength[i];
                 // Pick first shield at that strength
                 for (int i = 0; i < 6; i++) {
                     if (strength[i] == minNow) {
@@ -1260,10 +1583,12 @@ public class Game {
                         seekers.remove((Seeker) shuttle);
                         if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
                             com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
-                            if (ss.getController() instanceof Ship) ((Ship) ss.getController()).releaseControl(ss);
+                            if (ss.getController() instanceof Ship)
+                                ((Ship) ss.getController()).releaseControl(ss);
                         } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
                             com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
-                            if (sp.getController() instanceof Ship) ((Ship) sp.getController()).releaseControl(sp);
+                            if (sp.getController() instanceof Ship)
+                                ((Ship) sp.getController()).releaseControl(sp);
                         }
                     } else {
                         activeShuttles.remove(shuttle);
@@ -1271,11 +1596,12 @@ public class Game {
                     return "HIT — " + shuttle.getName() + " destroyed (" + roll + " hull damage)";
                 }
                 StringBuilder addLog = new StringBuilder(
-                    "HIT — " + shuttle.getName() + " took " + roll + " hull damage ("
-                    + shuttle.getCurrentHull() + " remaining)");
+                        "HIT — " + shuttle.getName() + " took " + roll + " hull damage ("
+                                + shuttle.getCurrentHull() + " remaining)");
                 if (shuttle instanceof com.sfb.objects.Fighter) {
                     com.sfb.objects.Fighter f = (com.sfb.objects.Fighter) shuttle;
-                    if (f.shouldCripple()) addLog.append("\n  ").append(f.applyCripplingEffects());
+                    if (f.shouldCripple())
+                        addLog.append("\n  ").append(f.applyCripplingEffects());
                 }
                 return addLog.toString();
             }
@@ -1285,10 +1611,12 @@ public class Game {
                     seekers.remove((Seeker) shuttle);
                     if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
                         com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
-                        if (ss.getController() instanceof Ship) ((Ship) ss.getController()).releaseControl(ss);
+                        if (ss.getController() instanceof Ship)
+                            ((Ship) ss.getController()).releaseControl(ss);
                     } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
                         com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
-                        if (sp.getController() instanceof Ship) ((Ship) sp.getController()).releaseControl(sp);
+                        if (sp.getController() instanceof Ship)
+                            ((Ship) sp.getController()).releaseControl(sp);
                     }
                 } else {
                     activeShuttles.remove(shuttle);
@@ -1299,7 +1627,8 @@ public class Game {
                     + " — " + shuttle.getCurrentHull() + " hull remaining");
             if (shuttle instanceof com.sfb.objects.Fighter) {
                 com.sfb.objects.Fighter f = (com.sfb.objects.Fighter) shuttle;
-                if (f.shouldCripple()) hitLog.append("\n  ").append(f.applyCripplingEffects());
+                if (f.shouldCripple())
+                    hitLog.append("\n  ").append(f.applyCripplingEffects());
             }
             return hitLog.toString();
         } else if (target instanceof PlasmaTorpedo) {
@@ -1377,19 +1706,21 @@ public class Game {
         boolean hasDerfacs = derfacs != null && derfacs.isFunctional();
 
         int currentImpulse = TurnTracker.getImpulse();
-        com.sfb.systemgroups.UIM activeUim = (useUim && attackerShip != null) ? attackerShip.getActiveUim(currentImpulse) : null;
+        com.sfb.systemgroups.UIM activeUim = (useUim && attackerShip != null)
+                ? attackerShip.getActiveUim(currentImpulse)
+                : null;
         boolean uimInUse = activeUim != null;
         java.util.List<com.sfb.weapons.Disruptor> uimFiredDisruptors = new java.util.ArrayList<>();
 
         // D6.34/D6.35: net ECM = target ECM − attacker ECCM; shift = floor(√net)
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        int targetEcm    = targetShip  != null ? targetShip.getEcmAllocated()   : 0;
+        int targetEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
         int attackerEccm = attackerShip != null ? attackerShip.getEccmAllocated() : 0;
-        int netEcm  = Math.max(0, targetEcm - attackerEccm);
+        int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
         if (ecmShift > 0)
             log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(targetEcm)
-               .append(", attacker ECCM ").append(attackerEccm).append(")\n");
+                    .append(", attacker ECCM ").append(attackerEccm).append(")\n");
 
         for (Weapon w : selected) {
             w.setEcmShift(ecmShift);
@@ -1416,7 +1747,8 @@ public class Game {
                 } else {
                     dmg = ((DirectFire) w).fire(range, adjustedRange);
                 }
-                if (isFusionSuicide) fusionSuicideFired = true;
+                if (isFusionSuicide)
+                    fusionSuicideFired = true;
                 String rollStr = w.getLastRoll() > 0 ? "  (die " + w.getLastRoll() + ")" : "";
                 if (dmg == ADD.HIT) {
                     addHit = true;
@@ -1428,7 +1760,11 @@ public class Game {
                 } else {
                     totalDamage += dmg;
                     log.append("  ").append(w.getName()).append(rollStr)
-                            .append(dmg > 0 ? "  HIT  " + dmg + (directFire && w instanceof com.sfb.weapons.Hellbore ? " (direct)" : "") : "  MISS").append("\n");
+                            .append(dmg > 0
+                                    ? "  HIT  " + dmg
+                                            + (directFire && w instanceof com.sfb.weapons.Hellbore ? " (direct)" : "")
+                                    : "  MISS")
+                            .append("\n");
                 }
             } catch (WeaponUnarmedException ex) {
                 log.append("  ").append(w.getName()).append("  unarmed\n");
@@ -1445,15 +1781,15 @@ public class Game {
         if (fusionSuicideFired && attackerShip != null) {
             pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
             log.append("  Fusion suicide overload — 1 internal damage to ").append(attackerShip.getName())
-               .append(" (resolves at end of Direct-Fire segment)\n");
+                    .append(" (resolves at end of Direct-Fire segment)\n");
         }
 
         // UIM: accumulate disruptors that fired under UIM this impulse.
         // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not here.
         if (uimInUse && !uimFiredDisruptors.isEmpty() && attackerShip != null) {
             uimUsedThisImpulse
-                .computeIfAbsent(attackerShip, k -> new ArrayList<>())
-                .addAll(uimFiredDisruptors);
+                    .computeIfAbsent(attackerShip, k -> new ArrayList<>())
+                    .addAll(uimFiredDisruptors);
         }
 
         if (addHit) {
@@ -1477,7 +1813,8 @@ public class Game {
         if (envelopingHellboreDamage > 0 && target instanceof Ship) {
             log.append("\n  Hellbore enveloping volley: ").append(envelopingHellboreDamage).append("\n");
             List<String> envLog = applyHellboreEnvelopingDamage((Ship) target, envelopingHellboreDamage);
-            for (String line : envLog) log.append(line).append("\n");
+            for (String line : envLog)
+                log.append(line).append("\n");
         }
 
         return log.toString();
@@ -1499,6 +1836,7 @@ public class Game {
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
                 lastInternalDamageLog.add(s.getName() + " has been destroyed and removed from play.");
+                destroyedShips.add(s);
                 return true;
             }
             return false;
@@ -1517,8 +1855,10 @@ public class Game {
 
     /**
      * Attempt to identify a list of enemy seekers using the acting ship's labs.
-     * Each attempt costs 1 lab. Roll 1d6; result must be STRICTLY GREATER than range to succeed.
-     * Pseudo-plasma torps cannot be identified (attempt always fails to reveal pseudo status).
+     * Each attempt costs 1 lab. Roll 1d6; result must be STRICTLY GREATER than
+     * range to succeed.
+     * Pseudo-plasma torps cannot be identified (attempt always fails to reveal
+     * pseudo status).
      */
     public ActionResult identifySeekers(Ship actingShip, List<String> seekerNames) {
         if (currentPhase != ImpulsePhase.ACTIVITY)
@@ -1529,15 +1869,16 @@ public class Game {
             return ActionResult.fail("No seekers selected");
         int availLabs = actingShip.getLabs().getAvailableLab();
         if (seekerNames.size() > availLabs)
-            return ActionResult.fail("Selected " + seekerNames.size() + " seekers but only " + availLabs + " labs available");
+            return ActionResult
+                    .fail("Selected " + seekerNames.size() + " seekers but only " + availLabs + " labs available");
 
         StringBuilder log = new StringBuilder(actingShip.getName() + " lab identification attempt\n");
         DiceRoller dice = new DiceRoller();
 
         for (String seekerName : seekerNames) {
             Seeker seeker = seekers.stream()
-                .filter(s -> ((com.sfb.objects.Marker) s).getName().equals(seekerName))
-                .findFirst().orElse(null);
+                    .filter(s -> ((com.sfb.objects.Marker) s).getName().equals(seekerName))
+                    .findFirst().orElse(null);
             if (seeker == null) {
                 log.append("  ").append(seekerName).append(" — not found\n");
                 continue;
@@ -1551,10 +1892,10 @@ public class Game {
 
             actingShip.getLabs().decrementLab();
             int range = MapUtils.getRange(actingShip, (com.sfb.objects.Marker) seeker);
-            int roll  = dice.rollOneDie();
+            int roll = dice.rollOneDie();
             log.append("  ").append(seekerName)
-               .append("  range ").append(range)
-               .append("  (die ").append(roll).append(")");
+                    .append("  range ").append(range)
+                    .append("  (die ").append(roll).append(")");
 
             if (roll > range) {
                 // Pseudo-plasma: identify() call is harmless but we don't announce type
@@ -1648,7 +1989,8 @@ public class Game {
         drone.setLocation(launcher.getLocation());
         drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         drone.setTarget(target);
-        if (drone.getController() == null) drone.setController(launcher);
+        if (drone.getController() == null)
+            drone.setController(launcher);
         drone.setLauncherName(launcher.getName());
         drone.setLaunchImpulse(TurnTracker.getImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
@@ -1657,8 +1999,10 @@ public class Game {
 
         String msg = launcher.getName() + " launched " + drone.getDroneType()
                 + " drone at " + target.getName();
-        if (controlXferLog != null) msg += "\n" + controlXferLog;
-        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        if (controlXferLog != null)
+            msg += "\n" + controlXferLog;
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
@@ -1695,7 +2039,8 @@ public class Game {
 
         String msg = launcher.getName() + " launched plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName();
-        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
@@ -1727,7 +2072,8 @@ public class Game {
 
         String msg = launcher.getName() + " launched pseudo plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";
-        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
@@ -1744,7 +2090,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
@@ -1773,7 +2120,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
@@ -1798,7 +2146,8 @@ public class Game {
 
         String msg = launcher.getName() + " launched suicide shuttle at " + target.getName()
                 + " (warhead " + shuttle.getWarheadDamage() + ")";
-        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
@@ -1811,7 +2160,8 @@ public class Game {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
@@ -1838,13 +2188,15 @@ public class Game {
 
         String msg = launcher.getName() + " launched scatter pack ("
                 + pack.getPayload().size() + " drones) at " + target.getName();
-        if (!lockLog.isEmpty()) msg += "\n" + String.join("\n", lockLog);
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
     /**
      * Auto-drift non-player-controlled shuttles (e.g. released ScatterPack).
-     * Player-controlled shuttles (admin, GAS, HTS) are moved manually by the player.
+     * Player-controlled shuttles (admin, GAS, HTS) are moved manually by the
+     * player.
      * Called automatically when leaving the MOVEMENT phase.
      */
     private List<String> moveShuttles() {
@@ -1853,7 +2205,8 @@ public class Game {
         List<com.sfb.objects.Shuttle> offMap = new ArrayList<>();
 
         for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
-            if (shuttle.isPlayerControlled()) continue; // manual control only
+            if (shuttle.isPlayerControlled())
+                continue; // manual control only
             if (!MovementUtil.moveThisImpulse(impulse, shuttle.getSpeed()))
                 continue;
             shuttle.goForward(mapCols, mapRows);
@@ -1917,7 +2270,8 @@ public class Game {
     /** Extracts the lowest-numbered direction from an arc bitmask. */
     private boolean isTargetFullyCloaked(Seeker s) {
         Unit target = s.getTarget();
-        if (!(target instanceof Ship)) return false;
+        if (!(target instanceof Ship))
+            return false;
         com.sfb.systemgroups.CloakingDevice cloak = ((Ship) target).getCloakingDevice();
         return cloak != null && cloak.breaksLockOn();
     }
@@ -1929,22 +2283,31 @@ public class Game {
      */
     private List<String> checkSeekerCollisions(Ship ship) {
         List<String> log = new ArrayList<>();
-        if (ship.getLocation() == null) return log;
+        if (ship.getLocation() == null)
+            return log;
         List<Seeker> toRemove = new ArrayList<>();
         for (Seeker seeker : seekers) {
-            if (!(seeker instanceof Unit)) continue;
+            if (!(seeker instanceof Unit))
+                continue;
             Unit unit = (Unit) seeker;
-            if (unit.getLocation() == null) continue;
-            if (!unit.getLocation().equals(ship.getLocation())) continue;
-            if (seeker.getTarget() != ship) continue;
+            if (unit.getLocation() == null)
+                continue;
+            if (!unit.getLocation().equals(ship.getLocation()))
+                continue;
+            if (seeker.getTarget() != ship)
+                continue;
 
-            // Enveloping plasma is the only special case — all other seekers use position-based shield
+            // Enveloping plasma is the only special case — all other seekers use
+            // position-based shield
             if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 int[] spread = torp.computeEnvelopingDamage();
                 int total = 0;
                 for (int i = 0; i < 6; i++) {
-                    if (spread[i] > 0) { markShieldDamage(ship, i + 1, spread[i]); total += spread[i]; }
+                    if (spread[i] > 0) {
+                        markShieldDamage(ship, i + 1, spread[i]);
+                        total += spread[i];
+                    }
                 }
                 log.add("  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
                         + " (enveloping)  total damage " + total + " spread to all shields");
@@ -2059,15 +2422,18 @@ public class Game {
                 if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
                     Unit target = pack.getTarget();
                     Unit controller = pack.getController();
-                    // Free the scatter pack's own control channel before drones compete for capacity
-                    if (controller instanceof Ship) ((Ship) controller).releaseControl(pack);
+                    // Free the scatter pack's own control channel before drones compete for
+                    // capacity
+                    if (controller instanceof Ship)
+                        ((Ship) controller).releaseControl(pack);
                     List<com.sfb.objects.Drone> released = pack.release();
                     String launcherName = controller instanceof Ship ? controller.getName() : null;
                     for (com.sfb.objects.Drone drone : released) {
                         drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + (++seekerSeq));
                         drone.setLocation(pack.getLocation());
                         drone.setFacing(pack.getFacing());
-                        if (launcherName != null) drone.setLauncherName(launcherName);
+                        if (launcherName != null)
+                            drone.setLauncherName(launcherName);
                         drone.setLaunchImpulse(TurnTracker.getImpulse());
                         if (!drone.isSelfGuiding() && controller instanceof Ship
                                 && ((Ship) controller).hasLockOn(target)) {
@@ -2101,7 +2467,8 @@ public class Game {
                     Unit target = pack.getTarget();
                     if (target != null) {
                         int bearing = MapUtils.getGeometricBearing(pack, target);
-                        if (bearing != 0) pack.setFacing(snapToCardinal(bearing));
+                        if (bearing != 0)
+                            pack.setFacing(snapToCardinal(bearing));
                     }
                     pack.goForward(mapCols, mapRows);
                     if (pack.getLocation() == null) {
@@ -2122,7 +2489,8 @@ public class Game {
                     continue;
                 }
                 int bearing = MapUtils.getGeometricBearing(ss, target);
-                if (bearing != 0) ss.setFacing(snapToCardinal(bearing));
+                if (bearing != 0)
+                    ss.setFacing(snapToCardinal(bearing));
                 ss.goForward(mapCols, mapRows);
                 if (ss.getLocation() == null) {
                     log.add("  Suicide shuttle moved off the map");
@@ -2267,23 +2635,31 @@ public class Game {
             planetHexes.add(t.getLocation());
     }
 
-    public List<Terrain> getTerrain() { return terrain; }
+    public List<Terrain> getTerrain() {
+        return terrain;
+    }
 
-    public boolean isAsteroidHex(Location loc) { return loc != null && asteroidHexes.contains(loc); }
-    public boolean isPlanetHex(Location loc)    { return loc != null && planetHexes.contains(loc); }
+    public boolean isAsteroidHex(Location loc) {
+        return loc != null && asteroidHexes.contains(loc);
+    }
+
+    public boolean isPlanetHex(Location loc) {
+        return loc != null && planetHexes.contains(loc);
+    }
 
     /**
      * Roll asteroid collision damage and apply directly to a drone's hull (P3.2).
      * Returns a log line; removes the drone from play if hull reaches 0.
      */
     private String applyAsteroidCollisionToDrone(Drone drone) {
-        int speed   = drone.getSpeed();
+        int speed = drone.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll    = new DiceRoller().rollOneDie();
-        int damage  = ASTEROID_DAMAGE[roll - 1][bracket];
+        int roll = new DiceRoller().rollOneDie();
+        int damage = ASTEROID_DAMAGE[roll - 1][bracket];
         String base = "  Drone (" + drone.getDroneType() + ") enters asteroid hex"
                 + " (speed " + speed + ", die " + roll + ")";
-        if (damage == 0) return base + " — no damage";
+        if (damage == 0)
+            return base + " — no damage";
         int remaining = drone.getHull() - damage;
         drone.setHull(Math.max(0, remaining));
         if (drone.getHull() <= 0) {
@@ -2306,13 +2682,14 @@ public class Game {
         int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
         int shieldNum = (relBearing - 1) / 4 + 1;
 
-        int speed   = ship.getSpeed();
+        int speed = ship.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll    = new DiceRoller().rollOneDie();
-        int damage  = ASTEROID_DAMAGE[roll - 1][bracket];
+        int roll = new DiceRoller().rollOneDie();
+        int damage = ASTEROID_DAMAGE[roll - 1][bracket];
         String base = "  " + ship.getName() + " enters asteroid hex"
                 + " (speed " + speed + ", die " + roll + ", shield " + shieldNum + ")";
-        if (damage == 0) return base + " — no damage";
+        if (damage == 0)
+            return base + " — no damage";
         markShieldDamage(ship, shieldNum, damage);
         return base + " — " + damage + " to shield " + shieldNum;
     }
@@ -2332,10 +2709,12 @@ public class Game {
 
     /**
      * @param shieldChoice -1 = auto-select first candidate (no prompt);
-     *                      0 = ask player if on a seam (returns SHIELD_CHOICE sentinel);
+     *                     0 = ask player if on a seam (returns SHIELD_CHOICE
+     *                     sentinel);
      *                     >0 = player's explicit choice
      */
-    public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal, int shieldChoice) {
+    public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal,
+            int shieldChoice) {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
@@ -2417,7 +2796,8 @@ public class Game {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Mines can only be dropped during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(actingShip);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
         if (actingShip.isInPostHetWindow(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot drop mines from bay within 4 impulses of a HET (C6.38)");
         if (actingShip.isInBreakdownLockout(TurnTracker.getImpulse()))
@@ -2531,7 +2911,8 @@ public class Game {
             // Try to arm inactive mines; skip detection the impulse they arm
             if (!mine.isActive()) {
                 int layerRange = mine.getLayingShip() != null
-                        ? MapUtils.getRange(mine, mine.getLayingShip()) : Integer.MAX_VALUE;
+                        ? MapUtils.getRange(mine, mine.getLayingShip())
+                        : Integer.MAX_VALUE;
                 mine.tryActivate(currentImpulse, layerRange);
                 if (!mine.isActive())
                     continue;
@@ -2621,7 +3002,7 @@ public class Game {
         }
 
         // Power
-        PowerSystems ps = target.getPowerSysetems();
+        PowerSystems ps = target.getPowerSystems();
         if (ps.getAvailableLWarp() > 0 || ps.getAvailableRWarp() > 0 || ps.getAvailableCWarp() > 0) {
             systems.add(new SystemTarget(SystemTarget.Type.WARP, "Warp Engines"));
         }
@@ -2685,7 +3066,8 @@ public class Game {
     /**
      * Shared transporter precondition check used by both boarding and H&R actions.
      *
-     * <p>Validates phase, cloak, range, lock-on, boarding party count, transporter
+     * <p>
+     * Validates phase, cloak, range, lock-on, boarding party count, transporter
      * availability, and shield passability. Auto-lowers the acting ship's facing
      * shield if needed. Spends transporter energy on success.
      *
@@ -2750,20 +3132,22 @@ public class Game {
     /**
      * Transport crew units from one unit to another (G8.32 non-combat rate).
      *
-     * <p>Non-combat rate: 2 crew units per transporter use. Destination may be
+     * <p>
+     * Non-combat rate: 2 crew units per transporter use. Destination may be
      * any Unit; shield check is skipped for non-Ship destinations. Lock-on to
      * the destination is required (G8.17).
      *
-     * @param source     ship sending crew (must have transporters)
-     * @param dest       receiving unit (ship, shuttle, or other)
-     * @param amount     number of crew units to transport (≥ 1)
+     * @param source ship sending crew (must have transporters)
+     * @param dest   receiving unit (ship, shuttle, or other)
+     * @param amount number of crew units to transport (≥ 1)
      */
     public ActionResult transportCrew(Ship source, Unit dest, int amount) {
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
 
         ActionResult cloakBlock = cloakActionBlock(source);
-        if (cloakBlock != null) return cloakBlock;
+        if (cloakBlock != null)
+            return cloakBlock;
 
         if (amount <= 0)
             return ActionResult.fail("Must transport at least 1 crew unit");
@@ -2786,7 +3170,8 @@ public class Game {
             return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
         int availUses = source.getTransporters().availableUses();
         if (usesNeeded > availUses)
-            return ActionResult.fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
+            return ActionResult
+                    .fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
 
         // Source shield facing dest must be passable (auto-lower if possible)
         int srcShieldNum = getShieldNumber(dest, source);
@@ -2821,9 +3206,9 @@ public class Game {
 
         StringBuilder log = new StringBuilder();
         log.append("=== Transport Crew: ").append(source.getName())
-           .append(" → ").append(dest.getName()).append(" ===\n");
+                .append(" → ").append(dest.getName()).append(" ===\n");
         log.append("  ").append(amount).append(" crew unit(s) transported using ")
-           .append(usesNeeded).append(" transporter(s) (non-combat rate G8.32)\n");
+                .append(usesNeeded).append(" transporter(s) (non-combat rate G8.32)\n");
         if (dest instanceof Ship && ((Ship) dest).isCaptured() && !((Ship) dest).getCrew().isSkeleton()) {
             log.append("  Skeleton crew established — ").append(dest.getName()).append(" is now operable\n");
         }
@@ -2833,11 +3218,13 @@ public class Game {
     /**
      * Transport boarding parties onto an enemy ship (D7.31).
      *
-     * <p>Same preconditions as H&amp;R: Activity phase, range ≤ 5, lock-on,
+     * <p>
+     * Same preconditions as H&amp;R: Activity phase, range ≤ 5, lock-on,
      * enough boarding parties and transporter energy, shields passable.
      * The acting ship's facing shield is auto-lowered if needed.
      *
-     * <p>On success the parties are deducted from the acting ship and added to
+     * <p>
+     * On success the parties are deducted from the acting ship and added to
      * the target's enemy troop count. Combat resolves at end of turn via
      * {@link #performBoardingCombat(Ship)}.
      *
@@ -2861,13 +3248,15 @@ public class Game {
                     + ", need " + commandos + ")");
 
         ActionResult check = checkAndSpendTransporterResources(actingShip, target, numParties);
-        if (check != null) return check;
+        if (check != null)
+            return check;
 
         // Deduct from acting ship
         actingShip.getCrew().getFriendlyTroops().commandos -= commandos;
         actingShip.getCrew().getFriendlyTroops().removeCasualties(normal); // removes normal first
 
-        // Place on target; record attacker for ownership transfer if capture occurs (D7.50)
+        // Place on target; record attacker for ownership transfer if capture occurs
+        // (D7.50)
         target.addEnemyBoardingParties(normal);
         target.addEnemyCommandos(commandos);
         if (target.getBoardingAttacker() == null)
@@ -2877,7 +3266,8 @@ public class Game {
         log.append("=== Boarding Action: ").append(actingShip.getName())
                 .append("  →  ").append(target.getName()).append(" ===\n");
         log.append("  Transported: ").append(normal).append(" BP(s)");
-        if (commandos > 0) log.append(" + ").append(commandos).append(" commando(s)");
+        if (commandos > 0)
+            log.append(" + ").append(commandos).append(" commando(s)");
         log.append("\n");
         log.append("  Enemy troops now aboard ").append(target.getName())
                 .append(": ").append(target.getEnemyTroops()).append("\n");
@@ -2889,7 +3279,8 @@ public class Game {
     /**
      * Execute a Hit &amp; Run boarding raid.
      *
-     * <p>Pre-conditions checked here: range ≤ 5, enough boarding parties and
+     * <p>
+     * Pre-conditions checked here: range ≤ 5, enough boarding parties and
      * transporter energy, target shield passable. The acting ship's facing
      * shield is lowered automatically if it has remaining strength (triggering
      * the 8-impulse lockout).
@@ -2910,15 +3301,18 @@ public class Game {
             return ActionResult.fail("No boarding parties assigned");
 
         ActionResult check = checkAndSpendTransporterResources(actingShip, target, targetSystems.size());
-        if (check != null) return check;
+        if (check != null)
+            return check;
 
         int actingShieldNum = getShieldNumber(target, actingShip);
 
         // Defending crew quality modifier (D7.73)
         int crewMod = 0;
         com.sfb.systemgroups.Crew.CrewQuality cq = target.getCrew().getCrewQuality();
-        if (cq == com.sfb.systemgroups.Crew.CrewQuality.OUTSTANDING) crewMod = +1;
-        else if (cq == com.sfb.systemgroups.Crew.CrewQuality.POOR)        crewMod = -1;
+        if (cq == com.sfb.systemgroups.Crew.CrewQuality.OUTSTANDING)
+            crewMod = +1;
+        else if (cq == com.sfb.systemgroups.Crew.CrewQuality.POOR)
+            crewMod = -1;
 
         // Roll and apply results
         DiceRoller dice = new DiceRoller();
@@ -2954,8 +3348,8 @@ public class Game {
 
             // Normal H&R resolution (D7.81)
             HarResult result = resolveHarTable(roll, quality);
-            boolean systemHit  = (result == HarResult.SYSTEM_BP_RETURNS || result == HarResult.BOTH_DESTROYED);
-            boolean partyLost  = (result == HarResult.BOTH_DESTROYED    || result == HarResult.BP_DESTROYED);
+            boolean systemHit = (result == HarResult.SYSTEM_BP_RETURNS || result == HarResult.BOTH_DESTROYED);
+            boolean partyLost = (result == HarResult.BOTH_DESTROYED || result == HarResult.BP_DESTROYED);
 
             String hitResult;
             if (systemHit) {
@@ -2998,7 +3392,7 @@ public class Game {
                 return true;
             }
             case WARP: {
-                PowerSystems ps = target.getPowerSysetems();
+                PowerSystems ps = target.getPowerSystems();
                 if (ps.damageLWarp())
                     return true;
                 if (ps.damageRWarp())
@@ -3006,14 +3400,17 @@ public class Game {
                 return ps.damageCWarp();
             }
             case IMPULSE:
-                return target.getPowerSysetems().damageImpulse();
+                return target.getPowerSystems().damageImpulse();
             case SENSORS: {
                 List<Seeker> released = target.getSpecialFunctions().damageSensor();
-                if (released == null) return false;
+                if (released == null)
+                    return false;
                 for (Seeker s : released) {
                     String xfer = autoTransferSeekerControl(s, target);
-                    if (xfer != null) lastSeekerLog.add(xfer);
-                    else s.setSelfGuiding(true);
+                    if (xfer != null)
+                        lastSeekerLog.add(xfer);
+                    else
+                        s.setSelfGuiding(true);
                 }
                 return true;
             }
@@ -3067,40 +3464,43 @@ public class Game {
     /**
      * Result of one round of boarding party combat (D7.4).
      *
-     * <p>Step 3 (specific allocation) is not yet implemented — casualty points
+     * <p>
+     * Step 3 (specific allocation) is not yet implemented — casualty points
      * are applied directly to boarding parties in Step 4. The fields here expose
      * all intermediate values so Step 3 can be added later without changing the
      * overall structure.
      */
     public static class BoardingCombatResult {
-        public final int attackerPointsScored;   // casualty pts scored against defender
-        public final int defenderPointsScored;   // casualty pts scored against attacker
-        public final int defenderBPsLost;        // friendly BPs removed from defender
-        public final int attackerBPsLost;        // enemy BPs removed from board
-        public final int controlRoomsCaptured;   // rooms captured this round (Step 4 fallback)
-        public final boolean shipCaptured;       // D7.50 condition met
+        public final int attackerPointsScored; // casualty pts scored against defender
+        public final int defenderPointsScored; // casualty pts scored against attacker
+        public final int defenderBPsLost; // friendly BPs removed from defender
+        public final int attackerBPsLost; // enemy BPs removed from board
+        public final int controlRoomsCaptured; // rooms captured this round (Step 4 fallback)
+        public final boolean shipCaptured; // D7.50 condition met
         public final String log;
 
         public BoardingCombatResult(int attackerPts, int defenderPts,
                 int defenderBPsLost, int attackerBPsLost,
                 int controlRoomsCaptured, boolean shipCaptured, String log) {
-            this.attackerPointsScored  = attackerPts;
-            this.defenderPointsScored  = defenderPts;
-            this.defenderBPsLost       = defenderBPsLost;
-            this.attackerBPsLost       = attackerBPsLost;
-            this.controlRoomsCaptured  = controlRoomsCaptured;
-            this.shipCaptured          = shipCaptured;
-            this.log                   = log;
+            this.attackerPointsScored = attackerPts;
+            this.defenderPointsScored = defenderPts;
+            this.defenderBPsLost = defenderBPsLost;
+            this.attackerBPsLost = attackerBPsLost;
+            this.controlRoomsCaptured = controlRoomsCaptured;
+            this.shipCaptured = shipCaptured;
+            this.log = log;
         }
     }
 
     /**
      * Resolve one round of boarding party combat on {@code defender} (D7.4).
      *
-     * <p>Called during the Final Activity Phase (D7.32) for each ship that has
+     * <p>
+     * Called during the Final Activity Phase (D7.32) for each ship that has
      * enemy boarding parties on board.
      *
-     * <p>Step 3 (specific allocation) is skipped — casualty points go straight
+     * <p>
+     * Step 3 (specific allocation) is skipped — casualty points go straight
      * to Step 4. The {@link BoardingCombatResult} carries all intermediate
      * values so Step 3 can be inserted later.
      *
@@ -3125,16 +3525,17 @@ public class Game {
         int defenderPower = defenders.total();
 
         // Step 2 — roll casualty points (D7.42); groups of up to 10
-        int attackerPts = rollCasualtyPoints(attackerPower, 0,    log, "Attacker");
+        int attackerPts = rollCasualtyPoints(attackerPower, 0, log, "Attacker");
         int defenderPts = rollCasualtyPoints(defenderPower, securityMod, log, "Defender");
 
         // Step 3 — specific allocation: DEFERRED (future hook)
-        // int attackerPtsAfterStep3 = attackerPts;  // will be reduced by captured rooms
+        // int attackerPtsAfterStep3 = attackerPts; // will be reduced by captured rooms
         // int defenderPtsAfterStep3 = defenderPts;
 
         // Step 4 — apply casualties (D7.44)
-        // Attacker casualty points kill defender BPs; then capture control rooms if BPs exhausted.
-        int defenderBPsLost    = 0;
+        // Attacker casualty points kill defender BPs; then capture control rooms if BPs
+        // exhausted.
+        int defenderBPsLost = 0;
         int controlRoomsCaptured = 0;
 
         // 4a: kill defender BPs
@@ -3147,8 +3548,8 @@ public class Game {
         // 4b: excess points capture control rooms (simplified D7.361 fallback)
         if (remainingAttackerPts > 0) {
             com.sfb.systemgroups.ControlSpaces cs = defender.getControlSpaces();
-            for (com.sfb.systemgroups.ControlSpaces.RoomType room
-                    : com.sfb.systemgroups.ControlSpaces.RoomType.values()) {
+            for (com.sfb.systemgroups.ControlSpaces.RoomType room : com.sfb.systemgroups.ControlSpaces.RoomType
+                    .values()) {
                 while (remainingAttackerPts >= com.sfb.systemgroups.ControlSpaces.captureCost(room)
                         && cs.captureRoom(room)) {
                     remainingAttackerPts -= com.sfb.systemgroups.ControlSpaces.captureCost(room);
@@ -3195,10 +3596,11 @@ public class Game {
             captor.getPlayerUnits().add(defender);
             defender.setOwner(captor);
             log.append("  D7.50: ").append(defender.getName())
-               .append(" ownership transferred to ").append(captor.getName()).append("\n");
+                    .append(" ownership transferred to ").append(captor.getName()).append("\n");
         }
 
-        // D7.512: original crew become prisoners; ship frozen until skeleton crew arrives
+        // D7.512: original crew become prisoners; ship frozen until skeleton crew
+        // arrives
         int prisonerCount = defender.getCrew().getAvailableCrewUnits();
         if (prisonerCount > 0) {
             defender.getCrew().addCapturedCrew(prisonerCount);
@@ -3236,7 +3638,10 @@ public class Game {
             log.append("  D7.537: ").append(weaponsReset).append(" weapon(s) disarmed\n");
     }
 
-    /** Ships captured during the most recent endTurn() call. Cleared at the start of each endTurn(). */
+    /**
+     * Ships captured during the most recent endTurn() call. Cleared at the start of
+     * each endTurn().
+     */
     public List<Ship> getCapturedThisTurn() {
         return Collections.unmodifiableList(capturedThisTurn);
     }
@@ -3252,16 +3657,16 @@ public class Game {
         }
         DiceRoller dice = new DiceRoller();
         int totalPoints = 0;
-        int remaining   = totalBPs;
-        int groupNum    = 1;
+        int remaining = totalBPs;
+        int groupNum = 1;
         while (remaining > 0) {
             int groupSize = Math.min(remaining, 10);
-            int roll      = Math.min(6, Math.max(1, dice.rollOneDie() + dieMod));
-            int pts       = D7421_TABLE[roll - 1][groupSize - 1];
-            totalPoints  += pts;
+            int roll = Math.min(6, Math.max(1, dice.rollOneDie() + dieMod));
+            int pts = D7421_TABLE[roll - 1][groupSize - 1];
+            totalPoints += pts;
             log.append("  ").append(side).append(" group ").append(groupNum)
-               .append(" (").append(groupSize).append(" BPs): roll ").append(roll)
-               .append(" → ").append(pts).append(" pt(s)\n");
+                    .append(" (").append(groupSize).append(" BPs): roll ").append(roll)
+                    .append(" → ").append(pts).append(" pt(s)\n");
             remaining -= groupSize;
             groupNum++;
         }
@@ -3284,12 +3689,12 @@ public class Game {
      * </pre>
      */
     static final int[][] D7421_TABLE = {
-        { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2 }, // roll 1
-        { 0, 0, 1, 1, 1, 2, 2, 2, 2, 2 }, // roll 2
-        { 0, 1, 1, 1, 2, 2, 2, 2, 3, 3 }, // roll 3
-        { 0, 1, 1, 2, 2, 2, 3, 3, 3, 4 }, // roll 4
-        { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5 }, // roll 5
-        { 1, 1, 2, 2, 3, 4, 4, 5, 5, 6 }, // roll 6
+            { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2 }, // roll 1
+            { 0, 0, 1, 1, 1, 2, 2, 2, 2, 2 }, // roll 2
+            { 0, 1, 1, 1, 2, 2, 2, 2, 3, 3 }, // roll 3
+            { 0, 1, 1, 2, 2, 2, 3, 3, 3, 4 }, // roll 4
+            { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5 }, // roll 5
+            { 1, 1, 2, 2, 3, 4, 4, 5, 5, 6 }, // roll 6
     };
 
     /**
@@ -3297,9 +3702,10 @@ public class Game {
      * +1 per undestroyed, uncaptured security station box, max +2.
      */
     int klingonSecurityMod(Ship ship) {
-        if (ship.getFaction() != com.sfb.properties.Faction.Klingon) return 0;
+        if (ship.getFaction() != com.sfb.properties.Faction.Klingon)
+            return 0;
         int stations = ship.getControlSpaces().getAvailableSecurity()
-                     - ship.getControlSpaces().getCapturedSecurity();
+                - ship.getControlSpaces().getCapturedSecurity();
         return Math.min(2, Math.max(0, stations));
     }
 
@@ -3308,43 +3714,56 @@ public class Game {
     // -------------------------------------------------------------------------
 
     enum HarResult {
-        SYSTEM_BP_RETURNS,  // System destroyed, BP returns safely
-        BOTH_DESTROYED,     // Both system and BP destroyed
-        BP_DESTROYED,       // BP destroyed, system ok
-        BP_RETURNS          // BP returns safely, system ok
+        SYSTEM_BP_RETURNS, // System destroyed, BP returns safely
+        BOTH_DESTROYED, // Both system and BP destroyed
+        BP_DESTROYED, // BP destroyed, system ok
+        BP_RETURNS // BP returns safely, system ok
     }
 
     enum HarGuardResult {
-        BP_DESTROYED,       // Attacking BP destroyed by guard
-        BP_RETURNS,         // Attacking BP repelled, returns safely
-        CONDUCT_HR          // Guard fails to stop raid — proceed to normal H&R roll
+        BP_DESTROYED, // Attacking BP destroyed by guard
+        BP_RETURNS, // Attacking BP repelled, returns safely
+        CONDUCT_HR // Guard fails to stop raid — proceed to normal H&R roll
     }
 
     /**
-     * Resolve the D7.81 Hit-and-Run table for the given die roll and attacker quality.
+     * Resolve the D7.81 Hit-and-Run table for the given die roll and attacker
+     * quality.
      * Roll is already clamped 1-6 with crew quality modifier applied.
      */
     HarResult resolveHarTable(int roll, com.sfb.properties.BoardingPartyQuality quality) {
         switch (quality) {
             case OUTSTANDING:
-                if (roll <= 2) return HarResult.SYSTEM_BP_RETURNS;
-                if (roll == 3) return HarResult.BOTH_DESTROYED;
-                if (roll == 4) return HarResult.BP_DESTROYED;
+                if (roll <= 2)
+                    return HarResult.SYSTEM_BP_RETURNS;
+                if (roll == 3)
+                    return HarResult.BOTH_DESTROYED;
+                if (roll == 4)
+                    return HarResult.BP_DESTROYED;
                 return HarResult.BP_RETURNS;
             case COMMANDO:
-                if (roll == 1) return HarResult.SYSTEM_BP_RETURNS;
-                if (roll <= 3) return HarResult.BOTH_DESTROYED;
-                if (roll == 4) return HarResult.BP_DESTROYED;
+                if (roll == 1)
+                    return HarResult.SYSTEM_BP_RETURNS;
+                if (roll <= 3)
+                    return HarResult.BOTH_DESTROYED;
+                if (roll == 4)
+                    return HarResult.BP_DESTROYED;
                 return HarResult.BP_RETURNS;
             case POOR:
-                // Roll 1 on POOR column is a blank (treated as BOTH_DESTROYED — best POOR can do)
-                if (roll == 1) return HarResult.BOTH_DESTROYED;
-                if (roll <= 4) return HarResult.BP_DESTROYED;
+                // Roll 1 on POOR column is a blank (treated as BOTH_DESTROYED — best POOR can
+                // do)
+                if (roll == 1)
+                    return HarResult.BOTH_DESTROYED;
+                if (roll <= 4)
+                    return HarResult.BP_DESTROYED;
                 return HarResult.BP_RETURNS;
             default: // NORMAL
-                if (roll == 1) return HarResult.SYSTEM_BP_RETURNS;
-                if (roll == 2) return HarResult.BOTH_DESTROYED;
-                if (roll <= 5) return HarResult.BP_DESTROYED;
+                if (roll == 1)
+                    return HarResult.SYSTEM_BP_RETURNS;
+                if (roll == 2)
+                    return HarResult.BOTH_DESTROYED;
+                if (roll <= 5)
+                    return HarResult.BP_DESTROYED;
                 return HarResult.BP_RETURNS;
         }
     }
@@ -3355,20 +3774,28 @@ public class Game {
     HarGuardResult resolveGuardTable(int roll, com.sfb.properties.BoardingPartyQuality guardQuality) {
         switch (guardQuality) {
             case OUTSTANDING:
-                if (roll <= 2) return HarGuardResult.BP_DESTROYED;
-                if (roll <= 4) return HarGuardResult.BP_RETURNS;
+                if (roll <= 2)
+                    return HarGuardResult.BP_DESTROYED;
+                if (roll <= 4)
+                    return HarGuardResult.BP_RETURNS;
                 return HarGuardResult.CONDUCT_HR;
             case COMMANDO:
-                if (roll <= 2) return HarGuardResult.BP_DESTROYED;
-                if (roll == 3) return HarGuardResult.BP_RETURNS;
+                if (roll <= 2)
+                    return HarGuardResult.BP_DESTROYED;
+                if (roll == 3)
+                    return HarGuardResult.BP_RETURNS;
                 return HarGuardResult.CONDUCT_HR;
             case POOR:
-                if (roll <= 4) return HarGuardResult.BP_DESTROYED;
-                if (roll == 5) return HarGuardResult.BP_RETURNS;
+                if (roll <= 4)
+                    return HarGuardResult.BP_DESTROYED;
+                if (roll == 5)
+                    return HarGuardResult.BP_RETURNS;
                 return HarGuardResult.CONDUCT_HR;
             default: // NORMAL
-                if (roll <= 3) return HarGuardResult.BP_DESTROYED;
-                if (roll <= 5) return HarGuardResult.BP_RETURNS;
+                if (roll <= 3)
+                    return HarGuardResult.BP_DESTROYED;
+                if (roll <= 5)
+                    return HarGuardResult.BP_RETURNS;
                 return HarGuardResult.CONDUCT_HR;
         }
     }
@@ -3412,7 +3839,10 @@ public class Game {
             return message;
         }
 
-        /** True when the server accepted the ready signal but is waiting for other players. */
+        /**
+         * True when the server accepted the ready signal but is waiting for other
+         * players.
+         */
         public boolean isWaiting() {
             return success && message != null && message.startsWith("WAITING:");
         }

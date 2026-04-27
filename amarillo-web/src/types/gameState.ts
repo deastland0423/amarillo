@@ -182,8 +182,10 @@ export interface ShipObject extends MapObjectBase {
   turnMode?:         string;    // e.g. "A", "B", "C"
   turnHexes?:        number;    // hexes required between turns at current speed
   hexesUntilTurn?:   number;    // 0 = may turn now; >0 = hexes still needed
-  captured?:         boolean;   // true after all control rooms taken (D7.50)
-  disengaged?:       boolean;   // true after ship voluntarily exits the map
+  captured?:              boolean;   // true after all control rooms taken (D7.50)
+  disengaged?:            boolean;   // true after ship voluntarily exits the map
+  canDisengageBySeparation?: boolean; // true when ship is >50 hexes from all enemies with no seekers targeting it
+  destructionDirections?:    string[]; // A–F directions that destroy on accel disengage
   ownerName?:        string;    // controlling player name (may change on capture)
   teamName?:         string;    // display name of the team/side this ship belongs to
 }
@@ -260,14 +262,40 @@ export type MapObject =
   | MineObject
   | TerrainObject;
 
+export interface ShipVpRow {
+  shipName:  string;
+  teamName:  string;
+  gabpv:     number;
+  status:    'INTACT' | 'DAMAGED' | 'CRIPPLED' | 'DISENGAGED' | 'DESTROYED' | 'CAPTURED';
+  vpScored:  number;
+}
+
+export interface TeamScore {
+  teamName:       string;
+  vpScored:       number;
+  vpAgainst:      number;
+  levelOfVictory: string;
+}
+
+export interface Scoreboard {
+  ships: ShipVpRow[];
+  teams: TeamScore[];
+}
+
 export interface GameState {
   mapCols:            number;
   mapRows:            number;
+  maxTurns:           number;   // 0 = no limit
+  gameOver:           boolean;
+  winnerTeam:         string | null;
+  endReason:          string | null;
+  scoreboard:         Scoreboard | null;
   turn:               number;
   impulse:            number;
   phase:              string;
-  awaitingAllocation: boolean;
-  pendingAllocation:  string[];
+  awaitingAllocation:    boolean;
+  pendingAllocation:     string[];
+  pendingAccelDisengage: string[]; // ship names awaiting player YES/NO for C7.1
   movableNow:         string[];
   mapObjects:         MapObject[];
   myShips:            string[] | null;

@@ -46,7 +46,8 @@ public class ScenarioLoader {
         for (ScenarioSpec.SideSpec side : spec.sides) {
             List<Ship> ships = new ArrayList<>();
             for (ScenarioSpec.ShipSetup setup : side.ships) {
-                Ship ship = buildShip(side.faction, setup, spec.year);
+                String faction = (setup.faction != null && !setup.faction.isBlank()) ? setup.faction : side.faction;
+                Ship ship = buildShip(faction, setup, spec.year);
                 if (ship != null) ships.add(ship);
             }
             result.add(ships);

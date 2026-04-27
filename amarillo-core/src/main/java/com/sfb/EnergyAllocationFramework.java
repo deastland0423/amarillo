@@ -65,7 +65,7 @@ public class EnergyAllocationFramework {
 
 	public EnergyAllocationFramework(Ship ship) {
 		// Power available for allocation
-		PowerSystems power = ship.getPowerSysetems();
+		PowerSystems power = ship.getPowerSystems();
 		Weapons weapons = ship.getWeapons();
 
 		lifeSupportCost = ship.isCrippled() ? 0 : Constants.LIFE_SUPPORT_COST[ship.getSizeClass()];
@@ -80,7 +80,8 @@ public class EnergyAllocationFramework {
 
 		// Size of the phaser capacitor — zero if capacitors not yet energized (WS-0).
 		this.availablePhaserCapacitorSize = ship.isCapacitorsCharged()
-				? weapons.getAvailablePhaserCapacitor() : 0;
+				? weapons.getAvailablePhaserCapacitor()
+				: 0;
 		this.currentPhaserCapacitorEnergy = weapons.getPhaserCapacitorEnergy();
 
 		// Transporters

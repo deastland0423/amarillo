@@ -128,6 +128,12 @@ public class ActionRequest {
     public Map<String, String>  getShotModes()                                  { return shotModes; }
     public void                 setShotModes(Map<String, String> shotModes)     { this.shotModes = shotModes; }
 
+    // DISENGAGE_ACCEL fields
+    private boolean declare;
+
+    public boolean isDeclare()              { return declare; }
+    public void    setDeclare(boolean d)    { this.declare = d; }
+
     // LAUNCH_PLASMA fields
     private boolean pseudo;
 

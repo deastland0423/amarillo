@@ -84,12 +84,15 @@ public class Ship extends Unit {
 	private int fireControlCost = 1; // Cost for active fire control (always 1).
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
-	private int ecmAllocated  = 0; // ECM points allocated this turn (hide)
+	private int ecmAllocated = 0; // ECM points allocated this turn (hide)
 	private int eccmAllocated = 0; // ECCM points allocated this turn (seek)
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
-	/** Player whose boarding parties are aboard (set when troops land; used for ownership transfer on capture). */
+	/**
+	 * Player whose boarding parties are aboard (set when troops land; used for
+	 * ownership transfer on capture).
+	 */
 	private com.sfb.Player boardingAttacker = null;
 
 	/**
@@ -111,15 +114,15 @@ public class Ship extends Unit {
 	private com.sfb.properties.BattleStatus battleStatus = com.sfb.properties.BattleStatus.ACTIVE;
 
 	// HET tracking
-	private int  lastHetImpulse           = -99; // large negative so first-turn gap check passes
-	private int  hetsThisTurn             = 0;
-	private int  immobileUntilImpulse     = 0;   // 0 = not immobile; set to currentImpulse+16 on breakdown
-	private int  breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
+	private int lastHetImpulse = -99; // large negative so first-turn gap check passes
+	private int hetsThisTurn = 0;
+	private int immobileUntilImpulse = 0; // 0 = not immobile; set to currentImpulse+16 on breakdown
+	private int breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
 
 	// Internal damage crew/BP casualty tracking (G9.21, D7.21)
-	private int  internalDamagePointsTotal   = 0; // cumulative internal damage points scored on this ship
-	private int  crewKilledByInternalDamage  = 0; // crew kill events already applied
-	private int  bpCasualtiesProcessed       = 0; // BP casualty events already processed (after 4-event grace)
+	private int internalDamagePointsTotal = 0; // cumulative internal damage points scored on this ship
+	private int crewKilledByInternalDamage = 0; // crew kill events already applied
+	private int bpCasualtiesProcessed = 0; // BP casualty events already processed (after 4-event grace)
 
 	/**
 	 * Guards assigned to defend specific system types this turn (D7.83). Key =
@@ -168,7 +171,7 @@ public class Ship extends Unit {
 		hullType = values.get("hull") == null ? null : (String) values.get("hull");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
-		battlePointValue   = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
+		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 
@@ -274,13 +277,13 @@ public class Ship extends Unit {
 
 		// Batteries: draw or recharge (mutually exclusive — dialog enforces this)
 		if (energyAllocated.getBatteryDraw() > 0) {
-			getPowerSysetems().useBattery(energyAllocated.getBatteryDraw());
+			getPowerSystems().useBattery(energyAllocated.getBatteryDraw());
 		} else if (energyAllocated.getBatteryRecharge() > 0) {
-			getPowerSysetems().chargeBattery(energyAllocated.getBatteryRecharge());
+			getPowerSystems().chargeBattery(energyAllocated.getBatteryRecharge());
 		}
 
 		// Reserve warp for HETs (C6.2)
-		getPowerSysetems().setReserveWarp((int) energyAllocated.getHighEnergyTurns());
+		getPowerSystems().setReserveWarp((int) energyAllocated.getHighEnergyTurns());
 
 		// Phaser Capacitor
 		if (energyAllocated.isEnergizeCaps() && !capacitorsCharged) {
@@ -301,7 +304,8 @@ public class Ship extends Unit {
 
 		// Weapons
 		for (Weapon weapon : weapons.fetchAllWeapons()) {
-			// For heavy weapons, apply the arming type and energy (null energy = SKIP, don't arm)
+			// For heavy weapons, apply the arming type and energy (null energy = SKIP,
+			// don't arm)
 			if (weapon instanceof HeavyWeapon) {
 				Double armEnergy = energyAllocated.getArmingEnergy().get(weapon);
 				if (armEnergy != null) {
@@ -347,7 +351,7 @@ public class Ship extends Unit {
 		clearGuards(); // D7.834: guards must be re-assigned each turn during EA
 		crew.cleanUp();
 		performanceData.cleanUp();
-		ecmAllocated  = 0;
+		ecmAllocated = 0;
 		eccmAllocated = 0;
 	}
 
@@ -380,29 +384,58 @@ public class Ship extends Unit {
 
 	// ---- HET tracking ----
 
-	public int  getLastHetImpulse()              { return lastHetImpulse; }
-	public void setLastHetImpulse(int impulse)   { this.lastHetImpulse = impulse; }
+	public int getLastHetImpulse() {
+		return lastHetImpulse;
+	}
 
-	public int  getHetsThisTurn()                { return hetsThisTurn; }
-	public void incrementHetsThisTurn()          { hetsThisTurn++; }
-	public void resetHetsThisTurn()              { hetsThisTurn = 0; }
+	public void setLastHetImpulse(int impulse) {
+		this.lastHetImpulse = impulse;
+	}
 
-	public int  getImmobileUntilImpulse()           { return immobileUntilImpulse; }
-	public void setImmobileUntilImpulse(int impulse){ this.immobileUntilImpulse = impulse; }
-	public boolean isImmobile(int currentImpulse)   { return currentImpulse <= immobileUntilImpulse; }
+	public int getHetsThisTurn() {
+		return hetsThisTurn;
+	}
+
+	public void incrementHetsThisTurn() {
+		hetsThisTurn++;
+	}
+
+	public void resetHetsThisTurn() {
+		hetsThisTurn = 0;
+	}
+
+	public int getImmobileUntilImpulse() {
+		return immobileUntilImpulse;
+	}
+
+	public void setImmobileUntilImpulse(int impulse) {
+		this.immobileUntilImpulse = impulse;
+	}
+
+	public boolean isImmobile(int currentImpulse) {
+		return currentImpulse <= immobileUntilImpulse;
+	}
 
 	/** C6.38: true during the HET impulse and for 4 impulses thereafter. */
 	public boolean isInPostHetWindow(int currentImpulse) {
 		return lastHetImpulse >= 0 && (currentImpulse - lastHetImpulse) <= 4;
 	}
 
-	/** C6.547: true for 8 impulses after a breakdown (weapons, shuttles, transporters locked out). */
+	/**
+	 * C6.547: true for 8 impulses after a breakdown (weapons, shuttles,
+	 * transporters locked out).
+	 */
 	public boolean isInBreakdownLockout(int currentImpulse) {
 		return currentImpulse <= breakdownLockoutUntilImpulse;
 	}
 
-	public int  getBreakdownLockoutUntilImpulse()            { return breakdownLockoutUntilImpulse; }
-	public void setBreakdownLockoutUntilImpulse(int impulse) { this.breakdownLockoutUntilImpulse = impulse; }
+	public int getBreakdownLockoutUntilImpulse() {
+		return breakdownLockoutUntilImpulse;
+	}
+
+	public void setBreakdownLockoutUntilImpulse(int impulse) {
+		this.breakdownLockoutUntilImpulse = impulse;
+	}
 
 	// ---- Skeleton crew (G9.4) ----
 
@@ -412,7 +445,8 @@ public class Ship extends Unit {
 	 */
 	public TurnMode effectiveTurnMode() {
 		TurnMode base = getTurnMode();
-		if (!getCrew().isSkeleton()) return base;
+		if (!getCrew().isSkeleton())
+			return base;
 		TurnMode[] values = TurnMode.values();
 		int next = Math.min(base.ordinal() + 1, TurnMode.F.ordinal());
 		return values[next];
@@ -480,10 +514,21 @@ public class Ship extends Unit {
 		return this.fireControlCost;
 	}
 
-	public int getEcmAllocated()  { return ecmAllocated;  }
-	public void setEcmAllocated(int ecm)   { this.ecmAllocated  = ecm;  }
-	public int getEccmAllocated() { return eccmAllocated; }
-	public void setEccmAllocated(int eccm) { this.eccmAllocated = eccm; }
+	public int getEcmAllocated() {
+		return ecmAllocated;
+	}
+
+	public void setEcmAllocated(int ecm) {
+		this.ecmAllocated = ecm;
+	}
+
+	public int getEccmAllocated() {
+		return eccmAllocated;
+	}
+
+	public void setEccmAllocated(int eccm) {
+		this.eccmAllocated = eccm;
+	}
 
 	public int getTBombs() {
 		return this.tBombs;
@@ -595,26 +640,39 @@ public class Ship extends Unit {
 		enemyTroops.commandos += commandos;
 	}
 
-	public com.sfb.Player getBoardingAttacker() { return boardingAttacker; }
-	public void setBoardingAttacker(com.sfb.Player player) { this.boardingAttacker = player; }
+	public com.sfb.Player getBoardingAttacker() {
+		return boardingAttacker;
+	}
+
+	public void setBoardingAttacker(com.sfb.Player player) {
+		this.boardingAttacker = player;
+	}
 
 	// --- Destroyed state ---
 
-	public com.sfb.properties.BattleStatus getBattleStatus() { return battleStatus; }
-	public void setBattleStatus(com.sfb.properties.BattleStatus status) { this.battleStatus = status; }
-	public boolean isDestroyed() { return battleStatus == com.sfb.properties.BattleStatus.DESTROYED; }
+	public com.sfb.properties.BattleStatus getBattleStatus() {
+		return battleStatus;
+	}
+
+	public void setBattleStatus(com.sfb.properties.BattleStatus status) {
+		this.battleStatus = status;
+	}
+
+	public boolean isDestroyed() {
+		return battleStatus == com.sfb.properties.BattleStatus.DESTROYED;
+	}
 
 	// --- Crippled state (S2.41) ---
 
 	/**
 	 * A ship is crippled if ANY ONE of the following conditions is met (S2.41):
-	 *   A: 10% or less of original warp engine boxes remaining
-	 *      (skipped for ships with no original warp, e.g. Romulans)
-	 *   B: 50% or more of interior boxes destroyed
-	 *      (excludes shields, armor, sensor, scanner, DamCon, excess damage)
-	 *   C: Any excess damage hits taken
-	 *   D: All control spaces destroyed
-	 *   E: All weapons destroyed
+	 * A: 10% or less of original warp engine boxes remaining
+	 * (skipped for ships with no original warp, e.g. Romulans)
+	 * B: 50% or more of interior boxes destroyed
+	 * (excludes shields, armor, sensor, scanner, DamCon, excess damage)
+	 * C: Any excess damage hits taken
+	 * D: All control spaces destroyed
+	 * E: All weapons destroyed
 	 */
 	public boolean isCrippled() {
 		// A: warp engine boxes
@@ -805,7 +863,7 @@ public class Ship extends Unit {
 	}
 
 	/// POWER SYSTEMS ///
-	public PowerSystems getPowerSysetems() {
+	public PowerSystems getPowerSystems() {
 		return powerSystems;
 	}
 
@@ -962,7 +1020,8 @@ public class Ship extends Unit {
 	}
 
 	/**
-	 * Apply all breakdown effects (C6.54). Call only when performHet() returns false.
+	 * Apply all breakdown effects (C6.54). Call only when performHet() returns
+	 * false.
 	 * Returns the number of internal DAC hits to queue (always 2 per C6.5423).
 	 */
 	public int applyBreakdown(int currentImpulse) {
@@ -971,22 +1030,22 @@ public class Ship extends Unit {
 		int randomFacing = new DiceRoller().rollOneDie() - 1; // 1–6 → 0–5
 		super.performHet(randomFacing); // sets facing + resets turn/sideslip counts
 
-		immobileUntilImpulse          = currentImpulse + 16;
-		breakdownLockoutUntilImpulse  = currentImpulse + 8;  // C6.547
+		immobileUntilImpulse = currentImpulse + 16;
+		breakdownLockoutUntilImpulse = currentImpulse + 8; // C6.547
 
 		// C6.5421: kill 1/3 crew (round up)
 		int crewLoss = (int) Math.ceil(getCrew().getAvailableCrewUnits() / 3.0);
 		getCrew().setAvailableCrewUnits(Math.max(0, getCrew().getAvailableCrewUnits() - crewLoss));
 
 		// C6.5422: destroy every 5th warp engine box (round down)
-		int totalWarp = getPowerSysetems().getAvailableLWarp()
-				+ getPowerSysetems().getAvailableRWarp()
-				+ getPowerSysetems().getAvailableCWarp();
+		int totalWarp = getPowerSystems().getAvailableLWarp()
+				+ getPowerSystems().getAvailableRWarp()
+				+ getPowerSystems().getAvailableCWarp();
 		int toDestroy = totalWarp / 5;
 		for (int i = 0; i < toDestroy; i++) {
-			if (!getPowerSysetems().damageLWarp())
-				if (!getPowerSysetems().damageRWarp())
-					getPowerSysetems().damageCWarp();
+			if (!getPowerSystems().damageLWarp())
+				if (!getPowerSystems().damageRWarp())
+					getPowerSystems().damageCWarp();
 		}
 
 		// C6.544: reduce breakdown rating by 1 (minimum 1)
@@ -1103,9 +1162,11 @@ public class Ship extends Unit {
 	private List<Weapon> bearingFunctionalPhasers(Ship attacker) {
 		List<Weapon> all = weapons.getPhaserList().stream()
 				.filter(Weapon::isFunctional).collect(Collectors.toList());
-		if (attacker == null) return all;
+		if (attacker == null)
+			return all;
 		int trueBearing = MapUtils.getBearing(this, attacker);
-		if (trueBearing == 0) return all; // same hex — all bear
+		if (trueBearing == 0)
+			return all; // same hex — all bear
 		int relBearing = MapUtils.getRelativeBearing(trueBearing, getFacing());
 		return all.stream().filter(w -> w.inArc(relBearing)).collect(Collectors.toList());
 	}
@@ -1137,11 +1198,14 @@ public class Ship extends Unit {
 				}
 			}
 
-			// D7.21: every 10th point also generates a BP casualty; first 4 events ignored, last 2 BPs protected.
-			// Casualties are normal parties first, commandos last. Floor applies only to internal damage;
+			// D7.21: every 10th point also generates a BP casualty; first 4 events ignored,
+			// last 2 BPs protected.
+			// Casualties are normal parties first, commandos last. Floor applies only to
+			// internal damage;
 			// boarding combat and H&R raids can kill the last 2 BPs freely.
-			// TODO: multi-faction support (D7.21 para 2) — requires per-faction BP tracking on the defending
-			//   ship, which the data model does not yet support.
+			// TODO: multi-faction support (D7.21 para 2) — requires per-faction BP tracking
+			// on the defending
+			// ship, which the data model does not yet support.
 			int effectiveBpEvents = Math.max(0, killThreshold - 4);
 			int newBpEvents = effectiveBpEvents - bpCasualtiesProcessed;
 			if (newBpEvents > 0) {
@@ -1164,7 +1228,8 @@ public class Ship extends Unit {
 					log.add("  internal [" + roll + "]: excess damage — SHIP DESTROYED");
 					break;
 				}
-				log.add("  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
+				log.add(
+						"  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
 				continue;
 			}
 
@@ -1178,7 +1243,8 @@ public class Ship extends Unit {
 					tried.add(system);
 					chain.append(system).append(" (no boxes) → ");
 					String next = dac.fetchNextHitExcludingAll(roll, tried);
-					if (next == null) break; // all entries exhausted — damage wasted
+					if (next == null)
+						break; // all entries exhausted — damage wasted
 					system = next;
 				}
 			}
@@ -1200,34 +1266,51 @@ public class Ship extends Unit {
 	 */
 	private String tryApplySystemHit(String system, Ship attacker) {
 		switch (system) {
-			case "bridge":    return controlSpaces.damageBridge()  ? "bridge HIT"  : null;
-			case "flag":      return controlSpaces.damageFlag()    ? "flag HIT"    : null;
-			case "emer":      return controlSpaces.damageEmer()    ? "emer HIT"    : null;
-			case "auxcon":    return controlSpaces.damageAuxcon()  ? "auxcon HIT"  : null;
-			case "lwarp":     return powerSystems.damageLWarp()    ? "lwarp HIT"   : null;
-			case "rwarp":     return powerSystems.damageRWarp()    ? "rwarp HIT"   : null;
-			case "cwarp":     return powerSystems.damageCWarp()    ? "cwarp HIT"   : null;
-			case "impulse":   return powerSystems.damageImpulse()  ? "impulse HIT" : null;
-			case "apr":       return powerSystems.damageApr()      ? "apr HIT"     : null;
-			case "battery":   return powerSystems.damageBattery()  ? "battery HIT" : null;
-			case "scanner":   return specialFunctions.damageScanner()  ? "scanner HIT"  : null;
-			case "sensor":    return specialFunctions.damageSensor() != null ? "sensor HIT" : null;
-			case "damcon":    return specialFunctions.damageDamCon()   ? "damcon HIT"   : null;
-			case "cargo":     return hullBoxes.damageCargo()           ? "cargo HIT"    : null;
+			case "bridge":
+				return controlSpaces.damageBridge() ? "bridge HIT" : null;
+			case "flag":
+				return controlSpaces.damageFlag() ? "flag HIT" : null;
+			case "emer":
+				return controlSpaces.damageEmer() ? "emer HIT" : null;
+			case "auxcon":
+				return controlSpaces.damageAuxcon() ? "auxcon HIT" : null;
+			case "lwarp":
+				return powerSystems.damageLWarp() ? "lwarp HIT" : null;
+			case "rwarp":
+				return powerSystems.damageRWarp() ? "rwarp HIT" : null;
+			case "cwarp":
+				return powerSystems.damageCWarp() ? "cwarp HIT" : null;
+			case "impulse":
+				return powerSystems.damageImpulse() ? "impulse HIT" : null;
+			case "apr":
+				return powerSystems.damageApr() ? "apr HIT" : null;
+			case "battery":
+				return powerSystems.damageBattery() ? "battery HIT" : null;
+			case "scanner":
+				return specialFunctions.damageScanner() ? "scanner HIT" : null;
+			case "sensor":
+				return specialFunctions.damageSensor() != null ? "sensor HIT" : null;
+			case "damcon":
+				return specialFunctions.damageDamCon() ? "damcon HIT" : null;
+			case "cargo":
+				return hullBoxes.damageCargo() ? "cargo HIT" : null;
 			case "fhull": {
 				boolean fAvail = hullBoxes.getAvailableFhull() > 0;
-				if (!hullBoxes.damageFhull()) return null;
+				if (!hullBoxes.damageFhull())
+					return null;
 				return fAvail ? "fhull HIT" : "chull (fhull exhausted) HIT";
 			}
 			case "ahull":
 			case "afthull": {
 				boolean aAvail = hullBoxes.getAvailableAhull() > 0;
-				if (!hullBoxes.damageAhull()) return null;
+				if (!hullBoxes.damageAhull())
+					return null;
 				return aAvail ? system + " HIT" : "chull (ahull exhausted) HIT";
 			}
 			case "phaser": {
 				List<Weapon> candidates = bearingFunctionalPhasers(attacker);
-				if (candidates.isEmpty()) return null;
+				if (candidates.isEmpty())
+					return null;
 				Weapon target = candidates.get(new Random().nextInt(candidates.size()));
 				target.damage();
 				weapons.recalculatePhaserCapacitor();
@@ -1236,7 +1319,8 @@ public class Ship extends Unit {
 			case "drone": {
 				Weapon target = weapons.getDroneList().stream()
 						.filter(Weapon::isFunctional).findFirst().orElse(null);
-				if (target == null) return null;
+				if (target == null)
+					return null;
 				target.damage();
 				return "drone HIT (" + target.getName() + ")";
 			}
@@ -1244,11 +1328,13 @@ public class Ship extends Unit {
 			case "weapon": {
 				Weapon target = weapons.fetchAllWeapons().stream()
 						.filter(Weapon::isFunctional).findFirst().orElse(null);
-				if (target == null) return null;
+				if (target == null)
+					return null;
 				target.damage();
 				return system + " HIT (" + target.getName() + ")";
 			}
-			default: return null;
+			default:
+				return null;
 		}
 	}
 
@@ -1261,7 +1347,10 @@ public class Ship extends Unit {
 		this.weapons.chargePhaserCapacitor(energy);
 	}
 
-	/** True if this ship has taken at least one internal damage point (used for victory point scoring). */
+	/**
+	 * True if this ship has taken at least one internal damage point (used for
+	 * victory point scoring).
+	 */
 	public boolean isDamaged() {
 		return internalDamagePointsTotal > 0;
 	}

@@ -33,6 +33,7 @@
     {
       "name": "Klingon Empire",
       "faction": "Klingon",
+      "destructionDirections": ["A", "D", "F"],
       "ships": [
         {
           "hull": "D7N",
@@ -49,6 +50,7 @@
     {
       "name": "Romulan Star Empire",
       "faction": "Romulan",
+      "destructionEdges": ["TOP", "BOTTOM", "LEFT"],
       "ships": [
         {
           "hull": "K5RB",

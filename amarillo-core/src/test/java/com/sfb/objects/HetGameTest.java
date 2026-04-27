@@ -19,7 +19,7 @@ import java.util.HashMap;
  *
  * Dice are non-deterministic, so breakdown logic is tested with extreme
  * breakdownChance values: 7 (never breaks down — max roll is 6) and 1
- * (always breaks down — min roll is 1 ≥ 1).  bonusHets=0 is used for
+ * (always breaks down — min roll is 1 ≥ 1). bonusHets=0 is used for
  * always-breakdown tests so the -2 adjustment cannot rescue the roll.
  *
  * Setup: MOVEMENT phase, TurnTracker at impulse 2 (impulse 1 is forbidden).
@@ -33,7 +33,7 @@ public class HetGameTest {
     /** Fed CA: moveCost=1.0 → hetCost=5, breakdownChance=5, bonusHets=1. */
     private static Map<String, Object> neverBreakdown() {
         Map<String, Object> spec = new HashMap<>(FederationShips.getFedCa());
-        spec.put("breakdown", 7);   // roll 1–6 can never reach 7
+        spec.put("breakdown", 7); // roll 1–6 can never reach 7
         spec.put("bonushets", 0);
         return spec;
     }
@@ -65,7 +65,7 @@ public class HetGameTest {
         TurnTracker.nextImpulse(); // → 2
 
         // Standard reserve warp: enough for one HET (hetCost = 5 for moveCost=1.0)
-        ship.getPowerSysetems().setReserveWarp(5);
+        ship.getPowerSystems().setReserveWarp(5);
     }
 
     // -------------------------------------------------------------------------
@@ -120,7 +120,7 @@ public class HetGameTest {
     @Test
     public void het_succeedsAfterFourImpulseGap() {
         ship.init(neverBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         ship.setLastHetImpulse(-99); // factory default; gap = 2 - (-99) = 101 ≥ 4
         ActionResult result = game.performHet(ship, 3);
         assertTrue(result.getMessage(), result.isSuccess());
@@ -132,7 +132,8 @@ public class HetGameTest {
 
     @Test
     public void het_failsWhenMaxHetsReached() {
-        for (int i = 0; i < 4; i++) ship.incrementHetsThisTurn();
+        for (int i = 0; i < 4; i++)
+            ship.incrementHetsThisTurn();
         ActionResult result = game.performHet(ship, 3);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("Maximum 4 HETs"));
@@ -144,7 +145,7 @@ public class HetGameTest {
 
     @Test
     public void het_failsWithInsufficientReserveWarp() {
-        ship.getPowerSysetems().setReserveWarp(0);
+        ship.getPowerSystems().setReserveWarp(0);
         ActionResult result = game.performHet(ship, 3);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("reserve warp"));
@@ -158,7 +159,7 @@ public class HetGameTest {
     public void het_success_changesFacing() {
         ship.init(neverBreakdown());
         ship.setFacing(1);
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
 
         ActionResult result = game.performHet(ship, 3);
 
@@ -169,18 +170,18 @@ public class HetGameTest {
     @Test
     public void het_success_decrementsReserveWarp() {
         ship.init(neverBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         int hetCost = (int) Math.ceil(ship.getPerformanceData().getHetCost());
 
         game.performHet(ship, 3);
 
-        assertEquals(10 - hetCost, ship.getPowerSysetems().getReserveWarp());
+        assertEquals(10 - hetCost, ship.getPowerSystems().getReserveWarp());
     }
 
     @Test
     public void het_success_incrementsHetsThisTurn() {
         ship.init(neverBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         assertEquals(0, ship.getHetsThisTurn());
 
         game.performHet(ship, 3);
@@ -191,7 +192,7 @@ public class HetGameTest {
     @Test
     public void het_success_updatesLastHetImpulse() {
         ship.init(neverBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
 
         game.performHet(ship, 3);
 
@@ -210,7 +211,7 @@ public class HetGameTest {
         spec.put("breakdown", 7);
         spec.put("bonushets", 2);
         ship.init(spec);
-        ship.getPowerSysetems().setReserveWarp(20);
+        ship.getPowerSystems().setReserveWarp(20);
         assertEquals(2, ship.getPerformanceData().getBonusHetsRemaining());
 
         game.performHet(ship, 3);
@@ -224,7 +225,7 @@ public class HetGameTest {
         spec.put("breakdown", 7);
         spec.put("bonushets", 0);
         ship.init(spec);
-        ship.getPowerSysetems().setReserveWarp(20);
+        ship.getPowerSystems().setReserveWarp(20);
         assertEquals(0, ship.getPerformanceData().getBonusHetsRemaining());
 
         game.performHet(ship, 3);
@@ -240,7 +241,7 @@ public class HetGameTest {
     public void het_breakdown_setsSpeedToZero() {
         ship.init(alwaysBreakdown());
         ship.setSpeed(8);
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
 
         ActionResult result = game.performHet(ship, 3);
 
@@ -251,7 +252,7 @@ public class HetGameTest {
     @Test
     public void het_breakdown_setsImmobility() {
         ship.init(alwaysBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         int currentImpulse = TurnTracker.getImpulse();
 
         game.performHet(ship, 3);
@@ -262,7 +263,7 @@ public class HetGameTest {
     @Test
     public void het_breakdown_reducesCrewByOneThird() {
         ship.init(alwaysBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         int initialCrew = ship.getCrew().getAvailableCrewUnits();
         int expectedLoss = (int) Math.ceil(initialCrew / 3.0);
 
@@ -274,7 +275,7 @@ public class HetGameTest {
     @Test
     public void het_breakdown_decrementsBreakdownRating() {
         ship.init(alwaysBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
         int initialChance = ship.getPerformanceData().getBreakdownChance();
 
         game.performHet(ship, 3);
@@ -286,7 +287,7 @@ public class HetGameTest {
     @Test
     public void het_breakdown_containsBreakdownInMessage() {
         ship.init(alwaysBreakdown());
-        ship.getPowerSysetems().setReserveWarp(10);
+        ship.getPowerSystems().setReserveWarp(10);
 
         ActionResult result = game.performHet(ship, 3);
 
@@ -300,7 +301,8 @@ public class HetGameTest {
 
     @Test
     public void resetHetsThisTurn_clearsCount() {
-        for (int i = 0; i < 3; i++) ship.incrementHetsThisTurn();
+        for (int i = 0; i < 3; i++)
+            ship.incrementHetsThisTurn();
         assertEquals(3, ship.getHetsThisTurn());
 
         ship.resetHetsThisTurn();

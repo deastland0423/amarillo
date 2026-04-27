@@ -45,17 +45,29 @@ public class GameSession {
 
         public PlayerInfo(String token, String name) {
             this.token = token;
-            this.name  = name;
+            this.name = name;
         }
 
-        public String getToken()          { return token; }
-        public String getName()           { return name; }
-        public Player getCorePlayer()     { return corePlayer; }
-        void setCorePlayer(Player p)      { this.corePlayer = p; }
+        public String getToken() {
+            return token;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Player getCorePlayer() {
+            return corePlayer;
+        }
+
+        void setCorePlayer(Player p) {
+            this.corePlayer = p;
+        }
 
         /** Convenience: ships this player owns, sourced from the core Player object. */
         public List<String> getShipNames() {
-            if (corePlayer == null) return List.of();
+            if (corePlayer == null)
+                return List.of();
             return corePlayer.getPlayerUnits().stream()
                     .map(u -> u instanceof Ship ? ((Ship) u).getName() : null)
                     .filter(n -> n != null)
@@ -64,7 +76,7 @@ public class GameSession {
     }
 
     private final String id;
-    private final Game   game;
+    private final Game game;
     private final String hostToken;
 
     /** token → PlayerInfo */
@@ -73,11 +85,15 @@ public class GameSession {
     /** Tokens of players who have clicked "Ready" for the current phase. */
     private final Set<String> readyPlayers = new HashSet<>();
 
-    /** Combat events accumulated since the last broadcast; drained by drainCombatLog(). */
+    /**
+     * Combat events accumulated since the last broadcast; drained by
+     * drainCombatLog().
+     */
     private final List<String> pendingCombatLog = new ArrayList<>();
 
     /**
-     * COI selections submitted by each player, keyed by player token then ship name.
+     * COI selections submitted by each player, keyed by player token then ship
+     * name.
      * Collected during the pre-game lobby; applied when start() is called.
      */
     private final Map<String, Map<String, com.sfb.scenario.CoiLoadout>> pendingCoi = new LinkedHashMap<>();
@@ -85,23 +101,26 @@ public class GameSession {
     /** Tokens of players who have submitted (or skipped) their COI. */
     private final Set<String> coiDoneTokens = new HashSet<>();
 
-    /** shipName → playerToken, recorded before start() so ships can be assigned in the lobby. */
+    /**
+     * shipName → playerToken, recorded before start() so ships can be assigned in
+     * the lobby.
+     */
     private final Map<String, String> pendingAssignments = new LinkedHashMap<>();
 
     /** shipName → team name (side display name), built when scenario loads. */
     private final Map<String, String> shipTeamName = new LinkedHashMap<>();
 
     // Scenario loaded but not yet started
-    private boolean                              scenarioLoaded   = false;
-    private String                               loadedScenarioId = null;
-    private com.sfb.scenario.ScenarioSpec        loadedSpec       = null;
-    private List<List<com.sfb.objects.Ship>>     loadedSideShips  = null;
+    private boolean scenarioLoaded = false;
+    private String loadedScenarioId = null;
+    private com.sfb.scenario.ScenarioSpec loadedSpec = null;
+    private List<List<com.sfb.objects.Ship>> loadedSideShips = null;
 
     private boolean started = false;
 
     public GameSession(String id, String hostToken, String hostName) {
-        this.id        = id;
-        this.game      = new Game();
+        this.id = id;
+        this.game = new Game();
         this.hostToken = hostToken;
         players.put(hostToken, new PlayerInfo(hostToken, hostName));
     }
@@ -128,11 +147,18 @@ public class GameSession {
     // Ready-state tracking
     // -------------------------------------------------------------------------
 
-    public int getReadyCount()   { return readyPlayers.size(); }
-    public int getPlayerCount()  { return players.size(); }
+    public int getReadyCount() {
+        return readyPlayers.size();
+    }
+
+    public int getPlayerCount() {
+        return players.size();
+    }
 
     /** Append a combat event to the pending log (broadcast on next state push). */
-    public void appendCombatLog(String entry) { pendingCombatLog.add(entry); }
+    public void appendCombatLog(String entry) {
+        pendingCombatLog.add(entry);
+    }
 
     /** Return all pending combat log entries and clear the list. */
     public List<String> drainCombatLog() {
@@ -140,10 +166,17 @@ public class GameSession {
         pendingCombatLog.clear();
         return copy;
     }
-    public boolean allReady()    { return readyPlayers.size() >= players.size(); }
 
-    /** Clear ready flags — called automatically when the phase actually advances. */
-    private void clearReady()    { readyPlayers.clear(); }
+    public boolean allReady() {
+        return readyPlayers.size() >= players.size();
+    }
+
+    /**
+     * Clear ready flags — called automatically when the phase actually advances.
+     */
+    private void clearReady() {
+        readyPlayers.clear();
+    }
 
     // -------------------------------------------------------------------------
     // Ship assignment
@@ -151,7 +184,8 @@ public class GameSession {
 
     /**
      * Records a ship assignment in the pre-game lobby.
-     * Works before start() — ships are in pendingAssignments until start() resolves them.
+     * Works before start() — ships are in pendingAssignments until start() resolves
+     * them.
      * Returns an error string on failure, null on success.
      */
     public String assignShip(String playerToken, String shipName) {
@@ -175,7 +209,8 @@ public class GameSession {
 
     /** All ship names across all scenario sides, in order. */
     public List<String> getAllShipNames() {
-        if (loadedSideShips == null) return List.of();
+        if (loadedSideShips == null)
+            return List.of();
         return loadedSideShips.stream()
                 .flatMap(List::stream)
                 .map(Ship::getName)
@@ -184,7 +219,8 @@ public class GameSession {
 
     /** Ships not yet assigned to any player. */
     public List<String> getUnassignedShipNames() {
-        if (!scenarioLoaded) return List.of();
+        if (!scenarioLoaded)
+            return List.of();
         // Post-start: read from live game objects
         if (started) {
             return game.getShips().stream()
@@ -222,7 +258,8 @@ public class GameSession {
             return true;
 
         PlayerInfo p = players.get(token);
-        if (p == null || p.getCorePlayer() == null) return false;
+        if (p == null || p.getCorePlayer() == null)
+            return false;
 
         Ship ship = findShip(shipName);
         if (ship != null)
@@ -255,8 +292,13 @@ public class GameSession {
         coiDoneTokens.add(playerToken);
     }
 
-    public boolean isCoiDone(String token)  { return coiDoneTokens.contains(token); }
-    public boolean allCoiDone()             { return coiDoneTokens.containsAll(players.keySet()); }
+    public boolean isCoiDone(String token) {
+        return coiDoneTokens.contains(token);
+    }
+
+    public boolean allCoiDone() {
+        return coiDoneTokens.containsAll(players.keySet());
+    }
 
     // -------------------------------------------------------------------------
     // Game lifecycle
@@ -268,11 +310,11 @@ public class GameSession {
      */
     public void loadScenario(String scenarioId) throws java.io.IOException {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-        loadedSpec       = com.sfb.scenario.ScenarioSpec.fromJson(
+        loadedSpec = com.sfb.scenario.ScenarioSpec.fromJson(
                 "data/scenarios/" + scenarioId.toLowerCase() + ".json");
-        loadedSideShips  = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
+        loadedSideShips = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
         loadedScenarioId = scenarioId;
-        scenarioLoaded   = true;
+        scenarioLoaded = true;
         // Reset any prior assignments/COI when a new scenario is loaded
         pendingAssignments.clear();
         coiDoneTokens.clear();
@@ -307,7 +349,8 @@ public class GameSession {
         for (List<com.sfb.objects.Ship> side : loadedSideShips) {
             for (com.sfb.objects.Ship ship : side) {
                 com.sfb.scenario.CoiLoadout loadout = byName.get(ship.getName());
-                if (loadout != null) coiMap.put(ship, loadout);
+                if (loadout != null)
+                    coiMap.put(ship, loadout);
             }
         }
 
@@ -315,12 +358,14 @@ public class GameSession {
 
         // Resolve pending assignments to live Ship objects
         for (Map.Entry<String, String> entry : pendingAssignments.entrySet()) {
-            String shipName   = entry.getKey();
-            String pToken     = entry.getValue();
-            PlayerInfo info   = players.get(pToken);
-            if (info == null) continue;
+            String shipName = entry.getKey();
+            String pToken = entry.getValue();
+            PlayerInfo info = players.get(pToken);
+            if (info == null)
+                continue;
             Ship ship = findShip(shipName);
-            if (ship == null) continue;
+            if (ship == null)
+                continue;
             if (info.getCorePlayer() == null) {
                 Player p = new Player();
                 p.setName(info.getName());
@@ -335,8 +380,13 @@ public class GameSession {
         started = true;
     }
 
-    public boolean isScenarioLoaded()   { return scenarioLoaded; }
-    public String  getLoadedScenarioId() { return loadedScenarioId; }
+    public boolean isScenarioLoaded() {
+        return scenarioLoaded;
+    }
+
+    public String getLoadedScenarioId() {
+        return loadedScenarioId;
+    }
 
     // -------------------------------------------------------------------------
     // Action dispatch
@@ -351,7 +401,8 @@ public class GameSession {
 
             case "ADVANCE_PHASE": {
                 String token = request.getPlayerToken();
-                // During movement phase, reject ready if this player still has ships or shuttles to move
+                // During movement phase, reject ready if this player still has ships or
+                // shuttles to move
                 if (game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT) {
                     PlayerInfo pi = players.get(token);
                     if (pi != null) {
@@ -417,6 +468,28 @@ public class GameSession {
                 return game.performHet(ship, request.getFacing());
             }
 
+            case "CONFIRM_ACCEL_DISENGAGE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.confirmAccelDisengage(ship, request.isDeclare());
+            }
+
+            case "DISENGAGE_SEPARATION": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.disengageBySeparation(ship);
+            }
+
+            case "CONCEDE": {
+                String token = request.getPlayerToken();
+                PlayerInfo pi = players.get(token);
+                if (pi == null)
+                    return ActionResult.fail("Unknown player token");
+                return game.concede(pi.getName());
+            }
+
             case "ALLOCATE": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
@@ -443,9 +516,9 @@ public class GameSession {
                 double moveCost = ship.getPerformanceData().getMovementCost();
                 int requestedSpeed = request.getSpeed();
                 int warpSpeed = Math.min(requestedSpeed, 30);
-                double warpEngineCapacity = ship.getPowerSysetems().getAvailableLWarp()
-                        + ship.getPowerSysetems().getAvailableRWarp()
-                        + ship.getPowerSysetems().getAvailableCWarp();
+                double warpEngineCapacity = ship.getPowerSystems().getAvailableLWarp()
+                        + ship.getPowerSystems().getAvailableRWarp()
+                        + ship.getPowerSystems().getAvailableCWarp();
                 double movementEnergyNeeded = warpSpeed * moveCost;
                 if (movementEnergyNeeded > warpEngineCapacity + 0.001) {
                     return ActionResult.fail("Insufficient warp engine power for speed " + requestedSpeed
@@ -466,9 +539,11 @@ public class GameSession {
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();
                 for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
-                    if (!(w instanceof HeavyWeapon)) continue;
+                    if (!(w instanceof HeavyWeapon))
+                        continue;
                     String choice = arming != null ? arming.get(w.getName()) : null;
-                    if (choice == null) choice = "STANDARD";
+                    if (choice == null)
+                        choice = "STANDARD";
                     HeavyWeapon hw = (HeavyWeapon) w;
                     switch (choice.toUpperCase()) {
                         case "HOLD":
@@ -477,8 +552,8 @@ public class GameSession {
                             break;
                         case "PROX":
                             e.getArmingEnergy().put(w, hw.isArmed()
-                                ? (double) hw.holdEnergyCost()
-                                : (double) hw.energyToArm());
+                                    ? (double) hw.holdEnergyCost()
+                                    : (double) hw.energyToArm());
                             e.getArmingType().put(w, WeaponArmingType.SPECIAL);
                             break;
                         case "HOLD_PROX":
@@ -494,8 +569,8 @@ public class GameSession {
                             // If already in OVERLOAD mode, energyToArm() returns the overload rate.
                             // If still in STANDARD mode (e.g. WS-2 first game turn), multiply by 2.
                             double ovlEnergy = hw.getArmingType() == com.sfb.properties.WeaponArmingType.OVERLOAD
-                                ? (double) hw.energyToArm()
-                                : (double) hw.energyToArm() * 2;
+                                    ? (double) hw.energyToArm()
+                                    : (double) hw.energyToArm() * 2;
                             e.getArmingEnergy().put(w, ovlEnergy);
                             e.getArmingType().put(w, WeaponArmingType.OVERLOAD);
                             break;
@@ -573,22 +648,24 @@ public class GameSession {
                     for (Map.Entry<String, Map<String, Integer>> entry : reloadSelections.entrySet()) {
                         String rackName = entry.getKey();
                         Map<String, Integer> typeCountMap = entry.getValue();
-                        if (typeCountMap == null || typeCountMap.isEmpty()) continue;
+                        if (typeCountMap == null || typeCountMap.isEmpty())
+                            continue;
 
                         DroneRack rack = (DroneRack) ship.getWeapons().fetchAllWeapons().stream()
                                 .filter(w -> w instanceof DroneRack && w.getName().equalsIgnoreCase(rackName))
                                 .findFirst().orElse(null);
-                        if (rack == null || !rack.isFunctional()) continue;
+                        if (rack == null || !rack.isFunctional())
+                            continue;
 
                         // Pass 1: collect candidate Drone objects by reference (without removing yet)
                         List<Drone> candidates = new ArrayList<>();
                         for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
                             String droneType = tc.getKey();
                             int needed = tc.getValue() != null ? tc.getValue() : 0;
-                            outer:
-                            for (List<Drone> set : rack.getReloads()) {
+                            outer: for (List<Drone> set : rack.getReloads()) {
                                 for (Drone d : set) {
-                                    if (needed <= 0) break outer;
+                                    if (needed <= 0)
+                                        break outer;
                                     if (d.getDroneType() != null
                                             && d.getDroneType().toString().equals(droneType)
                                             && !candidates.contains(d)) {
@@ -599,28 +676,33 @@ public class GameSession {
                             }
                         }
 
-                        if (candidates.isEmpty()) continue;
+                        if (candidates.isEmpty())
+                            continue;
                         // Enforce max 2 rack spaces per rack per turn (FD2.421)
-                        if (DroneRack.reloadCost(candidates) > 2.0) continue;
+                        if (DroneRack.reloadCost(candidates) > 2.0)
+                            continue;
 
                         // Pass 2: remove the chosen drones from their sets, then stage
                         for (Drone d : candidates) {
                             for (List<Drone> set : rack.getReloads()) {
-                                if (set.remove(d)) break;
+                                if (set.remove(d))
+                                    break;
                             }
                         }
                         rack.stagePendingReload(candidates);
                     }
                 }
 
-                // Scatter pack loading — uses deck crews (FD7.22): 1 crew per rack space from reload stockpile.
+                // Scatter pack loading — uses deck crews (FD7.22): 1 crew per rack space from
+                // reload stockpile.
                 Map<String, Map<String, Integer>> spLoading = request.getScatterPackLoading();
                 if (spLoading != null && !spLoading.isEmpty()) {
                     double deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
                     for (Map.Entry<String, Map<String, Integer>> spEntry : spLoading.entrySet()) {
                         String shuttleName = spEntry.getKey();
                         Map<String, Integer> typeCountMap = spEntry.getValue();
-                        if (typeCountMap == null || typeCountMap.isEmpty()) continue;
+                        if (typeCountMap == null || typeCountMap.isEmpty())
+                            continue;
 
                         // Find shuttle in ship's bays
                         com.sfb.systemgroups.ShuttleBay foundBay = null;
@@ -628,16 +710,19 @@ public class GameSession {
                         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
                             for (com.sfb.objects.Shuttle s : bay.getInventory()) {
                                 if (s.getName().equalsIgnoreCase(shuttleName)) {
-                                    foundBay     = bay;
+                                    foundBay = bay;
                                     foundShuttle = s;
                                     break;
                                 }
                             }
-                            if (foundBay != null) break;
+                            if (foundBay != null)
+                                break;
                         }
-                        if (foundBay == null) continue;
+                        if (foundBay == null)
+                            continue;
                         if (!(foundShuttle instanceof com.sfb.objects.ScatterPack)
-                                && !foundShuttle.canBecomeScatterPack()) continue;
+                                && !foundShuttle.canBecomeScatterPack())
+                            continue;
 
                         // Convert admin → ScatterPack if needed
                         com.sfb.objects.ScatterPack pack;
@@ -657,18 +742,22 @@ public class GameSession {
 
                         for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
                             com.sfb.objects.DroneType dt;
-                            try { dt = com.sfb.objects.DroneType.valueOf(tc.getKey()); }
-                            catch (IllegalArgumentException ex) { continue; }
+                            try {
+                                dt = com.sfb.objects.DroneType.valueOf(tc.getKey());
+                            } catch (IllegalArgumentException ex) {
+                                continue;
+                            }
                             int needed = tc.getValue() != null ? tc.getValue() : 0;
                             for (int i = 0; i < needed; i++) {
-                                if (deckCrewsLeft < dt.rack) break; // not enough crew for this drone
-                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > 6) break;
+                                if (deckCrewsLeft < dt.rack)
+                                    break; // not enough crew for this drone
+                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > 6)
+                                    break;
                                 // Pull from reload stockpile (any rack's reload sets)
                                 boolean pulled = false;
-                                spOuter:
-                                for (DroneRack rack : allRacks) {
+                                spOuter: for (DroneRack rack : allRacks) {
                                     for (List<Drone> set : rack.getReloads()) {
-                                        for (java.util.Iterator<Drone> it = set.iterator(); it.hasNext(); ) {
+                                        for (java.util.Iterator<Drone> it = set.iterator(); it.hasNext();) {
                                             Drone d = it.next();
                                             if (d.getDroneType() == dt) {
                                                 it.remove();
@@ -680,24 +769,28 @@ public class GameSession {
                                         }
                                     }
                                 }
-                                if (!pulled) break; // no more of this type available
+                                if (!pulled)
+                                    break; // no more of this type available
                             }
                         }
                     }
                 }
 
-                // Suicide shuttle arming — 1–3 energy per turn for 3 turns (energy from power budget)
+                // Suicide shuttle arming — 1–3 energy per turn for 3 turns (energy from power
+                // budget)
                 Map<String, Integer> ssArming = request.getSuicideShuttleArming();
                 if (ssArming != null && !ssArming.isEmpty()) {
                     for (Map.Entry<String, Integer> entry : ssArming.entrySet()) {
                         String shuttleName = entry.getKey();
                         int energy = entry.getValue() != null ? entry.getValue() : 0;
-                        if (energy < 1 || energy > 3) continue;
+                        if (energy < 1 || energy > 3)
+                            continue;
                         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
                             java.util.List<com.sfb.objects.Shuttle> inv = bay.getInventory();
                             for (int idx = 0; idx < inv.size(); idx++) {
                                 com.sfb.objects.Shuttle s = inv.get(idx);
-                                if (!s.getName().equalsIgnoreCase(shuttleName)) continue;
+                                if (!s.getName().equalsIgnoreCase(shuttleName))
+                                    continue;
                                 com.sfb.objects.SuicideShuttle ss;
                                 if (s instanceof com.sfb.objects.SuicideShuttle) {
                                     ss = (com.sfb.objects.SuicideShuttle) s;
@@ -731,7 +824,8 @@ public class GameSession {
                 Map<String, Integer> shuttleSpeeds = request.getShuttleSpeeds();
                 if (shuttleSpeeds != null && !shuttleSpeeds.isEmpty()) {
                     for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
-                        if (!ship.getName().equals(shuttle.getParentShipName())) continue;
+                        if (!ship.getName().equals(shuttle.getParentShipName()))
+                            continue;
                         Integer reqSpeed = shuttleSpeeds.get(shuttle.getName());
                         if (reqSpeed != null) {
                             int clamped = Math.max(0, Math.min(reqSpeed, shuttle.getMaxSpeed()));
@@ -742,16 +836,18 @@ public class GameSession {
                 }
 
                 // ECM/ECCM — validate and store on ship
-                int ecmReq  = Math.max(0, request.getEcm());
+                int ecmReq = Math.max(0, request.getEcm());
                 int eccmReq = Math.max(0, request.getEccm());
                 int sensorRating = ship.getSpecialFunctions().getSensor();
                 if (ecmReq + eccmReq > sensorRating)
-                    return ActionResult.fail("ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds sensor rating (" + sensorRating + ")");
+                    return ActionResult.fail(
+                            "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds sensor rating (" + sensorRating + ")");
                 ship.setEcmAllocated(ecmReq);
                 ship.setEccmAllocated(eccmReq);
 
                 ActionResult allocResult = game.submitAllocation(ship, e);
-                // If this was the last allocation, beginImpulses() ran lock-on rolls — drain them
+                // If this was the last allocation, beginImpulses() ran lock-on rolls — drain
+                // them
                 for (String entry : game.drainLastLockOnLog())
                     appendCombatLog(entry);
                 return allocResult;
@@ -771,10 +867,9 @@ public class GameSession {
                 if (weaponNames == null || weaponNames.isEmpty())
                     return ActionResult.fail("No weapons specified");
 
-                com.sfb.systemgroups.Weapons attackerWeapons =
-                        attacker instanceof Ship
-                            ? ((Ship) attacker).getWeapons()
-                            : ((Shuttle) attacker).getWeapons();
+                com.sfb.systemgroups.Weapons attackerWeapons = attacker instanceof Ship
+                        ? ((Ship) attacker).getWeapons()
+                        : ((Shuttle) attacker).getWeapons();
 
                 // Apply FighterFusion shot modes before resolving weapon list
                 Map<String, String> shotModes = request.getShotModes();
@@ -783,9 +878,11 @@ public class GameSession {
                         if (w instanceof com.sfb.weapons.FighterFusion) {
                             String mode = shotModes.get(w.getName());
                             if ("DOUBLE".equalsIgnoreCase(mode))
-                                ((com.sfb.weapons.FighterFusion) w).setShotMode(com.sfb.weapons.FighterFusion.ShotMode.DOUBLE);
+                                ((com.sfb.weapons.FighterFusion) w)
+                                        .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.DOUBLE);
                             else if ("SINGLE".equalsIgnoreCase(mode))
-                                ((com.sfb.weapons.FighterFusion) w).setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
+                                ((com.sfb.weapons.FighterFusion) w)
+                                        .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
                         }
                     }
                 }
@@ -814,20 +911,21 @@ public class GameSession {
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 String shuttleName = request.getAction(); // shuttle name passed in action field
-                int speed    = request.getSpeed();
-                int facing   = request.getRange(); // reuse range field for facing
+                int speed = request.getSpeed();
+                int facing = request.getRange(); // reuse range field for facing
                 // Find the shuttle in any bay
                 ShuttleBay foundBay = null;
                 Shuttle foundShuttle = null;
                 for (ShuttleBay bay : ship.getShuttles().getBays()) {
                     for (Shuttle s : bay.getInventory()) {
                         if (s.getName().equalsIgnoreCase(shuttleName)) {
-                            foundBay     = bay;
+                            foundBay = bay;
                             foundShuttle = s;
                             break;
                         }
                     }
-                    if (foundBay != null) break;
+                    if (foundBay != null)
+                        break;
                 }
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Shuttle not found: " + shuttleName);
@@ -848,12 +946,13 @@ public class GameSession {
                     for (Shuttle s : bay.getInventory()) {
                         if (s.getName().equalsIgnoreCase(packName)
                                 && s instanceof com.sfb.objects.ScatterPack) {
-                            foundBay  = bay;
+                            foundBay = bay;
                             foundPack = (com.sfb.objects.ScatterPack) s;
                             break;
                         }
                     }
-                    if (foundBay != null) break;
+                    if (foundBay != null)
+                        break;
                 }
                 if (foundBay == null || foundPack == null)
                     return ActionResult.fail("Scatter pack not found: " + packName);
@@ -874,12 +973,13 @@ public class GameSession {
                     for (Shuttle s : bay.getInventory()) {
                         if (s.getName().equalsIgnoreCase(shuttleName)
                                 && s instanceof com.sfb.objects.SuicideShuttle) {
-                            foundBay     = bay;
+                            foundBay = bay;
                             foundShuttle = (com.sfb.objects.SuicideShuttle) s;
                             break;
                         }
                     }
-                    if (foundBay != null) break;
+                    if (foundBay != null)
+                        break;
                 }
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Armed suicide shuttle not found: " + shuttleName);
@@ -920,7 +1020,8 @@ public class GameSession {
                 if (target == null)
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 String rackName = request.getWeaponNames() != null && !request.getWeaponNames().isEmpty()
-                        ? request.getWeaponNames().get(0) : null;
+                        ? request.getWeaponNames().get(0)
+                        : null;
                 if (rackName == null)
                     return ActionResult.fail("No rack specified");
                 com.sfb.weapons.DroneRack rack = attacker.getWeapons().fetchAllWeapons().stream()
@@ -945,7 +1046,8 @@ public class GameSession {
                 if (target == null)
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 String wName = request.getWeaponNames() != null && !request.getWeaponNames().isEmpty()
-                        ? request.getWeaponNames().get(0) : null;
+                        ? request.getWeaponNames().get(0)
+                        : null;
                 if (wName == null)
                     return ActionResult.fail("No launcher specified");
                 PlasmaLauncher launcher = attacker.getWeapons().fetchAllWeapons().stream()
@@ -954,7 +1056,8 @@ public class GameSession {
                         .findFirst().orElse(null);
                 if (launcher == null)
                     return ActionResult.fail("Plasma launcher not found: " + wName);
-                return game.execute(new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.getFacing()));
+                return game.execute(
+                        new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.getFacing()));
             }
 
             case "PLACE_TBOMB": {
@@ -1008,15 +1111,16 @@ public class GameSession {
                         targetSystems.add(new com.sfb.properties.SystemTarget(w));
                     } else {
                         try {
-                            com.sfb.properties.SystemTarget.Type type =
-                                    com.sfb.properties.SystemTarget.Type.valueOf(code.toUpperCase());
+                            com.sfb.properties.SystemTarget.Type type = com.sfb.properties.SystemTarget.Type
+                                    .valueOf(code.toUpperCase());
                             targetSystems.add(new com.sfb.properties.SystemTarget(type, code));
                         } catch (IllegalArgumentException e) {
                             return ActionResult.fail("Unknown system type: " + code);
                         }
                     }
                 }
-                ActionResult harResult = game.execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
+                ActionResult harResult = game
+                        .execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
                 if (harResult.isSuccess())
                     appendCombatLog(harResult.getMessage());
                 return harResult;
@@ -1040,27 +1144,32 @@ public class GameSession {
 
             case "TRANSPORT_CREW": {
                 Ship source = findShip(request.getShipName());
-                if (source == null) return ActionResult.fail("Source ship not found: " + request.getShipName());
+                if (source == null)
+                    return ActionResult.fail("Source ship not found: " + request.getShipName());
                 com.sfb.objects.Unit dest = findUnit(request.getTargetName());
-                if (dest == null) return ActionResult.fail("Destination not found: " + request.getTargetName());
+                if (dest == null)
+                    return ActionResult.fail("Destination not found: " + request.getTargetName());
                 return game.transportCrew(source, dest, request.getCrewAmount());
             }
 
             case "IDENTIFY_SEEKERS": {
                 Ship ship = findShip(request.getShipName());
-                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
                 return game.identifySeekers(ship, request.getSeekerNames());
             }
 
             case "CLOAK": {
                 Ship ship = findShip(request.getShipName());
-                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
                 return game.execute(new CloakCommand(ship));
             }
 
             case "UNCLOAK": {
                 Ship ship = findShip(request.getShipName());
-                if (ship == null) return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
                 return game.execute(new UncloakCommand(ship));
             }
 
@@ -1070,7 +1179,8 @@ public class GameSession {
     }
 
     private Ship findShip(String name) {
-        if (name == null) return null;
+        if (name == null)
+            return null;
         return game.getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(name))
                 .findFirst().orElse(null);
@@ -1078,13 +1188,16 @@ public class GameSession {
 
     /** Find any Unit (ship, active shuttle, or seeker) by name. */
     private Unit findUnit(String name) {
-        if (name == null) return null;
+        if (name == null)
+            return null;
         Ship ship = findShip(name);
-        if (ship != null) return ship;
+        if (ship != null)
+            return ship;
         Shuttle shuttle = game.getActiveShuttles().stream()
                 .filter(s -> name.equalsIgnoreCase(s.getName()))
                 .findFirst().orElse(null);
-        if (shuttle != null) return shuttle;
+        if (shuttle != null)
+            return shuttle;
         return game.getSeekers().stream()
                 .filter(s -> s instanceof Unit && name.equalsIgnoreCase(((Unit) s).getName()))
                 .map(s -> (Unit) s)
@@ -1098,17 +1211,20 @@ public class GameSession {
      */
     private void transferCapturedShipOwnership() {
         List<com.sfb.objects.Ship> captured = game.getCapturedThisTurn();
-        if (captured.isEmpty()) return;
+        if (captured.isEmpty())
+            return;
 
         List<PlayerInfo> playerList = new ArrayList<>(players.values());
-        if (playerList.size() != 2) return; // only handle 2-player for now
+        if (playerList.size() != 2)
+            return; // only handle 2-player for now
 
         for (com.sfb.objects.Ship ship : captured) {
             com.sfb.Player currentOwner = ship.getOwner();
             PlayerInfo newOwnerInfo = playerList.stream()
                     .filter(pi -> pi.getCorePlayer() != currentOwner)
                     .findFirst().orElse(null);
-            if (newOwnerInfo == null || newOwnerInfo.getCorePlayer() == null) continue;
+            if (newOwnerInfo == null || newOwnerInfo.getCorePlayer() == null)
+                continue;
 
             // Move ship from old owner's unit list to new owner's unit list
             if (currentOwner != null)
@@ -1122,16 +1238,32 @@ public class GameSession {
     // Accessors
     // -------------------------------------------------------------------------
 
-    public String getId()                             { return id; }
-    public Game getGame()                             { return game; }
-    public String getHostToken()                      { return hostToken; }
-    public Map<String, PlayerInfo> getPlayers()       { return players; }
+    public String getId() {
+        return id;
+    }
 
-    /** Team name for the given player token — from live Player if started, else from shipTeamName map. */
+    public Game getGame() {
+        return game;
+    }
+
+    public String getHostToken() {
+        return hostToken;
+    }
+
+    public Map<String, PlayerInfo> getPlayers() {
+        return players;
+    }
+
+    /**
+     * Team name for the given player token — from live Player if started, else from
+     * shipTeamName map.
+     */
     public String getTeamNameFor(String token) {
         PlayerInfo info = players.get(token);
-        if (info == null) return null;
-        if (info.getCorePlayer() != null) return info.getCorePlayer().getTeamName();
+        if (info == null)
+            return null;
+        if (info.getCorePlayer() != null)
+            return info.getCorePlayer().getTeamName();
         // Pre-start: derive from the first ship assigned to this player
         return pendingAssignments.entrySet().stream()
                 .filter(e -> e.getValue().equals(token))
@@ -1139,5 +1271,8 @@ public class GameSession {
                 .filter(t -> t != null)
                 .findFirst().orElse(null);
     }
-    public boolean isStarted()                        { return started; }
+
+    public boolean isStarted() {
+        return started;
+    }
 }
