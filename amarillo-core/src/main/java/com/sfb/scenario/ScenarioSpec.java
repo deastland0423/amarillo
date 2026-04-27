@@ -57,6 +57,8 @@ public class ScenarioSpec {
     public int          numPlayers   = 2;
     public String       description;
     public String       mapType      = "STANDARD";   // "STANDARD" | "FLOATING"
+    public int          mapCols      = 42;            // map width in hexes (default 42)
+    public int          mapRows      = 32;            // map height in hexes (default 32)
     public String       lengthCondition;              // "STANDARD" = last side standing
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;

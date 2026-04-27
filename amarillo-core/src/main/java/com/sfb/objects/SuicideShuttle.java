@@ -17,8 +17,9 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     private boolean identified = false;
 
     // Arming state
-    private int armingTurnsComplete = 0; // 0–3; armed when == 3
-    private int totalEnergy         = 0; // cumulative energy across all arming turns
+    private int     armingTurnsComplete = 0;     // 0–3; armed when == 3
+    private int     totalEnergy         = 0;     // cumulative energy across all arming turns
+    private boolean holdPaidThisTurn    = false; // true if hold energy was allocated in current EA
 
     public SuicideShuttle(Shuttle base) {
         setHull(base.getHull());
@@ -45,6 +46,14 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     public boolean isArmed() {
         return armingTurnsComplete >= 3;
     }
+
+    /** Record that hold energy was paid this turn. */
+    public void payHold() { this.holdPaidThisTurn = true; }
+
+    public boolean isHoldPaid()         { return holdPaidThisTurn; }
+
+    /** Called at end of turn — resets hold flag for next turn. */
+    public void resetHold()             { this.holdPaidThisTurn = false; }
 
     public int getArmingTurnsComplete() { return armingTurnsComplete; }
     public int getTotalEnergy()         { return totalEnergy; }

@@ -63,7 +63,10 @@ export interface ShuttleInBayState {
   armed?:              boolean;  // suicide only
   armingTurnsComplete?: number; // suicide only
   warheadDamage?:      number;  // suicide only
-  payloadCount?:       number;  // scatterpack only
+  payload?:            string[]; // scatterpack only: live drone type names
+  pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading
+  maxDroneSpaces?:     number;   // scatterpack only: max rack spaces (default 6)
+  committedSpaces?:    number;   // scatterpack only: payload + pending spaces already used
 }
 
 export interface ShuttleBayState {
@@ -180,6 +183,7 @@ export interface ShipObject extends MapObjectBase {
   turnHexes?:        number;    // hexes required between turns at current speed
   hexesUntilTurn?:   number;    // 0 = may turn now; >0 = hexes still needed
   captured?:         boolean;   // true after all control rooms taken (D7.50)
+  disengaged?:       boolean;   // true after ship voluntarily exits the map
   ownerName?:        string;    // controlling player name (may change on capture)
   teamName?:         string;    // display name of the team/side this ship belongs to
 }
@@ -193,7 +197,16 @@ export interface ShuttleObject extends MapObjectBase {
   weapons?:       WeaponState[];  // non-null for fighters
   crippled?:      boolean;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
-  isIdentified?:  boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
+  isIdentified?:     boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
+  controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
+  controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
+  targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
+  // SCATTER_PACK only
+  payload?:          string[];       // drone type names; empty after release
+  released?:         boolean;        // true after drones deployed
+  // SUICIDE_SHUTTLE only
+  warheadDamage?:    number;
+  armingTurnsComplete?: number;
 }
 
 export interface DroneObject extends MapObjectBase {
@@ -209,6 +222,7 @@ export interface DroneObject extends MapObjectBase {
   targetName:        string | null; // revealed when identified
   controllerFaction: string;
   controllerName:    string | null;
+  launcherName:      string | null;
   launchImpulse:     number;
   isIdentified:      boolean;
 }
@@ -247,6 +261,8 @@ export type MapObject =
   | TerrainObject;
 
 export interface GameState {
+  mapCols:            number;
+  mapRows:            number;
   turn:               number;
   impulse:            number;
   phase:              string;

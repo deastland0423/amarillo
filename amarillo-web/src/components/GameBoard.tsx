@@ -55,8 +55,10 @@ function weaponLabel(w: WeaponState): string {
 /** Faction color for any map object (ships use faction, seekers use controllerFaction). */
 function mapObjectColor(obj: MapObject): string {
   if (obj.type === 'SHIP')   return factionColor((obj as ShipObject).faction);
-  if (obj.type === 'DRONE')  return factionColor((obj as DroneObject).controllerFaction);
-  if (obj.type === 'PLASMA') return factionColor((obj as PlasmaObject).controllerFaction);
+  if (obj.type === 'DRONE')         return factionColor((obj as DroneObject).controllerFaction);
+  if (obj.type === 'PLASMA')        return factionColor((obj as PlasmaObject).controllerFaction);
+  if (obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK')
+    return factionColor((obj as ShuttleObject).controllerFaction ?? '');
   return '#888';
 }
 
@@ -65,8 +67,10 @@ function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
   if (obj.type === 'SHIP')   return !myShips.has(obj.name);
   if (obj.type === 'DRONE')  return !myShips.has((obj as DroneObject).controllerName ?? '');
   if (obj.type === 'PLASMA') return !myShips.has((obj as PlasmaObject).controllerName ?? '');
-  if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK')
-    return !myShips.has((obj as ShuttleObject).parentShipName ?? '');
+  if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
+    const s = obj as ShuttleObject;
+    return !myShips.has(s.parentShipName ?? '') && !myShips.has(s.controllerName ?? '');
+  }
   return false;
 }
 
@@ -164,7 +168,7 @@ function hasLaunchableWeapons(ship: ShipObject): boolean {
   const hasPlasma      = (ship.weapons    ?? []).some(w => w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady));
   const hasLoadedRack  = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0 && r.canFire);
   const hasSuicide     = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'suicide' && s.armed && s.canLaunch));
-  const hasScatterPack = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'scatterpack' && s.canLaunch && (s.payloadCount ?? 0) > 0));
+  const hasScatterPack = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'scatterpack' && s.canLaunch && (s.payload?.length ?? 0) > 0));
   return hasPlasma || hasLoadedRack || hasSuicide || hasScatterPack;
 }
 
@@ -231,7 +235,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   const launchableSeekerShuttles = (ship.shuttleBays ?? []).flatMap(bay =>
     bay.shuttles.filter(s =>
       (s.type === 'suicide' && s.armed && s.canLaunch) ||
-      (s.type === 'scatterpack' && s.canLaunch && (s.payloadCount ?? 0) > 0)
+      (s.type === 'scatterpack' && s.canLaunch && (s.payload?.length ?? 0) > 0)
     )
   );
   const targetColor = target ? mapObjectColor(target) : '#888';
@@ -410,7 +414,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
                     <span className="ea-note-dim" style={{ marginLeft: 4 }}>
                       {s.type === 'suicide'
                         ? `Suicide — dmg ${s.warheadDamage}`
-                        : `Scatter Pack — ${s.payloadCount} drones`}
+                        : `Scatter Pack — ${s.payload?.join(', ') ?? '0 drones'}`}
                     </span>
                   </label>
                 </div>
@@ -2768,6 +2772,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       <div className="board-content">
         <div className="board-canvas-area">
           <HexGrid
+            mapCols={gameState?.mapCols}
+            mapRows={gameState?.mapRows}
             mapObjects={gameState?.mapObjects}
             myShips={gameState?.myShips ?? null}
             selectedName={selected?.name ?? null}

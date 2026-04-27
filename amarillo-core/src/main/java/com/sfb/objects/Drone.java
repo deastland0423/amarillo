@@ -23,6 +23,7 @@ public class Drone extends Unit implements Seeker {
 	private int hull; // The hull damage needed to kill the drone.
 	private Seeker.SeekerType seekerType; // The type of seeker.
 	private boolean identified = false; // True if an enemy ship has identified this seeker.
+	private String launcherName; // Name of the ship that originally launched this drone (stable, even when inert).
 
 	public Drone() {
 		setTurnMode(TurnMode.Seeker);
@@ -133,6 +134,9 @@ public class Drone extends Unit implements Seeker {
 	public void setSeekerType(Seeker.SeekerType seekerType) {
 		this.seekerType = seekerType;
 	}
+
+	public String getLauncherName()              { return launcherName; }
+	public void   setLauncherName(String name)   { this.launcherName = name; }
 
 	@Override
 	public void identify() {

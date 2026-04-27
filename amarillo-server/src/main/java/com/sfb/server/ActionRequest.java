@@ -40,9 +40,12 @@ public class ActionRequest {
     private int                 batteryRecharge;        // energy put into batteries this turn
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
-    private Map<String, Map<String, Integer>> droneReloadSelections; // rack name → {droneType → count}
-    private Map<String, Integer> shuttleSpeeds;                      // shuttle name → requested speed (active shuttles only)
-    private Map<String, String>  shotModes;                          // weapon name → "SINGLE" or "DOUBLE" (FighterFusion)
+    private Map<String, Map<String, Integer>> droneReloadSelections;   // rack name → {droneType → count}
+    private Map<String, Map<String, Integer>> scatterPackLoading;     // shuttle name → {droneType → count}
+    private Map<String, Integer>             suicideShuttleArming;   // shuttle name → energy (1–3)
+    private java.util.Set<String>            suicideShuttleHold;     // shuttle names paying hold this turn
+    private Map<String, Integer> shuttleSpeeds;                       // shuttle name → requested speed (active shuttles only)
+    private Map<String, String>  shotModes;                           // weapon name → "SINGLE" or "DOUBLE" (FighterFusion)
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -109,6 +112,15 @@ public class ActionRequest {
 
     public Map<String, Map<String, Integer>> getDroneReloadSelections()                                              { return droneReloadSelections; }
     public void                              setDroneReloadSelections(Map<String, Map<String, Integer>> selections) { this.droneReloadSelections = selections; }
+
+    public Map<String, Map<String, Integer>> getScatterPackLoading()                                              { return scatterPackLoading; }
+    public void                              setScatterPackLoading(Map<String, Map<String, Integer>> selections)  { this.scatterPackLoading = selections; }
+
+    public Map<String, Integer>  getSuicideShuttleArming()                             { return suicideShuttleArming; }
+    public void                  setSuicideShuttleArming(Map<String, Integer> m)       { this.suicideShuttleArming = m; }
+
+    public java.util.Set<String> getSuicideShuttleHold()                               { return suicideShuttleHold; }
+    public void                  setSuicideShuttleHold(java.util.Set<String> s)        { this.suicideShuttleHold = s; }
 
     public Map<String, Integer> getShuttleSpeeds()                              { return shuttleSpeeds; }
     public void                 setShuttleSpeeds(Map<String, Integer> speeds)   { this.shuttleSpeeds = speeds; }

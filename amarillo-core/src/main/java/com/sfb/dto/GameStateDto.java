@@ -140,7 +140,10 @@ public class GameStateDto {
         public boolean armed;            // suicide only: true when armingTurnsComplete >= 3
         public int     armingTurnsComplete; // suicide only: 0-3
         public int     warheadDamage;    // suicide only: totalEnergy * 2
-        public int     payloadCount;     // scatterpack only: drones loaded
+        public List<String> payload;        // scatterpack only: live drone type names (e.g. "TypeIM")
+        public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
+        public int    maxDroneSpaces;       // scatterpack only: max rack spaces (default 6)
+        public double committedSpaces;      // scatterpack only: payload + pending spaces already used
     }
 
     public static class ShuttleBayDto {
@@ -247,8 +250,9 @@ public class GameStateDto {
         public String       turnMode;        // e.g. "A", "B", "C"
         public int          turnHexes;       // hexes required between turns at current speed
         public int          hexesUntilTurn;  // 0 = may turn now; >0 = hexes still needed
-        // Capture state
+        // Capture / disengagement state
         public boolean      captured;
+        public boolean      disengaged;
         public String       ownerName;       // name of the controlling player (may change on capture)
         public String       teamName;        // display name of the team/side this ship belongs to
     }
@@ -275,6 +279,7 @@ public class GameStateDto {
     public static class SuicideShuttleDto extends MapObjectDto {
         public int     facing;
         public int     speed;
+        public String  controllerFaction;
         public String  controllerName;   // name of the controlling ship
         public String  targetName;
         public int     warheadDamage;    // totalEnergy * 2
@@ -287,13 +292,14 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class ScatterPackDto extends MapObjectDto {
-        public int     facing;
-        public int     speed;
-        public String  controllerName;
-        public String  targetName;
-        public int     payloadCount;    // number of drones still loaded
-        public boolean released;        // true after drones have been deployed
-        public boolean isIdentified;
+        public int          facing;
+        public int          speed;
+        public String       controllerFaction;
+        public String       controllerName;
+        public String       targetName;
+        public List<String> payload;    // drone type names still loaded; empty after release
+        public boolean      released;   // true after drones have been deployed
+        public boolean      isIdentified;
     }
 
     // -------------------------------------------------------------------------
@@ -312,6 +318,7 @@ public class GameStateDto {
         public String  targetName;         // revealed on identification
         public String  controllerFaction;
         public String  controllerName;     // name of the controlling ship — always public
+        public String  launcherName;       // name of the ship that originally launched this drone (stable, even when inert)
         public int     launchImpulse;      // always public
         public boolean isIdentified;       // true once identified by an enemy
     }
@@ -348,6 +355,8 @@ public class GameStateDto {
     // Top-level fields
     // -------------------------------------------------------------------------
 
+    public int               mapCols;
+    public int               mapRows;
     public int               turn;
     public int               impulse;
     public int               absoluteImpulse;
@@ -368,6 +377,8 @@ public class GameStateDto {
     public GameStateDto() {}
 
     public GameStateDto(Game game) {
+        this.mapCols         = game.getMapCols();
+        this.mapRows         = game.getMapRows();
         this.turn            = game.getCurrentTurn();
         this.impulse         = game.getCurrentImpulse();
         this.absoluteImpulse = game.getAbsoluteImpulse();
@@ -391,8 +402,12 @@ public class GameStateDto {
         for (Ship ship : game.getShips())
             mapObjects.add(fromShip(ship, game));
 
-        for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles())
-            mapObjects.add(fromShuttle(shuttle));
+        for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
+            if (shuttle instanceof com.sfb.objects.ScatterPack)
+                mapObjects.add(fromScatterPack((com.sfb.objects.ScatterPack) shuttle));
+            else
+                mapObjects.add(fromShuttle(shuttle));
+        }
 
         for (Seeker seeker : game.getSeekers()) {
             if (seeker instanceof Drone)
@@ -530,6 +545,7 @@ public class GameStateDto {
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());
         dto.captured          = ship.isCaptured();
+        dto.disengaged        = ship.isDisengaged();
         dto.ownerName         = ship.getOwner() != null ? ship.getOwner().getName() : null;
         dto.teamName          = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
 
@@ -661,7 +677,15 @@ public class GameStateDto {
                     sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                     sd.warheadDamage       = ss.getWarheadDamage();
                 } else if (s instanceof com.sfb.objects.ScatterPack) {
-                    sd.payloadCount = ((com.sfb.objects.ScatterPack) s).getPayload().size();
+                    com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) s;
+                    sd.payload = sp.getPayload().stream()
+                            .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                            .collect(java.util.stream.Collectors.toList());
+                    sd.pendingPayload = sp.getPendingPayload().stream()
+                            .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                            .collect(java.util.stream.Collectors.toList());
+                    sd.maxDroneSpaces  = sp.getMaxDroneSpaces();
+                    sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
                 }
                 bd.shuttles.add(sd);
             }
@@ -726,6 +750,7 @@ public class GameStateDto {
         dto.speed                = ss.getSpeed();
         dto.warheadDamage        = ss.getWarheadDamage();
         dto.armingTurnsComplete  = ss.getArmingTurnsComplete();
+        dto.controllerFaction    = controllerFaction(ss.getController());
         dto.controllerName       = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
         dto.targetName           = ss.getTarget() != null ? ss.getTarget().getName() : null;
         dto.isIdentified         = ss.isIdentified();
@@ -738,8 +763,11 @@ public class GameStateDto {
         dto.location          = pack.getLocation() != null ? pack.getLocation().toString() : null;
         dto.facing            = pack.getFacing();
         dto.speed             = pack.getSpeed();
-        dto.payloadCount      = pack.getPayload().size();
+        dto.payload           = pack.getPayload().stream()
+                                  .map(d -> d.getDroneType().name())
+                                  .collect(java.util.stream.Collectors.toList());
         dto.released          = pack.isReleased();
+        dto.controllerFaction = controllerFaction(pack.getController());
         dto.controllerName    = pack.getController() != null ? ((com.sfb.objects.Unit) pack.getController()).getName() : null;
         dto.targetName        = pack.getTarget() != null ? pack.getTarget().getName() : null;
         dto.isIdentified      = pack.isIdentified();
@@ -760,6 +788,7 @@ public class GameStateDto {
         dto.targetName        = drone.getTarget() != null ? drone.getTarget().getName() : null;
         dto.controllerFaction = controllerFaction(drone.getController());
         dto.controllerName    = drone.getController() != null ? drone.getController().getName() : null;
+        dto.launcherName      = drone.getLauncherName();
         dto.endurance         = drone.getEndurance();
         dto.launchImpulse     = drone.getLaunchImpulse();
         dto.isIdentified      = drone.isIdentified();

@@ -52,8 +52,8 @@ function loadAsteroidImage(onLoad: () => void) {
   img.src = '/tokens/terrain/asteroid.png';
 }
 
-const COLS    = 42;
-const ROWS    = 32;
+const DEFAULT_COLS = 42;
+const DEFAULT_ROWS = 32;
 const SIZE    = 48;   // circumradius: center → corner
 const PADDING = 12;
 const SQRT3   = Math.sqrt(3);
@@ -70,10 +70,10 @@ function hexCenter(col: number, row: number): [number, number] {
 }
 
 /** Return the [col, row] of the hex closest to pixel (px, py), or null if too far. */
-function pixelToHex(px: number, py: number): [number, number] | null {
+function pixelToHex(px: number, py: number, cols: number, rows: number): [number, number] | null {
   let bestCol = -1, bestRow = -1, bestDist = Infinity;
-  for (let col = 1; col <= COLS; col++) {
-    for (let row = 1; row <= ROWS; row++) {
+  for (let col = 1; col <= cols; col++) {
+    for (let row = 1; row <= rows; row++) {
       const [cx, cy] = hexCenter(col, row);
       const d = Math.hypot(px - cx, py - cy);
       if (d < bestDist) { bestDist = d; bestCol = col; bestRow = row; }
@@ -94,13 +94,13 @@ function tracePath(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   ctx.closePath();
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D) {
+function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
   const pattern = starfieldImage ? ctx.createPattern(starfieldImage, 'repeat') : null;
   ctx.fillStyle = pattern ?? '#0d1a0d';
   ctx.strokeStyle = 'rgba(255,255,255,0.4)';
   ctx.lineWidth = 1;
-  for (let col = 1; col <= COLS; col++) {
-    for (let row = 1; row <= ROWS; row++) {
+  for (let col = 1; col <= cols; col++) {
+    for (let row = 1; row <= rows; row++) {
       const [cx, cy] = hexCenter(col, row);
       tracePath(ctx, cx, cy);
       ctx.fill();
@@ -112,8 +112,8 @@ function drawGrid(ctx: CanvasRenderingContext2D) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const labelOffsetY = SIZE * SQRT3 / 2 - 3;  // near bottom edge of hex
-  for (let col = 1; col <= COLS; col++) {
-    for (let row = 1; row <= ROWS; row++) {
+  for (let col = 1; col <= cols; col++) {
+    for (let row = 1; row <= rows; row++) {
       const [cx, cy] = hexCenter(col, row);
       ctx.fillText(
         `${String(col).padStart(2, '0')}${String(row).padStart(2, '0')}`,
@@ -270,6 +270,8 @@ function drawObjects(
   selectedName: string | null,
   fireTargetName: string | null,
   onImageLoad: () => void,
+  cols: number,
+  rows: number,
 ) {
   const mySet = new Set(myShips ?? []);
   // Two-pass rendering: terrain first so units always appear on top.
@@ -280,7 +282,7 @@ function drawObjects(
     const coords = parseLocation(obj.location);
     if (!coords) continue;
     const [col, row] = coords;
-    if (col < 1 || col > COLS || row < 1 || row > ROWS) continue;
+    if (col < 1 || col > cols || row < 1 || row > rows) continue;
     const [cx, cy] = hexCenter(col, row);
 
     if (obj.type === 'SHIP') {
@@ -412,18 +414,39 @@ function drawObjects(
       continue;
     }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
-      ctx.fillStyle = '#79c0ff';
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
-      ctx.fill();
+      const shuttle = obj as import('../types/gameState').ShuttleObject;
+      const angle   = facingToAngle(shuttle.facing);
+
+      // Faction: special shuttles carry controllerFaction; plain shuttles look up parent ship.
+      let faction: string = (shuttle as any).controllerFaction ?? '';
+      if (!faction) {
+        const parent = objects.find(o => o.type === 'SHIP' && o.name === shuttle.parentShipName) as ShipObject | undefined;
+        faction = parent?.faction ?? '';
+      }
+
+      const tokenPath = faction ? `${faction.toLowerCase()}/shuttle.png` : null;
+      const tokenImg  = tokenPath ? loadTokenImage(tokenPath, onImageLoad) : null;
+      const r = SIZE * 0.2;
+
+      if (tokenImg) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle + Math.PI / 2);
+        ctx.drawImage(tokenImg, -r, -r, r * 2, r * 2);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#79c0ff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     }
   }
 }
 
-// Canvas intrinsic dimensions (never change — zoom is CSS only)
-const H        = SQRT3 * SIZE;
-const CANVAS_W = Math.ceil(PADDING * 2 + SIZE + (COLS - 1) * SIZE * 1.5 + SIZE);
-const CANVAS_H = Math.ceil(PADDING * 2 + H * ROWS + H / 2);
+const H = SQRT3 * SIZE;
+function canvasWidth(cols: number)  { return Math.ceil(PADDING * 2 + SIZE + (cols - 1) * SIZE * 1.5 + SIZE); }
+function canvasHeight(rows: number) { return Math.ceil(PADDING * 2 + H * rows + H / 2); }
 
 /** Convert an absolute impulse number to a human-readable "T1:I5" string. */
 function absImpulseLabel(abs: number): string {
@@ -501,7 +524,11 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
   for (let i = 0; i < seekers.length; i++) {
     if (i > 0) lines.push('──────────────────');
     const s = seekers[i];
-    const isMine = myShips != null && s.controllerName != null && myShips.includes(s.controllerName);
+    const launcherName = s.type === 'DRONE' ? (s as DroneObject).launcherName : null;
+    const isMine = myShips != null && (
+      (s.controllerName != null && myShips.includes(s.controllerName)) ||
+      (launcherName != null && myShips.includes(launcherName))
+    );
     const canSeeTarget = isMine || s.isIdentified;
 
     if (s.type === 'PLASMA') {
@@ -559,6 +586,8 @@ function pickerLabel(o: MapObject): string {
 }
 
 interface Props {
+  mapCols?:         number;
+  mapRows?:         number;
   mapObjects?:      MapObject[];
   myShips?:         string[] | null;
   selectedName?:    string | null;
@@ -572,7 +601,11 @@ interface Props {
   snapTo?:          { name: string } | null;
 }
 
-export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
+export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
+  const COLS     = mapColsProp ?? DEFAULT_COLS;
+  const ROWS     = mapRowsProp ?? DEFAULT_ROWS;
+  const CANVAS_W = canvasWidth(COLS);
+  const CANVAS_H = canvasHeight(ROWS);
   const [zoom, setZoom]           = useState(1.0);
   const [tooltip, setTooltip]     = useState<Tooltip | null>(null);
   const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
@@ -597,10 +630,10 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    drawGrid(ctx);
+    drawGrid(ctx, COLS, ROWS);
     if (mapObjects && mapObjects.length > 0) {
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
-        () => setTokenRevision(r => r + 1));
+        () => setTokenRevision(r => r + 1), COLS, ROWS);
     }
     if (hoveredHex) {
       const [hcol, hrow] = hoveredHex;
@@ -698,7 +731,7 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     const scaleY  = CANVAS_H / rect.height;
     const px      = (e.clientX - rect.left) * scaleX;
     const py      = (e.clientY - rect.top)  * scaleY;
-    const hex     = pixelToHex(px, py);
+    const hex     = pixelToHex(px, py, COLS, ROWS);
     if (!hex) { setTooltip(null); if (pickingHex) setHoveredHex(null); return; }
     const [col, row] = hex;
     if (pickingHex) { setHoveredHex([col, row]); setTooltip(null); return; }
@@ -711,8 +744,11 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
 
     for (const shuttle of shuttlesAt(mapObjects, col, row)) {
       if (lines.length > 0) lines.push('──────────────────');
-      const isMine = myShips != null && (shuttle as any).parentShipName != null
-        && myShips.includes((shuttle as any).parentShipName);
+      const shuttleAny = shuttle as any;
+      const isMine = myShips != null && (
+        (shuttleAny.parentShipName != null && myShips.includes(shuttleAny.parentShipName)) ||
+        (shuttleAny.controllerName != null && myShips.includes(shuttleAny.controllerName))
+      );
       lines.push(...shuttleTooltipLines(shuttle, isMine, mapObjects));
     }
 
@@ -756,7 +792,7 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
     const px     = (e.clientX - rect.left) * scaleX;
     const py     = (e.clientY - rect.top)  * scaleY;
 
-    const hex = pixelToHex(px, py);
+    const hex = pixelToHex(px, py, COLS, ROWS);
 
     // Hex-pick mode: deliver coordinates, skip unit selection
     if (pickingHex && onHexClick) {
@@ -865,4 +901,4 @@ export default function HexGrid({ mapObjects, myShips, selectedName, fireTargetN
   );
 }
 
-export { hexCenter, tracePath, SIZE, COLS, ROWS };
+export { hexCenter, tracePath, SIZE, DEFAULT_COLS, DEFAULT_ROWS };

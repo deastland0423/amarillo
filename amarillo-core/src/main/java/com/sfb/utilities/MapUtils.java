@@ -804,6 +804,13 @@ public class MapUtils {
 	 * @param trueBearing    The map direction of the adjacent hex
 	 * @return The coordinates of the desired adjacent hex.
 	 */
+	public static Location getAdjacentHex(Location sourceLocation, int trueBearing, int maxCols, int maxRows) {
+		Location loc = getAdjacentHex(sourceLocation, trueBearing);
+		if (loc == null) return null;
+		if (loc.getX() < 1 || loc.getX() > maxCols || loc.getY() < 1 || loc.getY() > maxRows) return null;
+		return loc;
+	}
+
 	public static Location getAdjacentHex(Location sourceLocation, int trueBearing) {
 		Location newLocation = new Location();
 

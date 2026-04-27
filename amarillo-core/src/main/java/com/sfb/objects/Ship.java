@@ -104,6 +104,9 @@ public class Ship extends Unit {
 	/** True if this ship has been captured (D7.50). */
 	private boolean captured = false;
 
+	/** True if this ship has voluntarily exited the map and is disengaged. */
+	private boolean disengaged = false;
+
 	/** End-of-battle status — set when ship leaves play. */
 	private com.sfb.properties.BattleStatus battleStatus = com.sfb.properties.BattleStatus.ACTIVE;
 
@@ -656,6 +659,16 @@ public class Ship extends Unit {
 
 	public void setCaptured(boolean captured) {
 		this.captured = captured;
+	}
+
+	// --- Disengagement ---
+
+	public boolean isDisengaged() {
+		return disengaged;
+	}
+
+	public void setDisengaged(boolean disengaged) {
+		this.disengaged = disengaged;
 	}
 
 	/**

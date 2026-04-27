@@ -80,6 +80,9 @@ public class Game {
 
     // --- State ---
     private final List<Player> players = new ArrayList<>();
+    private int mapCols = 42; // map width in hexes
+    private int mapRows = 32; // map height in hexes
+
     private final List<Ship> ships = new ArrayList<>();
     private final List<Seeker> seekers = new ArrayList<>();
     private final List<Ship> capturedThisTurn = new ArrayList<>(); // ships captured in the current endTurn()
@@ -197,6 +200,9 @@ public class Game {
     public void setupFromScenario(ScenarioSpec scenario,
                                   List<List<Ship>> sideShips,
                                   Map<Ship, CoiLoadout> coiLoadouts) {
+        mapCols = scenario.mapCols > 0 ? scenario.mapCols : 42;
+        mapRows = scenario.mapRows > 0 ? scenario.mapRows : 32;
+
         ships.clear();
         players.clear();
         seekers.clear();
@@ -650,6 +656,9 @@ public class Game {
         return TurnTracker.getLocalImpulse();
     }
 
+    public int getMapCols() { return mapCols; }
+    public int getMapRows() { return mapRows; }
+
     public int getAbsoluteImpulse() {
         return TurnTracker.getImpulse();
     }
@@ -781,10 +790,17 @@ public class Game {
             return moveOrderError(ship);
         // Planet blocking — check destination before moving (P2.0)
         Location nextHex = MapUtils.getAdjacentHex(ship.getLocation(),
-                MapUtils.getTrueBearing(1, ship.getFacing()));
+                MapUtils.getTrueBearing(1, ship.getFacing()), mapCols, mapRows);
+        if (nextHex == null) {
+            // Ship exits the map — mark as disengaged and remove from play
+            ship.setDisengaged(true);
+            ship.setLocation(null);
+            movedThisImpulse.add(ship);
+            return ActionResult.ok(ship.getName() + " has disengaged (exited the map)");
+        }
         if (isPlanetHex(nextHex))
             return ActionResult.fail(ship.getName() + " cannot enter a planet hex");
-        boolean moved = ship.goForward();
+        boolean moved = ship.goForward(mapCols, mapRows);
         if (moved) {
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " moved forward");
@@ -980,7 +996,7 @@ public class Game {
     public ActionResult moveShuttleForward(com.sfb.objects.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
-        shuttle.goForward();
+        shuttle.goForward(mapCols, mapRows);
         if (shuttle.getLocation() == null) {
             activeShuttles.remove(shuttle);
             return ActionResult.fail(shuttle.getName() + " moved off the map");
@@ -1235,11 +1251,23 @@ public class Game {
                     + " — " + drone.getHull() + " hull remaining";
         } else if (target instanceof com.sfb.objects.Shuttle) {
             com.sfb.objects.Shuttle shuttle = (com.sfb.objects.Shuttle) target;
+            boolean isSeeker = shuttle instanceof Seeker;
             if (damage == com.sfb.weapons.ADD.HIT) {
                 int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
                 shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - roll));
                 if (shuttle.getCurrentHull() <= 0) {
-                    activeShuttles.remove(shuttle);
+                    if (isSeeker) {
+                        seekers.remove((Seeker) shuttle);
+                        if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
+                            com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
+                            if (ss.getController() instanceof Ship) ((Ship) ss.getController()).releaseControl(ss);
+                        } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
+                            com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
+                            if (sp.getController() instanceof Ship) ((Ship) sp.getController()).releaseControl(sp);
+                        }
+                    } else {
+                        activeShuttles.remove(shuttle);
+                    }
                     return "HIT — " + shuttle.getName() + " destroyed (" + roll + " hull damage)";
                 }
                 StringBuilder addLog = new StringBuilder(
@@ -1253,7 +1281,18 @@ public class Game {
             }
             shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - damage));
             if (shuttle.getCurrentHull() <= 0) {
-                activeShuttles.remove(shuttle);
+                if (isSeeker) {
+                    seekers.remove((Seeker) shuttle);
+                    if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
+                        com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
+                        if (ss.getController() instanceof Ship) ((Ship) ss.getController()).releaseControl(ss);
+                    } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
+                        com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
+                        if (sp.getController() instanceof Ship) ((Ship) sp.getController()).releaseControl(sp);
+                    }
+                } else {
+                    activeShuttles.remove(shuttle);
+                }
                 return shuttle.getName() + " destroyed (" + damage + " damage)";
             }
             StringBuilder hitLog = new StringBuilder(shuttle.getName() + " hit for " + damage
@@ -1307,6 +1346,8 @@ public class Game {
             int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
         if (attacker instanceof Ship && ((Ship) attacker).isCaptured())
             return attacker.getName() + " cannot fire — ship is captured (D7.55)";
+        if (attacker instanceof Ship && ((Ship) attacker).getCrew().isSkeleton())
+            return attacker.getName() + " cannot fire — undermanned (G9.42)";
         if (attacker instanceof Ship && ((Ship) attacker).isInBreakdownLockout(TurnTracker.getImpulse()))
             return attacker.getName() + " cannot fire — breakdown lockout for 8 impulses (C6.5471)";
         if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl())
@@ -1608,6 +1649,7 @@ public class Game {
         drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         drone.setTarget(target);
         if (drone.getController() == null) drone.setController(launcher);
+        drone.setLauncherName(launcher.getName());
         drone.setLaunchImpulse(TurnTracker.getImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
         seekers.add(drone);
@@ -1814,7 +1856,7 @@ public class Game {
             if (shuttle.isPlayerControlled()) continue; // manual control only
             if (!MovementUtil.moveThisImpulse(impulse, shuttle.getSpeed()))
                 continue;
-            shuttle.goForward();
+            shuttle.goForward(mapCols, mapRows);
             if (shuttle.getLocation() == null) {
                 log.add("  Shuttle " + shuttle.getName() + " moved off the map");
                 offMap.add(shuttle);
@@ -1964,7 +2006,7 @@ public class Game {
                 if (bearing != 0)
                     drone.setFacing(snapToCardinal(bearing));
 
-                drone.goForward();
+                drone.goForward(mapCols, mapRows);
 
                 if (drone.getLocation() == null) {
                     log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
@@ -2020,9 +2062,13 @@ public class Game {
                     // Free the scatter pack's own control channel before drones compete for capacity
                     if (controller instanceof Ship) ((Ship) controller).releaseControl(pack);
                     List<com.sfb.objects.Drone> released = pack.release();
+                    String launcherName = controller instanceof Ship ? controller.getName() : null;
                     for (com.sfb.objects.Drone drone : released) {
+                        drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + (++seekerSeq));
                         drone.setLocation(pack.getLocation());
                         drone.setFacing(pack.getFacing());
+                        if (launcherName != null) drone.setLauncherName(launcherName);
+                        drone.setLaunchImpulse(TurnTracker.getImpulse());
                         if (!drone.isSelfGuiding() && controller instanceof Ship
                                 && ((Ship) controller).hasLockOn(target)) {
                             drone.setTarget(target);
@@ -2057,7 +2103,7 @@ public class Game {
                         int bearing = MapUtils.getGeometricBearing(pack, target);
                         if (bearing != 0) pack.setFacing(snapToCardinal(bearing));
                     }
-                    pack.goForward();
+                    pack.goForward(mapCols, mapRows);
                     if (pack.getLocation() == null) {
                         log.add("  Scatter pack moved off the map — lost");
                         expired.add(pack);
@@ -2077,7 +2123,7 @@ public class Game {
                 }
                 int bearing = MapUtils.getGeometricBearing(ss, target);
                 if (bearing != 0) ss.setFacing(snapToCardinal(bearing));
-                ss.goForward();
+                ss.goForward(mapCols, mapRows);
                 if (ss.getLocation() == null) {
                     log.add("  Suicide shuttle moved off the map");
                     expired.add(ss);
@@ -2111,7 +2157,7 @@ public class Game {
                 if (bearing != 0)
                     torp.setFacing(snapToCardinal(bearing));
 
-                torp.goForward();
+                torp.goForward(mapCols, mapRows);
                 torp.incrementDistance();
 
                 if (torp.getLocation() == null) {

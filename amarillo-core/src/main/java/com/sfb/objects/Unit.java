@@ -262,6 +262,16 @@ public class Unit extends Marker {
 		return true;
 	}
 
+	public boolean goForward(int maxCols, int maxRows) {
+		sideslipCount++;
+		turnCount++;
+
+		entryDirection = MapUtils.getTrueBearing(1, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection, maxCols, maxRows));
+
+		return true;
+	}
+
 	/**
 	 * Move the unit a single hex backward.
 	 * 
@@ -273,6 +283,16 @@ public class Unit extends Marker {
 
 		entryDirection = MapUtils.getTrueBearing(13, getFacing());
 		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
+
+		return true;
+	}
+
+	public boolean goBackward(int maxCols, int maxRows) {
+		sideslipCount++;
+		turnCount++;
+
+		entryDirection = MapUtils.getTrueBearing(13, getFacing());
+		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection, maxCols, maxRows));
 
 		return true;
 	}

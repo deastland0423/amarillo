@@ -75,7 +75,29 @@ public class Shuttles implements Systems {
     }
 
     @Override
-    public void cleanUp() {}
+    public void cleanUp() {
+        for (ShuttleBay bay : bays) {
+            java.util.List<com.sfb.objects.Shuttle> inv = bay.getInventory();
+            for (int i = 0; i < inv.size(); i++) {
+                com.sfb.objects.Shuttle s = inv.get(i);
+                if (s instanceof com.sfb.objects.ScatterPack) {
+                    ((com.sfb.objects.ScatterPack) s).applyPendingPayload();
+                } else if (s instanceof com.sfb.objects.SuicideShuttle) {
+                    com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
+                    if (ss.isArmed() && !ss.isHoldPaid()) {
+                        // Hold energy not paid — revert to plain admin shuttle
+                        com.sfb.objects.AdminShuttle admin = new com.sfb.objects.AdminShuttle();
+                        admin.setName(ss.getName());
+                        admin.setMaxSpeed(ss.getMaxSpeed());
+                        admin.setHull(ss.getHull());
+                        inv.set(i, admin);
+                    } else {
+                        ss.resetHold();
+                    }
+                }
+            }
+        }
+    }
 
     @Override
     public Unit fetchOwningUnit() { return owningUnit; }

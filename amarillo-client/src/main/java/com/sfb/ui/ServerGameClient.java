@@ -352,7 +352,8 @@ public class ServerGameClient implements GameFacade {
                             com.sfb.objects.ScatterPack pack = (com.sfb.objects.ScatterPack) s;
                             // Sync payload count — add Type-I drones to match server state
                             pack.getPayload().clear();
-                            for (int i = 0; i < sd.payloadCount; i++)
+                            int count = sd.payload != null ? sd.payload.size() : 0;
+                            for (int i = 0; i < count; i++)
                                 pack.addDrone(new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI));
                         }
                         bay.getInventory().add(s);

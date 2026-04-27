@@ -566,10 +566,10 @@ public class GameSession {
                     e.setSpecificReinforcement(specReinf);
                 }
 
-                // Drone rack reloads — player picks individual drones by type and count
+                // Drone rack reloads — up to 2 rack spaces per rack per turn (FD2.421).
+                // Uses assigned crew units, NOT deck crews (FD2.421, FD7.25).
                 Map<String, Map<String, Integer>> reloadSelections = request.getDroneReloadSelections();
                 if (reloadSelections != null && !reloadSelections.isEmpty()) {
-                    double deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
                     for (Map.Entry<String, Map<String, Integer>> entry : reloadSelections.entrySet()) {
                         String rackName = entry.getKey();
                         Map<String, Integer> typeCountMap = entry.getValue();
@@ -600,17 +600,130 @@ public class GameSession {
                         }
 
                         if (candidates.isEmpty()) continue;
-                        double cost = DroneRack.reloadCost(candidates);
-                        if (cost > deckCrewsLeft) continue;
+                        // Enforce max 2 rack spaces per rack per turn (FD2.421)
+                        if (DroneRack.reloadCost(candidates) > 2.0) continue;
 
                         // Pass 2: remove the chosen drones from their sets, then stage
                         for (Drone d : candidates) {
                             for (List<Drone> set : rack.getReloads()) {
-                                if (set.remove(d)) break; // remove by reference identity
+                                if (set.remove(d)) break;
                             }
                         }
                         rack.stagePendingReload(candidates);
-                        deckCrewsLeft -= cost;
+                    }
+                }
+
+                // Scatter pack loading — uses deck crews (FD7.22): 1 crew per rack space from reload stockpile.
+                Map<String, Map<String, Integer>> spLoading = request.getScatterPackLoading();
+                if (spLoading != null && !spLoading.isEmpty()) {
+                    double deckCrewsLeft = ship.getCrew().getAvailableDeckCrews();
+                    for (Map.Entry<String, Map<String, Integer>> spEntry : spLoading.entrySet()) {
+                        String shuttleName = spEntry.getKey();
+                        Map<String, Integer> typeCountMap = spEntry.getValue();
+                        if (typeCountMap == null || typeCountMap.isEmpty()) continue;
+
+                        // Find shuttle in ship's bays
+                        com.sfb.systemgroups.ShuttleBay foundBay = null;
+                        com.sfb.objects.Shuttle foundShuttle = null;
+                        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                                if (s.getName().equalsIgnoreCase(shuttleName)) {
+                                    foundBay     = bay;
+                                    foundShuttle = s;
+                                    break;
+                                }
+                            }
+                            if (foundBay != null) break;
+                        }
+                        if (foundBay == null) continue;
+                        if (!(foundShuttle instanceof com.sfb.objects.ScatterPack)
+                                && !foundShuttle.canBecomeScatterPack()) continue;
+
+                        // Convert admin → ScatterPack if needed
+                        com.sfb.objects.ScatterPack pack;
+                        if (foundShuttle instanceof com.sfb.objects.ScatterPack) {
+                            pack = (com.sfb.objects.ScatterPack) foundShuttle;
+                        } else {
+                            pack = new com.sfb.objects.ScatterPack(foundShuttle);
+                            int idx = foundBay.getInventory().indexOf(foundShuttle);
+                            foundBay.getInventory().set(idx, pack);
+                        }
+
+                        // Collect requested drones from reload stockpile across all racks
+                        List<DroneRack> allRacks = ship.getWeapons().fetchAllWeapons().stream()
+                                .filter(w -> w instanceof DroneRack)
+                                .map(w -> (DroneRack) w)
+                                .collect(java.util.stream.Collectors.toList());
+
+                        for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
+                            com.sfb.objects.DroneType dt;
+                            try { dt = com.sfb.objects.DroneType.valueOf(tc.getKey()); }
+                            catch (IllegalArgumentException ex) { continue; }
+                            int needed = tc.getValue() != null ? tc.getValue() : 0;
+                            for (int i = 0; i < needed; i++) {
+                                if (deckCrewsLeft < dt.rack) break; // not enough crew for this drone
+                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > 6) break;
+                                // Pull from reload stockpile (any rack's reload sets)
+                                boolean pulled = false;
+                                spOuter:
+                                for (DroneRack rack : allRacks) {
+                                    for (List<Drone> set : rack.getReloads()) {
+                                        for (java.util.Iterator<Drone> it = set.iterator(); it.hasNext(); ) {
+                                            Drone d = it.next();
+                                            if (d.getDroneType() == dt) {
+                                                it.remove();
+                                                pack.addPendingDrone(d);
+                                                deckCrewsLeft -= dt.rack;
+                                                pulled = true;
+                                                break spOuter;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!pulled) break; // no more of this type available
+                            }
+                        }
+                    }
+                }
+
+                // Suicide shuttle arming — 1–3 energy per turn for 3 turns (energy from power budget)
+                Map<String, Integer> ssArming = request.getSuicideShuttleArming();
+                if (ssArming != null && !ssArming.isEmpty()) {
+                    for (Map.Entry<String, Integer> entry : ssArming.entrySet()) {
+                        String shuttleName = entry.getKey();
+                        int energy = entry.getValue() != null ? entry.getValue() : 0;
+                        if (energy < 1 || energy > 3) continue;
+                        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                            java.util.List<com.sfb.objects.Shuttle> inv = bay.getInventory();
+                            for (int idx = 0; idx < inv.size(); idx++) {
+                                com.sfb.objects.Shuttle s = inv.get(idx);
+                                if (!s.getName().equalsIgnoreCase(shuttleName)) continue;
+                                com.sfb.objects.SuicideShuttle ss;
+                                if (s instanceof com.sfb.objects.SuicideShuttle) {
+                                    ss = (com.sfb.objects.SuicideShuttle) s;
+                                } else if (s.canBecomeSuicide()) {
+                                    ss = new com.sfb.objects.SuicideShuttle(s);
+                                    inv.set(idx, ss);
+                                } else {
+                                    break;
+                                }
+                                ss.arm(energy);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Suicide shuttle hold — 1 energy per turn to keep armed shuttle ready
+                java.util.Set<String> ssHold = request.getSuicideShuttleHold();
+                if (ssHold != null && !ssHold.isEmpty()) {
+                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                        for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                            if (s instanceof com.sfb.objects.SuicideShuttle
+                                    && ssHold.contains(s.getName())) {
+                                ((com.sfb.objects.SuicideShuttle) s).payHold();
+                            }
+                        }
                     }
                 }
 

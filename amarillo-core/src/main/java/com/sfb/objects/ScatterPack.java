@@ -17,13 +17,16 @@ public class ScatterPack extends Shuttle implements Seeker {
 
     private static final int RELEASE_DELAY = 8; // impulses before drones deploy
 
+    private int maxDroneSpaces = 6; // admin shuttle default; other types may differ
+
     private Unit        target;
     private Unit        controller;
     private boolean     identified   = false;
     private int         launchImpulse = -1;
     private boolean     released      = false; // true after drones have deployed
 
-    private List<Drone> payload = new ArrayList<>(); // drones loaded onto this shuttle
+    private List<Drone> payload        = new ArrayList<>(); // drones loaded onto this shuttle
+    private List<Drone> pendingPayload = new ArrayList<>(); // drones being loaded this turn (available next turn)
 
     public ScatterPack(Shuttle base) {
         setHull(base.getHull());
@@ -44,13 +47,41 @@ public class ScatterPack extends Shuttle implements Seeker {
      * Add a drone to the payload.
      * @return true if there is space (total rack spaces ≤ 6).
      */
+    public int    getMaxDroneSpaces() { return maxDroneSpaces; }
+    public void   setMaxDroneSpaces(int max) { this.maxDroneSpaces = max; }
+
     public boolean addDrone(Drone drone) {
-        if (getPayloadSpaces() + drone.getRackSize() > 6) return false;
+        if (getPayloadSpaces() + drone.getRackSize() > maxDroneSpaces) return false;
         payload.add(drone);
         return true;
     }
 
     public List<Drone> getPayload() { return payload; }
+
+    /**
+     * Stage a drone to be loaded onto this scatter pack at end of turn.
+     * @return false if total committed spaces (payload + pending) would exceed max.
+     */
+    public boolean addPendingDrone(Drone drone) {
+        double committed = getPayloadSpaces()
+                + pendingPayload.stream().mapToDouble(Drone::getRackSize).sum();
+        if (committed + drone.getRackSize() > maxDroneSpaces) return false;
+        pendingPayload.add(drone);
+        return true;
+    }
+
+    /** Rack spaces currently staged for next-turn loading. */
+    public double getPendingSpaces() {
+        return pendingPayload.stream().mapToDouble(Drone::getRackSize).sum();
+    }
+
+    public List<Drone> getPendingPayload() { return pendingPayload; }
+
+    /** Called at end of turn — moves pending drones into the live payload. */
+    public void applyPendingPayload() {
+        payload.addAll(pendingPayload);
+        pendingPayload.clear();
+    }
 
     // -------------------------------------------------------------------------
     // Release logic
