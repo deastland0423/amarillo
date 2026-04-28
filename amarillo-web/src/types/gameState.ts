@@ -67,6 +67,8 @@ export interface ShuttleInBayState {
   pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading
   maxDroneSpaces?:     number;   // scatterpack only: max rack spaces (default 6)
   committedSpaces?:    number;   // scatterpack only: payload + pending spaces already used
+  wwChargeCount?:      number;   // admin only: 0=uncharged, 1=primed, 2=ready
+  wwReady?:            boolean;  // admin only: true when wwChargeCount >= 2
 }
 
 export interface ShuttleBayState {
@@ -159,6 +161,8 @@ export interface ShipObject extends MapObjectBase {
   availableTransporters?:   number;
   totalTransporters?:       number;
   transporterEnergyCost?:   number;
+  availableTractors?:       number;
+  totalTractors?:           number;
   uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
   cloakFadeStep?:           number;   // 1–5 during fade transitions
@@ -188,6 +192,13 @@ export interface ShipObject extends MapObjectBase {
   destructionDirections?:    string[]; // A–F directions that destroy on accel disengage
   ownerName?:        string;    // controlling player name (may change on capture)
   teamName?:         string;    // display name of the team/side this ship belongs to
+  decelerating?:              boolean; // true during 2-impulse ED period (C8.0)
+  decelerationEndsAtImpulse?: number;  // absolute impulse when ship stops
+  wildWeaselActive?: boolean;   // true while a WW decoy is on the map for this ship
+  wwEcmBonus?:       number;    // +6 while WW active, else 0
+  fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown
+  fcActivatingUntil?:     number;  // absolute impulse when activation completes
+  fcPaidThisTurn?:        boolean; // true if FC energy was allocated this turn
 }
 
 export interface ShuttleObject extends MapObjectBase {
@@ -254,13 +265,24 @@ export interface TerrainObject extends MapObjectBase {
   terrainType: 'ASTEROID' | 'PLANET';
 }
 
+export interface WildWeaselObject extends MapObjectBase {
+  type:           'WILD_WEASEL';
+  facing:         number;
+  speed:          number;
+  parentShipName: string | null;
+  parentPlayer:   string | null;
+  exploding?:     boolean;
+  postExplosion?: boolean;
+}
+
 export type MapObject =
   | ShipObject
   | ShuttleObject
   | DroneObject
   | PlasmaObject
   | MineObject
-  | TerrainObject;
+  | TerrainObject
+  | WildWeaselObject;
 
 export interface ShipVpRow {
   shipName:  string;

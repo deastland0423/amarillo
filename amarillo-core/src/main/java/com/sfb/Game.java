@@ -35,6 +35,7 @@ import com.sfb.properties.SystemTarget;
 import com.sfb.systemgroups.HullBoxes;
 import com.sfb.systemgroups.PowerSystems;
 import com.sfb.systems.SpecialFunctions;
+import com.sfb.utilities.ArcUtils;
 import com.sfb.utilities.DiceRoller;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
@@ -105,6 +106,9 @@ public class Game {
             { 0, 10, 15, 30 }, // die 6
     };
     private final Set<Ship> movedThisImpulse = new HashSet<>();
+    // Pre-move location of each unit that moved this impulse — used by processMines()
+    // to detect units that crossed INTO range 1 (as opposed to standing still there).
+    private final Map<Unit, com.sfb.properties.Location> prevLocations = new HashMap<>();
     private final Set<com.sfb.objects.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
@@ -276,6 +280,15 @@ public class Game {
             if (ship.getCloakingDevice() != null)
                 ship.getCloakingDevice().newTurn(impulse1);
         }
+        // J3.131: WW is voided if the protected ship exceeds maneuver rate 4
+        for (Ship ship : ships) {
+            if (ship.hasActiveWildWeasel() && !ship.getActiveWildWeasel().isPostExplosion()
+                    && ship.getSpeed() > 4) {
+                lastSeekerLog.add("  " + ship.getName() + " speed " + ship.getSpeed()
+                        + " exceeds WW maneuver limit — Wild Weasel voided (J3.131)");
+                voidWildWeasel(ship);
+            }
+        }
         performLockOnRolls();
         List<String> orphanLog = releaseOrphanedDrones();
         if (!orphanLog.isEmpty())
@@ -283,6 +296,7 @@ public class Game {
         awaitingAllocation = false;
         TurnTracker.nextImpulse();
         movedThisImpulse.clear();
+        prevLocations.clear();
         movedShuttlesThisImpulse.clear();
         currentPhase = ImpulsePhase.MOVEMENT;
     }
@@ -577,6 +591,7 @@ public class Game {
                 } else {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
+        prevLocations.clear();
                     movedShuttlesThisImpulse.clear();
                 }
                 autoRaiseShields();
@@ -605,6 +620,30 @@ public class Game {
                         // Ship just became visible again — roll re-acquisition (D6.113)
                         log.add(ship.getName() + " is decloaking — rolling re-acquisition.");
                         log.addAll(checkLockOnsForUnit(ship));
+                        // FC auto-activates on decloak if energy was paid this turn
+                        if (ship.isFcPaidThisTurn() && !ship.isActiveFireControl() && !ship.isFcActivating()) {
+                            ship.setActiveFireControl(true);
+                            log.add(ship.getName() + " fire control active (decloaked).");
+                        }
+                    }
+                }
+                // FC activation countdown check (D6.633)
+                int absNow = TurnTracker.getImpulse();
+                for (Ship ship : ships) {
+                    if (ship.isFcActivating() && ship.updateFcActivation(absNow)) {
+                        log.add(ship.getName() + " fire control now fully active");
+                        // If WW was exploding when activation started, void it now (D6.65/J3.2112)
+                        if (ship.hasActiveWildWeasel()) {
+                            log.add(ship.getName() + " Wild Weasel voided — fire control active");
+                            voidWildWeasel(ship);
+                        }
+                    }
+                }
+                // Emergency deceleration completion check (C8.101)
+                for (Ship ship : ships) {
+                    if (ship.isDecelerating() && absNow >= ship.getDecelerationEndsAtImpulse()) {
+                        ship.completeEmergencyDeceleration(absNow);
+                        log.add(ship.getName() + " has stopped (emergency deceleration complete — post-decel period: 16 impulses)");
                     }
                 }
                 currentPhase = ImpulsePhase.MOVEMENT;
@@ -1036,6 +1075,140 @@ public class Game {
         return dirs != null ? new ArrayList<>(dirs) : List.of();
     }
 
+    // -------------------------------------------------------------------------
+    // Wild Weasel (J3.0)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Launch a charged Wild Weasel decoy from ship's shuttle bay (J3.111).
+     * The WW appears at the ship's current hex, all seekers targeting the ship
+     * retarget to the WW, the ship gains +6 ECM (J3.23), and lock-ons are cleared.
+     */
+    public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
+        // Find the charged admin shuttle in any bay
+        com.sfb.objects.AdminShuttle found = null;
+        com.sfb.systemgroups.ShuttleBay foundBay = null;
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                if (s instanceof com.sfb.objects.AdminShuttle
+                        && s.getName().equalsIgnoreCase(shuttleName)
+                        && ((com.sfb.objects.AdminShuttle) s).isWwReady()) {
+                    found = (com.sfb.objects.AdminShuttle) s;
+                    foundBay = bay;
+                    break;
+                }
+            }
+            if (found != null) break;
+        }
+        if (found == null)
+            return ActionResult.fail(shuttleName + " is not a charged Wild Weasel");
+        if (ship.hasActiveWildWeasel())
+            return ActionResult.fail(ship.getName() + " already has an active Wild Weasel");
+        if (ship.getSpeed() > 4)
+            return ActionResult.fail("Cannot launch Wild Weasel — ship speed " + ship.getSpeed()
+                    + " exceeds maneuver rate limit of 4 (J3.131)");
+        if (!foundBay.canLaunch(found, getAbsoluteImpulse()))
+            return ActionResult.fail("Shuttle bay is not ready to launch");
+
+        int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
+        int wwSpeed  = Math.max(0, Math.min(6, speed));
+
+        com.sfb.objects.WildWeaselShuttle ww = new com.sfb.objects.WildWeaselShuttle(ship);
+        ww.setName(found.getName());
+        ww.setParentShipName(ship.getName());
+        ww.setOwner(ship.getOwner());
+        foundBay.launch(found, wwSpeed, wwFacing, getAbsoluteImpulse());
+        ww.setLocation(ship.getLocation());
+        ww.setFacing(wwFacing);
+        ww.setCurrentSpeed(wwSpeed);
+        ww.setSpeed(wwSpeed);
+        activeShuttles.add(ww);
+        ship.setActiveWildWeasel(ww);
+
+        // Retarget all seekers aimed at this ship to the WW (J3.111)
+        for (Seeker seeker : seekers) {
+            if (seeker.getTarget() == ship)
+                seeker.setTarget(ww);
+        }
+
+        // Deactivate fire control and clear all lock-ons (J3.132, J3.13)
+        ship.setActiveFireControl(false);
+        ship.clearLockOns();
+
+        return ActionResult.ok(ship.getName() + " launched Wild Weasel " + ww.getName()
+                + " — fire control deactivated, all lock-ons lost, +6 ECM active");
+    }
+
+    /**
+     * Void the active Wild Weasel for this ship (J3.13x). Seekers retarget back
+     * to the ship. Called when the WW is destroyed or the ship voids it by firing.
+     */
+    public void voidWildWeasel(Ship ship) {
+        com.sfb.objects.WildWeaselShuttle ww = ship.getActiveWildWeasel();
+        if (ww == null) return;
+
+        // Retarget seekers from WW back to parent ship
+        for (Seeker seeker : seekers) {
+            if (seeker.getTarget() == ww)
+                seeker.setTarget(ship);
+        }
+
+        activeShuttles.remove(ww);
+        ship.setActiveWildWeasel(null);
+    }
+
+    /**
+     * Set FC to passive immediately (D6.632). Any impulse, any phase.
+     */
+    public ActionResult goPassiveFireControl(Ship ship) {
+        if (!ship.isActiveFireControl() && !ship.isFcActivating())
+            return ActionResult.fail(ship.getName() + " fire control is already passive");
+        ship.goPassiveFc();
+        return ActionResult.ok(ship.getName() + " fire control set to passive");
+    }
+
+    /**
+     * Begin the 4-impulse activation countdown (D6.633).
+     * Voids any active WW immediately unless it is currently in its explosion period (D6.65/J3.2112).
+     */
+    public ActionResult beginActivatingFireControl(Ship ship) {
+        if (ship.isActiveFireControl())
+            return ActionResult.fail(ship.getName() + " fire control is already active");
+        if (!ship.isFcPaidThisTurn())
+            return ActionResult.fail(ship.getName() + " — no fire control energy allocated this turn");
+        // Void WW unless it is in its explosion period (D6.65)
+        if (ship.hasActiveWildWeasel()) {
+            com.sfb.objects.WildWeaselShuttle ww = ship.getActiveWildWeasel();
+            if (!ww.isExploding()) {
+                voidWildWeasel(ship);
+            }
+            // If exploding: WW will be voided when activation completes (handled in nextImpulse check)
+        }
+        boolean started = ship.beginFcActivation(getAbsoluteImpulse());
+        if (!started)
+            return ActionResult.fail(ship.getName() + " could not begin FC activation");
+        return ActionResult.ok(ship.getName() + " fire control activating — fully active in 4 impulses");
+    }
+
+    /**
+     * Announce emergency deceleration (C8.0). Ship stops at the end of the
+     * 2nd subsequent impulse's movement segment. Must be announced during the
+     * Activity phase (Impulse Activity Segment per C8.10).
+     */
+    public ActionResult emergencyDeceleration(Ship ship) {
+        if (getCurrentPhase() != ImpulsePhase.DIRECT_FIRE && getCurrentPhase() != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Emergency deceleration must be announced during the Activity phase (C8.10)");
+        if (ship.isDecelerating())
+            return ActionResult.fail(ship.getName() + " has already announced emergency deceleration");
+        if (ship.getSpeed() == 0)
+            return ActionResult.fail(ship.getName() + " is already stopped");
+        if (ship.isImmobile(getAbsoluteImpulse()))
+            return ActionResult.fail(ship.getName() + " is in the post-deceleration period");
+        ship.announceEmergencyDeceleration(getAbsoluteImpulse());
+        return ActionResult.ok(ship.getName() + " announces emergency deceleration — stops at end of impulse "
+                + ship.getDecelerationEndsAtImpulse());
+    }
+
     public ActionResult disengageBySeparation(Ship ship) {
         if (!canDisengageBySeparation(ship))
             return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
@@ -1103,8 +1276,10 @@ public class Game {
         }
         if (isPlanetHex(nextHex))
             return ActionResult.fail(ship.getName() + " cannot enter a planet hex");
+        com.sfb.properties.Location prevLoc = ship.getLocation();
         boolean moved = ship.goForward(mapCols, mapRows);
         if (moved) {
+            prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " moved forward");
             if (isAsteroidHex(ship.getLocation()))
@@ -1150,8 +1325,10 @@ public class Game {
     public ActionResult sideslipLeft(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
+        com.sfb.properties.Location prevLocSl = ship.getLocation();
         boolean moved = ship.sideslipLeft();
         if (moved) {
+            prevLocations.putIfAbsent(ship, prevLocSl);
             movedThisImpulse.add(ship);
             if (isAsteroidHex(ship.getLocation())) {
                 String hit = applyAsteroidCollision(ship);
@@ -1165,8 +1342,10 @@ public class Game {
     public ActionResult sideslipRight(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
+        com.sfb.properties.Location prevLocSr = ship.getLocation();
         boolean moved = ship.sideslipRight();
         if (moved) {
+            prevLocations.putIfAbsent(ship, prevLocSr);
             movedThisImpulse.add(ship);
             if (isAsteroidHex(ship.getLocation())) {
                 String hit = applyAsteroidCollision(ship);
@@ -1689,6 +1868,10 @@ public class Game {
         ActionResult cloakBlock = attacker instanceof Ship ? cloakActionBlock((Ship) attacker) : null;
         if (cloakBlock != null)
             return cloakBlock.getMessage();
+        // Firing while WW active voids the WW (J3.132)
+        // Firing voids the WW in all states — active (J3.132), exploding (J3.2112), post-explosion (J3.2125)
+        if (attacker instanceof Ship && ((Ship) attacker).hasActiveWildWeasel())
+            voidWildWeasel((Ship) attacker);
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
                 .append("   range ").append(range);
@@ -1983,12 +2166,23 @@ public class Game {
             }
         }
 
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + (++seekerSeq));
         drone.setLocation(launcher.getLocation());
         drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
-        drone.setTarget(target);
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        Unit droneTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                droneTarget = ww;
+        }
+        drone.setTarget(droneTarget);
         if (drone.getController() == null)
             drone.setController(launcher);
         drone.setLauncherName(launcher.getName());
@@ -2023,14 +2217,33 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
+        // Validate launch facing is within the launcher's allowed directions (ship-relative arc)
+        if (facing > 0) {
+            int launchDirs = weapon.getLaunchDirections() != 0 ? weapon.getLaunchDirections() : weapon.getArcs();
+            int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
+            if (!ArcUtils.inArc(relFacing, launchDirs))
+                return ActionResult.fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
+        }
+
         PlasmaTorpedo torpedo = weapon.launch();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch");
 
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
         torpedo.setName(launcher.getName() + "-Plasma-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
-        torpedo.setTarget(target);
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        Unit torpTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                torpTarget = ww;
+        }
+        torpedo.setTarget(torpTarget);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(TurnTracker.getImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
@@ -2135,10 +2348,21 @@ public class Game {
         if (!launcher.acquireControl(shuttle))
             return ActionResult.fail("No control channels available (limit: " + launcher.getControlLimit() + ")");
 
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
         bay.launch(shuttle, shuttle.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
         shuttle.setName(launcher.getName() + "-Suicide-" + (++seekerSeq));
         shuttle.setLocation(launcher.getLocation());
-        shuttle.setTarget(target);
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        Unit ssTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                ssTarget = ww;
+        }
+        shuttle.setTarget(ssTarget);
         shuttle.setController(launcher);
         shuttle.setLaunchImpulse(TurnTracker.getImpulse());
         seekers.add(shuttle);
@@ -2369,6 +2593,7 @@ public class Game {
                 if (bearing != 0)
                     drone.setFacing(snapToCardinal(bearing));
 
+                prevLocations.putIfAbsent(drone, drone.getLocation());
                 drone.goForward(mapCols, mapRows);
 
                 if (drone.getLocation() == null) {
@@ -2396,6 +2621,16 @@ public class Game {
                                 + targetDrone.getDroneType() + ") — both destroyed");
                         expired.add(seeker);
                         expired.add(targetDrone);
+                    } else if (target instanceof com.sfb.objects.WildWeaselShuttle) {
+                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                        if (!ww.isExploding()) {
+                            ww.startExplosion(impulse);
+                            log.add("  Drone (" + drone.getDroneType() + ") hit Wild Weasel "
+                                    + ww.getName() + " — WW exploding for 4 impulses");
+                        } else {
+                            log.add("  Drone (" + drone.getDroneType() + ") caught in Wild Weasel explosion — destroyed");
+                        }
+                        expired.add(seeker);
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(drone, (Ship) target);
                         int dmg = drone.impact();
@@ -2491,6 +2726,7 @@ public class Game {
                 int bearing = MapUtils.getGeometricBearing(ss, target);
                 if (bearing != 0)
                     ss.setFacing(snapToCardinal(bearing));
+                prevLocations.putIfAbsent(ss, ss.getLocation());
                 ss.goForward(mapCols, mapRows);
                 if (ss.getLocation() == null) {
                     log.add("  Suicide shuttle moved off the map");
@@ -2498,7 +2734,16 @@ public class Game {
                     continue;
                 }
                 if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
-                    if (target instanceof Ship) {
+                    if (target instanceof com.sfb.objects.WildWeaselShuttle) {
+                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                        if (!ww.isExploding()) {
+                            ww.startExplosion(impulse);
+                            log.add("  Suicide shuttle hit Wild Weasel " + ww.getName()
+                                    + " — WW exploding for 4 impulses");
+                        } else {
+                            log.add("  Suicide shuttle caught in Wild Weasel explosion — destroyed");
+                        }
+                    } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(ss, (Ship) target);
                         int dmg = ss.impact();
                         FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
@@ -2525,6 +2770,7 @@ public class Game {
                 if (bearing != 0)
                     torp.setFacing(snapToCardinal(bearing));
 
+                prevLocations.putIfAbsent(torp, torp.getLocation());
                 torp.goForward(mapCols, mapRows);
                 torp.incrementDistance();
 
@@ -2543,7 +2789,16 @@ public class Game {
 
                 if (target != null && target.getLocation() != null
                         && torp.getLocation().equals(target.getLocation())) {
-                    if (target instanceof Ship) {
+                    if (target instanceof com.sfb.objects.WildWeaselShuttle) {
+                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                        if (!ww.isExploding()) {
+                            ww.startExplosion(impulse);
+                            log.add("  Plasma-" + torp.getPlasmaType() + " hit Wild Weasel "
+                                    + ww.getName() + " — WW exploding for 4 impulses");
+                        } else {
+                            log.add("  Plasma-" + torp.getPlasmaType() + " caught in Wild Weasel explosion — destroyed");
+                        }
+                    } else if (target instanceof Ship) {
                         Ship ship = (Ship) target;
                         if (torp.isEnveloping()) {
                             int[] spread = torp.computeEnvelopingDamage();
@@ -2588,6 +2843,36 @@ public class Game {
             }
         }
         seekers.removeAll(expired);
+
+        // Transition exploding WWs whose 4-impulse window just ended to post-explosion (J3.212)
+        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle) {
+                com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) shuttle;
+                if (ww.isExplosionOver(impulse)) {
+                    ww.startPostExplosion();
+                    log.add("  Wild Weasel " + ww.getName()
+                            + " explosion ended — ionized radiation; no ECM; new seekers ignore WW");
+                }
+            }
+        }
+
+        // Natural expiry: post-explosion WW with no seekers still targeting it is removed (J3.212)
+        List<com.sfb.objects.WildWeaselShuttle> doneWws = new ArrayList<>();
+        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle) {
+                com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) shuttle;
+                if (ww.isPostExplosion()) {
+                    boolean anyTargeting = seekers.stream().anyMatch(s -> s.getTarget() == ww);
+                    if (!anyTargeting)
+                        doneWws.add(ww);
+                }
+            }
+        }
+        for (com.sfb.objects.WildWeaselShuttle ww : doneWws) {
+            log.add("  Wild Weasel " + ww.getName() + " post-explosion period ended — counter removed");
+            voidWildWeasel(ww.getParentShip());
+        }
+
         return log;
     }
 
@@ -2932,9 +3217,13 @@ public class Game {
             if (inRange.isEmpty())
                 continue;
 
-            // Detection check — first unit that triggers detonates the mine
+            // Detection check — only units that moved INTO range 1 this impulse.
+            // A unit standing still in range, or moving within range, does not trigger.
             boolean triggered = false;
             for (Unit unit : inRange) {
+                com.sfb.properties.Location prev = prevLocations.get(unit);
+                if (prev == null) continue; // did not move this impulse
+                if (prev != null && MapUtils.getRange(mine.getLocation(), prev) <= 1) continue; // was already in range
                 int roll = dice.rollOneDie();
                 if (mine.detectsUnit(unit.getSpeed(), roll)) {
                     triggered = true;

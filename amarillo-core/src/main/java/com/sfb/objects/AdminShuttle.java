@@ -15,6 +15,14 @@ public class AdminShuttle extends Shuttle {
 	@Override public boolean canBecomeScatterPack() { return true; }
 	@Override public boolean canBecomeWildWeasel()  { return true; }
 
+	// Wild Weasel charging state (J3.12): 0 = uncharged, 1 = primed, 2 = ready
+	private int wwChargeCount = 0;
+
+	public int  getWwChargeCount()  { return wwChargeCount; }
+	public boolean isWwReady()      { return wwChargeCount >= 2; }
+	public void incrementWwCharge() { if (wwChargeCount < 2) wwChargeCount++; }
+	public void resetWwCharge()     { wwChargeCount = 0; }
+
 	public AdminShuttle() {
 		setHull(6);
 		setMaxSpeed(6);

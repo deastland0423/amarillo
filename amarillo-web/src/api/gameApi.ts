@@ -125,7 +125,7 @@ export interface CoiSideData {
 
 export interface CoiShuttlePrepEntry {
   shuttleName:    string;
-  type:           string;          // "suicide" | "scatterpack"
+  type:           string;          // "suicide" | "scatterpack" | "wildweasel"
   energyPerTurn?: number;          // suicide only
   drones?:        string[];        // scatterpack only
 }

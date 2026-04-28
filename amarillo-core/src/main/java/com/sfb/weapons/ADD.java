@@ -75,6 +75,15 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         this.reloadsAvailable = reloadSets * capacity;
     }
 
+    // ADD fires at real range — ECM/scanner shifts do not apply (FD3.1).
+    @Override
+    public int fire(int realRange, int adjustedRange)
+            throws com.sfb.exceptions.WeaponUnarmedException,
+                   com.sfb.exceptions.TargetOutOfRangeException,
+                   com.sfb.exceptions.CapacitorException {
+        return fire(realRange);
+    }
+
     @Override
     public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
         if (range == 0 || range >= HIT_CHART.length || HIT_CHART[range] == 0) {

@@ -31,6 +31,19 @@ public class MapUtils {
 	// If inside of 3/5 or 9/11, just get the xDiff
 	// Else, find the location along the 3/5 or 9/11 spine.
 	// Calculate that range, and add the yDiff.
+	public static int getRange(Location sourceLocation, Location targetLocation) {
+		if (sourceLocation == null || targetLocation == null) return Integer.MAX_VALUE;
+		int xDiff = Math.abs(targetLocation.getX() - sourceLocation.getX());
+		if (sourceLocation.getX() == targetLocation.getX())
+			return Math.abs(sourceLocation.getY() - targetLocation.getY());
+		int topY  = getTopArcHex(sourceLocation, targetLocation).getY();
+		int bottomY = getBottomArcHex(sourceLocation, targetLocation).getY();
+		if (targetLocation.getY() >= topY && targetLocation.getY() <= bottomY)
+			return xDiff;
+		return targetLocation.getY() < topY ? xDiff + (topY - targetLocation.getY())
+		                                     : xDiff + (targetLocation.getY() - bottomY);
+	}
+
 	public static int getRange(Marker source, Marker target) {
 
 		Location sourceLocation = source.getLocation();

@@ -313,6 +313,21 @@ public class ScenarioLoader {
                     inv.set(idx, sp);
                     applied++;
 
+                } else if ("wildweasel".equalsIgnoreCase(prep.type)) {
+                    if (!foundShuttle.canBecomeWildWeasel()) {
+                        System.err.println("COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
+                        continue;
+                    }
+                    if (!(foundShuttle instanceof com.sfb.objects.AdminShuttle)) {
+                        System.err.println("COI: " + prep.shuttleName + " is not an AdminShuttle — skipped");
+                        continue;
+                    }
+                    com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) foundShuttle;
+                    // Charge to full (2 turns) so it's ready to launch on turn 1
+                    admin.incrementWwCharge();
+                    admin.incrementWwCharge();
+                    applied++;
+
                 } else {
                     System.err.println("COI: unknown conversion type '" + prep.type
                             + "' for shuttle " + prep.shuttleName + " — skipped");
@@ -334,8 +349,20 @@ public class ScenarioLoader {
 
                 HeavyWeapon hw = (HeavyWeapon) w;
                 if (!hw.isArmed()) {
-                    System.err.println("COI: weapon " + w.getName()
-                            + " is not armed — arming mode override skipped");
+                    // WS-2 partially-armed photon: store the correct first-turn energy
+                    // so the overload damage is correct when it fires after turn-1 arming.
+                    if (w instanceof com.sfb.weapons.Photon && hw.getArmingTurn() > 0) {
+                        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) w;
+                        switch (mode) {
+                            case OVERLOAD: p.setOverload(); break;
+                            case SPECIAL:  p.setSpecial();  break;
+                            default: break;
+                        }
+                        p.setArmingEnergy((double) p.energyToArm() * (p.totalArmingTurns() - 1));
+                    } else {
+                        System.err.println("COI: weapon " + w.getName()
+                                + " is not armed — arming mode override skipped");
+                    }
                     continue;
                 }
 

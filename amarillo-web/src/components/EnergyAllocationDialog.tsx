@@ -60,6 +60,7 @@ interface ShipAlloc {
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
+  wwCharge:             Set<string>;             // shuttle names being charged as WW this turn
 }
 
 const SHIELD_NAMES = ['#1', '#2', '#3', '#4', '#5', '#6'];
@@ -102,6 +103,11 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ecm:               0,
     eccm:              0,
     shuttleSpeeds,
+    wwCharge: new Set(
+      (ship.shuttleBays ?? []).flatMap(bay =>
+        bay.shuttles.filter(s => s.type === 'admin' && s.wwReady).map(s => s.name)
+      )
+    ),
   };
 }
 
@@ -145,7 +151,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ew        = alloc.ecm + alloc.eccm;
   const ssArming  = Object.values(alloc.suicideArming ?? {}).reduce((a, b) => a + b, 0);
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + ew + ssArming + ssHold;
+  const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + ew + ssArming + ssHold + wwCost;
   const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
   return { spent, total };
 }
@@ -349,6 +356,7 @@ export default function EnergyAllocationDialog({
             Object.entries(a.suicideArming ?? {}).filter(([, e]) => e > 0)
           ),
           suicideShuttleHold: Object.keys(a.suicideHold ?? {}).filter(k => a.suicideHold[k]),
+          wwCharge: a.wwCharge.size > 0 ? Array.from(a.wwCharge) : undefined,
           scatterPackLoading: Object.fromEntries(
             Object.entries(a.scatterPackLoading ?? {})
               .map(([shuttle, sel]) => [shuttle, Object.fromEntries(
@@ -762,6 +770,9 @@ export default function EnergyAllocationDialog({
               (s.type === 'admin' && (s as any).canBecomeSuicide !== false)
             )
           );
+          const wwCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
+            bay.shuttles.filter(s => s.type === 'admin' && s.wwChargeCount !== undefined)
+          );
           const spEligible = (ship.shuttleBays ?? []).flatMap(bay =>
             bay.shuttles.filter(s => s.type === 'admin' || s.type === 'scatterpack')
           );
@@ -773,7 +784,7 @@ export default function EnergyAllocationDialog({
             }
           const hasScatterPack = spEligible.length > 0 && Object.keys(stockpile).length > 0;
           const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
-          if (suicideCandidates.length === 0 && !hasScatterPack && myShuttles.length === 0) return null;
+          if (suicideCandidates.length === 0 && wwCandidates.length === 0 && !hasScatterPack && myShuttles.length === 0) return null;
 
           const shortName = (s: ShuttleObject) =>
             s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
@@ -827,6 +838,50 @@ export default function EnergyAllocationDialog({
                         </div>
                       );
                     }
+                  })}
+                </div>
+              )}
+
+              {/* Wild Weasel Charging */}
+              {wwCandidates.length > 0 && (
+                <div className="ea-section">
+                  <div className="ea-section-title" style={{ color: '#a78bfa' }}>Wild Weasel Charging</div>
+                  <div className="ea-note">Pay 1 energy/turn for 2 consecutive turns to ready a WW decoy (J3.12).</div>
+                  {wwCandidates.map(s => {
+                    const charge = s.wwChargeCount ?? 0;
+                    const ready  = s.wwReady ?? false;
+                    const paying = alloc.wwCharge.has(s.name);
+                    const label  = ready ? 'Ready to launch!' : charge === 1 ? 'Primed (1/2)' : 'Uncharged';
+                    return (
+                      <div key={s.name} className="ea-weapon-alloc-block">
+                        <div className="ea-weapon-alloc-name">
+                          {s.name}
+                          <span className="ea-note-dim"> — {label}</span>
+                        </div>
+                        {!ready && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={paying}
+                              onChange={e => setAlloc(a => {
+                                const next = new Set(a.wwCharge);
+                                if (e.target.checked) next.add(s.name); else next.delete(s.name);
+                                return { ...a, wwCharge: next };
+                              })} />
+                            Charge WW (1 energy) — turn {charge + (paying ? 1 : 0)}/2
+                          </label>
+                        )}
+                        {ready && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={paying}
+                              onChange={e => setAlloc(a => {
+                                const next = new Set(a.wwCharge);
+                                if (e.target.checked) next.add(s.name); else next.delete(s.name);
+                                return { ...a, wwCharge: next };
+                              })} />
+                            Maintain WW ready (1 energy) — uncheck to cancel
+                          </label>
+                        )}
+                      </div>
+                    );
                   })}
                 </div>
               )}

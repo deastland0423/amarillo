@@ -55,7 +55,7 @@ public class CoiLoadout {
     public static class SpecialShuttlePrep {
         /** Name of the admin shuttle to convert (e.g. "Enterprise-Shuttle 1"). */
         public String shuttleName = "";
-        /** Conversion type: "suicide" or "scatterpack". */
+        /** Conversion type: "suicide", "scatterpack", or "wildweasel". */
         public String type = "";
         /** Suicide only: energy allocated per arming turn (1–3). */
         public int energyPerTurn = 3;

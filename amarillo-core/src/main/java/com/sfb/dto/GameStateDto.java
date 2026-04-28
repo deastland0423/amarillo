@@ -46,6 +46,7 @@ public class GameStateDto {
             @JsonSubTypes.Type(value = PlasmaTorpedoDto.class, name = "PLASMA"),
             @JsonSubTypes.Type(value = MineDto.class, name = "MINE"),
             @JsonSubTypes.Type(value = TerrainDto.class, name = "TERRAIN"),
+            @JsonSubTypes.Type(value = WildWeaselDto.class, name = "WILD_WEASEL"),
     })
     public static abstract class MapObjectDto {
         public String name;
@@ -54,6 +55,15 @@ public class GameStateDto {
 
     public static class TerrainDto extends MapObjectDto {
         public String terrainType; // "ASTEROID" | "PLANET"
+    }
+
+    public static class WildWeaselDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public String parentShipName;
+        public String parentPlayer;
+        public boolean exploding;
+        public boolean postExplosion;
     }
 
     // -------------------------------------------------------------------------
@@ -144,6 +154,8 @@ public class GameStateDto {
         public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
         public int maxDroneSpaces; // scatterpack only: max rack spaces (default 6)
         public double committedSpaces; // scatterpack only: payload + pending spaces already used
+        public int wwChargeCount; // admin only: 0=uncharged, 1=primed, 2=ready to launch
+        public boolean wwReady; // admin only: true when wwChargeCount >= 2
     }
 
     public static class ShuttleBayDto {
@@ -190,6 +202,8 @@ public class GameStateDto {
         public int availableTransporters;
         public int totalTransporters;
         public double transporterEnergyCost;
+        public int availableTractors;
+        public int totalTractors;
         // Hull box damage state
         public int availableFhull;
         public int availableAhull;
@@ -257,6 +271,15 @@ public class GameStateDto {
         public java.util.List<String> destructionDirections; // A–F directions that destroy on accel disengage
         public String ownerName; // name of the controlling player (may change on capture)
         public String teamName; // display name of the team/side this ship belongs to
+        // Emergency deceleration state (C8.0)
+        public boolean decelerating;              // true during the 2-impulse deceleration period
+        public int     decelerationEndsAtImpulse; // absolute impulse when ship stops; -1 if not decelerating
+        public boolean wildWeaselActive; // true while a WW decoy is on the map for this ship
+        public int wwEcmBonus; // +6 while WW is active (J3.23), else 0
+        // Active Fire Control state (D6.6)
+        public boolean fireControlActivating; // true during 4-impulse countdown to going active
+        public int     fcActivatingUntil;     // absolute impulse when activation completes; -1 if not activating
+        public boolean fcPaidThisTurn;        // true if FC energy was allocated this turn
     }
 
     // -------------------------------------------------------------------------
@@ -467,7 +490,9 @@ public class GameStateDto {
             mapObjects.add(fromShip(ship, game));
 
         for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
-            if (shuttle instanceof com.sfb.objects.ScatterPack)
+            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle)
+                mapObjects.add(fromWildWeasel((com.sfb.objects.WildWeaselShuttle) shuttle));
+            else if (shuttle instanceof com.sfb.objects.ScatterPack)
                 mapObjects.add(fromScatterPack((com.sfb.objects.ScatterPack) shuttle));
             else
                 mapObjects.add(fromShuttle(shuttle));
@@ -552,6 +577,8 @@ public class GameStateDto {
         dto.availableTransporters = ship.getTransporters().getAvailableTrans();
         dto.totalTransporters = ship.getTransporters().fetchOriginalTotalBoxes();
         dto.transporterEnergyCost = com.sfb.constants.Constants.TRANS_ENERGY;
+        dto.availableTractors = ship.getTractors().fetchRemainingTotalBoxes();
+        dto.totalTractors = ship.getTractors().fetchOriginalTotalBoxes();
 
         // Hull box damage state
         com.sfb.systemgroups.HullBoxes hb = ship.getHullBoxes();
@@ -614,6 +641,13 @@ public class GameStateDto {
         dto.destructionDirections = game.getDestructionDirections(ship);
         dto.ownerName = ship.getOwner() != null ? ship.getOwner().getName() : null;
         dto.teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+        dto.decelerating              = ship.isDecelerating();
+        dto.decelerationEndsAtImpulse = ship.getDecelerationEndsAtImpulse();
+        dto.wildWeaselActive = ship.hasActiveWildWeasel();
+        dto.wwEcmBonus = ship.getWwEcmBonus();
+        dto.fireControlActivating = ship.isFcActivating();
+        dto.fcActivatingUntil     = ship.getFcActivatingUntil();
+        dto.fcPaidThisTurn        = ship.isFcPaidThisTurn();
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -743,6 +777,10 @@ public class GameStateDto {
                     sd.armed = ss.isArmed();
                     sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                     sd.warheadDamage = ss.getWarheadDamage();
+                } else if (s instanceof com.sfb.objects.AdminShuttle && s.canBecomeWildWeasel()) {
+                    com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) s;
+                    sd.wwChargeCount = admin.getWwChargeCount();
+                    sd.wwReady = admin.isWwReady();
                 } else if (s instanceof com.sfb.objects.ScatterPack) {
                     com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) s;
                     sd.payload = sp.getPayload().stream()
@@ -879,6 +917,19 @@ public class GameStateDto {
         dto.launchImpulse = torp.getLaunchImpulse();
         dto.targetName = torp.getTarget() != null ? torp.getTarget().getName() : null;
         dto.isIdentified = torp.isIdentified();
+        return dto;
+    }
+
+    private static WildWeaselDto fromWildWeasel(com.sfb.objects.WildWeaselShuttle ww) {
+        WildWeaselDto dto = new WildWeaselDto();
+        dto.name = ww.getName();
+        dto.location = ww.getLocation() != null ? ww.getLocation().toString() : null;
+        dto.facing = ww.getFacing();
+        dto.speed = ww.getSpeed();
+        dto.parentShipName = ww.getParentShipName();
+        dto.parentPlayer = ww.getOwner() != null ? ww.getOwner().getName() : null;
+        dto.exploding     = ww.isExploding();
+        dto.postExplosion = ww.isPostExplosion();
         return dto;
     }
 

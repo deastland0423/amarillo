@@ -174,7 +174,18 @@ function hasLaunchableWeapons(ship: ShipObject): boolean {
 
 // ---- Launch panel ----
 
-// Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an arc bitmask.
+// Rotates a ship-relative 24-bit arc bitmask by the ship's absolute facing so
+// the result is in hex-grid absolute coordinates (direction 1 = hex-north).
+// Arc masks are always stored ship-relative (bit 0 = forward).
+// The FacingPicker shows absolute directions, so we must rotate before filtering.
+function rotateArcMask(mask: number, facing: number): number {
+  if (!mask || facing <= 1) return mask;
+  const shift = facing - 1; // facing 5 → shift 4, facing 9 → shift 8, etc.
+  return ((mask << shift) | (mask >>> (24 - shift))) & 0xFFFFFF;
+}
+
+// Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an
+// arc bitmask that is already in absolute hex-grid coordinates.
 function allowedFacingsFromMask(arcMask: number): Set<number> {
   const FACING_DIRS = [1, 5, 9, 13, 17, 21];
   return new Set(FACING_DIRS.filter(d => (arcMask >> (d - 1)) & 1));
@@ -276,19 +287,20 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   let allowedFacings: Set<number> = new Set(ALL_FACINGS);
 
   // Launch-direction constraint: each selected plasma launcher (real or pseudo) restricts to its own set.
+  // Arc masks are ship-relative, so rotate by ship facing to get absolute hex directions.
   const allSelectedLaunchers = new Set([...selLaunchers, ...pseudoSet]);
   for (const wName of allSelectedLaunchers) {
     const w = (ship.weapons ?? []).find(x => x.name === wName);
     if (w) {
-      const mask = w.launchDirectionsMask || w.arcMask;
-      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(mask));
+      const relativeMask = w.launchDirectionsMask || w.arcMask;
+      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rotateArcMask(relativeMask, ship.facing)));
     }
   }
   // Drone racks: use launchDirectionsMask if set, otherwise all facings allowed.
   for (const [rackName] of selRackDrones) {
     const rack = (ship.droneRacks ?? []).find(r => r.name === rackName);
     if (rack && rack.launchDirectionsMask) {
-      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rack.launchDirectionsMask));
+      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rotateArcMask(rack.launchDirectionsMask, ship.facing)));
     }
   }
 
@@ -574,6 +586,50 @@ function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPa
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </div>
 
+      {error && <div className="fire-error">{error}</div>}
+    </div>
+  );
+}
+
+// ---- Wild Weasel launch panel ----
+
+function WwLaunchPanel({ ship, shuttleName, onLaunch, onCancel, error }: {
+  ship:         ShipObject;
+  shuttleName:  string;
+  onLaunch:     (shuttleName: string, speed: number, facing: number) => void;
+  onCancel:     () => void;
+  error:        string | null;
+}) {
+  const shuttle = (ship.shuttleBays ?? []).flatMap(b => b.shuttles).find(s => s.name === shuttleName);
+  const maxSpeed = shuttle?.maxSpeed ?? 6;
+  const [speed,  setSpeed]  = useState(Math.min(ship.speed, maxSpeed));
+  const [facing, setFacing] = useState<number | null>(ship.facing ?? null);
+
+  return (
+    <div className="sidebar-section fire-panel">
+      <div className="sidebar-section-title fire-title" style={{ color: '#a78bfa' }}>
+        Launch Wild Weasel — {shuttleName}
+      </div>
+      <div className="sidebar-stat-row">
+        <span className="sidebar-stat-label">Speed (0–{maxSpeed})</span>
+        <input
+          type="number" min={0} max={maxSpeed} value={speed}
+          onChange={e => setSpeed(Math.max(0, Math.min(maxSpeed, Number(e.target.value))))}
+          style={{ width: 52, background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
+                   borderRadius: 4, padding: '2px 4px', textAlign: 'center' }}
+        />
+      </div>
+      <FacingPicker value={facing} onChange={setFacing} label="Course" />
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <button
+          disabled={facing === null}
+          onClick={() => facing !== null && onLaunch(shuttleName, speed, facing)}
+          style={{ borderColor: '#a78bfa', color: '#a78bfa' }}
+        >
+          Launch WW
+        </button>
+        <button className="secondary" onClick={onCancel}>Cancel</button>
+      </div>
       {error && <div className="fire-error">{error}</div>}
     </div>
   );
@@ -1185,7 +1241,7 @@ const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; a
   { label: '▲',  action: 'FORWARD',          row: 1, col: 2 },
   { label: '↗',  action: 'SIDESLIP_RIGHT',   row: 1, col: 3 },
   { label: '↰',  action: 'TURN_LEFT',        row: 2, col: 1 },
-  { label: 'STOP', action: 'EMERGENCY_DECEL', row: 2, col: 2, alwaysDisabled: true },
+  { label: '·', action: 'COAST', row: 2, col: 2, alwaysDisabled: true },
   { label: '↱',  action: 'TURN_RIGHT',       row: 2, col: 3 },
 ];
 
@@ -1259,6 +1315,11 @@ interface SidebarProps {
   onStartShuttleLaunch:  () => void;
   onCancelShuttleLaunch: () => void;
   onLaunchShuttle: (shuttleName: string, speed: number, facing: number) => void;
+  wwLaunchShuttle:     string | null;
+  wwLaunchError:       string | null;
+  onStartWwLaunch:     (shuttleName: string) => void;
+  onCancelWwLaunch:    () => void;
+  onLaunchWildWeasel:  (shuttleName: string, speed: number, facing: number) => void;
   // Hit & Run
   harMode:      boolean;
   harTarget:    ShipObject | null;
@@ -1284,6 +1345,12 @@ interface SidebarProps {
   onSubmitCrew:    () => void;
   // Disengagement
   onDisengageSeparation: () => void;
+  // Fire Control (D6.6)
+  onGoPassiveFc: () => void;
+  onGoActiveFc:  () => void;
+  // Emergency deceleration (C8.0)
+  absoluteImpulse: number;
+  onEmergencyDecel: () => void;
 }
 
 function ShipSidebar({
@@ -1298,12 +1365,15 @@ function ShipSidebar({
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
   shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
+  wwLaunchShuttle, wwLaunchError, onStartWwLaunch, onCancelWwLaunch, onLaunchWildWeasel,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
   transportersOpen, onToggleTransporters,
   crewMode, crewTarget, crewAmount, crewError,
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
   onDisengageSeparation,
+  onGoPassiveFc, onGoActiveFc,
+  absoluteImpulse, onEmergencyDecel,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1436,6 +1506,17 @@ function ShipSidebar({
                     Shuttle
                   </button>
                 )}
+                {(ship.shuttleBays ?? []).flatMap(b => b.shuttles).filter(s => s.wwReady && s.canLaunch).map(s => (
+                  <button
+                    key={s.name}
+                    className={`action-strip-btn${wwLaunchShuttle === s.name ? ' active' : ''}`}
+                    onClick={() => wwLaunchShuttle === s.name ? onCancelWwLaunch() : onStartWwLaunch(s.name)}
+                    title={`Launch Wild Weasel ${s.name} — set course and speed`}
+                    style={{ borderColor: '#a78bfa', color: '#a78bfa' }}
+                  >
+                    WW {s.name}
+                  </button>
+                ))}
                 {(ship.totalTransporters ?? 0) > 0 && (
                   <button
                     className={`action-strip-btn${transportersOpen ? ' active' : ''}`}
@@ -1483,7 +1564,67 @@ function ShipSidebar({
                     )}
                   </>
                 )}
+                {/* Fire Control toggle (D6.6) — always show for ships that have FC */}
+                {(ship.fcPaidThisTurn) && (
+                  <>
+                    {ship.activeFireControl && !ship.wildWeaselActive && (
+                      <button
+                        className="action-strip-btn"
+                        style={{ borderColor: '#22c55e', color: '#22c55e' }}
+                        onClick={onGoPassiveFc}
+                        title="Go passive fire control (D6.6) — loses lock-ons, 4 impulses to reactivate"
+                      >
+                        FC Active
+                      </button>
+                    )}
+                    {ship.fireControlActivating && (
+                      <button
+                        className="action-strip-btn"
+                        disabled
+                        style={{ borderColor: '#facc15', color: '#facc15' }}
+                        title={`Fire control activating — completes at impulse ${ship.fcActivatingUntil ?? '?'} (D6.633)`}
+                      >
+                        FC Activating…
+                      </button>
+                    )}
+                    {!ship.activeFireControl && !ship.fireControlActivating && (
+                      <button
+                        className="action-strip-btn"
+                        style={{ borderColor: '#f97316', color: '#f97316' }}
+                        onClick={onGoActiveFc}
+                        title={ship.wildWeaselActive
+                          ? 'Activate fire control — voids Wild Weasel! (D6.65)'
+                          : 'Activate fire control (D6.6) — 4-impulse countdown'}
+                      >
+                        FC Passive
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
+
+              {/* Emergency deceleration (C8.0) — stop button + countdown */}
+              {ship.speed > 0 && !ship.decelerating && !ship.immobileUntilImpulse && (
+                <button
+                  className="action-strip-btn"
+                  style={{ marginTop: 4, borderColor: '#f85149', color: '#f85149' }}
+                  onClick={onEmergencyDecel}
+                  title="Emergency Deceleration (C8.0) — ship stops in 2 impulses, then 16-impulse post-decel lockout"
+                >
+                  STOP
+                </button>
+              )}
+              {ship.decelerating && (
+                <div style={{ marginTop: 4, fontSize: '0.72rem', color: '#f85149', textAlign: 'center' }}>
+                  Stopping in {Math.max(0, (ship.decelerationEndsAtImpulse ?? 0) - absoluteImpulse)} impulse(s)
+                </div>
+              )}
+              {!ship.decelerating && (ship.immobileUntilImpulse ?? 0) > absoluteImpulse && (
+                <div style={{ marginTop: 4, fontSize: '0.72rem', color: '#f97316', textAlign: 'center' }}>
+                  Post-decel: {(ship.immobileUntilImpulse ?? 0) - absoluteImpulse} impulse(s) remaining
+                </div>
+              )}
+
               {transportersOpen && (
                 <div className="transporter-submenu">
                   <button
@@ -1549,6 +1690,16 @@ function ShipSidebar({
           onLaunch={onLaunchShuttle}
           onCancel={onCancelShuttleLaunch}
           error={shuttleLaunchError}
+        />
+      )}
+
+      {wwLaunchShuttle && (
+        <WwLaunchPanel
+          ship={ship}
+          shuttleName={wwLaunchShuttle}
+          onLaunch={onLaunchWildWeasel}
+          onCancel={onCancelWwLaunch}
+          error={wwLaunchError}
         />
       )}
 
@@ -1871,6 +2022,30 @@ function ShipSidebar({
         </div>
       )}
 
+      {((ship.totalTransporters ?? 0) > 0 || (ship.totalTractors ?? 0) > 0) && (
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Systems</div>
+          {(ship.totalTransporters ?? 0) > 0 && (
+            <StatRow
+              label="Transporters"
+              value={(ship.availableTransporters ?? 0) < (ship.totalTransporters ?? 0)
+                ? `${ship.availableTransporters}/${ship.totalTransporters}`
+                : String(ship.totalTransporters)}
+              dmg={(ship.availableTransporters ?? 0) < (ship.totalTransporters ?? 0)}
+            />
+          )}
+          {(ship.totalTractors ?? 0) > 0 && (
+            <StatRow
+              label="Tractors"
+              value={(ship.availableTractors ?? 0) < (ship.totalTractors ?? 0)
+                ? `${ship.availableTractors}/${ship.totalTractors}`
+                : String(ship.totalTractors)}
+              dmg={(ship.availableTractors ?? 0) < (ship.totalTractors ?? 0)}
+            />
+          )}
+        </div>
+      )}
+
       <div className="sidebar-section">
         <div className="sidebar-section-title">Power</div>
         <StatRow label="L-Warp"  value={ship.availableLWarp  < ship.maxLWarp    ? `${ship.availableLWarp} / ${ship.maxLWarp}`    : ship.availableLWarp}  dmg={ship.availableLWarp  < ship.maxLWarp} />
@@ -1966,6 +2141,8 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [launchError,       setLaunchError]       = useState<string | null>(null);
   const [shuttleLaunchMode, setShuttleLaunchMode] = useState(false);
   const [shuttleLaunchError, setShuttleLaunchError] = useState<string | null>(null);
+  const [wwLaunchShuttle, setWwLaunchShuttle] = useState<string | null>(null);
+  const [wwLaunchError, setWwLaunchError]     = useState<string | null>(null);
   // T-bomb placement state
   const [tBombMode,         setTBombMode]         = useState(false);
   const [tBombPendingHex,   setTBombPendingHex]   = useState<{col: number; row: number} | null>(null);
@@ -2465,6 +2642,40 @@ export default function GameBoard({ session, onLeave }: Props) {
     else addLog(`Disengage failed: ${res.message}`, 'error');
   }
 
+  async function handleEmergencyDecel() {
+    if (!liveShip) return;
+    if (!window.confirm(
+      `Announce Emergency Deceleration for ${liveShip.name}?\n` +
+      `The ship will stop in 2 impulses, then be immobile for 16 impulses (C8.0).`
+    )) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'EMERGENCY_DECEL', shipName: liveShip.name,
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`Emergency decel failed: ${res.message}`, 'error');
+  }
+
+  async function handleGoPassiveFc() {
+    if (!liveShip) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'FC_GO_PASSIVE', shipName: liveShip.name,
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`FC passive failed: ${res.message}`, 'error');
+  }
+
+  async function handleGoActiveFc() {
+    if (!liveShip) return;
+    if (liveShip.wildWeaselActive) {
+      if (!window.confirm('Activating fire control will VOID the Wild Weasel. Continue?')) return;
+    }
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'FC_GO_ACTIVE', shipName: liveShip.name,
+    });
+    if (res.success) addLog(res.message, 'combat');
+    else addLog(`FC activation failed: ${res.message}`, 'error');
+  }
+
   async function handleConcede() {
     if (!window.confirm('Concede the battle? All your ships will be marked DESTROYED and the game may end.'))
       return;
@@ -2754,6 +2965,35 @@ export default function GameBoard({ session, onLeave }: Props) {
       setShuttleLaunchError(null);
     } catch (e: unknown) {
       setShuttleLaunchError(e instanceof Error ? e.message : 'Launch failed');
+    }
+  }
+
+  function handleStartWwLaunch(shuttleName: string) {
+    setWwLaunchShuttle(shuttleName);
+    setWwLaunchError(null);
+  }
+
+  function handleCancelWwLaunch() {
+    setWwLaunchShuttle(null);
+    setWwLaunchError(null);
+  }
+
+  async function handleLaunchWildWeasel(shuttleName: string, speed: number, facing: number) {
+    if (!liveShip) return;
+    setWwLaunchError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'LAUNCH_WILD_WEASEL', shipName: liveShip.name, action: shuttleName,
+        speed, range: facing,
+      });
+      if (res.success) {
+        addLog(res.message, 'combat');
+        setWwLaunchShuttle(null);
+      } else {
+        setWwLaunchError(res.message);
+      }
+    } catch (e: unknown) {
+      setWwLaunchError(e instanceof Error ? e.message : 'WW launch failed');
     }
   }
 
@@ -3048,6 +3288,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             onStartShuttleLaunch={handleStartShuttleLaunch}
             onCancelShuttleLaunch={handleCancelShuttleLaunch}
             onLaunchShuttle={handleLaunchShuttle}
+            wwLaunchShuttle={wwLaunchShuttle}
+            wwLaunchError={wwLaunchError}
+            onStartWwLaunch={handleStartWwLaunch}
+            onCancelWwLaunch={handleCancelWwLaunch}
+            onLaunchWildWeasel={handleLaunchWildWeasel}
             harMode={harMode}
             harTarget={harTarget}
             harOptions={harOptions}
@@ -3069,6 +3314,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSetCrewAmount={setCrewAmount}
             onSubmitCrew={handleSubmitCrew}
             onDisengageSeparation={handleDisengageSeparation}
+            onGoPassiveFc={handleGoPassiveFc}
+            onGoActiveFc={handleGoActiveFc}
+            absoluteImpulse={gameState?.absoluteImpulse ?? 0}
+            onEmergencyDecel={handleEmergencyDecel}
           />
         )}
 

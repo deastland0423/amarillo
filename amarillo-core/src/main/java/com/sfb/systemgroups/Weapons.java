@@ -152,7 +152,10 @@ public class Weapons implements Systems {
 
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return availablePhasers + availableTorps + availableDrones;
+		long phasers = phaserList.stream().filter(Weapon::isFunctional).count();
+		long torps   = torpList.stream().filter(Weapon::isFunctional).count();
+		long drones  = droneList.stream().filter(Weapon::isFunctional).count();
+		return (int)(phasers + torps + drones);
 	}
 	
 	public double getPhaserCapacitorEnergy() {

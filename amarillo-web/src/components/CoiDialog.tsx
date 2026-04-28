@@ -12,7 +12,7 @@ interface Props {
 type ArmMode = 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING';
 
 interface ShuttlePrep {
-  type:          string;       // 'suicide' | 'scatterpack'
+  type:          string;       // 'suicide' | 'scatterpack' | 'wildweasel'
   energyPerTurn: number;       // suicide only
   drones:        string[];     // scatterpack only
 }
@@ -421,6 +421,8 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
           shuttlePrep.push({ shuttleName, type: 'suicide', energyPerTurn: prep.energyPerTurn });
         } else if (prep.type === 'scatterpack') {
           shuttlePrep.push({ shuttleName, type: 'scatterpack', drones: prep.drones });
+        } else if (prep.type === 'wildweasel') {
+          shuttlePrep.push({ shuttleName, type: 'wildweasel' });
         }
       }
 

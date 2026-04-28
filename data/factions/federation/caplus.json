@@ -32,7 +32,7 @@
     "bridge": 2,
     "emergency": 2,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {

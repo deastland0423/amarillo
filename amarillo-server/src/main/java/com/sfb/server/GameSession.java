@@ -845,6 +845,20 @@ public class GameSession {
                 ship.setEcmAllocated(ecmReq);
                 ship.setEccmAllocated(eccmReq);
 
+                // Wild Weasel charging (J3.12): increment charge for named shuttles, reset others
+                java.util.Set<String> wwCharge = request.getWwCharge();
+                for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                    for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                        if (!(s instanceof com.sfb.objects.AdminShuttle)) continue;
+                        if (!s.canBecomeWildWeasel()) continue;
+                        com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) s;
+                        if (wwCharge != null && wwCharge.contains(s.getName()))
+                            admin.incrementWwCharge();
+                        else
+                            admin.resetWwCharge();
+                    }
+                }
+
                 ActionResult allocResult = game.submitAllocation(ship, e);
                 // If this was the last allocation, beginImpulses() ran lock-on rolls — drain
                 // them
@@ -904,6 +918,16 @@ public class GameSession {
                 if (fireResult.isSuccess())
                     appendCombatLog(fireResult.getMessage());
                 return fireResult;
+            }
+
+            case "LAUNCH_WILD_WEASEL": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String shuttleName = request.getAction();
+                int facing = request.getRange();  // reuse range field for facing (same as LAUNCH_SHUTTLE)
+                int speed  = request.getSpeed();
+                return game.launchWildWeasel(ship, shuttleName, facing, speed);
             }
 
             case "LAUNCH_SHUTTLE": {
@@ -1157,6 +1181,27 @@ public class GameSession {
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 return game.identifySeekers(ship, request.getSeekerNames());
+            }
+
+            case "EMERGENCY_DECEL": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.emergencyDeceleration(ship);
+            }
+
+            case "FC_GO_PASSIVE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.goPassiveFireControl(ship);
+            }
+
+            case "FC_GO_ACTIVE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                return game.beginActivatingFireControl(ship);
             }
 
             case "CLOAK": {

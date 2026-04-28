@@ -168,6 +168,12 @@ public class ActionRequest {
     public List<String> getSeekerNames()                       { return seekerNames; }
     public void         setSeekerNames(List<String> seekerNames) { this.seekerNames = seekerNames; }
 
+    // ALLOCATE — Wild Weasel charging: shuttle names being charged this turn (J3.12)
+    private java.util.Set<String> wwCharge;
+
+    public java.util.Set<String> getWwCharge()              { return wwCharge; }
+    public void                  setWwCharge(java.util.Set<String> s) { this.wwCharge = s; }
+
     // ALLOCATE — ECM/ECCM fields
     private int ecm;
     private int eccm;

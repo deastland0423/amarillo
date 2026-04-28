@@ -110,6 +110,9 @@ public class Ship extends Unit {
 	/** True if this ship has voluntarily exited the map and is disengaged. */
 	private boolean disengaged = false;
 
+	/** The Wild Weasel decoy currently active for this ship (J3.0), or null if none. */
+	private WildWeaselShuttle activeWildWeasel = null;
+
 	/** End-of-battle status — set when ship leaves play. */
 	private com.sfb.properties.BattleStatus battleStatus = com.sfb.properties.BattleStatus.ACTIVE;
 
@@ -118,6 +121,9 @@ public class Ship extends Unit {
 	private int hetsThisTurn = 0;
 	private int immobileUntilImpulse = 0; // 0 = not immobile; set to currentImpulse+16 on breakdown
 	private int breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
+
+	// Emergency deceleration (C8.0)
+	private int decelerationEndsAtImpulse = -1; // absolute impulse when ship stops; -1 = not decelerating
 
 	// Internal damage crew/BP casualty tracking (G9.21, D7.21)
 	private int internalDamagePointsTotal = 0; // cumulative internal damage points scored on this ship
@@ -141,6 +147,8 @@ public class Ship extends Unit {
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
+	private boolean fcPaidThisTurn   = false;  // Player allocated FC energy this turn
+	private int     fcActivatingUntil = -1;    // Absolute impulse when activation completes; -1 = not activating
 	/**
 	 * False only at WS-0 start; costs 1 energy to energize; true for all other
 	 * weapon status levels.
@@ -247,12 +255,23 @@ public class Ship extends Unit {
 			this.lifeSupportActive = false;
 		}
 
-		// Fire control
-		if (energyAllocated.getFireControl() >= fireControlCost) {
-			this.activeFireControl = true;
-		} else {
+		// Fire control (D6.6)
+		boolean fcPaid = energyAllocated.getFireControl() >= fireControlCost;
+		this.fcPaidThisTurn = fcPaid;
+		boolean wwForcePassive = activeWildWeasel != null && !activeWildWeasel.isPostExplosion();
+		if (!fcPaid) {
+			// No energy → passive, cancel any activation countdown
 			this.activeFireControl = false;
+			this.fcActivatingUntil = -1;
+		} else if (wwForcePassive) {
+			// WW forces passive — energy reserved but FC stays off (J3.132)
+			this.activeFireControl = false;
+			// Keep fcActivatingUntil in case player started activating before WW was dealt with
+		} else if (fcActivatingUntil < 0 && !activeFireControl) {
+			// Energy paid, no WW, not activating, not already active → start turn active
+			this.activeFireControl = true;
 		}
+		// else: countdown in progress or already active — leave state unchanged
 
 		// Shields
 
@@ -419,6 +438,28 @@ public class Ship extends Unit {
 	/** C6.38: true during the HET impulse and for 4 impulses thereafter. */
 	public boolean isInPostHetWindow(int currentImpulse) {
 		return lastHetImpulse >= 0 && (currentImpulse - lastHetImpulse) <= 4;
+	}
+
+	// ---- Emergency Deceleration (C8.0) ----
+
+	/** Announce ED: ship stops at the end of the 2nd subsequent impulse (C8.101). */
+	public void announceEmergencyDeceleration(int currentAbsImpulse) {
+		this.decelerationEndsAtImpulse = currentAbsImpulse + 2;
+	}
+
+	public boolean isDecelerating() {
+		return decelerationEndsAtImpulse >= 0;
+	}
+
+	public int getDecelerationEndsAtImpulse() {
+		return decelerationEndsAtImpulse;
+	}
+
+	/** Called by Game when the decel period expires: stop the ship and begin post-decel lockout. */
+	public void completeEmergencyDeceleration(int currentAbsImpulse) {
+		setSpeed(0);
+		decelerationEndsAtImpulse = -1;
+		immobileUntilImpulse = currentAbsImpulse + 16;
 	}
 
 	/**
@@ -729,6 +770,14 @@ public class Ship extends Unit {
 		this.disengaged = disengaged;
 	}
 
+	// --- Wild Weasel ---
+
+	public WildWeaselShuttle getActiveWildWeasel() { return activeWildWeasel; }
+	public void setActiveWildWeasel(WildWeaselShuttle ww) { this.activeWildWeasel = ww; }
+	public boolean hasActiveWildWeasel() { return activeWildWeasel != null; }
+	// ECM continues during explosion (J3.2111/J3.332); stops in post-explosion (J3.2123)
+	public int getWwEcmBonus() { return (activeWildWeasel != null && !activeWildWeasel.isPostExplosion()) ? 6 : 0; }
+
 	/**
 	 * Indicates if the shields are in Active mode
 	 * 
@@ -851,9 +900,44 @@ public class Ship extends Unit {
 		return this.activeFireControl;
 	}
 
-	/** Directly set fire control state — used to sync client state from server. */
+	/** Directly set fire control state — used internally and by WW launch. */
 	public void setActiveFireControl(boolean active) {
 		this.activeFireControl = active;
+		if (active) this.fcActivatingUntil = -1;
+	}
+
+	public boolean isFcPaidThisTurn()  { return fcPaidThisTurn; }
+	public boolean isFcActivating()    { return fcActivatingUntil > 0; }
+	public int     getFcActivatingUntil() { return fcActivatingUntil; }
+
+	/** Immediately set FC to passive and cancel any activation countdown (D6.632). */
+	public void goPassiveFc() {
+		this.activeFireControl = false;
+		this.fcActivatingUntil = -1;
+	}
+
+	/**
+	 * Begin the 4-impulse activation countdown (D6.633).
+	 * @return false if FC energy was not allocated this turn.
+	 */
+	public boolean beginFcActivation(int absImpulse) {
+		if (!fcPaidThisTurn) return false;
+		this.activeFireControl = false;
+		this.fcActivatingUntil = absImpulse + 4;
+		return true;
+	}
+
+	/**
+	 * Check whether the activation countdown has elapsed and, if so, complete it.
+	 * @return true if activation just completed this call.
+	 */
+	public boolean updateFcActivation(int absImpulse) {
+		if (fcActivatingUntil > 0 && absImpulse >= fcActivatingUntil) {
+			this.activeFireControl = true;
+			this.fcActivatingUntil = -1;
+			return true;
+		}
+		return false;
 	}
 
 	/// HULL BOXES ///
@@ -911,6 +995,10 @@ public class Ship extends Unit {
 	/// TRANSPORTERS ///
 	public Transporters getTransporters() {
 		return this.transporters;
+	}
+
+	public com.sfb.systems.Tractors getTractors() {
+		return this.tractors;
 	}
 
 	/// OPERATIONS SYSTEMS ///
@@ -1251,7 +1339,10 @@ public class Ship extends Unit {
 			if (hitLabel != null) {
 				log.add("  internal [" + roll + "]: " + chain + hitLabel);
 			} else {
-				log.add("  internal [" + roll + "]: " + chain + system + " (wasted)");
+				// All systems including excess are gone — ship is destroyed (C3.14)
+				battleStatus = com.sfb.properties.BattleStatus.DESTROYED;
+				log.add("  internal [" + roll + "]: " + chain + system + " — SHIP DESTROYED");
+				break;
 			}
 		}
 

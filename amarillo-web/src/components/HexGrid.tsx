@@ -441,6 +441,71 @@ function drawObjects(
         ctx.fill();
       }
     }
+
+    if (obj.type === 'WILD_WEASEL') {
+      const ww      = obj as import('../types/gameState').WildWeaselObject;
+      const imgR    = SIZE * 0.2;   // shuttle image half-size
+      const ringR   = imgR * 1.45;  // status ring just outside the image
+      const angle   = facingToAngle(ww.facing);
+
+      // Resolve faction from parent ship for shuttle token art
+      const wwParent  = objects.find(o => o.type === 'SHIP' && o.name === ww.parentShipName) as ShipObject | undefined;
+      const wwFaction = wwParent?.faction ?? '';
+      const wwToken   = wwFaction ? loadTokenImage(`${wwFaction.toLowerCase()}/shuttle.png`, onImageLoad) : null;
+
+      ctx.save();
+
+      if (ww.postExplosion) {
+        // Ionized radiation pocket — faded shuttle + sparse gray ring (J3.212)
+        ctx.globalAlpha = 0.35;
+        if (wwToken) {
+          ctx.translate(cx, cy);
+          ctx.rotate(angle + Math.PI / 2);
+          ctx.drawImage(wwToken, -imgR, -imgR, imgR * 2, imgR * 2);
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = '#9ca3af';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([2, 5]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Draw shuttle image
+        if (wwToken) {
+          ctx.translate(cx, cy);
+          ctx.rotate(angle + Math.PI / 2);
+          ctx.drawImage(wwToken, -imgR, -imgR, imgR * 2, imgR * 2);
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        } else {
+          ctx.fillStyle = '#79c0ff';
+          ctx.beginPath();
+          ctx.arc(cx, cy, imgR, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+        // Draw status ring around shuttle
+        if (ww.exploding) {
+          // Orange pulsing ring — explosion period (J3.211)
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth   = 3;
+          ctx.setLineDash([3, 2]);
+        } else {
+          // Purple dashed ring — active WW decoy
+          ctx.strokeStyle = '#a78bfa';
+          ctx.lineWidth   = 2;
+          ctx.setLineDash([4, 3]);
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+    }
   }
 }
 
