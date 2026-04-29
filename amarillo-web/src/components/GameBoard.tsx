@@ -196,22 +196,60 @@ function intersectSets<T>(a: Set<T>, b: Set<T>): Set<T> {
   return new Set([...a].filter(x => b.has(x)));
 }
 
-// Pixel-precise bearing using hex center geometry (same constants as HexGrid).
+// Zone-based bearing matching MapUtils.getBearing(Marker, Marker).
 // Returns SFB direction 1-24, or 0 if same hex.
 function hexGetBearing(srcCol: number, srcRow: number, tgtCol: number, tgtRow: number): number {
   if (srcCol === tgtCol && srcRow === tgtRow) return 0;
-  const SIZE = 48;
-  const h    = Math.sqrt(3) * SIZE;
-  const sx = (srcCol - 1) * SIZE * 1.5;
-  const sy = (srcRow - 1) * h + (srcCol % 2 === 0 ? h / 2 : 0);
-  const tx = (tgtCol - 1) * SIZE * 1.5;
-  const ty = (tgtRow - 1) * h + (tgtCol % 2 === 0 ? h / 2 : 0);
-  const dx = tx - sx;   // east component (screen x increases eastward)
-  const dy = sy - ty;   // north component (screen y increases southward, so invert)
-  if (dx === 0 && dy === 0) return 0;
-  const deg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
-  return (Math.round(deg / 15) % 24) + 1;
+  const xOffset = tgtCol - srcCol;
+  if (xOffset === 0) return tgtRow < srcRow ? 1 : 13;
+  const absX = Math.abs(xOffset);
+  if (absX % 2 === 0 && srcRow === tgtRow) return xOffset < 0 ? 10 : 4;
+
+  const srcEven = srcCol % 2 === 0;
+  const above   = srcEven ? tgtRow <= srcRow : tgtRow < srcRow;
+
+  const topArcY = srcEven ? srcRow - Math.floor(absX / 2)       : srcRow - Math.floor((absX + 1) / 2);
+  const botArcY = srcEven ? srcRow + Math.floor((absX + 1) / 2) : srcRow + Math.floor(absX / 2);
+
+  let spineOffset: number;
+  if (absX % 2 === 0) {
+    spineOffset = Math.floor(absX / 2) + absX;
+  } else {
+    const lg = _hexLargeOdd(absX), sm = _hexSmallOdd(absX);
+    spineOffset = above ? (srcEven ? sm : lg) : (srcEven ? lg : sm);
+  }
+  const spineY = above ? srcRow - spineOffset : srcRow + spineOffset;
+
+  if (xOffset < 0 && above) {
+    if (tgtRow === spineY)  return 23;
+    if (tgtRow === topArcY) return 21;
+    if (tgtRow < spineY)    return 24;
+    if (tgtRow > topArcY)   return 20;
+    return 22;
+  }
+  if (xOffset > 0 && above) {
+    if (tgtRow === spineY)  return 3;
+    if (tgtRow === topArcY) return 5;
+    if (tgtRow < spineY)    return 2;
+    if (tgtRow > topArcY)   return 6;
+    return 4;
+  }
+  if (xOffset < 0) {
+    if (tgtRow === spineY)  return 15;
+    if (tgtRow === botArcY) return 17;
+    if (tgtRow > spineY)    return 14;
+    if (tgtRow < botArcY)   return 18;
+    return 16;
+  }
+  // xOffset > 0, below
+  if (tgtRow === spineY)  return 11;
+  if (tgtRow === botArcY) return 9;
+  if (tgtRow > spineY)    return 12;
+  if (tgtRow < botArcY)   return 8;
+  return 10;
 }
+function _hexLargeOdd(x: number): number { let y = 2; for (let i = 1; i < x; i += 2) y += 3; return y; }
+function _hexSmallOdd(x: number): number { let y = 1; for (let i = 1; i < x; i += 2) y += 3; return y; }
 
 // Port of MapUtils.getRelativeBearing.
 function hexGetRelativeBearing(trueBearing: number, facing: number): number {

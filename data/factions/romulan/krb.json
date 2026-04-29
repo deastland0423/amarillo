@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "tokenArt": "romulan/kr.png",
 
   "shields": [30, 22, 22, 22, 22, 22],
   
@@ -66,6 +67,6 @@
     { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
     { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["21", "1", "5"] }
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]
 }

@@ -2,7 +2,7 @@ package com.sfb.systemgroups;
 
 import java.util.Map;
 
-import com.sfb.Main;
+import com.sfb.TurnTracker;
 import com.sfb.constants.Constants;
 import com.sfb.objects.Unit;
 
@@ -259,10 +259,10 @@ public class Shields implements Systems {
 	 */
 	public boolean raiseShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == false
-				&& ((Main.getTurnTracker().getImpulse()
+				&& ((TurnTracker.getImpulse()
 						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = true;
-			impulseShieldToggled[shieldNumber - 1] = Main.getTurnTracker().getImpulse();
+			impulseShieldToggled[shieldNumber - 1] = TurnTracker.getImpulse();
 			return true;
 		}
 		return false;
@@ -279,10 +279,10 @@ public class Shields implements Systems {
 	 */
 	public boolean lowerShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == true
-				&& ((Main.getTurnTracker().getImpulse()
+				&& ((TurnTracker.getImpulse()
 						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = false;
-			impulseShieldToggled[shieldNumber - 1] = Main.getTurnTracker().getImpulse();
+			impulseShieldToggled[shieldNumber - 1] = TurnTracker.getImpulse();
 			return true;
 		}
 		return false;

@@ -1,6 +1,6 @@
 package com.sfb.weapons;
 
-import com.sfb.Main;
+import com.sfb.TurnTracker;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.properties.WeaponArmingType;
@@ -76,7 +76,7 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 	public void cleanUp() {
 		super.cleanUp();
 		// If it is on cooldown and did not fire this turn, deactivate cooldown.
-		if (isOnCooldown() && getLastTurnFired() < Main.getTurnTracker().getTurn()) {
+		if (isOnCooldown() && getLastTurnFired() < TurnTracker.getTurn()) {
 			setCooldown(false);
 		}
 

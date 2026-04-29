@@ -456,14 +456,7 @@ function drawObjects(
       ctx.save();
 
       if (ww.postExplosion) {
-        // Ionized radiation pocket — faded shuttle + sparse gray ring (J3.212)
-        ctx.globalAlpha = 0.35;
-        if (wwToken) {
-          ctx.translate(cx, cy);
-          ctx.rotate(angle + Math.PI / 2);
-          ctx.drawImage(wwToken, -imgR, -imgR, imgR * 2, imgR * 2);
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
+        // Ionized radiation pocket — ring only, no shuttle (J3.212)
         ctx.globalAlpha = 0.6;
         ctx.strokeStyle = '#9ca3af';
         ctx.lineWidth   = 1.5;
@@ -472,8 +465,17 @@ function drawObjects(
         ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
         ctx.stroke();
         ctx.setLineDash([]);
+      } else if (ww.exploding) {
+        // Expanding debris cloud — ring only, no shuttle (J3.211)
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth   = 3;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
       } else {
-        // Draw shuttle image
+        // Active WW — shuttle token + purple ring
         if (wwToken) {
           ctx.translate(cx, cy);
           ctx.rotate(angle + Math.PI / 2);
@@ -485,19 +487,9 @@ function drawObjects(
           ctx.arc(cx, cy, imgR, 0, 2 * Math.PI);
           ctx.fill();
         }
-
-        // Draw status ring around shuttle
-        if (ww.exploding) {
-          // Orange pulsing ring — explosion period (J3.211)
-          ctx.strokeStyle = '#f97316';
-          ctx.lineWidth   = 3;
-          ctx.setLineDash([3, 2]);
-        } else {
-          // Purple dashed ring — active WW decoy
-          ctx.strokeStyle = '#a78bfa';
-          ctx.lineWidth   = 2;
-          ctx.setLineDash([4, 3]);
-        }
+        ctx.strokeStyle = '#a78bfa';
+        ctx.lineWidth   = 2;
+        ctx.setLineDash([4, 3]);
         ctx.beginPath();
         ctx.arc(cx, cy, ringR, 0, 2 * Math.PI);
         ctx.stroke();
