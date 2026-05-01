@@ -19,48 +19,50 @@ import java.util.stream.Collectors;
 /**
  * REST API for game session management.
  *
- *   GET   /api/scenarios           — list available scenarios
- *   POST  /api/games              — create a game (host)
- *   POST  /api/games/{id}/join    — join a game
- *   POST  /api/games/{id}/start   — start the game (host only); body: { scenarioId }
- *   GET   /api/games/{id}/status  — current session info
+ * GET /api/scenarios — list available scenarios
+ * POST /api/games — create a game (host)
+ * POST /api/games/{id}/join — join a game
+ * POST /api/games/{id}/start — start the game (host only); body: { scenarioId }
+ * GET /api/games/{id}/status — current session info
  */
 @RestController
 @RequestMapping("/api/games")
 public class GameController {
 
-    private final GameSessionService    sessionService;
+    private final GameSessionService sessionService;
     private final SimpMessagingTemplate broker;
 
     public GameController(GameSessionService sessionService, SimpMessagingTemplate broker) {
         this.sessionService = sessionService;
-        this.broker         = broker;
+        this.broker = broker;
     }
 
     /** Snapshot for REST GET — never drains the combat log. */
     private GameStateDto snapshotState(GameSession session) {
         GameStateDto dto = new GameStateDto(session.getGame());
-        dto.readyCount  = session.getReadyCount();
+        dto.readyCount = session.getReadyCount();
         dto.playerCount = session.getPlayerCount();
-        // combatLog intentionally empty — events are delivered exclusively via WebSocket
+        // combatLog intentionally empty — events are delivered exclusively via
+        // WebSocket
         return dto;
     }
 
-    /** Broadcast for WebSocket — drains the combat log so it is delivered exactly once. */
+    /**
+     * Broadcast for WebSocket — drains the combat log so it is delivered exactly
+     * once.
+     */
     private void broadcastState(GameSession session) {
         GameStateDto dto = snapshotState(session);
-        dto.combatLog    = session.drainCombatLog();
+        dto.combatLog = session.drainCombatLog();
         broker.convertAndSend(
-            "/topic/games/" + session.getId() + "/state",
-            dto
-        );
+                "/topic/games/" + session.getId() + "/state",
+                dto);
     }
 
     private void broadcastLobby(GameSession session) {
         broker.convertAndSend(
-            "/topic/games/" + session.getId() + "/lobby",
-            new LobbyStateDto(session)
-        );
+                "/topic/games/" + session.getId() + "/lobby",
+                new LobbyStateDto(session));
     }
 
     // -------------------------------------------------------------------------
@@ -77,29 +79,31 @@ public class GameController {
                 try {
                     ScenarioSpec spec = ScenarioSpec.fromJson(f);
                     Map<String, Object> entry = new java.util.LinkedHashMap<>();
-                    entry.put("id",          spec.id   != null ? spec.id   : "");
-                    entry.put("name",        spec.name != null ? spec.name : "");
-                    entry.put("year",        spec.year);
-                    entry.put("numPlayers",  spec.numPlayers);
-                    entry.put("mapType",     spec.mapType != null ? spec.mapType : "STANDARD");
+                    entry.put("id", spec.id != null ? spec.id : "");
+                    entry.put("name", spec.name != null ? spec.name : "");
+                    entry.put("year", spec.year);
+                    entry.put("numPlayers", spec.numPlayers);
+                    entry.put("mapType", spec.mapType != null ? spec.mapType : "STANDARD");
                     entry.put("description", spec.description != null ? spec.description : "");
                     entry.put("specialRules", spec.specialRules != null ? spec.specialRules : List.of());
 
                     // Victory conditions summary
                     if (spec.victoryConditions != null) {
-                        entry.put("victoryType",  spec.victoryConditions.type  != null ? spec.victoryConditions.type  : "STANDARD");
-                        entry.put("victoryNotes", spec.victoryConditions.notes != null ? spec.victoryConditions.notes : "");
+                        entry.put("victoryType",
+                                spec.victoryConditions.type != null ? spec.victoryConditions.type : "STANDARD");
+                        entry.put("victoryNotes",
+                                spec.victoryConditions.notes != null ? spec.victoryConditions.notes : "");
                     } else {
-                        entry.put("victoryType",  "STANDARD");
+                        entry.put("victoryType", "STANDARD");
                         entry.put("victoryNotes", "");
                     }
 
                     // Shuttle rules
                     if (spec.shuttleRules != null) {
                         entry.put("warpBoosterPacks", spec.shuttleRules.warpBoosterPacks);
-                        entry.put("megapacks",        spec.shuttleRules.megapacks);
-                        entry.put("mrsShuttles",      spec.shuttleRules.mrsShuttles);
-                        entry.put("pfs",              spec.shuttleRules.pfs);
+                        entry.put("megapacks", spec.shuttleRules.megapacks);
+                        entry.put("mrsShuttles", spec.shuttleRules.mrsShuttles);
+                        entry.put("pfs", spec.shuttleRules.pfs);
                     }
 
                     // Sides summary: faction, name, ship list
@@ -108,24 +112,25 @@ public class GameController {
                         for (ScenarioSpec.SideSpec side : spec.sides) {
                             Map<String, Object> s = new java.util.LinkedHashMap<>();
                             s.put("faction", side.faction != null ? side.faction : "");
-                            s.put("name",    side.name    != null ? side.name    : "");
+                            s.put("name", side.name != null ? side.name : "");
                             List<Map<String, Object>> ships = new ArrayList<>();
                             if (side.ships != null) {
                                 for (ScenarioSpec.ShipSetup ship : side.ships) {
                                     Map<String, Object> sh = new java.util.LinkedHashMap<>();
-                                    sh.put("hull",          ship.hull          != null ? ship.hull     : "");
-                                    sh.put("shipName",      ship.shipName      != null ? ship.shipName : "");
-                                    sh.put("startHex",      ship.startHex      != null ? ship.startHex : "");
-                                    sh.put("startHeading",  ship.startHeading  != null ? ship.startHeading : "");
-                                    sh.put("startSpeed",    ship.startSpeed);
-                                    sh.put("weaponStatus",  ship.weaponStatus);
-                                    sh.put("refits",        ship.refits != null ? ship.refits : List.of());
+                                    sh.put("hull", ship.hull != null ? ship.hull : "");
+                                    sh.put("shipName", ship.shipName != null ? ship.shipName : "");
+                                    sh.put("startHex", ship.startHex != null ? ship.startHex : "");
+                                    sh.put("startHeading", ship.startHeading != null ? ship.startHeading : "");
+                                    sh.put("startSpeed", ship.startSpeed);
+                                    sh.put("weaponStatus", ship.weaponStatus);
+                                    sh.put("refits", ship.refits != null ? ship.refits : List.of());
                                     ships.add(sh);
                                 }
                             }
                             s.put("ships", ships);
                             int reinforcements = 0;
-                            if (side.reinforcements != null) reinforcements = side.reinforcements.size();
+                            if (side.reinforcements != null)
+                                reinforcements = side.reinforcements.size();
                             s.put("reinforcementGroups", reinforcements);
                             sides.add(s);
                         }
@@ -163,8 +168,8 @@ public class GameController {
                 List<Map<String, Object>> shipList = new ArrayList<>();
                 for (Ship ship : ships) {
                     Map<String, Object> s = new java.util.LinkedHashMap<>();
-                    s.put("shipName",     ship.getName());
-                    s.put("bpv",          ship.getBattlePointValue());
+                    s.put("shipName", ship.getName());
+                    s.put("bpv", ship.getBattlePointValue());
 
                     // Find this ship's weaponStatus from the spec
                     int ws = side.ships.stream()
@@ -186,17 +191,17 @@ public class GameController {
                             if (canHold) {
                                 Map<String, Object> hw = new java.util.LinkedHashMap<>();
                                 hw.put("designator", w.getDesignator());
-                                hw.put("type",       w.getType());
-                                hw.put("isPlasma",   w instanceof com.sfb.weapons.PlasmaLauncher);
+                                hw.put("type", w.getType());
+                                hw.put("isPlasma", w instanceof com.sfb.weapons.PlasmaLauncher);
                                 heavy.add(hw);
                             }
                         }
                         if (w instanceof com.sfb.weapons.DroneRack) {
                             com.sfb.weapons.DroneRack rack = (com.sfb.weapons.DroneRack) w;
                             Map<String, Object> dr = new java.util.LinkedHashMap<>();
-                            dr.put("index",       droneIndex++);
-                            dr.put("designator",  w.getDesignator());
-                            dr.put("spaces",      rack.getSpaces());
+                            dr.put("index", droneIndex++);
+                            dr.put("designator", w.getDesignator());
+                            dr.put("spaces", rack.getSpaces());
                             dr.put("reloadCount", rack.getNumberOfReloads());
                             // Default ammo as list of type names (what's in the rack before any COI)
                             List<String> defAmmo = new ArrayList<>();
@@ -207,40 +212,45 @@ public class GameController {
                             // Only TYPE_E, TYPE_G, and TYPE_H can load TypeVI variants
                             com.sfb.weapons.DroneRack.DroneRackType rt = rack.getRackType();
                             dr.put("canLoadTypeVI",
-                                rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_E
-                                || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_G
-                                || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_H);
+                                    rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_E
+                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_G
+                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_H);
                             drones.add(dr);
                         }
                     }
                     s.put("heavyWeapons", heavy);
-                    s.put("droneRacks",   drones);
+                    s.put("droneRacks", drones);
 
                     // Commander's options budget
                     int budgetPct = spec.commanderOptions != null
-                            ? spec.commanderOptions.budgetPercent : 20;
+                            ? spec.commanderOptions.budgetPercent
+                            : 20;
                     s.put("coiBudget", com.sfb.scenario.CoiLoadout.budget(
                             ship.getBattlePointValue(), budgetPct));
-                    s.put("allowTBombs",    spec.commanderOptions == null
+                    s.put("allowTBombs", spec.commanderOptions == null
                             || spec.commanderOptions.allowTBombs);
                     s.put("allowCommandos", spec.commanderOptions == null
                             || spec.commanderOptions.allowCommandos);
                     s.put("maxTBombs", com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()]);
-                    s.put("maxDroneSpeed",  spec.commanderOptions != null
-                            ? spec.commanderOptions.maxDroneSpeed : null);
+                    s.put("maxDroneSpeed", spec.commanderOptions != null
+                            ? spec.commanderOptions.maxDroneSpeed
+                            : null);
 
                     // Available drone types — filtered by scenario year and speed cap
                     Integer maxSpeed = spec.commanderOptions != null
-                            ? spec.commanderOptions.maxDroneSpeed : null;
+                            ? spec.commanderOptions.maxDroneSpeed
+                            : null;
                     List<Map<String, Object>> droneTypes = new ArrayList<>();
                     for (com.sfb.objects.DroneType dt : com.sfb.objects.DroneType.values()) {
-                        if (!dt.availableIn(spec.year)) continue;
-                        if (maxSpeed != null && dt.speed > maxSpeed) continue;
+                        if (!dt.availableIn(spec.year))
+                            continue;
+                        if (maxSpeed != null && dt.speed > maxSpeed)
+                            continue;
                         Map<String, Object> dtMap = new java.util.LinkedHashMap<>();
-                        dtMap.put("name",   dt.name());
-                        dtMap.put("speed",  dt.speed);
+                        dtMap.put("name", dt.name());
+                        dtMap.put("speed", dt.speed);
                         dtMap.put("damage", dt.damage);
-                        dtMap.put("rack",   dt.rack);
+                        dtMap.put("rack", dt.rack);
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);
@@ -248,14 +258,17 @@ public class GameController {
                     // Shuttles eligible for pre-game conversion, with supported types per shuttle
                     List<Map<String, Object>> convertibleShuttles = new ArrayList<>();
                     for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                        for (com.sfb.objects.Shuttle sh : bay.getInventory()) {
+                        for (com.sfb.objects.shuttles.Shuttle sh : bay.getInventory()) {
                             List<String> types = new ArrayList<>();
-                            if (sh.canBecomeSuicide())     types.add("suicide");
-                            if (sh.canBecomeScatterPack()) types.add("scatterpack");
-                            if (sh.canBecomeWildWeasel())  types.add("wildweasel");
+                            if (sh.canBecomeSuicide())
+                                types.add("suicide");
+                            if (sh.canBecomeScatterPack())
+                                types.add("scatterpack");
+                            if (sh.canBecomeWildWeasel())
+                                types.add("wildweasel");
                             if (!types.isEmpty()) {
                                 Map<String, Object> shMap = new java.util.LinkedHashMap<>();
-                                shMap.put("name",  sh.getName());
+                                shMap.put("name", sh.getName());
                                 shMap.put("types", types);
                                 convertibleShuttles.add(shMap);
                             }
@@ -270,8 +283,8 @@ public class GameController {
 
                 Map<String, Object> sideMap = new java.util.LinkedHashMap<>();
                 sideMap.put("faction", side.faction != null ? side.faction : "");
-                sideMap.put("name",    side.name    != null ? side.name    : "");
-                sideMap.put("ships",   shipList);
+                sideMap.put("name", side.name != null ? side.name : "");
+                sideMap.put("ships", shipList);
                 result.add(sideMap);
             }
             return ResponseEntity.ok(result);
@@ -292,10 +305,9 @@ public class GameController {
         GameSession session = sessionService.createSession(hostName);
 
         return ResponseEntity.ok(Map.of(
-                "gameId",    session.getId(),
+                "gameId", session.getId(),
                 "hostToken", session.getHostToken(),
-                "message",   "Game created — share the gameId with other players"
-        ));
+                "message", "Game created — share the gameId with other players"));
     }
 
     // -------------------------------------------------------------------------
@@ -317,8 +329,7 @@ public class GameController {
 
         return ResponseEntity.ok(Map.of(
                 "playerToken", token,
-                "message",     "Joined game " + id + " as " + playerName
-        ));
+                "message", "Joined game " + id + " as " + playerName));
     }
 
     // -------------------------------------------------------------------------
@@ -328,10 +339,11 @@ public class GameController {
     /**
      * Submit COI selections for this player's ships.
      * Body: { "shipName": { "extraBoardingParties": N, "convertBpToCommando": N,
-     *   "extraCommandoSquads": N, "extraTBombs": N,
-     *   "droneRackLoadouts": { "0": ["TypeIM", ...] },
-     *   "weaponArmingModes": { "A": "OVERLOAD", "B": "SPECIAL" } } }
-     * Can be called multiple times before start(); later calls overwrite earlier ones.
+     * "extraCommandoSquads": N, "extraTBombs": N,
+     * "droneRackLoadouts": { "0": ["TypeIM", ...] },
+     * "weaponArmingModes": { "A": "OVERLOAD", "B": "SPECIAL" } } }
+     * Can be called multiple times before start(); later calls overwrite earlier
+     * ones.
      */
     // -------------------------------------------------------------------------
     // Load scenario (host only, before start)
@@ -435,9 +447,8 @@ public class GameController {
 
         List<Map<String, String>> list = session.getPlayers().entrySet().stream()
                 .map(e -> Map.of(
-                        "name",  e.getValue().getName(),
-                        "token", e.getKey()
-                ))
+                        "name", e.getValue().getName(),
+                        "token", e.getKey()))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(list);
@@ -460,7 +471,7 @@ public class GameController {
             return ResponseEntity.status(403).body(Map.of("error", "Only the host can assign ships"));
 
         String playerToken = body.get("playerToken");
-        String shipName    = body.get("shipName");
+        String shipName = body.get("shipName");
         if (playerToken == null || shipName == null)
             return ResponseEntity.badRequest().body(Map.of("error", "playerToken and shipName are required"));
 
@@ -469,7 +480,8 @@ public class GameController {
             return ResponseEntity.badRequest().body(Map.of("error", result));
 
         broadcastLobby(session);
-        if (session.isStarted()) broadcastState(session);  // notify GameBoard clients
+        if (session.isStarted())
+            broadcastState(session); // notify GameBoard clients
         return ResponseEntity.ok(Map.of("message", shipName + " assigned successfully"));
     }
 
@@ -485,7 +497,8 @@ public class GameController {
             @RequestParam String target) {
 
         GameSession session = sessionService.getSession(id);
-        if (session == null) return ResponseEntity.notFound().build();
+        if (session == null)
+            return ResponseEntity.notFound().build();
 
         // Attacker may be a ship or an active shuttle/fighter
         Unit attackerUnit = session.getGame().getShips().stream()
@@ -521,7 +534,7 @@ public class GameController {
         if (targetUnit == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-        int range    = MapUtils.getRange(attackerUnit, targetUnit);
+        int range = MapUtils.getRange(attackerUnit, targetUnit);
         // Fighters use raw range (no scanner bonus); ships use effectiveRange
         int adjRange = attackerUnit instanceof Ship
                 ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
@@ -531,18 +544,18 @@ public class GameController {
         int shieldNumber = 0;
         if (targetUnit instanceof Ship) {
             Ship targetShip = (Ship) targetUnit;
-            int absFacing   = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
-            int relFacing   = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
-            shieldNumber    = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
-            shieldNumber    = Math.max(1, Math.min(6, shieldNumber));
+            int absFacing = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
+            int relFacing = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
+            shieldNumber = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
+            shieldNumber = Math.max(1, Math.min(6, shieldNumber));
         }
 
         com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
                 ? ((Ship) attackerUnit).getWeapons()
-                : ((com.sfb.objects.Shuttle) attackerUnit).getWeapons();
+                : ((com.sfb.objects.shuttles.Shuttle) attackerUnit).getWeapons();
 
         boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
-                || targetUnit instanceof com.sfb.objects.Shuttle;
+                || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
 
         List<String> weaponsInArc = wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
                 .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
@@ -553,12 +566,11 @@ public class GameController {
                 && ((Ship) attackerUnit).hasLockOn(targetUnit);
 
         return ResponseEntity.ok(Map.of(
-                "range",         range,
+                "range", range,
                 "adjustedRange", adjRange,
-                "shieldNumber",  shieldNumber,
-                "weaponsInArc",  weaponsInArc,
-                "hasLockOn",     hasLockOn
-        ));
+                "shieldNumber", shieldNumber,
+                "weaponsInArc", weaponsInArc,
+                "hasLockOn", hasLockOn));
     }
 
     // -------------------------------------------------------------------------
@@ -573,7 +585,8 @@ public class GameController {
             @RequestParam String target) {
 
         GameSession session = sessionService.getSession(id);
-        if (session == null) return ResponseEntity.notFound().build();
+        if (session == null)
+            return ResponseEntity.notFound().build();
 
         Ship targetShip = session.getGame().getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(target))
@@ -581,16 +594,15 @@ public class GameController {
         if (targetShip == null)
             return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-        List<com.sfb.properties.SystemTarget> systems =
-                session.getGame().getTargetableSystems(targetShip);
+        List<com.sfb.properties.SystemTarget> systems = session.getGame().getTargetableSystems(targetShip);
 
         List<Map<String, String>> result = systems.stream()
                 .map(st -> {
                     Map<String, String> m = new java.util.LinkedHashMap<>();
                     if (st.getType() == com.sfb.properties.SystemTarget.Type.WEAPON) {
-                        m.put("code",  "WEAPON:" + st.getDisplayName());
+                        m.put("code", "WEAPON:" + st.getDisplayName());
                     } else {
-                        m.put("code",  st.getType().name());
+                        m.put("code", st.getType().name());
                     }
                     m.put("label", st.getDisplayName());
                     return m;
@@ -621,8 +633,7 @@ public class GameController {
         if (request.getShipName() != null && !session.ownsShip(token, request.getShipName()))
             return ResponseEntity.status(403).body(Map.of(
                     "success", false,
-                    "message", "You do not own ship: " + request.getShipName()
-            ));
+                    "message", "You do not own ship: " + request.getShipName()));
 
         request.setPlayerToken(token);
         ActionResult result = session.executeAction(request);
@@ -630,8 +641,7 @@ public class GameController {
             broadcastState(session);
         return ResponseEntity.ok(Map.of(
                 "success", result.isSuccess(),
-                "message", result.getMessage()
-        ));
+                "message", result.getMessage()));
     }
 
     // -------------------------------------------------------------------------
@@ -641,7 +651,8 @@ public class GameController {
     @GetMapping("/{id}/lobby")
     public ResponseEntity<?> getLobbyState(@PathVariable String id) {
         GameSession session = sessionService.getSession(id);
-        if (session == null) return ResponseEntity.notFound().build();
+        if (session == null)
+            return ResponseEntity.notFound().build();
         return ResponseEntity.ok(new LobbyStateDto(session));
     }
 
@@ -659,18 +670,17 @@ public class GameController {
         List<Map<String, Object>> playerList = session.getPlayers().entrySet().stream()
                 .map(e -> {
                     Map<String, Object> m = new java.util.LinkedHashMap<>();
-                    m.put("name",  e.getValue().getName());
-                    m.put("role",  session.isHost(e.getKey()) ? "host" : "player");
+                    m.put("name", e.getValue().getName());
+                    m.put("role", session.isHost(e.getKey()) ? "host" : "player");
                     m.put("ships", e.getValue().getShipNames());
                     return m;
                 })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(Map.of(
-                "gameId",   session.getId(),
-                "started",  session.isStarted(),
-                "players",  playerList
-        ));
+                "gameId", session.getId(),
+                "started", session.isStarted(),
+                "players", playerList));
     }
 
     // -------------------------------------------------------------------------

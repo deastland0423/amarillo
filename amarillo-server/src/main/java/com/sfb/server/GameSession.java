@@ -13,7 +13,7 @@ import com.sfb.commands.MoveCommand;
 import com.sfb.commands.ShuttleMoveCommand;
 import com.sfb.commands.UncloakCommand;
 import com.sfb.objects.Drone;
-import com.sfb.objects.Shuttle;
+import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.constants.Constants;
 import com.sfb.objects.Seeker;
@@ -266,7 +266,7 @@ public class GameSession {
             return ship.getOwner() == p.getCorePlayer();
 
         // Also accept active shuttle names
-        com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+        com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(shipName))
                 .findFirst().orElse(null);
         if (shuttle != null)
@@ -706,9 +706,9 @@ public class GameSession {
 
                         // Find shuttle in ship's bays
                         com.sfb.systemgroups.ShuttleBay foundBay = null;
-                        com.sfb.objects.Shuttle foundShuttle = null;
+                        com.sfb.objects.shuttles.Shuttle foundShuttle = null;
                         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+                            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
                                 if (s.getName().equalsIgnoreCase(shuttleName)) {
                                     foundBay = bay;
                                     foundShuttle = s;
@@ -720,16 +720,16 @@ public class GameSession {
                         }
                         if (foundBay == null)
                             continue;
-                        if (!(foundShuttle instanceof com.sfb.objects.ScatterPack)
+                        if (!(foundShuttle instanceof com.sfb.objects.shuttles.ScatterPack)
                                 && !foundShuttle.canBecomeScatterPack())
                             continue;
 
                         // Convert admin → ScatterPack if needed
-                        com.sfb.objects.ScatterPack pack;
-                        if (foundShuttle instanceof com.sfb.objects.ScatterPack) {
-                            pack = (com.sfb.objects.ScatterPack) foundShuttle;
+                        com.sfb.objects.shuttles.ScatterPack pack;
+                        if (foundShuttle instanceof com.sfb.objects.shuttles.ScatterPack) {
+                            pack = (com.sfb.objects.shuttles.ScatterPack) foundShuttle;
                         } else {
-                            pack = new com.sfb.objects.ScatterPack(foundShuttle);
+                            pack = new com.sfb.objects.shuttles.ScatterPack(foundShuttle);
                             int idx = foundBay.getInventory().indexOf(foundShuttle);
                             foundBay.getInventory().set(idx, pack);
                         }
@@ -786,16 +786,16 @@ public class GameSession {
                         if (energy < 1 || energy > 3)
                             continue;
                         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                            java.util.List<com.sfb.objects.Shuttle> inv = bay.getInventory();
+                            java.util.List<com.sfb.objects.shuttles.Shuttle> inv = bay.getInventory();
                             for (int idx = 0; idx < inv.size(); idx++) {
-                                com.sfb.objects.Shuttle s = inv.get(idx);
+                                com.sfb.objects.shuttles.Shuttle s = inv.get(idx);
                                 if (!s.getName().equalsIgnoreCase(shuttleName))
                                     continue;
-                                com.sfb.objects.SuicideShuttle ss;
-                                if (s instanceof com.sfb.objects.SuicideShuttle) {
-                                    ss = (com.sfb.objects.SuicideShuttle) s;
+                                com.sfb.objects.shuttles.SuicideShuttle ss;
+                                if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                                    ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
                                 } else if (s.canBecomeSuicide()) {
-                                    ss = new com.sfb.objects.SuicideShuttle(s);
+                                    ss = new com.sfb.objects.shuttles.SuicideShuttle(s);
                                     inv.set(idx, ss);
                                 } else {
                                     break;
@@ -811,10 +811,10 @@ public class GameSession {
                 java.util.Set<String> ssHold = request.getSuicideShuttleHold();
                 if (ssHold != null && !ssHold.isEmpty()) {
                     for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                        for (com.sfb.objects.Shuttle s : bay.getInventory()) {
-                            if (s instanceof com.sfb.objects.SuicideShuttle
+                        for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
+                            if (s instanceof com.sfb.objects.shuttles.SuicideShuttle
                                     && ssHold.contains(s.getName())) {
-                                ((com.sfb.objects.SuicideShuttle) s).payHold();
+                                ((com.sfb.objects.shuttles.SuicideShuttle) s).payHold();
                             }
                         }
                     }
@@ -823,7 +823,7 @@ public class GameSession {
                 // Apply shuttle/fighter speeds for shuttles owned by this ship
                 Map<String, Integer> shuttleSpeeds = request.getShuttleSpeeds();
                 if (shuttleSpeeds != null && !shuttleSpeeds.isEmpty()) {
-                    for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
+                    for (com.sfb.objects.shuttles.Shuttle shuttle : game.getActiveShuttles()) {
                         if (!ship.getName().equals(shuttle.getParentShipName()))
                             continue;
                         Integer reqSpeed = shuttleSpeeds.get(shuttle.getName());
@@ -845,13 +845,16 @@ public class GameSession {
                 ship.setEcmAllocated(ecmReq);
                 ship.setEccmAllocated(eccmReq);
 
-                // Wild Weasel charging (J3.12): increment charge for named shuttles, reset others
+                // Wild Weasel charging (J3.12): increment charge for named shuttles, reset
+                // others
                 java.util.Set<String> wwCharge = request.getWwCharge();
                 for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                    for (com.sfb.objects.Shuttle s : bay.getInventory()) {
-                        if (!(s instanceof com.sfb.objects.AdminShuttle)) continue;
-                        if (!s.canBecomeWildWeasel()) continue;
-                        com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) s;
+                    for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
+                        if (!(s instanceof com.sfb.objects.shuttles.AdminShuttle))
+                            continue;
+                        if (!s.canBecomeWildWeasel())
+                            continue;
+                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
                         if (wwCharge != null && wwCharge.contains(s.getName()))
                             admin.incrementWwCharge();
                         else
@@ -920,13 +923,30 @@ public class GameSession {
                 return fireResult;
             }
 
+            case "SUBMIT_REINFORCEMENT": {
+                java.util.List<ActionRequest.ReinforcementEntry> entries = request.getReinforcements();
+                if (entries == null || entries.isEmpty())
+                    return ActionResult.ok("No reinforcement submitted");
+                StringBuilder reinLog = new StringBuilder();
+                for (ActionRequest.ReinforcementEntry entry : entries) {
+                    Ship ship = findShip(entry.getShipName());
+                    if (ship == null)
+                        return ActionResult.fail("Ship not found: " + entry.getShipName());
+                    ActionResult r = game.submitReinforcement(ship, entry.getShieldNumber(), entry.getPower());
+                    if (!r.isSuccess())
+                        return r;
+                    reinLog.append(r.getMessage()).append("\n");
+                }
+                return ActionResult.ok(reinLog.toString().trim());
+            }
+
             case "LAUNCH_WILD_WEASEL": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 String shuttleName = request.getAction();
-                int facing = request.getRange();  // reuse range field for facing (same as LAUNCH_SHUTTLE)
-                int speed  = request.getSpeed();
+                int facing = request.getRange(); // reuse range field for facing (same as LAUNCH_SHUTTLE)
+                int speed = request.getSpeed();
                 return game.launchWildWeasel(ship, shuttleName, facing, speed);
             }
 
@@ -965,13 +985,13 @@ public class GameSession {
                 if (target == null)
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 ShuttleBay foundBay = null;
-                com.sfb.objects.ScatterPack foundPack = null;
+                com.sfb.objects.shuttles.ScatterPack foundPack = null;
                 for (ShuttleBay bay : launcher.getShuttles().getBays()) {
                     for (Shuttle s : bay.getInventory()) {
                         if (s.getName().equalsIgnoreCase(packName)
-                                && s instanceof com.sfb.objects.ScatterPack) {
+                                && s instanceof com.sfb.objects.shuttles.ScatterPack) {
                             foundBay = bay;
-                            foundPack = (com.sfb.objects.ScatterPack) s;
+                            foundPack = (com.sfb.objects.shuttles.ScatterPack) s;
                             break;
                         }
                     }
@@ -992,13 +1012,13 @@ public class GameSession {
                 if (target == null)
                     return ActionResult.fail("Target not found: " + request.getTargetName());
                 ShuttleBay foundBay = null;
-                com.sfb.objects.SuicideShuttle foundShuttle = null;
+                com.sfb.objects.shuttles.SuicideShuttle foundShuttle = null;
                 for (ShuttleBay bay : launcher.getShuttles().getBays()) {
                     for (Shuttle s : bay.getInventory()) {
                         if (s.getName().equalsIgnoreCase(shuttleName)
-                                && s instanceof com.sfb.objects.SuicideShuttle) {
+                                && s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                             foundBay = bay;
-                            foundShuttle = (com.sfb.objects.SuicideShuttle) s;
+                            foundShuttle = (com.sfb.objects.shuttles.SuicideShuttle) s;
                             break;
                         }
                     }
@@ -1012,7 +1032,7 @@ public class GameSession {
 
             case "PERFORM_FIGHTER_HET": {
                 String shuttleName = request.getShipName();
-                com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+                com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
                         .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
                         .findFirst().orElse(null);
                 if (shuttle == null)
@@ -1020,9 +1040,19 @@ public class GameSession {
                 return game.performFighterHet(shuttle, request.getFacing());
             }
 
+            case "DROP_CHAFF": {
+                String shuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
+                        .findFirst().orElse(null);
+                if (shuttle == null)
+                    return ActionResult.fail("Active shuttle not found: " + shuttleName);
+                return game.dropChaff(shuttle);
+            }
+
             case "MOVE_SHUTTLE": {
                 String shuttleName = request.getShipName(); // shuttle name in shipName field
-                com.sfb.objects.Shuttle shuttle = game.getActiveShuttles().stream()
+                com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
                         .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
                         .findFirst().orElse(null);
                 if (shuttle == null)

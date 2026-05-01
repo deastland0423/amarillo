@@ -192,4 +192,23 @@ public class ActionRequest {
 
     public int  getHetEnergy()           { return hetEnergy; }
     public void setHetEnergy(int e)      { this.hetEnergy = e; }
+
+    // SUBMIT_REINFORCEMENT fields
+    public static class ReinforcementEntry {
+        private String shipName;
+        private int    shieldNumber;
+        private int    power;
+
+        public String getShipName()              { return shipName; }
+        public void   setShipName(String s)      { this.shipName = s; }
+        public int    getShieldNumber()           { return shieldNumber; }
+        public void   setShieldNumber(int n)      { this.shieldNumber = n; }
+        public int    getPower()                  { return power; }
+        public void   setPower(int p)             { this.power = p; }
+    }
+
+    private List<ReinforcementEntry> reinforcements;
+
+    public List<ReinforcementEntry> getReinforcements()                        { return reinforcements; }
+    public void                     setReinforcements(List<ReinforcementEntry> r) { this.reinforcements = r; }
 }
