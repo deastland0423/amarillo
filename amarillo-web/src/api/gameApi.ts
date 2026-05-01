@@ -288,6 +288,18 @@ export const gameApi = {
     });
   },
 
+  submitReinforcement(
+    gameId: string,
+    playerToken: string,
+    reinforcements: Array<{ shipName: string; shieldNumber: number; power: number }>,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({ type: 'SUBMIT_REINFORCEMENT', reinforcements }),
+    });
+  },
+
   placeTBomb(
     gameId: string,
     playerToken: string,

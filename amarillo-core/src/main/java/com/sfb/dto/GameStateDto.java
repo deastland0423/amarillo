@@ -401,6 +401,16 @@ public class GameStateDto {
     public int playerCount; // total players in the session
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // non-null only when gameOver
+    public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
+
+    public static class PendingVolleyDto {
+        public String attackerName;
+        public String targetShipName;
+        public int    shieldNumber;
+        public int    totalDamage;
+        public int    envelopingHellboreDamage;
+        public boolean addHit;
+    }
 
     // -------------------------------------------------------------------------
     // Scoreboard (S2.21 victory points)
@@ -471,7 +481,7 @@ public class GameStateDto {
         this.movableNow = new ArrayList<>();
         for (Ship s : game.getMovableShips())
             movableNow.add(s.getName());
-        for (com.sfb.objects.Shuttle s : game.getMovableShuttles())
+        for (com.sfb.objects.shuttles.Shuttle s : game.getMovableShuttles())
             movableNow.add(s.getName());
 
         this.awaitingAllocation = game.isAwaitingAllocation();
@@ -489,11 +499,11 @@ public class GameStateDto {
         for (Ship ship : game.getShips())
             mapObjects.add(fromShip(ship, game));
 
-        for (com.sfb.objects.Shuttle shuttle : game.getActiveShuttles()) {
-            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle)
-                mapObjects.add(fromWildWeasel((com.sfb.objects.WildWeaselShuttle) shuttle));
-            else if (shuttle instanceof com.sfb.objects.ScatterPack)
-                mapObjects.add(fromScatterPack((com.sfb.objects.ScatterPack) shuttle));
+        for (com.sfb.objects.shuttles.Shuttle shuttle : game.getActiveShuttles()) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+                mapObjects.add(fromWildWeasel((com.sfb.objects.shuttles.WildWeaselShuttle) shuttle));
+            else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack)
+                mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
                 mapObjects.add(fromShuttle(shuttle));
         }
@@ -503,10 +513,10 @@ public class GameStateDto {
                 mapObjects.add(fromDrone((Drone) seeker));
             else if (seeker instanceof PlasmaTorpedo)
                 mapObjects.add(fromPlasma((PlasmaTorpedo) seeker));
-            else if (seeker instanceof com.sfb.objects.SuicideShuttle)
-                mapObjects.add(fromSuicideShuttle((com.sfb.objects.SuicideShuttle) seeker));
-            else if (seeker instanceof com.sfb.objects.ScatterPack)
-                mapObjects.add(fromScatterPack((com.sfb.objects.ScatterPack) seeker));
+            else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle)
+                mapObjects.add(fromSuicideShuttle((com.sfb.objects.shuttles.SuicideShuttle) seeker));
+            else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack)
+                mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) seeker));
         }
 
         for (SpaceMine mine : game.getMines())
@@ -514,6 +524,17 @@ public class GameStateDto {
 
         for (Terrain t : game.getTerrain())
             mapObjects.add(fromTerrain(t));
+
+        for (Game.PendingVolley pv : game.getPendingVolleys()) {
+            PendingVolleyDto d = new PendingVolleyDto();
+            d.attackerName             = pv.attackerName;
+            d.targetShipName           = pv.target != null ? pv.target.getName() : "";
+            d.shieldNumber             = pv.shieldNumber;
+            d.totalDamage              = pv.totalDamage;
+            d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
+            d.addHit                   = pv.addHit;
+            pendingVolleys.add(d);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -766,23 +787,23 @@ public class GameStateDto {
             bd.launchTubeCount = bay.getLaunchTubeCount();
             bd.availableTubes = bay.getAvailableTubeCount(game.getAbsoluteImpulse());
             bd.shuttles = new ArrayList<>();
-            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
                 ShuttleInBayDto sd = new ShuttleInBayDto();
                 sd.name = s.getName();
                 sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
                 sd.maxSpeed = s.getMaxSpeed();
                 sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
-                if (s instanceof com.sfb.objects.SuicideShuttle) {
-                    com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
+                if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                    com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
                     sd.armed = ss.isArmed();
                     sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                     sd.warheadDamage = ss.getWarheadDamage();
-                } else if (s instanceof com.sfb.objects.AdminShuttle && s.canBecomeWildWeasel()) {
-                    com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) s;
+                } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
+                    com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
                     sd.wwChargeCount = admin.getWwChargeCount();
                     sd.wwReady = admin.isWwReady();
-                } else if (s instanceof com.sfb.objects.ScatterPack) {
-                    com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) s;
+                } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+                    com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
                     sd.payload = sp.getPayload().stream()
                             .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
                             .collect(java.util.stream.Collectors.toList());
@@ -800,7 +821,7 @@ public class GameStateDto {
         return dto;
     }
 
-    private static ShuttleDto fromShuttle(com.sfb.objects.Shuttle shuttle) {
+    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle) {
         ShuttleDto dto = new ShuttleDto();
         dto.name = shuttle.getName();
         dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
@@ -810,8 +831,8 @@ public class GameStateDto {
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();
-        if (shuttle instanceof com.sfb.objects.Fighter) {
-            com.sfb.objects.Fighter fighter = (com.sfb.objects.Fighter) shuttle;
+        if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
+            com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
             dto.weapons = buildWeaponDtos(shuttle.getWeapons());
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
@@ -847,7 +868,7 @@ public class GameStateDto {
         return list;
     }
 
-    private static SuicideShuttleDto fromSuicideShuttle(com.sfb.objects.SuicideShuttle ss) {
+    private static SuicideShuttleDto fromSuicideShuttle(com.sfb.objects.shuttles.SuicideShuttle ss) {
         SuicideShuttleDto dto = new SuicideShuttleDto();
         dto.name = ss.getName();
         dto.location = ss.getLocation() != null ? ss.getLocation().toString() : null;
@@ -862,7 +883,7 @@ public class GameStateDto {
         return dto;
     }
 
-    private static ScatterPackDto fromScatterPack(com.sfb.objects.ScatterPack pack) {
+    private static ScatterPackDto fromScatterPack(com.sfb.objects.shuttles.ScatterPack pack) {
         ScatterPackDto dto = new ScatterPackDto();
         dto.name = pack.getName();
         dto.location = pack.getLocation() != null ? pack.getLocation().toString() : null;
@@ -920,7 +941,7 @@ public class GameStateDto {
         return dto;
     }
 
-    private static WildWeaselDto fromWildWeasel(com.sfb.objects.WildWeaselShuttle ww) {
+    private static WildWeaselDto fromWildWeasel(com.sfb.objects.shuttles.WildWeaselShuttle ww) {
         WildWeaselDto dto = new WildWeaselDto();
         dto.name = ww.getName();
         dto.location = ww.getLocation() != null ? ww.getLocation().toString() : null;

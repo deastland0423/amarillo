@@ -1,4 +1,6 @@
-package com.sfb.objects;
+package com.sfb.objects.shuttles;
+
+import com.sfb.objects.*;
 
 import java.util.List;
 
@@ -25,7 +27,7 @@ public class StingerH extends Fighter {
         setBpv(12);
 
         PhaserG ph = new PhaserG();
-        ph.setDesignator("P");
+        ph.setDesignator("1");
         ph.setArcs(ArcUtils.FA);
         ph.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(ph);

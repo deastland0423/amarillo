@@ -28,6 +28,7 @@ import com.sfb.systemgroups.PowerSystems;
 import com.sfb.systemgroups.ProbeLaunchers;
 import com.sfb.systemgroups.Shields;
 import com.sfb.systemgroups.Shuttles;
+import com.sfb.objects.shuttles.*;
 import com.sfb.systemgroups.Transporters;
 import com.sfb.systemgroups.Weapons;
 import com.sfb.systems.Energy;
@@ -51,7 +52,7 @@ import com.sfb.weapons.Weapon;
  *
  * @version 1.0
  */
-public class Ship extends Unit {
+public class Ship extends Unit implements DroneController {
 
 	/// All the stuff that goes into a ship ///
 
@@ -977,6 +978,11 @@ public class Ship extends Unit {
 	}
 
 	public int getControlLimit() {
+		return this.specialFunctions.getControlLimit();
+	}
+
+	@Override
+	public int getControlCapacity() {
 		return this.specialFunctions.getControlLimit();
 	}
 

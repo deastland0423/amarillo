@@ -1,4 +1,6 @@
-package com.sfb.objects;
+package com.sfb.objects.shuttles;
+
+import com.sfb.objects.*;
 
 /**
  * Heavy Transport Shuttle — reinforced hull for cargo and boarding operations.

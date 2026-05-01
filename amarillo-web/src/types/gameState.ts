@@ -324,6 +324,16 @@ export interface GameState {
   readyCount:         number;
   playerCount:        number;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
+  pendingVolleys:     PendingVolley[];
+}
+
+export interface PendingVolley {
+  attackerName:             string;
+  targetShipName:           string;
+  shieldNumber:             number;
+  totalDamage:              number;
+  envelopingHellboreDamage: number;
+  addHit:                   boolean;
 }
 
 /** Parse location string → [col, row] (1-indexed), or null.

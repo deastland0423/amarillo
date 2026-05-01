@@ -24,6 +24,7 @@ import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.SpaceMine;
 import com.sfb.objects.Seeker;
+import com.sfb.objects.DroneController;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
 import com.sfb.objects.Unit;
@@ -62,6 +63,7 @@ public class Game {
         MOVEMENT("Movement"),
         ACTIVITY("Activity"),
         DIRECT_FIRE("Direct Fire"),
+        REINFORCEMENT("Reinforcement"),
         END_OF_IMPULSE("End of Impulse");
 
         private final String label;
@@ -90,7 +92,7 @@ public class Game {
     private final List<Seeker> seekers = new ArrayList<>();
     private final List<Ship> capturedThisTurn = new ArrayList<>(); // ships captured in the current endTurn()
     private int seekerSeq = 0; // monotonic counter for unique seeker names
-    private final List<com.sfb.objects.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
+    private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
     private final List<SpaceMine> mines = new ArrayList<>();
     private final List<Terrain> terrain = new ArrayList<>();
     private final Set<Location> asteroidHexes = new HashSet<>();
@@ -109,8 +111,11 @@ public class Game {
     // Pre-move location of each unit that moved this impulse — used by processMines()
     // to detect units that crossed INTO range 1 (as opposed to standing still there).
     private final Map<Unit, com.sfb.properties.Location> prevLocations = new HashMap<>();
-    private final Set<com.sfb.objects.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
+    private final Set<com.sfb.objects.shuttles.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
+    private final List<PendingVolley> pendingVolleys = new ArrayList<>();
+    private final Set<String> firedPairsThisPhase = new HashSet<>();
+    private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
@@ -342,7 +347,7 @@ public class Game {
             }
 
             // Roll for each active shuttle on the map (fighters, admin shuttles, etc.)
-            for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+            for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
                 if (shuttle.getOwner() == ship.getOwner()) {
                     ship.addLockOn(shuttle); // own-side shuttle — automatic
                     continue;
@@ -553,18 +558,36 @@ public class Game {
                 lastSeekerLog.addAll(moveShuttles());
                 List<String> mineLog = processMines();
                 lastSeekerLog.addAll(mineLog);
-                resolveInternalDamage();
                 log.addAll(lastSeekerLog);
-                log.addAll(lastInternalDamageLog);
-                currentPhase = ImpulsePhase.ACTIVITY;
+                if (!pendingVolleys.isEmpty()) {
+                    reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
+                    currentPhase = ImpulsePhase.REINFORCEMENT;
+                } else {
+                    resolveInternalDamage();
+                    log.addAll(lastInternalDamageLog);
+                    currentPhase = ImpulsePhase.ACTIVITY;
+                }
                 break;
             case ACTIVITY:
                 currentPhase = ImpulsePhase.DIRECT_FIRE;
                 break;
             case DIRECT_FIRE:
+                if (!pendingVolleys.isEmpty()) {
+                    // Defenders need a chance to spend reserve power before damage lands
+                    reinforcementReturnPhase = ImpulsePhase.END_OF_IMPULSE;
+                    currentPhase = ImpulsePhase.REINFORCEMENT;
+                } else {
+                    firedPairsThisPhase.clear();
+                    resolveInternalDamage();
+                    log.addAll(lastInternalDamageLog);
+                    currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                }
+                break;
+            case REINFORCEMENT:
+                log.addAll(applyPendingVolleys());
                 resolveInternalDamage();
                 log.addAll(lastInternalDamageLog);
-                currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                currentPhase = reinforcementReturnPhase;
                 break;
             case END_OF_IMPULSE:
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
@@ -788,13 +811,13 @@ public class Game {
 
             // GABPV: base BPV (already includes y175 refit) + fighter BPV
             int fighterBpv = 0;
-            for (com.sfb.objects.Shuttle s : ship.getShuttles().getAllShuttles()) {
-                if (s instanceof com.sfb.objects.Fighter f)
+            for (com.sfb.objects.shuttles.Shuttle s : ship.getShuttles().getAllShuttles()) {
+                if (s instanceof com.sfb.objects.shuttles.Fighter f)
                     fighterBpv += f.getBpv();
             }
             // Also count fighters that launched and are on the map as active shuttles
-            for (com.sfb.objects.Shuttle s : activeShuttles) {
-                if (s instanceof com.sfb.objects.Fighter f
+            for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
+                if (s instanceof com.sfb.objects.shuttles.Fighter f
                         && ship.getName().equals(s.getParentShipName())) {
                     fighterBpv += f.getBpv();
                 }
@@ -890,8 +913,8 @@ public class Game {
                 continue;
             // Release from the former controller if it still holds this seeker
             Unit current = seeker.getController();
-            if (current instanceof Ship && current != candidate)
-                ((Ship) current).releaseControl(seeker);
+            if (current instanceof DroneController && current != candidate)
+                ((DroneController) current).releaseControl(seeker);
             seeker.setController(candidate);
             seeker.setSelfGuiding(false);
             String seekerName = seeker instanceof Unit ? ((Unit) seeker).getName() : "seeker";
@@ -918,7 +941,7 @@ public class Game {
         return seekers;
     }
 
-    public List<com.sfb.objects.Shuttle> getActiveShuttles() {
+    public List<com.sfb.objects.shuttles.Shuttle> getActiveShuttles() {
         return activeShuttles;
     }
 
@@ -1084,16 +1107,61 @@ public class Game {
      * The WW appears at the ship's current hex, all seekers targeting the ship
      * retarget to the WW, the ship gains +6 ECM (J3.23), and lock-ons are cleared.
      */
+    /**
+     * Drop a chaff pack from a fighter or shuttle (D11.3).
+     * Must be called during the Activity phase (6B6 Seeking Weapons Stage).
+     * On a roll of 1–4, all seekers currently targeting the shuttle lose tracking and are removed.
+     * Applies an 8-impulse lockout on direct-fire and seeker weapons (D11.41–42).
+     */
+    public ActionResult dropChaff(com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Chaff can only be dropped during the Activity phase (D11.31)");
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail("SP, SS, and WW shuttles cannot drop chaff (D11.312)");
+        if (shuttle.getChaffPacks() <= 0)
+            return ActionResult.fail(shuttle.getName() + " has no chaff packs remaining");
+        if (shuttle.isChaffLockedOut(TurnTracker.getImpulse()))
+            return ActionResult.fail(shuttle.getName() + " is in chaff lockout and cannot drop another pack");
+
+        int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+        shuttle.applyChaffLockout(TurnTracker.getImpulse());
+
+        if (roll >= 5) {
+            return ActionResult.ok(shuttle.getName() + " dropped chaff (roll " + roll + ") — no effect; "
+                    + shuttle.getChaffPacks() + " pack(s) remaining");
+        }
+
+        // Roll 1–4: all seekers targeting this shuttle lose tracking
+        List<Seeker> distracted = seekers.stream()
+                .filter(s -> shuttle.equals(s.getTarget()))
+                .collect(java.util.stream.Collectors.toList());
+
+        StringBuilder sb = new StringBuilder(shuttle.getName() + " dropped chaff (roll " + roll
+                + ") — " + distracted.size() + " seeker(s) distracted");
+
+        for (Seeker s : distracted) {
+            if (s.getController() instanceof DroneController)
+                ((DroneController) s.getController()).releaseControl(s);
+            sb.append("\n  ").append(s instanceof Unit ? ((Unit) s).getName() : "seeker").append(" — lost tracking");
+        }
+        seekers.removeAll(distracted);
+
+        sb.append("; ").append(shuttle.getChaffPacks()).append(" pack(s) remaining");
+        return ActionResult.ok(sb.toString());
+    }
+
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
         // Find the charged admin shuttle in any bay
-        com.sfb.objects.AdminShuttle found = null;
+        com.sfb.objects.shuttles.AdminShuttle found = null;
         com.sfb.systemgroups.ShuttleBay foundBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-            for (com.sfb.objects.Shuttle s : bay.getInventory()) {
-                if (s instanceof com.sfb.objects.AdminShuttle
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
+                if (s instanceof com.sfb.objects.shuttles.AdminShuttle
                         && s.getName().equalsIgnoreCase(shuttleName)
-                        && ((com.sfb.objects.AdminShuttle) s).isWwReady()) {
-                    found = (com.sfb.objects.AdminShuttle) s;
+                        && ((com.sfb.objects.shuttles.AdminShuttle) s).isWwReady()) {
+                    found = (com.sfb.objects.shuttles.AdminShuttle) s;
                     foundBay = bay;
                     break;
                 }
@@ -1113,7 +1181,7 @@ public class Game {
         int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
         int wwSpeed  = Math.max(0, Math.min(6, speed));
 
-        com.sfb.objects.WildWeaselShuttle ww = new com.sfb.objects.WildWeaselShuttle(ship);
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
         ww.setName(found.getName());
         ww.setParentShipName(ship.getName());
         ww.setOwner(ship.getOwner());
@@ -1144,7 +1212,7 @@ public class Game {
      * to the ship. Called when the WW is destroyed or the ship voids it by firing.
      */
     public void voidWildWeasel(Ship ship) {
-        com.sfb.objects.WildWeaselShuttle ww = ship.getActiveWildWeasel();
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
         if (ww == null) return;
 
         // Retarget seekers from WW back to parent ship
@@ -1178,7 +1246,7 @@ public class Game {
             return ActionResult.fail(ship.getName() + " — no fire control energy allocated this turn");
         // Void WW unless it is in its explosion period (D6.65)
         if (ship.hasActiveWildWeasel()) {
-            com.sfb.objects.WildWeaselShuttle ww = ship.getActiveWildWeasel();
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
             if (!ww.isExploding()) {
                 voidWildWeasel(ship);
             }
@@ -1274,8 +1342,16 @@ public class Game {
             movedThisImpulse.add(ship);
             return ActionResult.ok(ship.getName() + " has disengaged (exited the map)");
         }
-        if (isPlanetHex(nextHex))
-            return ActionResult.fail(ship.getName() + " cannot enter a planet hex");
+        if (isPlanetHex(nextHex)) {
+            // Ship collides with planet — destroyed (P2.0)
+            ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
+            ship.setLocation(null);
+            destroyedShips.add(ship);
+            ships.remove(ship);
+            movedThisImpulse.add(ship);
+            gameEndResult = checkEndConditions();
+            return ActionResult.ok(ship.getName() + " collided with a planet — ship destroyed (P2.0)");
+        }
         com.sfb.properties.Location prevLoc = ship.getLocation();
         boolean moved = ship.goForward(mapCols, mapRows);
         if (moved) {
@@ -1434,14 +1510,14 @@ public class Game {
 
     // --- Fighter HET (C6.42) ---
 
-    public ActionResult performFighterHet(com.sfb.objects.Shuttle shuttle, int absoluteFacing) {
-        if (!(shuttle instanceof com.sfb.objects.Fighter))
+    public ActionResult performFighterHet(com.sfb.objects.shuttles.Shuttle shuttle, int absoluteFacing) {
+        if (!(shuttle instanceof com.sfb.objects.shuttles.Fighter))
             return ActionResult.fail("Only fighters can perform HETs (C6.42)");
         if (currentPhase != ImpulsePhase.MOVEMENT)
             return ActionResult.fail("HETs can only be performed during the Movement phase");
         if (shuttle.isCrippled())
             return ActionResult.fail("Crippled fighters cannot perform HETs (J1.336)");
-        com.sfb.objects.Fighter fighter = (com.sfb.objects.Fighter) shuttle;
+        com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
         boolean performed = fighter.performTacticalManeuver(absoluteFacing);
         if (!performed)
             return ActionResult.fail(fighter.getName() + " has already used its HET this turn (C6.42)");
@@ -1454,12 +1530,12 @@ public class Game {
      * Returns shuttles that move this impulse, have not yet moved, and all
      * ships have already moved (shuttles move after all ships).
      */
-    public List<com.sfb.objects.Shuttle> getMovableShuttles() {
+    public List<com.sfb.objects.shuttles.Shuttle> getMovableShuttles() {
         if (!getMovableShips().isEmpty())
             return java.util.Collections.emptyList();
         int impulse = TurnTracker.getLocalImpulse();
-        List<com.sfb.objects.Shuttle> movable = new ArrayList<>();
-        for (com.sfb.objects.Shuttle s : activeShuttles) {
+        List<com.sfb.objects.shuttles.Shuttle> movable = new ArrayList<>();
+        for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
             if (!s.isPlayerControlled())
                 continue;
             if (MovementUtil.moveThisImpulse(impulse, s.getSpeed())
@@ -1470,7 +1546,7 @@ public class Game {
         return movable;
     }
 
-    public boolean canMoveShuttleThisImpulse(com.sfb.objects.Shuttle shuttle) {
+    public boolean canMoveShuttleThisImpulse(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (currentPhase != ImpulsePhase.MOVEMENT)
             return false;
         if (!shuttle.isPlayerControlled())
@@ -1482,7 +1558,7 @@ public class Game {
         return !movedShuttlesThisImpulse.contains(shuttle);
     }
 
-    public ActionResult moveShuttleForward(com.sfb.objects.Shuttle shuttle) {
+    public ActionResult moveShuttleForward(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         shuttle.goForward(mapCols, mapRows);
@@ -1494,7 +1570,7 @@ public class Game {
         return ActionResult.ok(shuttle.getName() + " moved forward");
     }
 
-    public ActionResult turnShuttleLeft(com.sfb.objects.Shuttle shuttle) {
+    public ActionResult turnShuttleLeft(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean turned = shuttle.turnLeft();
@@ -1504,7 +1580,7 @@ public class Game {
                 : ActionResult.fail(shuttle.getName() + " cannot turn left yet (turn mode)");
     }
 
-    public ActionResult turnShuttleRight(com.sfb.objects.Shuttle shuttle) {
+    public ActionResult turnShuttleRight(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean turned = shuttle.turnRight();
@@ -1514,7 +1590,7 @@ public class Game {
                 : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
     }
 
-    public ActionResult sideslipShuttleLeft(com.sfb.objects.Shuttle shuttle) {
+    public ActionResult sideslipShuttleLeft(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean moved = shuttle.sideslipLeft();
@@ -1524,7 +1600,7 @@ public class Game {
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
-    public ActionResult sideslipShuttleRight(com.sfb.objects.Shuttle shuttle) {
+    public ActionResult sideslipShuttleRight(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
         boolean moved = shuttle.sideslipRight();
@@ -1737,22 +1813,22 @@ public class Game {
             Drone drone = (Drone) target;
             if (damage == com.sfb.weapons.ADD.HIT) {
                 seekers.remove(drone);
-                if (drone.getController() instanceof Ship)
-                    ((Ship) drone.getController()).releaseControl(drone);
+                if (drone.getController() instanceof DroneController)
+                    ((DroneController) drone.getController()).releaseControl(drone);
                 return "HIT — " + drone.getName() + " destroyed";
             }
             int remaining = drone.getHull() - damage;
             drone.setHull(Math.max(0, remaining));
             if (drone.getHull() <= 0) {
                 seekers.remove(drone);
-                if (drone.getController() instanceof Ship)
-                    ((Ship) drone.getController()).releaseControl(drone);
+                if (drone.getController() instanceof DroneController)
+                    ((DroneController) drone.getController()).releaseControl(drone);
                 return drone.getName() + " destroyed (" + damage + " damage)";
             }
             return drone.getName() + " hit for " + damage
                     + " — " + drone.getHull() + " hull remaining";
-        } else if (target instanceof com.sfb.objects.Shuttle) {
-            com.sfb.objects.Shuttle shuttle = (com.sfb.objects.Shuttle) target;
+        } else if (target instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle shuttle = (com.sfb.objects.shuttles.Shuttle) target;
             boolean isSeeker = shuttle instanceof Seeker;
             if (damage == com.sfb.weapons.ADD.HIT) {
                 int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
@@ -1760,14 +1836,14 @@ public class Game {
                 if (shuttle.getCurrentHull() <= 0) {
                     if (isSeeker) {
                         seekers.remove((Seeker) shuttle);
-                        if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
-                            com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
-                            if (ss.getController() instanceof Ship)
-                                ((Ship) ss.getController()).releaseControl(ss);
-                        } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
-                            com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
-                            if (sp.getController() instanceof Ship)
-                                ((Ship) sp.getController()).releaseControl(sp);
+                        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                            com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) shuttle;
+                            if (ss.getController() instanceof DroneController)
+                                ((DroneController) ss.getController()).releaseControl(ss);
+                        } else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack) {
+                            com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) shuttle;
+                            if (sp.getController() instanceof DroneController)
+                                ((DroneController) sp.getController()).releaseControl(sp);
                         }
                     } else {
                         activeShuttles.remove(shuttle);
@@ -1777,8 +1853,8 @@ public class Game {
                 StringBuilder addLog = new StringBuilder(
                         "HIT — " + shuttle.getName() + " took " + roll + " hull damage ("
                                 + shuttle.getCurrentHull() + " remaining)");
-                if (shuttle instanceof com.sfb.objects.Fighter) {
-                    com.sfb.objects.Fighter f = (com.sfb.objects.Fighter) shuttle;
+                if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
+                    com.sfb.objects.shuttles.Fighter f = (com.sfb.objects.shuttles.Fighter) shuttle;
                     if (f.shouldCripple())
                         addLog.append("\n  ").append(f.applyCripplingEffects());
                 }
@@ -1788,14 +1864,14 @@ public class Game {
             if (shuttle.getCurrentHull() <= 0) {
                 if (isSeeker) {
                     seekers.remove((Seeker) shuttle);
-                    if (shuttle instanceof com.sfb.objects.SuicideShuttle) {
-                        com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) shuttle;
-                        if (ss.getController() instanceof Ship)
-                            ((Ship) ss.getController()).releaseControl(ss);
-                    } else if (shuttle instanceof com.sfb.objects.ScatterPack) {
-                        com.sfb.objects.ScatterPack sp = (com.sfb.objects.ScatterPack) shuttle;
-                        if (sp.getController() instanceof Ship)
-                            ((Ship) sp.getController()).releaseControl(sp);
+                    if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                        com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) shuttle;
+                        if (ss.getController() instanceof DroneController)
+                            ((DroneController) ss.getController()).releaseControl(ss);
+                    } else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack) {
+                        com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) shuttle;
+                        if (sp.getController() instanceof DroneController)
+                            ((DroneController) sp.getController()).releaseControl(sp);
                     }
                 } else {
                     activeShuttles.remove(shuttle);
@@ -1804,8 +1880,8 @@ public class Game {
             }
             StringBuilder hitLog = new StringBuilder(shuttle.getName() + " hit for " + damage
                     + " — " + shuttle.getCurrentHull() + " hull remaining");
-            if (shuttle instanceof com.sfb.objects.Fighter) {
-                com.sfb.objects.Fighter f = (com.sfb.objects.Fighter) shuttle;
+            if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
+                com.sfb.objects.shuttles.Fighter f = (com.sfb.objects.shuttles.Fighter) shuttle;
                 if (f.shouldCripple())
                     hitLog.append("\n  ").append(f.applyCripplingEffects());
             }
@@ -1858,20 +1934,37 @@ public class Game {
             return attacker.getName() + " cannot fire — undermanned (G9.42)";
         if (attacker instanceof Ship && ((Ship) attacker).isInBreakdownLockout(TurnTracker.getImpulse()))
             return attacker.getName() + " cannot fire — breakdown lockout for 8 impulses (C6.5471)";
-        if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl())
-            return attacker.getName() + " has no active fire control — cannot fire";
-        if (attacker instanceof com.sfb.objects.Shuttle) {
-            com.sfb.objects.Shuttle s = (com.sfb.objects.Shuttle) attacker;
+        if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl()) {
+            if (range > 5)
+                return attacker.getName() + " cannot fire — target out of passive fire control range (5 hexes max, D19.23)";
+        }
+        if (attacker instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
             if (!s.canFireDirect(TurnTracker.getImpulse()))
                 return attacker.getName() + " cannot fire yet — 8 impulses must pass since launch";
+            if (s.isChaffLockedOut(TurnTracker.getImpulse()))
+                return attacker.getName() + " cannot fire — chaff lockout for 8 impulses (D11.41)";
         }
         ActionResult cloakBlock = attacker instanceof Ship ? cloakActionBlock((Ship) attacker) : null;
         if (cloakBlock != null)
             return cloakBlock.getMessage();
+
+        // Each attacker may fire at a given target only once per Direct-Fire segment
+        String firePair = attacker.getName() + "→" + target.getName();
+        if (!firedPairsThisPhase.add(firePair))
+            return attacker.getName() + " has already fired at " + target.getName() + " this segment";
+
         // Firing while WW active voids the WW (J3.132)
-        // Firing voids the WW in all states — active (J3.132), exploding (J3.2112), post-explosion (J3.2125)
         if (attacker instanceof Ship && ((Ship) attacker).hasActiveWildWeasel())
             voidWildWeasel((Ship) attacker);
+
+        // Only phasers can damage plasma torpedoes (FP7.0)
+        if (target instanceof PlasmaTorpedo) {
+            boolean allPhasers = selected.stream().allMatch(w -> w instanceof com.sfb.weapons.PhaserWeapon);
+            if (!allPhasers)
+                return "Only phasers can damage plasma torpedoes (FP7.0)";
+        }
+
         StringBuilder log = new StringBuilder();
         log.append(attacker.getName()).append("  \u2192  ").append(target.getName())
                 .append("   range ").append(range);
@@ -1898,7 +1991,8 @@ public class Game {
         // D6.34/D6.35: net ECM = target ECM − attacker ECCM; shift = floor(√net)
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
         int targetEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
-        int attackerEccm = attackerShip != null ? attackerShip.getEccmAllocated() : 0;
+        int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
+                ? attackerShip.getEccmAllocated() : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
         if (ecmShift > 0)
@@ -1960,47 +2054,127 @@ public class Game {
             }
         }
 
-        // Fusion suicide overload (E7.421): 1 internal DAC hit to the firing ship
-        if (fusionSuicideFired && attackerShip != null) {
-            pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
-            log.append("  Fusion suicide overload — 1 internal damage to ").append(attackerShip.getName())
-                    .append(" (resolves at end of Direct-Fire segment)\n");
-        }
-
         // UIM: accumulate disruptors that fired under UIM this impulse.
-        // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not here.
         if (uimInUse && !uimFiredDisruptors.isEmpty() && attackerShip != null) {
             uimUsedThisImpulse
                     .computeIfAbsent(attackerShip, k -> new ArrayList<>())
                     .addAll(uimFiredDisruptors);
         }
 
-        if (addHit) {
-            String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
-            log.append("  ADD result: ").append(dmgLog).append("\n");
-        }
-        log.append("  Total damage: ").append(totalDamage);
         if (target instanceof Ship) {
-            Ship attackerShipForDac = attacker instanceof Ship ? (Ship) attacker : null;
-            FireResult result = markShieldDamage((Ship) target, shieldNumber, totalDamage, attackerShipForDac);
-            if (result.getBleed() > 0) {
-                log.append("   BLEED-THROUGH: ").append(result.getBleed())
-                        .append(" (internal damage resolves at end of Direct-Fire segment)\n");
+            // Queue the volley — damage applied after defenders spend reserve power.
+            // (When Base is implemented add: || target instanceof Base)
+            log.append("  Total damage: ").append(totalDamage)
+               .append(" — queued, resolves in Reinforcement phase\n");
+            pendingVolleys.add(new PendingVolley(
+                    attacker.getName(), attackerShip, target,
+                    shieldNumber, totalDamage, envelopingHellboreDamage,
+                    addHit, fusionSuicideFired, log.toString(), null));
+        } else {
+            // Non-ship targets (seekers, shuttles) have no shields — apply immediately.
+            if (fusionSuicideFired && attackerShip != null) {
+                pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
+                log.append("  Fusion suicide overload — 1 internal damage to ")
+                   .append(attackerShip.getName()).append("\n");
             }
-        } else if (totalDamage > 0) {
-            String dmgLog = applyDamageToUnit(totalDamage, target, shieldNumber);
-            log.append("   ").append(dmgLog).append("\n");
-        }
-
-        // Enveloping Hellbore damage resolves as a separate volley (E10.441)
-        if (envelopingHellboreDamage > 0 && target instanceof Ship) {
-            log.append("\n  Hellbore enveloping volley: ").append(envelopingHellboreDamage).append("\n");
-            List<String> envLog = applyHellboreEnvelopingDamage((Ship) target, envelopingHellboreDamage);
-            for (String line : envLog)
-                log.append(line).append("\n");
+            if (addHit) {
+                String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
+                log.append("  ADD result: ").append(dmgLog).append("\n");
+            }
+            if (totalDamage > 0) {
+                String dmgLog = applyDamageToUnit(totalDamage, target, shieldNumber);
+                log.append("  ").append(dmgLog).append("\n");
+            }
         }
 
         return log.toString();
+    }
+
+    /**
+     * Apply all pending fire volleys (called when transitioning out of REINFORCEMENT).
+     * Defenders must have already submitted any reinforcement decisions before this runs.
+     */
+    private List<String> applyPendingVolleys() {
+        List<String> log = new ArrayList<>();
+        for (PendingVolley pv : pendingVolleys) {
+            StringBuilder pvLog = new StringBuilder(pv.attackerLog);
+
+            // Fusion suicide overload (E7.421): queue internal hit on the firing ship
+            if (pv.fusionSuicideFired && pv.attackerShip != null) {
+                pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
+                pvLog.append("  Fusion suicide overload — 1 internal damage to ")
+                     .append(pv.attackerShip.getName()).append("\n");
+            }
+
+            if (pv.addHit) {
+                String dmgLog = applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber);
+                pvLog.append("  ADD result: ").append(dmgLog).append("\n");
+            }
+
+            if (pv.target instanceof Ship) {
+                if (pv.envelopingTorp != null) {
+                    // EPT seeker hit: distribute total damage across all 6 shields
+                    int[] spread = pv.envelopingTorp.computeEnvelopingDamage(pv.totalDamage);
+                    for (int i = 0; i < 6; i++) {
+                        if (spread[i] > 0)
+                            markShieldDamage((Ship) pv.target, i + 1, spread[i]);
+                    }
+                } else {
+                    FireResult result = markShieldDamage((Ship) pv.target, pv.shieldNumber,
+                            pv.totalDamage, pv.attackerShip);
+                    if (result.getBleed() > 0)
+                        pvLog.append("  BLEED-THROUGH: ").append(result.getBleed())
+                             .append(" (resolves at end of segment)\n");
+
+                    if (pv.envelopingHellboreDamage > 0) {
+                        pvLog.append("  Hellbore enveloping volley: ").append(pv.envelopingHellboreDamage).append("\n");
+                        List<String> envLog = applyHellboreEnvelopingDamage(
+                                (Ship) pv.target, pv.envelopingHellboreDamage);
+                        for (String line : envLog)
+                            pvLog.append(line).append("\n");
+                    }
+                }
+            } else if (pv.totalDamage > 0) {
+                String dmgLog = applyDamageToUnit(pv.totalDamage, pv.target, pv.shieldNumber);
+                pvLog.append("  ").append(dmgLog).append("\n");
+            }
+
+            log.add(pvLog.toString());
+        }
+        pendingVolleys.clear();
+        firedPairsThisPhase.clear();
+        return log;
+    }
+
+    /** Returns the current list of pending fire volleys (for the game-state DTO). */
+    public List<PendingVolley> getPendingVolleys() {
+        return Collections.unmodifiableList(pendingVolleys);
+    }
+
+    /**
+     * D4.0 Shield reinforcement: defender spends reserve (battery) power before
+     * damage is applied.  Called during the REINFORCEMENT phase.
+     *
+     * @param targetShip   the ship being reinforced
+     * @param shieldNumber 1-based shield facing to reinforce
+     * @param power        energy points to spend from battery
+     */
+    public ActionResult submitReinforcement(Ship targetShip, int shieldNumber, int power) {
+        if (currentPhase != ImpulsePhase.REINFORCEMENT)
+            return ActionResult.fail("Reinforcement can only be submitted during the Reinforcement phase");
+        if (power < 0)
+            return ActionResult.fail("Reserve power must be non-negative");
+        if (targetShip.getShields().getBaseShieldStrength(shieldNumber) == 0)
+            return ActionResult.fail("Shield #" + shieldNumber + " is at zero strength and cannot be reinforced");
+        int available = targetShip.getPowerSystems().getBatteryPower();
+        int toSpend = Math.min(power, available);
+        if (toSpend > 0) {
+            targetShip.getPowerSystems().useBattery(toSpend);
+            targetShip.getShields().reinforceShield(shieldNumber, toSpend);
+        }
+        return ActionResult.ok(targetShip.getName() + " shield #" + shieldNumber
+                + " reinforced by " + toSpend + " (of " + power + " requested; "
+                + available + " available)");
     }
 
     /**
@@ -2129,8 +2303,14 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (rack.isEmpty())
             return ActionResult.fail(rack.getName() + " has no drones loaded");
-        if (!launcher.hasLockOn(target))
+        if (!launcher.isActiveFireControl()) {
+            // PFC: only self-guiding drones may be launched (D19.221)
+            if (!rack.getAmmo().get(0).isSelfGuiding())
+                return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
+            // Self-guiding drones acquire their own lock-on after launch — no pre-launch lock-on needed
+        } else if (!launcher.hasLockOn(target)) {
             return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
+        }
 
         return launchDrone(launcher, target, rack, rack.getAmmo().get(0), 0);
     }
@@ -2152,6 +2332,8 @@ public class Game {
             return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
         if (!rack.getAmmo().contains(drone))
             return ActionResult.fail("Drone is not in " + rack.getName());
+        if (!launcher.isActiveFireControl() && !drone.isSelfGuiding())
+            return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
         String controlXferLog = null;
         if (!drone.isSelfGuiding()) {
             if (!launcher.acquireControl(drone)) {
@@ -2178,7 +2360,7 @@ public class Game {
         // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
         Unit droneTarget = target;
         if (target instanceof Ship) {
-            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
             if (ww != null && !ww.isPostExplosion())
                 droneTarget = ww;
         }
@@ -2239,7 +2421,7 @@ public class Game {
         // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
         Unit torpTarget = target;
         if (target instanceof Ship) {
-            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
             if (ww != null && !ww.isPostExplosion())
                 torpTarget = ww;
         }
@@ -2299,7 +2481,7 @@ public class Game {
      * The shuttle moves independently on the map but is not a seeker.
      */
     public ActionResult launchShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
-            com.sfb.objects.Shuttle shuttle, int speed, int facing) {
+            com.sfb.objects.shuttles.Shuttle shuttle, int speed, int facing) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -2312,7 +2494,7 @@ public class Game {
         if (!bay.canLaunch(shuttle, TurnTracker.getImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
 
-        com.sfb.objects.Shuttle launched = bay.launch(shuttle, speed, facing, TurnTracker.getImpulse());
+        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, TurnTracker.getImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 
@@ -2329,7 +2511,7 @@ public class Game {
      * Requires lock-on. Speed capped at shuttle's maxSpeed.
      */
     public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
-            com.sfb.objects.SuicideShuttle shuttle, Unit target) {
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -2358,7 +2540,7 @@ public class Game {
         // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
         Unit ssTarget = target;
         if (target instanceof Ship) {
-            com.sfb.objects.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
             if (ww != null && !ww.isPostExplosion())
                 ssTarget = ww;
         }
@@ -2380,7 +2562,7 @@ public class Game {
      * Requires lock-on. Releases its drones after 8 impulses.
      */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
-            com.sfb.objects.ScatterPack pack, Unit target) {
+            com.sfb.objects.shuttles.ScatterPack pack, Unit target) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -2426,9 +2608,9 @@ public class Game {
     private List<String> moveShuttles() {
         List<String> log = new ArrayList<>();
         int impulse = TurnTracker.getLocalImpulse();
-        List<com.sfb.objects.Shuttle> offMap = new ArrayList<>();
+        List<com.sfb.objects.shuttles.Shuttle> offMap = new ArrayList<>();
 
-        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
+        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
             if (shuttle.isPlayerControlled())
                 continue; // manual control only
             if (!MovementUtil.moveThisImpulse(impulse, shuttle.getSpeed()))
@@ -2525,23 +2707,26 @@ public class Game {
             // position-based shield
             if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
-                int[] spread = torp.computeEnvelopingDamage();
-                int total = 0;
-                for (int i = 0; i < 6; i++) {
-                    if (spread[i] > 0) {
-                        markShieldDamage(ship, i + 1, spread[i]);
-                        total += spread[i];
-                    }
-                }
-                log.add("  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
-                        + " (enveloping)  total damage " + total + " spread to all shields");
+                int ecmShift = computeSeekerEcmShift(seeker, ship);
+                int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
+                String controllerName = torp.getController() instanceof Ship
+                        ? torp.getController().getName() : torp.getName();
+                String hitMsg = "  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
+                        + " (enveloping)  total damage " + ecmTotal + " spread to all shields";
+                pendingVolleys.add(new PendingVolley(controllerName, null, ship,
+                        0, ecmTotal, 0, false, false, hitMsg, torp));
+                log.add(hitMsg + " — queued for Reinforcement phase");
             } else {
                 int shieldNum = getShieldNumber(unit, ship);
-                int dmg = seeker.impact();
-                FireResult result = markShieldDamage(ship, shieldNum, dmg);
-                log.add("  " + ship.getName() + " moved into " + unit.getName()
-                        + "  shield #" + shieldNum + "  damage " + dmg
-                        + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                int ecmShift = computeSeekerEcmShift(seeker, ship);
+                int dmg = applyProximityRoll(seeker.impact(), ecmShift, log);
+                String controllerName = seeker.getController() instanceof Ship
+                        ? seeker.getController().getName() : unit.getName();
+                String hitMsg = "  " + ship.getName() + " moved into " + unit.getName()
+                        + "  shield #" + shieldNum + "  damage " + dmg;
+                pendingVolleys.add(new PendingVolley(controllerName, null, ship,
+                        shieldNum, dmg, 0, false, false, hitMsg, null));
+                log.add(hitMsg + " — queued for Reinforcement phase");
             }
             toRemove.add(seeker);
         }
@@ -2590,8 +2775,8 @@ public class Game {
                 }
 
                 int bearing = MapUtils.getGeometricBearing(drone, target);
-                if (bearing != 0)
-                    drone.setFacing(snapToCardinal(bearing));
+                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : drone.getFacing();
+                drone.setFacing(chooseSeekerFacing(drone, idealFacing));
 
                 prevLocations.putIfAbsent(drone, drone.getLocation());
                 drone.goForward(mapCols, mapRows);
@@ -2621,8 +2806,8 @@ public class Game {
                                 + targetDrone.getDroneType() + ") — both destroyed");
                         expired.add(seeker);
                         expired.add(targetDrone);
-                    } else if (target instanceof com.sfb.objects.WildWeaselShuttle) {
-                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                    } else if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
                             log.add("  Drone (" + drone.getDroneType() + ") hit Wild Weasel "
@@ -2633,12 +2818,15 @@ public class Game {
                         expired.add(seeker);
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(drone, (Ship) target);
-                        int dmg = drone.impact();
-                        FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
-                        log.add("  Drone (" + drone.getDroneType() + ") impacted "
-                                + target.getName() + " shield #" + shieldNum
-                                + "  damage " + dmg
-                                + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                        int ecmShift = computeSeekerEcmShift(drone, target);
+                        int dmg = applyProximityRoll(drone.impact(), ecmShift, log);
+                        String controllerName = drone.getController() instanceof Ship
+                                ? drone.getController().getName() : drone.getName();
+                        String hitMsg = "  Drone (" + drone.getDroneType() + ") impacted "
+                                + target.getName() + " shield #" + shieldNum + "  damage " + dmg;
+                        pendingVolleys.add(new PendingVolley(controllerName, null, target,
+                                shieldNum, dmg, 0, false, false, hitMsg, null));
+                        log.add(hitMsg + " — queued for Reinforcement phase");
                         expired.add(seeker);
                     }
                     continue;
@@ -2650,8 +2838,8 @@ public class Game {
                     expired.add(seeker);
                 }
 
-            } else if (seeker instanceof com.sfb.objects.ScatterPack) {
-                com.sfb.objects.ScatterPack pack = (com.sfb.objects.ScatterPack) seeker;
+            } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
+                com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
 
                 // Release check happens every impulse, regardless of movement schedule
                 if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
@@ -2659,10 +2847,10 @@ public class Game {
                     Unit controller = pack.getController();
                     // Free the scatter pack's own control channel before drones compete for
                     // capacity
-                    if (controller instanceof Ship)
-                        ((Ship) controller).releaseControl(pack);
+                    if (controller instanceof DroneController)
+                        ((DroneController) controller).releaseControl(pack);
                     List<com.sfb.objects.Drone> released = pack.release();
-                    String launcherName = controller instanceof Ship ? controller.getName() : null;
+                    String launcherName = controller != null ? controller.getName() : null;
                     for (com.sfb.objects.Drone drone : released) {
                         drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + (++seekerSeq));
                         drone.setLocation(pack.getLocation());
@@ -2670,12 +2858,12 @@ public class Game {
                         if (launcherName != null)
                             drone.setLauncherName(launcherName);
                         drone.setLaunchImpulse(TurnTracker.getImpulse());
-                        if (!drone.isSelfGuiding() && controller instanceof Ship
-                                && ((Ship) controller).hasLockOn(target)) {
+                        if (!drone.isSelfGuiding() && controller instanceof DroneController
+                                && ((DroneController) controller).hasLockOn(target)) {
                             drone.setTarget(target);
                             drone.setController(controller);
-                            if (!((Ship) controller).acquireControl(drone)) {
-                                String xfer = autoTransferSeekerControl(drone, (Ship) controller);
+                            if (!((DroneController) controller).acquireControl(drone)) {
+                                String xfer = autoTransferSeekerControl(drone, controller instanceof Ship ? (Ship) controller : null);
                                 if (xfer != null) {
                                     log.add(xfer);
                                 } else {
@@ -2702,8 +2890,8 @@ public class Game {
                     Unit target = pack.getTarget();
                     if (target != null) {
                         int bearing = MapUtils.getGeometricBearing(pack, target);
-                        if (bearing != 0)
-                            pack.setFacing(snapToCardinal(bearing));
+                        int idealFacing = bearing != 0 ? snapToCardinal(bearing) : pack.getFacing();
+                        pack.setFacing(chooseSeekerFacing(pack, idealFacing));
                     }
                     pack.goForward(mapCols, mapRows);
                     if (pack.getLocation() == null) {
@@ -2712,8 +2900,8 @@ public class Game {
                     }
                 }
 
-            } else if (seeker instanceof com.sfb.objects.SuicideShuttle) {
-                com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) seeker;
+            } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
                 if (!MovementUtil.moveThisImpulse(impulse, ss.getSpeed()))
                     continue;
 
@@ -2724,8 +2912,8 @@ public class Game {
                     continue;
                 }
                 int bearing = MapUtils.getGeometricBearing(ss, target);
-                if (bearing != 0)
-                    ss.setFacing(snapToCardinal(bearing));
+                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : ss.getFacing();
+                ss.setFacing(chooseSeekerFacing(ss, idealFacing));
                 prevLocations.putIfAbsent(ss, ss.getLocation());
                 ss.goForward(mapCols, mapRows);
                 if (ss.getLocation() == null) {
@@ -2734,8 +2922,8 @@ public class Game {
                     continue;
                 }
                 if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
-                    if (target instanceof com.sfb.objects.WildWeaselShuttle) {
-                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                    if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
                             log.add("  Suicide shuttle hit Wild Weasel " + ww.getName()
@@ -2745,11 +2933,15 @@ public class Game {
                         }
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(ss, (Ship) target);
-                        int dmg = ss.impact();
-                        FireResult result = markShieldDamage((Ship) target, shieldNum, dmg);
-                        log.add("  Suicide shuttle impacted " + target.getName()
-                                + " shield #" + shieldNum + "  damage " + dmg
-                                + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                        int ecmShift = computeSeekerEcmShift(ss, target);
+                        int dmg = applyProximityRoll(ss.impact(), ecmShift, log);
+                        String controllerName = ss.getController() instanceof Ship
+                                ? ss.getController().getName() : ss.getName();
+                        String hitMsg = "  Suicide shuttle impacted " + target.getName()
+                                + " shield #" + shieldNum + "  damage " + dmg;
+                        pendingVolleys.add(new PendingVolley(controllerName, null, target,
+                                shieldNum, dmg, 0, false, false, hitMsg, null));
+                        log.add(hitMsg + " — queued for Reinforcement phase");
                     }
                     expired.add(ss);
                 }
@@ -2767,8 +2959,8 @@ public class Game {
                 }
 
                 int bearing = MapUtils.getGeometricBearing(torp, target);
-                if (bearing != 0)
-                    torp.setFacing(snapToCardinal(bearing));
+                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : torp.getFacing();
+                torp.setFacing(chooseSeekerFacing(torp, idealFacing));
 
                 prevLocations.putIfAbsent(torp, torp.getLocation());
                 torp.goForward(mapCols, mapRows);
@@ -2780,6 +2972,14 @@ public class Game {
                     continue;
                 }
 
+                if (isAsteroidHex(torp.getLocation())) {
+                    log.add(applyAsteroidCollisionToPlasma(torp));
+                    if (torp.getCurrentStrength() <= 0) {
+                        expired.add(seeker);
+                        continue;
+                    }
+                }
+
                 if (torp.getCurrentStrength() <= 0) {
                     log.add("  Plasma-" + torp.getPlasmaType() + " targeting "
                             + (target != null ? target.getName() : "?") + " dissipated");
@@ -2789,8 +2989,8 @@ public class Game {
 
                 if (target != null && target.getLocation() != null
                         && torp.getLocation().equals(target.getLocation())) {
-                    if (target instanceof com.sfb.objects.WildWeaselShuttle) {
-                        com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) target;
+                    if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
                             log.add("  Plasma-" + torp.getPlasmaType() + " hit Wild Weasel "
@@ -2800,25 +3000,24 @@ public class Game {
                         }
                     } else if (target instanceof Ship) {
                         Ship ship = (Ship) target;
+                        int ecmShift = computeSeekerEcmShift(torp, ship);
+                        String controllerName = torp.getController() instanceof Ship
+                                ? torp.getController().getName() : torp.getName();
                         if (torp.isEnveloping()) {
-                            int[] spread = torp.computeEnvelopingDamage();
-                            int total = 0;
-                            for (int i = 0; i < 6; i++) {
-                                if (spread[i] > 0) {
-                                    markShieldDamage(ship, i + 1, spread[i]);
-                                    total += spread[i];
-                                }
-                            }
-                            log.add("  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
-                                    + ship.getName() + "  total damage " + total + " spread to all shields");
+                            int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
+                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
+                                    + ship.getName() + "  total damage " + ecmTotal + " spread to all shields";
+                            pendingVolleys.add(new PendingVolley(controllerName, null, ship,
+                                    0, ecmTotal, 0, false, false, hitMsg, torp));
+                            log.add(hitMsg + " — queued for Reinforcement phase");
                         } else {
                             int shieldNum = getDroneImpactShield(torp, ship);
-                            int dmg = torp.impact();
-                            FireResult result = markShieldDamage(ship, shieldNum, dmg);
-                            log.add("  Plasma-" + torp.getPlasmaType() + " impacted "
-                                    + ship.getName() + " shield #" + shieldNum
-                                    + "  damage " + dmg
-                                    + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                            int dmg = applyProximityRoll(torp.impact(), ecmShift, log);
+                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " impacted "
+                                    + ship.getName() + " shield #" + shieldNum + "  damage " + dmg;
+                            pendingVolleys.add(new PendingVolley(controllerName, null, ship,
+                                    shieldNum, dmg, 0, false, false, hitMsg, null));
+                            log.add(hitMsg + " — queued for Reinforcement phase");
                         }
                     } else {
                         int dmg = torp.impact();
@@ -2834,20 +3033,20 @@ public class Game {
         for (Seeker s : expired) {
             if (s instanceof Drone) {
                 Drone d = (Drone) s;
-                if (d.getController() instanceof Ship)
-                    ((Ship) d.getController()).releaseControl(d);
-            } else if (s instanceof com.sfb.objects.SuicideShuttle) {
-                com.sfb.objects.SuicideShuttle ss = (com.sfb.objects.SuicideShuttle) s;
-                if (ss.getController() instanceof Ship)
-                    ((Ship) ss.getController()).releaseControl(ss);
+                if (d.getController() instanceof DroneController)
+                    ((DroneController) d.getController()).releaseControl(d);
+            } else if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
+                if (ss.getController() instanceof DroneController)
+                    ((DroneController) ss.getController()).releaseControl(ss);
             }
         }
         seekers.removeAll(expired);
 
         // Transition exploding WWs whose 4-impulse window just ended to post-explosion (J3.212)
-        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
-            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle) {
-                com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) shuttle;
+        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
                 if (ww.isExplosionOver(impulse)) {
                     ww.startPostExplosion();
                     log.add("  Wild Weasel " + ww.getName()
@@ -2857,10 +3056,10 @@ public class Game {
         }
 
         // Natural expiry: post-explosion WW with no seekers still targeting it is removed (J3.212)
-        List<com.sfb.objects.WildWeaselShuttle> doneWws = new ArrayList<>();
-        for (com.sfb.objects.Shuttle shuttle : activeShuttles) {
-            if (shuttle instanceof com.sfb.objects.WildWeaselShuttle) {
-                com.sfb.objects.WildWeaselShuttle ww = (com.sfb.objects.WildWeaselShuttle) shuttle;
+        List<com.sfb.objects.shuttles.WildWeaselShuttle> doneWws = new ArrayList<>();
+        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
                 if (ww.isPostExplosion()) {
                     boolean anyTargeting = seekers.stream().anyMatch(s -> s.getTarget() == ww);
                     if (!anyTargeting)
@@ -2868,7 +3067,7 @@ public class Game {
                 }
             }
         }
-        for (com.sfb.objects.WildWeaselShuttle ww : doneWws) {
+        for (com.sfb.objects.shuttles.WildWeaselShuttle ww : doneWws) {
             log.add("  Wild Weasel " + ww.getName() + " post-explosion period ended — counter removed");
             voidWildWeasel(ww.getParentShip());
         }
@@ -2900,6 +3099,33 @@ public class Game {
             }
         }
         return best;
+    }
+
+    /**
+     * Choose the cardinal facing for a seeker that avoids planet hexes while staying
+     * as close as possible to the ideal bearing toward the target (keeping the target
+     * in FA arc when possible, falling back to adjacent arcs only if necessary).
+     * Returns idealFacing unchanged if it is already clear, or if the seeker's target
+     * is a Terrain object (e.g. future planet-bombardment).
+     */
+    private int chooseSeekerFacing(Unit seeker, int idealFacing) {
+        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
+        int idealIdx = 0;
+        for (int i = 0; i < cardinals.length; i++) {
+            if (cardinals[i] == idealFacing) { idealIdx = i; break; }
+        }
+        // Try offset 0 (ideal) first, then ±1, ±2, ±3 — nearest to target wins
+        for (int offset = 0; offset <= 3; offset++) {
+            int[] signs = (offset == 0) ? new int[]{0} : new int[]{1, -1};
+            for (int sign : signs) {
+                int altIdx = ((idealIdx + sign * offset) % 6 + 6) % 6;
+                Location nextHex = MapUtils.getAdjacentHex(seeker.getLocation(),
+                        MapUtils.getTrueBearing(1, cardinals[altIdx]), mapCols, mapRows);
+                if (nextHex != null && !isPlanetHex(nextHex))
+                    return cardinals[altIdx];
+            }
+        }
+        return idealFacing; // completely surrounded — shouldn't happen
     }
 
     // --- Mines ---
@@ -2949,11 +3175,35 @@ public class Game {
         drone.setHull(Math.max(0, remaining));
         if (drone.getHull() <= 0) {
             seekers.remove(drone);
-            if (drone.getController() instanceof Ship)
-                ((Ship) drone.getController()).releaseControl(drone);
+            if (drone.getController() instanceof DroneController)
+                ((DroneController) drone.getController()).releaseControl(drone);
             return base + " — " + damage + " hull damage — destroyed";
         }
         return base + " — " + damage + " hull damage — " + drone.getHull() + " remaining";
+    }
+
+    /**
+     * Roll asteroid collision damage and apply as phaser damage to a plasma torpedo (P3.2).
+     * Each point of asteroid damage reduces torpedo strength by 0.5 (same as direct phaser fire).
+     * Returns a log line; removes the torpedo if strength reaches 0.
+     */
+    private String applyAsteroidCollisionToPlasma(PlasmaTorpedo torp) {
+        int speed = torp.getSpeed();
+        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
+        int roll = new DiceRoller().rollOneDie();
+        int damage = ASTEROID_DAMAGE[roll - 1][bracket];
+        String base = "  Plasma-" + torp.getPlasmaType() + " enters asteroid hex"
+                + " (speed " + speed + ", die " + roll + ")";
+        if (damage == 0)
+            return base + " — no damage";
+        int before = torp.getCurrentStrength();
+        torp.applyPhaserDamage(damage);
+        int after = torp.getCurrentStrength();
+        if (after <= 0) {
+            seekers.remove(torp);
+            return base + " — " + damage + " phaser pts — destroyed";
+        }
+        return base + " — " + damage + " phaser pts — strength " + before + " → " + after;
     }
 
     /**
@@ -3166,6 +3416,50 @@ public class Game {
         if (!cloak.deactivate(TurnTracker.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot decloak now (already inactive or uncloaked this turn)");
         return ActionResult.ok(ship.getName() + " begins decloaking — fading in");
+    }
+
+    /**
+     * D6.36: ECM net shift for a seeker impact roll.
+     * shift = floor(sqrt(max(0, targetEcm - controllerEccm - builtInEccm)))
+     * TypeVI warp-seekers are immune (D6.38) — returns 0.
+     */
+    private int computeSeekerEcmShift(Seeker seeker, Unit target) {
+        if (seeker.isWarpSeeker())
+            return 0;
+        int targetEcm = 0;
+        if (target instanceof Ship) {
+            Ship tship = (Ship) target;
+            targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus();
+        }
+        int controllerEccm = 0;
+        Unit controller = seeker.getController();
+        if (controller instanceof Ship) {
+            Ship cship = (Ship) controller;
+            // D19.12: ECCM cannot be *used* under PFC, even if energy was spent on it
+            if (cship.isActiveFireControl())
+                controllerEccm = cship.getEccmAllocated();
+        }
+        int netEcm = Math.max(0, targetEcm - controllerEccm - seeker.getBuiltInEccm());
+        return (int) Math.floor(Math.sqrt(netEcm));
+    }
+
+    /**
+     * D6.361: Roll 1d6 + ecmShift against proximity detonation table.
+     * 1-6 → 100%, 7-8 → 50%, 9-10 → 25%, 11+ → 0% damage.
+     */
+    private int applyProximityRoll(int baseDamage, int ecmShift, List<String> log) {
+        if (ecmShift <= 0)
+            return baseDamage;
+        int roll = new DiceRoller().rollOneDie();
+        int total = roll + ecmShift;
+        int damage;
+        if (total <= 6)       damage = baseDamage;
+        else if (total <= 8)  damage = baseDamage / 2;
+        else if (total <= 10) damage = baseDamage / 4;
+        else                  damage = 0;
+        log.add("    ECM proximity roll: d6=" + roll + " + shift " + ecmShift + " = " + total
+                + " → " + damage + " dmg (of " + baseDamage + ")");
+        return damage;
     }
 
     /**
@@ -4134,6 +4428,39 @@ public class Game {
          */
         public boolean isWaiting() {
             return success && message != null && message.startsWith("WAITING:");
+        }
+    }
+
+    /**
+     * A volley of direct fire that has been calculated but not yet applied.
+     * Queued during DIRECT_FIRE; applied after defenders submit reinforcement.
+     */
+    public static class PendingVolley {
+        public final String attackerName;
+        public final Ship attackerShip;   // null for non-Ship attackers
+        public final Unit target;
+        public final int shieldNumber;    // 0 for EPT enveloping seeker hits
+        public final int totalDamage;
+        public final int envelopingHellboreDamage;
+        public final boolean addHit;
+        public final boolean fusionSuicideFired;
+        public final String attackerLog;  // per-weapon roll results visible to attacker
+        public final PlasmaTorpedo envelopingTorp; // non-null only for EPT seeker hits
+
+        public PendingVolley(String attackerName, Ship attackerShip, Unit target,
+                int shieldNumber, int totalDamage, int envelopingHellboreDamage,
+                boolean addHit, boolean fusionSuicideFired, String attackerLog,
+                PlasmaTorpedo envelopingTorp) {
+            this.attackerName             = attackerName;
+            this.attackerShip             = attackerShip;
+            this.target                   = target;
+            this.shieldNumber             = shieldNumber;
+            this.totalDamage              = totalDamage;
+            this.envelopingHellboreDamage = envelopingHellboreDamage;
+            this.addHit                   = addHit;
+            this.fusionSuicideFired       = fusionSuicideFired;
+            this.attackerLog              = attackerLog;
+            this.envelopingTorp           = envelopingTorp;
         }
     }
 

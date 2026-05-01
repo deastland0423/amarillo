@@ -11,7 +11,7 @@ import com.sfb.objects.Ship;
  * @author Daniel Eastland
  *
  */
-public class Phaser3 extends VariableDamageWeapon implements DirectFire {
+public class Phaser3 extends VariableDamageWeapon implements DirectFire, PhaserWeapon {
 
 
 	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3, [4] 4-8, [5] 9-15

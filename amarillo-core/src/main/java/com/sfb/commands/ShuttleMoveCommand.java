@@ -2,7 +2,7 @@ package com.sfb.commands;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.objects.Shuttle;
+import com.sfb.objects.shuttles.Shuttle;
 
 public class ShuttleMoveCommand implements Command {
 

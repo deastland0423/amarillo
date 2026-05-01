@@ -105,6 +105,25 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     /**
+     * Distribute a given total (already ECM-reduced) enveloping across 6 shields.
+     * Same random-remainder logic as the no-arg version.
+     */
+    public int[] computeEnvelopingDamage(int total) {
+        int base = total / 6;
+        int remainder = total % 6;
+        int[] damage = new int[6];
+        for (int i = 0; i < 6; i++)
+            damage[i] = base;
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < 6; i++)
+            indices.add(i);
+        Collections.shuffle(indices);
+        for (int i = 0; i < remainder; i++)
+            damage[indices.get(i)]++;
+        return damage;
+    }
+
+    /**
      * Apply phaser fire to this torpedo. Every 2 points of phaser damage
      * reduces torpedo strength by 1.
      */
@@ -188,6 +207,9 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     public void setSelfGuiding(boolean sg) {
         this.selfGuiding = sg;
     }
+
+    @Override
+    public int getBuiltInEccm() { return 3; } // FP4.31: plasma torpedoes carry 3 built-in ECCM points
 
     @Override
     public int getEndurance() {

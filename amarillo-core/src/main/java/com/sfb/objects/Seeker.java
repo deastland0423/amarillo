@@ -31,6 +31,13 @@ public interface Seeker {
 
 	public void setSelfGuiding(boolean selfGuiding);
 
+	default boolean isWarpSeeker() { return false; }
+
+	default void setWarpSeeker(boolean warpSeeker) {}
+
+	/** Built-in ECCM points carried by the weapon itself (D6.393). Plasma = 3, others = 0. */
+	default int getBuiltInEccm() { return 0; }
+
 	public int getEndurance();
 
 	public void setEndurance(int endurance);

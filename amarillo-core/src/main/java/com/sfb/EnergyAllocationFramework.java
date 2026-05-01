@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.sfb.constants.Constants;
 import com.sfb.objects.Ship;
-import com.sfb.objects.Shuttle;
+import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.PowerSystems;
 import com.sfb.systemgroups.Weapons;
 import com.sfb.weapons.Weapon;

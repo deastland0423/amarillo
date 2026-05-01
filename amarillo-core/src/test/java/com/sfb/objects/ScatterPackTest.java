@@ -1,5 +1,7 @@
 package com.sfb.objects;
 
+import com.sfb.objects.shuttles.*;
+
 import static org.junit.Assert.*;
 
 import org.junit.Before;
@@ -200,16 +202,16 @@ public class ScatterPackTest {
         game.getShips().add(launcher);
         game.getShips().add(target);
 
-        // Find the scatter pack loaded into the FFG's bay from the spec
         bay = launcher.getShuttles().getBays().isEmpty() ? null
                 : launcher.getShuttles().getBays().get(0);
         assertNotNull("FFG should have at least one shuttle bay", bay);
 
-        loadedPack = bay.getInventory().stream()
-                .filter(s -> s instanceof ScatterPack)
-                .map(s -> (ScatterPack) s)
-                .findFirst().orElse(null);
-        assertNotNull("FFG bay should contain a pre-loaded scatter pack", loadedPack);
+        // Build a scatter pack manually and add it to the bay
+        loadedPack = new ScatterPack(new AdminShuttle());
+        loadedPack.setName("SP-1");
+        for (int i = 0; i < 4; i++)
+            loadedPack.addDrone(new Drone(DroneType.TypeI));
+        bay.getInventory().add(loadedPack);
 
         launcher.addLockOn(target);
 

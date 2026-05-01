@@ -14,8 +14,8 @@ public class Drone extends Unit implements Seeker {
 	private Unit target; // The target of the drone.
 	private Unit controller; // The ship controlling this drone.
 	private DroneType type; // The type of drone. This determines the drone's properties and behavior.
-	private boolean selfGuiding; // True if the weapon does not need control channels to operate, false
-																// otherwise.
+	private boolean selfGuiding; // True if the weapon does not need control channels to operate.
+	private boolean warpSeeker;  // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
 	private int warheadDamage; // The damage dealt if the weapon hits its target.
@@ -42,7 +42,8 @@ public class Drone extends Unit implements Seeker {
 		this.warheadDamage = config.damage;
 		this.rackSize = config.rack;
 		this.hull = config.hull;
-		this.selfGuiding = config.selfGuiding; // Satisfies the internal state for Seeker
+		this.selfGuiding = config.selfGuiding;
+		this.warpSeeker  = config.warpSeeker;
 	}
 
 	public void setTarget(Unit target) {
@@ -93,6 +94,16 @@ public class Drone extends Unit implements Seeker {
 	@Override
 	public void setSelfGuiding(boolean selfGuiding) {
 		this.selfGuiding = selfGuiding;
+	}
+
+	@Override
+	public boolean isWarpSeeker() {
+		return warpSeeker;
+	}
+
+	@Override
+	public void setWarpSeeker(boolean warpSeeker) {
+		this.warpSeeker = warpSeeker;
 	}
 
 	@Override

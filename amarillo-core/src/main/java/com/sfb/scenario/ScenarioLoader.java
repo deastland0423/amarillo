@@ -3,12 +3,12 @@ package com.sfb.scenario;
 import com.sfb.exceptions.CapacitorException;
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
-import com.sfb.objects.ScatterPack;
+import com.sfb.objects.shuttles.ScatterPack;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
-import com.sfb.objects.Shuttle;
-import com.sfb.objects.SuicideShuttle;
+import com.sfb.objects.shuttles.Shuttle;
+import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.objects.Terrain;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
@@ -318,11 +318,11 @@ public class ScenarioLoader {
                         System.err.println("COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
                         continue;
                     }
-                    if (!(foundShuttle instanceof com.sfb.objects.AdminShuttle)) {
+                    if (!(foundShuttle instanceof com.sfb.objects.shuttles.AdminShuttle)) {
                         System.err.println("COI: " + prep.shuttleName + " is not an AdminShuttle — skipped");
                         continue;
                     }
-                    com.sfb.objects.AdminShuttle admin = (com.sfb.objects.AdminShuttle) foundShuttle;
+                    com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) foundShuttle;
                     // Charge to full (2 turns) so it's ready to launch on turn 1
                     admin.incrementWwCharge();
                     admin.incrementWwCharge();

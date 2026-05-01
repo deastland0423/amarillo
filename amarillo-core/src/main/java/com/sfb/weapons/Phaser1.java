@@ -5,7 +5,7 @@ import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Ship;
 
-public class Phaser1 extends VariableDamageWeapon implements DirectFire {
+public class Phaser1 extends VariableDamageWeapon implements DirectFire, PhaserWeapon {
 
 
 	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3, [4] 4, [5] 5, [6] 6-8, [7] 9-15, [8]

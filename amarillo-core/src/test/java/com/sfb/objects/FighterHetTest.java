@@ -1,5 +1,7 @@
 package com.sfb.objects;
 
+import com.sfb.objects.shuttles.*;
+
 import static org.junit.Assert.*;
 
 import org.junit.Before;

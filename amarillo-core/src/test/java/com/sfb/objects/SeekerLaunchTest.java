@@ -100,6 +100,7 @@ public class SeekerLaunchTest {
         launcher2.setName("Lexington");
         launcher2.setLocation(new Location(12, 10));
         launcher2.setFacing(1);
+        launcher2.setActiveFireControl(true);
         game.getShips().add(launcher2);
 
         DroneRack rack2 = launcher2.getWeapons().fetchAllWeapons().stream()
@@ -130,6 +131,7 @@ public class SeekerLaunchTest {
         launcher2.setName("Lexington");
         launcher2.setLocation(new Location(12, 10));
         launcher2.setFacing(1);
+        launcher2.setActiveFireControl(true);
         game.getShips().add(launcher2);
 
         DroneRack rack2 = launcher2.getWeapons().fetchAllWeapons().stream()
@@ -164,8 +166,9 @@ public class SeekerLaunchTest {
 
     @Test
     public void launcherHasLockOn_evenWithNoActiveFireControl() {
-        // Auto lock-on for the launcher is not conditional on fire control —
-        // it's implicit because the launcher knows where its own seeker went
+        // Under PFC only self-guiding drones may be launched (D19.22).
+        // Auto lock-on to the launched drone is still unconditional for the launcher.
+        firstDrone.setSelfGuiding(true);
         launcher.setActiveFireControl(false);
         game.launchDrone(launcher, target, rack, firstDrone, 0);
 

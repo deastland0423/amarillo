@@ -1,4 +1,6 @@
-package com.sfb.objects;
+package com.sfb.objects.shuttles;
+
+import com.sfb.objects.*;
 
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
@@ -8,7 +10,8 @@ import com.sfb.weapons.Weapon;
 
 /**
  * Base class for all fighter units (J4.0).
- * Fighters are shuttles with improved combat capabilities: fixed weapons powered
+ * Fighters are shuttles with improved combat capabilities: fixed weapons
+ * powered
  * by an onboard engine, a crippling threshold, and one free Tactical Maneuver
  * per turn (J4.12 — no energy cost, no breakdown roll).
  */
@@ -18,7 +21,31 @@ public abstract class Fighter extends Shuttle {
     private int crippledHull;
     private int bpv;
 
+    private int ecm = 2;
+    private int eccm = 2;
+
     private boolean tacticalManeuverUsed = false;
+    private boolean twoSeater = false; // True if this fighter has two seats (e.g. Kzinti AAS_E EW fighter)
+
+    public Fighter() {
+        setChaffPacks(1); // D11.11: most fighters carry one chaff pack
+    }
+
+    public int getEcm() {
+        return ecm;
+    }
+
+    public void setEcm(int ecm) {
+        this.ecm = ecm;
+    }
+
+    public int getEccm() {
+        return eccm;
+    }
+
+    public void setEccm(int eccm) {
+        this.eccm = eccm;
+    }
 
     public int getCrippledHull() {
         return crippledHull;
@@ -49,7 +76,8 @@ public abstract class Fighter extends Shuttle {
      * @return True if the maneuver was performed, false if already used this turn.
      */
     public boolean performTacticalManeuver(int absoluteFacing) {
-        if (tacticalManeuverUsed) return false;
+        if (tacticalManeuverUsed)
+            return false;
         performHet(absoluteFacing);
         tacticalManeuverUsed = true;
         return true;
@@ -59,6 +87,14 @@ public abstract class Fighter extends Shuttle {
         return tacticalManeuverUsed;
     }
 
+    public boolean isTwoSeater() {
+        return twoSeater;
+    }
+
+    public void setTwoSeater(boolean twoSeater) {
+        this.twoSeater = twoSeater;
+    }
+
     /**
      * J1.331 + J1.332: speed halved; all non-phaser weapons cease to operate;
      * FighterFusion charges drained (J1.3324).
@@ -66,7 +102,8 @@ public abstract class Fighter extends Shuttle {
     @Override
     public String applyCripplingEffects() {
         String baseLine = super.applyCripplingEffects();
-        if (baseLine == null) return null; // already crippled
+        if (baseLine == null)
+            return null; // already crippled
 
         StringBuilder sb = new StringBuilder(baseLine);
         for (Weapon w : getWeapons().fetchAllWeapons()) {
@@ -84,7 +121,10 @@ public abstract class Fighter extends Shuttle {
         return sb.toString();
     }
 
-    /** True if this fighter has been on the map long enough to fire direct-fire weapons (8 impulses). */
+    /**
+     * True if this fighter has been on the map long enough to fire direct-fire
+     * weapons (8 impulses).
+     */
     public boolean canFireDirect(int currentImpulse) {
         return super.canFireDirect(currentImpulse);
     }

@@ -1,4 +1,6 @@
-package com.sfb.objects;
+package com.sfb.objects.shuttles;
+
+import com.sfb.objects.*;
 
 /**
  * A shuttle configured as a suicide weapon.

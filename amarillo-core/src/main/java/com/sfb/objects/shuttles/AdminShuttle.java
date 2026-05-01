@@ -1,4 +1,6 @@
-package com.sfb.objects;
+package com.sfb.objects.shuttles;
+
+import com.sfb.objects.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;

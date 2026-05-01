@@ -6,6 +6,7 @@ import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
+import { ReinforcementDialog } from './ReinforcementDialog';
 import { FacingPicker } from './FacingPicker';
 import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
 
@@ -640,7 +641,7 @@ function WwLaunchPanel({ ship, shuttleName, onLaunch, onCancel, error }: {
 }) {
   const shuttle = (ship.shuttleBays ?? []).flatMap(b => b.shuttles).find(s => s.name === shuttleName);
   const maxSpeed = shuttle?.maxSpeed ?? 6;
-  const [speed,  setSpeed]  = useState(Math.min(ship.speed, maxSpeed));
+  const [speed,  setSpeed]  = useState(maxSpeed);
   const [facing, setFacing] = useState<number | null>(ship.facing ?? null);
 
   return (
@@ -2221,8 +2222,17 @@ export default function GameBoard({ session, onLeave }: Props) {
   const phase      = gameState?.phase ?? '';
   const myShips    = new Set(gameState?.myShips ?? []);
   const movableNow = gameState?.movableNow ?? [];
-  const isMovementPhase = phase === 'Movement';
-  const isFirePhase     = phase === 'Direct Fire';
+  const isMovementPhase      = phase === 'Movement';
+  const isFirePhase          = phase === 'Direct Fire';
+  const isReinforcementPhase = phase === 'Reinforcement';
+
+  const batteryByShip: Record<string, number> = {};
+  for (const obj of gameState?.mapObjects ?? []) {
+    if (obj.type === 'SHIP') {
+      const s = obj as ShipObject;
+      batteryByShip[s.name] = s.batteryPower ?? 0;
+    }
+  }
 
   const myMovablePending       = movableNow.filter(n => myShips.has(n));
   const opponentMovablePending = movableNow.filter(n => !myShips.has(n));
@@ -3226,8 +3236,9 @@ export default function GameBoard({ session, onLeave }: Props) {
             return (
               <button
                 onClick={handleAdvancePhase}
-                disabled={isMovementPhase && myMovablePending.length > 0}
+                disabled={(isMovementPhase && myMovablePending.length > 0) || isReinforcementPhase}
                 className={btnClass}
+                title={isReinforcementPhase ? 'Use the Reinforcement dialog to confirm and ready up' : undefined}
               >
                 {label}
               </button>
@@ -3406,6 +3417,26 @@ export default function GameBoard({ session, onLeave }: Props) {
         ))}
         <div ref={logEndRef} />
       </div>
+
+      {/* Reinforcement dialog — shown during Reinforcement phase */}
+      {isReinforcementPhase && (
+        <ReinforcementDialog
+          pendingVolleys={gameState?.pendingVolleys ?? []}
+          myShipNames={myShips}
+          batteryByShip={batteryByShip}
+          onSubmit={async decisions => {
+            setActionError(null);
+            try {
+              if (decisions.length > 0)
+                await gameApi.submitReinforcement(session.gameId, session.playerToken, decisions);
+              await gameApi.submitAction(session.gameId, session.playerToken, { type: 'ADVANCE_PHASE' });
+              setIsReady(true);
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'Reinforcement failed');
+            }
+          }}
+        />
+      )}
 
       {/* Energy allocation dialog — floating, draggable, no overlay */}
       {gameState?.awaitingAllocation && !eaDismissed && (
