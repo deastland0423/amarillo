@@ -64,6 +64,8 @@ public class Game {
         ACTIVITY("Activity"),
         DIRECT_FIRE("Direct Fire"),
         REINFORCEMENT("Reinforcement"),
+        DAC_CHOICE("DAC Choice"),
+        CONTROL_OVERFLOW("Control Overflow"),
         END_OF_IMPULSE("End of Impulse");
 
         private final String label;
@@ -115,7 +117,11 @@ public class Game {
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
     private final Set<String> firedPairsThisPhase = new HashSet<>();
-    private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase reinforcementReturnPhase   = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase dacChoiceReturnPhase       = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase controlOverflowReturnPhase = ImpulsePhase.ACTIVITY;
+    private final List<PendingDacChoice>        pendingDacChoices        = new ArrayList<>();
+    private final List<PendingControlOverflow>  pendingControlOverflows  = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
@@ -563,9 +569,12 @@ public class Game {
                     reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
                     currentPhase = ImpulsePhase.REINFORCEMENT;
                 } else {
+                    dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
+                    lastInternalDamageLog = new ArrayList<>();
                     resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    currentPhase = ImpulsePhase.ACTIVITY;
+                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
+                        currentPhase = ImpulsePhase.ACTIVITY;
                 }
                 break;
             case ACTIVITY:
@@ -578,17 +587,30 @@ public class Game {
                     currentPhase = ImpulsePhase.REINFORCEMENT;
                 } else {
                     firedPairsThisPhase.clear();
+                    dacChoiceReturnPhase = ImpulsePhase.END_OF_IMPULSE;
+                    lastInternalDamageLog = new ArrayList<>();
                     resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
+                        currentPhase = ImpulsePhase.END_OF_IMPULSE;
                 }
                 break;
             case REINFORCEMENT:
                 log.addAll(applyPendingVolleys());
+                dacChoiceReturnPhase = reinforcementReturnPhase;
+                lastInternalDamageLog = new ArrayList<>();
                 resolveInternalDamage();
                 log.addAll(lastInternalDamageLog);
-                currentPhase = reinforcementReturnPhase;
+                if (currentPhase != ImpulsePhase.DAC_CHOICE)
+                    currentPhase = reinforcementReturnPhase;
                 break;
+            case DAC_CHOICE:
+                // DAC_CHOICE is exited via submitDacChoice(), not ADVANCE_PHASE.
+                return ActionResult.fail("A DAC system choice is pending — submit your selection first");
+            case CONTROL_OVERFLOW:
+                // CONTROL_OVERFLOW is exited via submitControlOverflowChoice(), not ADVANCE_PHASE.
+                return ActionResult.fail("A control channel overflow is pending — release or transfer a seeker first");
+
             case END_OF_IMPULSE:
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {
@@ -614,8 +636,19 @@ public class Game {
                 } else {
                     TurnTracker.nextImpulse();
                     movedThisImpulse.clear();
-        prevLocations.clear();
+                    prevLocations.clear();
                     movedShuttlesThisImpulse.clear();
+
+                    // TAC earn on Speed-4 schedule: impulses 2, 8, 16, 24 (C5.231)
+                    int localImp = TurnTracker.getLocalImpulse();
+                    if (localImp == 2 || localImp == 8 || localImp == 16 || localImp == 24) {
+                        for (Ship s : ships) {
+                            if (s.getSpeed() == 0 && s.getTacBudget() > 0) {
+                                String earnMsg = s.updateTacEarning();
+                                if (earnMsg != null) log.add(earnMsg);
+                            }
+                        }
+                    }
                 }
                 autoRaiseShields();
                 // Advance cloak fade states now that the impulse has incremented.
@@ -939,6 +972,141 @@ public class Game {
 
     public List<Seeker> getSeekers() {
         return seekers;
+    }
+
+    /** Queue a CONTROL_OVERFLOW interrupt for any ship over its control limit. */
+    private void checkControlOverflow() {
+        for (Ship ship : ships) {
+            if (ship.getControlUsed() > ship.getControlCapacity()) {
+                boolean alreadyQueued = pendingControlOverflows.stream()
+                        .anyMatch(p -> p.ship == ship);
+                if (!alreadyQueued)
+                    pendingControlOverflows.add(new PendingControlOverflow(ship));
+            }
+        }
+        if (!pendingControlOverflows.isEmpty() && currentPhase != ImpulsePhase.CONTROL_OVERFLOW) {
+            controlOverflowReturnPhase = currentPhase;
+            currentPhase = ImpulsePhase.CONTROL_OVERFLOW;
+        }
+    }
+
+    public List<PendingControlOverflow> getPendingControlOverflows() {
+        return pendingControlOverflows;
+    }
+
+    /**
+     * Resolve one step of a control overflow: either release a seeker (self-destruct
+     * unless self-guiding) or transfer it to an allied ship.
+     *
+     * @param seekerName  name of the seeker to act on
+     * @param toShipName  null/blank = release; non-blank = transfer to this ship
+     */
+    public ActionResult submitControlOverflowChoice(String seekerName, String toShipName) {
+        if (pendingControlOverflows.isEmpty())
+            return ActionResult.fail("No control overflow pending");
+
+        PendingControlOverflow overflow = pendingControlOverflows.get(0);
+        Ship ship = overflow.ship;
+
+        Seeker seeker = ship.getControlledSeekers().stream()
+                .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(seekerName))
+                .findFirst().orElse(null);
+        if (seeker == null)
+            return ActionResult.fail("Seeker not found in " + ship.getName() + "'s control channels: " + seekerName);
+
+        String log;
+        if (toShipName != null && !toShipName.isBlank()) {
+            Ship toShip = ships.stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(toShipName))
+                    .findFirst().orElse(null);
+            if (toShip == null)
+                return ActionResult.fail("Ship not found: " + toShipName);
+            if (!isSameTeam(ship, toShip))
+                return ActionResult.fail(toShipName + " is not on the same team");
+            Unit target = seeker.getTarget();
+            if (target == null)
+                return ActionResult.fail("Seeker has no target");
+            if (!toShip.hasLockOn(target))
+                return ActionResult.fail(toShipName + " does not have lock-on to " + target.getName());
+            if (!toShip.acquireControl(seeker))
+                return ActionResult.fail(toShipName + " is at control capacity");
+            ship.releaseControl(seeker);
+            seeker.setController(toShip);
+            if (seeker instanceof Drone)
+                ((Drone) seeker).setSelfGuiding(false);
+            log = ((Unit) seeker).getName() + " control transferred to " + toShipName;
+        } else {
+            ship.releaseControl(seeker);
+            boolean selfGuiding = seeker instanceof Drone && ((Drone) seeker).isSelfGuiding();
+            if (selfGuiding) {
+                log = ((Unit) seeker).getName() + " released — continuing self-guided";
+            } else {
+                seekers.remove(seeker);
+                if (seeker instanceof com.sfb.objects.shuttles.Shuttle)
+                    activeShuttles.remove((com.sfb.objects.shuttles.Shuttle) seeker);
+                log = ((Unit) seeker).getName() + " released — self-destructed";
+            }
+        }
+
+        if (ship.getControlUsed() <= ship.getControlCapacity())
+            pendingControlOverflows.remove(overflow);
+
+        // Re-scan in case other ships are also over limit
+        checkControlOverflow();
+
+        if (pendingControlOverflows.isEmpty())
+            currentPhase = controlOverflowReturnPhase;
+
+        return ActionResult.ok(log);
+    }
+
+    public ActionResult transferSeekerControl(String seekerName, String toShipName) {
+        Seeker seeker = null;
+        for (Seeker s : seekers) {
+            if ((s instanceof Drone
+                    || s instanceof com.sfb.objects.shuttles.SuicideShuttle
+                    || s instanceof com.sfb.objects.shuttles.ScatterPack)
+                    && ((Unit) s).getName().equalsIgnoreCase(seekerName)) {
+                seeker = s;
+                break;
+            }
+        }
+        if (seeker == null)
+            return ActionResult.fail("Seeker not found: " + seekerName);
+        if (seeker instanceof Drone && ((Drone) seeker).isSelfGuiding())
+            return ActionResult.fail("Self-guiding drones cannot be transferred");
+
+        Ship toShip = ships.stream()
+                .filter(s -> s.getName().equalsIgnoreCase(toShipName))
+                .findFirst().orElse(null);
+        if (toShip == null)
+            return ActionResult.fail("Ship not found: " + toShipName);
+
+        Unit currentController = seeker.getController();
+        if (!(currentController instanceof DroneController))
+            return ActionResult.fail("Seeker has no valid controller");
+
+        if (!(currentController instanceof Ship) || !isSameTeam(toShip, (Ship) currentController))
+            return ActionResult.fail(toShipName + " is not on the same team as the current controller");
+
+        Unit target = seeker.getTarget();
+        if (target == null)
+            return ActionResult.fail("Seeker has no target");
+        if (!toShip.hasLockOn(target))
+            return ActionResult.fail(toShipName + " does not have lock-on to " + target.getName());
+
+        if (!toShip.acquireControl(seeker))
+            return ActionResult.fail(toShipName + " is at control capacity");
+
+        ((DroneController) currentController).releaseControl(seeker);
+        seeker.setController(toShip);
+        if (seeker instanceof Drone)
+            ((Drone) seeker).setSelfGuiding(false);
+
+        String label = seeker instanceof com.sfb.objects.shuttles.ScatterPack ? "Scatter pack"
+                : seeker instanceof com.sfb.objects.shuttles.SuicideShuttle ? "Suicide shuttle"
+                : "Drone";
+        return ActionResult.ok(label + " control transferred from " + currentController.getName() + " to " + toShipName);
     }
 
     public List<com.sfb.objects.shuttles.Shuttle> getActiveShuttles() {
@@ -1506,6 +1674,45 @@ public class Game {
         List<String> result = new ArrayList<>();
         result.add(log.toString());
         return ActionResult.ok(log.toString());
+    }
+
+    // --- Tactical Maneuver (C5.0) ---
+
+    public ActionResult performTacticalTurn(Ship ship, int newFacing, boolean preferSublight) {
+        if (currentPhase != ImpulsePhase.MOVEMENT)
+            return ActionResult.fail("Tactical Maneuvers can only be made during the Movement phase");
+        if (ship.getSpeed() != 0)
+            return ActionResult.fail("Tactical Maneuvers require speed 0 (C5.41)");
+        int localImpulse = TurnTracker.getLocalImpulse();
+        if (localImpulse < 2)
+            return ActionResult.fail("Tactical Maneuvers cannot be made on Impulse 1 (C5.11)");
+
+        // Validate exactly 60° change
+        int diff = ((newFacing - ship.getFacing()) % 24 + 24) % 24;
+        if (diff != 4 && diff != 20)
+            return ActionResult.fail("Tactical Maneuver must be exactly 60° (one step left or right)");
+
+        // Consume the appropriate TAC type
+        String type;
+        if (preferSublight) {
+            if (!ship.isSublightTacAvailable())
+                return ActionResult.fail("No sublight Tactical Maneuver available (C5.12)");
+            ship.consumeSublightTac();
+            type = "Sublight";
+        } else {
+            if (ship.getTacAvailable() > 0) {
+                ship.consumeWarpTac();
+                type = "Warp";
+            } else if (ship.isSublightTacAvailable()) {
+                ship.consumeSublightTac();
+                type = "Sublight";
+            } else {
+                return ActionResult.fail("No Tactical Maneuver available — earn one on a Speed-4 impulse (C5.231)");
+            }
+        }
+
+        ship.performHet(newFacing);
+        return ActionResult.ok(ship.getName() + " " + type + " Tactical Maneuver → facing " + newFacing);
     }
 
     // --- Fighter HET (C6.42) ---
@@ -2179,17 +2386,31 @@ public class Game {
 
     /**
      * Resolve all queued internal damage (6D4 — Direct-Fire Weapons Damage
-     * Resolution Stage).
-     * Called automatically when advancePhase() moves out of DIRECT_FIRE.
+     * Resolution Stage). Stops early and transitions to DAC_CHOICE if the
+     * defender must pick which system is hit. Remaining items stay in
+     * {@code pendingInternalDamage} so resolution resumes after the choice.
      */
     private void resolveInternalDamage() {
-        lastInternalDamageLog = new ArrayList<>();
-        for (PendingDamage pd : pendingInternalDamage) {
-            List<String> entries = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
+        if (lastInternalDamageLog == null) lastInternalDamageLog = new ArrayList<>();
+        while (!pendingInternalDamage.isEmpty()) {
+            PendingDamage pd = pendingInternalDamage.remove(0);
+            Ship.DamageResult result = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
             lastInternalDamageLog.add("=== Internal damage — " + pd.target.getName() + " ===");
-            lastInternalDamageLog.addAll(entries);
+            lastInternalDamageLog.addAll(result.log);
+            if (result.choiceRequired) {
+                pendingDacChoices.add(new PendingDacChoice(
+                        pd.target, pd.attacker, result.choiceType,
+                        result.choiceRoll, result.options, result.remainingBleed));
+                currentPhase = ImpulsePhase.DAC_CHOICE;
+                cleanupDestroyedShips();
+                return;
+            }
         }
-        pendingInternalDamage.clear();
+        cleanupDestroyedShips();
+        checkControlOverflow();
+    }
+
+    private void cleanupDestroyedShips() {
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
                 lastInternalDamageLog.add(s.getName() + " has been destroyed and removed from play.");
@@ -2198,6 +2419,45 @@ public class Game {
             }
             return false;
         });
+    }
+
+    /**
+     * Defender submits their DAC system choice. Applies the hit, then resumes
+     * internal-damage resolution. Automatically advances out of DAC_CHOICE when
+     * all choices and remaining bleed have been resolved.
+     */
+    public ActionResult submitDacChoice(String chosenSystem) {
+        if (currentPhase != ImpulsePhase.DAC_CHOICE || pendingDacChoices.isEmpty())
+            return ActionResult.fail("No DAC choice is pending");
+        PendingDacChoice pending = pendingDacChoices.get(0);
+        if (!pending.options.contains(chosenSystem))
+            return ActionResult.fail("Invalid choice: " + chosenSystem + ". Valid: " + pending.options);
+
+        String hitLabel = pending.targetShip.applyDacChoiceHit(
+                pending.dacType, chosenSystem, pending.attackerShip);
+        String choiceLog = "  internal [" + pending.roll + "]: " + pending.dacType
+                + " — player chose " + chosenSystem
+                + (hitLabel != null ? " → " + hitLabel : " (no effect)");
+
+        pendingDacChoices.remove(0);
+
+        // Prepend remaining bleed for this ship so resolveInternalDamage picks it up
+        if (pending.remainingBleed > 0)
+            pendingInternalDamage.add(0, new PendingDamage(
+                    pending.targetShip, pending.remainingBleed, pending.attackerShip));
+
+        lastInternalDamageLog = new ArrayList<>();
+        lastInternalDamageLog.add(choiceLog);
+        resolveInternalDamage();
+
+        if (currentPhase != ImpulsePhase.DAC_CHOICE)
+            currentPhase = dacChoiceReturnPhase;
+
+        return ActionResult.ok(choiceLog);
+    }
+
+    public List<PendingDacChoice> getPendingDacChoices() {
+        return Collections.unmodifiableList(pendingDacChoices);
     }
 
     /**
@@ -2337,14 +2597,8 @@ public class Game {
         String controlXferLog = null;
         if (!drone.isSelfGuiding()) {
             if (!launcher.acquireControl(drone)) {
-                // Launcher is at its control limit — try to find a teammate controller
-                drone.setTarget(target); // needed for lock-on check in autoTransfer
-                controlXferLog = autoTransferSeekerControl(drone, launcher);
-                if (controlXferLog == null) {
-                    drone.setTarget(null);
-                    return ActionResult.fail("No control channels available (limit: "
-                            + launcher.getControlLimit() + ") and no teammate could take control");
-                }
+                // Over limit — force-add and queue overflow interrupt for player to resolve
+                launcher.forceAcquireControl(drone);
             }
         }
 
@@ -2379,6 +2633,7 @@ public class Game {
             msg += "\n" + controlXferLog;
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
+        checkControlOverflow();
         return ActionResult.ok(msg);
     }
 
@@ -2527,8 +2782,7 @@ public class Game {
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch suicide shuttle");
-        if (!launcher.acquireControl(shuttle))
-            return ActionResult.fail("No control channels available (limit: " + launcher.getControlLimit() + ")");
+        launcher.forceAcquireControl(shuttle);
 
         // J3.41: launching a seeking weapon voids the launcher's own WW
         if (launcher.hasActiveWildWeasel())
@@ -2554,6 +2808,7 @@ public class Game {
                 + " (warhead " + shuttle.getWarheadDamage() + ")";
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
+        checkControlOverflow();
         return ActionResult.ok(msg);
     }
 
@@ -2579,9 +2834,7 @@ public class Game {
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
 
-        if (!launcher.acquireControl(pack))
-            return ActionResult.fail("No control channels available (limit: "
-                    + launcher.getControlLimit() + ") — cannot control scatter pack");
+        launcher.forceAcquireControl(pack);
 
         bay.launch(pack, pack.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
         pack.setName(launcher.getName() + "-Pack-" + (++seekerSeq));
@@ -2596,6 +2849,7 @@ public class Game {
                 + pack.getPayload().size() + " drones) at " + target.getName();
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
+        checkControlOverflow();
         return ActionResult.ok(msg);
     }
 
@@ -2862,16 +3116,8 @@ public class Game {
                                 && ((DroneController) controller).hasLockOn(target)) {
                             drone.setTarget(target);
                             drone.setController(controller);
-                            if (!((DroneController) controller).acquireControl(drone)) {
-                                String xfer = autoTransferSeekerControl(drone, controller instanceof Ship ? (Ship) controller : null);
-                                if (xfer != null) {
-                                    log.add(xfer);
-                                } else {
-                                    log.add("  Scatter pack drone — no control channel, goes inert");
-                                    drone.setTarget(null);
-                                    drone.setController(null);
-                                }
-                            }
+                            // Force-add — overflow interrupt will fire if over limit
+                            ((Ship) controller).forceAcquireControl(drone);
                         } else if (drone.isSelfGuiding()) {
                             drone.setTarget(target);
                         }
@@ -2879,6 +3125,7 @@ public class Game {
                     }
                     log.add("  Scatter pack released " + released.size() + " drones at "
                             + (target != null ? target.getName() : "?"));
+                    checkControlOverflow();
                     // Shuttle stays on map — move to activeShuttles for drift
                     activeShuttles.add(pack);
                     expired.add(pack);
@@ -3984,19 +4231,9 @@ public class Game {
             }
             case IMPULSE:
                 return target.getPowerSystems().damageImpulse();
-            case SENSORS: {
-                List<Seeker> released = target.getSpecialFunctions().damageSensor();
-                if (released == null)
-                    return false;
-                for (Seeker s : released) {
-                    String xfer = autoTransferSeekerControl(s, target);
-                    if (xfer != null)
-                        lastSeekerLog.add(xfer);
-                    else
-                        s.setSelfGuiding(true);
-                }
-                return true;
-            }
+            case SENSORS:
+                // Overflow (controlUsed > new limit) is resolved via CONTROL_OVERFLOW interrupt
+                return target.getSpecialFunctions().damageSensor();
             case SCANNERS:
                 return target.getSpecialFunctions().damageScanner();
             case TRANSPORTERS:
@@ -4461,6 +4698,40 @@ public class Game {
             this.fusionSuicideFired       = fusionSuicideFired;
             this.attackerLog              = attackerLog;
             this.envelopingTorp           = envelopingTorp;
+        }
+    }
+
+    /**
+     * A DAC hit that requires the defending player to choose which system is
+     * destroyed. Queued by resolveInternalDamage(); cleared when the player
+     * submits via submitDacChoice().
+     */
+    public static class PendingDacChoice {
+        public final String targetShipName;
+        public final String dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
+        public final int    roll;
+        public final java.util.List<String> options; // selectable weapon names / warp ids
+        final Ship targetShip;
+        final Ship attackerShip;
+        final int  remainingBleed;
+
+        PendingDacChoice(Ship target, Ship attacker, String dacType, int roll,
+                java.util.List<String> options, int remainingBleed) {
+            this.targetShipName = target.getName();
+            this.targetShip     = target;
+            this.attackerShip   = attacker;
+            this.dacType        = dacType;
+            this.roll           = roll;
+            this.options        = options;
+            this.remainingBleed = remainingBleed;
+        }
+    }
+
+    public static class PendingControlOverflow {
+        public final Ship ship;
+
+        PendingControlOverflow(Ship ship) {
+            this.ship = ship;
         }
     }
 

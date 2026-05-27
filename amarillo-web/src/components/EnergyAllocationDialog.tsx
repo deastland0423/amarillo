@@ -57,6 +57,8 @@ interface ShipAlloc {
   batteryDraw:          number;
   batteryRecharge:      number;
   hetEnergy:            number;   // warp energy reserved for HETs (C6.2)
+  warpTacs:             number;   // 0–4 warp Tactical Maneuvers pre-paid (C5.22)
+  sublightTac:          boolean;  // pay 1 impulse point for sublight TAC (C5.12)
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
@@ -100,6 +102,8 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     batteryDraw:     0,
     batteryRecharge: 0,
     hetEnergy:         0,
+    warpTacs:          0,
+    sublightTac:       false,
     ecm:               0,
     eccm:              0,
     shuttleSpeeds,
@@ -147,12 +151,14 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const cloak     = alloc.cloakPaid ? (ship.cloakCost ?? 0) : 0;
   const recharge  = alloc.batteryRecharge;
   const het       = alloc.hetEnergy;
+  const tac       = alloc.warpTacs * (ship.moveCost ?? 1);
+  const sublTac   = alloc.sublightTac ? 1 : 0;
 
   const ew        = alloc.ecm + alloc.eccm;
   const ssArming  = Object.values(alloc.suicideArming ?? {}).reduce((a, b) => a + b, 0);
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + ew + ssArming + ssHold + wwCost;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost;
   const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
   return { spent, total };
 }
@@ -340,6 +346,8 @@ export default function EnergyAllocationDialog({
           batteryDraw:           a.batteryDraw,
           batteryRecharge:       a.batteryRecharge,
           hetEnergy:             a.hetEnergy,
+          warpTacticalTurns:     a.warpTacs,
+          sublightTacticalTurn:  a.sublightTac,
           ecm:                   a.ecm,
           eccm:                  a.eccm,
           generalReinforcement:  a.generalReinf,
@@ -521,6 +529,33 @@ export default function EnergyAllocationDialog({
               </div>
             );
           })()}
+          {/* Warp Tactical Maneuvers — only when speed 0 and warp power available (C5.22) */}
+          {alloc.speed === 0 && !alloc.impulse && warpEnginePower > 0 && (() => {
+            const moveCost  = ship.moveCost ?? 1;
+            const tacBudget = total - (spent - alloc.warpTacs * moveCost);
+            const maxTacs   = Math.min(4, Math.floor(tacBudget / moveCost));
+            return (
+              <div className="ea-het-row">
+                <Stepper
+                  value={alloc.warpTacs}
+                  min={0}
+                  max={Math.max(alloc.warpTacs, maxTacs)}
+                  onChange={v => setAlloc(a => ({ ...a, warpTacs: v }))}
+                  label={`Warp TAC${alloc.warpTacs > 0 ? ` (${(alloc.warpTacs * moveCost).toFixed(1)} energy)` : ` (${moveCost.toFixed(1)}/turn, C5.22)`}`}
+                />
+              </div>
+            );
+          })()}
+          {/* Sublight Tactical Maneuver — speed 0 + impulse power available (C5.12) */}
+          {alloc.speed === 0 && !alloc.impulse && (ship.availableImpulse ?? 0) > 0 && (
+            <label className="ea-radio-label" style={{ gap: 8, marginTop: 4 }}>
+              <input type="checkbox"
+                checked={alloc.sublightTac}
+                onChange={e => setAlloc(a => ({ ...a, sublightTac: e.target.checked }))}
+              />
+              Sublight TAC (1 impulse energy, C5.12)
+            </label>
+          )}
         </div>
 
         {/* ---- Electronic Warfare ---- */}

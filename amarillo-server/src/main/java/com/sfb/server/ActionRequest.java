@@ -193,6 +193,15 @@ public class ActionRequest {
     public int  getHetEnergy()           { return hetEnergy; }
     public void setHetEnergy(int e)      { this.hetEnergy = e; }
 
+    // ALLOCATE — Tactical Maneuver fields (C5.0)
+    private int     warpTacticalTurns;       // 0–4 warp TACs to pre-pay (C5.22)
+    private boolean sublightTacticalTurn;    // true = pay 1 impulse point for sublight TAC (C5.12)
+
+    public int     getWarpTacticalTurns()                    { return warpTacticalTurns; }
+    public void    setWarpTacticalTurns(int n)               { this.warpTacticalTurns = n; }
+    public boolean isSublightTacticalTurn()                  { return sublightTacticalTurn; }
+    public void    setSublightTacticalTurn(boolean b)        { this.sublightTacticalTurn = b; }
+
     // SUBMIT_REINFORCEMENT fields
     public static class ReinforcementEntry {
         private String shipName;

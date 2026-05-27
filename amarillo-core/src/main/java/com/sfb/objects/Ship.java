@@ -123,6 +123,12 @@ public class Ship extends Unit implements DroneController {
 	private int immobileUntilImpulse = 0; // 0 = not immobile; set to currentImpulse+16 on breakdown
 	private int breakdownLockoutUntilImpulse = -1; // C6.547: weapon/shuttle/transporter lockout for 8 impulses
 
+	// Tactical Maneuvers (C5.0)
+	private int tacBudget = 0;          // warp TACs remaining to be earned this turn (from EA)
+	private int tacAvailable = 0;       // warp TAC earned and unused (0 or 1 — C5.232)
+	private boolean sublightTacAllocated = false; // impulse TAC paid this turn
+	private boolean sublightTacUsed = false;      // sublight TAC already executed this turn
+
 	// Emergency deceleration (C8.0)
 	private int decelerationEndsAtImpulse = -1; // absolute impulse when ship stops; -1 = not decelerating
 
@@ -305,6 +311,12 @@ public class Ship extends Unit implements DroneController {
 		// Reserve warp for HETs (C6.2)
 		getPowerSystems().setReserveWarp((int) energyAllocated.getHighEnergyTurns());
 
+		// Tactical Maneuvers (C5.0) — initialize budget from allocation; available starts at 0
+		this.tacBudget = (int) energyAllocated.getWarpTacticalTurns();
+		this.tacAvailable = 0;
+		this.sublightTacAllocated = energyAllocated.getImpulseTacticalTurn() > 0;
+		this.sublightTacUsed = false;
+
 		// Phaser Capacitor
 		if (energyAllocated.isEnergizeCaps() && !capacitorsCharged) {
 			capacitorsCharged = true; // takes effect this turn; player can fill cap next EA
@@ -439,6 +451,47 @@ public class Ship extends Unit implements DroneController {
 	/** C6.38: true during the HET impulse and for 4 impulses thereafter. */
 	public boolean isInPostHetWindow(int currentImpulse) {
 		return lastHetImpulse >= 0 && (currentImpulse - lastHetImpulse) <= 4;
+	}
+
+	// ---- Tactical Maneuvers (C5.0) ----
+
+	public int getTacBudget()    { return tacBudget; }
+	public int getTacAvailable() { return tacAvailable; }
+
+	public boolean isSublightTacAvailable() {
+		return sublightTacAllocated && !sublightTacUsed;
+	}
+
+	/**
+	 * Called on earn impulses (2, 8, 16, 24) during movement — C5.231/C5.232.
+	 * Grants an earned TAC if the budget allows; loses the new one if one is
+	 * already unspent.
+	 *
+	 * @return Log message, or null if no budget remaining.
+	 */
+	public String updateTacEarning() {
+		if (tacBudget <= 0) return null;
+		tacBudget--;
+		if (tacAvailable == 0) {
+			tacAvailable = 1;
+			return getName() + " earns a Tactical Maneuver (C5.231)";
+		} else {
+			return getName() + " loses an unspent Tactical Maneuver (C5.232)";
+		}
+	}
+
+	/** Consume one earned warp TAC. Returns true if successful. */
+	public boolean consumeWarpTac() {
+		if (tacAvailable <= 0) return false;
+		tacAvailable = 0;
+		return true;
+	}
+
+	/** Consume the sublight TAC. Returns true if successful. */
+	public boolean consumeSublightTac() {
+		if (!isSublightTacAvailable()) return false;
+		sublightTacUsed = true;
+		return true;
 	}
 
 	// ---- Emergency Deceleration (C8.0) ----
@@ -994,6 +1047,14 @@ public class Ship extends Unit implements DroneController {
 		return this.specialFunctions.acquireControl(seeker);
 	}
 
+	public void forceAcquireControl(Seeker seeker) {
+		this.specialFunctions.forceAcquireControl(seeker);
+	}
+
+	public java.util.List<Seeker> getControlledSeekers() {
+		return this.specialFunctions.getControlledSeekers();
+	}
+
 	public void releaseControl(Seeker seeker) {
 		this.specialFunctions.releaseControl(seeker);
 	}
@@ -1265,11 +1326,134 @@ public class Ship extends Unit implements DroneController {
 		return all.stream().filter(w -> w.inArc(relBearing)).collect(Collectors.toList());
 	}
 
-	public List<String> applyInternalDamage(int bleedThrough) {
-		return applyInternalDamage(bleedThrough, null);
+	/**
+	 * Result of an interruptible internal-damage pass.
+	 * When {@code choiceRequired} is true the caller must let the defender pick a
+	 * system, apply it via {@link #applyDacChoiceHit}, then resume with
+	 * {@code remainingBleed} more points.
+	 */
+	public static class DamageResult {
+		public final java.util.List<String> log;
+		public final boolean choiceRequired;
+		public final String  choiceType;      // "phaser" | "drone" | "torp" | "weapon" | "warp"
+		public final int     choiceRoll;
+		public final java.util.List<String> options; // weapon names or warp engine ids
+		public final int     remainingBleed;
+
+		DamageResult(java.util.List<String> log) {
+			this.log = log; this.choiceRequired = false;
+			this.choiceType = null; this.choiceRoll = 0;
+			this.options = null; this.remainingBleed = 0;
+		}
+
+		DamageResult(java.util.List<String> log, String choiceType, int choiceRoll,
+				java.util.List<String> options, int remainingBleed) {
+			this.log = log; this.choiceRequired = true;
+			this.choiceType = choiceType; this.choiceRoll = choiceRoll;
+			this.options = options; this.remainingBleed = remainingBleed;
+		}
 	}
 
-	public List<String> applyInternalDamage(int bleedThrough, Ship attacker) {
+	private static boolean requiresPlayerChoice(String system) {
+		switch (system) {
+			case "phaser": case "drone": case "torp": case "weapon": case "warp": return true;
+			default: return false;
+		}
+	}
+
+	private java.util.List<String> getDacChoiceOptions(String system, Ship attacker) {
+		switch (system) {
+			case "phaser":
+				return bearingFunctionalPhasers(attacker).stream()
+						.map(com.sfb.weapons.Weapon::getName)
+						.collect(java.util.stream.Collectors.toList());
+			case "drone":
+				return weapons.getDroneList().stream()
+						.filter(com.sfb.weapons.Weapon::isFunctional)
+						.map(com.sfb.weapons.Weapon::getName)
+						.collect(java.util.stream.Collectors.toList());
+			case "torp":
+				return weapons.fetchAllWeapons().stream()
+						.filter(w -> "torp".equals(w.getDacHitLocaiton()) && w.isFunctional())
+						.map(com.sfb.weapons.Weapon::getName)
+						.collect(java.util.stream.Collectors.toList());
+			case "weapon":
+				return weapons.fetchAllWeapons().stream()
+						.filter(com.sfb.weapons.Weapon::isFunctional)
+						.map(com.sfb.weapons.Weapon::getName)
+						.collect(java.util.stream.Collectors.toList());
+			case "warp": {
+				java.util.List<String> opts = new ArrayList<>();
+				if (powerSystems.getAvailableLWarp() > 0) opts.add("lwarp");
+				if (powerSystems.getAvailableCWarp() > 0) opts.add("cwarp");
+				if (powerSystems.getAvailableRWarp() > 0) opts.add("rwarp");
+				return opts;
+			}
+			default: return java.util.Collections.emptyList();
+		}
+	}
+
+	/**
+	 * Applies one player-chosen DAC hit. Called by Game after the defender has
+	 * submitted their selection during a DAC_CHOICE interrupt.
+	 *
+	 * @return log label on success, null if the chosen system is invalid/already destroyed.
+	 */
+	public String applyDacChoiceHit(String dacType, String chosen, Ship attacker) {
+		switch (dacType) {
+			case "phaser":
+			case "drone":
+			case "torp":
+			case "weapon": {
+				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
+						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
+						.findFirst().orElse(null);
+				if (w == null) return null;
+				w.damage();
+				if ("phaser".equals(dacType)) weapons.recalculatePhaserCapacitor();
+				return dacType + " HIT (" + chosen + ") [chosen]";
+			}
+			case "warp": {
+				boolean ok;
+				switch (chosen) {
+					case "lwarp": ok = powerSystems.damageLWarp(); break;
+					case "cwarp": ok = powerSystems.damageCWarp(); break;
+					case "rwarp": ok = powerSystems.damageRWarp(); break;
+					default: ok = false;
+				}
+				return ok ? chosen + " HIT [chosen]" : null;
+			}
+			default: return null;
+		}
+	}
+
+	/**
+	 * Auto-resolving wrapper (used by tests and non-interactive contexts).
+	 * When a DAC result requires player choice, picks the first available option.
+	 */
+	public List<String> applyInternalDamage(int bleedThrough) {
+		List<String> allLog = new ArrayList<>();
+		int remaining = bleedThrough;
+		while (remaining > 0) {
+			DamageResult r = applyInternalDamage(remaining, null);
+			allLog.addAll(r.log);
+			if (!r.choiceRequired) break;
+			// Auto-resolve: first option (no extra log entry — "awaiting player choice" already logged)
+			applyDacChoiceHit(r.choiceType, r.options.get(0), null);
+			remaining = r.remainingBleed;
+			if (remaining == 0) dac.reset();
+		}
+		return allLog;
+	}
+
+	/**
+	 * Interruptible internal-damage resolution. When a DAC result requires player
+	 * choice the method stops early and returns a {@link DamageResult} with
+	 * {@code choiceRequired == true}. The caller must apply the chosen hit via
+	 * {@link #applyDacChoiceHit} and then call this method again with
+	 * {@code remainingBleed} (the DAC state is preserved between calls).
+	 */
+	public DamageResult applyInternalDamage(int bleedThrough, Ship attacker) {
 		List<String> log = new ArrayList<>();
 		int absorbed = Math.min(armor, bleedThrough);
 		armor -= absorbed;
@@ -1322,26 +1506,37 @@ public class Ship extends Unit implements DroneController {
 					log.add("  internal [" + roll + "]: excess damage — SHIP DESTROYED");
 					break;
 				}
-				log.add(
-						"  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
+				log.add("  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
 				continue;
 			}
 
-			// Try to apply damage; if that system has no boxes, advance the DAC (C3.14).
+			// Advance DAC loop: apply hit or interrupt for player choice (C3.14).
 			java.util.Set<String> tried = new java.util.HashSet<>();
 			StringBuilder chain = new StringBuilder();
 			String hitLabel = null;
-			while (hitLabel == null) {
-				hitLabel = tryApplySystemHit(system, attacker);
-				if (hitLabel == null) {
+			while (true) {
+				if (requiresPlayerChoice(system)) {
+					java.util.List<String> options = getDacChoiceOptions(system, attacker);
+					if (!options.isEmpty()) {
+						// Pause — defender must choose which system is destroyed
+						int remaining = bleedThrough - i - 1;
+						log.add("  internal [" + roll + "]: " + chain + system + " — awaiting player choice");
+						return new DamageResult(log, system, roll, options, remaining);
+					}
+					// No valid targets (all destroyed) — advance DAC as normal
+					tried.add(system);
+					chain.append(system).append(" (no targets) → ");
+				} else {
+					hitLabel = tryApplySystemHit(system, attacker);
+					if (hitLabel != null) break;
 					tried.add(system);
 					chain.append(system).append(" (no boxes) → ");
-					String next = dac.fetchNextHitExcludingAll(roll, tried);
-					if (next == null)
-						break; // all entries exhausted — damage wasted
-					system = next;
 				}
+				String next = dac.fetchNextHitExcludingAll(roll, tried);
+				if (next == null) break; // all entries exhausted
+				system = next;
 			}
+
 			if (hitLabel != null) {
 				log.add("  internal [" + roll + "]: " + chain + hitLabel);
 			} else {
@@ -1353,7 +1548,7 @@ public class Ship extends Unit implements DroneController {
 		}
 
 		dac.reset();
-		return log;
+		return new DamageResult(log);
 	}
 
 	/**
@@ -1386,7 +1581,7 @@ public class Ship extends Unit implements DroneController {
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;
 			case "sensor":
-				return specialFunctions.damageSensor() != null ? "sensor HIT" : null;
+				return specialFunctions.damageSensor() ? "sensor HIT" : null;
 			case "damcon":
 				return specialFunctions.damageDamCon() ? "damcon HIT" : null;
 			case "cargo":

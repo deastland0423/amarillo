@@ -468,6 +468,14 @@ public class GameSession {
                 return game.performHet(ship, request.getFacing());
             }
 
+            case "PERFORM_TACTICAL_TURN": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                boolean sublight = "SUBLIGHT".equalsIgnoreCase(request.getAction());
+                return game.performTacticalTurn(ship, request.getFacing(), sublight);
+            }
+
             case "CONFIRM_ACCEL_DISENGAGE": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
@@ -633,6 +641,28 @@ public class GameSession {
                             + ", have " + warpEngineCapacity);
                 }
                 e.setHighEnergyTurns(hetEnergy);
+
+                // Warp Tactical Maneuvers (C5.22) — each costs one hex worth of warp energy
+                int warpTacs = Math.max(0, Math.min(4, request.getWarpTacticalTurns()));
+                if (warpTacs > 0) {
+                    if (warpSpeed > 0)
+                        return ActionResult.fail("Cannot allocate warp Tactical Maneuvers when moving (speed must be 0)");
+                    double tacEnergy = warpTacs * moveCost;
+                    if (movementEnergyNeeded + hetEnergy + tacEnergy > warpEngineCapacity + 0.001)
+                        return ActionResult.fail("Insufficient warp power for " + warpTacs
+                                + " Tactical Maneuver(s) — need " + tacEnergy + ", have "
+                                + (warpEngineCapacity - movementEnergyNeeded - hetEnergy));
+                    e.setWarpTacticalTurns(warpTacs);
+                }
+
+                // Sublight Tactical Maneuver (C5.12) — costs 1 impulse engine point
+                if (request.isSublightTacticalTurn()) {
+                    if (warpSpeed > 0 || (requestedSpeed > 30))
+                        return ActionResult.fail("Cannot allocate sublight Tactical Maneuver when moving");
+                    if (ship.getPowerSystems().getAvailableImpulse() < 1)
+                        return ActionResult.fail("No impulse engine power available for sublight Tactical Maneuver");
+                    e.setImpulseTacticalTurn(1);
+                }
 
                 // Shield reinforcement
                 e.setGeneralReinforcement(Math.max(0, request.getGeneralReinforcement()));
@@ -938,6 +968,37 @@ public class GameSession {
                     reinLog.append(r.getMessage()).append("\n");
                 }
                 return ActionResult.ok(reinLog.toString().trim());
+            }
+
+            case "SUBMIT_DAC_CHOICE": {
+                String chosen = request.getAction();
+                if (chosen == null || chosen.isBlank())
+                    return ActionResult.fail("No system chosen");
+                ActionResult r = game.submitDacChoice(chosen);
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "SUBMIT_CONTROL_OVERFLOW": {
+                String seekerName = request.getTargetName();
+                String toShipName = request.getShipName(); // null/blank = release
+                if (seekerName == null || seekerName.isBlank())
+                    return ActionResult.fail("No seeker specified");
+                ActionResult r = game.submitControlOverflowChoice(seekerName, toShipName);
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "TRANSFER_DRONE_CONTROL": {
+                String droneName = request.getTargetName();
+                String toShipName = request.getShipName();
+                if (droneName == null || droneName.isBlank())
+                    return ActionResult.fail("No drone specified");
+                if (toShipName == null || toShipName.isBlank())
+                    return ActionResult.fail("No target ship specified");
+                ActionResult r = game.transferSeekerControl(droneName, toShipName);
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
             }
 
             case "LAUNCH_WILD_WEASEL": {

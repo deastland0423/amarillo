@@ -7,6 +7,8 @@ import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
+import { DacChoiceDialog } from './DacChoiceDialog';
+import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
 import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
 
@@ -1307,6 +1309,7 @@ interface SidebarProps {
   fireError:          string | null;
   onMove:          (action: string) => void;
   onHet:           (facing: number) => Promise<void>;
+  onTacTurn:       (facing: number, sublight: boolean) => Promise<void>;
   onCloak:         () => void;
   onUncloak:       () => void;
   onClose:         () => void;
@@ -1396,7 +1399,7 @@ function ShipSidebar({
   ship, isMine, canMove, phase,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
   onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
-  onMove, onHet, onCloak, onUncloak, onClose,
+  onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine,
@@ -1416,6 +1419,7 @@ function ShipSidebar({
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
+  const [tacMode,   setTacMode]   = useState(false);
 
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
@@ -1444,6 +1448,8 @@ function ShipSidebar({
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
                         && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
+  const canTac          = phase === 'Movement' && isMine && ship.speed === 0
+                        && ((ship.tacAvailable ?? 0) > 0 || ship.sublightTacAvailable === true);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
   const maxBoardingTotal = Math.min(
     ship.boardingParties + ship.commandos,
@@ -1518,6 +1524,64 @@ function ShipSidebar({
                       </button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Tactical Maneuver strip — shown when a TAC is available (C5.0) */}
+              {isMine && (canTac || (ship.speed === 0 && ((ship.tacBudget ?? 0) > 0 || ship.sublightTacAvailable))) && (
+                <div className="het-strip">
+                  <button
+                    className={`action-strip-btn${tacMode ? ' active' : ''}`}
+                    disabled={!canTac}
+                    onClick={() => setTacMode(m => !m)}
+                    title={
+                      (ship.tacAvailable ?? 0) > 0
+                        ? `Warp Tactical Maneuver — turn 60° (${ship.tacBudget ?? 0} budget remaining)`
+                        : ship.sublightTacAvailable
+                        ? 'Sublight Tactical Maneuver — turn 60°'
+                        : 'No Tactical Maneuver earned yet this impulse'
+                    }
+                  >
+                    TAC {(ship.tacAvailable ?? 0) > 0 ? '(W)' : ship.sublightTacAvailable ? '(S)' : ''}
+                  </button>
+                  {tacMode && canTac && (() => {
+                    const FACINGS = [1, 5, 9, 13, 17, 21];
+                    const curIdx  = FACINGS.indexOf(ship.facing);
+                    const leftFacing  = FACINGS[(curIdx + 5) % 6]; // -60°
+                    const rightFacing = FACINGS[(curIdx + 1) % 6]; // +60°
+                    const sublight    = (ship.tacAvailable ?? 0) === 0 && !!ship.sublightTacAvailable;
+                    const facingNames = ['A','B','C','D','E','F'];
+                    return (
+                      <div className="het-picker-panel">
+                        <div style={{ fontSize: '0.7rem', color: '#8b949e', marginBottom: 6 }}>
+                          Turn 60° — current facing {facingNames[curIdx] ?? ship.facing}
+                          {sublight ? ' (Sublight)' : ' (Warp)'}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="secondary"
+                            style={{ flex: 1, fontSize: '0.75rem' }}
+                            onClick={async () => {
+                              await onTacTurn(leftFacing, sublight);
+                              setTacMode(false);
+                            }}
+                          >
+                            ← {facingNames[(curIdx + 5) % 6]}
+                          </button>
+                          <button
+                            className="secondary"
+                            style={{ flex: 1, fontSize: '0.75rem' }}
+                            onClick={async () => {
+                              await onTacTurn(rightFacing, sublight);
+                              setTacMode(false);
+                            }}
+                          >
+                            {facingNames[(curIdx + 1) % 6]} →
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </>
@@ -1709,6 +1773,9 @@ function ShipSidebar({
 
         </div>
       )}
+
+      {/* ---- Scrollable body: action details + ship stats ---- */}
+      <div className="sidebar-body">
 
       {/* ---- Active action detail ---- */}
 
@@ -2151,6 +2218,7 @@ function ShipSidebar({
         </div>
       )}
 
+      </div>{/* end sidebar-body */}
     </div>
   );
 }
@@ -2335,6 +2403,18 @@ export default function GameBoard({ session, onLeave }: Props) {
     ? (gameState?.mapObjects.find(o => o.name === selectedShuttle.name && o.type === 'SHUTTLE') as ShuttleObject | undefined) ?? selectedShuttle
     : null;
   const canMoveShuttle = liveShuttle !== null && movableNow.includes(liveShuttle?.name ?? '');
+
+  const selectedDrone = selected?.type === 'DRONE' ? (selected as DroneObject) : null;
+  const liveDrone = selectedDrone
+    ? (gameState?.mapObjects.find(o => o.name === selectedDrone.name && o.type === 'DRONE') as DroneObject | undefined) ?? selectedDrone
+    : null;
+
+  // Seeker-type shuttles (suicide shuttle, scatter pack) — also use control channels
+  const selectedSeekerShuttle = (selected?.type === 'SUICIDE_SHUTTLE' || selected?.type === 'SCATTER_PACK')
+    ? (selected as ShuttleObject) : null;
+  const liveSeekerShuttle = selectedSeekerShuttle
+    ? (gameState?.mapObjects.find(o => o.name === selectedSeekerShuttle.name) as ShuttleObject | undefined) ?? selectedSeekerShuttle
+    : null;
 
   // Fetch fire options whenever attacker + target are both set in Direct Fire phase
   async function fetchFireOptions(attackerName: string, targetName: string) {
@@ -2542,6 +2622,19 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  async function handleTransferDrone(droneName: string, toShipName: string) {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'TRANSFER_DRONE_CONTROL', shipName: toShipName, targetName: droneName,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Drone transfer failed');
+    }
+  }
+
   async function handleFighterHet(facing: number) {
     if (!liveShuttle) return;
     setActionError(null);
@@ -2567,6 +2660,23 @@ export default function GameBoard({ session, onLeave }: Props) {
       else if (res.message) addLog(res.message, 'combat');
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'HET failed');
+    }
+  }
+
+  async function handleTacTurn(facing: number, sublight: boolean) {
+    if (!selectedShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'PERFORM_TACTICAL_TURN',
+        shipName: selectedShip.name,
+        facing,
+        action: sublight ? 'SUBLIGHT' : 'WARP',
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Tactical Maneuver failed');
     }
   }
 
@@ -3296,6 +3406,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             fireError={fireError}
             onMove={handleMove}
             onHet={handleHet}
+            onTacTurn={handleTacTurn}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
             onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
@@ -3378,9 +3489,77 @@ export default function GameBoard({ session, onLeave }: Props) {
             phase={phase}
             onMove={handleShuttleMove}
             onHet={handleFighterHet}
+            onTacTurn={handleTacTurn}
             onClose={() => setSelected(null)}
           />
         )}
+
+        {(liveDrone || liveSeekerShuttle) && !liveShip && !liveShuttle && (() => {
+          const seekerName    = liveDrone?.name ?? liveSeekerShuttle!.name;
+          const controllerName = liveDrone?.controllerName ?? liveSeekerShuttle!.controllerName ?? null;
+          const targetName    = liveDrone?.targetName ?? liveSeekerShuttle!.targetName ?? null;
+          const seekerLabel   = liveDrone
+            ? `Drone${liveDrone.isIdentified ? ` (Type ${liveDrone.droneType})` : ''}`
+            : liveSeekerShuttle!.type === 'SUICIDE_SHUTTLE' ? 'Suicide Shuttle' : 'Scatter Pack';
+          const isMine = myShips.has(controllerName ?? '');
+          const transferShips = isMine && targetName
+            ? (gameState?.mapObjects ?? [])
+                .filter((o): o is ShipObject =>
+                  o.type === 'SHIP' &&
+                  myShips.has(o.name) &&
+                  o.name !== controllerName &&
+                  !!(o as ShipObject).lockOnTargets?.includes(targetName)
+                )
+            : [];
+          return (
+            <div className="board-sidebar">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: '1rem' }}>{seekerLabel}</span>
+                <button className="sidebar-close secondary" onClick={() => setSelected(null)}>✕</button>
+              </div>
+              <div style={{ fontSize: 13, color: '#8b949e', lineHeight: 1.6 }}>
+                <div>Controller: <strong style={{ color: '#e6edf3' }}>{controllerName ?? '—'}</strong></div>
+                {targetName && (
+                  <div>Target: <strong style={{ color: '#e6edf3' }}>{targetName}</strong></div>
+                )}
+                {liveDrone?.isIdentified && (
+                  <>
+                    <div>Warhead: <strong style={{ color: '#e6edf3' }}>{liveDrone.warheadDamage}</strong></div>
+                    <div>Endurance: <strong style={{ color: '#e6edf3' }}>{liveDrone.endurance}</strong></div>
+                    <div>Hull: <strong style={{ color: '#e6edf3' }}>{liveDrone.hull}/{liveDrone.maxHull}</strong></div>
+                  </>
+                )}
+                {liveSeekerShuttle?.warheadDamage != null && (
+                  <div>Warhead: <strong style={{ color: '#e6edf3' }}>{liveSeekerShuttle.warheadDamage}</strong></div>
+                )}
+              </div>
+              {isMine && targetName && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>Transfer Control To:</div>
+                  {transferShips.length === 0
+                    ? <div style={{ fontSize: 12, color: '#6e7681' }}>No allied ships have lock-on to target</div>
+                    : transferShips.map(s => (
+                        <button
+                          key={s.name}
+                          onClick={() => handleTransferDrone(seekerName, s.name)}
+                          style={{
+                            display: 'block', width: '100%', marginBottom: 4,
+                            background: '#21262d', border: '1px solid #30363d',
+                            color: '#e6edf3', borderRadius: 6, padding: '6px 12px',
+                            fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = '#58a6ff')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = '#30363d')}
+                        >
+                          {s.name}
+                        </button>
+                      ))
+                  }
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Fighter fire panel — shown when a fighter is the attacker */}
         {isFirePhase && fighterAttacker && (
@@ -3433,6 +3612,55 @@ export default function GameBoard({ session, onLeave }: Props) {
               setIsReady(true);
             } catch (e: unknown) {
               setActionError(e instanceof Error ? e.message : 'Reinforcement failed');
+            }
+          }}
+        />
+      )}
+
+      {/* DAC choice dialog — blocks input until defender picks a system */}
+      {(gameState?.pendingControlOverflows?.length ?? 0) > 0 && (
+        <ControlOverflowDialog
+          pendingOverflows={gameState!.pendingControlOverflows}
+          myShipNames={myShips}
+          onRelease={async (seekerName: string) => {
+            setActionError(null);
+            try {
+              await gameApi.submitAction(session.gameId, session.playerToken, {
+                type: 'SUBMIT_CONTROL_OVERFLOW',
+                targetName: seekerName,
+              });
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'Control overflow resolution failed');
+            }
+          }}
+          onTransfer={async (seekerName: string, toShipName: string) => {
+            setActionError(null);
+            try {
+              await gameApi.submitAction(session.gameId, session.playerToken, {
+                type: 'SUBMIT_CONTROL_OVERFLOW',
+                targetName: seekerName,
+                shipName: toShipName,
+              });
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'Control transfer failed');
+            }
+          }}
+        />
+      )}
+
+      {(gameState?.pendingDacChoices?.length ?? 0) > 0 && (
+        <DacChoiceDialog
+          pendingChoices={gameState!.pendingDacChoices}
+          myShipNames={myShips}
+          onSubmit={async (chosen: string) => {
+            setActionError(null);
+            try {
+              await gameApi.submitAction(session.gameId, session.playerToken, {
+                type: 'SUBMIT_DAC_CHOICE',
+                action: chosen,
+              });
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'DAC choice failed');
             }
           }}
         />

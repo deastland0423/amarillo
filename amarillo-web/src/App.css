@@ -244,10 +244,16 @@ button.secondary:hover:not(:disabled) {
   flex-shrink: 0;
   background: #161b22;
   border-left: 1px solid #30363d;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0;
+  overflow: hidden;
+}
+
+.sidebar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-header {

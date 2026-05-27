@@ -114,7 +114,7 @@ public class SpecialFunctions {
 		return controlUsed;
 	}
 
-	/** Claim a control channel for a drone. Returns false if at limit. */
+	/** Claim a control channel for a seeker. Returns false if at limit. */
 	public boolean acquireControl(Seeker seeker) {
 		if (controlUsed >= getControlLimit()) return false;
 		controlledSeekers.add(seeker);
@@ -122,11 +122,22 @@ public class SpecialFunctions {
 		return true;
 	}
 
-	/** Release a control channel when a drone is destroyed, impacts, or expires. */
+	/** Claim a control channel unconditionally (may push over limit — caller must queue overflow). */
+	public void forceAcquireControl(Seeker seeker) {
+		controlledSeekers.add(seeker);
+		controlUsed++;
+	}
+
+	/** Release a control channel when a seeker is destroyed, impacts, or expires. */
 	public void releaseControl(Seeker seeker) {
 		if (controlledSeekers.remove(seeker)) {
 			controlUsed = Math.max(0, controlUsed - 1);
 		}
+	}
+
+	/** All seekers currently occupying a control channel on this ship. */
+	public List<Seeker> getControlledSeekers() {
+		return java.util.Collections.unmodifiableList(controlledSeekers);
 	}
 	
 	
@@ -155,25 +166,16 @@ public class SpecialFunctions {
 	
 	/**
 	 * Advance the sensor damage track one step.
-	 * Returns the list of seekers that were released due to the reduced control limit
-	 * (empty list if no seekers were released, or if sensor was already fully damaged).
-	 * Callers are responsible for attempting auto-transfer before marking them self-guiding.
+	 * Returns true if damage occurred; false if already fully damaged.
+	 * If the new limit is below controlUsed, the ship is over its control limit —
+	 * callers must call Game.checkControlOverflow() to queue the interrupt.
 	 */
-	public List<Seeker> damageSensor() {
-		if (availableSensor == this.sensor.length - 1) {
-			return null; // already fully damaged — no effect
-		}
-
+	public boolean damageSensor() {
+		if (availableSensor == this.sensor.length - 1)
+			return false;
 		availableSensor++;
 		controlChannels = (int)(sensor[availableSensor] * controlModifier);
-
-		List<Seeker> released = new ArrayList<>();
-		while (controlUsed > controlChannels && !controlledSeekers.isEmpty()) {
-			Seeker s = controlledSeekers.remove(controlledSeekers.size() - 1);
-			controlUsed--;
-			released.add(s);
-		}
-		return released;
+		return true;
 	}
 	
 	public boolean damageDamCon() {

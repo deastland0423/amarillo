@@ -199,6 +199,10 @@ export interface ShipObject extends MapObjectBase {
   fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown
   fcActivatingUntil?:     number;  // absolute impulse when activation completes
   fcPaidThisTurn?:        boolean; // true if FC energy was allocated this turn
+  // Tactical Maneuvers (C5.0)
+  tacAvailable?:          number;  // earned warp TAC ready to use (0 or 1)
+  tacBudget?:             number;  // warp TACs still to be earned this turn
+  sublightTacAvailable?:  boolean; // sublight TAC paid and unused
 }
 
 export interface ShuttleObject extends MapObjectBase {
@@ -324,7 +328,9 @@ export interface GameState {
   readyCount:         number;
   playerCount:        number;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
-  pendingVolleys:     PendingVolley[];
+  pendingVolleys:         PendingVolley[];
+  pendingDacChoices:      PendingDacChoice[];
+  pendingControlOverflows: PendingControlOverflow[];
 }
 
 export interface PendingVolley {
@@ -334,6 +340,26 @@ export interface PendingVolley {
   totalDamage:              number;
   envelopingHellboreDamage: number;
   addHit:                   boolean;
+}
+
+export interface PendingDacChoice {
+  targetShipName: string;
+  dacType:        string;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
+  roll:           number;
+  options:        string[]; // weapon names or "lwarp"/"cwarp"/"rwarp"
+}
+
+export interface SeekerChoice {
+  name:            string;
+  label:           string;
+  targetName:      string | null;
+  transferOptions: string[];
+}
+
+export interface PendingControlOverflow {
+  shipName:       string;
+  overLimitCount: number;
+  seekers:        SeekerChoice[];
 }
 
 /** Parse location string → [col, row] (1-indexed), or null.

@@ -280,6 +280,10 @@ public class GameStateDto {
         public boolean fireControlActivating; // true during 4-impulse countdown to going active
         public int     fcActivatingUntil;     // absolute impulse when activation completes; -1 if not activating
         public boolean fcPaidThisTurn;        // true if FC energy was allocated this turn
+        // Tactical Maneuvers (C5.0)
+        public int     tacAvailable;          // earned warp TACs ready to use (0 or 1)
+        public int     tacBudget;             // warp TACs still to be earned this turn
+        public boolean sublightTacAvailable;  // true if sublight TAC paid and not yet used
     }
 
     // -------------------------------------------------------------------------
@@ -401,7 +405,9 @@ public class GameStateDto {
     public int playerCount; // total players in the session
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // non-null only when gameOver
-    public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
+    public List<PendingVolleyDto>    pendingVolleys    = new ArrayList<>(); // incoming fire queued for reinforcement
+    public List<PendingDacChoiceDto>        pendingDacChoices        = new ArrayList<>();
+    public List<PendingControlOverflowDto>  pendingControlOverflows  = new ArrayList<>();
 
     public static class PendingVolleyDto {
         public String attackerName;
@@ -410,6 +416,26 @@ public class GameStateDto {
         public int    totalDamage;
         public int    envelopingHellboreDamage;
         public boolean addHit;
+    }
+
+    public static class PendingDacChoiceDto {
+        public String       targetShipName;
+        public String       dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
+        public int          roll;
+        public List<String> options;  // weapon names or warp engine ids
+    }
+
+    public static class PendingControlOverflowDto {
+        public String shipName;
+        public int    overLimitCount; // how many seekers must be released or transferred
+        public List<SeekerChoiceDto> seekers = new ArrayList<>();
+
+        public static class SeekerChoiceDto {
+            public String       name;
+            public String       label;        // e.g. "Drone (Type I)", "Suicide Shuttle"
+            public String       targetName;
+            public List<String> transferOptions = new ArrayList<>(); // allied ships eligible to take control
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -535,6 +561,53 @@ public class GameStateDto {
             d.addHit                   = pv.addHit;
             pendingVolleys.add(d);
         }
+
+        for (Game.PendingDacChoice dc : game.getPendingDacChoices()) {
+            PendingDacChoiceDto d = new PendingDacChoiceDto();
+            d.targetShipName = dc.targetShipName;
+            d.dacType        = dc.dacType;
+            d.roll           = dc.roll;
+            d.options        = new ArrayList<>(dc.options);
+            pendingDacChoices.add(d);
+        }
+
+        for (Game.PendingControlOverflow ov : game.getPendingControlOverflows()) {
+            com.sfb.objects.Ship ovShip = ov.ship;
+            PendingControlOverflowDto dto = new PendingControlOverflowDto();
+            dto.shipName      = ovShip.getName();
+            dto.overLimitCount = ovShip.getControlUsed() - ovShip.getControlCapacity();
+            for (com.sfb.objects.Seeker s : ovShip.getControlledSeekers()) {
+                PendingControlOverflowDto.SeekerChoiceDto sc = new PendingControlOverflowDto.SeekerChoiceDto();
+                if (s instanceof com.sfb.objects.Unit)
+                    sc.name = ((com.sfb.objects.Unit) s).getName();
+                sc.label = seekerLabel(s);
+                com.sfb.objects.Unit target = s.getTarget();
+                sc.targetName = target != null ? target.getName() : null;
+                // Allied ships that can accept control (lock-on + spare capacity)
+                if (target != null) {
+                    for (com.sfb.objects.Ship ally : game.getShips()) {
+                        if (ally == ovShip) continue;
+                        if (!game.isSameTeam(ovShip, ally)) continue;
+                        if (!ally.hasLockOn(target)) continue;
+                        if (ally.getControlUsed() >= ally.getControlCapacity()) continue;
+                        sc.transferOptions.add(ally.getName());
+                    }
+                }
+                dto.seekers.add(sc);
+            }
+            pendingControlOverflows.add(dto);
+        }
+    }
+
+    private static String seekerLabel(com.sfb.objects.Seeker s) {
+        if (s instanceof com.sfb.objects.Drone) {
+            com.sfb.objects.Drone d = (com.sfb.objects.Drone) s;
+            String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+            return "Drone (Type " + type + ")";
+        }
+        if (s instanceof com.sfb.objects.shuttles.ScatterPack)  return "Scatter Pack";
+        if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) return "Suicide Shuttle";
+        return "Seeker";
     }
 
     // -------------------------------------------------------------------------
@@ -669,6 +742,9 @@ public class GameStateDto {
         dto.fireControlActivating = ship.isFcActivating();
         dto.fcActivatingUntil     = ship.getFcActivatingUntil();
         dto.fcPaidThisTurn        = ship.isFcPaidThisTurn();
+        dto.tacAvailable          = ship.getTacAvailable();
+        dto.tacBudget             = ship.getTacBudget();
+        dto.sublightTacAvailable  = ship.isSublightTacAvailable();
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
