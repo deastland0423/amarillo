@@ -46,7 +46,8 @@ public class Shuttles implements Systems {
                     for (String type : shuttleTypes) {
                         int count = typeCount.merge(type, 1, Integer::sum);
                         String name = displayName(type) + "-" + count;
-                        bay.addShuttle(ShuttleBay.buildShuttle(type, name));
+                        Shuttle shuttle = ShuttleBay.buildShuttle(type, name);
+                        bay.addSpace(new ShuttleSpace(shuttle));
                     }
                 }
                 bays.add(bay);
@@ -57,7 +58,8 @@ public class Shuttles implements Systems {
             if (count > 0) {
                 ShuttleBay bay = new ShuttleBay(owningUnit);
                 for (int i = 0; i < count; i++) {
-                    bay.addShuttle(ShuttleBay.buildShuttle("admin", "Shuttle" + (i + 1)));
+                    Shuttle shuttle = ShuttleBay.buildShuttle("admin", "Shuttle" + (i + 1));
+                    bay.addSpace(new ShuttleSpace(shuttle));
                 }
                 bays.add(bay);
             }
@@ -66,12 +68,12 @@ public class Shuttles implements Systems {
 
     @Override
     public int fetchOriginalTotalBoxes() {
-        return bays.stream().mapToInt(ShuttleBay::getCapacity).sum();
+        return bays.stream().mapToInt(ShuttleBay::getTotalSpaces).sum();
     }
 
     @Override
     public int fetchRemainingTotalBoxes() {
-        return bays.stream().mapToInt(b -> b.getInventory().size()).sum();
+        return bays.stream().mapToInt(ShuttleBay::getRemainingSpaces).sum();
     }
 
     @Override

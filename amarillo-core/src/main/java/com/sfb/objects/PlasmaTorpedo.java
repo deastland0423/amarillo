@@ -31,8 +31,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     private double damageTaken = 0.0; // accumulated phaser damage (1 phaser pt = 0.5 damage)
     private Seeker.SeekerType seekerType = Seeker.SeekerType.PLASMA;
     private boolean identified = false;
-    private boolean pseudoPlasma = false; // True if this torpedo is a pseudo-torpedo: behaves like a real torpedo but deals zero damage on impact.
-    
+    private boolean pseudoPlasma = false; // True if this torpedo is a pseudo-torpedo: behaves like a real torpedo but
+                                          // deals zero damage on impact.
 
     // Damage tables by range for each plasma type. Index = distance traveled in
     // impulses.
@@ -54,6 +54,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     public PlasmaTorpedo(PlasmaType type, WeaponArmingType armingType) {
+        this.sizeClass = 7;
         this.plasmaType = type;
         this.armingType = armingType;
         this.selfGuiding = true;
@@ -63,7 +64,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
 
     /**
      * Current damage strength.
-     * Envelopin table value doubled, then phaser damage subtracted.
+     * Enveloping table value doubled, then phaser damage subtracted.
      * Standard: table value, then phaser damage subtracted.
      * Returns 0 if the torpedo has traveled beyond its table or been shot down.
      */
@@ -164,9 +165,17 @@ public class PlasmaTorpedo extends Unit implements Seeker {
         return plasmaType;
     }
 
-    public void setPlasmaType(PlasmaType type)  { this.plasmaType = type; }
-    public void setDistanceTraveled(int d)      { this.distanceTraveled = d; }
-    public void setDamageTaken(double damage)   { this.damageTaken = damage; }
+    public void setPlasmaType(PlasmaType type) {
+        this.plasmaType = type;
+    }
+
+    public void setDistanceTraveled(int d) {
+        this.distanceTraveled = d;
+    }
+
+    public void setDamageTaken(double damage) {
+        this.damageTaken = damage;
+    }
 
     public WeaponArmingType getArmingType() {
         return armingType;
@@ -209,7 +218,9 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     @Override
-    public int getBuiltInEccm() { return 3; } // FP4.31: plasma torpedoes carry 3 built-in ECCM points
+    public int getBuiltInEccm() {
+        return 3;
+    } // FP4.31: plasma torpedoes carry 3 built-in ECCM points
 
     @Override
     public int getEndurance() {
@@ -269,7 +280,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     }
 
     /**
-     * Impact the target. Returns current strength as damage, or 0 for a pseudo-torpedo.
+     * Impact the target. Returns current strength as damage, or 0 for a
+     * pseudo-torpedo.
      * Caller is responsible for applying enveloping spread if isEnveloping().
      */
     @Override

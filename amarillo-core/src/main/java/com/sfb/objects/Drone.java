@@ -15,7 +15,7 @@ public class Drone extends Unit implements Seeker {
 	private Unit controller; // The ship controlling this drone.
 	private DroneType type; // The type of drone. This determines the drone's properties and behavior.
 	private boolean selfGuiding; // True if the weapon does not need control channels to operate.
-	private boolean warpSeeker;  // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
+	private boolean warpSeeker; // True if the drone uses warp-energy tracking (FD2.56) — TypeVI variants.
 	private int endurance; // The number of impulses this weapon will continue to operate.
 	private int launchImpulse; // The (absolute) impulse this drone was launched.
 	private int warheadDamage; // The damage dealt if the weapon hits its target.
@@ -23,10 +23,12 @@ public class Drone extends Unit implements Seeker {
 	private int hull; // The hull damage needed to kill the drone.
 	private Seeker.SeekerType seekerType; // The type of seeker.
 	private boolean identified = false; // True if an enemy ship has identified this seeker.
-	private String launcherName; // Name of the ship that originally launched this drone (stable, even when inert).
+	private String launcherName; // Name of the ship that originally launched this drone (stable, even when
+																// inert).
 
 	public Drone() {
 		setTurnMode(TurnMode.Seeker);
+		setSizeClass(7);
 	}
 
 	public Drone(DroneType type) {
@@ -43,7 +45,7 @@ public class Drone extends Unit implements Seeker {
 		this.rackSize = config.rack;
 		this.hull = config.hull;
 		this.selfGuiding = config.selfGuiding;
-		this.warpSeeker  = config.warpSeeker;
+		this.warpSeeker = config.warpSeeker;
 	}
 
 	public void setTarget(Unit target) {
@@ -146,8 +148,13 @@ public class Drone extends Unit implements Seeker {
 		this.seekerType = seekerType;
 	}
 
-	public String getLauncherName()              { return launcherName; }
-	public void   setLauncherName(String name)   { this.launcherName = name; }
+	public String getLauncherName() {
+		return launcherName;
+	}
+
+	public void setLauncherName(String name) {
+		this.launcherName = name;
+	}
 
 	@Override
 	public void identify() {

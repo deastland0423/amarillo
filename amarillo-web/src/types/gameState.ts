@@ -71,12 +71,24 @@ export interface ShuttleInBayState {
   wwReady?:            boolean;  // admin only: true when wwChargeCount >= 2
 }
 
+export interface ShuttleSpaceState {
+  spaceIndex: number;
+  destroyed:  boolean;
+  empty:      boolean;
+  armed:      boolean;
+  shuttle:    ShuttleInBayState | null;
+}
+
 export interface ShuttleBayState {
   bayIndex:        number;
   canLaunch:       boolean;
   launchTubeCount: number;
   availableTubes:  number;
+  totalSpaces:     number;
+  destroyedSpaces: number;
+  emptySpaces:     number;
   shuttles:        ShuttleInBayState[];
+  spaces:          ShuttleSpaceState[];
 }
 
 export interface DroneRackState {
@@ -344,9 +356,10 @@ export interface PendingVolley {
 
 export interface PendingDacChoice {
   targetShipName: string;
-  dacType:        string;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
+  dacType:        string;  // "phaser" | "drone" | "torp" | "weapon" | "warp" | "shuttle"
   roll:           number;
-  options:        string[]; // weapon names or "lwarp"/"cwarp"/"rwarp"
+  options:        string[]; // weapon names, "lwarp"/"cwarp"/"rwarp", or "bay:N:space:N"
+  bayIndex:       number;   // shuttle chain reactions: >=0 = scoped bay; -1 = any bay
 }
 
 export interface SeekerChoice {

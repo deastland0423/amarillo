@@ -2433,27 +2433,70 @@ public class Game {
         if (!pending.options.contains(chosenSystem))
             return ActionResult.fail("Invalid choice: " + chosenSystem + ". Valid: " + pending.options);
 
-        String hitLabel = pending.targetShip.applyDacChoiceHit(
-                pending.dacType, chosenSystem, pending.attackerShip);
-        String choiceLog = "  internal [" + pending.roll + "]: " + pending.dacType
-                + " — player chose " + chosenSystem
-                + (hitLabel != null ? " → " + hitLabel : " (no effect)");
-
         pendingDacChoices.remove(0);
-
-        // Prepend remaining bleed for this ship so resolveInternalDamage picks it up
-        if (pending.remainingBleed > 0)
-            pendingInternalDamage.add(0, new PendingDamage(
-                    pending.targetShip, pending.remainingBleed, pending.attackerShip));
-
         lastInternalDamageLog = new ArrayList<>();
-        lastInternalDamageLog.add(choiceLog);
+
+        if ("shuttle".equals(pending.dacType)) {
+            // Parse "bay:<b>:space:<s>"
+            String[] parts = chosenSystem.split(":");
+            int bayIdx   = Integer.parseInt(parts[1]);
+            int spaceIdx = Integer.parseInt(parts[3]);
+
+            com.sfb.systemgroups.ShuttleBay bay =
+                    pending.targetShip.getShuttles().getBays().get(bayIdx);
+            int killedCrews = bay.getSpaces().get(spaceIdx).getDeckCrews();
+            com.sfb.objects.shuttles.Shuttle was = bay.destroySpace(spaceIdx);
+
+            String occupant = was != null ? was.getName() : "empty space";
+            String choiceLog = "  shuttle DAC hit: bay " + bayIdx + " space " + spaceIdx
+                    + " (" + occupant + ") DESTROYED";
+            lastInternalDamageLog.add(choiceLog);
+
+            if (killedCrews > 0) {
+                pending.targetShip.getCrew().killDeckCrews(killedCrews);
+                lastInternalDamageLog.add("  → " + killedCrews + " deck crew(s) killed in bay destruction");
+            }
+
+            if (was != null && was.isArmed()) {
+                lastInternalDamageLog.add("  → armed shuttle destroyed — chain reaction! (D12.10)");
+
+                // Chain reaction: one additional space destroyed in the same bay (player chooses)
+                java.util.List<String> chainOpts = new java.util.ArrayList<>();
+                java.util.List<com.sfb.systemgroups.ShuttleSpace> baySpaces = bay.getSpaces();
+                for (int s = 0; s < baySpaces.size(); s++) {
+                    if (!baySpaces.get(s).isDestroyed())
+                        chainOpts.add("bay:" + bayIdx + ":space:" + s);
+                }
+                if (!chainOpts.isEmpty()) {
+                    pendingDacChoices.add(0, new PendingDacChoice(
+                            pending.targetShip, pending.attackerShip, "shuttle",
+                            -1, chainOpts, 0, bayIdx));
+                }
+
+                // One random internal damage point on the ship (separate volley, D12.10)
+                pendingInternalDamage.add(0, new PendingDamage(
+                        pending.targetShip, 1, pending.attackerShip));
+            }
+        } else {
+            String hitLabel = pending.targetShip.applyDacChoiceHit(
+                    pending.dacType, chosenSystem, pending.attackerShip);
+            String choiceLog = "  internal [" + pending.roll + "]: " + pending.dacType
+                    + " — player chose " + chosenSystem
+                    + (hitLabel != null ? " → " + hitLabel : " (no effect)");
+            lastInternalDamageLog.add(choiceLog);
+
+            // Prepend remaining bleed for this ship so resolveInternalDamage picks it up
+            if (pending.remainingBleed > 0)
+                pendingInternalDamage.add(0, new PendingDamage(
+                        pending.targetShip, pending.remainingBleed, pending.attackerShip));
+        }
+
         resolveInternalDamage();
 
         if (currentPhase != ImpulsePhase.DAC_CHOICE)
             currentPhase = dacChoiceReturnPhase;
 
-        return ActionResult.ok(choiceLog);
+        return ActionResult.ok(String.join("; ", lastInternalDamageLog));
     }
 
     public List<PendingDacChoice> getPendingDacChoices() {
@@ -2776,7 +2819,7 @@ public class Game {
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
-        if (!shuttle.isArmed())
+        if (!shuttle.isFullyArmed())
             return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
         if (!bay.canLaunch(TurnTracker.getImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
@@ -4708,15 +4751,22 @@ public class Game {
      */
     public static class PendingDacChoice {
         public final String targetShipName;
-        public final String dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
+        public final String dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp" | "shuttle"
         public final int    roll;
-        public final java.util.List<String> options; // selectable weapon names / warp ids
+        public final java.util.List<String> options; // selectable weapon names / warp ids / space ids
+        /** For "shuttle" chain reactions: the bay index this choice is scoped to (-1 = any bay). */
+        public final int    bayIndex;
         final Ship targetShip;
         final Ship attackerShip;
         final int  remainingBleed;
 
         PendingDacChoice(Ship target, Ship attacker, String dacType, int roll,
                 java.util.List<String> options, int remainingBleed) {
+            this(target, attacker, dacType, roll, options, remainingBleed, -1);
+        }
+
+        PendingDacChoice(Ship target, Ship attacker, String dacType, int roll,
+                java.util.List<String> options, int remainingBleed, int bayIndex) {
             this.targetShipName = target.getName();
             this.targetShip     = target;
             this.attackerShip   = attacker;
@@ -4724,6 +4774,7 @@ public class Game {
             this.roll           = roll;
             this.options        = options;
             this.remainingBleed = remainingBleed;
+            this.bayIndex       = bayIndex;
         }
     }
 

@@ -4,9 +4,12 @@ import com.sfb.objects.*;
 
 import com.sfb.properties.TurnMode;
 import com.sfb.systemgroups.Weapons;
+import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.PhaserWeapon;
+import com.sfb.weapons.Weapon;
 
 /**
- * This object represents an base shuttle.
+ * This object represents a base shuttle.
  * 
  * @author Daniel Eastland
  *
@@ -44,6 +47,7 @@ public abstract class Shuttle extends Unit {
 
 	public Shuttle() {
 		setTurnMode(TurnMode.Shuttle);
+		setSizeClass(6);
 	}
 
 	/**
@@ -175,6 +179,27 @@ public abstract class Shuttle extends Unit {
 
 	public void setLaunchImpulse(int impulse) {
 		this.launchImpulse = impulse;
+	}
+
+	/**
+	 * True if this shuttle is "armed" for chain reaction purposes (D12.12).
+	 * Subclasses override for special cases (ScatterPack, SuicideShuttle,
+	 * WildWeasel).
+	 */
+	public boolean isArmed() {
+		for (Weapon w : weapons.fetchAllWeapons()) {
+			if (!w.isFunctional())
+				continue;
+			if (w instanceof PhaserWeapon)
+				continue;
+			if (w instanceof DroneRack) {
+				if (!((DroneRack) w).getAmmo().isEmpty())
+					return true;
+			} else {
+				return true; // functional non-phaser weapon counts as armed
+			}
+		}
+		return false;
 	}
 
 	/**

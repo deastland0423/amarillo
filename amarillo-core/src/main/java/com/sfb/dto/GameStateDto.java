@@ -158,12 +158,24 @@ public class GameStateDto {
         public boolean wwReady; // admin only: true when wwChargeCount >= 2
     }
 
+    public static class ShuttleSpaceDto {
+        public int spaceIndex;
+        public boolean destroyed;
+        public boolean empty;
+        public boolean armed;
+        public ShuttleInBayDto shuttle; // null if empty or destroyed
+    }
+
     public static class ShuttleBayDto {
         public int bayIndex;
         public boolean canLaunch;
         public int launchTubeCount;
         public int availableTubes;
-        public List<ShuttleInBayDto> shuttles;
+        public int totalSpaces;
+        public int destroyedSpaces;
+        public int emptySpaces;
+        public List<ShuttleInBayDto> shuttles; // occupied spaces only (for launch UI)
+        public List<ShuttleSpaceDto> spaces;   // all spaces (for DAC damage UI)
     }
 
     public static class ShipDto extends MapObjectDto {
@@ -862,34 +874,50 @@ public class GameStateDto {
             bd.canLaunch = bay.canLaunch(game.getAbsoluteImpulse());
             bd.launchTubeCount = bay.getLaunchTubeCount();
             bd.availableTubes = bay.getAvailableTubeCount(game.getAbsoluteImpulse());
+            bd.totalSpaces = bay.getTotalSpaces();
+            bd.destroyedSpaces = bay.getDestroyedSpaces();
+            bd.emptySpaces = bay.getEmptySpaceCount();
             bd.shuttles = new ArrayList<>();
-            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
-                ShuttleInBayDto sd = new ShuttleInBayDto();
-                sd.name = s.getName();
-                sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
-                sd.maxSpeed = s.getMaxSpeed();
-                sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
-                if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
-                    com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
-                    sd.armed = ss.isArmed();
-                    sd.armingTurnsComplete = ss.getArmingTurnsComplete();
-                    sd.warheadDamage = ss.getWarheadDamage();
-                } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
-                    com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
-                    sd.wwChargeCount = admin.getWwChargeCount();
-                    sd.wwReady = admin.isWwReady();
-                } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
-                    com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
-                    sd.payload = sp.getPayload().stream()
-                            .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
-                            .collect(java.util.stream.Collectors.toList());
-                    sd.pendingPayload = sp.getPendingPayload().stream()
-                            .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
-                            .collect(java.util.stream.Collectors.toList());
-                    sd.maxDroneSpaces = sp.getMaxDroneSpaces();
-                    sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+            bd.spaces = new ArrayList<>();
+            List<com.sfb.systemgroups.ShuttleSpace> baySpaces = bay.getSpaces();
+            for (int j = 0; j < baySpaces.size(); j++) {
+                com.sfb.systemgroups.ShuttleSpace space = baySpaces.get(j);
+                ShuttleSpaceDto spaceDto = new ShuttleSpaceDto();
+                spaceDto.spaceIndex = j;
+                spaceDto.destroyed = space.isDestroyed();
+                spaceDto.empty = space.isEmpty();
+                com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
+                if (s != null) {
+                    ShuttleInBayDto sd = new ShuttleInBayDto();
+                    sd.name = s.getName();
+                    sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
+                    sd.maxSpeed = s.getMaxSpeed();
+                    sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
+                    if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                        com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
+                        sd.armed = ss.isArmed();
+                        sd.armingTurnsComplete = ss.getArmingTurnsComplete();
+                        sd.warheadDamage = ss.getWarheadDamage();
+                    } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
+                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
+                        sd.wwChargeCount = admin.getWwChargeCount();
+                        sd.wwReady = admin.isWwReady();
+                    } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+                        com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
+                        sd.payload = sp.getPayload().stream()
+                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                                .collect(java.util.stream.Collectors.toList());
+                        sd.pendingPayload = sp.getPendingPayload().stream()
+                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                                .collect(java.util.stream.Collectors.toList());
+                        sd.maxDroneSpaces = sp.getMaxDroneSpaces();
+                        sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+                    }
+                    spaceDto.armed = s.isArmed();
+                    spaceDto.shuttle = sd;
+                    bd.shuttles.add(sd);
                 }
-                bd.shuttles.add(sd);
+                bd.spaces.add(spaceDto);
             }
             dto.shuttleBays.add(bd);
         }

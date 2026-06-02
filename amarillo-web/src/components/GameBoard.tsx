@@ -3652,6 +3652,7 @@ export default function GameBoard({ session, onLeave }: Props) {
         <DacChoiceDialog
           pendingChoices={gameState!.pendingDacChoices}
           myShipNames={myShips}
+          allShips={(gameState!.mapObjects.filter(o => o.type === 'SHIP') as ShipObject[])}
           onSubmit={async (chosen: string) => {
             setActionError(null);
             try {

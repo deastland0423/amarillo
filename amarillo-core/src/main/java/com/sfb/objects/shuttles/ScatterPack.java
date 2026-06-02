@@ -137,4 +137,6 @@ public class ScatterPack extends Shuttle implements Seeker {
     @Override public int impact()                         { return 0; }
     @Override public void identify()                      { identified = true; }
     @Override public boolean isIdentified()               { return identified; }
+
+    @Override public boolean isArmed()                    { return true; } // D12.121
 }

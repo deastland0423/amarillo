@@ -151,6 +151,7 @@ public class Ship extends Unit implements DroneController {
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
+	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
 
 	// Real-time data
 	private boolean activeFireControl = false; // True if active fire control is up, false otherwise.
@@ -861,6 +862,9 @@ public class Ship extends Unit implements DroneController {
 		return this.hullType;
 	}
 
+	public boolean isBase() { return isBase; }
+	public void setBase(boolean isBase) { this.isBase = isBase; }
+
 	public Faction getFaction() {
 		return this.faction;
 	}
@@ -1356,7 +1360,7 @@ public class Ship extends Unit implements DroneController {
 
 	private static boolean requiresPlayerChoice(String system) {
 		switch (system) {
-			case "phaser": case "drone": case "torp": case "weapon": case "warp": return true;
+			case "phaser": case "drone": case "torp": case "weapon": case "warp": case "shuttle": return true;
 			default: return false;
 		}
 	}
@@ -1387,6 +1391,18 @@ public class Ship extends Unit implements DroneController {
 				if (powerSystems.getAvailableLWarp() > 0) opts.add("lwarp");
 				if (powerSystems.getAvailableCWarp() > 0) opts.add("cwarp");
 				if (powerSystems.getAvailableRWarp() > 0) opts.add("rwarp");
+				return opts;
+			}
+			case "shuttle": {
+				java.util.List<String> opts = new ArrayList<>();
+				java.util.List<com.sfb.systemgroups.ShuttleBay> bays = shuttles.getBays();
+				for (int b = 0; b < bays.size(); b++) {
+					java.util.List<com.sfb.systemgroups.ShuttleSpace> spaceList = bays.get(b).getSpaces();
+					for (int s = 0; s < spaceList.size(); s++) {
+						if (!spaceList.get(s).isDestroyed())
+							opts.add("bay:" + b + ":space:" + s);
+					}
+				}
 				return opts;
 			}
 			default: return java.util.Collections.emptyList();

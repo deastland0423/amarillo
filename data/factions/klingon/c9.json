@@ -49,7 +49,7 @@
     "labs": 6,
     "uim": 2,
     "probes": 1,
-    "derfacs": true
+    "derfacs": false
   },
 
   "shuttleBays": [

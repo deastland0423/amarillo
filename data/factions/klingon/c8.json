@@ -48,7 +48,7 @@
     "labs": 6,
     "uim": 2,
     "probes": 1,
-    "derfacs": true
+    "derfacs": false
   },
 
   "shuttleBays": [
@@ -85,8 +85,8 @@
     { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "E", "range": 40, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FA"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_F", "arcs": ["FULL"]},

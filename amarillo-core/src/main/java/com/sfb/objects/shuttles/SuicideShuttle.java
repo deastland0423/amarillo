@@ -38,14 +38,20 @@ public class SuicideShuttle extends Shuttle implements Seeker {
      * @return true if accepted, false if already armed or invalid amount.
      */
     public boolean arm(int energy) {
-        if (isArmed()) return false;
+        if (isFullyArmed()) return false;
         if (energy < 1 || energy > 3) return false;
         totalEnergy += energy;
         armingTurnsComplete++;
         return true;
     }
 
+    /** Armed if fully armed (3 turns) OR in the process of being armed (D12.123). */
+    @Override
     public boolean isArmed() {
+        return armingTurnsComplete >= 1;
+    }
+
+    public boolean isFullyArmed() {
         return armingTurnsComplete >= 3;
     }
 

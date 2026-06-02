@@ -116,6 +116,16 @@ public class Crew implements Systems {
 		this.availableDeckCrews = availableDeckCrews;
 	}
 
+	/**
+	 * Permanently kill deck crew members (e.g. shuttle bay space destroyed with
+	 * crew inside). Reduces both the permanent total and the current available
+	 * count so cleanUp() never restores them.
+	 */
+	public void killDeckCrews(int count) {
+		deckCrews          = Math.max(0, deckCrews          - count);
+		availableDeckCrews = Math.max(0, availableDeckCrews - count);
+	}
+
 	@Override
 	public int fetchOriginalTotalBoxes() {
 		return 0;

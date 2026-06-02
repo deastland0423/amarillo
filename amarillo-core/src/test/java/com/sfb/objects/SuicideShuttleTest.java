@@ -76,7 +76,7 @@ public class SuicideShuttleTest {
     public void arm_twoTimesNotYetArmed() {
         shuttle.arm(2);
         shuttle.arm(2);
-        assertFalse(shuttle.isArmed());
+        assertFalse(shuttle.isFullyArmed());
         assertEquals(2, shuttle.getArmingTurnsComplete());
     }
 
