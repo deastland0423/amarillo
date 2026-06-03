@@ -89,9 +89,13 @@ public class UIM implements Systems {
      * @param firedDisruptors Disruptors that fired under this UIM this impulse.
      * @return true if burnout occurred.
      */
+    private int lastBurnoutRoll = 0;
+
+    public int getLastBurnoutRoll() { return lastBurnoutRoll; }
+
     public boolean checkBurnout(int currentImpulse, List<Disruptor> firedDisruptors) {
-        int roll = new DiceRoller().rollOneDie();
-        if (roll <= BURNOUT_THRESHOLD) {
+        lastBurnoutRoll = new DiceRoller().rollOneDie();
+        if (lastBurnoutRoll <= BURNOUT_THRESHOLD) {
             damaged = true;
             int lockUntil = currentImpulse + LOCKOUT_DURATION;
             for (Disruptor d : firedDisruptors) {

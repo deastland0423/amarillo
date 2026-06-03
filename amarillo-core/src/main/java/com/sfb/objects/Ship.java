@@ -36,6 +36,7 @@ import com.sfb.systems.PerformanceData;
 import com.sfb.systems.SpecialFunctions;
 import com.sfb.systems.Tractors;
 import com.sfb.utilities.DAC;
+import com.sfb.utilities.DacPriority;
 import com.sfb.utilities.DiceRoller;
 import com.sfb.utilities.ImpulseUtil;
 import com.sfb.utilities.MapUtils;
@@ -136,6 +137,16 @@ public class Ship extends Unit implements DroneController {
 	private int internalDamagePointsTotal = 0; // cumulative internal damage points scored on this ship
 	private int crewKilledByInternalDamage = 0; // crew kill events already applied
 	private int bpCasualtiesProcessed = 0; // BP casualty events already processed (after 4-event grace)
+
+	// Rule-of-3 DAC state (D4.3221-3).
+	// Phaser: per-volley (reset at start of each fresh damage chain).
+	// Torpedo / Drone: cumulative over the entire scenario — never reset.
+	private int     phaserDacGroupPos  = 0;
+	private boolean phaserDacBestTaken = false;
+	private int     torpDacGroupPos    = 0;
+	private boolean torpDacBestTaken   = false;
+	private int     droneDacGroupPos   = 0;
+	private boolean droneDacBestTaken  = false;
 
 	/**
 	 * Guards assigned to defend specific system types this turn (D7.83). Key =
@@ -1358,6 +1369,17 @@ public class Ship extends Unit implements DroneController {
 		}
 	}
 
+	/** For testing only: exposes getDacChoiceOptions without an attacker (same-package access). */
+	List<String> dacChoiceOptionsForTest(String system) {
+		return getDacChoiceOptions(system, null);
+	}
+
+	/** Resets the rule-of-3 phaser group state. Called before each fresh damage chain (D4.3221). */
+	public void resetPhaserDacGroup() {
+		phaserDacGroupPos  = 0;
+		phaserDacBestTaken = false;
+	}
+
 	private static boolean requiresPlayerChoice(String system) {
 		switch (system) {
 			case "phaser": case "drone": case "torp": case "weapon": case "warp": case "shuttle": return true;
@@ -1367,20 +1389,43 @@ public class Ship extends Unit implements DroneController {
 
 	private java.util.List<String> getDacChoiceOptions(String system, Ship attacker) {
 		switch (system) {
-			case "phaser":
-				return bearingFunctionalPhasers(attacker).stream()
-						.map(com.sfb.weapons.Weapon::getName)
-						.collect(java.util.stream.Collectors.toList());
-			case "drone":
-				return weapons.getDroneList().stream()
-						.filter(com.sfb.weapons.Weapon::isFunctional)
-						.map(com.sfb.weapons.Weapon::getName)
-						.collect(java.util.stream.Collectors.toList());
-			case "torp":
-				return weapons.fetchAllWeapons().stream()
+			case "phaser": {
+				List<Weapon> candidates = bearingFunctionalPhasers(attacker);
+				// D4.3221 rule of 3: if this is the 3rd hit in a group and no best-type taken yet,
+				// restrict to best-available type only.
+				if (phaserDacGroupPos == 2 && !phaserDacBestTaken && !candidates.isEmpty()) {
+					int best = candidates.stream().mapToInt(DacPriority::phaserPriority).min().getAsInt();
+					List<Weapon> forced = candidates.stream()
+							.filter(w -> DacPriority.phaserPriority(w) == best)
+							.collect(Collectors.toList());
+					if (!forced.isEmpty()) candidates = forced;
+				}
+				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
+			}
+			case "drone": {
+				List<Weapon> candidates = weapons.fetchAllWeapons().stream()
+						.filter(w -> "drone".equals(w.getDacHitLocaiton()) && w.isFunctional())
+						.collect(Collectors.toList());
+				if (droneDacGroupPos == 2 && !droneDacBestTaken && !candidates.isEmpty()) {
+					int best = candidates.stream().mapToInt(DacPriority::dronePriority).min().getAsInt();
+					List<Weapon> forced = candidates.stream()
+							.filter(w -> DacPriority.dronePriority(w) == best).collect(Collectors.toList());
+					if (!forced.isEmpty()) candidates = forced;
+				}
+				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
+			}
+			case "torp": {
+				List<Weapon> candidates = weapons.fetchAllWeapons().stream()
 						.filter(w -> "torp".equals(w.getDacHitLocaiton()) && w.isFunctional())
-						.map(com.sfb.weapons.Weapon::getName)
-						.collect(java.util.stream.Collectors.toList());
+						.collect(Collectors.toList());
+				if (torpDacGroupPos == 2 && !torpDacBestTaken && !candidates.isEmpty()) {
+					int best = candidates.stream().mapToInt(DacPriority::torpPriority).min().getAsInt();
+					List<Weapon> forced = candidates.stream()
+							.filter(w -> DacPriority.torpPriority(w) == best).collect(Collectors.toList());
+					if (!forced.isEmpty()) candidates = forced;
+				}
+				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
+			}
 			case "weapon":
 				return weapons.fetchAllWeapons().stream()
 						.filter(com.sfb.weapons.Weapon::isFunctional)
@@ -1417,17 +1462,59 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public String applyDacChoiceHit(String dacType, String chosen, Ship attacker) {
 		switch (dacType) {
-			case "phaser":
-			case "drone":
-			case "torp":
+			case "phaser": {
+				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
+						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
+						.findFirst().orElse(null);
+				if (w == null) return null;
+				// Check best-type before damaging (D4.3221)
+				int best = bearingFunctionalPhasers(attacker).stream()
+						.mapToInt(DacPriority::phaserPriority).min().orElse(Integer.MAX_VALUE);
+				if (DacPriority.phaserPriority(w) == best) phaserDacBestTaken = true;
+				w.damage();
+				weapons.recalculatePhaserCapacitor();
+				phaserDacGroupPos++;
+				if (phaserDacGroupPos >= 3) {
+					phaserDacGroupPos  = 0;
+					phaserDacBestTaken = false;
+				}
+				return "phaser HIT (" + chosen + ") [chosen]";
+			}
+			case "torp": {
+				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
+						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
+						.findFirst().orElse(null);
+				if (w == null) return null;
+				int best = weapons.fetchAllWeapons().stream()
+						.filter(x -> "torp".equals(x.getDacHitLocaiton()) && x.isFunctional())
+						.mapToInt(DacPriority::torpPriority).min().orElse(Integer.MAX_VALUE);
+				if (DacPriority.torpPriority(w) == best) torpDacBestTaken = true;
+				w.damage();
+				torpDacGroupPos++;
+				if (torpDacGroupPos >= 3) { torpDacGroupPos = 0; torpDacBestTaken = false; }
+				return "torp HIT (" + chosen + ") [chosen]";
+			}
+			case "drone": {
+				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
+						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
+						.findFirst().orElse(null);
+				if (w == null) return null;
+				int best = weapons.fetchAllWeapons().stream()
+						.filter(x -> "drone".equals(x.getDacHitLocaiton()) && x.isFunctional())
+						.mapToInt(DacPriority::dronePriority).min().orElse(Integer.MAX_VALUE);
+				if (DacPriority.dronePriority(w) == best) droneDacBestTaken = true;
+				w.damage();
+				droneDacGroupPos++;
+				if (droneDacGroupPos >= 3) { droneDacGroupPos = 0; droneDacBestTaken = false; }
+				return "drone HIT (" + chosen + ") [chosen]";
+			}
 			case "weapon": {
 				com.sfb.weapons.Weapon w = weapons.fetchAllWeapons().stream()
 						.filter(x -> x.getName().equals(chosen) && x.isFunctional())
 						.findFirst().orElse(null);
 				if (w == null) return null;
 				w.damage();
-				if ("phaser".equals(dacType)) weapons.recalculatePhaserCapacitor();
-				return dacType + " HIT (" + chosen + ") [chosen]";
+				return "weapon HIT (" + chosen + ") [chosen]";
 			}
 			case "warp": {
 				boolean ok;
@@ -1448,6 +1535,7 @@ public class Ship extends Unit implements DroneController {
 	 * When a DAC result requires player choice, picks the first available option.
 	 */
 	public List<String> applyInternalDamage(int bleedThrough) {
+		resetPhaserDacGroup();
 		List<String> allLog = new ArrayList<>();
 		int remaining = bleedThrough;
 		while (remaining > 0) {

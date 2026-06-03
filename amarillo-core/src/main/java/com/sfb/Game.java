@@ -621,9 +621,12 @@ public class Game {
                         if (activeUim == null)
                             continue;
                         boolean burnout = activeUim.checkBurnout(eoi, entry.getValue());
+                        int burnoutRoll = activeUim.getLastBurnoutRoll();
                         if (burnout) {
-                            log.add(uimShip.getName() + ": UIM BURNOUT! Disruptors locked for 32 impulses.");
+                            log.add(uimShip.getName() + ": UIM BURNOUT! (roll " + burnoutRoll + ") Disruptors locked for 32 impulses.");
                             uimShip.activateNextStandby(activeUim, eoi);
+                        } else {
+                            log.add(uimShip.getName() + ": UIM burnout check — no burnout (roll " + burnoutRoll + ")");
                         }
                     }
                     uimUsedThisImpulse.clear();
@@ -2394,6 +2397,7 @@ public class Game {
         if (lastInternalDamageLog == null) lastInternalDamageLog = new ArrayList<>();
         while (!pendingInternalDamage.isEmpty()) {
             PendingDamage pd = pendingInternalDamage.remove(0);
+            if (!pd.isContinuation) pd.target.resetPhaserDacGroup();
             Ship.DamageResult result = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
             lastInternalDamageLog.add("=== Internal damage — " + pd.target.getName() + " ===");
             lastInternalDamageLog.addAll(result.log);
@@ -2488,7 +2492,7 @@ public class Game {
             // Prepend remaining bleed for this ship so resolveInternalDamage picks it up
             if (pending.remainingBleed > 0)
                 pendingInternalDamage.add(0, new PendingDamage(
-                        pending.targetShip, pending.remainingBleed, pending.attackerShip));
+                        pending.targetShip, pending.remainingBleed, pending.attackerShip, true));
         }
 
         resolveInternalDamage();
@@ -3810,8 +3814,13 @@ public class Game {
                 if (prev != null && MapUtils.getRange(mine.getLocation(), prev) <= 1) continue; // was already in range
                 int roll = dice.rollOneDie();
                 if (mine.detectsUnit(unit.getSpeed(), roll)) {
+                    log.add("  tBomb detection: " + unit.getName()
+                            + " (roll " + roll + " ≤ speed " + unit.getSpeed() + ") — TRIGGERED");
                     triggered = true;
                     break;
+                } else {
+                    log.add("  tBomb detection: " + unit.getName()
+                            + " (roll " + roll + " > speed " + unit.getSpeed() + ") — no trigger");
                 }
             }
 
@@ -4793,16 +4802,22 @@ public class Game {
     private static class PendingDamage {
         final Ship target;
         final int bleed;
-        final Ship attacker; // null for self-damage (HET breakdown, fusion suicide, mines, etc.)
+        final Ship attacker;          // null for self-damage (HET breakdown, fusion suicide, mines, etc.)
+        final boolean isContinuation; // true = leftover bleed after a DAC choice; false = new volley
 
         PendingDamage(Ship target, int bleed) {
-            this(target, bleed, null);
+            this(target, bleed, null, false);
         }
 
         PendingDamage(Ship target, int bleed, Ship attacker) {
+            this(target, bleed, attacker, false);
+        }
+
+        PendingDamage(Ship target, int bleed, Ship attacker, boolean isContinuation) {
             this.target = target;
             this.bleed = bleed;
             this.attacker = attacker;
+            this.isContinuation = isContinuation;
         }
     }
 
