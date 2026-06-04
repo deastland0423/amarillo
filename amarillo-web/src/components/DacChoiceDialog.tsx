@@ -23,8 +23,27 @@ const WARP_LABELS: Record<string, string> = {
   rwarp: 'Right Warp',
 };
 
+// Maps Java weapon class name prefix → short display name.
+// PlasmaLauncher is handled separately using launcherType.
+const WEAPON_TYPE_LABELS: Record<string, string> = {
+  'Phaser1':        'Ph-1',
+  'Phaser2':        'Ph-2',
+  'Phaser3':        'Ph-3',
+  'Disruptor30':    'Dis-30',
+  'FusionBeam':     'Fusion',
+  'Photon':         'Photon',
+  'Hellbore':       'HB',
+  'SpatterGun':     'Spatter',
+  'FighterFusion':  'Ftr Fusion',
+  'FighterHellbore':'Ftr HB',
+  'PlasmaLauncher': 'Plasma',
+};
+
 export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, allShips, onSubmit }) => {
-  const myChoice = pendingChoices.find(c => myShipNames.has(c.targetShipName));
+  // In solo/unassigned mode myShipNames is empty — fall back to the first pending choice.
+  const myChoice = myShipNames.size > 0
+    ? pendingChoices.find(c => myShipNames.has(c.targetShipName))
+    : pendingChoices[0];
   if (!myChoice) return null;
 
   const targetShip = allShips.find(s => s.name === myChoice.targetShipName);
@@ -48,9 +67,26 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
     };
   }
 
-  function label(opt: string): string {
-    if (opt.startsWith('bay:')) return shuttleSpaceLabel(opt).label;
-    return WARP_LABELS[opt] ?? opt;
+  function weaponInfo(opt: string): { displayName: string; arcLabel: string; fired: boolean } | null {
+    if (!targetShip) return null;
+    const ws = targetShip.weapons.find(w => w.name === opt);
+    if (!ws) return null;
+
+    const lastDash = opt.lastIndexOf('-');
+    const typeName  = lastDash >= 0 ? opt.slice(0, lastDash) : opt;
+    const designator = lastDash >= 0 ? opt.slice(lastDash + 1) : '';
+
+    let shortType = WEAPON_TYPE_LABELS[typeName] ?? typeName;
+    if (typeName === 'PlasmaLauncher' && ws.launcherType) {
+      shortType = `Plasma-${ws.launcherType}`;
+    }
+
+    const displayName = designator ? `${shortType} (${designator})` : shortType;
+    return {
+      displayName,
+      arcLabel: ws.arcLabel ?? '',
+      fired: ws.shotsThisTurn > 0,
+    };
   }
 
   const isChainReaction = myChoice.dacType === 'shuttle' && myChoice.bayIndex >= 0;
@@ -91,8 +127,11 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {myChoice.options.map(opt => {
             const isShuttle = opt.startsWith('bay:');
-            const info = isShuttle ? shuttleSpaceLabel(opt) : null;
-            const armedWarning = info?.armed;
+            const isWarp    = opt in WARP_LABELS;
+            const sInfo = isShuttle ? shuttleSpaceLabel(opt) : null;
+            const wInfo = (!isShuttle && !isWarp) ? weaponInfo(opt) : null;
+            const armedWarning = sInfo?.armed ?? false;
+
             return (
               <button
                 key={opt}
@@ -106,16 +145,44 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                   fontSize: 14,
                   cursor: 'pointer',
                   textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  width: '100%',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = '#f85149')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = armedWarning ? '#f0883e' : '#30363d')}
               >
-                <span>{label(opt)}</span>
-                {armedWarning && (
-                  <span style={{ color: '#f0883e', fontSize: 12, marginLeft: 8 }}>ARMED ⚠</span>
+                {/* Shuttle space option */}
+                {isShuttle && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{sInfo!.label}</span>
+                    {armedWarning && (
+                      <span style={{ color: '#f0883e', fontSize: 12, marginLeft: 8 }}>ARMED ⚠</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Warp engine option */}
+                {isWarp && (
+                  <span>{WARP_LABELS[opt]}</span>
+                )}
+
+                {/* Weapon option — friendly name + arc + fired status */}
+                {wInfo && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500 }}>{wInfo.displayName}</span>
+                      {wInfo.fired && (
+                        <span style={{ color: '#8b949e', fontSize: 11, marginLeft: 8, fontStyle: 'italic' }}>fired</span>
+                      )}
+                    </div>
+                    {wInfo.arcLabel && (
+                      <div style={{ color: '#8b949e', fontSize: 11, marginTop: 2 }}>{wInfo.arcLabel}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Fallback for unrecognised options */}
+                {!isShuttle && !isWarp && !wInfo && (
+                  <span>{opt}</span>
                 )}
               </button>
             );

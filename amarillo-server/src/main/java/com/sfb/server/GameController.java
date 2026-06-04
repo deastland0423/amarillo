@@ -700,10 +700,10 @@ public class GameController {
 
         GameStateDto dto = snapshotState(session);
 
-        // Populate myShips if the caller identifies themselves
+        // Populate myShips if the caller identifies themselves.
+        // In unassigned (solo) mode, the player controls all ships.
         if (token != null && session.hasPlayer(token)) {
-            GameSession.PlayerInfo info = session.getPlayers().get(token);
-            dto.myShips = info.getShipNames();
+            dto.myShips = session.getEffectiveShipNamesForPlayer(token);
         }
 
         return ResponseEntity.ok(dto);

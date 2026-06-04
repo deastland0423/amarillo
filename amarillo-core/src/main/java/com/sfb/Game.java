@@ -84,17 +84,20 @@ public class Game {
     private int mapCols = 42; // map width in hexes
     private int mapRows = 32; // map height in hexes
     private int maxTurns = 0; // 0 = no turn limit
-    private Map<String, Set<String>> destructionEdgesByTeam      = new HashMap<>(); // teamName → destruction edges
-    private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions (A–F) for accel disengage
+    private Map<String, Set<String>> destructionEdgesByTeam = new HashMap<>(); // teamName → destruction edges
+    private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions
+                                                                                    // (A–F) for accel disengage
     private GameEndResult gameEndResult = null;
 
     private final List<Ship> ships = new ArrayList<>();
     private final List<Ship> destroyedShips = new ArrayList<>(); // ships removed from play; kept for VP scoring
-    private final List<Ship> pendingAccelDisengage = new ArrayList<>(); // ships awaiting player YES/NO at end of turn (C7.1)
+    private final List<Ship> pendingAccelDisengage = new ArrayList<>(); // ships awaiting player YES/NO at end of turn
+                                                                        // (C7.1)
     private final List<Seeker> seekers = new ArrayList<>();
     private final List<Ship> capturedThisTurn = new ArrayList<>(); // ships captured in the current endTurn()
     private int seekerSeq = 0; // monotonic counter for unique seeker names
-    private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on the map
+    private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on
+                                                                                             // the map
     private final List<SpaceMine> mines = new ArrayList<>();
     private final List<Terrain> terrain = new ArrayList<>();
     private final Set<Location> asteroidHexes = new HashSet<>();
@@ -110,18 +113,20 @@ public class Game {
             { 0, 10, 15, 30 }, // die 6
     };
     private final Set<Ship> movedThisImpulse = new HashSet<>();
-    // Pre-move location of each unit that moved this impulse — used by processMines()
-    // to detect units that crossed INTO range 1 (as opposed to standing still there).
+    // Pre-move location of each unit that moved this impulse — used by
+    // processMines()
+    // to detect units that crossed INTO range 1 (as opposed to standing still
+    // there).
     private final Map<Unit, com.sfb.properties.Location> prevLocations = new HashMap<>();
     private final Set<com.sfb.objects.shuttles.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
     private final Set<String> firedPairsThisPhase = new HashSet<>();
-    private ImpulsePhase reinforcementReturnPhase   = ImpulsePhase.ACTIVITY;
-    private ImpulsePhase dacChoiceReturnPhase       = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase controlOverflowReturnPhase = ImpulsePhase.ACTIVITY;
-    private final List<PendingDacChoice>        pendingDacChoices        = new ArrayList<>();
-    private final List<PendingControlOverflow>  pendingControlOverflows  = new ArrayList<>();
+    private final List<PendingDacChoice> pendingDacChoices = new ArrayList<>();
+    private final List<PendingControlOverflow> pendingControlOverflows = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
@@ -137,7 +142,7 @@ public class Game {
     // --- Setup ---
 
     /**
-    /**
+     * /**
      * Populate the game from a ScenarioSpec with pre-built ships and COI loadouts.
      *
      * Intended flow:
@@ -531,9 +536,11 @@ public class Game {
         // Players must confirm YES/NO before the next turn's EA begins.
         pendingAccelDisengage.clear();
         for (Ship ship : ships) {
-            if (ship.getLocation() == null || ship.isDisengaged()) continue;
+            if (ship.getLocation() == null || ship.isDisengaged())
+                continue;
             int originalWarp = ship.getPowerSystems().getOriginalWarp();
-            if (originalWarp == 0) continue; // no warp engines
+            if (originalWarp == 0)
+                continue; // no warp engines
             int currentWarp = ship.getPowerSystems().getWarpEnginePower();
             int threshold = Math.min((int) Math.ceil(originalWarp * 0.5), 15);
             if (ship.getSpeed() >= ship.getMaxAccelerationSpeed() && currentWarp >= threshold)
@@ -545,7 +552,8 @@ public class Game {
             if (gameEndResult == null)
                 gameEndResult = checkEndConditions();
         }
-        // else: startTurn() is deferred until all confirmAccelDisengage() calls are processed
+        // else: startTurn() is deferred until all confirmAccelDisengage() calls are
+        // processed
 
         String msg = lastBoardingLog.isEmpty() ? "" : String.join("\n", lastBoardingLog);
         return ActionResult.ok(msg);
@@ -608,7 +616,8 @@ public class Game {
                 // DAC_CHOICE is exited via submitDacChoice(), not ADVANCE_PHASE.
                 return ActionResult.fail("A DAC system choice is pending — submit your selection first");
             case CONTROL_OVERFLOW:
-                // CONTROL_OVERFLOW is exited via submitControlOverflowChoice(), not ADVANCE_PHASE.
+                // CONTROL_OVERFLOW is exited via submitControlOverflowChoice(), not
+                // ADVANCE_PHASE.
                 return ActionResult.fail("A control channel overflow is pending — release or transfer a seeker first");
 
             case END_OF_IMPULSE:
@@ -623,7 +632,8 @@ public class Game {
                         boolean burnout = activeUim.checkBurnout(eoi, entry.getValue());
                         int burnoutRoll = activeUim.getLastBurnoutRoll();
                         if (burnout) {
-                            log.add(uimShip.getName() + ": UIM BURNOUT! (roll " + burnoutRoll + ") Disruptors locked for 32 impulses.");
+                            log.add(uimShip.getName() + ": UIM BURNOUT! (roll " + burnoutRoll
+                                    + ") Disruptors locked for 32 impulses.");
                             uimShip.activateNextStandby(activeUim, eoi);
                         } else {
                             log.add(uimShip.getName() + ": UIM burnout check — no burnout (roll " + burnoutRoll + ")");
@@ -648,7 +658,8 @@ public class Game {
                         for (Ship s : ships) {
                             if (s.getSpeed() == 0 && s.getTacBudget() > 0) {
                                 String earnMsg = s.updateTacEarning();
-                                if (earnMsg != null) log.add(earnMsg);
+                                if (earnMsg != null)
+                                    log.add(earnMsg);
                             }
                         }
                     }
@@ -702,7 +713,8 @@ public class Game {
                 for (Ship ship : ships) {
                     if (ship.isDecelerating() && absNow >= ship.getDecelerationEndsAtImpulse()) {
                         ship.completeEmergencyDeceleration(absNow);
-                        log.add(ship.getName() + " has stopped (emergency deceleration complete — post-decel period: 16 impulses)");
+                        log.add(ship.getName()
+                                + " has stopped (emergency deceleration complete — post-decel period: 16 impulses)");
                     }
                 }
                 currentPhase = ImpulsePhase.MOVEMENT;
@@ -998,11 +1010,12 @@ public class Game {
     }
 
     /**
-     * Resolve one step of a control overflow: either release a seeker (self-destruct
+     * Resolve one step of a control overflow: either release a seeker
+     * (self-destruct
      * unless self-guiding) or transfer it to an allied ship.
      *
-     * @param seekerName  name of the seeker to act on
-     * @param toShipName  null/blank = release; non-blank = transfer to this ship
+     * @param seekerName name of the seeker to act on
+     * @param toShipName null/blank = release; non-blank = transfer to this ship
      */
     public ActionResult submitControlOverflowChoice(String seekerName, String toShipName) {
         if (pendingControlOverflows.isEmpty())
@@ -1108,8 +1121,9 @@ public class Game {
 
         String label = seeker instanceof com.sfb.objects.shuttles.ScatterPack ? "Scatter pack"
                 : seeker instanceof com.sfb.objects.shuttles.SuicideShuttle ? "Suicide shuttle"
-                : "Drone";
-        return ActionResult.ok(label + " control transferred from " + currentController.getName() + " to " + toShipName);
+                        : "Drone";
+        return ActionResult
+                .ok(label + " control transferred from " + currentController.getName() + " to " + toShipName);
     }
 
     public List<com.sfb.objects.shuttles.Shuttle> getActiveShuttles() {
@@ -1216,7 +1230,8 @@ public class Game {
                 destroyedShips.add(ship);
                 ships.remove(ship);
                 gameEndResult = checkEndConditions();
-                result = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir + " (destruction zone)";
+                result = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir
+                        + " (destruction zone)";
             } else {
                 ship.setDisengaged(true);
                 ship.setLocation(null);
@@ -1264,7 +1279,8 @@ public class Game {
      */
     public List<String> getDestructionDirections(Ship ship) {
         String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-        if (teamName == null) return List.of();
+        if (teamName == null)
+            return List.of();
         Set<String> dirs = destructionDirectionsByTeam.get(teamName);
         return dirs != null ? new ArrayList<>(dirs) : List.of();
     }
@@ -1281,7 +1297,8 @@ public class Game {
     /**
      * Drop a chaff pack from a fighter or shuttle (D11.3).
      * Must be called during the Activity phase (6B6 Seeking Weapons Stage).
-     * On a roll of 1–4, all seekers currently targeting the shuttle lose tracking and are removed.
+     * On a roll of 1–4, all seekers currently targeting the shuttle lose tracking
+     * and are removed.
      * Applies an 8-impulse lockout on direct-fire and seeker weapons (D11.41–42).
      */
     public ActionResult dropChaff(com.sfb.objects.shuttles.Shuttle shuttle) {
@@ -1325,38 +1342,39 @@ public class Game {
 
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
         // Find the charged admin shuttle in any bay
-        com.sfb.objects.shuttles.AdminShuttle found = null;
-        com.sfb.systemgroups.ShuttleBay foundBay = null;
+        com.sfb.objects.shuttles.AdminShuttle foundShuttle = null;
+        com.sfb.systemgroups.ShuttleBay foundShuttleBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
             for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
                 if (s instanceof com.sfb.objects.shuttles.AdminShuttle
                         && s.getName().equalsIgnoreCase(shuttleName)
                         && ((com.sfb.objects.shuttles.AdminShuttle) s).isWwReady()) {
-                    found = (com.sfb.objects.shuttles.AdminShuttle) s;
-                    foundBay = bay;
+                    foundShuttle = (com.sfb.objects.shuttles.AdminShuttle) s;
+                    foundShuttleBay = bay;
                     break;
                 }
             }
-            if (found != null) break;
+            if (foundShuttle != null)
+                break;
         }
-        if (found == null)
+        if (foundShuttle == null)
             return ActionResult.fail(shuttleName + " is not a charged Wild Weasel");
         if (ship.hasActiveWildWeasel())
             return ActionResult.fail(ship.getName() + " already has an active Wild Weasel");
         if (ship.getSpeed() > 4)
             return ActionResult.fail("Cannot launch Wild Weasel — ship speed " + ship.getSpeed()
                     + " exceeds maneuver rate limit of 4 (J3.131)");
-        if (!foundBay.canLaunch(found, getAbsoluteImpulse()))
+        if (!foundShuttleBay.canLaunch(foundShuttle, getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay is not ready to launch");
 
         int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
-        int wwSpeed  = Math.max(0, Math.min(6, speed));
+        int wwSpeed = Math.max(0, Math.min(6, speed));
 
         com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
-        ww.setName(found.getName());
+        ww.setName(foundShuttle.getName());
         ww.setParentShipName(ship.getName());
         ww.setOwner(ship.getOwner());
-        foundBay.launch(found, wwSpeed, wwFacing, getAbsoluteImpulse());
+        foundShuttleBay.launch(foundShuttle, wwSpeed, wwFacing, getAbsoluteImpulse());
         ww.setLocation(ship.getLocation());
         ww.setFacing(wwFacing);
         ww.setCurrentSpeed(wwSpeed);
@@ -1384,7 +1402,8 @@ public class Game {
      */
     public void voidWildWeasel(Ship ship) {
         com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
-        if (ww == null) return;
+        if (ww == null)
+            return;
 
         // Retarget seekers from WW back to parent ship
         for (Seeker seeker : seekers) {
@@ -1408,7 +1427,8 @@ public class Game {
 
     /**
      * Begin the 4-impulse activation countdown (D6.633).
-     * Voids any active WW immediately unless it is currently in its explosion period (D6.65/J3.2112).
+     * Voids any active WW immediately unless it is currently in its explosion
+     * period (D6.65/J3.2112).
      */
     public ActionResult beginActivatingFireControl(Ship ship) {
         if (ship.isActiveFireControl())
@@ -1421,7 +1441,8 @@ public class Game {
             if (!ww.isExploding()) {
                 voidWildWeasel(ship);
             }
-            // If exploding: WW will be voided when activation completes (handled in nextImpulse check)
+            // If exploding: WW will be voided when activation completes (handled in
+            // nextImpulse check)
         }
         boolean started = ship.beginFcActivation(getAbsoluteImpulse());
         if (!started)
@@ -1490,13 +1511,18 @@ public class Game {
             // Determine which edge the ship is exiting
             Location cur = ship.getLocation();
             String exitEdge;
-            if      (cur.getX() <= 1)       exitEdge = "LEFT";
-            else if (cur.getX() >= mapCols) exitEdge = "RIGHT";
-            else if (cur.getY() <= 1)       exitEdge = "TOP";
-            else                             exitEdge = "BOTTOM";
+            if (cur.getX() <= 1)
+                exitEdge = "LEFT";
+            else if (cur.getX() >= mapCols)
+                exitEdge = "RIGHT";
+            else if (cur.getY() <= 1)
+                exitEdge = "TOP";
+            else
+                exitEdge = "BOTTOM";
 
             String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-            Set<String> teamEdges = teamName != null ? destructionEdgesByTeam.getOrDefault(teamName, new HashSet<>()) : new HashSet<>();
+            Set<String> teamEdges = teamName != null ? destructionEdgesByTeam.getOrDefault(teamName, new HashSet<>())
+                    : new HashSet<>();
             if (teamEdges.contains(exitEdge)) {
                 // Destruction edge — ship is destroyed, not disengaged
                 ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
@@ -2146,7 +2172,8 @@ public class Game {
             return attacker.getName() + " cannot fire — breakdown lockout for 8 impulses (C6.5471)";
         if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl()) {
             if (range > 5)
-                return attacker.getName() + " cannot fire — target out of passive fire control range (5 hexes max, D19.23)";
+                return attacker.getName()
+                        + " cannot fire — target out of passive fire control range (5 hexes max, D19.23)";
         }
         if (attacker instanceof com.sfb.objects.shuttles.Shuttle) {
             com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
@@ -2202,7 +2229,8 @@ public class Game {
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
         int targetEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
-                ? attackerShip.getEccmAllocated() : 0;
+                ? attackerShip.getEccmAllocated()
+                : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
         if (ecmShift > 0)
@@ -2275,7 +2303,7 @@ public class Game {
             // Queue the volley — damage applied after defenders spend reserve power.
             // (When Base is implemented add: || target instanceof Base)
             log.append("  Total damage: ").append(totalDamage)
-               .append(" — queued, resolves in Reinforcement phase\n");
+                    .append(" — queued, resolves in Reinforcement phase\n");
             pendingVolleys.add(new PendingVolley(
                     attacker.getName(), attackerShip, target,
                     shieldNumber, totalDamage, envelopingHellboreDamage,
@@ -2285,7 +2313,7 @@ public class Game {
             if (fusionSuicideFired && attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
                 log.append("  Fusion suicide overload — 1 internal damage to ")
-                   .append(attackerShip.getName()).append("\n");
+                        .append(attackerShip.getName()).append("\n");
             }
             if (addHit) {
                 String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
@@ -2301,69 +2329,146 @@ public class Game {
     }
 
     /**
-     * Apply all pending fire volleys (called when transitioning out of REINFORCEMENT).
-     * Defenders must have already submitted any reinforcement decisions before this runs.
+     * Apply all pending fire volleys (called when transitioning out of
+     * REINFORCEMENT).
+     * Defenders must have already submitted any reinforcement decisions before this
+     * runs.
+     */
+    /**
+     * All damage arriving through the same shield facing in the same phase is one
+     * volley (C3.14): shields absorb the combined total and bleed-through runs
+     * through the DAC once.  EPT volleys (envelopingTorp != null) are always
+     * separate and distribute across all 6 shields.  Enveloping Hellbore damage
+     * is always a separate volley per E10.43 and is not combined.
      */
     private List<String> applyPendingVolleys() {
         List<String> log = new ArrayList<>();
-        for (PendingVolley pv : pendingVolleys) {
-            StringBuilder pvLog = new StringBuilder(pv.attackerLog);
 
-            // Fusion suicide overload (E7.421): queue internal hit on the firing ship
+        // Helper: one accumulated group per (target identity, shieldNumber)
+        class ShieldGroup {
+            final Unit        target;
+            final int         shieldNumber;
+            final StringBuilder pvLog = new StringBuilder();
+            int               totalDamage = 0;
+            Ship              lastAttacker = null;
+            final List<Integer> hellboreDamages = new ArrayList<>();
+
+            ShieldGroup(Unit target, int shieldNumber) {
+                this.target      = target;
+                this.shieldNumber = shieldNumber;
+            }
+        }
+
+        List<ShieldGroup>  groups  = new ArrayList<>();
+        List<PendingVolley> eptVolleys = new ArrayList<>();
+
+        for (PendingVolley pv : pendingVolleys) {
+            // EPT: distribute to all shields — always separate
+            if (pv.envelopingTorp != null) { eptVolleys.add(pv); continue; }
+
+            // Non-Ship targets (seekers, shuttles) have no shields — apply immediately
+            if (!(pv.target instanceof Ship)) {
+                StringBuilder pvLog = new StringBuilder(pv.attackerLog);
+                if (pv.fusionSuicideFired && pv.attackerShip != null) {
+                    pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
+                    pvLog.append("  Fusion suicide overload — 1 internal damage to ")
+                         .append(pv.attackerShip.getName()).append("\n");
+                }
+                if (pv.addHit) {
+                    pvLog.append("  ADD result: ")
+                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
+                }
+                if (pv.totalDamage > 0) {
+                    pvLog.append("  ")
+                         .append(applyDamageToUnit(pv.totalDamage, pv.target, pv.shieldNumber))
+                         .append("\n");
+                }
+                log.add(pvLog.toString());
+                continue;
+            }
+
+            // Find or create the group for this (target, shield facing)
+            ShieldGroup g = null;
+            for (ShieldGroup candidate : groups)
+                if (candidate.target == pv.target && candidate.shieldNumber == pv.shieldNumber)
+                    { g = candidate; break; }
+            if (g == null) { g = new ShieldGroup(pv.target, pv.shieldNumber); groups.add(g); }
+
+            // Per-volley effects accumulated into the group log
+            g.pvLog.append(pv.attackerLog);
+            if (pv.fusionSuicideFired && pv.attackerShip != null) {
+                pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
+                g.pvLog.append("  Fusion suicide overload — 1 internal damage to ")
+                       .append(pv.attackerShip.getName()).append("\n");
+            }
+            if (pv.addHit) {
+                g.pvLog.append("  ADD result: ")
+                       .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
+            }
+
+            g.totalDamage += pv.totalDamage;
+            if (pv.attackerShip != null) g.lastAttacker = pv.attackerShip;
+            // Hellbore enveloping stays per-volley (E10.43)
+            if (pv.envelopingHellboreDamage > 0)
+                g.hellboreDamages.add(pv.envelopingHellboreDamage);
+        }
+
+        // Apply each group: combined shield damage → single bleed-through chain
+        for (ShieldGroup g : groups) {
+            Ship target = (Ship) g.target;
+            int bleed = target.damageShield(g.shieldNumber, g.totalDamage);
+            if (bleed > 0) {
+                g.pvLog.append("  BLEED-THROUGH: ").append(bleed)
+                       .append(" (resolves at end of segment)\n");
+                pendingInternalDamage.add(new PendingDamage(target, bleed, g.lastAttacker));
+            }
+            // Enveloping Hellbore: each volley is its own separate bleed chain (E10.43)
+            for (int envDmg : g.hellboreDamages) {
+                g.pvLog.append("  Hellbore enveloping volley: ").append(envDmg).append("\n");
+                for (String line : applyHellboreEnvelopingDamage(target, envDmg))
+                    g.pvLog.append(line).append("\n");
+            }
+            log.add(g.pvLog.toString());
+        }
+
+        // EPT volleys: spread damage across all 6 shields (always separate)
+        for (PendingVolley pv : eptVolleys) {
+            StringBuilder pvLog = new StringBuilder(pv.attackerLog);
             if (pv.fusionSuicideFired && pv.attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                 pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                      .append(pv.attackerShip.getName()).append("\n");
             }
-
             if (pv.addHit) {
-                String dmgLog = applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber);
-                pvLog.append("  ADD result: ").append(dmgLog).append("\n");
+                pvLog.append("  ADD result: ")
+                     .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
             }
-
-            if (pv.target instanceof Ship) {
-                if (pv.envelopingTorp != null) {
-                    // EPT seeker hit: distribute total damage across all 6 shields
-                    int[] spread = pv.envelopingTorp.computeEnvelopingDamage(pv.totalDamage);
-                    for (int i = 0; i < 6; i++) {
-                        if (spread[i] > 0)
-                            markShieldDamage((Ship) pv.target, i + 1, spread[i]);
-                    }
-                } else {
-                    FireResult result = markShieldDamage((Ship) pv.target, pv.shieldNumber,
-                            pv.totalDamage, pv.attackerShip);
-                    if (result.getBleed() > 0)
-                        pvLog.append("  BLEED-THROUGH: ").append(result.getBleed())
-                             .append(" (resolves at end of segment)\n");
-
-                    if (pv.envelopingHellboreDamage > 0) {
-                        pvLog.append("  Hellbore enveloping volley: ").append(pv.envelopingHellboreDamage).append("\n");
-                        List<String> envLog = applyHellboreEnvelopingDamage(
-                                (Ship) pv.target, pv.envelopingHellboreDamage);
-                        for (String line : envLog)
-                            pvLog.append(line).append("\n");
-                    }
-                }
-            } else if (pv.totalDamage > 0) {
-                String dmgLog = applyDamageToUnit(pv.totalDamage, pv.target, pv.shieldNumber);
-                pvLog.append("  ").append(dmgLog).append("\n");
+            int[] spread = pv.envelopingTorp.computeEnvelopingDamage(pv.totalDamage);
+            for (int i = 0; i < 6; i++)
+                if (spread[i] > 0) markShieldDamage((Ship) pv.target, i + 1, spread[i]);
+            if (pv.envelopingHellboreDamage > 0) {
+                pvLog.append("  Hellbore enveloping volley: ").append(pv.envelopingHellboreDamage).append("\n");
+                for (String line : applyHellboreEnvelopingDamage((Ship) pv.target, pv.envelopingHellboreDamage))
+                    pvLog.append(line).append("\n");
             }
-
             log.add(pvLog.toString());
         }
+
         pendingVolleys.clear();
         firedPairsThisPhase.clear();
         return log;
     }
 
-    /** Returns the current list of pending fire volleys (for the game-state DTO). */
+    /**
+     * Returns the current list of pending fire volleys (for the game-state DTO).
+     */
     public List<PendingVolley> getPendingVolleys() {
         return Collections.unmodifiableList(pendingVolleys);
     }
 
     /**
      * D4.0 Shield reinforcement: defender spends reserve (battery) power before
-     * damage is applied.  Called during the REINFORCEMENT phase.
+     * damage is applied. Called during the REINFORCEMENT phase.
      *
      * @param targetShip   the ship being reinforced
      * @param shieldNumber 1-based shield facing to reinforce
@@ -2394,10 +2499,12 @@ public class Game {
      * {@code pendingInternalDamage} so resolution resumes after the choice.
      */
     private void resolveInternalDamage() {
-        if (lastInternalDamageLog == null) lastInternalDamageLog = new ArrayList<>();
+        if (lastInternalDamageLog == null)
+            lastInternalDamageLog = new ArrayList<>();
         while (!pendingInternalDamage.isEmpty()) {
             PendingDamage pd = pendingInternalDamage.remove(0);
-            if (!pd.isContinuation) pd.target.resetPhaserDacGroup();
+            if (!pd.isContinuation)
+                pd.target.resetPhaserDacGroup();
             Ship.DamageResult result = pd.target.applyInternalDamage(pd.bleed, pd.attacker);
             lastInternalDamageLog.add("=== Internal damage — " + pd.target.getName() + " ===");
             lastInternalDamageLog.addAll(result.log);
@@ -2443,11 +2550,10 @@ public class Game {
         if ("shuttle".equals(pending.dacType)) {
             // Parse "bay:<b>:space:<s>"
             String[] parts = chosenSystem.split(":");
-            int bayIdx   = Integer.parseInt(parts[1]);
+            int bayIdx = Integer.parseInt(parts[1]);
             int spaceIdx = Integer.parseInt(parts[3]);
 
-            com.sfb.systemgroups.ShuttleBay bay =
-                    pending.targetShip.getShuttles().getBays().get(bayIdx);
+            com.sfb.systemgroups.ShuttleBay bay = pending.targetShip.getShuttles().getBays().get(bayIdx);
             int killedCrews = bay.getSpaces().get(spaceIdx).getDeckCrews();
             com.sfb.objects.shuttles.Shuttle was = bay.destroySpace(spaceIdx);
 
@@ -2464,7 +2570,8 @@ public class Game {
             if (was != null && was.isArmed()) {
                 lastInternalDamageLog.add("  → armed shuttle destroyed — chain reaction! (D12.10)");
 
-                // Chain reaction: one additional space destroyed in the same bay (player chooses)
+                // Chain reaction: one additional space destroyed in the same bay (player
+                // chooses)
                 java.util.List<String> chainOpts = new java.util.ArrayList<>();
                 java.util.List<com.sfb.systemgroups.ShuttleSpace> baySpaces = bay.getSpaces();
                 for (int s = 0; s < baySpaces.size(); s++) {
@@ -2497,7 +2604,11 @@ public class Game {
 
         resolveInternalDamage();
 
-        if (currentPhase != ImpulsePhase.DAC_CHOICE)
+        // resolveInternalDamage() leaves currentPhase as DAC_CHOICE when it returns
+        // without adding new choices (it only changes phase when it *adds* a choice or
+        // sets CONTROL_OVERFLOW). So the right exit test is: still in DAC_CHOICE AND
+        // no choices remain → transition back to the phase that triggered the damage.
+        if (currentPhase == ImpulsePhase.DAC_CHOICE && pendingDacChoices.isEmpty())
             currentPhase = dacChoiceReturnPhase;
 
         return ActionResult.ok(String.join("; ", lastInternalDamageLog));
@@ -2614,7 +2725,8 @@ public class Game {
             // PFC: only self-guiding drones may be launched (D19.221)
             if (!rack.getAmmo().get(0).isSelfGuiding())
                 return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
-            // Self-guiding drones acquire their own lock-on after launch — no pre-launch lock-on needed
+            // Self-guiding drones acquire their own lock-on after launch — no pre-launch
+            // lock-on needed
         } else if (!launcher.hasLockOn(target)) {
             return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
         }
@@ -2658,7 +2770,8 @@ public class Game {
         drone.setName(launcher.getName() + "-Drone-" + (++seekerSeq));
         drone.setLocation(launcher.getLocation());
         drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
         Unit droneTarget = target;
         if (target instanceof Ship) {
             com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
@@ -2701,12 +2814,14 @@ public class Game {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
-        // Validate launch facing is within the launcher's allowed directions (ship-relative arc)
+        // Validate launch facing is within the launcher's allowed directions
+        // (ship-relative arc)
         if (facing > 0) {
             int launchDirs = weapon.getLaunchDirections() != 0 ? weapon.getLaunchDirections() : weapon.getArcs();
             int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
             if (!ArcUtils.inArc(relFacing, launchDirs))
-                return ActionResult.fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
+                return ActionResult
+                        .fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
         }
 
         PlasmaTorpedo torpedo = weapon.launch();
@@ -2720,7 +2835,8 @@ public class Game {
         torpedo.setName(launcher.getName() + "-Plasma-" + (++seekerSeq));
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
         Unit torpTarget = target;
         if (target instanceof Ship) {
             com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
@@ -2838,7 +2954,8 @@ public class Game {
         bay.launch(shuttle, shuttle.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
         shuttle.setName(launcher.getName() + "-Suicide-" + (++seekerSeq));
         shuttle.setLocation(launcher.getLocation());
-        // J3.201: redirect to WW if target ship has an active/exploding WW (not post-explosion)
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
         Unit ssTarget = target;
         if (target instanceof Ship) {
             com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
@@ -3011,7 +3128,8 @@ public class Game {
                 int ecmShift = computeSeekerEcmShift(seeker, ship);
                 int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
                 String controllerName = torp.getController() instanceof Ship
-                        ? torp.getController().getName() : torp.getName();
+                        ? torp.getController().getName()
+                        : torp.getName();
                 String hitMsg = "  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
                         + " (enveloping)  total damage " + ecmTotal + " spread to all shields";
                 pendingVolleys.add(new PendingVolley(controllerName, null, ship,
@@ -3022,7 +3140,8 @@ public class Game {
                 int ecmShift = computeSeekerEcmShift(seeker, ship);
                 int dmg = applyProximityRoll(seeker.impact(), ecmShift, log);
                 String controllerName = seeker.getController() instanceof Ship
-                        ? seeker.getController().getName() : unit.getName();
+                        ? seeker.getController().getName()
+                        : unit.getName();
                 String hitMsg = "  " + ship.getName() + " moved into " + unit.getName()
                         + "  shield #" + shieldNum + "  damage " + dmg;
                 pendingVolleys.add(new PendingVolley(controllerName, null, ship,
@@ -3114,7 +3233,8 @@ public class Game {
                             log.add("  Drone (" + drone.getDroneType() + ") hit Wild Weasel "
                                     + ww.getName() + " — WW exploding for 4 impulses");
                         } else {
-                            log.add("  Drone (" + drone.getDroneType() + ") caught in Wild Weasel explosion — destroyed");
+                            log.add("  Drone (" + drone.getDroneType()
+                                    + ") caught in Wild Weasel explosion — destroyed");
                         }
                         expired.add(seeker);
                     } else if (target instanceof Ship) {
@@ -3122,7 +3242,8 @@ public class Game {
                         int ecmShift = computeSeekerEcmShift(drone, target);
                         int dmg = applyProximityRoll(drone.impact(), ecmShift, log);
                         String controllerName = drone.getController() instanceof Ship
-                                ? drone.getController().getName() : drone.getName();
+                                ? drone.getController().getName()
+                                : drone.getName();
                         String hitMsg = "  Drone (" + drone.getDroneType() + ") impacted "
                                 + target.getName() + " shield #" + shieldNum + "  damage " + dmg;
                         pendingVolleys.add(new PendingVolley(controllerName, null, target,
@@ -3230,7 +3351,8 @@ public class Game {
                         int ecmShift = computeSeekerEcmShift(ss, target);
                         int dmg = applyProximityRoll(ss.impact(), ecmShift, log);
                         String controllerName = ss.getController() instanceof Ship
-                                ? ss.getController().getName() : ss.getName();
+                                ? ss.getController().getName()
+                                : ss.getName();
                         String hitMsg = "  Suicide shuttle impacted " + target.getName()
                                 + " shield #" + shieldNum + "  damage " + dmg;
                         pendingVolleys.add(new PendingVolley(controllerName, null, target,
@@ -3290,13 +3412,15 @@ public class Game {
                             log.add("  Plasma-" + torp.getPlasmaType() + " hit Wild Weasel "
                                     + ww.getName() + " — WW exploding for 4 impulses");
                         } else {
-                            log.add("  Plasma-" + torp.getPlasmaType() + " caught in Wild Weasel explosion — destroyed");
+                            log.add("  Plasma-" + torp.getPlasmaType()
+                                    + " caught in Wild Weasel explosion — destroyed");
                         }
                     } else if (target instanceof Ship) {
                         Ship ship = (Ship) target;
                         int ecmShift = computeSeekerEcmShift(torp, ship);
                         String controllerName = torp.getController() instanceof Ship
-                                ? torp.getController().getName() : torp.getName();
+                                ? torp.getController().getName()
+                                : torp.getName();
                         if (torp.isEnveloping()) {
                             int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
                             String hitMsg = "  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
@@ -3337,7 +3461,8 @@ public class Game {
         }
         seekers.removeAll(expired);
 
-        // Transition exploding WWs whose 4-impulse window just ended to post-explosion (J3.212)
+        // Transition exploding WWs whose 4-impulse window just ended to post-explosion
+        // (J3.212)
         for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
             if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
                 com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
@@ -3349,7 +3474,8 @@ public class Game {
             }
         }
 
-        // Natural expiry: post-explosion WW with no seekers still targeting it is removed (J3.212)
+        // Natural expiry: post-explosion WW with no seekers still targeting it is
+        // removed (J3.212)
         List<com.sfb.objects.shuttles.WildWeaselShuttle> doneWws = new ArrayList<>();
         for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
             if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
@@ -3396,21 +3522,27 @@ public class Game {
     }
 
     /**
-     * Choose the cardinal facing for a seeker that avoids planet hexes while staying
-     * as close as possible to the ideal bearing toward the target (keeping the target
+     * Choose the cardinal facing for a seeker that avoids planet hexes while
+     * staying
+     * as close as possible to the ideal bearing toward the target (keeping the
+     * target
      * in FA arc when possible, falling back to adjacent arcs only if necessary).
-     * Returns idealFacing unchanged if it is already clear, or if the seeker's target
+     * Returns idealFacing unchanged if it is already clear, or if the seeker's
+     * target
      * is a Terrain object (e.g. future planet-bombardment).
      */
     private int chooseSeekerFacing(Unit seeker, int idealFacing) {
         int[] cardinals = { 1, 5, 9, 13, 17, 21 };
         int idealIdx = 0;
         for (int i = 0; i < cardinals.length; i++) {
-            if (cardinals[i] == idealFacing) { idealIdx = i; break; }
+            if (cardinals[i] == idealFacing) {
+                idealIdx = i;
+                break;
+            }
         }
         // Try offset 0 (ideal) first, then ±1, ±2, ±3 — nearest to target wins
         for (int offset = 0; offset <= 3; offset++) {
-            int[] signs = (offset == 0) ? new int[]{0} : new int[]{1, -1};
+            int[] signs = (offset == 0) ? new int[] { 0 } : new int[] { 1, -1 };
             for (int sign : signs) {
                 int altIdx = ((idealIdx + sign * offset) % 6 + 6) % 6;
                 Location nextHex = MapUtils.getAdjacentHex(seeker.getLocation(),
@@ -3477,8 +3609,10 @@ public class Game {
     }
 
     /**
-     * Roll asteroid collision damage and apply as phaser damage to a plasma torpedo (P3.2).
-     * Each point of asteroid damage reduces torpedo strength by 0.5 (same as direct phaser fire).
+     * Roll asteroid collision damage and apply as phaser damage to a plasma torpedo
+     * (P3.2).
+     * Each point of asteroid damage reduces torpedo strength by 0.5 (same as direct
+     * phaser fire).
      * Returns a log line; removes the torpedo if strength reaches 0.
      */
     private String applyAsteroidCollisionToPlasma(PlasmaTorpedo torp) {
@@ -3747,10 +3881,14 @@ public class Game {
         int roll = new DiceRoller().rollOneDie();
         int total = roll + ecmShift;
         int damage;
-        if (total <= 6)       damage = baseDamage;
-        else if (total <= 8)  damage = baseDamage / 2;
-        else if (total <= 10) damage = baseDamage / 4;
-        else                  damage = 0;
+        if (total <= 6)
+            damage = baseDamage;
+        else if (total <= 8)
+            damage = baseDamage / 2;
+        else if (total <= 10)
+            damage = baseDamage / 4;
+        else
+            damage = 0;
         log.add("    ECM proximity roll: d6=" + roll + " + shift " + ecmShift + " = " + total
                 + " → " + damage + " dmg (of " + baseDamage + ")");
         return damage;
@@ -3810,8 +3948,10 @@ public class Game {
             boolean triggered = false;
             for (Unit unit : inRange) {
                 com.sfb.properties.Location prev = prevLocations.get(unit);
-                if (prev == null) continue; // did not move this impulse
-                if (prev != null && MapUtils.getRange(mine.getLocation(), prev) <= 1) continue; // was already in range
+                if (prev == null)
+                    continue; // did not move this impulse
+                if (prev != null && MapUtils.getRange(mine.getLocation(), prev) <= 1)
+                    continue; // was already in range
                 int roll = dice.rollOneDie();
                 if (mine.detectsUnit(unit.getSpeed(), roll)) {
                     log.add("  tBomb detection: " + unit.getName()
@@ -4726,30 +4866,30 @@ public class Game {
      */
     public static class PendingVolley {
         public final String attackerName;
-        public final Ship attackerShip;   // null for non-Ship attackers
+        public final Ship attackerShip; // null for non-Ship attackers
         public final Unit target;
-        public final int shieldNumber;    // 0 for EPT enveloping seeker hits
+        public final int shieldNumber; // 0 for EPT enveloping seeker hits
         public final int totalDamage;
         public final int envelopingHellboreDamage;
         public final boolean addHit;
         public final boolean fusionSuicideFired;
-        public final String attackerLog;  // per-weapon roll results visible to attacker
+        public final String attackerLog; // per-weapon roll results visible to attacker
         public final PlasmaTorpedo envelopingTorp; // non-null only for EPT seeker hits
 
         public PendingVolley(String attackerName, Ship attackerShip, Unit target,
                 int shieldNumber, int totalDamage, int envelopingHellboreDamage,
                 boolean addHit, boolean fusionSuicideFired, String attackerLog,
                 PlasmaTorpedo envelopingTorp) {
-            this.attackerName             = attackerName;
-            this.attackerShip             = attackerShip;
-            this.target                   = target;
-            this.shieldNumber             = shieldNumber;
-            this.totalDamage              = totalDamage;
+            this.attackerName = attackerName;
+            this.attackerShip = attackerShip;
+            this.target = target;
+            this.shieldNumber = shieldNumber;
+            this.totalDamage = totalDamage;
             this.envelopingHellboreDamage = envelopingHellboreDamage;
-            this.addHit                   = addHit;
-            this.fusionSuicideFired       = fusionSuicideFired;
-            this.attackerLog              = attackerLog;
-            this.envelopingTorp           = envelopingTorp;
+            this.addHit = addHit;
+            this.fusionSuicideFired = fusionSuicideFired;
+            this.attackerLog = attackerLog;
+            this.envelopingTorp = envelopingTorp;
         }
     }
 
@@ -4760,14 +4900,17 @@ public class Game {
      */
     public static class PendingDacChoice {
         public final String targetShipName;
-        public final String dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp" | "shuttle"
-        public final int    roll;
+        public final String dacType; // "phaser" | "drone" | "torp" | "weapon" | "warp" | "shuttle"
+        public final int roll;
         public final java.util.List<String> options; // selectable weapon names / warp ids / space ids
-        /** For "shuttle" chain reactions: the bay index this choice is scoped to (-1 = any bay). */
-        public final int    bayIndex;
+        /**
+         * For "shuttle" chain reactions: the bay index this choice is scoped to (-1 =
+         * any bay).
+         */
+        public final int bayIndex;
         final Ship targetShip;
         final Ship attackerShip;
-        final int  remainingBleed;
+        final int remainingBleed;
 
         PendingDacChoice(Ship target, Ship attacker, String dacType, int roll,
                 java.util.List<String> options, int remainingBleed) {
@@ -4777,13 +4920,13 @@ public class Game {
         PendingDacChoice(Ship target, Ship attacker, String dacType, int roll,
                 java.util.List<String> options, int remainingBleed, int bayIndex) {
             this.targetShipName = target.getName();
-            this.targetShip     = target;
-            this.attackerShip   = attacker;
-            this.dacType        = dacType;
-            this.roll           = roll;
-            this.options        = options;
+            this.targetShip = target;
+            this.attackerShip = attacker;
+            this.dacType = dacType;
+            this.roll = roll;
+            this.options = options;
             this.remainingBleed = remainingBleed;
-            this.bayIndex       = bayIndex;
+            this.bayIndex = bayIndex;
         }
     }
 
@@ -4802,7 +4945,7 @@ public class Game {
     private static class PendingDamage {
         final Ship target;
         final int bleed;
-        final Ship attacker;          // null for self-damage (HET breakdown, fusion suicide, mines, etc.)
+        final Ship attacker; // null for self-damage (HET breakdown, fusion suicide, mines, etc.)
         final boolean isContinuation; // true = leftover bleed after a DAC choice; false = new volley
 
         PendingDamage(Ship target, int bleed) {

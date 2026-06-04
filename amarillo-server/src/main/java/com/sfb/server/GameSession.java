@@ -760,8 +760,7 @@ public class GameSession {
                             pack = (com.sfb.objects.shuttles.ScatterPack) foundShuttle;
                         } else {
                             pack = new com.sfb.objects.shuttles.ScatterPack(foundShuttle);
-                            int idx = foundBay.getInventory().indexOf(foundShuttle);
-                            foundBay.getInventory().set(idx, pack);
+                            foundBay.replaceShuttle(foundShuttle, pack);
                         }
 
                         // Collect requested drones from reload stockpile across all racks
@@ -816,9 +815,7 @@ public class GameSession {
                         if (energy < 1 || energy > 3)
                             continue;
                         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-                            java.util.List<com.sfb.objects.shuttles.Shuttle> inv = bay.getInventory();
-                            for (int idx = 0; idx < inv.size(); idx++) {
-                                com.sfb.objects.shuttles.Shuttle s = inv.get(idx);
+                            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
                                 if (!s.getName().equalsIgnoreCase(shuttleName))
                                     continue;
                                 com.sfb.objects.shuttles.SuicideShuttle ss;
@@ -826,7 +823,7 @@ public class GameSession {
                                     ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
                                 } else if (s.canBecomeSuicide()) {
                                     ss = new com.sfb.objects.shuttles.SuicideShuttle(s);
-                                    inv.set(idx, ss);
+                                    bay.replaceShuttle(s, ss);
                                 } else {
                                     break;
                                 }
@@ -1373,6 +1370,20 @@ public class GameSession {
     // -------------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------------
+
+    /**
+     * Returns the ships effectively controlled by a player.
+     * In unassigned (solo) mode, every player controls all ships — mirrors ownsShip().
+     */
+    public List<String> getEffectiveShipNamesForPlayer(String token) {
+        boolean anyAssigned = game.getShips().stream()
+                .anyMatch(s -> s.getOwner() != null);
+        if (!anyAssigned) {
+            return game.getShips().stream().map(Ship::getName).toList();
+        }
+        PlayerInfo info = players.get(token);
+        return info != null ? info.getShipNames() : List.of();
+    }
 
     public String getId() {
         return id;

@@ -113,6 +113,21 @@ public class ShuttleBay {
         spaces.add(new ShuttleSpace(shuttle));
     }
 
+    /**
+     * Replace one shuttle in-bay with another (e.g. admin → ScatterPack).
+     * Uses identity comparison so the correct space is updated even if two
+     * shuttles have the same name. Returns true if the old shuttle was found.
+     */
+    public boolean replaceShuttle(Shuttle oldShuttle, Shuttle newShuttle) {
+        for (ShuttleSpace space : spaces) {
+            if (space.getShuttle() == oldShuttle) {
+                space.setShuttle(newShuttle);
+                return true;
+            }
+        }
+        return false;
+    }
+
     // -------------------------------------------------------------------------
     // Launch tubes
     // -------------------------------------------------------------------------

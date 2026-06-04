@@ -276,10 +276,6 @@ public class ScenarioLoader {
                     System.err.println("COI: shuttle not found: " + prep.shuttleName + " — skipped");
                     continue;
                 }
-                // Replace the base shuttle in the bay inventory with the converted type
-                List<Shuttle> inv = foundBay.getInventory();
-                int idx = inv.indexOf(foundShuttle);
-
                 if ("suicide".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeSuicide()) {
                         System.err.println("COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
@@ -288,7 +284,7 @@ public class ScenarioLoader {
                     SuicideShuttle ss = new SuicideShuttle(foundShuttle);
                     int energy = Math.max(1, Math.min(3, prep.energyPerTurn));
                     for (int t = 0; t < 3; t++) ss.arm(energy);
-                    inv.set(idx, ss);
+                    foundBay.replaceShuttle(foundShuttle, ss);
                     applied++;
 
                 } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
@@ -310,7 +306,7 @@ public class ScenarioLoader {
                             break;
                         }
                     }
-                    inv.set(idx, sp);
+                    foundBay.replaceShuttle(foundShuttle, sp);
                     applied++;
 
                 } else if ("wildweasel".equalsIgnoreCase(prep.type)) {

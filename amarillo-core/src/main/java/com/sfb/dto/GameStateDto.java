@@ -563,16 +563,45 @@ public class GameStateDto {
         for (Terrain t : game.getTerrain())
             mapObjects.add(fromTerrain(t));
 
+        // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
+        // shows the combined incoming total per shield facing.  EPT volleys
+        // (envelopingTorp != null) always stay separate.  Enveloping Hellbore
+        // damage is summed for display but applied separately (E10.43).
+        java.util.LinkedHashMap<String, PendingVolleyDto> volleyMap = new java.util.LinkedHashMap<>();
         for (Game.PendingVolley pv : game.getPendingVolleys()) {
-            PendingVolleyDto d = new PendingVolleyDto();
-            d.attackerName             = pv.attackerName;
-            d.targetShipName           = pv.target != null ? pv.target.getName() : "";
-            d.shieldNumber             = pv.shieldNumber;
-            d.totalDamage              = pv.totalDamage;
-            d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
-            d.addHit                   = pv.addHit;
-            pendingVolleys.add(d);
+            String targetName = pv.target != null ? pv.target.getName() : "";
+            if (pv.envelopingTorp != null) {
+                // EPT: always a distinct entry
+                PendingVolleyDto d = new PendingVolleyDto();
+                d.attackerName             = pv.attackerName;
+                d.targetShipName           = targetName;
+                d.shieldNumber             = pv.shieldNumber;
+                d.totalDamage              = pv.totalDamage;
+                d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
+                d.addHit                   = pv.addHit;
+                pendingVolleys.add(d);
+                continue;
+            }
+            String key = targetName + ":" + pv.shieldNumber;
+            PendingVolleyDto existing = volleyMap.get(key);
+            if (existing == null) {
+                PendingVolleyDto d = new PendingVolleyDto();
+                d.attackerName             = pv.attackerName;
+                d.targetShipName           = targetName;
+                d.shieldNumber             = pv.shieldNumber;
+                d.totalDamage              = pv.totalDamage;
+                d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
+                d.addHit                   = pv.addHit;
+                volleyMap.put(key, d);
+            } else {
+                existing.totalDamage              += pv.totalDamage;
+                existing.envelopingHellboreDamage += pv.envelopingHellboreDamage;
+                existing.addHit                    = existing.addHit || pv.addHit;
+                if (!existing.attackerName.contains(pv.attackerName))
+                    existing.attackerName += ", " + pv.attackerName;
+            }
         }
+        pendingVolleys.addAll(volleyMap.values());
 
         for (Game.PendingDacChoice dc : game.getPendingDacChoices()) {
             PendingDacChoiceDto d = new PendingDacChoiceDto();

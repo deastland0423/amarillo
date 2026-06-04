@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 
@@ -235,11 +235,12 @@ export default function EnergyAllocationDialog({
     return map;
   });
 
-  const [activeTab, setActiveTab] = useState(() => {
-    const initial = myPending[0] ?? '';
-    if (initial) onTabChange?.(initial);
-    return initial;
-  });
+  const [activeTab, setActiveTab] = useState(() => myPending[0] ?? '');
+
+  useEffect(() => {
+    if (activeTab) onTabChange?.(activeTab);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ship  = allShips.find(s => s.name === activeTab);
   const alloc = allocMap[activeTab];
