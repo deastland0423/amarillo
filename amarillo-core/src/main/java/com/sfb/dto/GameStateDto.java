@@ -288,6 +288,11 @@ public class GameStateDto {
         public int     decelerationEndsAtImpulse; // absolute impulse when ship stops; -1 if not decelerating
         public boolean wildWeaselActive; // true while a WW decoy is on the map for this ship
         public int wwEcmBonus; // +6 while WW is active (J3.23), else 0
+        // Tractor beam state (G7.0)
+        public boolean tractored;         // true if held in another ship's tractor beam
+        public String  tractoredByName;   // name of the holding ship, or null
+        public int     tractorEnergy;     // energy allocated to tractors this turn (for EA display)
+        public java.util.List<String> tractoredTargetNames; // names of ships this ship is currently tractoring
         // Active Fire Control state (D6.6)
         public boolean fireControlActivating; // true during 4-impulse countdown to going active
         public int     fcActivatingUntil;     // absolute impulse when activation completes; -1 if not activating
@@ -780,6 +785,13 @@ public class GameStateDto {
         dto.decelerationEndsAtImpulse = ship.getDecelerationEndsAtImpulse();
         dto.wildWeaselActive = ship.hasActiveWildWeasel();
         dto.wwEcmBonus = ship.getWwEcmBonus();
+        dto.tractored = ship.isTractored();
+        dto.tractoredByName = ship.isTractored() && ship.getTractoringUnit() != null
+                ? ship.getTractoringUnit().getName() : null;
+        dto.tractorEnergy = ship.getTractors().getTotalTractorEnergy();
+        dto.tractoredTargetNames = ship.getTractors().getTractoredUnits().stream()
+                .map(com.sfb.objects.Unit::getName)
+                .collect(java.util.stream.Collectors.toList());
         dto.fireControlActivating = ship.isFcActivating();
         dto.fcActivatingUntil     = ship.getFcActivatingUntil();
         dto.fcPaidThisTurn        = ship.isFcPaidThisTurn();

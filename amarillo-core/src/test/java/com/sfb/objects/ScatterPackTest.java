@@ -222,25 +222,25 @@ public class ScatterPackTest {
 
     @Test
     public void launch_succeedsWhenAllConditionsMet() {
-        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target);
+        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertTrue(result.getMessage(), result.isSuccess());
     }
 
     @Test
     public void launch_addsPackToSeekers() {
-        game.launchScatterPack(launcher, bay, loadedPack, target);
+        game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertTrue(game.getSeekers().contains(loadedPack));
     }
 
     @Test
     public void launch_removesPackFromBay() {
-        game.launchScatterPack(launcher, bay, loadedPack, target);
+        game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertFalse(bay.getInventory().contains(loadedPack));
     }
 
     @Test
     public void launch_setsTargetAndController() {
-        game.launchScatterPack(launcher, bay, loadedPack, target);
+        game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertEquals(target,   loadedPack.getTarget());
         assertEquals(launcher, loadedPack.getController());
     }
@@ -250,7 +250,7 @@ public class ScatterPackTest {
         game.advancePhase(); // ACTIVITY → DIRECT_FIRE
         assertEquals(Game.ImpulsePhase.DIRECT_FIRE, game.getCurrentPhase());
 
-        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target);
+        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("Activity phase"));
     }
@@ -261,7 +261,7 @@ public class ScatterPackTest {
         empty.setName("SP-empty");
         bay.getInventory().add(empty);
 
-        ActionResult result = game.launchScatterPack(launcher, bay, empty, target);
+        ActionResult result = game.launchScatterPack(launcher, bay, empty, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("no drones"));
     }
@@ -270,7 +270,7 @@ public class ScatterPackTest {
     public void launch_failsWithoutLockOn() {
         launcher.removeLockOn(target);
 
-        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target);
+        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("lock-on"));
     }
@@ -278,7 +278,7 @@ public class ScatterPackTest {
     @Test
     public void launch_logIncludesDroneCount() {
         int count = loadedPack.getPayload().size();
-        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target);
+        ActionResult result = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
         assertTrue(result.isSuccess());
         assertTrue(result.getMessage().contains(String.valueOf(count)));
     }

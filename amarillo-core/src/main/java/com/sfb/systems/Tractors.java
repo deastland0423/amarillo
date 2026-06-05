@@ -9,64 +9,70 @@ import com.sfb.systemgroups.Systems;
 
 public class Tractors implements Systems {
 
-	int tractor;									// The number of tractor beams on the undamaged ship.
-	int availableTractor;							// The number of undamaged tractor beams on the ship.
-	
-	int totalTractorEnergy;							// The total energy allocated to tractors for the turn.
-	int remainingTractorEnergy;						// Unspent tractor energy
-	
-	int negativeTractorEnergy;						// Energy applied to fight off tractor attempts.
-	
-	int tractorsUsed;								// The number of tractors that are currently in use.
-	Unit owningUnit;								// The unit on which the tractors are installed.
-	
-	List<Unit> tractoredUnits = new ArrayList<>();	// Any units currently being tractored.
-	
+	int tractors; // The number of tractor beams on the undamaged ship.
+	int availableTractors; // The number of undamaged tractor beams on the ship.
+
+	int totalTractorEnergy; // The total energy allocated to tractors for the turn.
+	int remainingTractorEnergy; // Unspent tractor energy
+
+	int negativeTractorEnergy; // Energy applied to fight off tractor attempts.
+
+	int tractorsUsed; // The number of tractors that are currently in use.
+	Unit owningUnit; // The unit on which the tractors are installed.
+
+	List<Unit> tractoredUnits = new ArrayList<>(); // Any units currently being tractored.
+
 	public Tractors(Unit owningUnit) {
 		this.owningUnit = owningUnit;
 	}
-	
+
 	public void init(Map<String, Object> values) {
-		availableTractor = tractor = values.get("tractor") == null ? 0 : (Integer)values.get("tractor");
+		availableTractors = tractors = values.get("tractor") == null ? 0 : (Integer) values.get("tractor");
 		totalTractorEnergy = remainingTractorEnergy = 0;
 	}
-	
+
 	public int getTotalTractorEnergy() {
 		return this.totalTractorEnergy;
 	}
-	
+
 	public int getRemainingTractorEnergy() {
 		return this.remainingTractorEnergy;
 	}
-	
+
 	public int getNegativeTractorEnergy() {
 		return this.negativeTractorEnergy;
 	}
-	
+
 	public void addNegativeTractorEnergy(int energy) {
 		negativeTractorEnergy += energy;
 	}
-	
+
+	public void initForTurn(int energy) {
+		totalTractorEnergy = remainingTractorEnergy = energy;
+	}
+
+	public List<Unit> getTractoredUnits() {
+		return tractoredUnits;
+	}
+
+	public int getTractors() {
+		return tractors;
+	}
+
+	public int getAvailableTractors() {
+		return availableTractors;
+	}
+
 	public void tractorUnit(int energy, Unit target) {
-
-		//TODO: Should I calculate range here and do the range penalty for energy?
-		
-		// If we have enough tractor energy and a free tractor beam, attempt to tractor the target.
-		if (energy <= remainingTractorEnergy && tractorsUsed < availableTractor) {
-
-			// If we succeed in applying the tractor, add it as a tractored object.
+		if (energy <= remainingTractorEnergy && tractorsUsed < availableTractors) {
 			if (target.applyTractor(energy, owningUnit)) {
 				tractoredUnits.add(target);
 				tractorsUsed++;
 			}
-			
-			// Even on a failure, we use up the energy.
 			remainingTractorEnergy -= energy;
-		} else {
-			//TODO: Handle bad energy value or lack of free tractor beam
 		}
 	}
-	
+
 	public void releaseTractor(Unit target) {
 		target.releaseTractor();
 		tractoredUnits.remove(target);
@@ -75,25 +81,27 @@ public class Tractors implements Systems {
 
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return tractor;
+		return tractors;
 	}
 
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return availableTractor;
+		return availableTractors;
 	}
 
 	@Override
 	public void cleanUp() {
-		// TODO Auto-generated method stub
-		
+		// Release all tractor links at end of turn; beams must be re-established (G7.124)
+		for (Unit held : new ArrayList<>(tractoredUnits))
+			releaseTractor(held);
+		totalTractorEnergy = remainingTractorEnergy = 0;
 	}
 
 	@Override
 	public Unit fetchOwningUnit() {
 		return owningUnit;
 	}
-	
+
 	/**
 	 * Destroy a tractor box.
 	 * 
@@ -101,24 +109,24 @@ public class Tractors implements Systems {
 	 */
 	public boolean damage() {
 		// If there are not tractors left, we can't do damage.
-		if (availableTractor == 0) {
+		if (availableTractors == 0) {
 			return false;
-		// Otherwise, destroy a tractor box.
+			// Otherwise, destroy a tractor box.
 		} else {
 			// If all tractors are occupied, we must drop one tractor
-			if (tractorsUsed == availableTractor) {
+			if (tractorsUsed == availableTractors) {
 
-				//TODO: Figure out some way to decide which unit to un-tractor
-				
+				// TODO: Figure out some way to decide which unit to un-tractor
+
 				// For now, just drop the first one in the list.
 				releaseTractor(tractoredUnits.get(0));
 			}
 
-			availableTractor--;
+			availableTractors--;
 			return true;
 		}
 	}
-	
+
 	/**
 	 * Repair a single tractor box.
 	 * 
@@ -127,7 +135,7 @@ public class Tractors implements Systems {
 	public boolean repair() {
 		return repair(1);
 	}
-	
+
 	/**
 	 * Repair a number of tractor boxes specified.
 	 * 
@@ -136,11 +144,11 @@ public class Tractors implements Systems {
 	 * @return True if there are damage boxes, false otherwise.
 	 */
 	public boolean repair(int value) {
-		if (availableTractor + value > tractor) {
+		if (availableTractors + value > tractors) {
 			return false;
 		}
-		
-		availableTractor += value;
+
+		availableTractors += value;
 		return true;
 
 	}

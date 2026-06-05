@@ -1,7 +1,5 @@
 package com.sfb.objects.shuttles;
 
-import com.sfb.objects.*;
-
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.Phaser3;

@@ -208,6 +208,11 @@ export interface ShipObject extends MapObjectBase {
   decelerationEndsAtImpulse?: number;  // absolute impulse when ship stops
   wildWeaselActive?: boolean;   // true while a WW decoy is on the map for this ship
   wwEcmBonus?:       number;    // +6 while WW active, else 0
+  tractored?:         boolean;  // true if held in a tractor beam (G7.0)
+  tractoredByName?:   string;   // name of the holding ship
+  tractorEnergy?:     number;   // energy allocated to tractors this turn
+  availableTractors?:     number;    // number of undamaged tractor beams
+  tractoredTargetNames?:  string[];  // names of ships this ship is currently tractoring
   fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown
   fcActivatingUntil?:     number;  // absolute impulse when activation completes
   fcPaidThisTurn?:        boolean; // true if FC energy was allocated this turn

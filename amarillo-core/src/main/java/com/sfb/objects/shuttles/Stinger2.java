@@ -1,7 +1,5 @@
 package com.sfb.objects.shuttles;
 
-import com.sfb.objects.*;
-
 import java.util.List;
 
 import com.sfb.properties.TurnMode;

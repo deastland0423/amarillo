@@ -61,6 +61,7 @@ interface ShipAlloc {
   sublightTac:          boolean;  // pay 1 impulse point for sublight TAC (C5.12)
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
+  tractorEnergy:        number;   // energy pool for tractor beams (G7.15)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
   wwCharge:             Set<string>;             // shuttle names being charged as WW this turn
 }
@@ -106,6 +107,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     sublightTac:       false,
     ecm:               0,
     eccm:              0,
+    tractorEnergy:     0,
     shuttleSpeeds,
     wwCharge: new Set(
       (ship.shuttleBays ?? []).flatMap(bay =>
@@ -158,7 +160,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ssArming  = Object.values(alloc.suicideArming ?? {}).reduce((a, b) => a + b, 0);
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost;
+  const tractorCost = alloc.tractorEnergy;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost;
   const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
   return { spent, total };
 }
@@ -351,6 +354,7 @@ export default function EnergyAllocationDialog({
           sublightTacticalTurn:  a.sublightTac,
           ecm:                   a.ecm,
           eccm:                  a.eccm,
+          tractorEnergy:         a.tractorEnergy,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
           droneReloadSelections: Object.fromEntries(
@@ -569,6 +573,17 @@ export default function EnergyAllocationDialog({
               <Stepper value={alloc.eccm} min={0} max={(ship.sensorRating ?? 0) - alloc.ecm}
                 onChange={v => setAlloc(a => ({ ...a, eccm: v }))}
                 label="ECCM (seek)" />
+            </Collapsible>
+          </div>
+        )}
+
+        {/* ---- Tractor Beams ---- */}
+        {(ship.availableTractors ?? 0) > 0 && (
+          <div className="ea-section">
+            <Collapsible title={`TRACTOR BEAMS  (${ship.availableTractors ?? 0} beam(s), used ${alloc.tractorEnergy})`} color="#22d3ee">
+              <Stepper value={alloc.tractorEnergy} min={0} max={ship.availableTractors ?? 0}
+                onChange={v => setAlloc(a => ({ ...a, tractorEnergy: v }))}
+                label="Energy pool (G7.15)" />
             </Collapsible>
           </div>
         )}

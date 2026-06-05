@@ -180,25 +180,25 @@ public class SuicideShuttleTest {
 
     @Test
     public void launch_succeedsWhenAllConditionsMet() {
-        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertTrue(result.getMessage(), result.isSuccess());
     }
 
     @Test
     public void launch_addsSuicideShuttleToSeekers() {
-        game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertTrue(game.getSeekers().contains(armedShuttle));
     }
 
     @Test
     public void launch_removesShuttleFromBay() {
-        game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertFalse(bay.getInventory().contains(armedShuttle));
     }
 
     @Test
     public void launch_setsTargetAndController() {
-        game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertEquals(target,   armedShuttle.getTarget());
         assertEquals(launcher, armedShuttle.getController());
     }
@@ -209,7 +209,7 @@ public class SuicideShuttleTest {
         game.advancePhase();
         assertEquals(Game.ImpulsePhase.DIRECT_FIRE, game.getCurrentPhase());
 
-        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("Activity phase"));
     }
@@ -221,7 +221,7 @@ public class SuicideShuttleTest {
         unarmed.arm(1); // only 1 of 3 turns done
         bay.getInventory().add(unarmed);
 
-        ActionResult result = game.launchSuicideShuttle(launcher, bay, unarmed, target);
+        ActionResult result = game.launchSuicideShuttle(launcher, bay, unarmed, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("not fully armed"));
     }
@@ -230,14 +230,14 @@ public class SuicideShuttleTest {
     public void launch_failsWithoutLockOn() {
         launcher.removeLockOn(target);
 
-        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("lock-on"));
     }
 
     @Test
     public void launch_logIncludesWarheadDamage() {
-        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target);
+        ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertTrue(result.isSuccess());
         assertTrue(result.getMessage().contains(String.valueOf(armedShuttle.getWarheadDamage())));
     }

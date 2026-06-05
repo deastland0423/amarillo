@@ -1,7 +1,5 @@
 package com.sfb.objects.shuttles;
 
-import com.sfb.objects.*;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,12 +10,16 @@ import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.Weapon;
 
 /**
- * Ground Attack Shuttle — heavier hull than the admin shuttle, same speed and armament.
+ * Ground Attack Shuttle — heavier hull than the admin shuttle, same speed and
+ * armament.
  * Hull: 8, Max speed: 6, Weapon: Phaser-3 (full arc).
  */
 public class GASShuttle extends Shuttle {
 
-    @Override public boolean canBecomeWildWeasel() { return true; }
+    @Override
+    public boolean canBecomeWildWeasel() {
+        return true;
+    }
 
     public GASShuttle() {
         setHull(8);

@@ -1361,6 +1361,8 @@ public class Game {
             return ActionResult.fail(shuttleName + " is not a charged Wild Weasel");
         if (ship.hasActiveWildWeasel())
             return ActionResult.fail(ship.getName() + " already has an active Wild Weasel");
+        if (ship.isTractored())
+            return ActionResult.fail("Cannot launch Wild Weasel while held in a tractor beam (G7.98)");
         if (ship.getSpeed() > 4)
             return ActionResult.fail("Cannot launch Wild Weasel — ship speed " + ship.getSpeed()
                     + " exceeds maneuver rate limit of 4 (J3.131)");
@@ -1862,6 +1864,63 @@ public class Game {
         return MapUtils.getRange(attacker, target);
     }
 
+    // -------------------------------------------------------------------------
+    // Tractor beams (G7.0)
+    // -------------------------------------------------------------------------
+
+    public ActionResult establishTractor(Ship holder, String targetName) {
+        if (holder.getTractors().getTractors() == 0)
+            return ActionResult.fail(holder.getName() + " has no tractor beams");
+        if (holder.getTractors().getAvailableTractors() == 0)
+            return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
+        if (holder.getTractors().getRemainingTractorEnergy() < 1)
+            return ActionResult.fail("No tractor energy remaining — allocate energy to tractors in EA");
+
+        Ship target = ships.stream()
+                .filter(s -> s.getName().equalsIgnoreCase(targetName))
+                .findFirst().orElse(null);
+        if (target == null)
+            return ActionResult.fail("Target ship not found: " + targetName);
+        if (target == holder)
+            return ActionResult.fail("Cannot tractor yourself");
+
+        int range = MapUtils.getRange(holder, target);
+        if (range > 1)
+            return ActionResult.fail("Target is out of standard tractor range (must be in same or adjacent hex; see G7.31)");
+
+        // G7.412: lock-on required
+        if (!holder.hasLockOn(target))
+            return ActionResult.fail(holder.getName() + " does not have lock-on to " + targetName + " (G7.412)");
+
+        // G7.41: active fire control required
+        if (!holder.isActiveFireControl())
+            return ActionResult.fail(holder.getName() + " does not have active fire control (G7.41)");
+
+        if (holder.getTractors().getTractoredUnits().contains(target))
+            return ActionResult.fail(holder.getName() + " is already tractoring " + targetName);
+
+        holder.getTractors().tractorUnit(1, target);
+
+        // G7.412: once linked, both ships automatically have lock-on to each other
+        holder.addLockOn(target);
+        target.addLockOn(holder);
+
+        return ActionResult.ok(holder.getName() + " established tractor beam on " + targetName + " (G7.3)");
+    }
+
+    public ActionResult releaseTractor(Ship holder, String targetName) {
+        Ship target = ships.stream()
+                .filter(s -> s.getName().equalsIgnoreCase(targetName))
+                .findFirst().orElse(null);
+        if (target == null)
+            return ActionResult.fail("Target ship not found: " + targetName);
+        if (!holder.getTractors().getTractoredUnits().contains(target))
+            return ActionResult.fail(holder.getName() + " is not tractoring " + targetName);
+
+        holder.getTractors().releaseTractor(target);
+        return ActionResult.ok(holder.getName() + " released tractor beam on " + targetName + " (G7.33)");
+    }
+
     /**
      * Compute which shield number on the target is facing the attacker.
      */
@@ -2170,6 +2229,13 @@ public class Game {
             return attacker.getName() + " cannot fire — undermanned (G9.42)";
         if (attacker instanceof Ship && ((Ship) attacker).isInBreakdownLockout(TurnTracker.getImpulse()))
             return attacker.getName() + " cannot fire — breakdown lockout for 8 impulses (C6.5471)";
+        // G7.91: tractored ship can only fire direct-fire weapons at the holding ship
+        if (attacker instanceof Ship && ((Ship) attacker).isTractored() && target instanceof Ship) {
+            Unit holder = ((Ship) attacker).getTractoringUnit();
+            if (target != holder)
+                return attacker.getName() + " cannot fire at " + target.getName()
+                        + " — tractored ships may only fire direct-fire weapons at the holding ship (G7.91)";
+        }
         if (attacker instanceof Ship && !((Ship) attacker).isActiveFireControl()) {
             if (range > 5)
                 return attacker.getName()
@@ -2715,6 +2781,9 @@ public class Game {
             return cloakBlock;
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.943: tractored ship may only launch seeking weapons at the holding ship
+        if (launcher.isTractored() && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only launch seeking weapons at the holding ship (G7.943)");
         if (!rack.isFunctional())
             return ActionResult.fail(rack.getName() + " is destroyed");
         if (!rack.canFire())
@@ -2745,6 +2814,9 @@ public class Game {
             return cloakBlock;
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.943: tractored ship may only launch seeking weapons at the holding ship
+        if (launcher.isTractored() && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only launch seeking weapons at the holding ship (G7.943)");
         if (!rack.isFunctional())
             return ActionResult.fail(rack.getName() + " is destroyed");
         if (!rack.canFire())
@@ -2810,6 +2882,9 @@ public class Game {
             return cloakBlock;
         if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
             return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.91: tractored ship cannot fire plasma torpedoes at non-holding ships
+        if (launcher.isTractored() && target instanceof Ship && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only fire plasma at the holding ship (G7.91)");
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.isArmed())
@@ -2929,7 +3004,7 @@ public class Game {
      * Requires lock-on. Speed capped at shuttle's maxSpeed.
      */
     public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
-            com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target) {
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target, int facing, int speed) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -2951,7 +3026,7 @@ public class Game {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
-        bay.launch(shuttle, shuttle.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, TurnTracker.getImpulse());
         shuttle.setName(launcher.getName() + "-Suicide-" + (++seekerSeq));
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
@@ -2981,7 +3056,7 @@ public class Game {
      * Requires lock-on. Releases its drones after 8 impulses.
      */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
-            com.sfb.objects.shuttles.ScatterPack pack, Unit target) {
+            com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -3000,7 +3075,7 @@ public class Game {
 
         launcher.forceAcquireControl(pack);
 
-        bay.launch(pack, pack.getMaxSpeed(), MapUtils.getBearing(launcher, target), TurnTracker.getImpulse());
+        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, TurnTracker.getImpulse());
         pack.setName(launcher.getName() + "-Pack-" + (++seekerSeq));
         pack.setLocation(launcher.getLocation());
         pack.setTarget(target);

@@ -267,7 +267,7 @@ const ALL_FACINGS = new Set([1, 5, 9, 13, 17, 21]);
 interface LaunchPanelProps {
   ship:           ShipObject;
   target:         MapObject | null;
-  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[]) => void;
+  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[], seekerSpeed: number) => void;
   onClearTarget:  () => void;
   onCancel:       () => void;
   error:          string | null;
@@ -279,6 +279,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   const [selRackDrones,    setSelRackDrones]    = useState<Map<string, number>>(new Map());
   const [selSeekerShuttles,setSelSeekerShuttles]= useState<Set<string>>(new Set());
   const [launchFacing,     setLaunchFacing]     = useState<number | null>(null);
+  const [seekerSpeed,      setSeekerSpeed]      = useState<number>(6);
 
   const launchablePlasma = (ship.weapons ?? []).filter(w =>
     w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady)
@@ -319,8 +320,14 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   const totalSelected      = selLaunchers.size + pseudoSet.size + selRackDrones.size;
   const totalSeekerShuttles = selSeekerShuttles.size;
   const anythingSelected   = totalSelected > 0 || totalSeekerShuttles > 0;
-  // Facing is required only when plasma/drones are selected (seeker shuttles auto-face target)
-  const facingRequired     = totalSelected > 0;
+  const facingRequired     = totalSelected > 0 || totalSeekerShuttles > 0;
+
+  // Max speed for selected seeker shuttles (min of all selected, clamped ≥ 1).
+  const selectedSeekerObjs = launchableSeekerShuttles.filter(s => selSeekerShuttles.has(s.name));
+  const seekerMaxSpeed     = selectedSeekerObjs.length > 0
+    ? Math.max(1, Math.min(...selectedSeekerObjs.map(s => s.maxSpeed)))
+    : 6;
+  const effectiveSeekerSpeed = Math.min(seekerSpeed, seekerMaxSpeed);
 
   // Compute the intersection of all selected weapons' allowed launch facings.
   // Start with all 6 facings, then filter by launchDirectionsMask (or arcMask fallback)
@@ -487,6 +494,21 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
             </>
           )}
 
+          {totalSeekerShuttles > 0 && (
+            <div className="sidebar-stat-row" style={{ marginTop: 8 }}>
+              <span className="sidebar-stat-label">Speed</span>
+              <input
+                type="number"
+                min={1}
+                max={seekerMaxSpeed}
+                value={effectiveSeekerSpeed}
+                onChange={e => setSeekerSpeed(Math.max(1, Math.min(seekerMaxSpeed, parseInt(e.target.value) || 1)))}
+                style={{ width: 52, background: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: 4, padding: '2px 6px', fontSize: 13 }}
+              />
+              <span className="ea-note-dim" style={{ marginLeft: 4 }}>/ {seekerMaxSpeed}</span>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             <button className="fire-btn"
               style={{ flex: 1 }}
@@ -499,6 +521,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
                 Array.from(selRackDrones.entries()).map(([rackName, droneIndex]) => ({ rackName, droneIndex })),
                 launchFacing ?? 0,
                 launchableSeekerShuttles.filter(s => selSeekerShuttles.has(s.name)).map(s => ({ name: s.name, type: s.type })),
+                effectiveSeekerSpeed,
               )}>
               Launch ({totalSelected + totalSeekerShuttles})
             </button>
@@ -1393,6 +1416,12 @@ interface SidebarProps {
   // Emergency deceleration (C8.0)
   absoluteImpulse: number;
   onEmergencyDecel: () => void;
+  // Tractor beams (G7.0)
+  tractorMode:          boolean;
+  tractorError:         string | null;
+  onStartTractor:       () => void;
+  onCancelTractor:      () => void;
+  onReleaseTractor:     (targetName: string) => void;
 }
 
 function ShipSidebar({
@@ -1416,6 +1445,7 @@ function ShipSidebar({
   onDisengageSeparation,
   onGoPassiveFc, onGoActiveFc,
   absoluteImpulse, onEmergencyDecel,
+  tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1620,6 +1650,30 @@ function ShipSidebar({
                     WW {s.name}
                   </button>
                 ))}
+                {/* Tractor beam — establish (G7.3) */}
+                {(ship.availableTractors ?? 0) > 0 && (ship.tractorEnergy ?? 0) > 0 &&
+                 (ship.tractoredTargetNames ?? []).length < (ship.availableTractors ?? 0) && (
+                  <button
+                    className={`action-strip-btn${tractorMode ? ' active' : ''}`}
+                    onClick={tractorMode ? onCancelTractor : onStartTractor}
+                    title="Click an adjacent enemy ship to establish tractor beam (G7.3)"
+                    style={{ borderColor: '#22d3ee', color: '#22d3ee' }}
+                  >
+                    Tractor
+                  </button>
+                )}
+                {/* Tractor beam — release (G7.33) */}
+                {(ship.tractoredTargetNames ?? []).map(targetName => (
+                  <button
+                    key={`release-${targetName}`}
+                    className="action-strip-btn"
+                    onClick={() => onReleaseTractor(targetName)}
+                    title={`Release tractor beam on ${targetName} (G7.33)`}
+                    style={{ borderColor: '#f87171', color: '#f87171' }}
+                  >
+                    Release {targetName}
+                  </button>
+                ))}
                 {(ship.totalTransporters ?? 0) > 0 && (
                   <button
                     className={`action-strip-btn${transportersOpen ? ' active' : ''}`}
@@ -1807,6 +1861,16 @@ function ShipSidebar({
           onCancel={onCancelWwLaunch}
           error={wwLaunchError}
         />
+      )}
+
+      {tractorMode && (
+        <div className="sidebar-action-detail">
+          <div className="sidebar-section-title" style={{ color: '#22d3ee' }}>
+            Tractor — click an adjacent enemy ship
+          </div>
+          {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{tractorError}</div>}
+          <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelTractor}>Cancel</button>
+        </div>
       )}
 
       {tBombMode && (
@@ -2256,6 +2320,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [tBombShieldChoice, setTBombShieldChoice] = useState<{isReal: boolean; shields: number[]} | null>(null);
   // Drop mine state
   const [dropMineMode, setDropMineMode] = useState(false);
+  // Tractor beam state
+  const [tractorMode,  setTractorMode]  = useState(false);
+  const [tractorError, setTractorError] = useState<string | null>(null);
   // Boarding action state
   const [boardingMode,    setBoardingMode]    = useState(false);
   const [boardingTarget,  setBoardingTarget]  = useState<ShipObject | null>(null);
@@ -2449,6 +2516,14 @@ export default function GameBoard({ session, onLeave }: Props) {
           .then(opts => { setHarOptions(opts); })
           .catch(() => { setHarError('Could not load target systems'); })
           .finally(() => setHarLoading(false));
+        return;
+      }
+    }
+    if (tractorMode && liveShip && obj?.type === 'SHIP') {
+      const clicked = obj as ShipObject;
+      if (!myShips.has(clicked.name)) {
+        handleEstablishTractor(clicked.name);
+        setTractorMode(false);
         return;
       }
     }
@@ -2742,6 +2817,24 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchTarget(null);
     setTBombMode(false);
     setTBombPendingHex(null);
+  }
+
+  async function handleEstablishTractor(targetName: string) {
+    if (!liveShip) return;
+    setTractorError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'ESTABLISH_TRACTOR', shipName: liveShip.name, targetName,
+    });
+    if (!res.success) setTractorError(res.message);
+  }
+
+  async function handleReleaseTractor(targetName: string) {
+    if (!liveShip) return;
+    setTractorError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'RELEASE_TRACTOR', shipName: liveShip.name, targetName,
+    });
+    if (!res.success) setTractorError(res.message);
   }
 
   function handleCancelBoarding() {
@@ -3057,6 +3150,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     rackSelections: { rackName: string; droneIndex: number }[],
     facing: number,
     seekerShuttles: { name: string; type: string }[] = [],
+    seekerSpeed: number = 6,
   ) {
     if (!liveShip || !launchTarget) return;
     setLaunchError(null);
@@ -3096,6 +3190,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           const res = await gameApi.submitAction(session.gameId, session.playerToken, {
             type: actionType, shipName: liveShip.name,
             action: name, targetName: launchTarget!.name,
+            facing, speed: seekerSpeed,
           });
           if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
           const label = type === 'suicide' ? 'suicide shuttle' : 'scatter pack';
@@ -3478,6 +3573,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             onGoActiveFc={handleGoActiveFc}
             absoluteImpulse={gameState?.absoluteImpulse ?? 0}
             onEmergencyDecel={handleEmergencyDecel}
+            tractorMode={tractorMode}
+            tractorError={tractorError}
+            onStartTractor={() => setTractorMode(true)}
+            onCancelTractor={() => { setTractorMode(false); setTractorError(null); }}
+            onReleaseTractor={handleReleaseTractor}
           />
         )}
 

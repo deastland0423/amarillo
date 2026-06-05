@@ -183,6 +183,12 @@ public class ActionRequest {
     public int  getEccm()         { return eccm; }
     public void setEccm(int eccm) { this.eccm = eccm; }
 
+    // ALLOCATE — Tractor energy pool
+    private int tractorEnergy;
+
+    public int  getTractorEnergy()                { return tractorEnergy; }
+    public void setTractorEnergy(int tractorEnergy) { this.tractorEnergy = tractorEnergy; }
+
     // PERFORM_HET fields
     private int facing;
     private int hetEnergy;

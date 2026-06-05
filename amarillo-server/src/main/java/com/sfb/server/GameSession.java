@@ -872,6 +872,19 @@ public class GameSession {
                 ship.setEcmAllocated(ecmReq);
                 ship.setEccmAllocated(eccmReq);
 
+                // Tractor energy pool (G7.15)
+                int tractorReq = Math.max(0, request.getTractorEnergy());
+                if (tractorReq > 0) {
+                    int beams = ship.getTractors().getAvailableTractors();
+                    if (beams == 0)
+                        return ActionResult.fail(ship.getName() + " has no functional tractor beams");
+                    if (tractorReq > beams)
+                        return ActionResult.fail("Tractor energy " + tractorReq
+                                + " exceeds available tractor beams (" + beams + ")");
+                }
+                e.setTractors(tractorReq);
+                ship.getTractors().initForTurn(tractorReq);
+
                 // Wild Weasel charging (J3.12): increment charge for named shuttles, reset
                 // others
                 java.util.Set<String> wwCharge = request.getWwCharge();
@@ -998,6 +1011,24 @@ public class GameSession {
                 return r;
             }
 
+            case "ESTABLISH_TRACTOR": {
+                Ship holder = findShip(request.getShipName());
+                if (holder == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.establishTractor(holder, request.getTargetName());
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "RELEASE_TRACTOR": {
+                Ship holder = findShip(request.getShipName());
+                if (holder == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.releaseTractor(holder, request.getTargetName());
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "LAUNCH_WILD_WEASEL": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
@@ -1058,7 +1089,8 @@ public class GameSession {
                 }
                 if (foundBay == null || foundPack == null)
                     return ActionResult.fail("Scatter pack not found: " + packName);
-                return game.launchScatterPack(launcher, foundBay, foundPack, target);
+                return game.launchScatterPack(launcher, foundBay, foundPack, target,
+                        request.getFacing(), request.getSpeed());
             }
 
             case "LAUNCH_SUICIDE_SHUTTLE": {
@@ -1085,7 +1117,8 @@ public class GameSession {
                 }
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Armed suicide shuttle not found: " + shuttleName);
-                return game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target);
+                return game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target,
+                        request.getFacing(), request.getSpeed());
             }
 
             case "PERFORM_FIGHTER_HET": {

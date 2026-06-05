@@ -274,6 +274,33 @@ function drawObjects(
   rows: number,
 ) {
   const mySet = new Set(myShips ?? []);
+
+  // Draw tractor beam lines before units so lines appear under tokens
+  for (const obj of objects) {
+    if (obj.type !== 'SHIP') continue;
+    const ship = obj as import('../types/gameState').ShipObject;
+    if (!ship.tractored || !ship.tractoredByName) continue;
+    const holder = objects.find(o => o.type === 'SHIP' && o.name === ship.tractoredByName) as import('../types/gameState').ShipObject | undefined;
+    if (!holder?.location || !ship.location) continue;
+    const heldCoords   = parseLocation(ship.location);
+    const holderCoords = parseLocation(holder.location);
+    if (!heldCoords || !holderCoords) continue;
+    const [heldCol, heldRow]     = heldCoords;
+    const [holderCol, holderRow] = holderCoords;
+    const [hx1, hy1] = hexCenter(heldCol, heldRow);
+    const [hx2, hy2] = hexCenter(holderCol, holderRow);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(hx1, hy1);
+    ctx.lineTo(hx2, hy2);
+    ctx.strokeStyle = '#22d3ee'; // cyan
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   // Two-pass rendering: terrain first so units always appear on top.
   const terrain = objects.filter(o => o.type === 'TERRAIN');
   const units   = objects.filter(o => o.type !== 'TERRAIN');
