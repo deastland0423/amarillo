@@ -173,6 +173,12 @@ public abstract class Shuttle extends Unit {
 		this.parentShipName = name;
 	}
 
+	@Override
+	public void applyTractor(Unit tractoringUnit) {
+		setTractoringUnit(tractoringUnit);
+		setTractored(true);
+	}
+
 	public int getLaunchImpulse() {
 		return launchImpulse;
 	}

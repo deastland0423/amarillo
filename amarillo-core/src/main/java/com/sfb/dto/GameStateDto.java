@@ -289,9 +289,11 @@ public class GameStateDto {
         public boolean wildWeaselActive; // true while a WW decoy is on the map for this ship
         public int wwEcmBonus; // +6 while WW is active (J3.23), else 0
         // Tractor beam state (G7.0)
-        public boolean tractored;         // true if held in another ship's tractor beam
-        public String  tractoredByName;   // name of the holding ship, or null
-        public int     tractorEnergy;     // energy allocated to tractors this turn (for EA display)
+        public boolean tractored;                  // true if held in another ship's tractor beam
+        public String  tractoredByName;            // name of the holding ship, or null
+        public int     tractorEnergy;              // total tractor energy allocated in EA this turn
+        public int     tractorEnergyRemaining;     // unspent tractor pool energy
+        public int     negativeTractorAccumulated; // cumulative negative-tractor spent this turn (G7.35)
         public java.util.List<String> tractoredTargetNames; // names of ships this ship is currently tractoring
         // Active Fire Control state (D6.6)
         public boolean fireControlActivating; // true during 4-impulse countdown to going active
@@ -425,6 +427,16 @@ public class GameStateDto {
     public List<PendingVolleyDto>    pendingVolleys    = new ArrayList<>(); // incoming fire queued for reinforcement
     public List<PendingDacChoiceDto>        pendingDacChoices        = new ArrayList<>();
     public List<PendingControlOverflowDto>  pendingControlOverflows  = new ArrayList<>();
+    public PendingTractorAuctionDto         pendingTractorAuction    = null;
+
+    public static class PendingTractorAuctionDto {
+        public String attackerName;
+        public String targetName;
+        public int    attackerBid;          // effective tractor points
+        public int    rangeMultiplier;      // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+        public int    defenderAccumulated;  // existing negative-tractor on target (for defender's UI)
+        public int    defenderMaxBid;       // target's remaining pool + battery
+    }
 
     public static class PendingVolleyDto {
         public String attackerName;
@@ -643,6 +655,20 @@ public class GameStateDto {
             }
             pendingControlOverflows.add(dto);
         }
+
+        Game.PendingTractorAuction pta = game.getPendingTractorAuction();
+        if (pta != null) {
+            PendingTractorAuctionDto d = new PendingTractorAuctionDto();
+            Ship ptaTarget = (Ship) pta.target; // auction only created for Ship targets
+            d.attackerName        = pta.attacker.getName();
+            d.targetName          = pta.target.getName();
+            d.attackerBid         = pta.attackerBid;
+            d.rangeMultiplier     = pta.rangeMultiplier;
+            d.defenderAccumulated = ptaTarget.getTractors().getNegativeTractorAccumulated();
+            d.defenderMaxBid      = ptaTarget.getTractors().getRemainingTractorEnergy()
+                                  + ptaTarget.getPowerSystems().getBatteryPower();
+            this.pendingTractorAuction = d;
+        }
     }
 
     private static String seekerLabel(com.sfb.objects.Seeker s) {
@@ -788,7 +814,9 @@ public class GameStateDto {
         dto.tractored = ship.isTractored();
         dto.tractoredByName = ship.isTractored() && ship.getTractoringUnit() != null
                 ? ship.getTractoringUnit().getName() : null;
-        dto.tractorEnergy = ship.getTractors().getTotalTractorEnergy();
+        dto.tractorEnergy              = ship.getTractors().getTotalTractorEnergy();
+        dto.tractorEnergyRemaining     = ship.getTractors().getRemainingTractorEnergy();
+        dto.negativeTractorAccumulated = ship.getTractors().getNegativeTractorAccumulated();
         dto.tractoredTargetNames = ship.getTractors().getTractoredUnits().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());

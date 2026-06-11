@@ -1309,6 +1309,17 @@ const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; a
   { label: '↱',  action: 'TURN_RIGHT',       row: 2, col: 3 },
 ];
 
+// SFB hex range — replicates MapUtils.getRange (x = col, y = row).
+function hexRange(s1: { col: number; row: number }, s2: { col: number; row: number }): number {
+  const xDiff = Math.abs(s2.col - s1.col);
+  if (xDiff === 0) return Math.abs(s2.row - s1.row);
+  const even   = s1.col % 2 === 0;
+  const topY    = even ? s1.row - Math.floor(xDiff / 2) : s1.row - Math.floor((xDiff + 1) / 2);
+  const bottomY = even ? s1.row + Math.floor((xDiff + 1) / 2) : s1.row + Math.floor(xDiff / 2);
+  if (s2.row >= topY && s2.row <= bottomY) return xDiff;
+  return s2.row < topY ? xDiff + (topY - s2.row) : xDiff + (s2.row - bottomY);
+}
+
 // ---- Ship sidebar ----
 
 interface SidebarProps {
@@ -1422,6 +1433,19 @@ interface SidebarProps {
   onStartTractor:       () => void;
   onCancelTractor:      () => void;
   onReleaseTractor:     (targetName: string) => void;
+  // Tractor bid dialog (attacker)
+  tractorBidTarget:        string | null;
+  tractorBidValue:         number;
+  tractorRangeMultiplier:  number;
+  onSetTractorBid:         (v: number) => void;
+  onSubmitTractorBid:      () => void;
+  onCancelTractorBid:      () => void;
+  tractorBidMax:           number;
+  // Negative-tractor bid dialog (defender)
+  pendingTractorAuction: import('../types/gameState').PendingTractorAuction | null;
+  negTractorBidValue:  number;
+  onSetNegTractorBid:  (v: number) => void;
+  onSubmitNegTractorBid: () => void;
 }
 
 function ShipSidebar({
@@ -1446,6 +1470,8 @@ function ShipSidebar({
   onGoPassiveFc, onGoActiveFc,
   absoluteImpulse, onEmergencyDecel,
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
+  tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
+  pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1870,6 +1896,69 @@ function ShipSidebar({
           </div>
           {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{tractorError}</div>}
           <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelTractor}>Cancel</button>
+        </div>
+      )}
+
+      {/* Attacker bid dialog — shown after target selected */}
+      {tractorBidTarget && (
+        <div className="sidebar-action-detail">
+          <div className="sidebar-section-title" style={{ color: '#22d3ee' }}>
+            Tractor bid — targeting {tractorBidTarget}
+            {tractorRangeMultiplier > 1 && (
+              <span style={{ color: '#f59e0b', fontSize: '0.7rem', marginLeft: 6 }}>
+                range {tractorRangeMultiplier} (×{tractorRangeMultiplier} energy)
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: 4 }}>
+            Max: {tractorBidMax} effective
+            {tractorRangeMultiplier > 1 && ` (${tractorBidMax * tractorRangeMultiplier} energy)`}
+            {' '}(pool {ship.tractorEnergyRemaining ?? 0} + battery {ship.batteryPower ?? 0})
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="secondary" onClick={() => onSetTractorBid(Math.max(1, tractorBidValue - 1))}>−</button>
+            <span style={{ minWidth: 24, textAlign: 'center' }}>{tractorBidValue}</span>
+            <button className="secondary" onClick={() => onSetTractorBid(Math.min(tractorBidMax, tractorBidValue + 1))}>+</button>
+          </div>
+          {tractorRangeMultiplier > 1 && (
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 2 }}>
+              = {tractorBidValue * tractorRangeMultiplier} energy spent
+            </div>
+          )}
+          {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem', marginTop: 4 }}>{tractorError}</div>}
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            <button onClick={onSubmitTractorBid} disabled={tractorBidMax < 1}>
+              Bid {tractorBidValue}{tractorRangeMultiplier > 1 ? ` eff (${tractorBidValue * tractorRangeMultiplier} energy)` : ''}
+            </button>
+            <button className="secondary" onClick={onCancelTractorBid}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Defender bid dialog — shown when this ship is the auction target */}
+      {pendingTractorAuction && pendingTractorAuction.targetName === ship.name && (
+        <div className="sidebar-action-detail" style={{ borderColor: '#f85149' }}>
+          <div className="sidebar-section-title" style={{ color: '#f85149' }}>
+            Tractor attack! {pendingTractorAuction.attackerName} bids {pendingTractorAuction.attackerBid}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: 4 }}>
+            Your accumulated negative tractor: {pendingTractorAuction.defenderAccumulated}<br/>
+            Bid new energy (0 = waive). Max: {pendingTractorAuction.defenderMaxBid}<br/>
+            Effective defence if you bid {negTractorBidValue}: {pendingTractorAuction.defenderAccumulated + negTractorBidValue}
+            {pendingTractorAuction.defenderAccumulated + negTractorBidValue >= pendingTractorAuction.attackerBid
+              ? ' ✓ resist' : ' ✗ held'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="secondary" onClick={() => onSetNegTractorBid(Math.max(0, negTractorBidValue - 1))}>−</button>
+            <span style={{ minWidth: 24, textAlign: 'center' }}>{negTractorBidValue}</span>
+            <button className="secondary" onClick={() => onSetNegTractorBid(Math.min(pendingTractorAuction.defenderMaxBid, negTractorBidValue + 1))}>+</button>
+          </div>
+          {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem', marginTop: 4 }}>{tractorError}</div>}
+          <div style={{ marginTop: 6 }}>
+            <button onClick={onSubmitNegTractorBid}>
+              {negTractorBidValue === 0 ? 'Waive (accept tractor)' : `Bid ${negTractorBidValue}`}
+            </button>
+          </div>
         </div>
       )}
 
@@ -2321,8 +2410,14 @@ export default function GameBoard({ session, onLeave }: Props) {
   // Drop mine state
   const [dropMineMode, setDropMineMode] = useState(false);
   // Tractor beam state
-  const [tractorMode,  setTractorMode]  = useState(false);
-  const [tractorError, setTractorError] = useState<string | null>(null);
+  const [tractorMode,        setTractorMode]        = useState(false);
+  const [tractorError,       setTractorError]        = useState<string | null>(null);
+  // Tractor bid dialog (attacker)
+  const [tractorBidTarget,        setTractorBidTarget]        = useState<string | null>(null);
+  const [tractorBidValue,         setTractorBidValue]         = useState(1);
+  const [tractorRangeMultiplier,  setTractorRangeMultiplier]  = useState(1);
+  // Negative-tractor bid dialog (defender)
+  const [negTractorBidValue, setNegTractorBidValue] = useState(0);
   // Boarding action state
   const [boardingMode,    setBoardingMode]    = useState(false);
   const [boardingTarget,  setBoardingTarget]  = useState<ShipObject | null>(null);
@@ -2522,7 +2617,13 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (tractorMode && liveShip && obj?.type === 'SHIP') {
       const clicked = obj as ShipObject;
       if (!myShips.has(clicked.name)) {
-        handleEstablishTractor(clicked.name);
+        const range      = hexRange(liveShip, clicked);
+        const mult       = Math.max(1, range);
+        const totalEnergy = (liveShip.tractorEnergyRemaining ?? 0) + (liveShip.batteryPower ?? 0);
+        const maxEffective = Math.floor(totalEnergy / mult);
+        setTractorRangeMultiplier(mult);
+        setTractorBidValue(Math.max(1, Math.min(1, maxEffective)));
+        setTractorBidTarget(clicked.name);
         setTractorMode(false);
         return;
       }
@@ -2819,12 +2920,28 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombPendingHex(null);
   }
 
-  async function handleEstablishTractor(targetName: string) {
+  async function handleSubmitTractorBid() {
+    if (!liveShip || !tractorBidTarget) return;
+    setTractorError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'ESTABLISH_TRACTOR',
+      shipName:   liveShip.name,
+      targetName: tractorBidTarget,
+      tractorBid: tractorBidValue,
+    });
+    setTractorBidTarget(null);
+    if (!res.success) setTractorError(res.message);
+  }
+
+  async function handleSubmitNegTractorBid() {
     if (!liveShip) return;
     setTractorError(null);
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-      type: 'ESTABLISH_TRACTOR', shipName: liveShip.name, targetName,
+      type:       'NEGATIVE_TRACTOR_BID',
+      shipName:   liveShip.name,
+      tractorBid: negTractorBidValue,
     });
+    setNegTractorBidValue(0);
     if (!res.success) setTractorError(res.message);
   }
 
@@ -3578,6 +3695,17 @@ export default function GameBoard({ session, onLeave }: Props) {
             onStartTractor={() => setTractorMode(true)}
             onCancelTractor={() => { setTractorMode(false); setTractorError(null); }}
             onReleaseTractor={handleReleaseTractor}
+            tractorBidTarget={tractorBidTarget}
+            tractorBidValue={tractorBidValue}
+            tractorRangeMultiplier={tractorRangeMultiplier}
+            onSetTractorBid={setTractorBidValue}
+            onSubmitTractorBid={handleSubmitTractorBid}
+            onCancelTractorBid={() => { setTractorBidTarget(null); setTractorError(null); }}
+            tractorBidMax={Math.floor(((liveShip?.tractorEnergyRemaining ?? 0) + (liveShip?.batteryPower ?? 0)) / tractorRangeMultiplier)}
+            pendingTractorAuction={gameState.pendingTractorAuction ?? null}
+            negTractorBidValue={negTractorBidValue}
+            onSetNegTractorBid={setNegTractorBidValue}
+            onSubmitNegTractorBid={handleSubmitNegTractorBid}
           />
         )}
 

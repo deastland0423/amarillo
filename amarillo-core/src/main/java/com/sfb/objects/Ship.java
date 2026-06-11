@@ -1115,6 +1115,10 @@ public class Ship extends Unit implements DroneController {
 		return this.performanceData;
 	}
 
+	public Energy getEnergyAllocated() {
+		return energyAllocated;
+	}
+
 	/// CLOAKING DEVICE ///
 	public CloakingDevice getCloakingDevice() {
 		return this.cloak;
@@ -1764,17 +1768,11 @@ public class Ship extends Unit implements DroneController {
 	 * 
 	 * @return True if the attempt is successful, false otherwise.
 	 */
+	// Called after auction resolves in attacker's favour to set tractored state.
 	@Override
-	public boolean applyTractor(int energy, Unit tractoringUnit) {
-		if (energy > this.tractors.getNegativeTractorEnergy()) {
-			// TODO: Probably a tractor auction?
-
-			setTractoringUnit(tractoringUnit);
-			setTractored(true);
-			return true;
-		} else {
-			return false;
-		}
+	public void applyTractor(Unit tractoringUnit) {
+		setTractoringUnit(tractoringUnit);
+		setTractored(true);
 	}
 
 	// Return the JSON string of the Unit object

@@ -1015,7 +1015,16 @@ public class GameSession {
                 Ship holder = findShip(request.getShipName());
                 if (holder == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
-                ActionResult r = game.establishTractor(holder, request.getTargetName());
+                ActionResult r = game.establishTractor(holder, request.getTargetName(), request.getTractorBid());
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "NEGATIVE_TRACTOR_BID": {
+                Ship defender = findShip(request.getShipName());
+                if (defender == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.submitNegativeTractorBid(defender, request.getTractorBid());
                 if (r.isSuccess()) appendCombatLog(r.getMessage());
                 return r;
             }

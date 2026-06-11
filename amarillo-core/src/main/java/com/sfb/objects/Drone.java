@@ -157,6 +157,12 @@ public class Drone extends Unit implements Seeker {
 	}
 
 	@Override
+	public void applyTractor(Unit tractoringUnit) {
+		setTractoringUnit(tractoringUnit);
+		setTractored(true);
+	}
+
+	@Override
 	public void identify() {
 		this.identified = true;
 	}

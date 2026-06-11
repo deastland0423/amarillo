@@ -15,7 +15,7 @@ public class Tractors implements Systems {
 	int totalTractorEnergy; // The total energy allocated to tractors for the turn.
 	int remainingTractorEnergy; // Unspent tractor energy
 
-	int negativeTractorEnergy; // Energy applied to fight off tractor attempts.
+	int negativeTractorAccumulated; // Total negative-tractor energy spent this turn (G7.35); persists across impulses.
 
 	int tractorsUsed; // The number of tractors that are currently in use.
 	Unit owningUnit; // The unit on which the tractors are installed.
@@ -39,12 +39,28 @@ public class Tractors implements Systems {
 		return this.remainingTractorEnergy;
 	}
 
-	public int getNegativeTractorEnergy() {
-		return this.negativeTractorEnergy;
+	public int getNegativeTractorAccumulated() {
+		return this.negativeTractorAccumulated;
 	}
 
-	public void addNegativeTractorEnergy(int energy) {
-		negativeTractorEnergy += energy;
+	public void addNegativeTractorAccumulated(int energy) {
+		negativeTractorAccumulated += energy;
+	}
+
+	// Deduct from the pool; returns how much still needs to come from battery.
+	public int spendEnergy(int amount) {
+		int fromPool = Math.min(amount, remainingTractorEnergy);
+		remainingTractorEnergy -= fromPool;
+		return amount - fromPool;
+	}
+
+	// Establish the physical tractor link after auction resolution (no energy deduction).
+	public boolean linkUnit(Unit target) {
+		if (tractorsUsed >= availableTractors) return false;
+		target.applyTractor(owningUnit);
+		tractoredUnits.add(target);
+		tractorsUsed++;
+		return true;
 	}
 
 	public void initForTurn(int energy) {
@@ -63,12 +79,12 @@ public class Tractors implements Systems {
 		return availableTractors;
 	}
 
+	// Legacy direct-link (used only for non-contested establishes; prefer linkUnit after auction).
 	public void tractorUnit(int energy, Unit target) {
 		if (energy <= remainingTractorEnergy && tractorsUsed < availableTractors) {
-			if (target.applyTractor(energy, owningUnit)) {
-				tractoredUnits.add(target);
-				tractorsUsed++;
-			}
+			target.applyTractor(owningUnit);
+			tractoredUnits.add(target);
+			tractorsUsed++;
 			remainingTractorEnergy -= energy;
 		}
 	}
@@ -95,6 +111,7 @@ public class Tractors implements Systems {
 		for (Unit held : new ArrayList<>(tractoredUnits))
 			releaseTractor(held);
 		totalTractorEnergy = remainingTractorEnergy = 0;
+		negativeTractorAccumulated = 0;
 	}
 
 	@Override

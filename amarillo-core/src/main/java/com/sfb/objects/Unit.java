@@ -272,6 +272,22 @@ public class Unit extends Marker {
 		return true;
 	}
 
+	// Tractor drag: move this unit one hex in the given absolute direction (G7.36).
+	// Counts as a forward move for sideslip/turn-mode purposes.
+	public void dragForwardInDirection(int absoluteDirection, int maxCols, int maxRows) {
+		sideslipCount++;
+		turnCount++;
+		entryDirection = absoluteDirection;
+		setLocation(MapUtils.getAdjacentHex(getLocation(), absoluteDirection, maxCols, maxRows));
+	}
+
+	// Tractor drag: move this unit one hex sideways in the given absolute direction (G7.36 sideslip).
+	public void dragSideslipInDirection(int absoluteDirection, int maxCols, int maxRows) {
+		sideslipCount = 0;
+		entryDirection = absoluteDirection;
+		setLocation(MapUtils.getAdjacentHex(getLocation(), absoluteDirection, maxCols, maxRows));
+	}
+
 	/**
 	 * Move the unit a single hex backward.
 	 * 
@@ -341,9 +357,8 @@ public class Unit extends Marker {
 	 * 
 	 * @return True if the tractor is successful, false otherwise.
 	 */
-	public boolean applyTractor(int energy, Unit tractoringUnit) {
-
-		return true;
+	public void applyTractor(Unit tractoringUnit) {
+		// Base: no-op (override in Ship)
 	}
 
 	/**

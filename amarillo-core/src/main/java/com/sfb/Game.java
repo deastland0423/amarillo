@@ -131,6 +131,24 @@ public class Game {
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
 
+    // Pending tractor auction: attacker has submitted a bid; waiting for defender's response.
+    private PendingTractorAuction pendingTractorAuction = null;
+
+    public static class PendingTractorAuction {
+        public final Ship attacker;
+        public final Unit target;           // always a Ship; non-Ship targets resolved immediately
+        public final int  attackerBid;      // effective tractor points bid
+        public final int  rangeMultiplier;  // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+        PendingTractorAuction(Ship attacker, Unit target, int bid, int rangeMultiplier) {
+            this.attacker        = attacker;
+            this.target          = target;
+            this.attackerBid     = bid;
+            this.rangeMultiplier = rangeMultiplier;
+        }
+    }
+
+    public PendingTractorAuction getPendingTractorAuction() { return pendingTractorAuction; }
+
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
     private List<String> lastSeekerLog = new ArrayList<>();
@@ -289,6 +307,7 @@ public class Game {
         for (Ship ship : ships) {
             ship.startTurn();
         }
+        computeTractorPseudoSpeeds();
         // Notify cloak devices that a new turn has started — triggers involuntary
         // fade-in for any device whose cost was not paid this turn
         int impulse1 = TurnTracker.getImpulse() + 1; // impulse after nextImpulse() call below
@@ -315,6 +334,48 @@ public class Game {
         prevLocations.clear();
         movedShuttlesThisImpulse.clear();
         currentPhase = ImpulsePhase.MOVEMENT;
+    }
+
+    // G7.36: override each tractor-paired ship's speed to its pseudo-speed
+    // (floor(ownWarpEnergy / combinedMoveCost)).  Called after all ships' startTurn().
+    private void computeTractorPseudoSpeeds() {
+        for (Ship holder : ships) {
+            if (holder.getTractors() == null) continue;
+            List<com.sfb.objects.Unit> held = holder.getTractors().getTractoredUnits();
+            if (held.isEmpty()) continue;
+            for (com.sfb.objects.Unit target : held) {
+                if (!(target instanceof Ship)) {
+                    // G7.5: drones/shuttles have effective speed 0 when tractored
+                    target.setSpeed(0);
+                    continue;
+                }
+                Ship heldShip = (Ship) target;
+                double combined = holder.getPerformanceData().getMovementCost()
+                        + heldShip.getPerformanceData().getMovementCost();
+                int holderPseudo = (int) (holder.getEnergyAllocated().getWarpMovement() / combined);
+                int heldPseudo   = (int) (heldShip.getEnergyAllocated().getWarpMovement() / combined);
+                if (holderPseudo < holder.getSpeed())   holder.setSpeed(holderPseudo);
+                if (heldPseudo   < heldShip.getSpeed()) heldShip.setSpeed(heldPseudo);
+            }
+        }
+    }
+
+    // Returns all ships linked to mover via tractor (the ships mover holds, plus mover's
+    // holder and any other ships that holder holds).  Does not include mover itself.
+    private List<Ship> getTractorLinkedShips(Ship mover) {
+        List<Ship> linked = new ArrayList<>();
+        for (com.sfb.objects.Unit held : mover.getTractors().getTractoredUnits()) {
+            if (held instanceof Ship) linked.add((Ship) held);
+        }
+        if (mover.isTractored() && mover.getTractoringUnit() instanceof Ship) {
+            Ship holderShip = (Ship) mover.getTractoringUnit();
+            if (!linked.contains(holderShip)) linked.add(holderShip);
+            for (com.sfb.objects.Unit other : holderShip.getTractors().getTractoredUnits()) {
+                if (other instanceof Ship && other != mover && !linked.contains(other))
+                    linked.add((Ship) other);
+            }
+        }
+        return linked;
     }
 
     /**
@@ -1506,9 +1567,18 @@ public class Game {
     public ActionResult moveForward(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
+        int moveDir = MapUtils.getTrueBearing(1, ship.getFacing());
         // Planet blocking — check destination before moving (P2.0)
-        Location nextHex = MapUtils.getAdjacentHex(ship.getLocation(),
-                MapUtils.getTrueBearing(1, ship.getFacing()), mapCols, mapRows);
+        Location nextHex = MapUtils.getAdjacentHex(ship.getLocation(), moveDir, mapCols, mapRows);
+
+        // G7.36: pre-validate linked ships — refuse if any would be dragged into a planet
+        List<Ship> linked = getTractorLinkedShips(ship);
+        for (Ship s : linked) {
+            Location sNext = MapUtils.getAdjacentHex(s.getLocation(), moveDir, mapCols, mapRows);
+            if (sNext != null && isPlanetHex(sNext))
+                return ActionResult.fail(s.getName() + " cannot be tractor-dragged into a planet (G7.36)");
+        }
+
         if (nextHex == null) {
             // Determine which edge the ship is exiting
             Location cur = ship.getLocation();
@@ -1562,6 +1632,27 @@ public class Game {
             List<String> collisions = checkSeekerCollisions(ship);
             if (!collisions.isEmpty())
                 log.append("\n").append(String.join("\n", collisions));
+
+            // G7.36: drag tractor-linked ships in the mover's direction;
+            // do NOT add them to movedThisImpulse so they can move on their own impulse
+            for (Ship s : linked) {
+                Location sPrev = s.getLocation();
+                Location sNext = MapUtils.getAdjacentHex(s.getLocation(), moveDir, mapCols, mapRows);
+                if (sNext == null) {
+                    s.setDisengaged(true);
+                    s.setLocation(null);
+                    log.append("\n").append(s.getName()).append(" dragged off map — disengaged");
+                } else {
+                    s.dragForwardInDirection(moveDir, mapCols, mapRows);
+                    prevLocations.putIfAbsent(s, sPrev);
+                    log.append("; ").append(s.getName()).append(" towed");
+                    if (isAsteroidHex(s.getLocation()))
+                        log.append("\n").append(applyAsteroidCollision(s));
+                    List<String> sColl = checkSeekerCollisions(s);
+                    if (!sColl.isEmpty())
+                        log.append("\n").append(String.join("\n", sColl));
+                }
+            }
             return ActionResult.ok(log.toString());
         }
         return ActionResult.fail(ship.getName() + " could not move forward");
@@ -1605,13 +1696,22 @@ public class Game {
         if (moved) {
             prevLocations.putIfAbsent(ship, prevLocSl);
             movedThisImpulse.add(ship);
-            if (isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship);
-                return ActionResult.ok(ship.getName() + " sideslipped left\n" + hit);
+            StringBuilder log = new StringBuilder(ship.getName() + " sideslipped left");
+            if (isAsteroidHex(ship.getLocation()))
+                log.append("\n").append(applyAsteroidCollision(ship));
+            // G7.36: drag tractor-linked ships in the same sideslip direction
+            int slDir = MapUtils.getTrueBearing(21, ship.getFacing());
+            for (Ship s : getTractorLinkedShips(ship)) {
+                Location sPrev = s.getLocation();
+                s.dragSideslipInDirection(slDir, mapCols, mapRows);
+                prevLocations.putIfAbsent(s, sPrev);
+                log.append("; ").append(s.getName()).append(" towed");
+                if (isAsteroidHex(s.getLocation()))
+                    log.append("\n").append(applyAsteroidCollision(s));
             }
+            return ActionResult.ok(log.toString());
         }
-        return moved ? ActionResult.ok(ship.getName() + " sideslipped left")
-                : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+        return ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
     }
 
     public ActionResult sideslipRight(Ship ship) {
@@ -1622,13 +1722,22 @@ public class Game {
         if (moved) {
             prevLocations.putIfAbsent(ship, prevLocSr);
             movedThisImpulse.add(ship);
-            if (isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship);
-                return ActionResult.ok(ship.getName() + " sideslipped right\n" + hit);
+            StringBuilder log = new StringBuilder(ship.getName() + " sideslipped right");
+            if (isAsteroidHex(ship.getLocation()))
+                log.append("\n").append(applyAsteroidCollision(ship));
+            // G7.36: drag tractor-linked ships in the same sideslip direction
+            int srDir = MapUtils.getTrueBearing(5, ship.getFacing());
+            for (Ship s : getTractorLinkedShips(ship)) {
+                Location sPrev = s.getLocation();
+                s.dragSideslipInDirection(srDir, mapCols, mapRows);
+                prevLocations.putIfAbsent(s, sPrev);
+                log.append("; ").append(s.getName()).append(" towed");
+                if (isAsteroidHex(s.getLocation()))
+                    log.append("\n").append(applyAsteroidCollision(s));
             }
+            return ActionResult.ok(log.toString());
         }
-        return moved ? ActionResult.ok(ship.getName() + " sideslipped right")
-                : ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
+        return ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
     }
 
     /**
@@ -1868,52 +1977,152 @@ public class Game {
     // Tractor beams (G7.0)
     // -------------------------------------------------------------------------
 
-    public ActionResult establishTractor(Ship holder, String targetName) {
+    // G7.3: Attacker submits bid to initiate a tractor auction.
+    // bid = total energy committed (pool + battery combined).
+    public ActionResult establishTractor(Ship holder, String targetName, int bid) {
         if (holder.getTractors().getTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no tractor beams");
         if (holder.getTractors().getAvailableTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
-        if (holder.getTractors().getRemainingTractorEnergy() < 1)
-            return ActionResult.fail("No tractor energy remaining — allocate energy to tractors in EA");
+        if (bid < 1)
+            return ActionResult.fail("Must bid at least 1 effective tractor point");
+        if (pendingTractorAuction != null)
+            return ActionResult.fail("A tractor auction is already in progress");
 
-        Ship target = ships.stream()
+        Unit target = ships.stream()
                 .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                .findFirst().orElse(null);
+                .<Unit>map(s -> s).findFirst().orElse(null);
         if (target == null)
-            return ActionResult.fail("Target ship not found: " + targetName);
+            target = seekers.stream()
+                    .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(targetName))
+                    .map(s -> (Unit) s).findFirst().orElse(null);
+        if (target == null)
+            target = activeShuttles.stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(targetName))
+                    .<Unit>map(s -> s).findFirst().orElse(null);
+        if (target == null)
+            return ActionResult.fail("Target not found: " + targetName);
         if (target == holder)
             return ActionResult.fail("Cannot tractor yourself");
 
         int range = MapUtils.getRange(holder, target);
-        if (range > 1)
-            return ActionResult.fail("Target is out of standard tractor range (must be in same or adjacent hex; see G7.31)");
-
-        // G7.412: lock-on required
+        if (range > 3)
+            return ActionResult.fail("Target is out of tractor range (max 3 hexes; see G7.6)");
+        int rangeMultiplier  = Math.max(1, range);
+        int totalEnergy      = holder.getTractors().getRemainingTractorEnergy()
+                             + holder.getPowerSystems().getBatteryPower();
+        int maxEffectiveBid  = totalEnergy / rangeMultiplier;
+        if (bid > maxEffectiveBid)
+            return ActionResult.fail("Effective bid " + bid + " exceeds max of " + maxEffectiveBid
+                    + " at range " + range + " (pool "
+                    + holder.getTractors().getRemainingTractorEnergy() + " + battery "
+                    + holder.getPowerSystems().getBatteryPower()
+                    + " = " + totalEnergy + " energy / " + rangeMultiplier + ")");
         if (!holder.hasLockOn(target))
             return ActionResult.fail(holder.getName() + " does not have lock-on to " + targetName + " (G7.412)");
-
-        // G7.41: active fire control required
         if (!holder.isActiveFireControl())
             return ActionResult.fail(holder.getName() + " does not have active fire control (G7.41)");
-
         if (holder.getTractors().getTractoredUnits().contains(target))
             return ActionResult.fail(holder.getName() + " is already tractoring " + targetName);
 
-        holder.getTractors().tractorUnit(1, target);
+        // Non-Ship targets (drones, shuttles) cannot resist — resolve immediately (G7.5)
+        if (!(target instanceof Ship)) {
+            spendTractorEnergy(holder, rangeMultiplier); // minimum 1 effective point
+            holder.getTractors().linkUnit(target);
+            return ActionResult.ok(holder.getName() + " tractors " + targetName
+                    + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)"));
+        }
 
-        // G7.412: once linked, both ships automatically have lock-on to each other
-        holder.addLockOn(target);
-        target.addLockOn(holder);
+        pendingTractorAuction = new PendingTractorAuction(holder, target, bid, rangeMultiplier);
+        return ActionResult.ok(holder.getName() + " bids " + bid + " effective tractor"
+                + (rangeMultiplier > 1 ? " (" + (bid * rangeMultiplier) + " energy at range " + range + "; G7.6)" : "")
+                + " on " + targetName + " — awaiting defender response (G7.42)");
+    }
 
-        return ActionResult.ok(holder.getName() + " established tractor beam on " + targetName + " (G7.3)");
+    // G7.35 / G7.42: Defender submits negative-tractor bid.
+    // defenderNewBid = new energy to commit now (0 = waive resistance).
+    public ActionResult submitNegativeTractorBid(Ship defender, int defenderNewBid) {
+        if (pendingTractorAuction == null)
+            return ActionResult.fail("No tractor auction in progress");
+        if (pendingTractorAuction.target != defender)
+            return ActionResult.fail("You are not the target of the pending tractor auction");
+        if (defenderNewBid < 0)
+            return ActionResult.fail("Bid cannot be negative");
+        int maxDefBid = defender.getTractors().getRemainingTractorEnergy()
+                      + defender.getPowerSystems().getBatteryPower();
+        if (defenderNewBid > maxDefBid)
+            return ActionResult.fail("Bid " + defenderNewBid + " exceeds available energy (pool "
+                    + defender.getTractors().getRemainingTractorEnergy() + " + battery "
+                    + defender.getPowerSystems().getBatteryPower() + ")");
+
+        return resolveAuction(defenderNewBid);
+    }
+
+    // Resolve the pending auction using the agreed logic tree.
+    private ActionResult resolveAuction(int defenderNewBid) {
+        Ship attacker        = pendingTractorAuction.attacker;
+        Ship target          = (Ship) pendingTractorAuction.target; // always Ship; non-Ship resolved immediately
+        int  attackerBid     = pendingTractorAuction.attackerBid;   // effective tractor points
+        int  mult            = pendingTractorAuction.rangeMultiplier;
+        int  defAccumulated  = target.getTractors().getNegativeTractorAccumulated();
+        int  defenderTotal   = defAccumulated + defenderNewBid;
+
+        String result;
+        if (attackerBid > defenderTotal) {
+            // ── ATTACKER WINS ──
+            int effectiveSpend = defenderTotal + 1;
+            spendTractorEnergy(attacker, effectiveSpend * mult);  // G7.6: pay range multiplier
+            spendTractorEnergy(target,   defenderNewBid);
+            target.getTractors().addNegativeTractorAccumulated(defenderNewBid);
+
+            attacker.getTractors().linkUnit(target);
+            attacker.addLockOn(target);   // G7.412 mutual lock-on
+            target.addLockOn(attacker);
+
+            result = attacker.getName() + " tractors " + target.getName()
+                    + " (bid " + attackerBid + " vs defense " + defenderTotal
+                    + "; attacker spent " + (effectiveSpend * mult) + " energy)";
+        } else {
+            // ── DEFENDER WINS (or ties) ──
+            int defenderNeeded = Math.max(0, attackerBid - defAccumulated);
+            int defenderSpend  = Math.min(defenderNewBid, defenderNeeded);
+
+            spendTractorEnergy(attacker, attackerBid * mult);  // G7.6: pay range multiplier
+            spendTractorEnergy(target,   defenderSpend);
+            target.getTractors().addNegativeTractorAccumulated(defenderSpend);
+
+            result = target.getName() + " resists " + attacker.getName() + "'s tractor"
+                    + " (bid " + attackerBid + " vs defense "
+                    + Math.max(defAccumulated, attackerBid)
+                    + "; attacker spent " + (attackerBid * mult) + " energy)";
+        }
+
+        pendingTractorAuction = null;
+        return ActionResult.ok(result);
+    }
+
+    // Deduct energy from ship's tractor pool first, then battery.
+    private void spendTractorEnergy(Ship ship, int amount) {
+        if (amount <= 0) return;
+        int fromBattery = ship.getTractors().spendEnergy(amount);
+        if (fromBattery > 0)
+            ship.getPowerSystems().useBattery(fromBattery);
     }
 
     public ActionResult releaseTractor(Ship holder, String targetName) {
-        Ship target = ships.stream()
+        Unit target = ships.stream()
                 .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                .findFirst().orElse(null);
+                .<Unit>map(s -> s).findFirst().orElse(null);
         if (target == null)
-            return ActionResult.fail("Target ship not found: " + targetName);
+            target = seekers.stream()
+                    .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(targetName))
+                    .map(s -> (Unit) s).findFirst().orElse(null);
+        if (target == null)
+            target = activeShuttles.stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(targetName))
+                    .<Unit>map(s -> s).findFirst().orElse(null);
+        if (target == null)
+            return ActionResult.fail("Target not found: " + targetName);
         if (!holder.getTractors().getTractoredUnits().contains(target))
             return ActionResult.fail(holder.getName() + " is not tractoring " + targetName);
 

@@ -189,6 +189,12 @@ public class ActionRequest {
     public int  getTractorEnergy()                { return tractorEnergy; }
     public void setTractorEnergy(int tractorEnergy) { this.tractorEnergy = tractorEnergy; }
 
+    // ESTABLISH_TRACTOR / NEGATIVE_TRACTOR_BID — auction bid
+    private int tractorBid;
+
+    public int  getTractorBid()             { return tractorBid; }
+    public void setTractorBid(int tractorBid) { this.tractorBid = tractorBid; }
+
     // PERFORM_HET fields
     private int facing;
     private int hetEnergy;

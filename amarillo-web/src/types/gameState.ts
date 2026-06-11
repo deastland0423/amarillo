@@ -208,11 +208,13 @@ export interface ShipObject extends MapObjectBase {
   decelerationEndsAtImpulse?: number;  // absolute impulse when ship stops
   wildWeaselActive?: boolean;   // true while a WW decoy is on the map for this ship
   wwEcmBonus?:       number;    // +6 while WW active, else 0
-  tractored?:         boolean;  // true if held in a tractor beam (G7.0)
-  tractoredByName?:   string;   // name of the holding ship
-  tractorEnergy?:     number;   // energy allocated to tractors this turn
-  availableTractors?:     number;    // number of undamaged tractor beams
-  tractoredTargetNames?:  string[];  // names of ships this ship is currently tractoring
+  tractored?:                  boolean;   // true if held in a tractor beam (G7.0)
+  tractoredByName?:            string;    // name of the holding ship
+  tractorEnergy?:              number;    // total tractor energy allocated in EA this turn
+  tractorEnergyRemaining?:     number;    // unspent tractor pool energy
+  negativeTractorAccumulated?: number;    // cumulative negative-tractor spent this turn (G7.35)
+  availableTractors?:          number;    // number of undamaged tractor beams
+  tractoredTargetNames?:       string[];  // names of ships this ship is currently tractoring
   fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown
   fcActivatingUntil?:     number;  // absolute impulse when activation completes
   fcPaidThisTurn?:        boolean; // true if FC energy was allocated this turn
@@ -346,8 +348,18 @@ export interface GameState {
   playerCount:        number;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
-  pendingDacChoices:      PendingDacChoice[];
+  pendingDacChoices:       PendingDacChoice[];
   pendingControlOverflows: PendingControlOverflow[];
+  pendingTractorAuction:   PendingTractorAuction | null;
+}
+
+export interface PendingTractorAuction {
+  attackerName:        string;
+  targetName:          string;
+  attackerBid:         number; // effective tractor points
+  rangeMultiplier:     number; // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+  defenderAccumulated: number; // existing negative-tractor on target
+  defenderMaxBid:      number; // target's remaining pool + battery
 }
 
 export interface PendingVolley {
