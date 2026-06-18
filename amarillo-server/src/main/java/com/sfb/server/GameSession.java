@@ -1211,7 +1211,7 @@ public class GameSession {
                 if (launcher == null)
                     return ActionResult.fail("Plasma launcher not found: " + wName);
                 return game.execute(
-                        new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.getFacing()));
+                        new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.isFastLoad(), request.getFacing()));
             }
 
             case "PLACE_TBOMB": {

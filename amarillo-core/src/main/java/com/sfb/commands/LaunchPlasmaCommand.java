@@ -16,13 +16,15 @@ public class LaunchPlasmaCommand implements Command {
     private final Unit          target;
     private final PlasmaLauncher weapon;
     private final boolean       pseudo;
+    private final boolean       fastLoad;
     private final int           facing; // 0 = auto-compute from target
 
-    public LaunchPlasmaCommand(Ship launcher, Unit target, PlasmaLauncher weapon, boolean pseudo, int facing) {
+    public LaunchPlasmaCommand(Ship launcher, Unit target, PlasmaLauncher weapon, boolean pseudo, boolean fastLoad, int facing) {
         this.launcher = launcher;
         this.target   = target;
         this.weapon   = weapon;
         this.pseudo   = pseudo;
+        this.fastLoad = fastLoad;
         this.facing   = facing;
     }
 
@@ -30,6 +32,6 @@ public class LaunchPlasmaCommand implements Command {
     public ActionResult execute(Game game) {
         return pseudo
                 ? game.launchPseudoPlasma(launcher, target, weapon, facing)
-                : game.launchPlasma(launcher, target, weapon, facing);
+                : game.launchPlasma(launcher, target, weapon, fastLoad, facing);
     }
 }

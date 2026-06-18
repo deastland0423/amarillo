@@ -39,6 +39,7 @@ export interface WeaponState {
   rollingCost:       number;  // always sent for plasma; 0 for non-plasma
   canEpt:            boolean; // plasma only: can fire as Enveloping Plasma Torpedo
   eptCost:           number;  // plasma only: energy cost for EPT on final arming turn
+  canFastLoad?:      boolean; // plasma only: FP1.93 fast-load (G/S/R on turn 2, costs 2 battery)
   maxShotsPerTurn:   number;
   shotsThisTurn:     number;
   minImpulseGap:     number;

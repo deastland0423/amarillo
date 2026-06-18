@@ -136,9 +136,12 @@ public class ActionRequest {
 
     // LAUNCH_PLASMA fields
     private boolean pseudo;
+    private boolean fastLoad;
 
     public boolean isPseudo()                { return pseudo; }
     public void    setPseudo(boolean pseudo) { this.pseudo = pseudo; }
+    public boolean isFastLoad()                  { return fastLoad; }
+    public void    setFastLoad(boolean fastLoad)  { this.fastLoad = fastLoad; }
 
     // ALLOCATE — transporter field
     private int transUses;

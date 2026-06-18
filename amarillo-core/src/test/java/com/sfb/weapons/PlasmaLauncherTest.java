@@ -338,4 +338,77 @@ public class PlasmaLauncherTest {
         // pseudo should now be blocked
         assertFalse(launcher.canLaunchPseudo());
     }
+
+    // -------------------------------------------------------------------------
+    // Fast-load (FP1.93)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void fastLoad_availableAfterTwoTurnsOfGArming() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
+        assertFalse(launcher.canFastLoad()); // turn 0
+        launcher.arm(2);
+        assertFalse(launcher.canFastLoad()); // turn 1
+        launcher.arm(2);
+        assertTrue(launcher.canFastLoad());  // turn 2 — eligible
+    }
+
+    @Test
+    public void fastLoad_notAvailableForFLauncher() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
+        launcher.arm(1); launcher.arm(1);
+        assertFalse(launcher.canFastLoad()); // F launchers excluded
+    }
+
+    @Test
+    public void fastLoad_notAvailableWhenDowngradedToF() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
+        launcher.arm(1); // arm as F (1 energy from G launcher)
+        launcher.arm(1); // second turn
+        assertFalse(launcher.canFastLoad()); // plasmaType is F, so ineligible
+    }
+
+    @Test
+    public void fastLoad_notAvailableOnTurnThree() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
+        launcher.arm(2); launcher.arm(2); launcher.arm(3); // fully armed G
+        assertFalse(launcher.canFastLoad()); // fully armed, not eligible
+    }
+
+    @Test
+    public void fastLoad_applyProducesArmedTypeF() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
+        launcher.arm(2);
+        launcher.arm(2);
+        assertTrue(launcher.canFastLoad());
+        launcher.applyFastLoad();
+        assertTrue(launcher.isArmed());
+        assertEquals(PlasmaType.F, launcher.getPlasmaType());
+        assertFalse(launcher.isRolling());
+    }
+
+    @Test
+    public void fastLoad_launchAfterApplyProducesTypeFTorpedo() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
+        launcher.arm(2);
+        launcher.arm(2);
+        launcher.applyFastLoad();
+        PlasmaTorpedo torp = launcher.launch();
+        assertNotNull(torp);
+        assertEquals(PlasmaType.F, torp.getPlasmaType());
+    }
+
+    @Test
+    public void fastLoad_availableForSLauncher() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
+        launcher.arm(2); launcher.arm(2);
+        assertTrue(launcher.canFastLoad());
+    }
+
+    @Test
+    public void fastLoad_availableForRLauncher() {
+        PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
+        launcher.arm(2); launcher.arm(2);
+        assertTrue(launcher.canFastLoad());
+    }
 }

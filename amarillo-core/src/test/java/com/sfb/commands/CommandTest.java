@@ -45,7 +45,7 @@ public class CommandTest {
         when(game.sideslipLeft(any())).thenReturn(ok);
         when(game.sideslipRight(any())).thenReturn(ok);
         when(game.launchDrone(any(), any(), any(), any(), anyInt())).thenReturn(ok);
-        when(game.launchPlasma(any(), any(), any(), anyInt())).thenReturn(ok);
+        when(game.launchPlasma(any(), any(), any(), anyBoolean(), anyInt())).thenReturn(ok);
         when(game.launchPseudoPlasma(any(), any(), any(), anyInt())).thenReturn(ok);
         when(game.advancePhase()).thenReturn(ok);
     }
@@ -121,25 +121,25 @@ public class CommandTest {
     @Test
     public void realPlasmaRoutesToLaunchPlasma() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        new LaunchPlasmaCommand(attacker, target, launcher, false, 0).execute(game);
-        verify(game).launchPlasma(attacker, target, launcher, 0);
+        new LaunchPlasmaCommand(attacker, target, launcher, false, false, 0).execute(game);
+        verify(game).launchPlasma(attacker, target, launcher, false, 0);
         verify(game, never()).launchPseudoPlasma(any(), any(), any(), anyInt());
     }
 
     @Test
     public void pseudoPlasmaRoutesToLaunchPseudoPlasma() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        new LaunchPlasmaCommand(attacker, target, launcher, true, 0).execute(game);
+        new LaunchPlasmaCommand(attacker, target, launcher, true, false, 0).execute(game);
         verify(game).launchPseudoPlasma(attacker, target, launcher, 0);
-        verify(game, never()).launchPlasma(any(), any(), any(), anyInt());
+        verify(game, never()).launchPlasma(any(), any(), any(), anyBoolean(), anyInt());
     }
 
     @Test
     public void launchPlasmaCommandReturnsGameResult() {
         PlasmaLauncher launcher  = new PlasmaLauncher(PlasmaType.F);
         ActionResult   expected  = ActionResult.ok("plasma away");
-        when(game.launchPlasma(attacker, target, launcher, 0)).thenReturn(expected);
-        ActionResult result = new LaunchPlasmaCommand(attacker, target, launcher, false, 0).execute(game);
+        when(game.launchPlasma(attacker, target, launcher, false, 0)).thenReturn(expected);
+        ActionResult result = new LaunchPlasmaCommand(attacker, target, launcher, false, false, 0).execute(game);
         assertSame(expected, result);
     }
 

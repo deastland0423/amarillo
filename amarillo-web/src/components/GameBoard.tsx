@@ -267,7 +267,7 @@ const ALL_FACINGS = new Set([1, 5, 9, 13, 17, 21]);
 interface LaunchPanelProps {
   ship:           ShipObject;
   target:         MapObject | null;
-  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[], seekerSpeed: number) => void;
+  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean; fastLoad?: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[], seekerSpeed: number) => void;
   onClearTarget:  () => void;
   onCancel:       () => void;
   error:          string | null;
@@ -276,13 +276,14 @@ interface LaunchPanelProps {
 function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }: LaunchPanelProps) {
   const [selLaunchers,     setSelLaunchers]     = useState<Set<string>>(new Set());
   const [pseudoSet,        setPseudoSet]        = useState<Set<string>>(new Set());
+  const [fastLoadSet,      setFastLoadSet]      = useState<Set<string>>(new Set());
   const [selRackDrones,    setSelRackDrones]    = useState<Map<string, number>>(new Map());
   const [selSeekerShuttles,setSelSeekerShuttles]= useState<Set<string>>(new Set());
   const [launchFacing,     setLaunchFacing]     = useState<number | null>(null);
   const [seekerSpeed,      setSeekerSpeed]      = useState<number>(6);
 
   const launchablePlasma = (ship.weapons ?? []).filter(w =>
-    w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady)
+    w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady || w.canFastLoad)
   );
   const loadedRacks = (ship.droneRacks ?? []).filter(r => r.functional && r.drones.length > 0 && r.canFire);
   const launchableSeekerShuttles = (ship.shuttleBays ?? []).flatMap(bay =>
@@ -296,6 +297,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   function selectReal(name: string) {
     setSelLaunchers(prev => { const n = new Set(prev); n.add(name); return n; });
     setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
+    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
   }
   function deselectReal(name: string) {
     setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
@@ -303,9 +305,18 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
   function selectPseudo(name: string) {
     setPseudoSet(prev => { const n = new Set(prev); n.add(name); return n; });
     setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
+    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
   }
   function deselectPseudo(name: string) {
     setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
+  }
+  function selectFastLoad(name: string) {
+    setFastLoadSet(prev => { const n = new Set(prev); n.add(name); return n; });
+    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
+    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
+  }
+  function deselectFastLoad(name: string) {
+    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
   }
   function selectDrone(rackName: string, droneIndex: number) {
     setSelRackDrones(prev => {
@@ -317,7 +328,7 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
     });
   }
 
-  const totalSelected      = selLaunchers.size + pseudoSet.size + selRackDrones.size;
+  const totalSelected      = selLaunchers.size + pseudoSet.size + fastLoadSet.size + selRackDrones.size;
   const totalSeekerShuttles = selSeekerShuttles.size;
   const anythingSelected   = totalSelected > 0 || totalSeekerShuttles > 0;
   const facingRequired     = totalSelected > 0 || totalSeekerShuttles > 0;
@@ -422,6 +433,14 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
                       {!w.armed && <span className="ea-note-dim" style={{ marginLeft: 4 }}>Pseudo</span>}
                     </label>
                   )}
+                  {w.canFastLoad && (
+                    <label className="ea-check-label" style={{ marginLeft: (w.armed || w.pseudoPlasmaReady) ? 16 : 0, color: '#f0a050' }}>
+                      <input type="checkbox" checked={fastLoadSet.has(w.name)}
+                        onChange={() => fastLoadSet.has(w.name) ? deselectFastLoad(w.name) : selectFastLoad(w.name)} />
+                      {weaponLabel(w)}
+                      <span className="ea-note-dim" style={{ marginLeft: 4 }}>Fast-F (2 bty)</span>
+                    </label>
+                  )}
                 </div>
               ))}
             </>
@@ -515,8 +534,9 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
               disabled={!anythingSelected || (facingRequired && launchFacing === null)}
               onClick={() => onLaunch(
                 [
-                  ...launchablePlasma.filter(w => selLaunchers.has(w.name)).map(w => ({ name: w.name, pseudo: false })),
-                  ...launchablePlasma.filter(w => pseudoSet.has(w.name)).map(w => ({ name: w.name, pseudo: true })),
+                  ...launchablePlasma.filter(w => selLaunchers.has(w.name)).map(w => ({ name: w.name, pseudo: false, fastLoad: false })),
+                  ...launchablePlasma.filter(w => pseudoSet.has(w.name)).map(w => ({ name: w.name, pseudo: true, fastLoad: false })),
+                  ...launchablePlasma.filter(w => fastLoadSet.has(w.name)).map(w => ({ name: w.name, pseudo: false, fastLoad: true })),
                 ],
                 Array.from(selRackDrones.entries()).map(([rackName, droneIndex]) => ({ rackName, droneIndex })),
                 launchFacing ?? 0,
@@ -1353,7 +1373,7 @@ interface SidebarProps {
   launchError:     string | null;
   onStartLaunch:   () => void;
   onClearLaunch:   () => void;
-  onLaunch:        (plasma: {name: string; pseudo: boolean}[], racks: {rackName: string; droneIndex: number}[], facing: number) => void;
+  onLaunch:        (plasma: {name: string; pseudo: boolean; fastLoad?: boolean}[], racks: {rackName: string; droneIndex: number}[], facing: number) => void;
   // T-bomb (transporter)
   tBombMode:        boolean;
   tBombPendingHex:  {col: number; row: number} | null;
@@ -3263,7 +3283,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   async function handleLaunch(
-    plasmaSelections: { name: string; pseudo: boolean }[],
+    plasmaSelections: { name: string; pseudo: boolean; fastLoad?: boolean }[],
     rackSelections: { rackName: string; droneIndex: number }[],
     facing: number,
     seekerShuttles: { name: string; type: string }[] = [],
@@ -3272,11 +3292,11 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (!liveShip || !launchTarget) return;
     setLaunchError(null);
     let anyError = false;
-    for (const { name, pseudo } of plasmaSelections) {
+    for (const { name, pseudo, fastLoad } of plasmaSelections) {
       try {
         const res = await gameApi.submitAction(session.gameId, session.playerToken, {
           type: 'LAUNCH_PLASMA', shipName: liveShip.name,
-          targetName: launchTarget.name, weaponNames: [name], pseudo, facing,
+          targetName: launchTarget.name, weaponNames: [name], pseudo, fastLoad: fastLoad ?? false, facing,
         });
         if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
         addLog(`${liveShip.name} launched plasma ${name} at ${launchTarget.name}`, 'combat');

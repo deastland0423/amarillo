@@ -323,7 +323,6 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 						armingTurn++;
 						okayToArm = true;
 					}
-					// TODO: Handle fast-loading later, when you have the rules.
 					// Third turn of arming
 				} else if (armingTurn >= 2) {
 					// Finish as a G
@@ -583,6 +582,26 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		registerFire();
 		reset();
 		return hit;
+	}
+
+	/**
+	 * FP1.93: true if this G/S/R launcher can fast-load a type-F on the current turn.
+	 * Requires exactly two arming turns at the native launcher rate (2+2 energy).
+	 */
+	public boolean canFastLoad() {
+		return launcherType != PlasmaType.F
+			&& armingTurn == 2
+			&& plasmaType != null && plasmaType != PlasmaType.F;
+	}
+
+	/**
+	 * FP1.93: Convert the in-progress G/S/R torpedo to a type-F ready to launch immediately.
+	 * Caller must already have verified canFastLoad() and deducted 2 battery/reserve.
+	 */
+	public void applyFastLoad() {
+		plasmaType = PlasmaType.F;
+		armed = true;
+		rolling = false;
 	}
 
 	/**

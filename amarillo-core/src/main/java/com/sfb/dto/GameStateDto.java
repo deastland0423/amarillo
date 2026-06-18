@@ -105,6 +105,7 @@ public class GameStateDto {
         public boolean isRolling; // PlasmaLauncher only: currently in rolling mode
         public int rollingCost; // PlasmaLauncher only: energy to keep rolling (always sent for plasma)
         public boolean canEpt; // PlasmaLauncher only: can fire as Enveloping Plasma Torpedo
+        public boolean canFastLoad; // PlasmaLauncher only: FP1.93 fast-load eligible (G/S/R on turn 2)
         public int eptCost; // PlasmaLauncher only: energy cost for EPT on final arming turn
         public int maxShotsPerTurn; // how many times this weapon may fire per turn
         public int shotsThisTurn; // shots already fired this turn
@@ -874,6 +875,7 @@ public class GameStateDto {
                 wd.rollingCost = pl.rollingCost();
                 wd.canEpt = pl.canEpt();
                 wd.eptCost = pl.eptCost();
+                wd.canFastLoad = pl.canFastLoad();
                 wd.launchDirectionsMask = pl.getLaunchDirections();
             }
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();

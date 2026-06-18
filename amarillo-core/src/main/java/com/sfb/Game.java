@@ -3083,7 +3083,7 @@ public class Game {
      * The launcher must be armed. The torpedo is placed at the launcher's
      * location, faced toward the target, and added to the active seekers list.
      */
-    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
+    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
         if (!canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(launcher);
@@ -3096,6 +3096,13 @@ public class Game {
             return ActionResult.fail("Tractored ships may only fire plasma at the holding ship (G7.91)");
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
+        if (fastLoad) {
+            if (!weapon.canFastLoad())
+                return ActionResult.fail(weapon.getName() + " is not eligible for fast-load (FP1.93)");
+            if (!launcher.getPowerSystems().useBattery(2))
+                return ActionResult.fail("Not enough battery for fast-load — requires 2 points (FP1.93)");
+            weapon.applyFastLoad();
+        }
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
         // Validate launch facing is within the launcher's allowed directions
