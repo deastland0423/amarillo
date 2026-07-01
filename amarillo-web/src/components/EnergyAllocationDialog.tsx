@@ -581,7 +581,7 @@ export default function EnergyAllocationDialog({
         {(ship.availableTractors ?? 0) > 0 && (
           <div className="ea-section">
             <Collapsible title={`TRACTOR BEAMS  (${ship.availableTractors ?? 0} beam(s), used ${alloc.tractorEnergy})`} color="#22d3ee">
-              <Stepper value={alloc.tractorEnergy} min={0} max={ship.availableTractors ?? 0}
+              <Stepper value={alloc.tractorEnergy} min={0} max={ship.totalPower}
                 onChange={v => setAlloc(a => ({ ...a, tractorEnergy: v }))}
                 label="Energy pool (G7.15)" />
             </Collapsible>

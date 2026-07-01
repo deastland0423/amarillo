@@ -103,7 +103,7 @@ public class Game {
     private final Set<Location> asteroidHexes = new HashSet<>();
     private final Set<Location> planetHexes = new HashSet<>();
 
-    private static final int[][] ASTEROID_DAMAGE = {
+    static final int[][] ASTEROID_DAMAGE = {
             // Speed bracket: 0=1-6, 1=7-14, 2=15-25, 3=26+ (P3.2)
             { 0, 0, 0, 0 }, // die 1
             { 0, 0, 0, 5 }, // die 2
@@ -121,6 +121,9 @@ public class Game {
     private final Set<com.sfb.objects.shuttles.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
+    private final SeekerMover     seekerMover     = new SeekerMover(this, seekers, activeShuttles, pendingVolleys, prevLocations);
+    private final ShuttleMover    shuttleMover    = new ShuttleMover(this, activeShuttles);
+    private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles);
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
@@ -130,9 +133,6 @@ public class Game {
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
-
-    // Pending tractor auction: attacker has submitted a bid; waiting for defender's response.
-    private PendingTractorAuction pendingTractorAuction = null;
 
     public static class PendingTractorAuction {
         public final Ship attacker;
@@ -147,7 +147,7 @@ public class Game {
         }
     }
 
-    public PendingTractorAuction getPendingTractorAuction() { return pendingTractorAuction; }
+    public PendingTractorAuction getPendingTractorAuction() { return tractorResolver.pendingTractorAuction; }
 
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
@@ -336,46 +336,12 @@ public class Game {
         currentPhase = ImpulsePhase.MOVEMENT;
     }
 
-    // G7.36: override each tractor-paired ship's speed to its pseudo-speed
-    // (floor(ownWarpEnergy / combinedMoveCost)).  Called after all ships' startTurn().
     private void computeTractorPseudoSpeeds() {
-        for (Ship holder : ships) {
-            if (holder.getTractors() == null) continue;
-            List<com.sfb.objects.Unit> held = holder.getTractors().getTractoredUnits();
-            if (held.isEmpty()) continue;
-            for (com.sfb.objects.Unit target : held) {
-                if (!(target instanceof Ship)) {
-                    // G7.5: drones/shuttles have effective speed 0 when tractored
-                    target.setSpeed(0);
-                    continue;
-                }
-                Ship heldShip = (Ship) target;
-                double combined = holder.getPerformanceData().getMovementCost()
-                        + heldShip.getPerformanceData().getMovementCost();
-                int holderPseudo = (int) (holder.getEnergyAllocated().getWarpMovement() / combined);
-                int heldPseudo   = (int) (heldShip.getEnergyAllocated().getWarpMovement() / combined);
-                if (holderPseudo < holder.getSpeed())   holder.setSpeed(holderPseudo);
-                if (heldPseudo   < heldShip.getSpeed()) heldShip.setSpeed(heldPseudo);
-            }
-        }
+        tractorResolver.computeTractorPseudoSpeeds();
     }
 
-    // Returns all ships linked to mover via tractor (the ships mover holds, plus mover's
-    // holder and any other ships that holder holds).  Does not include mover itself.
     private List<Ship> getTractorLinkedShips(Ship mover) {
-        List<Ship> linked = new ArrayList<>();
-        for (com.sfb.objects.Unit held : mover.getTractors().getTractoredUnits()) {
-            if (held instanceof Ship) linked.add((Ship) held);
-        }
-        if (mover.isTractored() && mover.getTractoringUnit() instanceof Ship) {
-            Ship holderShip = (Ship) mover.getTractoringUnit();
-            if (!linked.contains(holderShip)) linked.add(holderShip);
-            for (com.sfb.objects.Unit other : holderShip.getTractors().getTractoredUnits()) {
-                if (other instanceof Ship && other != mover && !linked.contains(other))
-                    linked.add((Ship) other);
-            }
-        }
-        return linked;
+        return tractorResolver.getTractorLinkedShips(mover);
     }
 
     /**
@@ -1050,8 +1016,10 @@ public class Game {
         return seekers;
     }
 
+    int nextSeekerSeq() { return ++seekerSeq; }
+
     /** Queue a CONTROL_OVERFLOW interrupt for any ship over its control limit. */
-    private void checkControlOverflow() {
+    void checkControlOverflow() {
         for (Ship ship : ships) {
             if (ship.getControlUsed() > ship.getControlCapacity()) {
                 boolean alreadyQueued = pendingControlOverflows.stream()
@@ -1653,6 +1621,26 @@ public class Game {
                         log.append("\n").append(String.join("\n", sColl));
                 }
             }
+
+            // G7.5: drag tractored drones and shuttles in the same direction
+            if (ship.getTractors() != null) {
+                for (com.sfb.objects.Unit held : new ArrayList<>(ship.getTractors().getTractoredUnits())) {
+                    if (held instanceof Ship) continue;
+                    Location heldPrev = held.getLocation();
+                    Location heldNext = MapUtils.getAdjacentHex(held.getLocation(), moveDir, mapCols, mapRows);
+                    if (heldNext == null || isPlanetHex(heldNext)) {
+                        held.setLocation(null);
+                        seekers.removeIf(s -> s == held);
+                        activeShuttles.removeIf(s -> s == held);
+                        log.append("\n").append(held.getName())
+                           .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
+                    } else {
+                        held.dragForwardInDirection(moveDir, mapCols, mapRows);
+                        prevLocations.putIfAbsent(held, heldPrev);
+                        log.append("; ").append(held.getName()).append(" towed");
+                    }
+                }
+            }
             return ActionResult.ok(log.toString());
         }
         return ActionResult.fail(ship.getName() + " could not move forward");
@@ -1977,176 +1965,18 @@ public class Game {
     // Tractor beams (G7.0)
     // -------------------------------------------------------------------------
 
-    // G7.3: Attacker submits bid to initiate a tractor auction.
-    // bid = total energy committed (pool + battery combined).
     public ActionResult establishTractor(Ship holder, String targetName, int bid) {
-        if (holder.getTractors().getTractors() == 0)
-            return ActionResult.fail(holder.getName() + " has no tractor beams");
-        if (holder.getTractors().getAvailableTractors() == 0)
-            return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
-        if (bid < 1)
-            return ActionResult.fail("Must bid at least 1 effective tractor point");
-        if (pendingTractorAuction != null)
-            return ActionResult.fail("A tractor auction is already in progress");
-
-        Unit target = ships.stream()
-                .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                .<Unit>map(s -> s).findFirst().orElse(null);
-        if (target == null)
-            target = seekers.stream()
-                    .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(targetName))
-                    .map(s -> (Unit) s).findFirst().orElse(null);
-        if (target == null)
-            target = activeShuttles.stream()
-                    .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                    .<Unit>map(s -> s).findFirst().orElse(null);
-        if (target == null)
-            return ActionResult.fail("Target not found: " + targetName);
-        if (target == holder)
-            return ActionResult.fail("Cannot tractor yourself");
-
-        int range = MapUtils.getRange(holder, target);
-        if (range > 3)
-            return ActionResult.fail("Target is out of tractor range (max 3 hexes; see G7.6)");
-        int rangeMultiplier  = Math.max(1, range);
-        int totalEnergy      = holder.getTractors().getRemainingTractorEnergy()
-                             + holder.getPowerSystems().getBatteryPower();
-        int maxEffectiveBid  = totalEnergy / rangeMultiplier;
-        if (bid > maxEffectiveBid)
-            return ActionResult.fail("Effective bid " + bid + " exceeds max of " + maxEffectiveBid
-                    + " at range " + range + " (pool "
-                    + holder.getTractors().getRemainingTractorEnergy() + " + battery "
-                    + holder.getPowerSystems().getBatteryPower()
-                    + " = " + totalEnergy + " energy / " + rangeMultiplier + ")");
-        if (!holder.hasLockOn(target))
-            return ActionResult.fail(holder.getName() + " does not have lock-on to " + targetName + " (G7.412)");
-        if (!holder.isActiveFireControl())
-            return ActionResult.fail(holder.getName() + " does not have active fire control (G7.41)");
-        if (holder.getTractors().getTractoredUnits().contains(target))
-            return ActionResult.fail(holder.getName() + " is already tractoring " + targetName);
-
-        // Non-Ship targets (drones, shuttles) cannot resist — resolve immediately (G7.5)
-        if (!(target instanceof Ship)) {
-            spendTractorEnergy(holder, rangeMultiplier); // minimum 1 effective point
-            holder.getTractors().linkUnit(target);
-            return ActionResult.ok(holder.getName() + " tractors " + targetName
-                    + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)"));
-        }
-
-        pendingTractorAuction = new PendingTractorAuction(holder, target, bid, rangeMultiplier);
-        return ActionResult.ok(holder.getName() + " bids " + bid + " effective tractor"
-                + (rangeMultiplier > 1 ? " (" + (bid * rangeMultiplier) + " energy at range " + range + "; G7.6)" : "")
-                + " on " + targetName + " — awaiting defender response (G7.42)");
+        return tractorResolver.establishTractor(holder, targetName, bid);
     }
 
-    // G7.35 / G7.42: Defender submits negative-tractor bid.
-    // defenderNewBid = new energy to commit now (0 = waive resistance).
     public ActionResult submitNegativeTractorBid(Ship defender, int defenderNewBid) {
-        if (pendingTractorAuction == null)
-            return ActionResult.fail("No tractor auction in progress");
-        if (pendingTractorAuction.target != defender)
-            return ActionResult.fail("You are not the target of the pending tractor auction");
-        if (defenderNewBid < 0)
-            return ActionResult.fail("Bid cannot be negative");
-        int maxDefBid = defender.getTractors().getRemainingTractorEnergy()
-                      + defender.getPowerSystems().getBatteryPower();
-        if (defenderNewBid > maxDefBid)
-            return ActionResult.fail("Bid " + defenderNewBid + " exceeds available energy (pool "
-                    + defender.getTractors().getRemainingTractorEnergy() + " + battery "
-                    + defender.getPowerSystems().getBatteryPower() + ")");
-
-        return resolveAuction(defenderNewBid);
-    }
-
-    // Resolve the pending auction using the agreed logic tree.
-    private ActionResult resolveAuction(int defenderNewBid) {
-        Ship attacker        = pendingTractorAuction.attacker;
-        Ship target          = (Ship) pendingTractorAuction.target; // always Ship; non-Ship resolved immediately
-        int  attackerBid     = pendingTractorAuction.attackerBid;   // effective tractor points
-        int  mult            = pendingTractorAuction.rangeMultiplier;
-        int  defAccumulated  = target.getTractors().getNegativeTractorAccumulated();
-        int  defenderTotal   = defAccumulated + defenderNewBid;
-
-        String result;
-        if (attackerBid > defenderTotal) {
-            // ── ATTACKER WINS ──
-            int effectiveSpend = defenderTotal + 1;
-            spendTractorEnergy(attacker, effectiveSpend * mult);  // G7.6: pay range multiplier
-            spendTractorEnergy(target,   defenderNewBid);
-            target.getTractors().addNegativeTractorAccumulated(defenderNewBid);
-
-            attacker.getTractors().linkUnit(target);
-            attacker.addLockOn(target);   // G7.412 mutual lock-on
-            target.addLockOn(attacker);
-
-            result = attacker.getName() + " tractors " + target.getName()
-                    + " (bid " + attackerBid + " vs defense " + defenderTotal
-                    + "; attacker spent " + (effectiveSpend * mult) + " energy)";
-        } else {
-            // ── DEFENDER WINS (or ties) ──
-            int defenderNeeded = Math.max(0, attackerBid - defAccumulated);
-            int defenderSpend  = Math.min(defenderNewBid, defenderNeeded);
-
-            spendTractorEnergy(attacker, attackerBid * mult);  // G7.6: pay range multiplier
-            spendTractorEnergy(target,   defenderSpend);
-            target.getTractors().addNegativeTractorAccumulated(defenderSpend);
-
-            result = target.getName() + " resists " + attacker.getName() + "'s tractor"
-                    + " (bid " + attackerBid + " vs defense "
-                    + Math.max(defAccumulated, attackerBid)
-                    + "; attacker spent " + (attackerBid * mult) + " energy)";
-        }
-
-        pendingTractorAuction = null;
-        return ActionResult.ok(result);
-    }
-
-    // Deduct energy from ship's tractor pool first, then battery.
-    private void spendTractorEnergy(Ship ship, int amount) {
-        if (amount <= 0) return;
-        int fromBattery = ship.getTractors().spendEnergy(amount);
-        if (fromBattery > 0)
-            ship.getPowerSystems().useBattery(fromBattery);
+        return tractorResolver.submitNegativeTractorBid(defender, defenderNewBid);
     }
 
     public ActionResult releaseTractor(Ship holder, String targetName) {
-        Unit target = ships.stream()
-                .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                .<Unit>map(s -> s).findFirst().orElse(null);
-        if (target == null)
-            target = seekers.stream()
-                    .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(targetName))
-                    .map(s -> (Unit) s).findFirst().orElse(null);
-        if (target == null)
-            target = activeShuttles.stream()
-                    .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                    .<Unit>map(s -> s).findFirst().orElse(null);
-        if (target == null)
-            return ActionResult.fail("Target not found: " + targetName);
-        if (!holder.getTractors().getTractoredUnits().contains(target))
-            return ActionResult.fail(holder.getName() + " is not tractoring " + targetName);
-
-        holder.getTractors().releaseTractor(target);
-        return ActionResult.ok(holder.getName() + " released tractor beam on " + targetName + " (G7.33)");
+        return tractorResolver.releaseTractor(holder, targetName);
     }
 
-    /**
-     * Compute which shield number on the target is facing the attacker.
-     */
-    /**
-     * Determine which shield a drone hits based on its direction of travel.
-     * The drone's facing is where it is going; the hit shield faces the opposite
-     * direction.
-     */
-    private int getDroneImpactShield(Unit drone, Ship target) {
-        // Reverse the drone's facing 180° to get the incoming direction (1-24)
-        int incomingFacing = (drone.getFacing() + 11) % 24 + 1;
-        // Convert 24-direction to 12-direction absolute shield facing
-        int absShieldFacing = ((incomingFacing - 1) / 4) * 2 + 1;
-        int relFacing = MapUtils.getRelativeShieldFacing(absShieldFacing, target.getFacing());
-        int shieldNumber = (relFacing % 2 == 0) ? relFacing / 2 : (relFacing + 1) / 2;
-        return Math.max(1, Math.min(6, shieldNumber));
-    }
 
     public int getShieldNumber(Marker attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
@@ -3315,23 +3145,7 @@ public class Game {
      * Called automatically when leaving the MOVEMENT phase.
      */
     private List<String> moveShuttles() {
-        List<String> log = new ArrayList<>();
-        int impulse = TurnTracker.getLocalImpulse();
-        List<com.sfb.objects.shuttles.Shuttle> offMap = new ArrayList<>();
-
-        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
-            if (shuttle.isPlayerControlled())
-                continue; // manual control only
-            if (!MovementUtil.moveThisImpulse(impulse, shuttle.getSpeed()))
-                continue;
-            shuttle.goForward(mapCols, mapRows);
-            if (shuttle.getLocation() == null) {
-                log.add("  Shuttle " + shuttle.getName() + " moved off the map");
-                offMap.add(shuttle);
-            }
-        }
-        activeShuttles.removeAll(offMap);
-        return log;
+        return shuttleMover.moveShuttles();
     }
 
     /**
@@ -3397,393 +3211,11 @@ public class Game {
      * the drone moving onto the ship.
      */
     private List<String> checkSeekerCollisions(Ship ship) {
-        List<String> log = new ArrayList<>();
-        if (ship.getLocation() == null)
-            return log;
-        List<Seeker> toRemove = new ArrayList<>();
-        for (Seeker seeker : seekers) {
-            if (!(seeker instanceof Unit))
-                continue;
-            Unit unit = (Unit) seeker;
-            if (unit.getLocation() == null)
-                continue;
-            if (!unit.getLocation().equals(ship.getLocation()))
-                continue;
-            if (seeker.getTarget() != ship)
-                continue;
-
-            // Enveloping plasma is the only special case — all other seekers use
-            // position-based shield
-            if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
-                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
-                int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
-                String controllerName = torp.getController() instanceof Ship
-                        ? torp.getController().getName()
-                        : torp.getName();
-                String hitMsg = "  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
-                        + " (enveloping)  total damage " + ecmTotal + " spread to all shields";
-                pendingVolleys.add(new PendingVolley(controllerName, null, ship,
-                        0, ecmTotal, 0, false, false, hitMsg, torp));
-                log.add(hitMsg + " — queued for Reinforcement phase");
-            } else {
-                int shieldNum = getShieldNumber(unit, ship);
-                int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int dmg = applyProximityRoll(seeker.impact(), ecmShift, log);
-                String controllerName = seeker.getController() instanceof Ship
-                        ? seeker.getController().getName()
-                        : unit.getName();
-                String hitMsg = "  " + ship.getName() + " moved into " + unit.getName()
-                        + "  shield #" + shieldNum + "  damage " + dmg;
-                pendingVolleys.add(new PendingVolley(controllerName, null, ship,
-                        shieldNum, dmg, 0, false, false, hitMsg, null));
-                log.add(hitMsg + " — queued for Reinforcement phase");
-            }
-            toRemove.add(seeker);
-        }
-        seekers.removeAll(toRemove);
-        return log;
+        return seekerMover.checkSeekerCollisions(ship);
     }
 
     private List<String> moveSeekers() {
-        List<String> log = new ArrayList<>();
-        if (seekers.isEmpty())
-            return log;
-
-        int impulse = TurnTracker.getLocalImpulse();
-        List<Seeker> expired = new ArrayList<>();
-
-        // Order seekers so that a seeker whose target is also a seeker moves after its
-        // target.
-        // Simple two-pass: targets first, then hunters.
-        Set<Seeker> seekerSet = new HashSet<>(seekers);
-        List<Seeker> ordered = new ArrayList<>();
-        Set<Seeker> placed = new HashSet<>();
-        for (Seeker s : seekers) {
-            Unit target = (s instanceof Drone) ? ((Drone) s).getTarget() : null;
-            if (target instanceof Seeker && seekerSet.contains((Seeker) target) && !placed.contains((Seeker) target)) {
-                ordered.add((Seeker) target);
-                placed.add((Seeker) target);
-            }
-            if (!placed.contains(s)) {
-                ordered.add(s);
-                placed.add(s);
-            }
-        }
-
-        for (Seeker seeker : ordered) {
-            if (seeker instanceof Drone) {
-                Drone drone = (Drone) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed()))
-                    continue;
-
-                Unit target = drone.getTarget();
-                if (target == null) {
-                    // Orphaned drone — no guidance, self-destructs immediately
-                    log.add("  Drone (" + drone.getDroneType() + ") lost guidance — self-destructed");
-                    expired.add(drone);
-                    continue;
-                }
-
-                int bearing = MapUtils.getGeometricBearing(drone, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : drone.getFacing();
-                drone.setFacing(chooseSeekerFacing(drone, idealFacing));
-
-                prevLocations.putIfAbsent(drone, drone.getLocation());
-                drone.goForward(mapCols, mapRows);
-
-                if (drone.getLocation() == null) {
-                    log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
-                    expired.add(seeker);
-                    continue;
-                }
-
-                if (isAsteroidHex(drone.getLocation())) {
-                    String asteroidResult = applyAsteroidCollisionToDrone(drone);
-                    log.add(asteroidResult);
-                    if (drone.getHull() <= 0) {
-                        expired.add(drone);
-                        continue;
-                    }
-                }
-
-                drone.setEndurance(drone.getEndurance() - 1);
-
-                if (target != null && target.getLocation() != null
-                        && drone.getLocation().equals(target.getLocation())) {
-                    if (target instanceof Drone) {
-                        Drone targetDrone = (Drone) target;
-                        log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
-                                + targetDrone.getDroneType() + ") — both destroyed");
-                        expired.add(seeker);
-                        expired.add(targetDrone);
-                    } else if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
-                        if (!ww.isExploding()) {
-                            ww.startExplosion(impulse);
-                            log.add("  Drone (" + drone.getDroneType() + ") hit Wild Weasel "
-                                    + ww.getName() + " — WW exploding for 4 impulses");
-                        } else {
-                            log.add("  Drone (" + drone.getDroneType()
-                                    + ") caught in Wild Weasel explosion — destroyed");
-                        }
-                        expired.add(seeker);
-                    } else if (target instanceof Ship) {
-                        int shieldNum = getDroneImpactShield(drone, (Ship) target);
-                        int ecmShift = computeSeekerEcmShift(drone, target);
-                        int dmg = applyProximityRoll(drone.impact(), ecmShift, log);
-                        String controllerName = drone.getController() instanceof Ship
-                                ? drone.getController().getName()
-                                : drone.getName();
-                        String hitMsg = "  Drone (" + drone.getDroneType() + ") impacted "
-                                + target.getName() + " shield #" + shieldNum + "  damage " + dmg;
-                        pendingVolleys.add(new PendingVolley(controllerName, null, target,
-                                shieldNum, dmg, 0, false, false, hitMsg, null));
-                        log.add(hitMsg + " — queued for Reinforcement phase");
-                        expired.add(seeker);
-                    }
-                    continue;
-                }
-
-                if (drone.getEndurance() <= 0) {
-                    log.add("  Drone (" + drone.getDroneType() + ") targeting "
-                            + (target != null ? target.getName() : "?") + " ran out of endurance");
-                    expired.add(seeker);
-                }
-
-            } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
-                com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
-
-                // Release check happens every impulse, regardless of movement schedule
-                if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
-                    Unit target = pack.getTarget();
-                    Unit controller = pack.getController();
-                    // Free the scatter pack's own control channel before drones compete for
-                    // capacity
-                    if (controller instanceof DroneController)
-                        ((DroneController) controller).releaseControl(pack);
-                    List<com.sfb.objects.Drone> released = pack.release();
-                    String launcherName = controller != null ? controller.getName() : null;
-                    for (com.sfb.objects.Drone drone : released) {
-                        drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + (++seekerSeq));
-                        drone.setLocation(pack.getLocation());
-                        drone.setFacing(pack.getFacing());
-                        if (launcherName != null)
-                            drone.setLauncherName(launcherName);
-                        drone.setLaunchImpulse(TurnTracker.getImpulse());
-                        if (!drone.isSelfGuiding() && controller instanceof DroneController
-                                && ((DroneController) controller).hasLockOn(target)) {
-                            drone.setTarget(target);
-                            drone.setController(controller);
-                            // Force-add — overflow interrupt will fire if over limit
-                            ((Ship) controller).forceAcquireControl(drone);
-                        } else if (drone.isSelfGuiding()) {
-                            drone.setTarget(target);
-                        }
-                        seekers.add(drone);
-                    }
-                    log.add("  Scatter pack released " + released.size() + " drones at "
-                            + (target != null ? target.getName() : "?"));
-                    checkControlOverflow();
-                    // Shuttle stays on map — move to activeShuttles for drift
-                    activeShuttles.add(pack);
-                    expired.add(pack);
-                    continue;
-                }
-
-                // Movement: only on scheduled impulses, only while still en route
-                if (!pack.isReleased() && MovementUtil.moveThisImpulse(impulse, pack.getSpeed())) {
-                    Unit target = pack.getTarget();
-                    if (target != null) {
-                        int bearing = MapUtils.getGeometricBearing(pack, target);
-                        int idealFacing = bearing != 0 ? snapToCardinal(bearing) : pack.getFacing();
-                        pack.setFacing(chooseSeekerFacing(pack, idealFacing));
-                    }
-                    pack.goForward(mapCols, mapRows);
-                    if (pack.getLocation() == null) {
-                        log.add("  Scatter pack moved off the map — lost");
-                        expired.add(pack);
-                    }
-                }
-
-            } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
-                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, ss.getSpeed()))
-                    continue;
-
-                Unit target = ss.getTarget();
-                if (target == null) {
-                    log.add("  Suicide shuttle lost guidance — removed");
-                    expired.add(ss);
-                    continue;
-                }
-                int bearing = MapUtils.getGeometricBearing(ss, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : ss.getFacing();
-                ss.setFacing(chooseSeekerFacing(ss, idealFacing));
-                prevLocations.putIfAbsent(ss, ss.getLocation());
-                ss.goForward(mapCols, mapRows);
-                if (ss.getLocation() == null) {
-                    log.add("  Suicide shuttle moved off the map");
-                    expired.add(ss);
-                    continue;
-                }
-                if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
-                    if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
-                        if (!ww.isExploding()) {
-                            ww.startExplosion(impulse);
-                            log.add("  Suicide shuttle hit Wild Weasel " + ww.getName()
-                                    + " — WW exploding for 4 impulses");
-                        } else {
-                            log.add("  Suicide shuttle caught in Wild Weasel explosion — destroyed");
-                        }
-                    } else if (target instanceof Ship) {
-                        int shieldNum = getDroneImpactShield(ss, (Ship) target);
-                        int ecmShift = computeSeekerEcmShift(ss, target);
-                        int dmg = applyProximityRoll(ss.impact(), ecmShift, log);
-                        String controllerName = ss.getController() instanceof Ship
-                                ? ss.getController().getName()
-                                : ss.getName();
-                        String hitMsg = "  Suicide shuttle impacted " + target.getName()
-                                + " shield #" + shieldNum + "  damage " + dmg;
-                        pendingVolleys.add(new PendingVolley(controllerName, null, target,
-                                shieldNum, dmg, 0, false, false, hitMsg, null));
-                        log.add(hitMsg + " — queued for Reinforcement phase");
-                    }
-                    expired.add(ss);
-                }
-
-            } else if (seeker instanceof PlasmaTorpedo) {
-                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
-                if (!MovementUtil.moveThisImpulse(impulse, torp.getSpeed()))
-                    continue;
-
-                Unit target = torp.getTarget();
-                if (target == null) {
-                    log.add("  Plasma torpedo has no target — removed");
-                    expired.add(seeker);
-                    continue;
-                }
-
-                int bearing = MapUtils.getGeometricBearing(torp, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : torp.getFacing();
-                torp.setFacing(chooseSeekerFacing(torp, idealFacing));
-
-                prevLocations.putIfAbsent(torp, torp.getLocation());
-                torp.goForward(mapCols, mapRows);
-                torp.incrementDistance();
-
-                if (torp.getLocation() == null) {
-                    log.add("  Plasma-" + torp.getPlasmaType() + " moved off the map");
-                    expired.add(seeker);
-                    continue;
-                }
-
-                if (isAsteroidHex(torp.getLocation())) {
-                    log.add(applyAsteroidCollisionToPlasma(torp));
-                    if (torp.getCurrentStrength() <= 0) {
-                        expired.add(seeker);
-                        continue;
-                    }
-                }
-
-                if (torp.getCurrentStrength() <= 0) {
-                    log.add("  Plasma-" + torp.getPlasmaType() + " targeting "
-                            + (target != null ? target.getName() : "?") + " dissipated");
-                    expired.add(seeker);
-                    continue;
-                }
-
-                if (target != null && target.getLocation() != null
-                        && torp.getLocation().equals(target.getLocation())) {
-                    if (target instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) target;
-                        if (!ww.isExploding()) {
-                            ww.startExplosion(impulse);
-                            log.add("  Plasma-" + torp.getPlasmaType() + " hit Wild Weasel "
-                                    + ww.getName() + " — WW exploding for 4 impulses");
-                        } else {
-                            log.add("  Plasma-" + torp.getPlasmaType()
-                                    + " caught in Wild Weasel explosion — destroyed");
-                        }
-                    } else if (target instanceof Ship) {
-                        Ship ship = (Ship) target;
-                        int ecmShift = computeSeekerEcmShift(torp, ship);
-                        String controllerName = torp.getController() instanceof Ship
-                                ? torp.getController().getName()
-                                : torp.getName();
-                        if (torp.isEnveloping()) {
-                            int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
-                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
-                                    + ship.getName() + "  total damage " + ecmTotal + " spread to all shields";
-                            pendingVolleys.add(new PendingVolley(controllerName, null, ship,
-                                    0, ecmTotal, 0, false, false, hitMsg, torp));
-                            log.add(hitMsg + " — queued for Reinforcement phase");
-                        } else {
-                            int shieldNum = getDroneImpactShield(torp, ship);
-                            int dmg = applyProximityRoll(torp.impact(), ecmShift, log);
-                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " impacted "
-                                    + ship.getName() + " shield #" + shieldNum + "  damage " + dmg;
-                            pendingVolleys.add(new PendingVolley(controllerName, null, ship,
-                                    shieldNum, dmg, 0, false, false, hitMsg, null));
-                            log.add(hitMsg + " — queued for Reinforcement phase");
-                        }
-                    } else {
-                        int dmg = torp.impact();
-                        String dmgLog = applyDamageToUnit(dmg, target, 1);
-                        log.add("  Plasma-" + torp.getPlasmaType() + " impacted " + target.getName()
-                                + "  " + dmgLog);
-                    }
-                    expired.add(seeker);
-                }
-            }
-        }
-
-        for (Seeker s : expired) {
-            if (s instanceof Drone) {
-                Drone d = (Drone) s;
-                if (d.getController() instanceof DroneController)
-                    ((DroneController) d.getController()).releaseControl(d);
-            } else if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
-                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
-                if (ss.getController() instanceof DroneController)
-                    ((DroneController) ss.getController()).releaseControl(ss);
-            }
-        }
-        seekers.removeAll(expired);
-
-        // Transition exploding WWs whose 4-impulse window just ended to post-explosion
-        // (J3.212)
-        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
-            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
-                if (ww.isExplosionOver(impulse)) {
-                    ww.startPostExplosion();
-                    log.add("  Wild Weasel " + ww.getName()
-                            + " explosion ended — ionized radiation; no ECM; new seekers ignore WW");
-                }
-            }
-        }
-
-        // Natural expiry: post-explosion WW with no seekers still targeting it is
-        // removed (J3.212)
-        List<com.sfb.objects.shuttles.WildWeaselShuttle> doneWws = new ArrayList<>();
-        for (com.sfb.objects.shuttles.Shuttle shuttle : activeShuttles) {
-            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
-                if (ww.isPostExplosion()) {
-                    boolean anyTargeting = seekers.stream().anyMatch(s -> s.getTarget() == ww);
-                    if (!anyTargeting)
-                        doneWws.add(ww);
-                }
-            }
-        }
-        for (com.sfb.objects.shuttles.WildWeaselShuttle ww : doneWws) {
-            log.add("  Wild Weasel " + ww.getName() + " post-explosion period ended — counter removed");
-            voidWildWeasel(ww.getParentShip());
-        }
-
-        return log;
+        return seekerMover.moveSeekers();
     }
 
     /**
@@ -3794,56 +3226,7 @@ public class Game {
         return lastSeekerLog;
     }
 
-    /** Snap a 1–24 bearing to the nearest cardinal (1, 5, 9, 13, 17, 21). */
-    private static int snapToCardinal(int bearing) {
-        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
-        int best = cardinals[0];
-        int bestDist = Integer.MAX_VALUE;
-        for (int c : cardinals) {
-            int diff = Math.abs(bearing - c);
-            // wrap around the 24-direction circle
-            if (diff > 12)
-                diff = 24 - diff;
-            if (diff < bestDist) {
-                bestDist = diff;
-                best = c;
-            }
-        }
-        return best;
-    }
 
-    /**
-     * Choose the cardinal facing for a seeker that avoids planet hexes while
-     * staying
-     * as close as possible to the ideal bearing toward the target (keeping the
-     * target
-     * in FA arc when possible, falling back to adjacent arcs only if necessary).
-     * Returns idealFacing unchanged if it is already clear, or if the seeker's
-     * target
-     * is a Terrain object (e.g. future planet-bombardment).
-     */
-    private int chooseSeekerFacing(Unit seeker, int idealFacing) {
-        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
-        int idealIdx = 0;
-        for (int i = 0; i < cardinals.length; i++) {
-            if (cardinals[i] == idealFacing) {
-                idealIdx = i;
-                break;
-            }
-        }
-        // Try offset 0 (ideal) first, then ±1, ±2, ±3 — nearest to target wins
-        for (int offset = 0; offset <= 3; offset++) {
-            int[] signs = (offset == 0) ? new int[] { 0 } : new int[] { 1, -1 };
-            for (int sign : signs) {
-                int altIdx = ((idealIdx + sign * offset) % 6 + 6) % 6;
-                Location nextHex = MapUtils.getAdjacentHex(seeker.getLocation(),
-                        MapUtils.getTrueBearing(1, cardinals[altIdx]), mapCols, mapRows);
-                if (nextHex != null && !isPlanetHex(nextHex))
-                    return cardinals[altIdx];
-            }
-        }
-        return idealFacing; // completely surrounded — shouldn't happen
-    }
 
     // --- Mines ---
 
@@ -3875,55 +3258,7 @@ public class Game {
         return loc != null && planetHexes.contains(loc);
     }
 
-    /**
-     * Roll asteroid collision damage and apply directly to a drone's hull (P3.2).
-     * Returns a log line; removes the drone from play if hull reaches 0.
-     */
-    private String applyAsteroidCollisionToDrone(Drone drone) {
-        int speed = drone.getSpeed();
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll = new DiceRoller().rollOneDie();
-        int damage = ASTEROID_DAMAGE[roll - 1][bracket];
-        String base = "  Drone (" + drone.getDroneType() + ") enters asteroid hex"
-                + " (speed " + speed + ", die " + roll + ")";
-        if (damage == 0)
-            return base + " — no damage";
-        int remaining = drone.getHull() - damage;
-        drone.setHull(Math.max(0, remaining));
-        if (drone.getHull() <= 0) {
-            seekers.remove(drone);
-            if (drone.getController() instanceof DroneController)
-                ((DroneController) drone.getController()).releaseControl(drone);
-            return base + " — " + damage + " hull damage — destroyed";
-        }
-        return base + " — " + damage + " hull damage — " + drone.getHull() + " remaining";
-    }
 
-    /**
-     * Roll asteroid collision damage and apply as phaser damage to a plasma torpedo
-     * (P3.2).
-     * Each point of asteroid damage reduces torpedo strength by 0.5 (same as direct
-     * phaser fire).
-     * Returns a log line; removes the torpedo if strength reaches 0.
-     */
-    private String applyAsteroidCollisionToPlasma(PlasmaTorpedo torp) {
-        int speed = torp.getSpeed();
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll = new DiceRoller().rollOneDie();
-        int damage = ASTEROID_DAMAGE[roll - 1][bracket];
-        String base = "  Plasma-" + torp.getPlasmaType() + " enters asteroid hex"
-                + " (speed " + speed + ", die " + roll + ")";
-        if (damage == 0)
-            return base + " — no damage";
-        int before = torp.getCurrentStrength();
-        torp.applyPhaserDamage(damage);
-        int after = torp.getCurrentStrength();
-        if (after <= 0) {
-            seekers.remove(torp);
-            return base + " — " + damage + " phaser pts — destroyed";
-        }
-        return base + " — " + damage + " phaser pts — strength " + before + " → " + after;
-    }
 
     /**
      * Roll asteroid collision damage and apply to the appropriate shield (P3.2).
@@ -4137,53 +3472,6 @@ public class Game {
         return ActionResult.ok(ship.getName() + " begins decloaking — fading in");
     }
 
-    /**
-     * D6.36: ECM net shift for a seeker impact roll.
-     * shift = floor(sqrt(max(0, targetEcm - controllerEccm - builtInEccm)))
-     * TypeVI warp-seekers are immune (D6.38) — returns 0.
-     */
-    private int computeSeekerEcmShift(Seeker seeker, Unit target) {
-        if (seeker.isWarpSeeker())
-            return 0;
-        int targetEcm = 0;
-        if (target instanceof Ship) {
-            Ship tship = (Ship) target;
-            targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus();
-        }
-        int controllerEccm = 0;
-        Unit controller = seeker.getController();
-        if (controller instanceof Ship) {
-            Ship cship = (Ship) controller;
-            // D19.12: ECCM cannot be *used* under PFC, even if energy was spent on it
-            if (cship.isActiveFireControl())
-                controllerEccm = cship.getEccmAllocated();
-        }
-        int netEcm = Math.max(0, targetEcm - controllerEccm - seeker.getBuiltInEccm());
-        return (int) Math.floor(Math.sqrt(netEcm));
-    }
-
-    /**
-     * D6.361: Roll 1d6 + ecmShift against proximity detonation table.
-     * 1-6 → 100%, 7-8 → 50%, 9-10 → 25%, 11+ → 0% damage.
-     */
-    private int applyProximityRoll(int baseDamage, int ecmShift, List<String> log) {
-        if (ecmShift <= 0)
-            return baseDamage;
-        int roll = new DiceRoller().rollOneDie();
-        int total = roll + ecmShift;
-        int damage;
-        if (total <= 6)
-            damage = baseDamage;
-        else if (total <= 8)
-            damage = baseDamage / 2;
-        else if (total <= 10)
-            damage = baseDamage / 4;
-        else
-            damage = 0;
-        log.add("    ECM proximity roll: d6=" + roll + " + shift " + ecmShift + " = " + total
-                + " → " + damage + " dmg (of " + baseDamage + ")");
-        return damage;
-    }
 
     /**
      * Process all mines each movement phase: attempt to activate inactive mines,

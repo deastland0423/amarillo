@@ -108,6 +108,7 @@ public class ScatterPack extends Shuttle implements Seeker {
         payload.clear();
         target    = null;
         released  = true;
+        setSpeed(0);
         return toRelease;
     }
 

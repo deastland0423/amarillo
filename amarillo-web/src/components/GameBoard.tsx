@@ -1912,7 +1912,7 @@ function ShipSidebar({
       {tractorMode && (
         <div className="sidebar-action-detail">
           <div className="sidebar-section-title" style={{ color: '#22d3ee' }}>
-            Tractor — click an adjacent enemy ship
+            Tractor — click an enemy ship, drone, or shuttle
           </div>
           {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{tractorError}</div>}
           <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelTractor}>Cancel</button>
@@ -2634,18 +2634,23 @@ export default function GameBoard({ session, onLeave }: Props) {
         return;
       }
     }
-    if (tractorMode && liveShip && obj?.type === 'SHIP') {
-      const clicked = obj as ShipObject;
-      if (!myShips.has(clicked.name)) {
-        const range      = hexRange(liveShip, clicked);
-        const mult       = Math.max(1, range);
-        const totalEnergy = (liveShip.tractorEnergyRemaining ?? 0) + (liveShip.batteryPower ?? 0);
-        const maxEffective = Math.floor(totalEnergy / mult);
-        setTractorRangeMultiplier(mult);
-        setTractorBidValue(Math.max(1, Math.min(1, maxEffective)));
-        setTractorBidTarget(clicked.name);
-        setTractorMode(false);
-        return;
+    if (tractorMode && liveShip && obj) {
+      const tractorableTypes = new Set(['SHIP', 'DRONE', 'SHUTTLE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
+      const isEnemy = obj.type !== 'SHIP' || !myShips.has(obj.name);
+      if (tractorableTypes.has(obj.type) && isEnemy) {
+        const myCoords    = parseLocation(liveShip.location);
+        const theirCoords = parseLocation(obj.location);
+        if (myCoords && theirCoords) {
+          const range        = hexRange({ col: myCoords[0], row: myCoords[1] }, { col: theirCoords[0], row: theirCoords[1] });
+          const mult         = Math.max(1, range);
+          const totalEnergy  = (liveShip.tractorEnergyRemaining ?? 0) + (liveShip.batteryPower ?? 0);
+          const maxEffective = Math.floor(totalEnergy / mult);
+          setTractorRangeMultiplier(mult);
+          setTractorBidValue(Math.max(1, Math.min(1, maxEffective)));
+          setTractorBidTarget(obj.name);
+          setTractorMode(false);
+          return;
+        }
       }
     }
     if (boardingMode && liveShip && obj?.type === 'SHIP') {
