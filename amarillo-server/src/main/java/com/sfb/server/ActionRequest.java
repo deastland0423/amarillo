@@ -198,6 +198,17 @@ public class ActionRequest {
     public int  getTractorBid()             { return tractorBid; }
     public void setTractorBid(int tractorBid) { this.tractorBid = tractorBid; }
 
+    // Destination hex for hex-targeted actions (ROTATE_TRACTORED, PLACE_TBOMB).
+    // 1-based map coordinates; 0 means "not provided" (handlers must validate).
+    private int hexCol;
+    private int hexRow;
+
+    public int  getHexCol()            { return hexCol; }
+    public void setHexCol(int hexCol)  { this.hexCol = hexCol; }
+
+    public int  getHexRow()            { return hexRow; }
+    public void setHexRow(int hexRow)  { this.hexRow = hexRow; }
+
     // PERFORM_HET fields
     private int facing;
     private int hetEnergy;

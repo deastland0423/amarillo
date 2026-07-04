@@ -60,6 +60,7 @@ public class Game {
      * the fire dialog only opens in DIRECT_FIRE, etc.
      */
     public enum ImpulsePhase {
+        INITIAL_ACTIVITY("Initial Activity"),
         MOVEMENT("Movement"),
         ACTIVITY("Activity"),
         DIRECT_FIRE("Direct Fire"),
@@ -123,7 +124,7 @@ public class Game {
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
     private final SeekerMover     seekerMover     = new SeekerMover(this, seekers, activeShuttles, pendingVolleys, prevLocations);
     private final ShuttleMover    shuttleMover    = new ShuttleMover(this, activeShuttles);
-    private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles);
+    private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles, prevLocations);
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
@@ -307,6 +308,11 @@ public class Game {
         for (Ship ship : ships) {
             ship.startTurn();
         }
+        // G7.42: links that persisted from last turn must be maintained (paid for)
+        // now, before they can slow anyone (pseudo-speed) or be rotated.
+        List<String> tractorMaintLog = tractorResolver.maintainLinksAtTurnStart();
+        if (!tractorMaintLog.isEmpty())
+            lastSeekerLog.addAll(tractorMaintLog);
         computeTractorPseudoSpeeds();
         // Notify cloak devices that a new turn has started — triggers involuntary
         // fade-in for any device whose cost was not paid this turn
@@ -329,11 +335,19 @@ public class Game {
         if (!orphanLog.isEmpty())
             lastSeekerLog.addAll(orphanLog);
         awaitingAllocation = false;
+        tractorResolver.clearRotations();
+        // Advance to impulse 1 now — the Initial Activity Phase is part of the new
+        // turn, so the counter (and per-impulse bookkeeping) must be current while
+        // players act in it. GameStateDto reads TurnTracker during this phase.
         TurnTracker.nextImpulse();
         movedThisImpulse.clear();
         prevLocations.clear();
         movedShuttlesThisImpulse.clear();
-        currentPhase = ImpulsePhase.MOVEMENT;
+        // The Initial Activity Phase only hosts tractor rotations (G7.7); skip the
+        // empty phase (and its all-players Ready round-trip) when nothing is held.
+        currentPhase = tractorResolver.anyTractorLinksExist()
+                ? ImpulsePhase.INITIAL_ACTIVITY
+                : ImpulsePhase.MOVEMENT;
     }
 
     private void computeTractorPseudoSpeeds() {
@@ -594,6 +608,11 @@ public class Game {
     public ActionResult advancePhase() {
         List<String> log = new ArrayList<>();
         switch (currentPhase) {
+            case INITIAL_ACTIVITY:
+                // Impulse counter and per-impulse state were already advanced in
+                // beginImpulses(); this is purely the phase transition.
+                currentPhase = ImpulsePhase.MOVEMENT;
+                break;
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
                 lastSeekerLog.addAll(moveShuttles());
@@ -1253,6 +1272,7 @@ public class Game {
                     ? destructionDirectionsByTeam.getOrDefault(teamName, new HashSet<>())
                     : new HashSet<>();
             String exitDir = String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
+            tractorResolver.releaseAllLinksInvolving(ship); // G7.28
             if (badDirs.contains(exitDir)) {
                 ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
                 ship.setLocation(null);
@@ -1521,6 +1541,7 @@ public class Game {
 
         List<String> names = new ArrayList<>();
         for (Ship ship : toDestroy) {
+            tractorResolver.releaseAllLinksInvolving(ship);
             ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
             ship.setLocation(null);
             destroyedShips.add(ship);
@@ -1563,6 +1584,7 @@ public class Game {
             String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
             Set<String> teamEdges = teamName != null ? destructionEdgesByTeam.getOrDefault(teamName, new HashSet<>())
                     : new HashSet<>();
+            tractorResolver.releaseAllLinksInvolving(ship); // G7.28/G7.273
             if (teamEdges.contains(exitEdge)) {
                 // Destruction edge — ship is destroyed, not disengaged
                 ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
@@ -1581,6 +1603,7 @@ public class Game {
         }
         if (isPlanetHex(nextHex)) {
             // Ship collides with planet — destroyed (P2.0)
+            tractorResolver.releaseAllLinksInvolving(ship);
             ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
             ship.setLocation(null);
             destroyedShips.add(ship);
@@ -1629,6 +1652,9 @@ public class Game {
                     Location heldPrev = held.getLocation();
                     Location heldNext = MapUtils.getAdjacentHex(held.getLocation(), moveDir, mapCols, mapRows);
                     if (heldNext == null || isPlanetHex(heldNext)) {
+                        // Links persist across turns now — release explicitly so the
+                        // dead unit doesn't occupy a beam or hold the rotation phase open
+                        ship.getTractors().releaseTractor(held);
                         held.setLocation(null);
                         seekers.removeIf(s -> s == held);
                         activeShuttles.removeIf(s -> s == held);
@@ -1975,6 +2001,12 @@ public class Game {
 
     public ActionResult releaseTractor(Ship holder, String targetName) {
         return tractorResolver.releaseTractor(holder, targetName);
+    }
+
+    public ActionResult rotateTractored(Ship holder, String targetName, int destCol, int destRow) {
+        if (currentPhase != ImpulsePhase.INITIAL_ACTIVITY)
+            return ActionResult.fail("Tractor rotation is only allowed during the Initial Activity Phase (G7.7)");
+        return tractorResolver.rotateTractored(holder, targetName, destCol, destRow);
     }
 
 
@@ -2629,6 +2661,7 @@ public class Game {
     private void cleanupDestroyedShips() {
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
+                tractorResolver.releaseAllLinksInvolving(s);
                 lastInternalDamageLog.add(s.getName() + " has been destroyed and removed from play.");
                 destroyedShips.add(s);
                 return true;
@@ -2864,7 +2897,6 @@ public class Game {
             return ActionResult.fail("Drone is not in " + rack.getName());
         if (!launcher.isActiveFireControl() && !drone.isSelfGuiding())
             return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
-        String controlXferLog = null;
         if (!drone.isSelfGuiding()) {
             if (!launcher.acquireControl(drone)) {
                 // Over limit — force-add and queue overflow interrupt for player to resolve
@@ -2900,8 +2932,6 @@ public class Game {
 
         String msg = launcher.getName() + " launched " + drone.getDroneType()
                 + " drone at " + target.getName();
-        if (controlXferLog != null)
-            msg += "\n" + controlXferLog;
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         checkControlOverflow();

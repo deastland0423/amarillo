@@ -144,7 +144,10 @@ public class TractorTest {
     }
 
     @Test
-    public void cleanUp_releasesAllUnitsResetsEnergy() {
+    public void cleanUp_preservesLinksButResetsEnergy() {
+        // G7.42: links persist across the turn boundary; only per-turn energy
+        // resets. Unmaintained links are released at the NEXT turn's start
+        // (TractorResolver.maintainLinksAtTurnStart), not here.
         Tractors t = fed.getTractors();
         t.initForTurn(10);
         t.linkUnit(klingon);
@@ -152,8 +155,8 @@ public class TractorTest {
 
         t.cleanUp();
 
-        assertTrue(t.getTractoredUnits().isEmpty());
-        assertFalse(klingon.isTractored());
+        assertEquals(1, t.getTractoredUnits().size());
+        assertTrue(klingon.isTractored());
         assertEquals(0, t.getTotalTractorEnergy());
         assertEquals(0, t.getRemainingTractorEnergy());
         assertEquals(0, t.getNegativeTractorAccumulated());
@@ -562,5 +565,397 @@ public class TractorTest {
 
         assertTrue(r.isSuccess());
         assertEquals(4, fed.getTractors().getRemainingTractorEnergy()); // 6 - 2 = 4
+    }
+
+    // =========================================================================
+    // GROUP 7 — Rotation (G7.7) — Initial Activity Phase
+    // =========================================================================
+
+    /**
+     * Submit allocations for both ships so beginImpulses() fires. Links must be
+     * established BEFORE calling this (mirroring real play, where they persist
+     * from the previous turn): beginImpulses charges G7.42 maintenance on every
+     * surviving link and only opens INITIAL_ACTIVITY if any link remains.
+     */
+    private void enterInitialActivity() {
+        game.submitAllocation(fed,     makeAllocation(fed,     10.0));
+        game.submitAllocation(klingon, makeAllocation(klingon, 10.0));
+        assertEquals(Game.ImpulsePhase.INITIAL_ACTIVITY, game.getCurrentPhase());
+    }
+
+    /** Link klingon into fed's tractor and give fed a tractor pool (pre-allocation). */
+    private void linkKlingon(int fedTractorPool) {
+        fed.getTractors().initForTurn(fedTractorPool);
+        fed.getPowerSystems().setBatteryPower(0);
+        fed.getTractors().linkUnit(klingon);
+    }
+
+    @Test
+    public void rotate_succeeds_movesTargetToAdjacentHex() {
+        linkKlingon(5);
+        enterInitialActivity(); // maintenance: −1 at range 1
+
+        // (11,11) is adjacent to the klingon and range 1 from fed — cost 3
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 11);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 11), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_costsThreeEnergyAtRange1() {
+        linkKlingon(5);
+        enterInitialActivity(); // maintenance: −1 at range 1
+
+        game.rotateTractored(fed, "IKV Saber", 11, 11); // stays at range 1
+
+        assertEquals(1, fed.getTractors().getRemainingTractorEnergy()); // 5 - 1 - 3
+    }
+
+    @Test
+    public void rotate_pushingFartherCostsNewRange() {
+        // G7.711: the beam must cover the POST-rotation distance. (11,9) is
+        // range 2 from fed at (10,10), so pushing the klingon there costs 3×2=6.
+        linkKlingon(7);
+        enterInitialActivity(); // maintenance: −1 at range 1
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 9), klingon.getLocation());
+        assertEquals(0, fed.getTractors().getRemainingTractorEnergy()); // 7 - 1 - 6
+    }
+
+    @Test
+    public void rotate_pullingCloserCostsNewRange() {
+        // G7.712: pulling from range 2 in to range 1 costs only 3×1=3.
+        klingon.setLocation(new Location(12, 10)); // range 2 from fed
+        linkKlingon(5);
+        enterInitialActivity(); // maintenance: −2 at range 2
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 10);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 10), klingon.getLocation());
+        assertEquals(0, fed.getTractors().getRemainingTractorEnergy()); // 5 - 2 - 3
+    }
+
+    @Test
+    public void rotate_failsOutsideInitialActivityPhase() {
+        linkKlingon(5);
+        enterInitialActivity();
+        game.advancePhase(); // INITIAL_ACTIVITY → MOVEMENT
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertFalse(r.isSuccess());
+        assertEquals(new Location(11, 10), klingon.getLocation()); // unmoved
+    }
+
+    @Test
+    public void rotate_failsWhenNotTractoringTarget() {
+        // Fed holds a drone (keeps the phase open) but NOT the klingon
+        Drone drone = makeDrone("Drone-1", 10, 11);
+        fed.getTractors().initForTurn(5);
+        fed.getPowerSystems().setBatteryPower(0);
+        fed.getTractors().linkUnit(drone);
+        enterInitialActivity();
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertFalse(r.isSuccess());
+    }
+
+    @Test
+    public void rotate_failsOnSecondRotationSameTurn() {
+        // G7.713 / G7.71: one rotation per unit per turn
+        linkKlingon(10);
+        enterInitialActivity();
+
+        assertTrue(game.rotateTractored(fed, "IKV Saber", 11, 9).isSuccess());
+        Game.ActionResult second = game.rotateTractored(fed, "IKV Saber", 11, 10);
+
+        assertFalse(second.isSuccess());
+        assertEquals(new Location(11, 9), klingon.getLocation()); // stayed at first dest
+    }
+
+    @Test
+    public void rotate_failsWhenDestNotAdjacentToTarget() {
+        // G7.711: destination must be exactly one hex from the held unit
+        linkKlingon(10);
+        enterInitialActivity();
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 7); // 3 hexes away
+
+        assertFalse(r.isSuccess());
+    }
+
+    @Test
+    public void rotate_failsWhenDestBeyondTractorRange() {
+        // G7.714/G7.711: klingon at range 3; pushing it to range 4 would break the link
+        klingon.setLocation(new Location(13, 10));
+        linkKlingon(12); // ample energy — the range-4 gate must fire before any cost check
+        enterInitialActivity(); // maintenance: −3 at range 3
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 14, 10);
+
+        assertFalse(r.isSuccess());
+        assertEquals(new Location(13, 10), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_failsWhenInsufficientEnergy() {
+        // Rotation to range 1 costs 3; pool of 2 (−1 maintenance) with no battery must fail
+        linkKlingon(2);
+        enterInitialActivity();
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 11);
+
+        assertFalse(r.isSuccess());
+        assertEquals(new Location(11, 10), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_failsWhenTargetHeldByMultipleShips() {
+        // G7.716: a unit held by two or more ships cannot be rotated
+        Ship fed2 = new Ship();
+        fed2.init(FederationShips.getFedCa());
+        fed2.setName("USS Reliant");
+        fed2.setLocation(new Location(12, 10));
+        fed2.setSpeedPreviousTurn(31);
+        fed2.setSpeedTwoTurnsAgo(31);
+        game.getShips().add(fed2);
+        game.startTurn(); // re-queue all three ships
+
+        linkKlingon(10);
+        fed2.getTractors().initForTurn(10);
+        fed2.getTractors().linkUnit(klingon);
+
+        game.submitAllocation(fed,     makeAllocation(fed,     10.0));
+        game.submitAllocation(klingon, makeAllocation(klingon, 10.0));
+        game.submitAllocation(fed2,    makeAllocation(fed2,    10.0));
+        assertEquals(Game.ImpulsePhase.INITIAL_ACTIVITY, game.getCurrentPhase());
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertFalse(r.isSuccess());
+    }
+
+    @Test
+    public void rotate_drone_succeeds() {
+        // G7.72: rotation applies to drones and shuttles, not just ships
+        Drone drone = makeDrone("Drone-1", 10, 11); // adjacent to fed at (10,10)
+        fed.getTractors().initForTurn(5);
+        fed.getPowerSystems().setBatteryPower(0);
+        fed.getTractors().linkUnit(drone);
+        enterInitialActivity(); // maintenance: −1 at range 1
+
+        // (11,11) is adjacent to the drone and range 1 from fed — cost 3
+        Game.ActionResult r = game.rotateTractored(fed, "Drone-1", 11, 11);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 11), drone.getLocation());
+    }
+
+    @Test
+    public void rotate_dragPreservesRelativePosition_acrossColumnParity() {
+        // Klingon (11,10, odd column) holds a drone at (12,9) — adjacent, direction 5.
+        // Rotating the klingon in direction 9 to (12,10) must carry the drone one hex
+        // in direction 9 as well: (12,9) is an EVEN column, so direction 9 lands on
+        // (13,10), keeping it adjacent at the same relative bearing. A raw (dx,dy)
+        // delta (+1,0) would drop it at (13,9), which is range 2 from the ship.
+        Drone drone = makeDrone("Drone-1", 12, 9);
+        linkKlingon(10);
+        klingon.getTractors().initForTurn(5);
+        klingon.getTractors().linkUnit(drone);
+        enterInitialActivity(); // maintenance: fed −1, klingon −1
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 12, 10);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(12, 10), klingon.getLocation());
+        assertEquals(new Location(13, 10), drone.getLocation());
+        assertEquals(1, com.sfb.utilities.MapUtils.getRange(klingon.getLocation(), drone.getLocation()));
+    }
+
+    @Test
+    public void rotate_shipCarriesItsTractoredDrones() {
+        // G7.717: small units tractored by the rotated ship keep relative position
+        Drone drone = makeDrone("Drone-1", 12, 10);
+        linkKlingon(10);
+        klingon.getTractors().initForTurn(5);
+        klingon.getTractors().linkUnit(drone);
+        enterInitialActivity(); // maintenance: fed −1, klingon −1
+
+        // Rotate klingon (11,10) → (11,9): delta (0,-1); drone should follow to (12,9)
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 9), klingon.getLocation());
+        assertEquals(new Location(12, 9), drone.getLocation());
+    }
+
+    @Test
+    public void rotate_heldDroneForcedIntoPlanet_isDestroyedNotStranded() {
+        // G7.274: a held drone whose cascade destination is a planet hex is
+        // destroyed (same fate as tractor-drag in moveForward), never silently
+        // left behind at a now-illegal separation from its holder.
+        Drone drone = makeDrone("Drone-1", 12, 10);
+        game.addTerrain(new com.sfb.objects.Terrain(com.sfb.properties.TerrainType.PLANET, 12, 9));
+        linkKlingon(10);
+        klingon.getTractors().initForTurn(5);
+        klingon.getTractors().linkUnit(drone);
+        enterInitialActivity();
+
+        // Rotate klingon (11,10) → (11,9), direction 1; drone (12,10) would go to (12,9) = planet
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 9), klingon.getLocation());
+        assertNull("Drone must be destroyed", drone.getLocation());
+        assertFalse("Link must be released", drone.isTractored());
+        assertFalse(game.getSeekers().contains(drone));
+        assertTrue("Log must report the destruction", r.getMessage().contains("destroyed"));
+    }
+
+    @Test
+    public void rotate_heldDroneForcedOffMap_isDestroyedNotStranded() {
+        fed.setLocation(new Location(10, 2));
+        klingon.setLocation(new Location(11, 2));
+        Drone drone = makeDrone("Drone-1", 12, 1);
+        linkKlingon(10);
+        klingon.getTractors().initForTurn(5);
+        klingon.getTractors().linkUnit(drone);
+        enterInitialActivity();
+
+        // Rotate klingon (11,2) → (11,1), direction 1; drone (12,1) would go to row 0 = off map
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 1);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 1), klingon.getLocation());
+        assertNull("Drone must be destroyed", drone.getLocation());
+        assertFalse("Link must be released", drone.isTractored());
+        assertFalse(game.getSeekers().contains(drone));
+        assertTrue("Log must report the destruction", r.getMessage().contains("destroyed"));
+    }
+
+    @Test
+    public void rotate_failsIntoPlanetHex() {
+        // G7.715/G7.75: cannot rotate a unit into a planet hex
+        game.addTerrain(new com.sfb.objects.Terrain(com.sfb.properties.TerrainType.PLANET, 11, 9));
+        linkKlingon(10);
+        enterInitialActivity();
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
+
+        assertFalse(r.isSuccess());
+        assertEquals(new Location(11, 10), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_failsOffMap() {
+        fed.setLocation(new Location(2, 1));
+        klingon.setLocation(new Location(1, 1));
+        linkKlingon(10);
+        enterInitialActivity();
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 1, 0); // row 0 = off map
+
+        assertFalse(r.isSuccess());
+        assertEquals(new Location(1, 1), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_allowedAgainOnNewTurn_linkPersists() {
+        // G7.71: one rotation per unit per turn — resets at the next turn. The link
+        // itself persists across the boundary (G7.42) as long as maintenance is paid.
+        linkKlingon(10);
+        enterInitialActivity(); // maintenance: −1 at range 1
+        assertTrue(game.rotateTractored(fed, "IKV Saber", 11, 9).isSuccess());
+
+        // New turn: link persisted; fresh pool allocated; maintenance −2 (now range 2)
+        fed.getTractors().initForTurn(10);
+        game.startTurn();
+        enterInitialActivity();
+        assertTrue("Link must survive the turn boundary", klingon.isTractored());
+
+        Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 10);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(11, 10), klingon.getLocation());
+    }
+
+    @Test
+    public void rotate_intoMineRadius_triggersDetection() {
+        // Rotation must record prevLocations so processMines() sees the rotated
+        // unit as having MOVED into the mine's trigger radius — otherwise the
+        // classic "rotate the anchored enemy onto your T-bomb" play never works.
+        com.sfb.objects.SpaceMine mine = com.sfb.objects.SpaceMine.createTBomb(fed, 0, true, false);
+        mine.setLocation(new Location(11, 8));
+        mine.tryActivate(2, 9); // timer + range met — force-arm before the turn
+        game.getMines().add(mine);
+
+        linkKlingon(10);
+        // High warp → pseudo-speed 10 for both ships; speed ≥ 6 makes tBomb
+        // detection automatic (no die roll), keeping the test deterministic.
+        game.submitAllocation(fed,     makeAllocation(fed,     20.0));
+        game.submitAllocation(klingon, makeAllocation(klingon, 20.0));
+        assertEquals(Game.ImpulsePhase.INITIAL_ACTIVITY, game.getCurrentPhase());
+
+        // Rotate klingon (11,10) → (11,9): from range 2 to range 1 of the mine
+        assertTrue(game.rotateTractored(fed, "IKV Saber", 11, 9).isSuccess());
+
+        game.advancePhase(); // INITIAL_ACTIVITY → MOVEMENT (pure transition)
+        Game.ActionResult moveEnd = game.advancePhase(); // MOVEMENT: seekers + mines resolve
+
+        assertTrue("Mine must detect the rotated ship, got:\n" + moveEnd.getMessage(),
+                moveEnd.getMessage().contains("TRIGGERED"));
+    }
+
+    // =========================================================================
+    // GROUP 8 — Turn-boundary maintenance and auto-skip (G7.42, simplified)
+    // =========================================================================
+
+    @Test
+    public void maintenance_paidAtTurnStart_linkPersists() {
+        linkKlingon(5);
+        enterInitialActivity();
+
+        assertTrue(klingon.isTractored());
+        assertEquals(4, fed.getTractors().getRemainingTractorEnergy()); // 5 - 1 maintenance
+    }
+
+    @Test
+    public void maintenance_unpaid_linkReleasedAndPhaseSkipped() {
+        linkKlingon(0); // no pool, battery zeroed by helper
+
+        game.submitAllocation(fed,     makeAllocation(fed,     10.0));
+        game.submitAllocation(klingon, makeAllocation(klingon, 10.0));
+
+        assertFalse("Unmaintained link must be released (G7.42)", klingon.isTractored());
+        // With the only link gone, the empty Initial Activity Phase is skipped
+        assertEquals(Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase());
+    }
+
+    @Test
+    public void maintenance_atRange2_costsTwo() {
+        klingon.setLocation(new Location(12, 10)); // range 2 from fed
+        linkKlingon(5);
+        enterInitialActivity();
+
+        assertTrue(klingon.isTractored());
+        assertEquals(3, fed.getTractors().getRemainingTractorEnergy()); // 5 - 2 (G7.6)
+    }
+
+    @Test
+    public void advancePastInitialActivity_isPurePhaseTransition() {
+        linkKlingon(5);
+        enterInitialActivity();
+        int absoluteDuringPhase = TurnTracker.getImpulse();
+
+        game.advancePhase(); // INITIAL_ACTIVITY → MOVEMENT
+
+        assertEquals(absoluteDuringPhase, TurnTracker.getImpulse()); // no second advance
+        assertEquals(Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase());
     }
 }

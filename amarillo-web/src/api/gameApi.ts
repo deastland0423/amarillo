@@ -315,7 +315,8 @@ export const gameApi = {
       body: JSON.stringify({
         type:         'PLACE_TBOMB',
         shipName,
-        action:       `${col}|${row}`,
+        hexCol:       col,
+        hexRow:       row,
         pseudo:       !isReal,   // server treats pseudo=true as dummy
         shieldNumber: shieldNumber ?? 0,
       }),

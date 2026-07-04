@@ -1,12 +1,16 @@
 package com.sfb;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.objects.shuttles.Shuttle;
+import com.sfb.properties.Location;
 import com.sfb.Game.ActionResult;
 import com.sfb.utilities.MapUtils;
 
@@ -17,16 +21,91 @@ import com.sfb.utilities.MapUtils;
  */
 class TractorResolver {
 
-    private final List<Ship>    ships;
-    private final List<Seeker>  seekers;
-    private final List<Shuttle> activeShuttles;
+    private final Game           game;
+    private final List<Ship>     ships;
+    private final List<Seeker>   seekers;
+    private final List<Shuttle>  activeShuttles;
+    // Game's pre-move-location map — rotation must record moves here so
+    // processMines() can see rotated units as having entered a mine's radius.
+    private final Map<Unit, Location> prevLocations;
+    private final Set<String>    rotatedThisTurn = new HashSet<>();
 
     Game.PendingTractorAuction pendingTractorAuction = null;
 
-    TractorResolver(Game game, List<Ship> ships, List<Seeker> seekers, List<Shuttle> activeShuttles) {
+    TractorResolver(Game game, List<Ship> ships, List<Seeker> seekers, List<Shuttle> activeShuttles,
+                    Map<Unit, Location> prevLocations) {
+        this.game           = game;
         this.ships          = ships;
         this.seekers        = seekers;
         this.activeShuttles = activeShuttles;
+        this.prevLocations  = prevLocations;
+    }
+
+    void clearRotations() {
+        rotatedThisTurn.clear();
+    }
+
+    /** True if any ship currently holds at least one unit in a tractor beam. */
+    boolean anyTractorLinksExist() {
+        for (Ship s : ships) {
+            if (s.getTractors() != null && !s.getTractors().getTractoredUnits().isEmpty())
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Turn-start link maintenance (G7.42, simplified): links persist across the
+     * turn boundary, and the holder must pay 1 effective tractor point (× range
+     * multiplier, G7.6) per held unit from the new turn's pool or the link is
+     * released. The defender's counter-auction (full G7.42) is not yet implemented.
+     * Links to vanished units (null location) or beyond range 3 are released.
+     */
+    List<String> maintainLinksAtTurnStart() {
+        List<String> log = new ArrayList<>();
+        for (Ship holder : ships) {
+            if (holder.getTractors() == null) continue;
+            for (Unit held : new ArrayList<>(holder.getTractors().getTractoredUnits())) {
+                int range = (holder.getLocation() == null || held.getLocation() == null)
+                        ? Integer.MAX_VALUE
+                        : MapUtils.getRange(holder.getLocation(), held.getLocation());
+                if (range > 3) {
+                    holder.getTractors().releaseTractor(held);
+                    log.add("  " + holder.getName() + "'s tractor on " + held.getName()
+                            + " released — target out of range");
+                    continue;
+                }
+                int cost      = Math.max(1, range);
+                int available = holder.getTractors().getRemainingTractorEnergy()
+                              + holder.getPowerSystems().getBatteryPower();
+                if (available >= cost) {
+                    spendTractorEnergy(holder, cost);
+                    log.add("  " + holder.getName() + " maintains tractor on " + held.getName()
+                            + " (" + cost + " energy; G7.42)");
+                } else {
+                    holder.getTractors().releaseTractor(held);
+                    log.add("  " + holder.getName() + " cannot pay " + cost
+                            + " to maintain tractor on " + held.getName() + " — link released (G7.42)");
+                }
+            }
+        }
+        return log;
+    }
+
+    /**
+     * Break every tractor link involving a ship leaving play (destroyed,
+     * disengaged, or conceded) — both links it holds and links held on it.
+     */
+    void releaseAllLinksInvolving(Ship gone) {
+        if (gone.getTractors() != null) {
+            for (Unit held : new ArrayList<>(gone.getTractors().getTractoredUnits()))
+                gone.getTractors().releaseTractor(held);
+        }
+        for (Ship s : ships) {
+            if (s == gone || s.getTractors() == null) continue;
+            if (s.getTractors().getTractoredUnits().contains(gone))
+                s.getTractors().releaseTractor(gone);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -177,6 +256,114 @@ class TractorResolver {
 
         holder.getTractors().releaseTractor(target);
         return ActionResult.ok(holder.getName() + " released tractor beam on " + targetName + " (G7.33)");
+    }
+
+    // -------------------------------------------------------------------------
+    // G7.7 Rotation (Initial Activity Phase)
+    // -------------------------------------------------------------------------
+
+    ActionResult rotateTractored(Ship holder, String targetName, int destCol, int destRow) {
+        if (holder.getTractors() == null)
+            return ActionResult.fail(holder.getName() + " has no tractor system");
+
+        Unit target = holder.getTractors().getTractoredUnits().stream()
+                .filter(u -> u.getName().equalsIgnoreCase(targetName))
+                .findFirst().orElse(null);
+        if (target == null)
+            return ActionResult.fail(holder.getName() + " is not tractoring " + targetName);
+
+        if (rotatedThisTurn.contains(target.getName()))
+            return ActionResult.fail(targetName + " has already been rotated this turn (G7.713)");
+
+        // G7.716: cannot rotate a unit held by multiple ships
+        long holderCount = ships.stream()
+                .filter(s -> s.getTractors() != null && s.getTractors().getTractoredUnits().contains(target))
+                .count();
+        if (holderCount > 1)
+            return ActionResult.fail(targetName + " is held by multiple ships — cannot rotate (G7.716)");
+
+        // Validate destination bounds
+        if (destCol < 1 || destRow < 1 || destCol > game.getMapCols() || destRow > game.getMapRows())
+            return ActionResult.fail("Destination " + destCol + "|" + destRow + " is off the map (G7.715)");
+
+        Location destHex = new Location(destCol, destRow);
+
+        if (game.isPlanetHex(destHex))
+            return ActionResult.fail("Cannot rotate into a planet hex (G7.715)");
+
+        // Destination must be adjacent to the target (exactly 1 hex)
+        int distToTarget = MapUtils.getRange(target.getLocation(), destHex);
+        if (distToTarget != 1)
+            return ActionResult.fail("Destination must be adjacent to " + targetName
+                    + " (range " + distToTarget + " — G7.711)");
+
+        // Destination must remain within tractor range of holder (≤3)
+        int distToHolder = MapUtils.getRange(holder.getLocation(), destHex);
+        if (distToHolder > 3)
+            return ActionResult.fail("Destination is out of tractor range from "
+                    + holder.getName() + " (G7.714)");
+
+        // Energy cost: 3 × the POST-rotation range multiplier (G7.711/G7.712) —
+        // the beam must cover the new distance, so pushing farther costs more and
+        // pulling closer costs less. Range 0 and range 1 are the same strength.
+        int rangeMultiplier = Math.max(1, distToHolder);
+        int energyCost      = 3 * rangeMultiplier;
+        int available       = holder.getTractors().getRemainingTractorEnergy()
+                            + holder.getPowerSystems().getBatteryPower();
+        if (available < energyCost)
+            return ActionResult.fail("Need " + energyCost + " tractor energy to rotate to range "
+                    + distToHolder + ", have " + available + " (G7.711/G7.712)");
+
+        // The destination is adjacent (validated above), so exactly one of the six
+        // hex bearings leads from the target's hex to it. Held units must move in
+        // that same direction — a raw column/row delta is NOT shape-preserving on
+        // this offset hex grid when the held unit sits in a different column parity.
+        Location fromHex = target.getLocation();
+        int rotationDir = -1;
+        for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+            if (destHex.equals(MapUtils.getAdjacentHex(fromHex, dir))) {
+                rotationDir = dir;
+                break;
+            }
+        }
+
+        prevLocations.putIfAbsent(target, fromHex); // mines must see this as movement
+        target.setLocation(destHex);
+        spendTractorEnergy(holder, energyCost);
+        rotatedThisTurn.add(target.getName());
+
+        // G7.717: small units (drones/shuttles) tractored by the rotated ship
+        // maintain their relative position — move each one hex in the rotation direction.
+        StringBuilder msg = new StringBuilder(holder.getName() + " rotated " + targetName
+                + " → " + destHex + " (cost " + energyCost + " energy; G7.711)");
+        if (target instanceof Ship && rotationDir != -1) {
+            Ship targetShip = (Ship) target;
+            if (targetShip.getTractors() != null) {
+                for (Unit held : new ArrayList<>(targetShip.getTractors().getTractoredUnits())) {
+                    if (held instanceof Ship) continue; // ships keep their own hex (not dragged)
+                    if (held.getLocation() == null) continue;
+                    Location newHeldLoc = MapUtils.getAdjacentHex(
+                            held.getLocation(), rotationDir, game.getMapCols(), game.getMapRows());
+                    if (newHeldLoc == null || game.isPlanetHex(newHeldLoc)) {
+                        // Same fate as being tractor-dragged there by movement (G7.274):
+                        // the unit is destroyed, the link released, and the log says so
+                        targetShip.getTractors().releaseTractor(held);
+                        held.setLocation(null);
+                        seekers.removeIf(s -> s == held);
+                        activeShuttles.removeIf(s -> s == held);
+                        msg.append("; ").append(held.getName())
+                           .append(newHeldLoc == null ? " rotated off map — destroyed"
+                                                      : " rotated into planet — destroyed");
+                    } else {
+                        prevLocations.putIfAbsent(held, held.getLocation());
+                        held.setLocation(newHeldLoc);
+                        msg.append("; ").append(held.getName()).append(" moved with it");
+                    }
+                }
+            }
+        }
+
+        return ActionResult.ok(msg.toString());
     }
 
     // -------------------------------------------------------------------------

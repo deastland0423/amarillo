@@ -1038,6 +1038,18 @@ public class GameSession {
                 return r;
             }
 
+            case "ROTATE_TRACTORED": {
+                Ship holder = findShip(request.getShipName());
+                if (holder == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (request.getHexCol() < 1 || request.getHexRow() < 1)
+                    return ActionResult.fail("No destination hex specified");
+                ActionResult r = game.rotateTractored(holder, request.getTargetName(),
+                        request.getHexCol(), request.getHexRow());
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "LAUNCH_WILD_WEASEL": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
@@ -1218,14 +1230,10 @@ public class GameSession {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
-                String locStr = request.getAction(); // "x|y" packed in action field
-                com.sfb.properties.Location loc;
-                try {
-                    String[] parts = locStr.split("\\|");
-                    loc = new com.sfb.properties.Location(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
-                } catch (Exception e) {
-                    return ActionResult.fail("Invalid location: " + locStr);
-                }
+                if (request.getHexCol() < 1 || request.getHexRow() < 1)
+                    return ActionResult.fail("No destination hex specified");
+                com.sfb.properties.Location loc =
+                        new com.sfb.properties.Location(request.getHexCol(), request.getHexRow());
                 boolean isReal = !request.isPseudo();
                 return game.placeTBomb(ship, loc, isReal, request.getShieldNumber());
             }

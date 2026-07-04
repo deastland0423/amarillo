@@ -1466,6 +1466,12 @@ interface SidebarProps {
   negTractorBidValue:  number;
   onSetNegTractorBid:  (v: number) => void;
   onSubmitNegTractorBid: () => void;
+  // Tractor rotation (G7.7) — Initial Activity Phase
+  rotateMode:    boolean;
+  rotateTarget:  string | null;
+  rotateError:   string | null;
+  onStartRotate: (targetName: string) => void;
+  onCancelRotate: () => void;
 }
 
 function ShipSidebar({
@@ -1492,6 +1498,7 @@ function ShipSidebar({
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
   pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
+  rotateMode, rotateTarget, rotateError, onStartRotate, onCancelRotate,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -1502,8 +1509,9 @@ function ShipSidebar({
                  + (ship.availableCWarp  ?? 0) + (ship.availableImpulse ?? 0)
                  + (ship.availableApr    ?? 0) + (ship.availableAwr     ?? 0)
                  + (ship.availableBattery ?? 0);
-  const isFirePhase     = phase === 'Direct Fire';
-  const isActivityPhase = phase === 'Activity';
+  const isFirePhase            = phase === 'Direct Fire';
+  const isActivityPhase        = phase === 'Activity';
+  const isInitialActivityPhase = phase === 'Initial Activity';
   const canLaunch       = isActivityPhase && hasLaunchableWeapons(ship);
   const canTBomb        = isActivityPhase && isMine
                         && (ship.tBombs > 0 || ship.dummyTBombs > 0)
@@ -1661,6 +1669,25 @@ function ShipSidebar({
                 </div>
               )}
             </>
+          )}
+
+          {/* Initial Activity phase: tractor rotation (G7.7) */}
+          {isInitialActivityPhase && (ship.tractoredTargetNames ?? []).length > 0 && (
+            <div className="action-btn-row">
+              {(ship.tractoredTargetNames ?? []).map(targetName => (
+                <button
+                  key={`rotate-${targetName}`}
+                  className={`action-strip-btn${rotateMode && rotateTarget === targetName ? ' active' : ''}`}
+                  onClick={() => rotateMode && rotateTarget === targetName
+                    ? onCancelRotate()
+                    : onStartRotate(targetName)}
+                  title={`Rotate ${targetName} to adjacent hex (G7.7)`}
+                  style={{ borderColor: '#a78bfa', color: '#a78bfa' }}
+                >
+                  Rotate {targetName}
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Activity phase: row of action buttons + transporter submenu */}
@@ -1916,6 +1943,16 @@ function ShipSidebar({
           </div>
           {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{tractorError}</div>}
           <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelTractor}>Cancel</button>
+        </div>
+      )}
+
+      {rotateMode && rotateTarget && (
+        <div className="sidebar-action-detail">
+          <div className="sidebar-section-title" style={{ color: '#a78bfa' }}>
+            Rotate {rotateTarget} — click the destination hex (G7.711)
+          </div>
+          {rotateError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{rotateError}</div>}
+          <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelRotate}>Cancel</button>
         </div>
       )}
 
@@ -2438,6 +2475,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [tractorRangeMultiplier,  setTractorRangeMultiplier]  = useState(1);
   // Negative-tractor bid dialog (defender)
   const [negTractorBidValue, setNegTractorBidValue] = useState(0);
+  // Tractor rotation state (G7.7)
+  const [rotateMode,   setRotateMode]   = useState(false);
+  const [rotateTarget, setRotateTarget] = useState<string | null>(null);
+  const [rotateError,  setRotateError]  = useState<string | null>(null);
   // Boarding action state
   const [boardingMode,    setBoardingMode]    = useState(false);
   const [boardingTarget,  setBoardingTarget]  = useState<ShipObject | null>(null);
@@ -2472,9 +2513,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const phase      = gameState?.phase ?? '';
   const myShips    = new Set(gameState?.myShips ?? []);
   const movableNow = gameState?.movableNow ?? [];
-  const isMovementPhase      = phase === 'Movement';
-  const isFirePhase          = phase === 'Direct Fire';
-  const isReinforcementPhase = phase === 'Reinforcement';
+  const isMovementPhase        = phase === 'Movement';
+  const isFirePhase            = phase === 'Direct Fire';
+  const isReinforcementPhase   = phase === 'Reinforcement';
+  const isInitialActivityPhase = phase === 'Initial Activity';
 
   const batteryByShip: Record<string, number> = {};
   for (const obj of gameState?.mapObjects ?? []) {
@@ -2564,6 +2606,16 @@ export default function GameBoard({ session, onLeave }: Props) {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [log]);
+
+  // Rotation (G7.7) is only legal during Initial Activity — drop any armed
+  // rotate mode when the phase moves on so stale clicks can't fire it.
+  useEffect(() => {
+    if (!isInitialActivityPhase && (rotateMode || rotateTarget)) {
+      setRotateMode(false);
+      setRotateTarget(null);
+      setRotateError(null);
+    }
+  }, [isInitialActivityPhase, rotateMode, rotateTarget]);
 
   const turnLabel  = gameState
     ? (gameState.maxTurns > 0 ? `Turn ${gameState.turn}/${gameState.maxTurns}` : `Turn ${gameState.turn}`)
@@ -2712,6 +2764,9 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchError(null);
     setShuttleLaunchMode(false);
     setShuttleLaunchError(null);
+    setRotateMode(false);
+    setRotateTarget(null);
+    setRotateError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFirePhase, launchMode, boardingMode, harMode, crewMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
@@ -2979,6 +3034,25 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (!res.success) setTractorError(res.message);
   }
 
+  async function handleRotateTractored(destCol: number, destRow: number) {
+    if (!liveShip || !rotateTarget) return;
+    setRotateError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type:       'ROTATE_TRACTORED',
+      shipName:   liveShip.name,
+      targetName: rotateTarget,
+      hexCol:     destCol,
+      hexRow:     destRow,
+    });
+    if (!res.success) {
+      setRotateError(res.message ?? 'Rotation failed');
+    } else {
+      setRotateMode(false);
+      setRotateTarget(null);
+      setRotateError(null);
+    }
+  }
+
   function handleCancelBoarding() {
     setBoardingMode(false);
     setBoardingTarget(null);
@@ -3238,6 +3312,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   function handleHexClick(col: number, row: number) {
     if (tBombMode) {
       setTBombPendingHex({ col, row });
+    }
+    if (rotateMode && liveShip && rotateTarget && isInitialActivityPhase) {
+      handleRotateTractored(col, row);
     }
   }
 
@@ -3731,6 +3808,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             negTractorBidValue={negTractorBidValue}
             onSetNegTractorBid={setNegTractorBidValue}
             onSubmitNegTractorBid={handleSubmitNegTractorBid}
+            rotateMode={rotateMode}
+            rotateTarget={rotateTarget}
+            rotateError={rotateError}
+            onStartRotate={(targetName) => { setRotateMode(true); setRotateTarget(targetName); setRotateError(null); }}
+            onCancelRotate={() => { setRotateMode(false); setRotateTarget(null); setRotateError(null); }}
           />
         )}
 

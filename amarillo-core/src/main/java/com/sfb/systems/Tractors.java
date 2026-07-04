@@ -107,9 +107,9 @@ public class Tractors implements Systems {
 
 	@Override
 	public void cleanUp() {
-		// Release all tractor links at end of turn; beams must be re-established (G7.124)
-		for (Unit held : new ArrayList<>(tractoredUnits))
-			releaseTractor(held);
+		// Tractor links PERSIST across the turn boundary (G7.42) — at the start of
+		// the next turn the holder must pay maintenance or the link is released
+		// (TractorResolver.maintainLinksAtTurnStart). Only per-turn energy resets here.
 		totalTractorEnergy = remainingTractorEnergy = 0;
 		negativeTractorAccumulated = 0;
 	}
