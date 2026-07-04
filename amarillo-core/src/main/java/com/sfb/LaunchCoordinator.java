@@ -1,0 +1,490 @@
+package com.sfb;
+
+import java.util.List;
+
+import com.sfb.Game.ActionResult;
+import com.sfb.objects.Drone;
+import com.sfb.objects.DroneController;
+import com.sfb.objects.PlasmaTorpedo;
+import com.sfb.objects.Seeker;
+import com.sfb.objects.Ship;
+import com.sfb.objects.Unit;
+import com.sfb.utilities.ArcUtils;
+import com.sfb.utilities.MapUtils;
+import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.PlasmaLauncher;
+
+/**
+ * Launch coordination: drones, plasma (real and pseudo), shuttles, suicide
+ * shuttles, scatter packs, wild weasels, and chaff. Extracted from Game to
+ * keep Game focused on state and turn sequencing. Shares Game's seekers and
+ * activeShuttles lists by reference; naming, lock-on checks for new units,
+ * and control-overflow processing go through package hooks on Game.
+ */
+class LaunchCoordinator {
+
+    private final Game game;
+    private final List<Seeker> seekers;
+    private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
+
+    LaunchCoordinator(Game game, List<Seeker> seekers,
+            List<com.sfb.objects.shuttles.Shuttle> activeShuttles) {
+        this.game           = game;
+        this.seekers        = seekers;
+        this.activeShuttles = activeShuttles;
+    }
+
+    /**
+     * Launch a charged Wild Weasel decoy from ship's shuttle bay (J3.111).
+     * The WW appears at the ship's current hex, all seekers targeting the ship
+     * retarget to the WW, the ship gains +6 ECM (J3.23), and lock-ons are cleared.
+     */
+    /**
+     * Drop a chaff pack from a fighter or shuttle (D11.3).
+     * Must be called during the Activity phase (6B6 Seeking Weapons Stage).
+     * On a roll of 1–4, all seekers currently targeting the shuttle lose tracking
+     * and are removed.
+     * Applies an 8-impulse lockout on direct-fire and seeker weapons (D11.41–42).
+     */
+    public ActionResult dropChaff(com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Chaff can only be dropped during the Activity phase (D11.31)");
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail("SP, SS, and WW shuttles cannot drop chaff (D11.312)");
+        if (shuttle.getChaffPacks() <= 0)
+            return ActionResult.fail(shuttle.getName() + " has no chaff packs remaining");
+        if (shuttle.isChaffLockedOut(TurnTracker.getImpulse()))
+            return ActionResult.fail(shuttle.getName() + " is in chaff lockout and cannot drop another pack");
+
+        int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+        shuttle.applyChaffLockout(TurnTracker.getImpulse());
+
+        if (roll >= 5) {
+            return ActionResult.ok(shuttle.getName() + " dropped chaff (roll " + roll + ") — no effect; "
+                    + shuttle.getChaffPacks() + " pack(s) remaining");
+        }
+
+        // Roll 1–4: all seekers targeting this shuttle lose tracking
+        List<Seeker> distracted = seekers.stream()
+                .filter(s -> shuttle.equals(s.getTarget()))
+                .collect(java.util.stream.Collectors.toList());
+
+        StringBuilder sb = new StringBuilder(shuttle.getName() + " dropped chaff (roll " + roll
+                + ") — " + distracted.size() + " seeker(s) distracted");
+
+        for (Seeker s : distracted) {
+            if (s.getController() instanceof DroneController)
+                ((DroneController) s.getController()).releaseControl(s);
+            sb.append("\n  ").append(s instanceof Unit ? ((Unit) s).getName() : "seeker").append(" — lost tracking");
+        }
+        seekers.removeAll(distracted);
+
+        sb.append("; ").append(shuttle.getChaffPacks()).append(" pack(s) remaining");
+        return ActionResult.ok(sb.toString());
+    }
+
+    public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
+        // Find the charged admin shuttle in any bay
+        com.sfb.objects.shuttles.AdminShuttle foundShuttle = null;
+        com.sfb.systemgroups.ShuttleBay foundShuttleBay = null;
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
+                if (s instanceof com.sfb.objects.shuttles.AdminShuttle
+                        && s.getName().equalsIgnoreCase(shuttleName)
+                        && ((com.sfb.objects.shuttles.AdminShuttle) s).isWwReady()) {
+                    foundShuttle = (com.sfb.objects.shuttles.AdminShuttle) s;
+                    foundShuttleBay = bay;
+                    break;
+                }
+            }
+            if (foundShuttle != null)
+                break;
+        }
+        if (foundShuttle == null)
+            return ActionResult.fail(shuttleName + " is not a charged Wild Weasel");
+        if (ship.hasActiveWildWeasel())
+            return ActionResult.fail(ship.getName() + " already has an active Wild Weasel");
+        if (ship.isTractored())
+            return ActionResult.fail("Cannot launch Wild Weasel while held in a tractor beam (G7.98)");
+        if (ship.getSpeed() > 4)
+            return ActionResult.fail("Cannot launch Wild Weasel — ship speed " + ship.getSpeed()
+                    + " exceeds maneuver rate limit of 4 (J3.131)");
+        if (!foundShuttleBay.canLaunch(foundShuttle, game.getAbsoluteImpulse()))
+            return ActionResult.fail("Shuttle bay is not ready to launch");
+
+        int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
+        int wwSpeed = Math.max(0, Math.min(6, speed));
+
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
+        ww.setName(foundShuttle.getName());
+        ww.setParentShipName(ship.getName());
+        ww.setOwner(ship.getOwner());
+        foundShuttleBay.launch(foundShuttle, wwSpeed, wwFacing, game.getAbsoluteImpulse());
+        ww.setLocation(ship.getLocation());
+        ww.setFacing(wwFacing);
+        ww.setCurrentSpeed(wwSpeed);
+        ww.setSpeed(wwSpeed);
+        activeShuttles.add(ww);
+        ship.setActiveWildWeasel(ww);
+
+        // Retarget all seekers aimed at this ship to the WW (J3.111)
+        for (Seeker seeker : seekers) {
+            if (seeker.getTarget() == ship)
+                seeker.setTarget(ww);
+        }
+
+        // Deactivate fire control and clear all lock-ons (J3.132, J3.13)
+        ship.setActiveFireControl(false);
+        ship.clearLockOns();
+
+        return ActionResult.ok(ship.getName() + " launched Wild Weasel " + ww.getName()
+                + " — fire control deactivated, all lock-ons lost, +6 ECM active");
+    }
+
+    /**
+     * Void the active Wild Weasel for this ship (J3.13x). Seekers retarget back
+     * to the ship. Called when the WW is destroyed or the ship voids it by firing.
+     */
+    public void voidWildWeasel(Ship ship) {
+        com.sfb.objects.shuttles.WildWeaselShuttle ww = ship.getActiveWildWeasel();
+        if (ww == null)
+            return;
+
+        // Retarget seekers from WW back to parent ship
+        for (Seeker seeker : seekers) {
+            if (seeker.getTarget() == ww)
+                seeker.setTarget(ship);
+        }
+
+        activeShuttles.remove(ww);
+        ship.setActiveWildWeasel(null);
+    }
+
+    /**
+     * Launch one drone from the given rack at the given target.
+     * The drone is placed at the launching ship's location, faced toward the
+     * target, and added to the active seekers list.
+     *
+     * @return ActionResult describing success or reason for failure.
+     */
+    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.943: tractored ship may only launch seeking weapons at the holding ship
+        if (launcher.isTractored() && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only launch seeking weapons at the holding ship (G7.943)");
+        if (!rack.isFunctional())
+            return ActionResult.fail(rack.getName() + " is destroyed");
+        if (!rack.canFire())
+            return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
+        if (rack.isEmpty())
+            return ActionResult.fail(rack.getName() + " has no drones loaded");
+        if (!launcher.isActiveFireControl()) {
+            // PFC: only self-guiding drones may be launched (D19.221)
+            if (!rack.getAmmo().get(0).isSelfGuiding())
+                return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
+            // Self-guiding drones acquire their own lock-on after launch — no pre-launch
+            // lock-on needed
+        } else if (!launcher.hasLockOn(target)) {
+            return ActionResult.fail("No sensor lock-on to target — cannot launch seeking weapons (D6.121)");
+        }
+
+        return launchDrone(launcher, target, rack, rack.getAmmo().get(0), 0);
+    }
+
+    /**
+     * Launch a specific drone from the given rack at the given target.
+     */
+    public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone, int facing) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.943: tractored ship may only launch seeking weapons at the holding ship
+        if (launcher.isTractored() && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only launch seeking weapons at the holding ship (G7.943)");
+        if (!rack.isFunctional())
+            return ActionResult.fail(rack.getName() + " is destroyed");
+        if (!rack.canFire())
+            return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
+        if (!rack.getAmmo().contains(drone))
+            return ActionResult.fail("Drone is not in " + rack.getName());
+        if (!launcher.isActiveFireControl() && !drone.isSelfGuiding())
+            return ActionResult.fail("Passive fire control — cannot launch non-self-guiding drones (D19.22)");
+        if (!drone.isSelfGuiding()) {
+            if (!launcher.acquireControl(drone)) {
+                // Over limit — force-add and queue overflow interrupt for player to resolve
+                launcher.forceAcquireControl(drone);
+            }
+        }
+
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        rack.getAmmo().remove(drone);
+        rack.recordLaunch();
+        drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
+        drone.setLocation(launcher.getLocation());
+        drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
+        Unit droneTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                droneTarget = ww;
+        }
+        drone.setTarget(droneTarget);
+        if (drone.getController() == null)
+            drone.setController(launcher);
+        drone.setLauncherName(launcher.getName());
+        drone.setLaunchImpulse(TurnTracker.getImpulse());
+        drone.setSeekerType(Seeker.SeekerType.DRONE);
+        seekers.add(drone);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, drone);
+
+        String msg = launcher.getName() + " launched " + drone.getDroneType()
+                + " drone at " + target.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        game.checkControlOverflow();
+        return ActionResult.ok(msg);
+    }
+
+    /**
+     * Launch a plasma torpedo from the given launcher at the target.
+     * The launcher must be armed. The torpedo is placed at the launcher's
+     * location, faced toward the target, and added to the active seekers list.
+     */
+    public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.91: tractored ship cannot fire plasma torpedoes at non-holding ships
+        if (launcher.isTractored() && target instanceof Ship && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only fire plasma at the holding ship (G7.91)");
+        if (!weapon.isFunctional())
+            return ActionResult.fail(weapon.getName() + " is destroyed");
+        if (fastLoad) {
+            if (!weapon.canFastLoad())
+                return ActionResult.fail(weapon.getName() + " is not eligible for fast-load (FP1.93)");
+            if (!launcher.getPowerSystems().useBattery(2))
+                return ActionResult.fail("Not enough battery for fast-load — requires 2 points (FP1.93)");
+            weapon.applyFastLoad();
+        }
+        if (!weapon.isArmed())
+            return ActionResult.fail(weapon.getName() + " is not armed");
+        // Validate launch facing is within the launcher's allowed directions
+        // (ship-relative arc)
+        if (facing > 0) {
+            int launchDirs = weapon.getLaunchDirections() != 0 ? weapon.getLaunchDirections() : weapon.getArcs();
+            int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
+            if (!ArcUtils.inArc(relFacing, launchDirs))
+                return ActionResult
+                        .fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
+        }
+
+        PlasmaTorpedo torpedo = weapon.launch();
+        if (torpedo == null)
+            return ActionResult.fail(weapon.getName() + " failed to launch");
+
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq());
+        torpedo.setLocation(launcher.getLocation());
+        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
+        Unit torpTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                torpTarget = ww;
+        }
+        torpedo.setTarget(torpTarget);
+        torpedo.setController(launcher);
+        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        seekers.add(torpedo);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
+
+        String msg = launcher.getName() + " launched plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
+    }
+
+    public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
+        if (!weapon.isFunctional())
+            return ActionResult.fail(weapon.getName() + " is destroyed");
+        if (!weapon.canLaunchPseudo())
+            return ActionResult.fail(weapon.getName() + " cannot launch pseudo plasma now");
+        PlasmaTorpedo torpedo = weapon.launchPseudo();
+        if (torpedo == null)
+            return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
+
+        torpedo.setName(launcher.getName() + "-Pseudo-" + game.nextSeekerSeq());
+        torpedo.setLocation(launcher.getLocation());
+        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        torpedo.setTarget(target);
+        torpedo.setController(launcher);
+        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        seekers.add(torpedo);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
+
+        String msg = launcher.getName() + " launched pseudo plasma-"
+                + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
+    }
+
+    /**
+     * Launch a standard (admin/GAS) shuttle from a bay.
+     * The shuttle moves independently on the map but is not a seeker.
+     */
+    public ActionResult launchShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.Shuttle shuttle, int speed, int facing) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
+        if (!bay.canLaunch(shuttle, TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+
+        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, TurnTracker.getImpulse());
+        if (launched == null)
+            return ActionResult.fail("Shuttle not found in bay");
+
+        launched.setLocation(launcher.getLocation());
+        launched.setParentShipName(launcher.getName());
+        launched.setOwner(launcher.getOwner());
+        launched.setLaunchImpulse(TurnTracker.getImpulse());
+        activeShuttles.add(launched);
+        return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
+    }
+
+    /**
+     * Launch a fully-armed suicide shuttle at a target.
+     * Requires lock-on. Speed capped at shuttle's maxSpeed.
+     */
+    public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target, int facing, int speed) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
+        if (!shuttle.isFullyArmed())
+            return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
+        if (!bay.canLaunch(TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No lock-on to target — cannot launch suicide shuttle");
+        launcher.forceAcquireControl(shuttle);
+
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, TurnTracker.getImpulse());
+        shuttle.setName(launcher.getName() + "-Suicide-" + game.nextSeekerSeq());
+        shuttle.setLocation(launcher.getLocation());
+        // J3.201: redirect to WW if target ship has an active/exploding WW (not
+        // post-explosion)
+        Unit ssTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                ssTarget = ww;
+        }
+        shuttle.setTarget(ssTarget);
+        shuttle.setController(launcher);
+        shuttle.setLaunchImpulse(TurnTracker.getImpulse());
+        seekers.add(shuttle);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, shuttle);
+
+        String msg = launcher.getName() + " launched suicide shuttle at " + target.getName()
+                + " (warhead " + shuttle.getWarheadDamage() + ")";
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        game.checkControlOverflow();
+        return ActionResult.ok(msg);
+    }
+
+    /**
+     * Launch a scatter pack at a target hex.
+     * Requires lock-on. Releases its drones after 8 impulses.
+     */
+    public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
+        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+            return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
+        if (pack.getPayload().isEmpty())
+            return ActionResult.fail("Scatter pack has no drones loaded");
+        if (!bay.canLaunch(TurnTracker.getImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        if (!launcher.hasLockOn(target))
+            return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
+
+        launcher.forceAcquireControl(pack);
+
+        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, TurnTracker.getImpulse());
+        pack.setName(launcher.getName() + "-Pack-" + game.nextSeekerSeq());
+        pack.setLocation(launcher.getLocation());
+        pack.setTarget(target);
+        pack.setController(launcher);
+        pack.setLaunchImpulse(TurnTracker.getImpulse());
+        seekers.add(pack);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, pack);
+
+        String msg = launcher.getName() + " launched scatter pack ("
+                + pack.getPayload().size() + " drones) at " + target.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        game.checkControlOverflow();
+        return ActionResult.ok(msg);
+    }
+}
