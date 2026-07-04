@@ -3,7 +3,7 @@ package com.sfb.commands;
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Ship;
-import com.sfb.systems.Energy;
+import com.sfb.systemgroups.Energy;
 
 /**
  * Command issued by a player to submit their energy allocation for a ship.

@@ -6,8 +6,8 @@ import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
-import com.sfb.systems.Energy;
-import com.sfb.systems.Tractors;
+import com.sfb.systemgroups.Energy;
+import com.sfb.systemgroups.Tractors;
 import org.junit.Before;
 import org.junit.Test;
 

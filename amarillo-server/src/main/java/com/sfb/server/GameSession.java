@@ -20,7 +20,7 @@ import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.properties.WeaponArmingType;
-import com.sfb.systems.Energy;
+import com.sfb.systemgroups.Energy;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;

@@ -181,7 +181,7 @@ public class SpeedCalculationTest {
         ship.setSpeedTwoTurnsAgo(5);
         ship.allocateEnergy(ship.buildAutoAllocation());
         // Manually set warpMovement to request speed 20
-        com.sfb.systems.Energy e = ship.buildAutoAllocation();
+        com.sfb.systemgroups.Energy e = ship.buildAutoAllocation();
         e.setWarpMovement(20 * ship.getPerformanceData().getMovementCost());
         ship.allocateEnergy(e);
         ship.startTurn();

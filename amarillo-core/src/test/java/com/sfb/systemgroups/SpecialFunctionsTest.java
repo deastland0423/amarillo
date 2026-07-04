@@ -1,10 +1,10 @@
-package com.sfb.systems;
+package com.sfb.systemgroups;
 
 import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-public class ProbeTest {
+public class SpecialFunctionsTest {
 
 	@Test
 	public void test() {

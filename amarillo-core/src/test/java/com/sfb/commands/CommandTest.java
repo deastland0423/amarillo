@@ -11,7 +11,7 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.systems.Energy;
+import com.sfb.systemgroups.Energy;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.weapons.DroneRack;

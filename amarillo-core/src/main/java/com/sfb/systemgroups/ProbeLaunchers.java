@@ -3,7 +3,7 @@ package com.sfb.systemgroups;
 import java.util.Map;
 
 import com.sfb.objects.Unit;
-import com.sfb.systems.Probe;
+import com.sfb.systemgroups.Probe;
 
 public class ProbeLaunchers implements Systems {
 

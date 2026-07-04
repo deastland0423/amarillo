@@ -2,7 +2,7 @@ package com.sfb;
 
 import com.sfb.objects.Ship;
 import com.sfb.samples.FederationShips;
-import com.sfb.systems.Energy;
+import com.sfb.systemgroups.Energy;
 import org.junit.Before;
 import org.junit.Test;
 

@@ -31,10 +31,10 @@ import com.sfb.systemgroups.Shuttles;
 import com.sfb.objects.shuttles.*;
 import com.sfb.systemgroups.Transporters;
 import com.sfb.systemgroups.Weapons;
-import com.sfb.systems.Energy;
-import com.sfb.systems.PerformanceData;
-import com.sfb.systems.SpecialFunctions;
-import com.sfb.systems.Tractors;
+import com.sfb.systemgroups.Energy;
+import com.sfb.systemgroups.PerformanceData;
+import com.sfb.systemgroups.SpecialFunctions;
+import com.sfb.systemgroups.Tractors;
 import com.sfb.utilities.DAC;
 import com.sfb.utilities.DacPriority;
 import com.sfb.utilities.DiceRoller;
@@ -1028,7 +1028,7 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/// SPECIAL FUNCTIONS ///
-	public com.sfb.systems.SpecialFunctions getSpecialFunctions() {
+	public com.sfb.systemgroups.SpecialFunctions getSpecialFunctions() {
 		return this.specialFunctions;
 	}
 
@@ -1079,7 +1079,7 @@ public class Ship extends Unit implements DroneController {
 		return this.transporters;
 	}
 
-	public com.sfb.systems.Tractors getTractors() {
+	public com.sfb.systemgroups.Tractors getTractors() {
 		return this.tractors;
 	}
 
