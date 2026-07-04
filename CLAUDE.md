@@ -47,7 +47,7 @@ Turns run 32 impulses (`TurnTracker` is a static counter; "absolute" vs "local" 
 
 ### Resolver extraction pattern
 
-Game.java is being shrunk by extracting domain logic into package-private collaborator classes in `com.sfb`: `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`. The pattern:
+Game's domain logic lives in package-private collaborator classes in `com.sfb`: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`. Game itself (~1,900 lines) holds state, the phase machine, allocation, victory, and public delegates. The pattern:
 
 - Pending/shared lists stay **declared in Game** and are passed into the resolver constructor by reference.
 - Phase transitions stay **in Game**, reached via package-private hooks (e.g. `enterDacChoicePhase()`).
