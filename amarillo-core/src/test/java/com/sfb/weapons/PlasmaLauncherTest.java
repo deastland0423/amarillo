@@ -16,7 +16,6 @@ public class PlasmaLauncherTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
     }
 
     // -------------------------------------------------------------------------

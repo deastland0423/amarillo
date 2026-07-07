@@ -73,6 +73,11 @@ public class Game {
     }
 
     // --- State ---
+    // Per-game impulse clock. Deep system references are injected via
+    // Ship.attachClock() in startTurn(); resolvers read it through the public
+    // getters. Never a static — see TurnTracker javadoc.
+    private final TurnTracker clock = new TurnTracker();
+
     private final List<Player> players = new ArrayList<>();
     private int mapCols = 42; // map width in hexes
     private int mapRows = 32; // map height in hexes
@@ -132,7 +137,7 @@ public class Game {
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
     private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
-    private final LockOnResolver lockOnResolver = new LockOnResolver(ships, seekers, activeShuttles);
+    private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
             movedThisImpulse, prevLocations, movedShuttlesThisImpulse, destroyedShips,
             destructionEdgesByTeam, pendingInternalDamage, tractorResolver, seekerMover);
@@ -227,7 +232,7 @@ public class Game {
             }
         }
 
-        TurnTracker.reset();
+        clock.reset();
         inProgress = true;
         startTurn();
     }
@@ -261,6 +266,12 @@ public class Game {
      * beginImpulses() is called automatically.
      */
     public void startTurn() {
+        // (Re-)inject this game's clock into every ship system that reads it.
+        // Idempotent; also covers ships and shuttles added since last turn.
+        for (Ship ship : ships)
+            ship.attachClock(clock);
+        for (com.sfb.objects.shuttles.Shuttle s : activeShuttles)
+            s.attachClock(clock);
         allocationQueue.clear();
         allocationQueue.addAll(ships);
         awaitingAllocation = true;
@@ -318,7 +329,7 @@ public class Game {
         computeTractorPseudoSpeeds();
         // Notify cloak devices that a new turn has started — triggers involuntary
         // fade-in for any device whose cost was not paid this turn
-        int impulse1 = TurnTracker.getImpulse() + 1; // impulse after nextImpulse() call below
+        int impulse1 = clock.getImpulse() + 1; // impulse after nextImpulse() call below
         for (Ship ship : ships) {
             if (ship.getCloakingDevice() != null)
                 ship.getCloakingDevice().newTurn(impulse1);
@@ -341,7 +352,7 @@ public class Game {
         // Advance to impulse 1 now — the Initial Activity Phase is part of the new
         // turn, so the counter (and per-impulse bookkeeping) must be current while
         // players act in it. GameStateDto reads TurnTracker during this phase.
-        TurnTracker.nextImpulse();
+        clock.nextImpulse();
         movedThisImpulse.clear();
         prevLocations.clear();
         movedShuttlesThisImpulse.clear();
@@ -439,6 +450,12 @@ public class Game {
      * impulse 32).
      */
     public ActionResult advancePhase() {
+        // Idempotent clock injection — covers ships/shuttles added by any path
+        // (scenario load, tests that skip startTurn, mid-turn launches).
+        for (Ship ship : ships)
+            ship.attachClock(clock);
+        for (com.sfb.objects.shuttles.Shuttle s : activeShuttles)
+            s.attachClock(clock);
         List<String> log = new ArrayList<>();
         switch (currentPhase) {
             case INITIAL_ACTIVITY:
@@ -502,7 +519,7 @@ public class Game {
             case END_OF_IMPULSE:
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {
-                    int eoi = TurnTracker.getImpulse();
+                    int eoi = clock.getImpulse();
                     for (Map.Entry<Ship, List<com.sfb.weapons.Disruptor>> entry : uimUsedThisImpulse.entrySet()) {
                         Ship uimShip = entry.getKey();
                         com.sfb.systemgroups.UIM activeUim = uimShip.getActiveUim(eoi);
@@ -521,18 +538,18 @@ public class Game {
                     uimUsedThisImpulse.clear();
                 }
                 // Roll over to next impulse (or next turn)
-                if (TurnTracker.getLocalImpulse() >= 32) {
+                if (clock.getLocalImpulse() >= 32) {
                     ActionResult boardingResult = endTurn();
                     if (!boardingResult.getMessage().isEmpty())
                         log.add(boardingResult.getMessage());
                 } else {
-                    TurnTracker.nextImpulse();
+                    clock.nextImpulse();
                     movedThisImpulse.clear();
                     prevLocations.clear();
                     movedShuttlesThisImpulse.clear();
 
                     // TAC earn on Speed-4 schedule: impulses 2, 8, 16, 24 (C5.231)
-                    int localImp = TurnTracker.getLocalImpulse();
+                    int localImp = clock.getLocalImpulse();
                     if (localImp == 2 || localImp == 8 || localImp == 16 || localImp == 24) {
                         for (Ship s : ships) {
                             if (s.getSpeed() == 0 && s.getTacBudget() > 0) {
@@ -552,7 +569,7 @@ public class Game {
                     if (cd == null)
                         continue;
                     com.sfb.systemgroups.CloakingDevice.CloakState before = cd.getState();
-                    cd.updateState(TurnTracker.getImpulse());
+                    cd.updateState(clock.getImpulse());
                     com.sfb.systemgroups.CloakingDevice.CloakState after = cd.getState();
 
                     if (before != com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED
@@ -577,7 +594,7 @@ public class Game {
                     }
                 }
                 // FC activation countdown check (D6.633)
-                int absNow = TurnTracker.getImpulse();
+                int absNow = clock.getImpulse();
                 for (Ship ship : ships) {
                     if (ship.isFcActivating() && ship.updateFcActivation(absNow)) {
                         log.add(ship.getName() + " fire control now fully active");
@@ -622,11 +639,11 @@ public class Game {
     }
 
     public int getCurrentTurn() {
-        return (TurnTracker.getImpulse() - 1) / 32 + 1;
+        return (clock.getImpulse() - 1) / 32 + 1;
     }
 
     public int getCurrentImpulse() {
-        return TurnTracker.getLocalImpulse();
+        return clock.getLocalImpulse();
     }
 
     public int getMapCols() {
@@ -652,7 +669,7 @@ public class Game {
      */
     public GameEndResult checkEndConditions() {
         // Turn limit
-        if (maxTurns > 0 && TurnTracker.getTurn() > maxTurns)
+        if (maxTurns > 0 && clock.getTurn() > maxTurns)
             return new GameEndResult(null, "Turn limit reached (" + maxTurns + " turns)");
 
         // Collect teams that still have ships on the map
@@ -804,8 +821,16 @@ public class Game {
         return new Scoreboard(rows, teams);
     }
 
+    /**
+     * This game's impulse clock. Exposed for tests and future save/restore;
+     * production code must not advance it outside advancePhase()/beginImpulses().
+     */
+    public TurnTracker getClock() {
+        return clock;
+    }
+
     public int getAbsoluteImpulse() {
-        return TurnTracker.getImpulse();
+        return clock.getImpulse();
     }
 
     // --- Queries ---
@@ -1586,7 +1611,7 @@ public class Game {
             return ActionResult.fail(ship.getName() + " has no cloaking device");
         if (!cloak.isCostPaidThisTurn())
             return ActionResult.fail(ship.getName() + " did not allocate energy for the cloaking device");
-        if (!cloak.activate(TurnTracker.getImpulse()))
+        if (!cloak.activate(clock.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot cloak now (already cloaking or cloaked this turn)");
         return ActionResult.ok(ship.getName() + " begins cloaking — fading out");
     }
@@ -1600,7 +1625,7 @@ public class Game {
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak == null)
             return ActionResult.fail(ship.getName() + " has no cloaking device");
-        if (!cloak.deactivate(TurnTracker.getImpulse()))
+        if (!cloak.deactivate(clock.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot decloak now (already inactive or uncloaked this turn)");
         return ActionResult.ok(ship.getName() + " begins decloaking — fading in");
     }

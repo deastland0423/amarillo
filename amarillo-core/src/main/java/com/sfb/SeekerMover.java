@@ -56,7 +56,7 @@ class SeekerMover {
         if (seekers.isEmpty())
             return log;
 
-        int impulse = TurnTracker.getLocalImpulse();
+        int impulse = game.getCurrentImpulse();
         List<Seeker> expired = new ArrayList<>();
 
         // Order seekers so that a seeker whose target is also a seeker moves after its
@@ -160,7 +160,7 @@ class SeekerMover {
                 ScatterPack pack = (ScatterPack) seeker;
 
                 // Release check happens every impulse, regardless of movement schedule
-                if (!pack.isReleased() && pack.isReadyToRelease(TurnTracker.getImpulse())) {
+                if (!pack.isReleased() && pack.isReadyToRelease(game.getAbsoluteImpulse())) {
                     Unit target = pack.getTarget();
                     Unit controller = pack.getController();
                     // Free the scatter pack's own control channel before drones compete for capacity
@@ -174,7 +174,7 @@ class SeekerMover {
                         drone.setFacing(pack.getFacing());
                         if (launcherName != null)
                             drone.setLauncherName(launcherName);
-                        drone.setLaunchImpulse(TurnTracker.getImpulse());
+                        drone.setLaunchImpulse(game.getAbsoluteImpulse());
                         if (!drone.isSelfGuiding() && controller instanceof DroneController
                                 && ((DroneController) controller).hasLockOn(target)) {
                             drone.setTarget(target);

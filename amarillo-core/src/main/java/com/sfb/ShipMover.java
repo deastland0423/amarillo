@@ -71,7 +71,7 @@ class ShipMover {
      * moved this impulse.
      */
     public List<Ship> getMovableShips() {
-        int impulse = TurnTracker.getLocalImpulse();
+        int impulse = game.getCurrentImpulse();
         List<Ship> movable = new ArrayList<>();
         for (Ship ship : ships) {
             if (ship.movesThisImpulse(impulse) && !movedThisImpulse.contains(ship)) {
@@ -92,7 +92,7 @@ class ShipMover {
     public boolean canMoveThisImpulse(Ship ship) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.MOVEMENT)
             return false;
-        if (!ship.movesThisImpulse(TurnTracker.getLocalImpulse()))
+        if (!ship.movesThisImpulse(game.getCurrentImpulse()))
             return false;
         if (movedThisImpulse.contains(ship))
             return false;
@@ -112,8 +112,8 @@ class ShipMover {
             return ActionResult.fail("Not the movement phase (current: " + game.getCurrentPhase().getLabel() + ")");
         if (movedThisImpulse.contains(ship))
             return ActionResult.fail(ship.getName() + " has already moved this impulse");
-        if (!ship.movesThisImpulse(TurnTracker.getLocalImpulse()))
-            return ActionResult.fail(ship.getName() + " does not move on impulse " + TurnTracker.getLocalImpulse());
+        if (!ship.movesThisImpulse(game.getCurrentImpulse()))
+            return ActionResult.fail(ship.getName() + " does not move on impulse " + game.getCurrentImpulse());
         Ship first = nextMovableShip();
         if (first != null && first != ship)
             return ActionResult.fail("Move " + first.getName() + " first (speed " + first.getSpeed() + ")");
@@ -356,7 +356,7 @@ class ShipMover {
         // Note: cloaked ships CAN HET; docked ships cannot, but docking is not yet
         // implemented.
 
-        int currentImpulse = TurnTracker.getImpulse();
+        int currentImpulse = game.getAbsoluteImpulse();
 
         // C6.37: cannot HET on impulse 1
         if (currentImpulse == 1)
@@ -421,7 +421,7 @@ class ShipMover {
             return ActionResult.fail("Tactical Maneuvers can only be made during the Movement phase");
         if (ship.getSpeed() != 0)
             return ActionResult.fail("Tactical Maneuvers require speed 0 (C5.41)");
-        int localImpulse = TurnTracker.getLocalImpulse();
+        int localImpulse = game.getCurrentImpulse();
         if (localImpulse < 2)
             return ActionResult.fail("Tactical Maneuvers cannot be made on Impulse 1 (C5.11)");
 
@@ -474,7 +474,7 @@ class ShipMover {
     public List<com.sfb.objects.shuttles.Shuttle> getMovableShuttles() {
         if (!getMovableShips().isEmpty())
             return java.util.Collections.emptyList();
-        int impulse = TurnTracker.getLocalImpulse();
+        int impulse = game.getCurrentImpulse();
         List<com.sfb.objects.shuttles.Shuttle> movable = new ArrayList<>();
         for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
             if (!s.isPlayerControlled())
@@ -494,7 +494,7 @@ class ShipMover {
             return false;
         if (!getMovableShips().isEmpty())
             return false;
-        if (!MovementUtil.moveThisImpulse(TurnTracker.getLocalImpulse(), shuttle.getSpeed()))
+        if (!MovementUtil.moveThisImpulse(game.getCurrentImpulse(), shuttle.getSpeed()))
             return false;
         return !movedShuttlesThisImpulse.contains(shuttle);
     }

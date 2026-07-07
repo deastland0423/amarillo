@@ -31,10 +31,8 @@ public class FighterHetTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
-        TurnTracker.nextImpulse(); // → impulse 1
-
         game = new Game();
+        game.getClock().nextImpulse(); // → impulse 1
 
         // Add a ship so the game has valid state
         Ship ship = new Ship();

@@ -325,7 +325,7 @@ class DamageResolver {
             return attacker.getName() + " cannot fire — ship is captured (D7.55)";
         if (attacker instanceof Ship && ((Ship) attacker).getCrew().isSkeleton())
             return attacker.getName() + " cannot fire — undermanned (G9.42)";
-        if (attacker instanceof Ship && ((Ship) attacker).isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (attacker instanceof Ship && ((Ship) attacker).isInBreakdownLockout(game.getAbsoluteImpulse()))
             return attacker.getName() + " cannot fire — breakdown lockout for 8 impulses (C6.5471)";
         // G7.91: tractored ship can only fire direct-fire weapons at the holding ship
         if (attacker instanceof Ship && ((Ship) attacker).isTractored() && target instanceof Ship) {
@@ -341,9 +341,9 @@ class DamageResolver {
         }
         if (attacker instanceof com.sfb.objects.shuttles.Shuttle) {
             com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
-            if (!s.canFireDirect(TurnTracker.getImpulse()))
+            if (!s.canFireDirect(game.getAbsoluteImpulse()))
                 return attacker.getName() + " cannot fire yet — 8 impulses must pass since launch";
-            if (s.isChaffLockedOut(TurnTracker.getImpulse()))
+            if (s.isChaffLockedOut(game.getAbsoluteImpulse()))
                 return attacker.getName() + " cannot fire — chaff lockout for 8 impulses (D11.41)";
         }
         Game.ActionResult cloakBlock = attacker instanceof Ship ? game.cloakActionBlock((Ship) attacker) : null;
@@ -382,7 +382,7 @@ class DamageResolver {
         com.sfb.systemgroups.DERFACS derfacs = attackerShip != null ? attackerShip.getDerfacs() : null;
         boolean hasDerfacs = derfacs != null && derfacs.isFunctional();
 
-        int currentImpulse = TurnTracker.getImpulse();
+        int currentImpulse = game.getAbsoluteImpulse();
         com.sfb.systemgroups.UIM activeUim = (useUim && attackerShip != null)
                 ? attackerShip.getActiveUim(currentImpulse)
                 : null;

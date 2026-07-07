@@ -35,7 +35,6 @@ public class HitAndRunTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         fed = new Ship();
@@ -52,6 +51,10 @@ public class HitAndRunTest {
 
         game.getShips().add(fed);
         game.getShips().add(klingon);
+        // This test drives shields/transporters directly without startTurn(),
+        // so inject the game's clock by hand (startTurn would normally do this)
+        fed.attachClock(game.getClock());
+        klingon.attachClock(game.getClock());
 
         // Advance to ACTIVITY phase (MOVEMENT → ACTIVITY)
         game.advancePhase();

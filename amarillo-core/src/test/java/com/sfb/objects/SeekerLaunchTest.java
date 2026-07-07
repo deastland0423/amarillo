@@ -30,7 +30,6 @@ public class SeekerLaunchTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         launcher = new Ship();

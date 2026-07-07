@@ -71,7 +71,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	public boolean canLaunchPseudo() {
 		if (!pseudoPlasmaReady)
 			return false;
-		int currentImpulse = TurnTracker.getImpulse();
+		int currentImpulse = clock.getImpulse();
 		boolean realFiredThisImpulse = (getLastImpulseFired() == currentImpulse);
 		boolean pseudoFiredThisImpulse = (pseudoLastImpulseFired == currentImpulse);
 		return !realFiredThisImpulse && !pseudoFiredThisImpulse;
@@ -93,7 +93,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		PlasmaTorpedo pseudo = new PlasmaTorpedo(launcherType, WeaponArmingType.STANDARD);
 		pseudo.setPseudoPlasma(true);
 		pseudoPlasmaReady = false;
-		pseudoLastImpulseFired = TurnTracker.getImpulse();
+		pseudoLastImpulseFired = clock.getImpulse();
 		return pseudo;
 	}
 
@@ -562,7 +562,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
 		if (!armed)
 			throw new WeaponUnarmedException("Plasma launcher is not armed");
-		if (pseudoLastImpulseFired == TurnTracker.getImpulse())
+		if (pseudoLastImpulseFired == clock.getImpulse())
 			throw new WeaponUnarmedException("Cannot fire real plasma and pseudo-plasma in the same impulse");
 		if (range >= BOLT_HIT_CHART.length)
 			throw new TargetOutOfRangeException("Target out of range for plasma bolt");
@@ -612,7 +612,7 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	public PlasmaTorpedo launch() {
 		if (!armed)
 			return null;
-		if (pseudoLastImpulseFired == TurnTracker.getImpulse())
+		if (pseudoLastImpulseFired == clock.getImpulse())
 			return null;
 		PlasmaTorpedo torpedo = new PlasmaTorpedo(plasmaType, armingType);
 		reset();

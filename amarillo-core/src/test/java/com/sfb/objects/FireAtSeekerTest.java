@@ -29,7 +29,6 @@ public class FireAtSeekerTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         attacker = new Ship();
@@ -60,7 +59,7 @@ public class FireAtSeekerTest {
         drone.setLocation(new Location(col, row));
         drone.setController(attacker);
         drone.setSeekerType(Seeker.SeekerType.DRONE);
-        drone.setLaunchImpulse(TurnTracker.getImpulse());
+        drone.setLaunchImpulse(game.getClock().getImpulse());
         game.getSeekers().add(drone);
         return drone;
     }
@@ -181,7 +180,7 @@ public class FireAtSeekerTest {
         plasma.setLocation(new Location(10, 11));
         plasma.setController(target);
         plasma.setSeekerType(Seeker.SeekerType.PLASMA);
-        plasma.setLaunchImpulse(TurnTracker.getImpulse());
+        plasma.setLaunchImpulse(game.getClock().getImpulse());
         game.getSeekers().add(plasma);
 
         int strengthBefore = plasma.getCurrentStrength();
@@ -200,7 +199,7 @@ public class FireAtSeekerTest {
         plasma.setLocation(new Location(10, 11));
         plasma.setController(target);
         plasma.setSeekerType(Seeker.SeekerType.PLASMA);
-        plasma.setLaunchImpulse(TurnTracker.getImpulse());
+        plasma.setLaunchImpulse(game.getClock().getImpulse());
         game.getSeekers().add(plasma);
 
         String log = game.applyDamageToUnit(10, plasma, 0);

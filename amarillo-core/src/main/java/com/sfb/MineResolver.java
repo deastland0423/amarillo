@@ -65,7 +65,7 @@ class MineResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
-        if (actingShip.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
 
         // Range check — build a temporary marker at the target hex
@@ -119,7 +119,7 @@ class MineResolver {
         actingShip.getTransporters().useTransporter();
 
         // Place the mine
-        SpaceMine mine = SpaceMine.createTBomb(actingShip, TurnTracker.getImpulse(), isReal, range == 1);
+        SpaceMine mine = SpaceMine.createTBomb(actingShip, game.getAbsoluteImpulse(), isReal, range == 1);
         mine.setLocation(targetHex);
         mines.add(mine);
 
@@ -143,16 +143,16 @@ class MineResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
-        if (actingShip.isInPostHetWindow(TurnTracker.getImpulse()))
+        if (actingShip.isInPostHetWindow(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot drop mines from bay within 4 impulses of a HET (C6.38)");
-        if (actingShip.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot drop mines from bay — breakdown lockout for 8 impulses (C6.5472)");
 
         if (actingShip.getLocation() == null)
             return ActionResult.fail("Ship has no location");
 
         // Find an available shuttle bay
-        int currentImpulse = TurnTracker.getImpulse();
+        int currentImpulse = game.getAbsoluteImpulse();
         com.sfb.systemgroups.ShuttleBay availableBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : actingShip.getShuttles().getBays()) {
             if (bay.canLaunch(currentImpulse)) {
@@ -202,7 +202,7 @@ class MineResolver {
         if (mines.isEmpty())
             return log;
 
-        int currentImpulse = TurnTracker.getImpulse();
+        int currentImpulse = game.getAbsoluteImpulse();
         DiceRoller dice = new DiceRoller();
 
         // All units currently on the map

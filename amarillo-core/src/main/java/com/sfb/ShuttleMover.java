@@ -23,7 +23,7 @@ class ShuttleMover {
 
     List<String> moveShuttles() {
         List<String> log = new ArrayList<>();
-        int impulse = TurnTracker.getLocalImpulse();
+        int impulse = game.getCurrentImpulse();
         List<Shuttle> offMap = new ArrayList<>();
 
         for (Shuttle shuttle : activeShuttles) {

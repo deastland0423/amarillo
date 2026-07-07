@@ -29,7 +29,6 @@ public class TBombGameTest {
      */
     @Before
     public void setUp() {
-        TurnTracker.reset();
 
         game = new Game();
 

@@ -184,7 +184,6 @@ public class ScatterPackTest {
         typeII = new Drone(DroneType.TypeII);
 
         // Integration-test fixtures
-        TurnTracker.reset();
         game = new Game();
 
         launcher = new Ship();

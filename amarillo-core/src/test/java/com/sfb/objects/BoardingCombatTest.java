@@ -24,7 +24,6 @@ public class BoardingCombatTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         fed = new Ship();

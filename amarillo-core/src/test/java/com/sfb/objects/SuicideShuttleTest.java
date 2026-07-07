@@ -135,7 +135,6 @@ public class SuicideShuttleTest {
 
     @Before
     public void setUpGame() {
-        TurnTracker.reset();
         game = new Game();
 
         launcher = new Ship();

@@ -147,13 +147,13 @@ public class GameAllocateTest {
 
     @Test
     public void lastAllocation_advancesImpulseAndSkipsEmptyInitialActivity() {
-        int absoluteBefore = TurnTracker.getImpulse();
+        int absoluteBefore = game.getClock().getImpulse();
         game.submitAllocation(ship, makeBaseEnergy());
         // beginImpulses() advances the impulse counter immediately. With no tractor
         // links in play, the Initial Activity Phase (G7.7 rotation window) is empty
         // and is skipped — the game lands directly on MOVEMENT.
         assertEquals(Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase());
-        assertEquals(absoluteBefore + 1, TurnTracker.getImpulse());
+        assertEquals(absoluteBefore + 1, game.getClock().getImpulse());
     }
 
     // -------------------------------------------------------------------------

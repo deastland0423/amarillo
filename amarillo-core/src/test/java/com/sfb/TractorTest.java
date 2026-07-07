@@ -29,7 +29,6 @@ public class TractorTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         fed = new Ship();
@@ -951,11 +950,11 @@ public class TractorTest {
     public void advancePastInitialActivity_isPurePhaseTransition() {
         linkKlingon(5);
         enterInitialActivity();
-        int absoluteDuringPhase = TurnTracker.getImpulse();
+        int absoluteDuringPhase = game.getClock().getImpulse();
 
         game.advancePhase(); // INITIAL_ACTIVITY → MOVEMENT
 
-        assertEquals(absoluteDuringPhase, TurnTracker.getImpulse()); // no second advance
+        assertEquals(absoluteDuringPhase, game.getClock().getImpulse()); // no second advance
         assertEquals(Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase());
     }
 }

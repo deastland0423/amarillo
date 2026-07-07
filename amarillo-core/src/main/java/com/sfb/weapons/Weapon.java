@@ -191,6 +191,16 @@ public abstract class Weapon {
 		return owningShip;
 	}
 
+	// Per-game impulse clock, injected via Ship.attachClock(). Unit tests that
+	// exercise fire cooldowns directly must inject their own instance.
+	// Defaults to a private clock so bare weapons (unit tests, prototypes)
+	// work standalone; Game overwrites it via Ship.attachClock().
+	protected com.sfb.TurnTracker clock = new com.sfb.TurnTracker();
+
+	public void setClock(com.sfb.TurnTracker clock) {
+		this.clock = clock;
+	}
+
 	public void setOwningShip(Unit owningShip) {
 		this.owningShip = owningShip;
 	}
@@ -206,7 +216,7 @@ public abstract class Weapon {
 	}
 
 	public boolean canFire() {
-		int currentImpulse = TurnTracker.getImpulse();
+		int currentImpulse = clock.getImpulse();
 		return shotsThisTurn < maxShotsPerTurn
 				&& (currentImpulse - lastImpulseFired) >= minImpulseGap;
 	}
@@ -215,8 +225,8 @@ public abstract class Weapon {
 	 * Register that this weapon fired on the current impulse and turn.
 	 */
 	protected void registerFire() {
-		lastImpulseFired = TurnTracker.getImpulse();
-		lastTurnFired = TurnTracker.getTurn();
+		lastImpulseFired = clock.getImpulse();
+		lastTurnFired = clock.getTurn();
 		shotsThisTurn++;
 	}
 

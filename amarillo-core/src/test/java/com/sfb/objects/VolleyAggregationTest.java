@@ -35,10 +35,8 @@ public class VolleyAggregationTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
-        TurnTracker.nextImpulse(); // impulse 1
-
         game = new Game();
+        game.getClock().nextImpulse(); // impulse 1
 
         attacker1 = new Ship();
         attacker1.init(FederationShips.getFedCa());

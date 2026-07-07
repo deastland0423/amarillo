@@ -26,7 +26,6 @@ public class LockOnTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game = new Game();
 
         fed = new Ship();

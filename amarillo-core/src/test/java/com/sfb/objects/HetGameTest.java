@@ -48,7 +48,6 @@ public class HetGameTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
 
         game = new Game();
 
@@ -61,8 +60,8 @@ public class HetGameTest {
         game.getShips().add(ship);
 
         // Advance to impulse 2: HET is forbidden on impulse 1
-        TurnTracker.nextImpulse(); // → 1
-        TurnTracker.nextImpulse(); // → 2
+        game.getClock().nextImpulse(); // → 1
+        game.getClock().nextImpulse(); // → 2
 
         // Standard reserve warp: enough for one HET (hetCost = 5 for moveCost=1.0)
         ship.getPowerSystems().setReserveWarp(5);
@@ -86,8 +85,8 @@ public class HetGameTest {
 
     @Test
     public void het_failsOnImpulseOne() {
-        TurnTracker.reset();
-        TurnTracker.nextImpulse(); // → 1
+        game.getClock().reset();
+        game.getClock().nextImpulse(); // → 1
         ActionResult result = game.performHet(ship, 3);
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("impulse 1"));
@@ -196,7 +195,7 @@ public class HetGameTest {
 
         game.performHet(ship, 3);
 
-        assertEquals(TurnTracker.getImpulse(), ship.getLastHetImpulse());
+        assertEquals(game.getClock().getImpulse(), ship.getLastHetImpulse());
     }
 
     // -------------------------------------------------------------------------
@@ -253,7 +252,7 @@ public class HetGameTest {
     public void het_breakdown_setsImmobility() {
         ship.init(alwaysBreakdown());
         ship.getPowerSystems().setReserveWarp(10);
-        int currentImpulse = TurnTracker.getImpulse();
+        int currentImpulse = game.getClock().getImpulse();
 
         game.performHet(ship, 3);
 

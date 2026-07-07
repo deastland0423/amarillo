@@ -706,7 +706,7 @@ public class GameStateDto {
             sd.active = ship.getShields().isShieldActive(s);
             int toggled = ship.getShields().getImpulseShieldToggled(s);
             int delay = com.sfb.constants.Constants.IMPULSES_PER_TURN / 4;
-            sd.impulsesUntilRaiseable = Math.max(0, toggled + delay - TurnTracker.getImpulse());
+            sd.impulsesUntilRaiseable = Math.max(0, toggled + delay - game.getAbsoluteImpulse());
             dto.shields.add(sd);
         }
 
@@ -794,7 +794,7 @@ public class GameStateDto {
         dto.cloakCost = cloak != null ? cloak.getPowerToActivate() : 0;
         dto.maxSpeedNextTurn = ship.getMaxAccelerationSpeed();
         dto.commandRating = ship.getCommandRating();
-        dto.uimFunctional = ship.getActiveUim(com.sfb.TurnTracker.getImpulse()) != null;
+        dto.uimFunctional = ship.getActiveUim(game.getAbsoluteImpulse()) != null;
         dto.tokenArt = ship.getTokenArt();
         dto.turnMode = ship.getTurnMode() != null ? ship.getTurnMode().name() : null;
         dto.turnHexes = ship.getTurnHexes();

@@ -30,7 +30,6 @@ public class BoardingTableTest {
 
     @Before
     public void setUp() {
-        TurnTracker.reset();
         game    = new Game();
         fed     = new Ship();
         fed.init(FederationShips.getFedCa());

@@ -893,6 +893,20 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/// SHIELDS ///
+	/**
+	 * Inject the owning game's impulse clock into every system that reads it
+	 * (shield toggle lockouts, weapon fire cooldowns) — including weapons on
+	 * shuttles still in the bays. Called by Game.startTurn(); idempotent.
+	 */
+	public void attachClock(com.sfb.TurnTracker clock) {
+		getShields().setClock(clock);
+		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
+			w.setClock(clock);
+		for (com.sfb.systemgroups.ShuttleBay bay : getShuttles().getBays())
+			for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory())
+				s.attachClock(clock);
+	}
+
 	public Shields getShields() {
 		return this.shields;
 	}

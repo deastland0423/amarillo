@@ -55,11 +55,11 @@ class LaunchCoordinator {
             return ActionResult.fail("SP, SS, and WW shuttles cannot drop chaff (D11.312)");
         if (shuttle.getChaffPacks() <= 0)
             return ActionResult.fail(shuttle.getName() + " has no chaff packs remaining");
-        if (shuttle.isChaffLockedOut(TurnTracker.getImpulse()))
+        if (shuttle.isChaffLockedOut(game.getAbsoluteImpulse()))
             return ActionResult.fail(shuttle.getName() + " is in chaff lockout and cannot drop another pack");
 
         int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
-        shuttle.applyChaffLockout(TurnTracker.getImpulse());
+        shuttle.applyChaffLockout(game.getAbsoluteImpulse());
 
         if (roll >= 5) {
             return ActionResult.ok(shuttle.getName() + " dropped chaff (roll " + roll + ") — no effect; "
@@ -175,7 +175,7 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
         // G7.943: tractored ship may only launch seeking weapons at the holding ship
         if (launcher.isTractored() && target != launcher.getTractoringUnit())
@@ -208,7 +208,7 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
         // G7.943: tractored ship may only launch seeking weapons at the holding ship
         if (launcher.isTractored() && target != launcher.getTractoringUnit())
@@ -249,7 +249,7 @@ class LaunchCoordinator {
         if (drone.getController() == null)
             drone.setController(launcher);
         drone.setLauncherName(launcher.getName());
-        drone.setLaunchImpulse(TurnTracker.getImpulse());
+        drone.setLaunchImpulse(game.getAbsoluteImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
         seekers.add(drone);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, drone);
@@ -273,7 +273,7 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
         // G7.91: tractored ship cannot fire plasma torpedoes at non-holding ships
         if (launcher.isTractored() && target instanceof Ship && target != launcher.getTractoringUnit())
@@ -320,7 +320,7 @@ class LaunchCoordinator {
         }
         torpedo.setTarget(torpTarget);
         torpedo.setController(launcher);
-        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
@@ -338,7 +338,7 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
@@ -353,7 +353,7 @@ class LaunchCoordinator {
         torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
         torpedo.setController(launcher);
-        torpedo.setLaunchImpulse(TurnTracker.getImpulse());
+        torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
@@ -376,21 +376,21 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+        if (launcher.isInPostHetWindow(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
-        if (!bay.canLaunch(shuttle, TurnTracker.getImpulse()))
+        if (!bay.canLaunch(shuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
 
-        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, TurnTracker.getImpulse());
+        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, game.getAbsoluteImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 
         launched.setLocation(launcher.getLocation());
         launched.setParentShipName(launcher.getName());
         launched.setOwner(launcher.getOwner());
-        launched.setLaunchImpulse(TurnTracker.getImpulse());
+        launched.setLaunchImpulse(game.getAbsoluteImpulse());
         activeShuttles.add(launched);
         return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
     }
@@ -406,13 +406,13 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+        if (launcher.isInPostHetWindow(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (!shuttle.isFullyArmed())
             return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
-        if (!bay.canLaunch(TurnTracker.getImpulse()))
+        if (!bay.canLaunch(game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch suicide shuttle");
@@ -422,7 +422,7 @@ class LaunchCoordinator {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
-        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, TurnTracker.getImpulse());
+        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
         shuttle.setName(launcher.getName() + "-Suicide-" + game.nextSeekerSeq());
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
@@ -435,7 +435,7 @@ class LaunchCoordinator {
         }
         shuttle.setTarget(ssTarget);
         shuttle.setController(launcher);
-        shuttle.setLaunchImpulse(TurnTracker.getImpulse());
+        shuttle.setLaunchImpulse(game.getAbsoluteImpulse());
         seekers.add(shuttle);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, shuttle);
 
@@ -458,25 +458,25 @@ class LaunchCoordinator {
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
         if (cloakBlock != null)
             return cloakBlock;
-        if (launcher.isInPostHetWindow(TurnTracker.getImpulse()))
+        if (launcher.isInPostHetWindow(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
-        if (launcher.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (pack.getPayload().isEmpty())
             return ActionResult.fail("Scatter pack has no drones loaded");
-        if (!bay.canLaunch(TurnTracker.getImpulse()))
+        if (!bay.canLaunch(game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
 
         launcher.forceAcquireControl(pack);
 
-        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, TurnTracker.getImpulse());
+        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
         pack.setName(launcher.getName() + "-Pack-" + game.nextSeekerSeq());
         pack.setLocation(launcher.getLocation());
         pack.setTarget(target);
         pack.setController(launcher);
-        pack.setLaunchImpulse(TurnTracker.getImpulse());
+        pack.setLaunchImpulse(game.getAbsoluteImpulse());
         seekers.add(pack);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, pack);
 

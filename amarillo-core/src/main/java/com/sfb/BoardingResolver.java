@@ -89,7 +89,7 @@ class BoardingResolver {
         }
 
         // UIM
-        int currentImpulseHR = TurnTracker.getImpulse();
+        int currentImpulseHR = game.getAbsoluteImpulse();
         com.sfb.systemgroups.UIM activeUimHR = target.getActiveUim(currentImpulseHR);
         if (activeUimHR != null) {
             systems.add(new SystemTarget(SystemTarget.Type.UIM, "UIM"));
@@ -289,7 +289,7 @@ class BoardingResolver {
         int numParties = normal + commandos;
         if (numParties <= 0)
             return ActionResult.fail("Must send at least one boarding party");
-        if (actingShip.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
 
         // Check commandos available separately
@@ -350,7 +350,7 @@ class BoardingResolver {
         ActionResult cloakBlock = game.cloakActionBlock(actingShip);
         if (cloakBlock != null)
             return cloakBlock;
-        if (actingShip.isInBreakdownLockout(TurnTracker.getImpulse()))
+        if (actingShip.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot use transporters — breakdown lockout for 8 impulses (C6.5474)");
         if (targetSystems.isEmpty())
             return ActionResult.fail("No boarding parties assigned");
@@ -480,7 +480,7 @@ class BoardingResolver {
                 com.sfb.systemgroups.CloakingDevice cloak = target.getCloakingDevice();
                 if (cloak == null || !cloak.isFunctional())
                     return false;
-                cloak.damage(TurnTracker.getImpulse());
+                cloak.damage(game.getAbsoluteImpulse());
                 return true;
             }
             case DERFACS: {
@@ -491,7 +491,7 @@ class BoardingResolver {
                 return true;
             }
             case UIM: {
-                com.sfb.systemgroups.UIM uimHit = target.getActiveUim(TurnTracker.getImpulse());
+                com.sfb.systemgroups.UIM uimHit = target.getActiveUim(game.getAbsoluteImpulse());
                 if (uimHit == null)
                     return false;
                 uimHit.damage();

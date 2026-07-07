@@ -116,6 +116,12 @@ public abstract class Shuttle extends Unit {
 		this.currentHull = currentHull;
 	}
 
+	/** Inject the owning game's impulse clock into this shuttle's weapons. */
+	public void attachClock(com.sfb.TurnTracker clock) {
+		for (Weapon w : weapons.fetchAllWeapons())
+			w.setClock(clock);
+	}
+
 	public Weapons getWeapons() {
 		return this.weapons;
 	}

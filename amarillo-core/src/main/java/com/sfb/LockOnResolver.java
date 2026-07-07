@@ -18,13 +18,15 @@ import com.sfb.utilities.MapUtils;
  */
 class LockOnResolver {
 
+    private final Game game;
     private final List<Ship> ships;
     private final List<Seeker> seekers;
     private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
     private final List<String> lastLockOnLog = new ArrayList<>();
 
-    LockOnResolver(List<Ship> ships, List<Seeker> seekers,
+    LockOnResolver(Game game, List<Ship> ships, List<Seeker> seekers,
             List<com.sfb.objects.shuttles.Shuttle> activeShuttles) {
+        this.game           = game;
         this.ships          = ships;
         this.seekers        = seekers;
         this.activeShuttles = activeShuttles;
@@ -213,7 +215,7 @@ class LockOnResolver {
         if (target instanceof Ship) {
             com.sfb.systemgroups.CloakingDevice cloak = ((Ship) target).getCloakingDevice();
             if (cloak != null)
-                cloakBonus = cloak.getCloakBonus(TurnTracker.getImpulse());
+                cloakBonus = cloak.getCloakBonus(game.getAbsoluteImpulse());
         }
         return base + scanner + cloakBonus;
     }

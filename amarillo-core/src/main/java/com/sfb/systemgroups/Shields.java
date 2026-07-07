@@ -8,6 +8,13 @@ import com.sfb.objects.Unit;
 
 public class Shields implements Systems {
 
+	// Per-game impulse clock, injected via Ship.attachClock().
+	private com.sfb.TurnTracker clock = new com.sfb.TurnTracker();
+
+	public void setClock(com.sfb.TurnTracker clock) {
+		this.clock = clock;
+	}
+
 	// Shield strength
 	private int[] shieldValues = new int[] { 0, 0, 0, 0, 0, 0 }; // The baseline strength of the various shields.
 	private int[] currentShieldValues = new int[] { 0, 0, 0, 0, 0, 0 }; // The current strength of the various shields.
@@ -259,10 +266,10 @@ public class Shields implements Systems {
 	 */
 	public boolean raiseShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == false
-				&& ((TurnTracker.getImpulse()
+				&& ((clock.getImpulse()
 						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = true;
-			impulseShieldToggled[shieldNumber - 1] = TurnTracker.getImpulse();
+			impulseShieldToggled[shieldNumber - 1] = clock.getImpulse();
 			return true;
 		}
 		return false;
@@ -279,10 +286,10 @@ public class Shields implements Systems {
 	 */
 	public boolean lowerShield(int shieldNumber) {
 		if (shieldActive[shieldNumber - 1] == true
-				&& ((TurnTracker.getImpulse()
+				&& ((clock.getImpulse()
 						- impulseShieldToggled[shieldNumber - 1]) >= (Constants.IMPULSES_PER_TURN / 4))) {
 			shieldActive[shieldNumber - 1] = false;
-			impulseShieldToggled[shieldNumber - 1] = TurnTracker.getImpulse();
+			impulseShieldToggled[shieldNumber - 1] = clock.getImpulse();
 			return true;
 		}
 		return false;
