@@ -141,6 +141,8 @@ public class Game {
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
             movedThisImpulse, prevLocations, movedShuttlesThisImpulse, destroyedShips,
             destructionEdgesByTeam, pendingInternalDamage, tractorResolver, seekerMover);
+    private final DisengagementResolver disengagementResolver = new DisengagementResolver(this, ships,
+            seekers, destroyedShips, pendingAccelDisengage, destructionDirectionsByTeam, tractorResolver);
 
     public static class PendingTractorAuction {
         public final Ship attacker;
@@ -419,18 +421,7 @@ public class Game {
 
         // C7.1: identify ships eligible for disengagement by acceleration.
         // Players must confirm YES/NO before the next turn's EA begins.
-        pendingAccelDisengage.clear();
-        for (Ship ship : ships) {
-            if (ship.getLocation() == null || ship.isDisengaged())
-                continue;
-            int originalWarp = ship.getPowerSystems().getOriginalWarp();
-            if (originalWarp == 0)
-                continue; // no warp engines
-            int currentWarp = ship.getPowerSystems().getWarpEnginePower();
-            int threshold = Math.min((int) Math.ceil(originalWarp * 0.5), 15);
-            if (ship.getSpeed() >= ship.getMaxAccelerationSpeed() && currentWarp >= threshold)
-                pendingAccelDisengage.add(ship);
-        }
+        disengagementResolver.queueAccelDisengageCandidates();
 
         if (pendingAccelDisengage.isEmpty()) {
             startTurn();
@@ -1009,30 +1000,7 @@ public class Game {
 
         pendingAccelDisengage.remove(ship);
 
-        String result;
-        if (confirm) {
-            String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-            Set<String> badDirs = teamName != null
-                    ? destructionDirectionsByTeam.getOrDefault(teamName, new HashSet<>())
-                    : new HashSet<>();
-            String exitDir = String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
-            tractorResolver.releaseAllLinksInvolving(ship); // G7.28
-            if (badDirs.contains(exitDir)) {
-                ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
-                ship.setLocation(null);
-                destroyedShips.add(ship);
-                ships.remove(ship);
-                gameEndResult = checkEndConditions();
-                result = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir
-                        + " (destruction zone)";
-            } else {
-                ship.setDisengaged(true);
-                ship.setLocation(null);
-                result = ship.getName() + " has disengaged by acceleration (C7.1)";
-            }
-        } else {
-            result = ship.getName() + " remained in the battle";
-        }
+        String result = disengagementResolver.resolveAccelDisengage(ship, confirm);
 
         if (pendingAccelDisengage.isEmpty()) {
             startTurn();
@@ -1049,21 +1017,7 @@ public class Game {
      * no enemy ship within 50 hexes, and no in-flight seekers targeting it.
      */
     public boolean canDisengageBySeparation(Ship ship) {
-        if (ship.getLocation() == null || ship.isDisengaged())
-            return false;
-        for (Ship other : ships) {
-            if (other == ship || isSameTeam(ship, other))
-                continue;
-            if (other.getLocation() == null)
-                continue;
-            if (MapUtils.getRange(ship, other) <= 50)
-                return false;
-        }
-        for (Seeker s : seekers) {
-            if (ship.equals(s.getTarget()))
-                return false;
-        }
-        return true;
+        return disengagementResolver.canDisengageBySeparation(ship);
     }
 
     /**
@@ -1071,11 +1025,7 @@ public class Game {
      * eligibility.
      */
     public List<String> getDestructionDirections(Ship ship) {
-        String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-        if (teamName == null)
-            return List.of();
-        Set<String> dirs = destructionDirectionsByTeam.get(teamName);
-        return dirs != null ? new ArrayList<>(dirs) : List.of();
+        return disengagementResolver.getDestructionDirections(ship);
     }
 
     // -------------------------------------------------------------------------
@@ -1137,11 +1087,7 @@ public class Game {
     }
 
     public ActionResult disengageBySeparation(Ship ship) {
-        if (!canDisengageBySeparation(ship))
-            return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
-        ship.setDisengaged(true);
-        ship.setLocation(null);
-        return ActionResult.ok(ship.getName() + " has disengaged by separation (C7.2)");
+        return disengagementResolver.disengageBySeparation(ship);
     }
 
     /**
