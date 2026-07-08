@@ -43,11 +43,11 @@ Three tiers, strictly layered:
 
 `com.sfb.Game` owns all authoritative state (ships, seekers, shuttles, mines, terrain, phase, pending damage/choices) and the turn sequence: `startTurn()` → per-ship energy allocation queue → `beginImpulses()` → the `advancePhase()` loop → `endTurn()`. Nothing outside core mutates ship state directly; every action goes through a Game method returning `ActionResult`.
 
-Turns run 32 impulses (`TurnTracker` is a static counter; "absolute" vs "local" impulse). Each impulse cycles `ImpulsePhase`: `MOVEMENT → ACTIVITY → DIRECT_FIRE → END_OF_IMPULSE`, with interrupt phases (`REINFORCEMENT`, `DAC_CHOICE`, `CONTROL_OVERFLOW`) that return to where they interrupted. `INITIAL_ACTIVITY` runs once at turn start, and only when tractor links exist.
+Turns run 32 impulses (each Game owns a `TurnTracker` clock instance (`game.getClock()`); "absolute" vs "local" impulse. Never make it static — deep systems get the clock injected via `Ship.attachClock()`, and `GameIsolationTest` pins cross-game independence). Each impulse cycles `ImpulsePhase`: `MOVEMENT → ACTIVITY → DIRECT_FIRE → END_OF_IMPULSE`, with interrupt phases (`REINFORCEMENT`, `DAC_CHOICE`, `CONTROL_OVERFLOW`) that return to where they interrupted. `INITIAL_ACTIVITY` runs once at turn start, and only when tractor links exist.
 
 ### Resolver extraction pattern
 
-Game's domain logic lives in package-private collaborator classes in `com.sfb`: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`. Game itself (~1,900 lines) holds state, the phase machine, allocation, victory, and public delegates. The pattern:
+Game's domain logic lives in package-private collaborator classes in `com.sfb`: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`, `DisengagementResolver`. Game itself (~1,900 lines) holds state, the phase machine, allocation, victory, and public delegates. The pattern:
 
 - Pending/shared lists stay **declared in Game** and are passed into the resolver constructor by reference.
 - Phase transitions stay **in Game**, reached via package-private hooks (e.g. `enterDacChoicePhase()`).
@@ -67,4 +67,4 @@ The map uses offset coordinates (`Location`, serialized as `"<x|y>"`) with **col
 
 Ship definitions live as JSON (loaded via `ShipLibrary`), but tests build ships from `com.sfb.samples` builders (e.g. `FederationShips.getFedCa()`) so no filesystem access is needed. **When a ship JSON changes, update the matching sample builder** — otherwise tests silently diverge from the real data.
 
-Tests that need the impulse engine call `TurnTracker.reset()` in setup, add ships to a `Game`, call `game.startTurn()`, then submit allocations to trigger `beginImpulses()`. Tractor links must be established *before* the last allocation to open the `INITIAL_ACTIVITY` phase (they persist across turns and are maintained at turn start per G7.42).
+Tests that need the impulse engine add ships to a `Game` (each Game has a fresh clock; no reset ritual needed), call `game.startTurn()`, then submit allocations to trigger `beginImpulses()`. Tractor links must be established *before* the last allocation to open the `INITIAL_ACTIVITY` phase (they persist across turns and are maintained at turn start per G7.42).
