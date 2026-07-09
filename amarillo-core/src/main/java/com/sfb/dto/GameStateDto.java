@@ -424,7 +424,7 @@ public class GameStateDto {
     public int readyCount; // players who have clicked Ready this phase
     public int playerCount; // total players in the session
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
-    public ScoreboardDto scoreboard; // non-null only when gameOver
+    public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto>    pendingVolleys    = new ArrayList<>(); // incoming fire queued for reinforcement
     public List<PendingDacChoiceDto>        pendingDacChoices        = new ArrayList<>();
     public List<PendingControlOverflowDto>  pendingControlOverflows  = new ArrayList<>();
@@ -507,7 +507,9 @@ public class GameStateDto {
         this.gameOver = end != null;
         this.winnerTeam = end != null ? end.winnerTeam() : null;
         this.endReason = end != null ? end.reason() : null;
-        if (end != null) {
+        {
+            // Live standings (S2.21): computed every broadcast so players can
+            // check the current score mid-battle, not only at game end.
             Game.Scoreboard sb = game.calculateVictoryPoints();
             ScoreboardDto dto = new ScoreboardDto();
             for (Game.ShipVpRow row : sb.rows()) {

@@ -2503,6 +2503,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewAmount,  setCrewAmount]  = useState(1);
   const [crewError,   setCrewError]   = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
+  const [showScore, setShowScore]           = useState(false);
   const [eaDismissed, setEaDismissed]       = useState(false);
   const [log, setLog] = useState<{ stamp: string; text: string; kind: 'combat' | 'phase' | 'error' | 'info' }[]>([]);
   const [pendingCombat, setPendingCombat]   = useState<{ stamp: string; text: string }[]>([]);
@@ -3547,8 +3548,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         );
       })()}
 
-      {/* ---- Game-over scoreboard overlay ---- */}
-      {gameState?.gameOver && (
+      {/* ---- Scoreboard overlay: automatic at game over, on demand via Score ---- */}
+      {(gameState?.gameOver || (showScore && gameState?.scoreboard)) && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999,
           background: 'rgba(0,0,0,0.82)',
@@ -3562,15 +3563,19 @@ export default function GameBoard({ session, onLeave }: Props) {
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '2rem', fontWeight: 700 }}>
-                {gameState.winnerTeam ? 'Battle Complete' : '— Draw —'}
+                {gameState.gameOver
+                  ? (gameState.winnerTeam ? 'Battle Complete' : '— Draw —')
+                  : 'Current Score'}
               </div>
-              {gameState.winnerTeam && (
+              {gameState.gameOver && gameState.winnerTeam && (
                 <div style={{ fontSize: '1.3rem', color: '#79c0ff', marginTop: '0.25rem' }}>
                   {gameState.winnerTeam} wins
                 </div>
               )}
               <div style={{ color: '#8b949e', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                {gameState.endReason}
+                {gameState.gameOver
+                  ? gameState.endReason
+                  : 'Victory points if the battle ended now (S2.21)'}
               </div>
             </div>
 
@@ -3625,7 +3630,9 @@ export default function GameBoard({ session, onLeave }: Props) {
             })()}
           </div>
           <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-            <button onClick={onLeave}>Leave Game</button>
+            {gameState.gameOver
+              ? <button onClick={onLeave}>Leave Game</button>
+              : <button className="secondary" onClick={() => setShowScore(false)}>Close</button>}
           </div>
         </div>
       )}
@@ -3635,6 +3642,10 @@ export default function GameBoard({ session, onLeave }: Props) {
         <span className="board-phase">{phaseLabel}</span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
+          <button className="secondary" onClick={() => setShowScore(true)}
+                  title="Current victory-point standings (S2.21)">
+            Score
+          </button>
           {isMovementPhase && myMovablePending.length > 0 && (
             <span className="topbar-move-warn">
               Move: <strong>{myMovablePending[0]}</strong>
