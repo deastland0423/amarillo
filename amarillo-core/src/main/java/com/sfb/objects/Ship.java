@@ -822,6 +822,18 @@ public class Ship extends Unit implements DroneController {
 		return captured;
 	}
 
+	// Team this ship belonged to before capture (D7.50 transfers owner to the
+	// captor, so VP attribution needs the original side remembered here).
+	private String capturedFromTeam = null;
+
+	public String getCapturedFromTeam() {
+		return capturedFromTeam;
+	}
+
+	public void setCapturedFromTeam(String capturedFromTeam) {
+		this.capturedFromTeam = capturedFromTeam;
+	}
+
 	public void setCaptured(boolean captured) {
 		this.captured = captured;
 	}

@@ -99,15 +99,15 @@ public class VictoryCalculatorTest {
     }
 
     // -------------------------------------------------------------------------
-    // Highest category wins — captured beats destroyed
+    // Precedence — destruction truncates a capture (user ruling 2026-07-09)
     // -------------------------------------------------------------------------
 
     @Test
-    public void pointsForShip_capturedTakesPrecedenceOverDestroyed() {
+    public void pointsForShip_capturedThenDestroyed_scoresOnly100Pct() {
         fedCa.setCaptured(true);
         fedCa.setBattleStatus(BattleStatus.DESTROYED);
-        // 200% wins over 100%
-        assertEquals(250, VictoryCalculator.pointsForShip(fedCa));
+        // A captured ship that is subsequently destroyed gives up only 100%
+        assertEquals(125, VictoryCalculator.pointsForShip(fedCa));
     }
 
     @Test
@@ -200,8 +200,8 @@ public class VictoryCalculatorTest {
     }
 
     @Test
-    public void victoryLevel_bothScoredZero_astounding() {
-        // Division by zero case — treated as astounding per implementation
-        assertEquals(VictoryLevel.ASTOUNDING_VICTORY, VictoryCalculator.victoryLevel(0, 0));
+    public void victoryLevel_bothScoredZero_draw() {
+        // A game where nobody scored is a draw, not a victory over nobody
+        assertEquals(VictoryLevel.DRAW, VictoryCalculator.victoryLevel(0, 0));
     }
 }

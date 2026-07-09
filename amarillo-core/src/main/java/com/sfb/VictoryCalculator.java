@@ -3,85 +3,107 @@ package com.sfb;
 import com.sfb.objects.Ship;
 import com.sfb.properties.BattleStatus;
 
-import java.util.List;
-
 /**
- * Calculates victory points and victory level at the end of a scenario (S2.20).
+ * Victory point scoring (S2.21/S2.24) and victory level (S2.3). This is the
+ * single home for the scoring math; Game.calculateVictoryPoints() assembles
+ * the scoreboard (rows, team attribution) and delegates every number here.
  *
- * Scoring (S2.21) — highest applicable percentage of Economic BPV per ship:
+ * Scoring — one category per ship, evaluated in this order:
+ *   Destroyed  = 100%  (a captured ship that is subsequently destroyed gives
+ *                       up only 100% — destruction truncates the capture,
+ *                       per user ruling 2026-07-09)
+ *   Captured   = 200%
+ *   Crippled   =  50%
+ *   Disengaged =  25%
  *   Internal damage scored = 10%
- *   Forced to disengage    = 25%
- *   Crippled               = 50%
- *   Destroyed              = 100%
- *   Captured               = 200%
- *
- * Victory level (S2.3) = (myScore / opponentScore) as a percentage.
  */
 public class VictoryCalculator {
 
-    // S2.21 percentages
-    public static final double PCT_INTERNAL_DAMAGE = 0.10;
-    public static final double PCT_DISENGAGED      = 0.25;
-    public static final double PCT_CRIPPLED        = 0.50;
-    public static final double PCT_DESTROYED       = 1.00;
-    public static final double PCT_CAPTURED        = 2.00;
+    /** Per-ship scoring category with its S2.21 percentage. */
+    public enum ShipStatus {
+        DESTROYED(1.00),
+        CAPTURED(2.00),
+        CRIPPLED(0.50),
+        DISENGAGED(0.25),
+        DAMAGED(0.10),
+        INTACT(0.0);
+
+        public final double pct;
+
+        ShipStatus(double pct) {
+            this.pct = pct;
+        }
+    }
 
     public enum VictoryLevel {
-        ASTOUNDING_VICTORY,   // 500%+
-        DECISIVE_VICTORY,     // 300–499%
-        SUBSTANTIVE_VICTORY,  // 200–299%
-        TACTICAL_VICTORY,     // 150–199%
-        MARGINAL_VICTORY,     // 110–149%
-        DRAW,                 // 91–109%
-        MARGINAL_DEFEAT,      // 67–90%
-        TACTICAL_DEFEAT,      // 50–66%
-        BRUTAL_DEFEAT,        // 33–49%
-        CRUSHING_DEFEAT,      // 20–32%
-        DEVASTATING_DEFEAT    // 19%-
+        ASTOUNDING_VICTORY("Astounding Victory"),   // 500%+
+        DECISIVE_VICTORY("Decisive Victory"),       // 300–499%
+        SUBSTANTIVE_VICTORY("Substantive Victory"), // 200–299%
+        TACTICAL_VICTORY("Tactical Victory"),       // 150–199%
+        MARGINAL_VICTORY("Marginal Victory"),       // 110–149%
+        DRAW("Draw"),                               // 91–109%
+        MARGINAL_DEFEAT("Marginal Defeat"),         // 67–90%
+        TACTICAL_DEFEAT("Tactical Defeat"),         // 50–66%
+        BRUTAL_DEFEAT("Brutal Defeat"),             // 33–49%
+        CRUSHING_DEFEAT("Crushing Defeat"),         // 20–32%
+        DEVASTATING_DEFEAT("Devastating Defeat");   // 19%-
+
+        private final String label;
+
+        VictoryLevel(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 
     /**
-     * Score points earned by one player for damage done to a list of enemy ships.
-     * Only the highest applicable category is counted per ship (S2.21).
-     * Fractions of 0.500+ round up; 0.499 round down (S2.24).
+     * The single scoring category that applies to this ship (S2.21).
+     * Disengagement is recognized from either representation (the boolean flag
+     * set by DisengagementResolver, or BattleStatus.DISENGAGED).
      */
-    public static int scorePoints(List<Ship> enemyShips) {
+    public static ShipStatus status(Ship ship) {
+        if (ship.isDestroyed())
+            return ShipStatus.DESTROYED; // truncates a capture at 100%
+        if (ship.isCaptured())
+            return ShipStatus.CAPTURED;
+        if (ship.isCrippled())
+            return ShipStatus.CRIPPLED;
+        if (ship.isDisengaged() || ship.getBattleStatus() == BattleStatus.DISENGAGED)
+            return ShipStatus.DISENGAGED;
+        if (ship.isDamaged())
+            return ShipStatus.DAMAGED;
+        return ShipStatus.INTACT;
+    }
+
+    /** Points scored against this ship, using the supplied BPV basis (e.g. GABPV). */
+    public static int pointsFor(Ship ship, int bpv) {
+        return round(bpv * status(ship).pct);
+    }
+
+    /** Sum of pointsForShip across a list of enemy ships. */
+    public static int scorePoints(java.util.List<Ship> enemyShips) {
         int total = 0;
-        for (Ship ship : enemyShips) {
+        for (Ship ship : enemyShips)
             total += pointsForShip(ship);
-        }
         return total;
     }
 
-    /**
-     * Points scored for a single enemy ship — highest applicable category only.
-     */
+    /** Convenience overload scoring against the ship's economic BPV. */
     public static int pointsForShip(Ship ship) {
-        int epv = ship.getEconomicBpv();
-        double raw;
-
-        if (ship.isCaptured()) {
-            raw = epv * PCT_CAPTURED;
-        } else if (ship.getBattleStatus() == BattleStatus.DESTROYED) {
-            raw = epv * PCT_DESTROYED;
-        } else if (ship.isCrippled()) {
-            raw = epv * PCT_CRIPPLED;
-        } else if (ship.getBattleStatus() == BattleStatus.DISENGAGED) {
-            raw = epv * PCT_DISENGAGED;
-        } else {
-            raw = 0;
-        }
-
-        return round(raw);
+        return pointsFor(ship, ship.getEconomicBpv());
     }
 
     /**
-     * Determine the victory level for a player (S2.3).
-     * Divide myScore by opponentScore and consult the table.
-     * Division by zero (opponent scored nothing) is treated as 500%+.
+     * Determine the victory level for a side (S2.3): myScore / opponentScore
+     * as a percentage, consulted against the table. If the opponent scored
+     * nothing: any points at all is an Astounding Victory; zero-zero is a Draw.
      */
     public static VictoryLevel victoryLevel(int myScore, int opponentScore) {
-        if (opponentScore <= 0) return VictoryLevel.ASTOUNDING_VICTORY;
+        if (opponentScore <= 0)
+            return myScore > 0 ? VictoryLevel.ASTOUNDING_VICTORY : VictoryLevel.DRAW;
         double pct = (myScore * 100.0) / opponentScore;
         if (pct >= 500) return VictoryLevel.ASTOUNDING_VICTORY;
         if (pct >= 300) return VictoryLevel.DECISIVE_VICTORY;

@@ -604,6 +604,10 @@ class BoardingResolver {
         // D7.50: transfer ownership to the capturing player
         Player captor = defender.getBoardingAttacker();
         Player originalOwner = defender.getOwner();
+        // Remember the side the ship was captured FROM — the scoreboard awards
+        // the 200% capture VP to the captor, attributed against this team.
+        if (originalOwner != null)
+            defender.setCapturedFromTeam(originalOwner.getTeamName());
         if (captor != null && captor != originalOwner) {
             if (originalOwner != null)
                 originalOwner.getPlayerUnits().remove(defender);

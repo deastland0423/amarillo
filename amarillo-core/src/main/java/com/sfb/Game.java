@@ -701,38 +701,6 @@ public class Game {
     public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
     }
 
-    /** Round to nearest integer using SFB S2.24 rule (0.5+ → up). */
-    private static int sfbRound(double v) {
-        return (int) Math.floor(v + 0.5);
-    }
-
-    private static String levelOfVictory(int myScore, int theirScore) {
-        if (theirScore == 0)
-            return myScore > 0 ? "Astounding Victory" : "Draw";
-        double pct = 100.0 * myScore / theirScore;
-        if (pct >= 500)
-            return "Astounding Victory";
-        if (pct >= 300)
-            return "Decisive Victory";
-        if (pct >= 200)
-            return "Substantive Victory";
-        if (pct >= 150)
-            return "Tactical Victory";
-        if (pct >= 110)
-            return "Marginal Victory";
-        if (pct >= 91)
-            return "Draw";
-        if (pct >= 67)
-            return "Marginal Defeat";
-        if (pct >= 50)
-            return "Tactical Defeat";
-        if (pct >= 33)
-            return "Brutal Defeat";
-        if (pct >= 20)
-            return "Crushing Defeat";
-        return "Devastating Defeat";
-    }
-
     public Scoreboard calculateVictoryPoints() {
         // Gather all ships (active + destroyed; disengaged/captured still in ships
         // list)
@@ -742,7 +710,11 @@ public class Game {
         java.util.List<ShipVpRow> rows = new java.util.ArrayList<>();
 
         for (Ship ship : allShips) {
-            String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
+            // Captured ships now belong to the captor (D7.50) — attribute the row
+            // to the ORIGINAL side so the captor's team is the one scoring it.
+            String teamName = ship.isCaptured() && ship.getCapturedFromTeam() != null
+                    ? ship.getCapturedFromTeam()
+                    : ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
 
             // GABPV: base BPV (already includes y175 refit) + fighter BPV
             int fighterBpv = 0;
@@ -759,28 +731,9 @@ public class Game {
             }
             int gabpv = ship.getBattlePointValue() + fighterBpv;
 
-            // Determine status — apply greatest-applies rule (S2.21)
-            String status;
-            int vpScored;
-            if (ship.isDestroyed()) {
-                status = "DESTROYED";
-                vpScored = sfbRound(gabpv * 1.00);
-            } else if (ship.isCaptured()) {
-                status = "CAPTURED";
-                vpScored = sfbRound(gabpv * 2.00);
-            } else if (ship.isDisengaged()) {
-                status = "DISENGAGED";
-                vpScored = sfbRound(gabpv * 0.25);
-            } else if (ship.isCrippled()) {
-                status = "CRIPPLED";
-                vpScored = sfbRound(gabpv * 0.50);
-            } else if (ship.isDamaged()) {
-                status = "DAMAGED";
-                vpScored = sfbRound(gabpv * 0.10);
-            } else {
-                status = "INTACT";
-                vpScored = 0;
-            }
+            // Scoring math lives in VictoryCalculator (S2.21 order, S2.24 rounding)
+            String status = VictoryCalculator.status(ship).name();
+            int vpScored = VictoryCalculator.pointsFor(ship, gabpv);
 
             rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored));
         }
@@ -806,7 +759,8 @@ public class Game {
             int theirScore = allTeams.stream()
                     .filter(t -> !t.equals(team))
                     .mapToInt(vpByTeam::get).sum();
-            teams.add(new TeamScore(team, myScore, theirScore, levelOfVictory(myScore, theirScore)));
+            teams.add(new TeamScore(team, myScore, theirScore,
+                    VictoryCalculator.victoryLevel(myScore, theirScore).getLabel()));
         }
 
         return new Scoreboard(rows, teams);
