@@ -3,7 +3,10 @@ package com.sfb;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sfb.objects.Ship;
 import com.sfb.objects.shuttles.Shuttle;
+import com.sfb.objects.shuttles.WildWeaselShuttle;
+import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
 
 /**
@@ -38,6 +41,22 @@ class ShuttleMover {
             }
         }
         activeShuttles.removeAll(offMap);
+
+        // J3.13: a Wild Weasel only diverts seekers while within 35 hexes of the
+        // ship it protects. Checked after all movement resolves — the separation
+        // can come from the weasel drifting OR the protected ship moving away.
+        for (Shuttle shuttle : new ArrayList<>(activeShuttles)) {
+            if (!(shuttle instanceof WildWeaselShuttle))
+                continue;
+            Ship parent = ((WildWeaselShuttle) shuttle).getParentShip();
+            if (parent == null || parent.getLocation() == null || shuttle.getLocation() == null)
+                continue;
+            if (MapUtils.getRange(parent, shuttle) > 35) {
+                log.add("  Wild Weasel " + shuttle.getName() + " is more than 35 hexes from "
+                        + parent.getName() + " — voided (J3.13)");
+                game.voidWildWeasel(parent);
+            }
+        }
         return log;
     }
 }
