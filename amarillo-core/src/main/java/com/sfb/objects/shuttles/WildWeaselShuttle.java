@@ -32,6 +32,9 @@ public class WildWeaselShuttle extends Shuttle {
         exploding     = true;
         postExplosion = false;
         explosionEndsAtImpulse = currentImpulse + 3;
+        // J3.21: the wild weasel ceases to move at the instant it is destroyed
+        setSpeed(0);
+        setCurrentSpeed(0);
     }
 
     /** Transition from explosion to post-explosion ionized radiation (J3.212). */

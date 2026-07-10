@@ -92,4 +92,51 @@ public class WildWeaselRangeTest {
         assertTrue("Log must explain the void: " + r.getMessage(),
                 r.getMessage().contains("voided (J3.13)"));
     }
+
+    // -------------------------------------------------------------------------
+    // J3.21 — a destroyed weasel explodes; it is neither removed nor voided
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void directFireKill_startsExplosionPeriod_notRemoval() {
+        placeWildWeasel(3, 16);
+        ww.setSpeed(4); // launched drifting — must stop dead when destroyed (J3.21)
+
+        String msg = game.applyDamageToUnit(6, ww, 0); // hull 6 → dead
+
+        assertTrue("Log must announce the explosion: " + msg, msg.contains("exploding"));
+        assertTrue("Destroyed WW enters its explosion period", ww.isExploding());
+        assertTrue("Destroyed WW stays on the map (J3.21)",
+                game.getActiveShuttles().contains(ww));
+        assertNotNull("NOT voided — ECM continues through the explosion (J3.2111/J3.232)",
+                fed.getActiveWildWeasel());
+        assertEquals("Destroyed WW ceases to move (J3.21)", 0, ww.getSpeed());
+    }
+
+    @Test
+    public void explodingWeasel_cannotBeKilledAgain() {
+        placeWildWeasel(3, 16);
+        game.applyDamageToUnit(6, ww, 0);
+        assertTrue(ww.isExploding());
+
+        String msg = game.applyDamageToUnit(10, ww, 0);
+
+        assertTrue("Second kill is a no-op: " + msg, msg.contains("already destroyed"));
+        assertTrue(game.getActiveShuttles().contains(ww));
+    }
+
+    @Test
+    public void explosionPeriod_transitionsToPostExplosion() {
+        placeWildWeasel(3, 16);
+        game.applyDamageToUnit(6, ww, 0);
+
+        // Advance well past the 4-impulse explosion window; the seeker pass
+        // transitions exploding weasels each time the Movement phase resolves
+        for (int guard = 0; guard < 40 && !ww.isPostExplosion(); guard++)
+            game.advancePhase();
+
+        assertTrue("Explosion must give way to the ionized-radiation pocket (J3.212)",
+                ww.isPostExplosion());
+        assertFalse(ww.isExploding());
+    }
 }

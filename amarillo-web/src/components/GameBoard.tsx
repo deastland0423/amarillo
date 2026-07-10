@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, ShieldState, WeaponState } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ShieldState, WeaponState } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
@@ -73,6 +73,12 @@ function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
   if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
     const s = obj as ShuttleObject;
     return !myShips.has(s.parentShipName ?? '') && !myShips.has(s.controllerName ?? '');
+  }
+  if (obj.type === 'WILD_WEASEL') {
+    // Shooting down the decoy is the counter-tactic (J3.21) — but a weasel
+    // already exploding or reduced to radiation cannot be killed again
+    const w = obj as WildWeaselObject;
+    return !myShips.has(w.parentShipName ?? '') && !w.exploding && !w.postExplosion;
   }
   return false;
 }

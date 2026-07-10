@@ -242,6 +242,19 @@ class DamageResolver {
                 int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
                 shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - roll));
                 if (shuttle.getCurrentHull() <= 0) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
+                // to its 4-impulse explosion period; ECM continues (J3.2111) and
+                // seekers keep following it. Post-explosion pockets can't die again.
+                com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                        (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
+                if (!ww.isExploding() && !ww.isPostExplosion()) {
+                    ww.startExplosion(game.getAbsoluteImpulse());
+                    return "Wild Weasel " + ww.getName()
+                            + " destroyed — exploding for 4 impulses (J3.21)";
+                }
+                return "Wild Weasel " + ww.getName() + " is already destroyed";
+            }
                     removeDeadShuttle(shuttle, isSeeker);
                     return "HIT — " + shuttle.getName() + " destroyed (" + roll + " hull damage)";
                 }
@@ -253,6 +266,19 @@ class DamageResolver {
             }
             shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - damage));
             if (shuttle.getCurrentHull() <= 0) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
+                // to its 4-impulse explosion period; ECM continues (J3.2111) and
+                // seekers keep following it. Post-explosion pockets can't die again.
+                com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                        (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
+                if (!ww.isExploding() && !ww.isPostExplosion()) {
+                    ww.startExplosion(game.getAbsoluteImpulse());
+                    return "Wild Weasel " + ww.getName()
+                            + " destroyed — exploding for 4 impulses (J3.21)";
+                }
+                return "Wild Weasel " + ww.getName() + " is already destroyed";
+            }
                 removeDeadShuttle(shuttle, isSeeker);
                 return shuttle.getName() + " destroyed (" + damage + " damage)";
             }

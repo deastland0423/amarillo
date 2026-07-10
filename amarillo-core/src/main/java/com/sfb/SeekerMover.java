@@ -53,7 +53,13 @@ class SeekerMover {
 
     List<String> moveSeekers() {
         List<String> log = new ArrayList<>();
-        if (seekers.isEmpty())
+        // No early exit while a Wild Weasel is on the map: its explosion/expiry
+        // state machine below must keep ticking even after every seeker is gone
+        // (otherwise a weasel whose pursuers all expired mid-explosion would stay
+        // "exploding" — with full ECM — forever).
+        boolean wwPresent = activeShuttles.stream()
+                .anyMatch(sh -> sh instanceof WildWeaselShuttle);
+        if (seekers.isEmpty() && !wwPresent)
             return log;
 
         int impulse = game.getCurrentImpulse();
