@@ -232,30 +232,59 @@ class ShipMover {
             }
 
             // G7.5: drag tractored drones and shuttles in the same direction
-            if (ship.getTractors() != null) {
-                for (com.sfb.objects.Unit held : new ArrayList<>(ship.getTractors().getTractoredUnits())) {
-                    if (held instanceof Ship) continue;
-                    Location heldPrev = held.getLocation();
-                    Location heldNext = MapUtils.getAdjacentHex(held.getLocation(), moveDir, game.getMapCols(), game.getMapRows());
-                    if (heldNext == null || game.isPlanetHex(heldNext)) {
-                        // Links persist across turns now — release explicitly so the
-                        // dead unit doesn't occupy a beam or hold the rotation phase open
-                        ship.getTractors().releaseTractor(held);
-                        held.setLocation(null);
-                        seekers.removeIf(s -> s == held);
-                        activeShuttles.removeIf(s -> s == held);
-                        log.append("\n").append(held.getName())
-                           .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
-                    } else {
-                        held.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());
-                        prevLocations.putIfAbsent(held, heldPrev);
-                        log.append("; ").append(held.getName()).append(" towed");
-                    }
-                }
-            }
+            dragHeldSmallUnits(ship, moveDir, log);
             return ActionResult.ok(log.toString());
         }
         return ActionResult.fail(ship.getName() + " could not move forward");
+    }
+
+    /**
+     * G7.5: drag every tractored drone/shuttle one hex in the given direction.
+     * A shuttle towed faster than twice its rated maximum speed is
+     * death-dragged — destroyed in the hex it occupied before the movement
+     * (G7.54/G7.541); crippled shuttles die at twice their crippled max
+     * (G7.542). Drones cannot be death-dragged (G7.53). Fighter HET breakaway
+     * (G7.543/G7.55) is not yet implemented.
+     */
+    private void dragHeldSmallUnits(Ship ship, int moveDir, StringBuilder log) {
+        if (ship.getTractors() == null)
+            return;
+        for (com.sfb.objects.Unit held : new ArrayList<>(ship.getTractors().getTractoredUnits())) {
+            if (held instanceof Ship)
+                continue;
+            if (held instanceof com.sfb.objects.shuttles.Shuttle) {
+                com.sfb.objects.shuttles.Shuttle hs = (com.sfb.objects.shuttles.Shuttle) held;
+                int rated = hs.isCrippled() ? (int) Math.ceil(hs.getMaxSpeed() / 2.0) : hs.getMaxSpeed();
+                if (ship.getSpeed() > 2 * rated) {
+                    ship.getTractors().releaseTractor(held);
+                    held.setLocation(null);
+                    seekers.removeIf(sk -> sk == held);
+                    activeShuttles.removeIf(sh -> sh == held);
+                    log.append("\n").append(held.getName())
+                       .append(" death-dragged at speed ").append(ship.getSpeed())
+                       .append(" (max safe tow ").append(2 * rated)
+                       .append(") — destroyed (G7.54)");
+                    continue;
+                }
+            }
+            Location heldPrev = held.getLocation();
+            Location heldNext = MapUtils.getAdjacentHex(held.getLocation(), moveDir,
+                    game.getMapCols(), game.getMapRows());
+            if (heldNext == null || game.isPlanetHex(heldNext)) {
+                // Links persist across turns now — release explicitly so the
+                // dead unit doesn't occupy a beam or hold the rotation phase open
+                ship.getTractors().releaseTractor(held);
+                held.setLocation(null);
+                seekers.removeIf(sk -> sk == held);
+                activeShuttles.removeIf(sh -> sh == held);
+                log.append("\n").append(held.getName())
+                   .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
+            } else {
+                held.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());
+                prevLocations.putIfAbsent(held, heldPrev);
+                log.append("; ").append(held.getName()).append(" towed");
+            }
+        }
     }
 
     public ActionResult turnLeft(Ship ship) {
@@ -309,6 +338,8 @@ class ShipMover {
                 if (game.isAsteroidHex(s.getLocation()))
                     log.append("\n").append(applyAsteroidCollision(s));
             }
+            // G7.5: held drones and shuttles follow sideslips too
+            dragHeldSmallUnits(ship, slDir, log);
             return ActionResult.ok(log.toString());
         }
         return ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");
@@ -335,6 +366,8 @@ class ShipMover {
                 if (game.isAsteroidHex(s.getLocation()))
                     log.append("\n").append(applyAsteroidCollision(s));
             }
+            // G7.5: held drones and shuttles follow sideslips too
+            dragHeldSmallUnits(ship, srDir, log);
             return ActionResult.ok(log.toString());
         }
         return ActionResult.fail(ship.getName() + " cannot sideslip (must move first)");

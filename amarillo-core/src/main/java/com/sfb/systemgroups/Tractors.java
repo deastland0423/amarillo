@@ -18,6 +18,8 @@ public class Tractors implements Systems {
 	int negativeTractorAccumulated; // Total negative-tractor energy spent this turn (G7.35); persists across impulses.
 
 	int tractorsUsed; // The number of tractors that are currently in use.
+	int beamsUsedThisTurn; // G7.13: each beam may be used only once per turn — releasing
+	                       // a link does NOT free the beam for reuse until the next turn.
 	Unit owningUnit; // The unit on which the tractors are installed.
 
 	List<Unit> tractoredUnits = new ArrayList<>(); // Any units currently being tractored.
@@ -57,14 +59,24 @@ public class Tractors implements Systems {
 	// Establish the physical tractor link after auction resolution (no energy deduction).
 	public boolean linkUnit(Unit target) {
 		if (tractorsUsed >= availableTractors) return false;
+		if (beamsUsedThisTurn >= availableTractors) return false; // G7.13
 		target.applyTractor(owningUnit);
 		tractoredUnits.add(target);
 		tractorsUsed++;
+		beamsUsedThisTurn++;
 		return true;
+	}
+
+	/** Beams that can still initiate a NEW link this turn (G7.13). */
+	public int getBeamsAvailableThisTurn() {
+		return availableTractors - Math.max(tractorsUsed, beamsUsedThisTurn);
 	}
 
 	public void initForTurn(int energy) {
 		totalTractorEnergy = remainingTractorEnergy = energy;
+		// G7.13 usage resets each turn; beams still holding persistent links
+		// (G7.42) remain in use.
+		beamsUsedThisTurn = tractorsUsed;
 	}
 
 	public List<Unit> getTractoredUnits() {
@@ -112,6 +124,7 @@ public class Tractors implements Systems {
 		// (TractorResolver.maintainLinksAtTurnStart). Only per-turn energy resets here.
 		totalTractorEnergy = remainingTractorEnergy = 0;
 		negativeTractorAccumulated = 0;
+		beamsUsedThisTurn = tractorsUsed;
 	}
 
 	@Override

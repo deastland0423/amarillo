@@ -165,6 +165,9 @@ class TractorResolver {
             return ActionResult.fail(holder.getName() + " has no tractor beams");
         if (holder.getTractors().getAvailableTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
+        if (holder.getTractors().getBeamsAvailableThisTurn() <= 0)
+            return ActionResult.fail(holder.getName()
+                    + " has no unused tractor beams remaining this turn (G7.13)");
         if (bid < 1)
             return ActionResult.fail("Must bid at least 1 effective tractor point");
         if (pendingTractorAuction != null)
