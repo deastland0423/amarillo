@@ -162,7 +162,6 @@ public class Game {
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
     private List<String> lastSeekerLog = new ArrayList<>();
-    private List<String> lastLockOnLog = new ArrayList<>();
     private boolean inProgress = false;
     private boolean awaitingAllocation = false;
     private final List<Ship> allocationQueue = new ArrayList<>();
