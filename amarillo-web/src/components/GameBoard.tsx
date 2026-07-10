@@ -728,7 +728,7 @@ function WwLaunchPanel({ ship, shuttleName, onLaunch, onCancel, error }: {
 // ---- Shuttle movement panel ----
 
 function ShuttleMovementPanel({
-  shuttle, isMine, canMove, phase, onMove, onHet, onClose,
+  shuttle, isMine, canMove, phase, onMove, onHet, onClose, canLand, onLand,
 }: {
   shuttle:  ShuttleObject;
   isMine:   boolean;
@@ -737,6 +737,9 @@ function ShuttleMovementPanel({
   onMove:   (action: string) => void;
   onHet:    (facing: number) => void;
   onClose:  () => void;
+  canLand:  boolean;
+  onLand:   () => void;
+  onTacTurn?: (facing: number, sublight: boolean) => void;
 }) {
   const [hetMode, setHetMode]     = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -828,6 +831,18 @@ function ShuttleMovementPanel({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Unassisted landing aboard a co-hexed friendly ship (J1.61) */}
+          {canLand && (
+            <button
+              className="action-strip-btn"
+              style={{ marginTop: 6, borderColor: '#3fb950', color: '#3fb950', width: '100%' }}
+              onClick={onLand}
+              title="Land aboard the friendly ship in this hex (J1.61)"
+            >
+              Land Aboard
+            </button>
           )}
         </div>
       )}
@@ -3316,6 +3331,29 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombShieldChoice(null);
   }
 
+  /** Friendly ship sharing the shuttle hex - the J1.61 landing target. */
+  function landableCarrierFor(shuttle: ShuttleObject | null): ShipObject | null {
+    if (!shuttle || !shuttle.location) return null;
+    if (!myShips.has(shuttle.parentShipName ?? '')) return null;
+    const carrier = gameState?.mapObjects.find(o =>
+      o.type === 'SHIP' && myShips.has(o.name) && o.location === shuttle.location);
+    return (carrier as ShipObject | undefined) ?? null;
+  }
+
+  async function handleLandShuttle() {
+    const carrier = landableCarrierFor(liveShuttle);
+    if (!liveShuttle || !carrier) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'LAND_SHUTTLE', shipName: carrier.name, action: liveShuttle.name,
+    });
+    if (!res.success) {
+      setActionError(res.message);
+    } else {
+      addLog(res.message, 'combat');
+      setSelected(null);
+    }
+  }
+
   function handleHexClick(col: number, row: number) {
     if (tBombMode) {
       setTBombPendingHex({ col, row });
@@ -3843,6 +3881,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onHet={handleFighterHet}
             onTacTurn={handleTacTurn}
             onClose={() => setSelected(null)}
+            canLand={phase === 'Activity' && !!landableCarrierFor(liveShuttle)}
+            onLand={handleLandShuttle}
           />
         )}
 

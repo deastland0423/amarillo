@@ -1412,6 +1412,11 @@ public class Game {
         return launchCoordinator.launchSuicideShuttle(launcher, bay, shuttle, target, facing, speed);
     }
 
+    /** Land a friendly shuttle aboard this ship unassisted (J1.61). */
+    public ActionResult landShuttle(Ship ship, String shuttleName) {
+        return launchCoordinator.landShuttle(ship, shuttleName);
+    }
+
     /** Launch a scatter pack (FD7.0). */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {

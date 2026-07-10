@@ -487,4 +487,86 @@ class LaunchCoordinator {
         game.checkControlOverflow();
         return ActionResult.ok(msg);
     }
+
+    /**
+     * Unassisted landing aboard a friendly ship (J1.61): the pilot flies the
+     * shuttle through the hatch. Requires same hex, ship not moving faster than
+     * the shuttle, a bay with an empty box, and an available hatch — the hatch
+     * cooldown is shared with launches (J1.50, one operation per 2 impulses).
+     * Active suicide shuttles, scatter packs, and Wild Weasels cannot land this
+     * way (J1.611); they need a tractor (J1.62, deferred).
+     */
+    ActionResult landShuttle(Ship ship, String shuttleName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only land during the Activity phase");
+
+        com.sfb.objects.shuttles.Shuttle shuttle = activeShuttles.stream()
+                .filter(sh -> sh.getName().equalsIgnoreCase(shuttleName))
+                .findFirst().orElse(null);
+        if (shuttle == null)
+            return ActionResult.fail("Shuttle not found on the map: " + shuttleName);
+
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail(
+                    "Active suicide shuttles, scatter packs, and Wild Weasels cannot land aboard (J1.611)");
+
+        String shipTeam    = ship.getOwner()    != null ? ship.getOwner().getTeamName()    : null;
+        String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
+        if (shipTeam == null || !shipTeam.equals(shuttleTeam))
+            return ActionResult.fail("Only friendly shuttles may land aboard unassisted (J1.61/J1.612)");
+
+        if (shuttle.getLocation() == null || ship.getLocation() == null
+                || !shuttle.getLocation().equals(ship.getLocation()))
+            return ActionResult.fail(shuttleName + " must be in the same hex as "
+                    + ship.getName() + " to land (J1.61)");
+
+        if (ship.getSpeed() > shuttle.getSpeed())
+            return ActionResult.fail(ship.getName() + " (speed " + ship.getSpeed()
+                    + ") is moving faster than " + shuttleName + " (speed " + shuttle.getSpeed()
+                    + ") — cannot land aboard (J1.61)");
+
+        int impulse = game.getAbsoluteImpulse();
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        boolean anySpace = false;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays()) {
+            if (b.getEmptySpaceCount() > 0) {
+                anySpace = true;
+                if (b.canLaunch(impulse)) {
+                    bay = b;
+                    break;
+                }
+            }
+        }
+        if (!anySpace)
+            return ActionResult.fail("No empty shuttle box available on " + ship.getName() + " (J1.61)");
+        if (bay == null)
+            return ActionResult.fail("Shuttle bay hatch on cooldown — one operation every 2 impulses (J1.50)");
+
+        // Land: the hatch operation shares the launch cooldown (J1.50)
+        bay.markUsed(impulse);
+        bay.addShuttle(shuttle);
+        activeShuttles.remove(shuttle);
+        shuttle.setLocation(null);
+        shuttle.setParentShipName(ship.getName());
+
+        StringBuilder msg = new StringBuilder(shuttleName + " landed aboard " + ship.getName() + " (J1.61)");
+
+        // Seekers chasing the shuttle lose their target — it is no longer in space
+        java.util.List<Seeker> chasing = new java.util.ArrayList<>();
+        for (Seeker sk : seekers) {
+            if (shuttle.equals(sk.getTarget()))
+                chasing.add(sk);
+        }
+        for (Seeker sk : chasing) {
+            if (sk.getController() instanceof DroneController)
+                ((DroneController) sk.getController()).releaseControl(sk);
+            msg.append("\n  ").append(sk instanceof Unit ? ((Unit) sk).getName() : "seeker")
+               .append(" lost tracking — target landed");
+        }
+        seekers.removeAll(chasing);
+
+        return ActionResult.ok(msg.toString());
+    }
 }
