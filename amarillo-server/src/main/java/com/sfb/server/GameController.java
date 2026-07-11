@@ -37,6 +37,23 @@ public class GameController {
         this.broker = broker;
     }
 
+    /**
+     * Run a request body while holding the session's lock. Every endpoint that
+     * reads or mutates a session goes through this, so all work on one game —
+     * actions, lobby changes, and DTO snapshots — is serialized. Without it,
+     * two players clicking Ready simultaneously can both pass the allReady()
+     * check and advance the phase twice, and a broadcast can snapshot a game
+     * mid-mutation.
+     */
+    private <T> T locked(GameSession session, java.util.function.Supplier<T> body) {
+        session.getLock().lock();
+        try {
+            return body.get();
+        } finally {
+            session.getLock().unlock();
+        }
+    }
+
     /** Snapshot for REST GET — never drains the combat log. */
     private GameStateDto snapshotState(GameSession session) {
         GameStateDto dto = new GameStateDto(session.getGame());
@@ -320,16 +337,21 @@ public class GameController {
             @RequestBody Map<String, String> body) {
 
         String playerName = body.getOrDefault("name", "Player");
-        String token = sessionService.joinSession(id, playerName);
-
-        if (token == null)
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
             return ResponseEntity.notFound().build();
 
-        broadcastLobby(sessionService.getSession(id));
+        return locked(session, () -> {
+            String token = sessionService.joinSession(id, playerName);
+            if (token == null)
+                return ResponseEntity.notFound().build();
 
-        return ResponseEntity.ok(Map.of(
-                "playerToken", token,
-                "message", "Joined game " + id + " as " + playerName));
+            broadcastLobby(session);
+
+            return ResponseEntity.ok(Map.of(
+                    "playerToken", token,
+                    "message", "Joined game " + id + " as " + playerName));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -358,23 +380,26 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
-        if (!session.isHost(token))
-            return ResponseEntity.status(403).body(Map.of("error", "Only the host can select the scenario"));
-        if (session.isStarted())
-            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
-        String scenarioId = body.get("scenarioId");
-        if (scenarioId == null || scenarioId.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "scenarioId is required"));
+        return locked(session, () -> {
+            if (!session.isHost(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Only the host can select the scenario"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
-        try {
-            session.loadScenario(scenarioId);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+            String scenarioId = body.get("scenarioId");
+            if (scenarioId == null || scenarioId.isBlank())
+                return ResponseEntity.badRequest().body(Map.of("error", "scenarioId is required"));
 
-        broadcastLobby(session);
-        return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
+            try {
+                session.loadScenario(scenarioId);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            }
+
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
+        });
     }
 
     @PostMapping("/{id}/coi")
@@ -386,20 +411,23 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
-        if (!session.hasPlayer(token))
-            return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
-        if (!session.isScenarioLoaded())
-            return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
-        if (session.isStarted())
-            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
-        Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
-        for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
-            loadouts.put(entry.getKey(), entry.getValue().toLoadout());
-        }
-        session.submitCoi(token, loadouts);
-        broadcastLobby(session);
-        return ResponseEntity.ok(Map.of("message", "COI selections saved"));
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (!session.isScenarioLoaded())
+                return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
+                loadouts.put(entry.getKey(), entry.getValue().toLoadout());
+            }
+            session.submitCoi(token, loadouts);
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of("message", "COI selections saved"));
+        });
     }
 
     @PostMapping("/{id}/start")
@@ -410,24 +438,27 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
-        if (!session.isHost(token))
-            return ResponseEntity.status(403).body(Map.of("error", "Only the host can start the game"));
-        if (!session.isScenarioLoaded())
-            return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
-        if (session.isStarted())
-            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
-        if (!session.allCoiDone())
-            return ResponseEntity.badRequest().body(Map.of("error", "Waiting for all players to submit COI"));
 
-        try {
-            session.start();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return locked(session, () -> {
+            if (!session.isHost(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Only the host can start the game"));
+            if (!session.isScenarioLoaded())
+                return ResponseEntity.badRequest().body(Map.of("error", "No scenario loaded yet"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+            if (!session.allCoiDone())
+                return ResponseEntity.badRequest().body(Map.of("error", "Waiting for all players to submit COI"));
 
-        broadcastLobby(session);
-        broadcastState(session);
-        return ResponseEntity.ok(Map.of("message", "Game started — impulse 1 begins now"));
+            try {
+                session.start();
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            }
+
+            broadcastLobby(session);
+            broadcastState(session);
+            return ResponseEntity.ok(Map.of("message", "Game started — impulse 1 begins now"));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -445,13 +476,15 @@ public class GameController {
         if (!session.isHost(token))
             return ResponseEntity.status(403).build();
 
-        List<Map<String, String>> list = session.getPlayers().entrySet().stream()
-                .map(e -> Map.of(
-                        "name", e.getValue().getName(),
-                        "token", e.getKey()))
-                .collect(Collectors.toList());
+        return locked(session, () -> {
+            List<Map<String, String>> list = session.getPlayers().entrySet().stream()
+                    .map(e -> Map.of(
+                            "name", e.getValue().getName(),
+                            "token", e.getKey()))
+                    .collect(Collectors.toList());
 
-        return ResponseEntity.ok(list);
+            return ResponseEntity.ok(list);
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -475,14 +508,16 @@ public class GameController {
         if (playerToken == null || shipName == null)
             return ResponseEntity.badRequest().body(Map.of("error", "playerToken and shipName are required"));
 
-        String result = session.assignShip(playerToken, shipName);
-        if (result != null)
-            return ResponseEntity.badRequest().body(Map.of("error", result));
+        return locked(session, () -> {
+            String result = session.assignShip(playerToken, shipName);
+            if (result != null)
+                return ResponseEntity.badRequest().body(Map.of("error", result));
 
-        broadcastLobby(session);
-        if (session.isStarted())
-            broadcastState(session); // notify GameBoard clients
-        return ResponseEntity.ok(Map.of("message", shipName + " assigned successfully"));
+            broadcastLobby(session);
+            if (session.isStarted())
+                broadcastState(session); // notify GameBoard clients
+            return ResponseEntity.ok(Map.of("message", shipName + " assigned successfully"));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -500,6 +535,7 @@ public class GameController {
         if (session == null)
             return ResponseEntity.notFound().build();
 
+        return locked(session, () -> {
         // Attacker may be a ship or an active shuttle/fighter
         Unit attackerUnit = session.getGame().getShips().stream()
                 .filter(s -> s.getName().equalsIgnoreCase(attacker))
@@ -571,6 +607,7 @@ public class GameController {
                 "shieldNumber", shieldNumber,
                 "weaponsInArc", weaponsInArc,
                 "hasLockOn", hasLockOn));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -588,28 +625,30 @@ public class GameController {
         if (session == null)
             return ResponseEntity.notFound().build();
 
-        Ship targetShip = session.getGame().getShips().stream()
-                .filter(s -> s.getName().equalsIgnoreCase(target))
-                .findFirst().orElse(null);
-        if (targetShip == null)
-            return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
+        return locked(session, () -> {
+            Ship targetShip = session.getGame().getShips().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(target))
+                    .findFirst().orElse(null);
+            if (targetShip == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-        List<com.sfb.properties.SystemTarget> systems = session.getGame().getTargetableSystems(targetShip);
+            List<com.sfb.properties.SystemTarget> systems = session.getGame().getTargetableSystems(targetShip);
 
-        List<Map<String, String>> result = systems.stream()
-                .map(st -> {
-                    Map<String, String> m = new java.util.LinkedHashMap<>();
-                    if (st.getType() == com.sfb.properties.SystemTarget.Type.WEAPON) {
-                        m.put("code", "WEAPON:" + st.getDisplayName());
-                    } else {
-                        m.put("code", st.getType().name());
-                    }
-                    m.put("label", st.getDisplayName());
-                    return m;
-                })
-                .collect(Collectors.toList());
+            List<Map<String, String>> result = systems.stream()
+                    .map(st -> {
+                        Map<String, String> m = new java.util.LinkedHashMap<>();
+                        if (st.getType() == com.sfb.properties.SystemTarget.Type.WEAPON) {
+                            m.put("code", "WEAPON:" + st.getDisplayName());
+                        } else {
+                            m.put("code", st.getType().name());
+                        }
+                        m.put("label", st.getDisplayName());
+                        return m;
+                    })
+                    .collect(Collectors.toList());
 
-        return ResponseEntity.ok(result);
+            return ResponseEntity.ok(result);
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -625,23 +664,26 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
-        if (!session.hasPlayer(token))
-            return ResponseEntity.status(403).body(Map.of("error", "Invalid player token"));
-        if (!session.isStarted())
-            return ResponseEntity.badRequest().body(Map.of("error", "Game has not started yet"));
 
-        if (request.getShipName() != null && !session.ownsShip(token, request.getShipName()))
-            return ResponseEntity.status(403).body(Map.of(
-                    "success", false,
-                    "message", "You do not own ship: " + request.getShipName()));
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Invalid player token"));
+            if (!session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game has not started yet"));
 
-        request.setPlayerToken(token);
-        ActionResult result = session.executeAction(request);
-        if (result.isSuccess())
-            broadcastState(session);
-        return ResponseEntity.ok(Map.of(
-                "success", result.isSuccess(),
-                "message", result.getMessage()));
+            if (request.getShipName() != null && !session.ownsShip(token, request.getShipName()))
+                return ResponseEntity.status(403).body(Map.of(
+                        "success", false,
+                        "message", "You do not own ship: " + request.getShipName()));
+
+            request.setPlayerToken(token);
+            ActionResult result = session.executeAction(request);
+            if (result.isSuccess())
+                broadcastState(session);
+            return ResponseEntity.ok(Map.of(
+                    "success", result.isSuccess(),
+                    "message", result.getMessage()));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -653,7 +695,7 @@ public class GameController {
         GameSession session = sessionService.getSession(id);
         if (session == null)
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(new LobbyStateDto(session));
+        return locked(session, () -> ResponseEntity.ok(new LobbyStateDto(session)));
     }
 
     // -------------------------------------------------------------------------
@@ -667,20 +709,22 @@ public class GameController {
         if (session == null)
             return ResponseEntity.notFound().build();
 
-        List<Map<String, Object>> playerList = session.getPlayers().entrySet().stream()
-                .map(e -> {
-                    Map<String, Object> m = new java.util.LinkedHashMap<>();
-                    m.put("name", e.getValue().getName());
-                    m.put("role", session.isHost(e.getKey()) ? "host" : "player");
-                    m.put("ships", e.getValue().getShipNames());
-                    return m;
-                })
-                .collect(Collectors.toList());
+        return locked(session, () -> {
+            List<Map<String, Object>> playerList = session.getPlayers().entrySet().stream()
+                    .map(e -> {
+                        Map<String, Object> m = new java.util.LinkedHashMap<>();
+                        m.put("name", e.getValue().getName());
+                        m.put("role", session.isHost(e.getKey()) ? "host" : "player");
+                        m.put("ships", e.getValue().getShipNames());
+                        return m;
+                    })
+                    .collect(Collectors.toList());
 
-        return ResponseEntity.ok(Map.of(
-                "gameId", session.getId(),
-                "started", session.isStarted(),
-                "players", playerList));
+            return ResponseEntity.ok(Map.of(
+                    "gameId", session.getId(),
+                    "started", session.isStarted(),
+                    "players", playerList));
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -698,14 +742,16 @@ public class GameController {
         if (!session.isStarted())
             return ResponseEntity.badRequest().body(Map.of("error", "Game has not started"));
 
-        GameStateDto dto = snapshotState(session);
+        return locked(session, () -> {
+            GameStateDto dto = snapshotState(session);
 
-        // Populate myShips if the caller identifies themselves.
-        // In unassigned (solo) mode, the player controls all ships.
-        if (token != null && session.hasPlayer(token)) {
-            dto.myShips = session.getEffectiveShipNamesForPlayer(token);
-        }
+            // Populate myShips if the caller identifies themselves.
+            // In unassigned (solo) mode, the player controls all ships.
+            if (token != null && session.hasPlayer(token)) {
+                dto.myShips = session.getEffectiveShipNamesForPlayer(token);
+            }
 
-        return ResponseEntity.ok(dto);
+            return ResponseEntity.ok(dto);
+        });
     }
 }

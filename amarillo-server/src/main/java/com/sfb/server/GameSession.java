@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A single game instance on the server.
@@ -78,6 +79,17 @@ public class GameSession {
     private final String id;
     private final Game game;
     private final String hostToken;
+
+    /**
+     * Serializes all work on this session: actions, lobby changes, and state
+     * snapshots run strictly one at a time, so the (thread-unsafe) Game never
+     * sees two callers at once and every broadcast snapshot is consistent.
+     * Per-session — different games never block each other. Fair, so
+     * near-simultaneous clicks resolve first-come-first-served. Reentrant, so
+     * the controller can hold it across an action plus its broadcast while
+     * executeAction() takes it again internally.
+     */
+    private final ReentrantLock lock = new ReentrantLock(true);
 
     /** token → PlayerInfo */
     private final Map<String, PlayerInfo> players = new LinkedHashMap<>();
@@ -395,8 +407,18 @@ public class GameSession {
     /**
      * Execute an action on behalf of a player.
      * Ownership is validated before this is called by the controller.
+     * Serialized on the session lock — safe to call from concurrent threads.
      */
     public ActionResult executeAction(ActionRequest request) {
+        lock.lock();
+        try {
+            return doExecuteAction(request);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private ActionResult doExecuteAction(ActionRequest request) {
         switch (request.getType().toUpperCase()) {
 
             case "ADVANCE_PHASE": {
@@ -1457,6 +1479,11 @@ public class GameSession {
         }
         PlayerInfo info = players.get(token);
         return info != null ? info.getShipNames() : List.of();
+    }
+
+    /** The session lock — see the field javadoc. Held by the controller around every endpoint that touches this session. */
+    public ReentrantLock getLock() {
+        return lock;
     }
 
     public String getId() {
