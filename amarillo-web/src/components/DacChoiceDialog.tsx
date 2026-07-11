@@ -15,6 +15,7 @@ const DAC_LABELS: Record<string, string> = {
   weapon:  'Any Weapon',
   warp:    'Warp Engine',
   shuttle: 'Shuttle Bay Space',
+  tractor: 'Tractor Beam',
 };
 
 const WARP_LABELS: Record<string, string> = {

@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.properties.Faction;
 import com.sfb.properties.TurnMode;

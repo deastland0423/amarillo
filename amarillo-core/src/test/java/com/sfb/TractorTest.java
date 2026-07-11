@@ -60,24 +60,24 @@ public class TractorTest {
     public void damage_reducesAvailableTractors() {
         Tractors t = fed.getTractors();
         int before = t.getAvailableTractors();
-        assertTrue(t.damage());
+        assertNotNull(t.damageAutoPick());
         assertEquals(before - 1, t.getAvailableTractors());
     }
 
     @Test
-    public void damage_onZeroReturnsFalse() {
+    public void damage_onZeroReturnsNull() {
         Tractors t = fed.getTractors();
         // Damage all beams down to zero
         int total = t.getAvailableTractors();
-        for (int i = 0; i < total; i++) t.damage();
-        assertFalse(t.damage());
+        for (int i = 0; i < total; i++) t.damageAutoPick();
+        assertNull(t.damageAutoPick());
         assertEquals(0, t.getAvailableTractors());
     }
 
     @Test
     public void repair_increasesAvailableTractors() {
         Tractors t = fed.getTractors();
-        t.damage(); // knock one out so there is something to repair
+        t.damageAutoPick(); // knock one out so there is something to repair
         int before = t.getAvailableTractors();
         assertTrue(t.repair());
         assertEquals(before + 1, t.getAvailableTractors());

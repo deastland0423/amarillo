@@ -1,13 +1,11 @@
 package com.sfb.weapons;
 
-import com.sfb.TurnTracker;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.properties.WeaponArmingType;
 import com.sfb.utilities.DiceRoller;
 
 public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWeapon {
-
 
 	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3-10, [4] 11-15, [5] 16-24
 	private static final int[][] bandHitChart = {
@@ -45,19 +43,27 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 
 	// Bands: [0] 0, [1] 1, [2] 2, [3] 3-10, [4] 11-15, [5] 16-24
 	static int rangeBand(int range) {
-		if (range <= 0)  return 0;
-		if (range <= 1)  return 1;
-		if (range <= 2)  return 2;
-		if (range <= 10) return 3;
-		if (range <= 15) return 4;
+		if (range <= 0)
+			return 0;
+		if (range <= 1)
+			return 1;
+		if (range <= 2)
+			return 2;
+		if (range <= 10)
+			return 3;
+		if (range <= 15)
+			return 4;
 		return 5;
 	}
 
-	// Bands: [0] 0, [1] 1, [2] 2, [3] 3-8  (overload and suicide overload)
+	// Bands: [0] 0, [1] 1, [2] 2, [3] 3-8 (overload and suicide overload)
 	static int rangeBandOvld(int range) {
-		if (range <= 0) return 0;
-		if (range <= 1) return 1;
-		if (range <= 2) return 2;
+		if (range <= 0)
+			return 0;
+		if (range <= 1)
+			return 1;
+		if (range <= 2)
+			return 2;
 		return 3;
 	}
 

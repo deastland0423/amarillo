@@ -2,7 +2,6 @@ package com.sfb.systemgroups;
 
 import java.util.Map;
 
-import com.sfb.TurnTracker;
 import com.sfb.constants.Constants;
 import com.sfb.objects.Unit;
 
@@ -298,7 +297,8 @@ public class Shields implements Systems {
 
 	/**
 	 * Returns the absolute impulse at which the specified shield was last toggled.
-	 * Used to compute how many impulses remain before the shield can be raised again.
+	 * Used to compute how many impulses remain before the shield can be raised
+	 * again.
 	 */
 	public int getImpulseShieldToggled(int shieldNumber) {
 		return impulseShieldToggled[shieldNumber - 1];

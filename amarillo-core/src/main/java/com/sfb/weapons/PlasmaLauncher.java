@@ -8,7 +8,6 @@ import com.sfb.objects.Seeker;
 import com.sfb.properties.PlasmaType;
 import com.sfb.properties.WeaponArmingType;
 import com.sfb.utilities.DiceRoller;
-import com.sfb.TurnTracker;
 
 public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, DirectFire {
 
@@ -203,13 +202,22 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	}
 
 	@Override
-	public void setArmingTurn(int turn) { this.armingTurn = turn; }
+	public void setArmingTurn(int turn) {
+		this.armingTurn = turn;
+	}
 
 	@Override
-	public void setArmed(boolean armed) { this.armed = armed; }
+	public void setArmed(boolean armed) {
+		this.armed = armed;
+	}
 
-	public void setPlasmaType(PlasmaType type)       { this.plasmaType = type; }
-	public void setPseudoPlasmaReady(boolean ready)  { this.pseudoPlasmaReady = ready; }
+	public void setPlasmaType(PlasmaType type) {
+		this.plasmaType = type;
+	}
+
+	public void setPseudoPlasmaReady(boolean ready) {
+		this.pseudoPlasmaReady = ready;
+	}
 
 	@Override
 	public boolean isArmed() {
@@ -219,25 +227,29 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	/** Per-turn hold cost: S=2, G=1, F=0 (rolling only), R=0 (can't hold). */
 	@Override
 	public int holdEnergyCost() {
-		if (launcherType == PlasmaType.S) return com.sfb.constants.Constants.sArmingCost[2];
-		if (launcherType == PlasmaType.G) return com.sfb.constants.Constants.gArmingCost[2];
+		if (launcherType == PlasmaType.S)
+			return com.sfb.constants.Constants.sArmingCost[2];
+		if (launcherType == PlasmaType.G)
+			return com.sfb.constants.Constants.gArmingCost[2];
 		return 0;
 	}
 
-	/** Set up as fully armed for WS-3 game start (ensures plasmaType is populated). */
+	/**
+	 * Set up as fully armed for WS-3 game start (ensures plasmaType is populated).
+	 */
 	public void setArmedState() {
-		this.plasmaType  = this.launcherType;
-		this.armingType  = WeaponArmingType.STANDARD;
-		this.armed       = true;
-		this.armingTurn  = totalArmingTurns();
+		this.plasmaType = this.launcherType;
+		this.armingType = WeaponArmingType.STANDARD;
+		this.armed = true;
+		this.armingTurn = totalArmingTurns();
 	}
 
 	/** Set up rolling mode for WS-3 game start (armed + rolling). */
 	public void setRollingMode() {
-		this.rolling    = true;
+		this.rolling = true;
 		this.plasmaType = this.launcherType;
 		this.armingType = WeaponArmingType.STANDARD;
-		this.armed      = true;
+		this.armed = true;
 		this.armingTurn = totalArmingTurns();
 	}
 
@@ -461,42 +473,62 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		if (armed) {
 			// Hold cost per type (R cannot hold — return 0 as sentinel)
 			switch (launcherType) {
-				case S: return Constants.sArmingCost[2]; // 2
-				case G: return Constants.gArmingCost[2]; // 1
-				case F: return Constants.fArmingCost[2]; // 0
-				default: return 0; // R
+				case S:
+					return Constants.sArmingCost[2]; // 2
+				case G:
+					return Constants.gArmingCost[2]; // 1
+				case F:
+					return Constants.fArmingCost[2]; // 0
+				default:
+					return 0; // R
 			}
 		}
 		if (armingTurn < 2) {
 			// Turns 1 and 2 cost the same for all types
 			switch (launcherType) {
 				case R:
-				case S: return Constants.sArmingCost[0]; // 2
-				case G: return Constants.gArmingCost[0]; // 2
-				default: return Constants.fArmingCost[0]; // 1 (F)
+				case S:
+					return Constants.sArmingCost[0]; // 2
+				case G:
+					return Constants.gArmingCost[0]; // 2
+				default:
+					return Constants.fArmingCost[0]; // 1 (F)
 			}
 		}
 		// Final (3rd+) turn standard completion cost
 		switch (launcherType) {
-			case R: return Constants.rArmingCost[1]; // 5
-			case S: return Constants.sArmingCost[1]; // 4
-			case G: return Constants.gArmingCost[1]; // 3
-			default: return Constants.fArmingCost[1]; // 3 (F)
+			case R:
+				return Constants.rArmingCost[1]; // 5
+			case S:
+				return Constants.sArmingCost[1]; // 4
+			case G:
+				return Constants.gArmingCost[1]; // 3
+			default:
+				return Constants.fArmingCost[1]; // 3 (F)
 		}
 	}
 
-	/** True if this launcher can fire an Enveloping Plasma Torpedo (G, S, R; not F). */
+	/**
+	 * True if this launcher can fire an Enveloping Plasma Torpedo (G, S, R; not F).
+	 */
 	public boolean canEpt() {
 		return launcherType != PlasmaType.F;
 	}
 
-	/** Energy cost to fire as EPT on the final arming turn (double the standard turn-3 cost). */
+	/**
+	 * Energy cost to fire as EPT on the final arming turn (double the standard
+	 * turn-3 cost).
+	 */
 	public int eptCost() {
 		switch (launcherType) {
-			case R: return Constants.rArmingCost[1] * 2; // 10
-			case S: return Constants.sArmingCost[1] * 2; // 8
-			case G: return Constants.gArmingCost[1] * 2; // 6
-			default: return 0; // F cannot EPT
+			case R:
+				return Constants.rArmingCost[1] * 2; // 10
+			case S:
+				return Constants.sArmingCost[1] * 2; // 8
+			case G:
+				return Constants.gArmingCost[1] * 2; // 6
+			default:
+				return 0; // F cannot EPT
 		}
 	}
 
@@ -585,18 +617,21 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	}
 
 	/**
-	 * FP1.93: true if this G/S/R launcher can fast-load a type-F on the current turn.
+	 * FP1.93: true if this G/S/R launcher can fast-load a type-F on the current
+	 * turn.
 	 * Requires exactly two arming turns at the native launcher rate (2+2 energy).
 	 */
 	public boolean canFastLoad() {
 		return launcherType != PlasmaType.F
-			&& armingTurn == 2
-			&& plasmaType != null && plasmaType != PlasmaType.F;
+				&& armingTurn == 2
+				&& plasmaType != null && plasmaType != PlasmaType.F;
 	}
 
 	/**
-	 * FP1.93: Convert the in-progress G/S/R torpedo to a type-F ready to launch immediately.
-	 * Caller must already have verified canFastLoad() and deducted 2 battery/reserve.
+	 * FP1.93: Convert the in-progress G/S/R torpedo to a type-F ready to launch
+	 * immediately.
+	 * Caller must already have verified canFastLoad() and deducted 2
+	 * battery/reserve.
 	 */
 	public void applyFastLoad() {
 		plasmaType = PlasmaType.F;

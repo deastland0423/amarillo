@@ -1410,9 +1410,13 @@ public class Ship extends Unit implements DroneController {
 		phaserDacBestTaken = false;
 	}
 
-	private static boolean requiresPlayerChoice(String system) {
+	private boolean requiresPlayerChoice(String system) {
 		switch (system) {
 			case "phaser": case "drone": case "torp": case "weapon": case "warp": case "shuttle": return true;
+			// Tractor hits are the owner's choice only when every functional beam is
+			// holding a unit (which link breaks?); with any idle beam the pick is
+			// forced and resolves silently via tryApplySystemHit.
+			case "tractor": return tractors.needsDamageChoice();
 			default: return false;
 		}
 	}
@@ -1478,6 +1482,14 @@ public class Ship extends Unit implements DroneController {
 							opts.add("bay:" + b + ":space:" + s);
 					}
 				}
+				return opts;
+			}
+			case "tractor": {
+				// Only reached when every functional beam holds a unit (needsDamageChoice)
+				java.util.List<String> opts = new ArrayList<>();
+				for (com.sfb.systemgroups.TractorBeam b : tractors.getBeams())
+					if (b.isFunctional() && b.getHeldUnit() != null)
+						opts.add(b.describe());
 				return opts;
 			}
 			default: return java.util.Collections.emptyList();
@@ -1555,6 +1567,13 @@ public class Ship extends Unit implements DroneController {
 					default: ok = false;
 				}
 				return ok ? chosen + " HIT [chosen]" : null;
+			}
+			case "tractor": {
+				// Options are TractorBeam.describe() strings — recover the beam number
+				java.util.regex.Matcher m = java.util.regex.Pattern.compile("#(\\d+)").matcher(chosen);
+				if (!m.find()) return null;
+				String label = tractors.destroyBeam(Integer.parseInt(m.group(1)));
+				return label != null ? label + " [chosen]" : null;
 			}
 			default: return null;
 		}
@@ -1712,6 +1731,10 @@ public class Ship extends Unit implements DroneController {
 				return powerSystems.damageApr() ? "apr HIT" : null;
 			case "battery":
 				return powerSystems.damageBattery() ? "battery HIT" : null;
+			case "tractor":
+				// Auto-pick (idle beams exist, or a single holding beam — see
+				// requiresPlayerChoice for when the owner is prompted instead)
+				return tractors.damageAutoPick();
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;
 			case "sensor":

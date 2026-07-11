@@ -3,7 +3,6 @@ package com.sfb.dto;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.sfb.Game;
-import com.sfb.TurnTracker;
 import com.sfb.objects.*;
 import com.sfb.systemgroups.CloakingDevice;
 import com.sfb.systemgroups.ShuttleBay;
@@ -176,7 +175,7 @@ public class GameStateDto {
         public int destroyedSpaces;
         public int emptySpaces;
         public List<ShuttleInBayDto> shuttles; // occupied spaces only (for launch UI)
-        public List<ShuttleSpaceDto> spaces;   // all spaces (for DAC damage UI)
+        public List<ShuttleSpaceDto> spaces; // all spaces (for DAC damage UI)
     }
 
     public static class ShipDto extends MapObjectDto {
@@ -285,25 +284,25 @@ public class GameStateDto {
         public String ownerName; // name of the controlling player (may change on capture)
         public String teamName; // display name of the team/side this ship belongs to
         // Emergency deceleration state (C8.0)
-        public boolean decelerating;              // true during the 2-impulse deceleration period
-        public int     decelerationEndsAtImpulse; // absolute impulse when ship stops; -1 if not decelerating
+        public boolean decelerating; // true during the 2-impulse deceleration period
+        public int decelerationEndsAtImpulse; // absolute impulse when ship stops; -1 if not decelerating
         public boolean wildWeaselActive; // true while a WW decoy is on the map for this ship
         public int wwEcmBonus; // +6 while WW is active (J3.23), else 0
         // Tractor beam state (G7.0)
-        public boolean tractored;                  // true if held in another ship's tractor beam
-        public String  tractoredByName;            // name of the holding ship, or null
-        public int     tractorEnergy;              // total tractor energy allocated in EA this turn
-        public int     tractorEnergyRemaining;     // unspent tractor pool energy
-        public int     negativeTractorAccumulated; // cumulative negative-tractor spent this turn (G7.35)
+        public boolean tractored; // true if held in another ship's tractor beam
+        public String tractoredByName; // name of the holding ship, or null
+        public int tractorEnergy; // total tractor energy allocated in EA this turn
+        public int tractorEnergyRemaining; // unspent tractor pool energy
+        public int negativeTractorAccumulated; // cumulative negative-tractor spent this turn (G7.35)
         public java.util.List<String> tractoredTargetNames; // names of ships this ship is currently tractoring
         // Active Fire Control state (D6.6)
         public boolean fireControlActivating; // true during 4-impulse countdown to going active
-        public int     fcActivatingUntil;     // absolute impulse when activation completes; -1 if not activating
-        public boolean fcPaidThisTurn;        // true if FC energy was allocated this turn
+        public int fcActivatingUntil; // absolute impulse when activation completes; -1 if not activating
+        public boolean fcPaidThisTurn; // true if FC energy was allocated this turn
         // Tactical Maneuvers (C5.0)
-        public int     tacAvailable;          // earned warp TACs ready to use (0 or 1)
-        public int     tacBudget;             // warp TACs still to be earned this turn
-        public boolean sublightTacAvailable;  // true if sublight TAC paid and not yet used
+        public int tacAvailable; // earned warp TACs ready to use (0 or 1)
+        public int tacBudget; // warp TACs still to be earned this turn
+        public boolean sublightTacAvailable; // true if sublight TAC paid and not yet used
     }
 
     // -------------------------------------------------------------------------
@@ -419,52 +418,52 @@ public class GameStateDto {
     public List<String> movableNow;
     public List<String> myShips; // ships owned by the requesting player (null = all ships)
     public boolean awaitingAllocation;
-    public List<String> pendingAllocation;      // ship names not yet allocated this turn
-    public List<String> pendingAccelDisengage;  // ship names awaiting player YES/NO for C7.1 accel disengage
+    public List<String> pendingAllocation; // ship names not yet allocated this turn
+    public List<String> pendingAccelDisengage; // ship names awaiting player YES/NO for C7.1 accel disengage
     public List<MapObjectDto> mapObjects;
     public int readyCount; // players who have clicked Ready this phase
     public int playerCount; // total players in the session
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
-    public List<PendingVolleyDto>    pendingVolleys    = new ArrayList<>(); // incoming fire queued for reinforcement
-    public List<PendingDacChoiceDto>        pendingDacChoices        = new ArrayList<>();
-    public List<PendingControlOverflowDto>  pendingControlOverflows  = new ArrayList<>();
-    public PendingTractorAuctionDto         pendingTractorAuction    = null;
+    public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
+    public List<PendingDacChoiceDto> pendingDacChoices = new ArrayList<>();
+    public List<PendingControlOverflowDto> pendingControlOverflows = new ArrayList<>();
+    public PendingTractorAuctionDto pendingTractorAuction = null;
 
     public static class PendingTractorAuctionDto {
         public String attackerName;
         public String targetName;
-        public int    attackerBid;          // effective tractor points
-        public int    rangeMultiplier;      // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
-        public int    defenderAccumulated;  // existing negative-tractor on target (for defender's UI)
-        public int    defenderMaxBid;       // target's remaining pool + battery
+        public int attackerBid; // effective tractor points
+        public int rangeMultiplier; // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+        public int defenderAccumulated; // existing negative-tractor on target (for defender's UI)
+        public int defenderMaxBid; // target's remaining pool + battery
     }
 
     public static class PendingVolleyDto {
         public String attackerName;
         public String targetShipName;
-        public int    shieldNumber;
-        public int    totalDamage;
-        public int    envelopingHellboreDamage;
+        public int shieldNumber;
+        public int totalDamage;
+        public int envelopingHellboreDamage;
         public boolean addHit;
     }
 
     public static class PendingDacChoiceDto {
-        public String       targetShipName;
-        public String       dacType;  // "phaser" | "drone" | "torp" | "weapon" | "warp"
-        public int          roll;
-        public List<String> options;  // weapon names or warp engine ids
+        public String targetShipName;
+        public String dacType; // "phaser" | "drone" | "torp" | "weapon" | "warp"
+        public int roll;
+        public List<String> options; // weapon names or warp engine ids
     }
 
     public static class PendingControlOverflowDto {
         public String shipName;
-        public int    overLimitCount; // how many seekers must be released or transferred
+        public int overLimitCount; // how many seekers must be released or transferred
         public List<SeekerChoiceDto> seekers = new ArrayList<>();
 
         public static class SeekerChoiceDto {
-            public String       name;
-            public String       label;        // e.g. "Drone (Type I)", "Suicide Shuttle"
-            public String       targetName;
+            public String name;
+            public String label; // e.g. "Drone (Type I)", "Suicide Shuttle"
+            public String targetName;
             public List<String> transferOptions = new ArrayList<>(); // allied ships eligible to take control
         }
     }
@@ -585,8 +584,8 @@ public class GameStateDto {
             mapObjects.add(fromTerrain(t));
 
         // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
-        // shows the combined incoming total per shield facing.  EPT volleys
-        // (envelopingTorp != null) always stay separate.  Enveloping Hellbore
+        // shows the combined incoming total per shield facing. EPT volleys
+        // (envelopingTorp != null) always stay separate. Enveloping Hellbore
         // damage is summed for display but applied separately (E10.43).
         java.util.LinkedHashMap<String, PendingVolleyDto> volleyMap = new java.util.LinkedHashMap<>();
         for (Game.PendingVolley pv : game.getPendingVolleys()) {
@@ -594,12 +593,12 @@ public class GameStateDto {
             if (pv.envelopingTorp != null) {
                 // EPT: always a distinct entry
                 PendingVolleyDto d = new PendingVolleyDto();
-                d.attackerName             = pv.attackerName;
-                d.targetShipName           = targetName;
-                d.shieldNumber             = pv.shieldNumber;
-                d.totalDamage              = pv.totalDamage;
+                d.attackerName = pv.attackerName;
+                d.targetShipName = targetName;
+                d.shieldNumber = pv.shieldNumber;
+                d.totalDamage = pv.totalDamage;
                 d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
-                d.addHit                   = pv.addHit;
+                d.addHit = pv.addHit;
                 pendingVolleys.add(d);
                 continue;
             }
@@ -607,17 +606,17 @@ public class GameStateDto {
             PendingVolleyDto existing = volleyMap.get(key);
             if (existing == null) {
                 PendingVolleyDto d = new PendingVolleyDto();
-                d.attackerName             = pv.attackerName;
-                d.targetShipName           = targetName;
-                d.shieldNumber             = pv.shieldNumber;
-                d.totalDamage              = pv.totalDamage;
+                d.attackerName = pv.attackerName;
+                d.targetShipName = targetName;
+                d.shieldNumber = pv.shieldNumber;
+                d.totalDamage = pv.totalDamage;
                 d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
-                d.addHit                   = pv.addHit;
+                d.addHit = pv.addHit;
                 volleyMap.put(key, d);
             } else {
-                existing.totalDamage              += pv.totalDamage;
+                existing.totalDamage += pv.totalDamage;
                 existing.envelopingHellboreDamage += pv.envelopingHellboreDamage;
-                existing.addHit                    = existing.addHit || pv.addHit;
+                existing.addHit = existing.addHit || pv.addHit;
                 if (!existing.attackerName.contains(pv.attackerName))
                     existing.attackerName += ", " + pv.attackerName;
             }
@@ -627,16 +626,16 @@ public class GameStateDto {
         for (Game.PendingDacChoice dc : game.getPendingDacChoices()) {
             PendingDacChoiceDto d = new PendingDacChoiceDto();
             d.targetShipName = dc.targetShipName;
-            d.dacType        = dc.dacType;
-            d.roll           = dc.roll;
-            d.options        = new ArrayList<>(dc.options);
+            d.dacType = dc.dacType;
+            d.roll = dc.roll;
+            d.options = new ArrayList<>(dc.options);
             pendingDacChoices.add(d);
         }
 
         for (Game.PendingControlOverflow ov : game.getPendingControlOverflows()) {
             com.sfb.objects.Ship ovShip = ov.ship;
             PendingControlOverflowDto dto = new PendingControlOverflowDto();
-            dto.shipName      = ovShip.getName();
+            dto.shipName = ovShip.getName();
             dto.overLimitCount = ovShip.getControlUsed() - ovShip.getControlCapacity();
             for (com.sfb.objects.Seeker s : ovShip.getControlledSeekers()) {
                 PendingControlOverflowDto.SeekerChoiceDto sc = new PendingControlOverflowDto.SeekerChoiceDto();
@@ -648,10 +647,14 @@ public class GameStateDto {
                 // Allied ships that can accept control (lock-on + spare capacity)
                 if (target != null) {
                     for (com.sfb.objects.Ship ally : game.getShips()) {
-                        if (ally == ovShip) continue;
-                        if (!game.isSameTeam(ovShip, ally)) continue;
-                        if (!ally.hasLockOn(target)) continue;
-                        if (ally.getControlUsed() >= ally.getControlCapacity()) continue;
+                        if (ally == ovShip)
+                            continue;
+                        if (!game.isSameTeam(ovShip, ally))
+                            continue;
+                        if (!ally.hasLockOn(target))
+                            continue;
+                        if (ally.getControlUsed() >= ally.getControlCapacity())
+                            continue;
                         sc.transferOptions.add(ally.getName());
                     }
                 }
@@ -664,13 +667,13 @@ public class GameStateDto {
         if (pta != null) {
             PendingTractorAuctionDto d = new PendingTractorAuctionDto();
             Ship ptaTarget = (Ship) pta.target; // auction only created for Ship targets
-            d.attackerName        = pta.attacker.getName();
-            d.targetName          = pta.target.getName();
-            d.attackerBid         = pta.attackerBid;
-            d.rangeMultiplier     = pta.rangeMultiplier;
+            d.attackerName = pta.attacker.getName();
+            d.targetName = pta.target.getName();
+            d.attackerBid = pta.attackerBid;
+            d.rangeMultiplier = pta.rangeMultiplier;
             d.defenderAccumulated = ptaTarget.getTractors().getNegativeTractorAccumulated();
-            d.defenderMaxBid      = ptaTarget.getTractors().getRemainingTractorEnergy()
-                                  + ptaTarget.getPowerSystems().getBatteryPower();
+            d.defenderMaxBid = ptaTarget.getTractors().getRemainingTractorEnergy()
+                    + ptaTarget.getPowerSystems().getBatteryPower();
             this.pendingTractorAuction = d;
         }
     }
@@ -681,8 +684,10 @@ public class GameStateDto {
             String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
             return "Drone (Type " + type + ")";
         }
-        if (s instanceof com.sfb.objects.shuttles.ScatterPack)  return "Scatter Pack";
-        if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) return "Suicide Shuttle";
+        if (s instanceof com.sfb.objects.shuttles.ScatterPack)
+            return "Scatter Pack";
+        if (s instanceof com.sfb.objects.shuttles.SuicideShuttle)
+            return "Suicide Shuttle";
         return "Seeker";
     }
 
@@ -811,25 +816,26 @@ public class GameStateDto {
         dto.destructionDirections = game.getDestructionDirections(ship);
         dto.ownerName = ship.getOwner() != null ? ship.getOwner().getName() : null;
         dto.teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-        dto.decelerating              = ship.isDecelerating();
+        dto.decelerating = ship.isDecelerating();
         dto.decelerationEndsAtImpulse = ship.getDecelerationEndsAtImpulse();
         dto.wildWeaselActive = ship.hasActiveWildWeasel();
         dto.wwEcmBonus = ship.getWwEcmBonus();
         dto.tractored = ship.isTractored();
         dto.tractoredByName = ship.isTractored() && ship.getTractoringUnit() != null
-                ? ship.getTractoringUnit().getName() : null;
-        dto.tractorEnergy              = ship.getTractors().getTotalTractorEnergy();
-        dto.tractorEnergyRemaining     = ship.getTractors().getRemainingTractorEnergy();
+                ? ship.getTractoringUnit().getName()
+                : null;
+        dto.tractorEnergy = ship.getTractors().getTotalTractorEnergy();
+        dto.tractorEnergyRemaining = ship.getTractors().getRemainingTractorEnergy();
         dto.negativeTractorAccumulated = ship.getTractors().getNegativeTractorAccumulated();
         dto.tractoredTargetNames = ship.getTractors().getTractoredUnits().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());
         dto.fireControlActivating = ship.isFcActivating();
-        dto.fcActivatingUntil     = ship.getFcActivatingUntil();
-        dto.fcPaidThisTurn        = ship.isFcPaidThisTurn();
-        dto.tacAvailable          = ship.getTacAvailable();
-        dto.tacBudget             = ship.getTacBudget();
-        dto.sublightTacAvailable  = ship.isSublightTacAvailable();
+        dto.fcActivatingUntil = ship.getFcActivatingUntil();
+        dto.fcPaidThisTurn = ship.isFcPaidThisTurn();
+        dto.tacAvailable = ship.getTacAvailable();
+        dto.tacBudget = ship.getTacBudget();
+        dto.sublightTacAvailable = ship.isSublightTacAvailable();
 
         // Control space damage state
         com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
@@ -1128,7 +1134,7 @@ public class GameStateDto {
         dto.speed = ww.getSpeed();
         dto.parentShipName = ww.getParentShipName();
         dto.parentPlayer = ww.getOwner() != null ? ww.getOwner().getName() : null;
-        dto.exploding     = ww.isExploding();
+        dto.exploding = ww.isExploding();
         dto.postExplosion = ww.isPostExplosion();
         return dto;
     }

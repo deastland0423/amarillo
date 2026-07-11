@@ -5,32 +5,41 @@ import java.util.List;
 import java.util.Map;
 
 import com.sfb.objects.Unit;
-import com.sfb.systemgroups.Systems;
 
+/**
+ * The ship's tractor beam group. Each beam is an individual
+ * {@link TractorBeam} carrying its own state — functional, used-this-turn
+ * (G7.13), held unit — so damage and hit-and-run raids can name a specific
+ * beam (D7.835). Energy stays pooled at group level (G7.15), as does
+ * accumulated negative tractor (G7.35).
+ */
 public class Tractors implements Systems {
-
-	int tractors; // The number of tractor beams on the undamaged ship.
-	int availableTractors; // The number of undamaged tractor beams on the ship.
 
 	int totalTractorEnergy; // The total energy allocated to tractors for the turn.
 	int remainingTractorEnergy; // Unspent tractor energy
 
-	int negativeTractorAccumulated; // Total negative-tractor energy spent this turn (G7.35); persists across impulses.
+	int negativeTractorAccumulated; // Total negative-tractor energy spent this turn (G7.35); persists across
+																	// impulses.
 
-	int tractorsUsed; // The number of tractors that are currently in use.
-	int beamsUsedThisTurn; // G7.13: each beam may be used only once per turn — releasing
-	                       // a link does NOT free the beam for reuse until the next turn.
 	Unit owningUnit; // The unit on which the tractors are installed.
 
-	List<Unit> tractoredUnits = new ArrayList<>(); // Any units currently being tractored.
+	private final List<TractorBeam> beams = new ArrayList<>();
 
 	public Tractors(Unit owningUnit) {
 		this.owningUnit = owningUnit;
 	}
 
 	public void init(Map<String, Object> values) {
-		availableTractors = tractors = values.get("tractor") == null ? 0 : (Integer) values.get("tractor");
+		beams.clear();
+		int count = values.get("tractor") == null ? 0 : (Integer) values.get("tractor");
+		for (int i = 1; i <= count; i++)
+			beams.add(new TractorBeam(i));
 		totalTractorEnergy = remainingTractorEnergy = 0;
+	}
+
+	/** The individual beams, in SSD order. */
+	public List<TractorBeam> getBeams() {
+		return beams;
 	}
 
 	public int getTotalTractorEnergy() {
@@ -56,65 +65,92 @@ public class Tractors implements Systems {
 		return amount - fromPool;
 	}
 
-	// Establish the physical tractor link after auction resolution (no energy deduction).
+	// Establish the physical tractor link after auction resolution (no energy
+	// deduction). Uses the first beam that is functional, unused this turn
+	// (G7.13), and not already holding.
 	public boolean linkUnit(Unit target) {
-		if (tractorsUsed >= availableTractors) return false;
-		if (beamsUsedThisTurn >= availableTractors) return false; // G7.13
+		TractorBeam beam = firstFreeBeam();
+		if (beam == null)
+			return false;
 		target.applyTractor(owningUnit);
-		tractoredUnits.add(target);
-		tractorsUsed++;
-		beamsUsedThisTurn++;
+		beam.hold(target);
 		return true;
+	}
+
+	private TractorBeam firstFreeBeam() {
+		for (TractorBeam b : beams)
+			if (b.isAvailableForNewLink())
+				return b;
+		return null;
 	}
 
 	/** Beams that can still initiate a NEW link this turn (G7.13). */
 	public int getBeamsAvailableThisTurn() {
-		return availableTractors - Math.max(tractorsUsed, beamsUsedThisTurn);
+		int count = 0;
+		for (TractorBeam b : beams)
+			if (b.isAvailableForNewLink())
+				count++;
+		return count;
 	}
 
 	public void initForTurn(int energy) {
 		totalTractorEnergy = remainingTractorEnergy = energy;
 		// G7.13 usage resets each turn; beams still holding persistent links
 		// (G7.42) remain in use.
-		beamsUsedThisTurn = tractorsUsed;
+		for (TractorBeam b : beams)
+			b.resetForTurn();
 	}
 
+	/** Units currently held, in beam order (fresh list — mutate via releaseTractor). */
 	public List<Unit> getTractoredUnits() {
-		return tractoredUnits;
+		List<Unit> held = new ArrayList<>();
+		for (TractorBeam b : beams)
+			if (b.getHeldUnit() != null)
+				held.add(b.getHeldUnit());
+		return held;
 	}
 
 	public int getTractors() {
-		return tractors;
+		return beams.size();
 	}
 
 	public int getAvailableTractors() {
-		return availableTractors;
+		int count = 0;
+		for (TractorBeam b : beams)
+			if (b.isFunctional())
+				count++;
+		return count;
 	}
 
-	// Legacy direct-link (used only for non-contested establishes; prefer linkUnit after auction).
+	// Legacy direct-link (used only for non-contested establishes; prefer linkUnit
+	// after auction).
 	public void tractorUnit(int energy, Unit target) {
-		if (energy <= remainingTractorEnergy && tractorsUsed < availableTractors) {
+		TractorBeam beam = firstFreeBeam();
+		if (energy <= remainingTractorEnergy && beam != null) {
 			target.applyTractor(owningUnit);
-			tractoredUnits.add(target);
-			tractorsUsed++;
+			beam.hold(target);
 			remainingTractorEnergy -= energy;
 		}
 	}
 
 	public void releaseTractor(Unit target) {
-		target.releaseTractor();
-		tractoredUnits.remove(target);
-		tractorsUsed--;
+		for (TractorBeam b : beams) {
+			if (b.getHeldUnit() == target) {
+				target.releaseTractor();
+				b.dropLink(); // the beam stays used this turn (G7.13)
+				return;
+			}
+		}
 	}
 
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return tractors;
+		return beams.size();
 	}
 
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return availableTractors;
+		return getAvailableTractors();
 	}
 
 	@Override
@@ -124,7 +160,8 @@ public class Tractors implements Systems {
 		// (TractorResolver.maintainLinksAtTurnStart). Only per-turn energy resets here.
 		totalTractorEnergy = remainingTractorEnergy = 0;
 		negativeTractorAccumulated = 0;
-		beamsUsedThisTurn = tractorsUsed;
+		for (TractorBeam b : beams)
+			b.resetForTurn();
 	}
 
 	@Override
@@ -133,33 +170,86 @@ public class Tractors implements Systems {
 	}
 
 	/**
-	 * Destroy a tractor box.
-	 * 
-	 * @return True if there are tractors remaining, false otherwise.
+	 * True when destroying a tractor box is a genuine player decision: two or
+	 * more functional beams and every one of them is holding a unit, so the
+	 * owner must pick which link breaks. When any idle beam exists, destroying
+	 * it is strictly dominant and {@link #damageAutoPick()} resolves without a
+	 * choice.
 	 */
-	public boolean damage() {
-		// If there are not tractors left, we can't do damage.
-		if (availableTractors == 0) {
-			return false;
-			// Otherwise, destroy a tractor box.
-		} else {
-			// If all tractors are occupied, we must drop one tractor
-			if (tractorsUsed == availableTractors) {
-
-				// TODO: Figure out some way to decide which unit to un-tractor
-
-				// For now, just drop the first one in the list.
-				releaseTractor(tractoredUnits.get(0));
-			}
-
-			availableTractors--;
-			return true;
+	public boolean needsDamageChoice() {
+		int functional = 0;
+		for (TractorBeam b : beams) {
+			if (!b.isFunctional())
+				continue;
+			if (b.getHeldUnit() == null)
+				return false; // an idle beam exists — auto-pick is dominant
+			functional++;
 		}
+		return functional >= 2;
+	}
+
+	/**
+	 * Destroy one tractor box without a player choice, preferring beams whose
+	 * loss costs least: a used-idle beam first (already spent for the turn per
+	 * G7.13), then an unused-idle beam, then the sole holding beam (breaking
+	 * its link).
+	 *
+	 * @return log label, or null if no functional beams remain.
+	 */
+	public String damageAutoPick() {
+		TractorBeam pick = null;
+		for (TractorBeam b : beams) { // used-idle first
+			if (b.isFunctional() && b.getHeldUnit() == null && b.isUsedThisTurn()) {
+				pick = b;
+				break;
+			}
+		}
+		if (pick == null) { // then unused-idle
+			for (TractorBeam b : beams) {
+				if (b.isFunctional() && b.getHeldUnit() == null) {
+					pick = b;
+					break;
+				}
+			}
+		}
+		if (pick == null) { // last resort: a holding beam — its link breaks
+			for (TractorBeam b : beams) {
+				if (b.isFunctional()) {
+					pick = b;
+					break;
+				}
+			}
+		}
+		if (pick == null)
+			return null;
+		return destroyBeam(pick.getNumber());
+	}
+
+	/**
+	 * Destroy the numbered beam, breaking its link if it holds a unit.
+	 *
+	 * @return log label, or null if the beam does not exist or is already
+	 *         destroyed.
+	 */
+	public String destroyBeam(int number) {
+		for (TractorBeam b : beams) {
+			if (b.getNumber() != number || !b.isFunctional())
+				continue;
+			Unit held = b.getHeldUnit();
+			if (held != null) {
+				held.releaseTractor();
+				b.dropLink();
+			}
+			b.setFunctional(false);
+			return "tractor HIT (Tractor #" + number
+					+ (held != null ? " — link to " + held.getName() + " broken" : "") + ")";
+		}
+		return null;
 	}
 
 	/**
 	 * Repair a single tractor box.
-	 * 
+	 *
 	 * @return True if there is a damaged tractor box, false otherwise.
 	 */
 	public boolean repair() {
@@ -168,18 +258,24 @@ public class Tractors implements Systems {
 
 	/**
 	 * Repair a number of tractor boxes specified.
-	 * 
+	 *
 	 * @param value The number of boxes to repair.
-	 * 
+	 *
 	 * @return True if there are damage boxes, false otherwise.
 	 */
 	public boolean repair(int value) {
-		if (availableTractors + value > tractors) {
+		if (getAvailableTractors() + value > beams.size()) {
 			return false;
 		}
-
-		availableTractors += value;
+		int toRepair = value;
+		for (TractorBeam b : beams) {
+			if (toRepair == 0)
+				break;
+			if (!b.isFunctional()) {
+				b.setFunctional(true);
+				toRepair--;
+			}
+		}
 		return true;
-
 	}
 }

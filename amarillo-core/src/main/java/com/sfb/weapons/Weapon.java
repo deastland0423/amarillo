@@ -1,6 +1,5 @@
 package com.sfb.weapons;
 
-import com.sfb.TurnTracker;
 import com.sfb.objects.Unit;
 import com.sfb.utilities.ArcUtils;
 
@@ -32,7 +31,8 @@ public abstract class Weapon {
 	private int minImpulseGap = 8; // Minimum global impulses between shots (default 8).
 	private int shotsThisTurn = 0; // Shots fired so far this turn; reset by cleanUp().
 	private int lastRoll = 0; // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
-	private int ecmShift = 0; // Net ECM shift applied to this weapon's next fire() call; set by Game.fireWeapons()
+	private int ecmShift = 0; // Net ECM shift applied to this weapon's next fire() call; set by
+														// Game.fireWeapons()
 
 	private int maxRange; // The maximum distance that this weapon can do damage.
 	private int minRange; // The range below which this weapon can not fire.

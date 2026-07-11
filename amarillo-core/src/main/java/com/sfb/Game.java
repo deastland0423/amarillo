@@ -2,7 +2,6 @@ package com.sfb;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,7 +18,6 @@ import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.SpaceMine;
 import com.sfb.objects.Seeker;
-import com.sfb.objects.DroneController;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
 import com.sfb.objects.Unit;
@@ -28,12 +26,9 @@ import com.sfb.systemgroups.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
 import com.sfb.properties.SystemTarget;
-import com.sfb.utilities.ArcUtils;
-import com.sfb.utilities.DiceRoller;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.utilities.MapUtils;
-import com.sfb.utilities.MovementUtil;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
@@ -119,9 +114,11 @@ public class Game {
     private final Set<com.sfb.objects.shuttles.Shuttle> movedShuttlesThisImpulse = new HashSet<>();
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
-    private final SeekerMover     seekerMover     = new SeekerMover(this, seekers, activeShuttles, pendingVolleys, prevLocations);
-    private final ShuttleMover    shuttleMover    = new ShuttleMover(this, activeShuttles, prevLocations);
-    private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles, prevLocations);
+    private final SeekerMover seekerMover = new SeekerMover(this, seekers, activeShuttles, pendingVolleys,
+            prevLocations);
+    private final ShuttleMover shuttleMover = new ShuttleMover(this, activeShuttles, prevLocations);
+    private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles,
+            prevLocations);
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
@@ -135,7 +132,8 @@ public class Game {
             pendingVolleys, pendingInternalDamage, pendingDacChoices, firedPairsThisPhase, uimUsedThisImpulse);
     private final BoardingResolver boardingResolver = new BoardingResolver(this, seekers, capturedThisTurn);
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
-    private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles, prevLocations);
+    private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles,
+            prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
@@ -146,18 +144,21 @@ public class Game {
 
     public static class PendingTractorAuction {
         public final Ship attacker;
-        public final Unit target;           // always a Ship; non-Ship targets resolved immediately
-        public final int  attackerBid;      // effective tractor points bid
-        public final int  rangeMultiplier;  // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+        public final Unit target; // always a Ship; non-Ship targets resolved immediately
+        public final int attackerBid; // effective tractor points bid
+        public final int rangeMultiplier; // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+
         PendingTractorAuction(Ship attacker, Unit target, int bid, int rangeMultiplier) {
-            this.attacker        = attacker;
-            this.target          = target;
-            this.attackerBid     = bid;
+            this.attacker = attacker;
+            this.target = target;
+            this.attackerBid = bid;
             this.rangeMultiplier = rangeMultiplier;
         }
     }
 
-    public PendingTractorAuction getPendingTractorAuction() { return tractorResolver.pendingTractorAuction; }
+    public PendingTractorAuction getPendingTractorAuction() {
+        return tractorResolver.pendingTractorAuction;
+    }
 
     private ImpulsePhase currentPhase = ImpulsePhase.MOVEMENT;
     private List<String> lastInternalDamageLog = new ArrayList<>();
@@ -367,9 +368,6 @@ public class Game {
     private void computeTractorPseudoSpeeds() {
         tractorResolver.computeTractorPseudoSpeeds();
     }
-
-
-
 
     /** Drain and return the lock-on roll log accumulated since the last call. */
     public List<String> drainLastLockOnLog() {
@@ -787,7 +785,6 @@ public class Game {
         return players;
     }
 
-
     /** True if both units are owned by players on the same team. */
     public boolean isSameTeam(com.sfb.objects.Unit a, com.sfb.objects.Unit b) {
         if (!(a instanceof Ship) || !(b instanceof Ship))
@@ -805,7 +802,9 @@ public class Game {
         return seekers;
     }
 
-    int nextSeekerSeq() { return ++seekerSeq; }
+    int nextSeekerSeq() {
+        return ++seekerSeq;
+    }
 
     /** Queue a CONTROL_OVERFLOW interrupt for any ship over its control limit. */
     void checkControlOverflow() {
@@ -930,7 +929,6 @@ public class Game {
     }
 
     // --- Movement actions ---
-
 
     /**
      * Declare or cancel disengagement by acceleration (C7.1).
@@ -1172,7 +1170,6 @@ public class Game {
         return tractorResolver.rotateTractored(holder, targetName, destCol, destRow);
     }
 
-
     public int getShieldNumber(Marker attacker, Ship target) {
         return damageResolver.getShieldNumber(attacker, target);
     }
@@ -1191,11 +1188,13 @@ public class Game {
      * Mark shield damage from one firing volley (6D2 — Direct-Fire Weapons Fire
      * Stage).
      * Bleed-through is queued as pending internal damage; it will not be resolved
-     * until damageResolver.resolveInternalDamage() is called at the end of the Direct-Fire segment
+     * until damageResolver.resolveInternalDamage() is called at the end of the
+     * Direct-Fire segment
      * (6D4).
      *
      * @return A FireResult with the bleed-through amount and an empty internal log
-     *         (log is populated later when damageResolver.resolveInternalDamage() runs).
+     *         (log is populated later when damageResolver.resolveInternalDamage()
+     *         runs).
      */
     public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage) {
         return markShieldDamage(target, shieldNumber, totalDamage, null);
@@ -1204,7 +1203,6 @@ public class Game {
     public FireResult markShieldDamage(Ship target, int shieldNumber, int totalDamage, Ship attacker) {
         return damageResolver.markShieldDamage(target, shieldNumber, totalDamage, attacker);
     }
-
 
     /**
      * Apply weapon damage to any unit — routes to the correct damage path.
@@ -1243,7 +1241,6 @@ public class Game {
                 useUim, directFire);
     }
 
-
     /**
      * Returns the current list of pending fire volleys (for the game-state DTO).
      */
@@ -1277,7 +1274,6 @@ public class Game {
                 + available + " available)");
     }
 
-
     void cleanupDestroyedShips() {
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
@@ -1309,7 +1305,8 @@ public class Game {
 
         damageResolver.resolveInternalDamage();
 
-        // damageResolver.resolveInternalDamage() leaves currentPhase as DAC_CHOICE when it returns
+        // damageResolver.resolveInternalDamage() leaves currentPhase as DAC_CHOICE when
+        // it returns
         // without adding new choices (it only changes phase when it *adds* a choice or
         // sets CONTROL_OVERFLOW). So the right exit test is: still in DAC_CHOICE AND
         // no choices remain → transition back to the phase that triggered the damage.
@@ -1412,12 +1409,17 @@ public class Game {
         return launchCoordinator.launchSuicideShuttle(launcher, bay, shuttle, target, facing, speed);
     }
 
-    /** Declare the J1.621 special recovery procedure for a held friendly shuttle. */
+    /**
+     * Declare the J1.621 special recovery procedure for a held friendly shuttle.
+     */
     public ActionResult beginShuttleRecovery(Ship ship, String shuttleName) {
         return launchCoordinator.beginRecovery(ship, shuttleName);
     }
 
-    /** Package hook for ShuttleMover: pull a recovered shuttle aboard, or null if the bay is not ready. */
+    /**
+     * Package hook for ShuttleMover: pull a recovered shuttle aboard, or null if
+     * the bay is not ready.
+     */
     String completeRecovery(Ship ship, com.sfb.objects.shuttles.Shuttle shuttle) {
         return launchCoordinator.completeRecovery(ship, shuttle);
     }
@@ -1443,9 +1445,6 @@ public class Game {
         return shuttleMover.moveShuttles();
     }
 
-
-
-
     private List<String> moveSeekers() {
         return seekerMover.moveSeekers();
     }
@@ -1457,8 +1456,6 @@ public class Game {
     public List<String> getLastSeekerLog() {
         return lastSeekerLog;
     }
-
-
 
     // --- Mines ---
 
@@ -1489,9 +1486,6 @@ public class Game {
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
     }
-
-
-
 
     /** Place a T-bomb (real or dummy) via transporter (M2.31). */
     public ActionResult placeTBomb(Ship actingShip, com.sfb.properties.Location targetHex, boolean isReal) {
@@ -1544,15 +1538,12 @@ public class Game {
         return ActionResult.ok(ship.getName() + " begins decloaking — fading in");
     }
 
-
-
     // --- Hit & Run raids ---
 
     /** All H&R-targetable systems on the given ship (D7.8). */
     public List<SystemTarget> getTargetableSystems(Ship target) {
         return boardingResolver.getTargetableSystems(target);
     }
-
 
     /** Transport crew units between units at the non-combat rate (G8.32). */
     public ActionResult transportCrew(Ship source, Unit dest, int amount) {
@@ -1570,7 +1561,6 @@ public class Game {
             List<SystemTarget> targetSystems) {
         return boardingResolver.performHitAndRun(actingShip, target, targetSystems);
     }
-
 
     // -------------------------------------------------------------------------
     // Boarding party combat (D7.3 / D7.4)
@@ -1612,7 +1602,6 @@ public class Game {
         return boardingResolver.performBoardingCombat(defender);
     }
 
-
     /**
      * Ships captured during the most recent endTurn() call. Cleared at the start of
      * each endTurn().
@@ -1621,16 +1610,9 @@ public class Game {
         return Collections.unmodifiableList(capturedThisTurn);
     }
 
-
-
-
     // -------------------------------------------------------------------------
     // H&R table resolution helpers
     // -------------------------------------------------------------------------
-
-
-
-
 
     // --- Status ---
 
@@ -1715,7 +1697,8 @@ public class Game {
 
     /**
      * A DAC hit that requires the defending player to choose which system is
-     * destroyed. Queued by damageResolver.resolveInternalDamage(); cleared when the player
+     * destroyed. Queued by damageResolver.resolveInternalDamage(); cleared when the
+     * player
      * submits via submitDacChoice().
      */
     public static class PendingDacChoice {

@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.sfb.Game.ActionResult;
-import com.sfb.Game.FireResult;
 import com.sfb.Game.PendingDamage;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -52,18 +51,18 @@ class ShipMover {
             List<Ship> destroyedShips, Map<String, Set<String>> destructionEdgesByTeam,
             List<PendingDamage> pendingInternalDamage,
             TractorResolver tractorResolver, SeekerMover seekerMover) {
-        this.game                     = game;
-        this.ships                    = ships;
-        this.seekers                  = seekers;
-        this.activeShuttles           = activeShuttles;
-        this.movedThisImpulse         = movedThisImpulse;
-        this.prevLocations            = prevLocations;
+        this.game = game;
+        this.ships = ships;
+        this.seekers = seekers;
+        this.activeShuttles = activeShuttles;
+        this.movedThisImpulse = movedThisImpulse;
+        this.prevLocations = prevLocations;
         this.movedShuttlesThisImpulse = movedShuttlesThisImpulse;
-        this.destroyedShips           = destroyedShips;
-        this.destructionEdgesByTeam   = destructionEdgesByTeam;
-        this.pendingInternalDamage    = pendingInternalDamage;
-        this.tractorResolver          = tractorResolver;
-        this.seekerMover              = seekerMover;
+        this.destroyedShips = destroyedShips;
+        this.destructionEdgesByTeam = destructionEdgesByTeam;
+        this.pendingInternalDamage = pendingInternalDamage;
+        this.tractorResolver = tractorResolver;
+        this.seekerMover = seekerMover;
     }
 
     /**
@@ -126,7 +125,8 @@ class ShipMover {
      * Activity phase (Impulse Activity Segment per C8.10).
      */
     public ActionResult emergencyDeceleration(Ship ship) {
-        if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+        if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE
+                && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Emergency deceleration must be announced during the Activity phase (C8.10)");
         if (ship.isDecelerating())
             return ActionResult.fail(ship.getName() + " has already announced emergency deceleration");
@@ -146,7 +146,8 @@ class ShipMover {
         // Planet blocking — check destination before moving (P2.0)
         Location nextHex = MapUtils.getAdjacentHex(ship.getLocation(), moveDir, game.getMapCols(), game.getMapRows());
 
-        // G7.36: pre-validate linked ships — refuse if any would be dragged into a planet
+        // G7.36: pre-validate linked ships — refuse if any would be dragged into a
+        // planet
         List<Ship> linked = tractorResolver.getTractorLinkedShips(ship);
         for (Ship s : linked) {
             Location sNext = MapUtils.getAdjacentHex(s.getLocation(), moveDir, game.getMapCols(), game.getMapRows());
@@ -214,7 +215,8 @@ class ShipMover {
             // do NOT add them to movedThisImpulse so they can move on their own impulse
             for (Ship s : linked) {
                 Location sPrev = s.getLocation();
-                Location sNext = MapUtils.getAdjacentHex(s.getLocation(), moveDir, game.getMapCols(), game.getMapRows());
+                Location sNext = MapUtils.getAdjacentHex(s.getLocation(), moveDir, game.getMapCols(),
+                        game.getMapRows());
                 if (sNext == null) {
                     s.setDisengaged(true);
                     s.setLocation(null);
@@ -261,9 +263,9 @@ class ShipMover {
                     seekers.removeIf(sk -> sk == held);
                     activeShuttles.removeIf(sh -> sh == held);
                     log.append("\n").append(held.getName())
-                       .append(" death-dragged at speed ").append(ship.getSpeed())
-                       .append(" (max safe tow ").append(2 * rated)
-                       .append(") — destroyed (G7.54)");
+                            .append(" death-dragged at speed ").append(ship.getSpeed())
+                            .append(" (max safe tow ").append(2 * rated)
+                            .append(") — destroyed (G7.54)");
                     continue;
                 }
             }
@@ -278,7 +280,7 @@ class ShipMover {
                 seekers.removeIf(sk -> sk == held);
                 activeShuttles.removeIf(sh -> sh == held);
                 log.append("\n").append(held.getName())
-                   .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
+                        .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
             } else {
                 held.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());
                 prevLocations.putIfAbsent(held, heldPrev);
