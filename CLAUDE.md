@@ -36,7 +36,7 @@ cd amarillo-web && npm run build   # tsc -b && vite build
 Three tiers, strictly layered:
 
 - **amarillo-core** — the rules engine, plain Java, no Spring. All game logic lives here.
-- **amarillo-server** — Spring Boot wrapper: REST + STOMP WebSocket. `GameSession` maps `ActionRequest.type` strings to Game method calls and broadcasts a `GameStateDto` snapshot after every action. No rules logic here beyond request validation.
+- **amarillo-server** — Spring Boot wrapper: REST + STOMP WebSocket. `GameSession` maps `ActionRequest.type` strings to Game method calls and broadcasts a `GameStateDto` snapshot after every action. No rules logic here beyond request validation — but those validations encode rule limits and silently drift when a rule changes in core (a pre-G7.6 tractor-energy cap survived two revisions this way). When changing a rule, grep the system's name across **all three tiers**, and update `GameSessionAllocateTest` when touching an ALLOCATE validation.
 - **amarillo-web** — React/TypeScript frontend. A pure view: it renders the DTO and sends actions. It never computes rules outcomes (only mirrors them for previews, e.g. `weaponDamageTables.ts`, which must be updated whenever a new Java weapon class is added).
 
 ### Game.java is the aggregate root
