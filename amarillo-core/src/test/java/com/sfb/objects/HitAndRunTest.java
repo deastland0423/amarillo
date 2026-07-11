@@ -163,51 +163,75 @@ public class HitAndRunTest {
     }
 
     // -------------------------------------------------------------------------
-    // Guard API (D7.83)
+    // Guard API (D7.83) — guards are real boarding parties from the roster
     // -------------------------------------------------------------------------
+
+    private SystemTarget sensors() {
+        return new SystemTarget(SystemTarget.Type.SENSORS, "Sensors");
+    }
 
     @Test
     public void ship_noGuardsByDefault() {
-        assertFalse(klingon.isGuarded(SystemTarget.Type.SENSORS));
-        assertNull(klingon.getGuardQuality(SystemTarget.Type.SENSORS));
+        assertFalse(klingon.getGuardPosts().isGuarded(SystemTarget.Type.SENSORS));
+        assertEquals(0, klingon.getGuardPosts().totalPosted());
     }
 
     @Test
-    public void ship_assignGuard_isGuardedReturnsTrue() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.NORMAL);
-        assertTrue(klingon.isGuarded(SystemTarget.Type.SENSORS));
-        assertEquals(BoardingPartyQuality.NORMAL, klingon.getGuardQuality(SystemTarget.Type.SENSORS));
+    public void ship_assignGuard_postsAndCostsABoardingParty() {
+        int before = klingon.getCrew().getAvailableBoardingParties();
+        assertNull(klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL));
+        assertTrue(klingon.getGuardPosts().isGuarded(SystemTarget.Type.SENSORS));
+        assertEquals("Posted guard leaves the roster (D7.834)",
+                before - 1, klingon.getCrew().getAvailableBoardingParties());
     }
 
     @Test
-    public void ship_assignGuard_replacesExisting() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.NORMAL);
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.COMMANDO);
-        assertEquals(BoardingPartyQuality.COMMANDO, klingon.getGuardQuality(SystemTarget.Type.SENSORS));
+    public void ship_assignGuard_secondOnSameSystemRefused() {
+        assertNull(klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL));
+        String err = klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL);
+        assertNotNull("One guard per system (D7.833)", err);
+        assertTrue(err.contains("D7.833"));
     }
 
     @Test
-    public void ship_removeGuard_clearsAssignment() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.NORMAL);
-        klingon.removeGuard(SystemTarget.Type.SENSORS);
-        assertFalse(klingon.isGuarded(SystemTarget.Type.SENSORS));
+    public void ship_assignGuard_onlyRealBpTiersAllowed() {
+        assertNotNull("OUTSTANDING is a table column, not a roster tier",
+                klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.OUTSTANDING));
     }
 
     @Test
-    public void ship_clearGuards_removesAll() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS,   BoardingPartyQuality.NORMAL);
-        klingon.assignGuard(SystemTarget.Type.SCANNERS,  BoardingPartyQuality.COMMANDO);
-        klingon.assignGuard(SystemTarget.Type.WARP,      BoardingPartyQuality.POOR);
-        klingon.clearGuards();
-        assertFalse(klingon.isGuarded(SystemTarget.Type.SENSORS));
-        assertFalse(klingon.isGuarded(SystemTarget.Type.SCANNERS));
-        assertFalse(klingon.isGuarded(SystemTarget.Type.WARP));
+    public void ship_removeGuard_returnsBpToRoster() {
+        int before = klingon.getCrew().getAvailableBoardingParties();
+        klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL);
+        assertNull(klingon.getGuardPosts().release(sensors()));
+        assertFalse(klingon.getGuardPosts().isGuarded(SystemTarget.Type.SENSORS));
+        assertEquals(before, klingon.getCrew().getAvailableBoardingParties());
+    }
+
+    @Test
+    public void ship_guardsPersistAcrossTurnCleanup() {
+        klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL);
+        klingon.cleanUp();
+        assertTrue("Guards persist until re-tasked (D7.83)",
+                klingon.getGuardPosts().isGuarded(SystemTarget.Type.SENSORS));
     }
 
     @Test
     public void ship_guardOnOneTypeDoesNotAffectOther() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.NORMAL);
-        assertFalse(klingon.isGuarded(SystemTarget.Type.SCANNERS));
+        klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL);
+        assertFalse(klingon.getGuardPosts().isGuarded(SystemTarget.Type.SCANNERS));
+    }
+
+    @Test
+    public void ship_poolGuards_cappedAtBoxCount() {
+        // D7 transporters: post one guard per box, then one more must fail
+        SystemTarget pool = new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters");
+        int boxes = klingon.getTransporters().getAvailableTrans();
+        for (int i = 0; i < boxes; i++)
+            assertNull("guard " + (i + 1), klingon.getGuardPosts().assign(pool, BoardingPartyQuality.NORMAL));
+        assertNotNull("One guard per box (D7.833)",
+                klingon.getGuardPosts().assign(pool, BoardingPartyQuality.NORMAL));
+        assertEquals(boxes, klingon.getGuardPosts().poolGuardCount(SystemTarget.Type.TRANSPORTERS));
     }
 
     // -------------------------------------------------------------------------
@@ -246,7 +270,7 @@ public class HitAndRunTest {
 
     @Test
     public void raid_guarded_doesNotThrow() {
-        klingon.assignGuard(SystemTarget.Type.SENSORS, BoardingPartyQuality.NORMAL);
+        klingon.getGuardPosts().assign(sensors(), BoardingPartyQuality.NORMAL);
         List<SystemTarget> targets = oneTarget(SystemTarget.Type.SENSORS);
         ActionResult result = game.performHitAndRun(fed, klingon, targets);
         // Result may be success or failure depending on dice, but it must not throw

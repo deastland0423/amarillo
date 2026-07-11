@@ -1545,6 +1545,49 @@ public class Game {
         return boardingResolver.getTargetableSystems(target);
     }
 
+    /**
+     * Wire-format code → SystemTarget on the ship: "WEAPON:<name>",
+     * "TRACTOR:<beam>", or a type name. Shared by raids and guard posting.
+     */
+    public SystemTarget parseRaidTargetCode(Ship ship, String code) {
+        return boardingResolver.parseTargetCode(ship, code);
+    }
+
+    // --- Guards (D7.83) ---
+
+    /**
+     * Post a boarding party as a guard on the coded target (D7.83). Guards
+     * are assigned at the start of the turn, so only during Energy Allocation
+     * (D7.834); the BP leaves the roster while posted.
+     */
+    public ActionResult assignGuard(Ship ship, String targetCode, boolean commando) {
+        if (!isAwaitingAllocation())
+            return ActionResult.fail("Guards are posted during Energy Allocation (D7.83)");
+        SystemTarget target = boardingResolver.parseTargetCode(ship, targetCode);
+        if (target == null)
+            return ActionResult.fail("Unknown guard target: " + targetCode);
+        String err = ship.getGuardPosts().assign(target,
+                commando ? com.sfb.properties.BoardingPartyQuality.COMMANDO
+                         : com.sfb.properties.BoardingPartyQuality.NORMAL);
+        if (err != null)
+            return ActionResult.fail(err);
+        return ActionResult.ok(ship.getName() + " posts a " + (commando ? "commando " : "")
+                + "guard on " + target.getDisplayName() + " (D7.83)");
+    }
+
+    /** Withdraw a guard, returning the BP to the roster. EA phase only (D7.83). */
+    public ActionResult removeGuard(Ship ship, String targetCode) {
+        if (!isAwaitingAllocation())
+            return ActionResult.fail("Guard re-tasking happens during Energy Allocation (D7.83)");
+        SystemTarget target = boardingResolver.parseTargetCode(ship, targetCode);
+        if (target == null)
+            return ActionResult.fail("Unknown guard target: " + targetCode);
+        String err = ship.getGuardPosts().release(target);
+        if (err != null)
+            return ActionResult.fail(err);
+        return ActionResult.ok(ship.getName() + " withdraws the guard on " + target.getDisplayName());
+    }
+
     /** Transport crew units between units at the non-combat rate (G8.32). */
     public ActionResult transportCrew(Ship source, Unit dest, int amount) {
         return boardingResolver.transportCrew(source, dest, amount);

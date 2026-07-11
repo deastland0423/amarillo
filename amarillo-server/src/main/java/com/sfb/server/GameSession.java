@@ -15,8 +15,6 @@ import com.sfb.commands.UncloakCommand;
 import com.sfb.objects.Drone;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.systemgroups.ShuttleBay;
-import com.sfb.constants.Constants;
-import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.properties.WeaponArmingType;
@@ -668,7 +666,8 @@ public class GameSession {
                 int warpTacs = Math.max(0, Math.min(4, request.getWarpTacticalTurns()));
                 if (warpTacs > 0) {
                     if (warpSpeed > 0)
-                        return ActionResult.fail("Cannot allocate warp Tactical Maneuvers when moving (speed must be 0)");
+                        return ActionResult
+                                .fail("Cannot allocate warp Tactical Maneuvers when moving (speed must be 0)");
                     double tacEnergy = warpTacs * moveCost;
                     if (movementEnergyNeeded + hetEnergy + tacEnergy > warpEngineCapacity + 0.001)
                         return ActionResult.fail("Insufficient warp power for " + warpTacs
@@ -1007,7 +1006,8 @@ public class GameSession {
                 if (chosen == null || chosen.isBlank())
                     return ActionResult.fail("No system chosen");
                 ActionResult r = game.submitDacChoice(chosen);
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1017,7 +1017,8 @@ public class GameSession {
                 if (seekerName == null || seekerName.isBlank())
                     return ActionResult.fail("No seeker specified");
                 ActionResult r = game.submitControlOverflowChoice(seekerName, toShipName);
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1029,7 +1030,8 @@ public class GameSession {
                 if (toShipName == null || toShipName.isBlank())
                     return ActionResult.fail("No target ship specified");
                 ActionResult r = game.transferSeekerControl(droneName, toShipName);
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1038,7 +1040,8 @@ public class GameSession {
                 if (holder == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 ActionResult r = game.establishTractor(holder, request.getTargetName(), request.getTractorBid());
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1047,7 +1050,8 @@ public class GameSession {
                 if (defender == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 ActionResult r = game.submitNegativeTractorBid(defender, request.getTractorBid());
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1056,7 +1060,8 @@ public class GameSession {
                 if (holder == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 ActionResult r = game.releaseTractor(holder, request.getTargetName());
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1068,7 +1073,8 @@ public class GameSession {
                     return ActionResult.fail("No destination hex specified");
                 ActionResult r = game.rotateTractored(holder, request.getTargetName(),
                         request.getHexCol(), request.getHexRow());
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1090,7 +1096,8 @@ public class GameSession {
                 if (recName == null || recName.isBlank())
                     return ActionResult.fail("No shuttle specified");
                 ActionResult r = game.beginShuttleRecovery(ship, recName);
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1102,7 +1109,8 @@ public class GameSession {
                 if (landName == null || landName.isBlank())
                     return ActionResult.fail("No shuttle specified");
                 ActionResult r = game.landShuttle(ship, landName);
-                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
                 return r;
             }
 
@@ -1269,7 +1277,8 @@ public class GameSession {
                 if (launcher == null)
                     return ActionResult.fail("Plasma launcher not found: " + wName);
                 return game.execute(
-                        new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.isFastLoad(), request.getFacing()));
+                        new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.isFastLoad(),
+                                request.getFacing()));
             }
 
             case "PLACE_TBOMB": {
@@ -1278,8 +1287,8 @@ public class GameSession {
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 if (request.getHexCol() < 1 || request.getHexRow() < 1)
                     return ActionResult.fail("No destination hex specified");
-                com.sfb.properties.Location loc =
-                        new com.sfb.properties.Location(request.getHexCol(), request.getHexRow());
+                com.sfb.properties.Location loc = new com.sfb.properties.Location(request.getHexCol(),
+                        request.getHexRow());
                 boolean isReal = !request.isPseudo();
                 return game.placeTBomb(ship, loc, isReal, request.getShieldNumber());
             }
@@ -1306,26 +1315,13 @@ public class GameSession {
                 if (systemCodes == null || systemCodes.isEmpty())
                     return ActionResult.fail("No target systems specified");
 
-                // Resolve each "TYPE" or "WEAPON:name" code into a SystemTarget
+                // Resolve each "WEAPON:name", "TRACTOR:n", or type-name code
                 List<com.sfb.properties.SystemTarget> targetSystems = new ArrayList<>();
                 for (String code : systemCodes) {
-                    if (code.startsWith("WEAPON:")) {
-                        String weaponName = code.substring(7);
-                        com.sfb.weapons.Weapon w = targetShip.getWeapons().fetchAllWeapons().stream()
-                                .filter(x -> x.getName().equalsIgnoreCase(weaponName))
-                                .findFirst().orElse(null);
-                        if (w == null)
-                            return ActionResult.fail("Weapon not found on target: " + weaponName);
-                        targetSystems.add(new com.sfb.properties.SystemTarget(w));
-                    } else {
-                        try {
-                            com.sfb.properties.SystemTarget.Type type = com.sfb.properties.SystemTarget.Type
-                                    .valueOf(code.toUpperCase());
-                            targetSystems.add(new com.sfb.properties.SystemTarget(type, code));
-                        } catch (IllegalArgumentException e) {
-                            return ActionResult.fail("Unknown system type: " + code);
-                        }
-                    }
+                    com.sfb.properties.SystemTarget st = game.parseRaidTargetCode(targetShip, code);
+                    if (st == null)
+                        return ActionResult.fail("Unknown target system: " + code);
+                    targetSystems.add(st);
                 }
                 ActionResult harResult = game
                         .execute(new com.sfb.commands.HitAndRunCommand(actingShip, targetShip, targetSystems));
@@ -1469,7 +1465,8 @@ public class GameSession {
 
     /**
      * Returns the ships effectively controlled by a player.
-     * In unassigned (solo) mode, every player controls all ships — mirrors ownsShip().
+     * In unassigned (solo) mode, every player controls all ships — mirrors
+     * ownsShip().
      */
     public List<String> getEffectiveShipNamesForPlayer(String token) {
         boolean anyAssigned = game.getShips().stream()
@@ -1481,7 +1478,10 @@ public class GameSession {
         return info != null ? info.getShipNames() : List.of();
     }
 
-    /** The session lock — see the field javadoc. Held by the controller around every endpoint that touches this session. */
+    /**
+     * The session lock — see the field javadoc. Held by the controller around every
+     * endpoint that touches this session.
+     */
     public ReentrantLock getLock() {
         return lock;
     }

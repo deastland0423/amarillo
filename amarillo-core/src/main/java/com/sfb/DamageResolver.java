@@ -680,6 +680,12 @@ class DamageResolver {
                 return;
             }
         }
+        // D7.832/D7.8375: combat damage may have destroyed guarded posts —
+        // roll guard casualties once resolution completes
+        for (Ship ship : game.getShips()) {
+            for (String line : ship.getGuardPosts().reconcileAfterDamage())
+                game.internalDamageLog().add("  [" + ship.getName() + "] " + line);
+        }
         game.cleanupDestroyedShips();
         game.checkControlOverflow();
     }

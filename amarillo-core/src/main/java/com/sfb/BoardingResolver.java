@@ -48,13 +48,29 @@ class BoardingResolver {
             }
         }
 
-        // Power
+        // Tractor beams — per beam, so the raid can name the one holding a prize (D7.835)
+        for (com.sfb.systemgroups.TractorBeam beam : target.getTractors().getBeams()) {
+            if (beam.isFunctional()) {
+                systems.add(new SystemTarget(SystemTarget.Type.TRACTOR, beam.getNumber(), beam.describe()));
+            }
+        }
+
+        // Power — warp targeted per engine (D7.835/D7.8372)
         PowerSystems ps = target.getPowerSystems();
-        if (ps.getAvailableLWarp() > 0 || ps.getAvailableRWarp() > 0 || ps.getAvailableCWarp() > 0) {
-            systems.add(new SystemTarget(SystemTarget.Type.WARP, "Warp Engines"));
+        if (ps.getAvailableLWarp() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.WARP_L, "Left Warp Engine"));
+        }
+        if (ps.getAvailableRWarp() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.WARP_R, "Right Warp Engine"));
+        }
+        if (ps.getAvailableCWarp() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.WARP_C, "Center Warp Engine"));
         }
         if (ps.getAvailableImpulse() > 0) {
             systems.add(new SystemTarget(SystemTarget.Type.IMPULSE, "Impulse Engines"));
+        }
+        if (ps.getAvailableBattery() > 0) {
+            systems.add(new SystemTarget(SystemTarget.Type.BATTERY, "Batteries"));
         }
 
         // Special functions
@@ -71,10 +87,8 @@ class BoardingResolver {
             systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters"));
         }
 
-        // Crew
-        if (target.getCrew().getAvailableCrewUnits() > 0) {
-            systems.add(new SystemTarget(SystemTarget.Type.CREW, "Crew"));
-        }
+        // Crew deliberately absent: D7.826 forbids raids on crew units,
+        // deck crews, and boarding parties.
 
         // Cloaking device
         com.sfb.systemgroups.CloakingDevice cloak = target.getCloakingDevice();
@@ -108,6 +122,41 @@ class BoardingResolver {
         }
 
         return systems;
+    }
+
+    /**
+     * Resolve a wire-format target code into a {@link SystemTarget} on the
+     * given ship: {@code "WEAPON:<name>"}, {@code "TRACTOR:<beamNumber>"}, or
+     * a {@link SystemTarget.Type} name. Shared by hit-and-run raids and guard
+     * posting so both speak the same language. Returns null when unresolvable.
+     */
+    SystemTarget parseTargetCode(Ship ship, String code) {
+        if (code == null || code.isBlank())
+            return null;
+        String upper = code.toUpperCase();
+        if (upper.startsWith("WEAPON:")) {
+            String weaponName = code.substring(7);
+            Weapon w = ship.getWeapons().fetchAllWeapons().stream()
+                    .filter(x -> x.getName().equalsIgnoreCase(weaponName))
+                    .findFirst().orElse(null);
+            return w == null ? null : new SystemTarget(w);
+        }
+        if (upper.startsWith("TRACTOR:")) {
+            try {
+                int n = Integer.parseInt(code.substring(8).trim());
+                return new SystemTarget(SystemTarget.Type.TRACTOR, n, "Tractor #" + n);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        try {
+            SystemTarget.Type type = SystemTarget.Type.valueOf(upper);
+            if (type == SystemTarget.Type.WEAPON || type == SystemTarget.Type.TRACTOR)
+                return null; // those require the prefixed forms above
+            return new SystemTarget(type, code);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -382,12 +431,14 @@ class BoardingResolver {
             com.sfb.properties.BoardingPartyQuality quality = st.getAttackerQuality();
             int roll = Math.min(6, Math.max(1, dice.rollOneDie() + crewMod));
 
-            // Guard check (D7.831) — if a guard is assigned, resolve guard table first
-            if (target.isGuarded(st.getType())) {
-                com.sfb.properties.BoardingPartyQuality guardQuality = target.getGuardQuality(st.getType());
-                HarGuardResult guardResult = resolveGuardTable(roll, guardQuality);
-                log.append("  Guard present (").append(guardQuality).append(")  roll ").append(roll)
-                        .append(" → ").append(guardResult).append("\n");
+            // Guard check (D7.831) — the table is indexed by the ATTACKING
+            // party's quality; the guard's own quality does not matter.
+            com.sfb.objects.GuardPosts.Interception guard =
+                    target.getGuardPosts().intercept(st);
+            if (guard != null) {
+                HarGuardResult guardResult = resolveGuardTable(roll, quality);
+                log.append("  Guard present (").append(guard.getDetail()).append(")  roll ").append(roll)
+                        .append(" [").append(quality).append("] → ").append(guardResult).append("\n");
                 if (guardResult == HarGuardResult.BP_DESTROYED) {
                     partiesLost++;
                     log.append("    Boarding party destroyed by guard\n");
@@ -411,6 +462,10 @@ class BoardingResolver {
                 boolean damaged = applyHitAndRunHit(target, st);
                 hitResult = damaged ? st.getDisplayName() + " DAMAGED"
                         : st.getDisplayName() + " already destroyed";
+                // D7.832: the guard's box was just destroyed by the raid
+                if (damaged && guard != null) {
+                    hitResult += "; " + target.getGuardPosts().onGuardedBoxDestroyedByRaid(guard);
+                }
             } else {
                 hitResult = st.getDisplayName() + " not damaged";
             }
@@ -446,14 +501,14 @@ class BoardingResolver {
                 w.damage();
                 return true;
             }
-            case WARP: {
-                PowerSystems ps = target.getPowerSystems();
-                if (ps.damageLWarp())
-                    return true;
-                if (ps.damageRWarp())
-                    return true;
-                return ps.damageCWarp();
-            }
+            case TRACTOR:
+                return target.getTractors().destroyBeam(system.getIndex()) != null;
+            case WARP_L:
+                return target.getPowerSystems().damageLWarp();
+            case WARP_R:
+                return target.getPowerSystems().damageRWarp();
+            case WARP_C:
+                return target.getPowerSystems().damageCWarp();
             case IMPULSE:
                 return target.getPowerSystems().damageImpulse();
             case SENSORS:
@@ -463,13 +518,8 @@ class BoardingResolver {
                 return target.getSpecialFunctions().damageScanner();
             case TRANSPORTERS:
                 return target.getTransporters().damage();
-            case CREW: {
-                int current = target.getCrew().getAvailableCrewUnits();
-                if (current <= 0)
-                    return false;
-                target.getCrew().setAvailableCrewUnits(current - 1);
-                return true;
-            }
+            case BATTERY:
+                return target.getPowerSystems().damageBattery();
             case FHULL:
                 return target.getHullBoxes().damageFhull();
             case AHULL:
@@ -584,6 +634,12 @@ class BoardingResolver {
         if (shipCaptured) {
             defender.setCaptured(true);
             capturedThisTurn.add(defender);
+            // D7.834: on capture, all guards convert to boarding-party status
+            // (free to attempt to retake the ship)
+            int freedGuards = defender.getGuardPosts().releaseAll();
+            if (freedGuards > 0)
+                log.append("  ").append(freedGuards)
+                        .append(" guard(s) leave their posts and revert to boarding parties (D7.834)\n");
             applyD753CaptureEffects(defender, log);
         } else if (attackers.isEmpty()) {
             // All attackers killed — no longer boarding, clear attacker record
@@ -779,10 +835,12 @@ class BoardingResolver {
     }
 
     /**
-     * Resolve the D7.831 guard table for the given die roll and guard quality.
+     * Resolve the D7.831 guard table for the given die roll and the ATTACKING
+     * boarding party's quality (the columns are attacker quality — the guard's
+     * own quality plays no part; user-confirmed ruling 2026-07-11).
      */
-    static HarGuardResult resolveGuardTable(int roll, com.sfb.properties.BoardingPartyQuality guardQuality) {
-        switch (guardQuality) {
+    static HarGuardResult resolveGuardTable(int roll, com.sfb.properties.BoardingPartyQuality attackerQuality) {
+        switch (attackerQuality) {
             case OUTSTANDING:
                 if (roll <= 2)
                     return HarGuardResult.BP_DESTROYED;

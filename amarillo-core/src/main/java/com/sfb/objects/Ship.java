@@ -149,10 +149,10 @@ public class Ship extends Unit implements DroneController {
 	private boolean droneDacBestTaken  = false;
 
 	/**
-	 * Guards assigned to defend specific system types this turn (D7.83). Key =
-	 * system type, Value = quality of the guarding party.
+	 * Guard posts (D7.83): boarding parties standing guard on specific systems.
+	 * Guards persist across turns and are re-tasked during Energy Allocation.
 	 */
-	private final Map<SystemTarget.Type, BoardingPartyQuality> guards = new EnumMap<>(SystemTarget.Type.class);
+	private final GuardPosts guardPosts = new GuardPosts(this);
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -392,7 +392,8 @@ public class Ship extends Unit implements DroneController {
 		probes.cleanUp();
 		shuttles.cleanUp();
 		weapons.cleanUp();
-		clearGuards(); // D7.834: guards must be re-assigned each turn during EA
+		// Guards PERSIST across turns (D7.83: assignments stand until changed;
+		// re-tasking happens during Energy Allocation) — nothing to clear here.
 		crew.cleanUp();
 		performanceData.cleanUp();
 		ecmAllocated = 0;
@@ -690,38 +691,11 @@ public class Ship extends Unit implements DroneController {
 	// --- Guards (D7.83) ---
 
 	/**
-	 * Assign a boarding party as a guard for the given system type (D7.83).
-	 * No more than one guard per system type; calling again replaces the previous
-	 * assignment.
+	 * The ship's guard posts. Posting/releasing runs through this object so
+	 * the boarding-party roster stays consistent (D7.834).
 	 */
-	public void assignGuard(SystemTarget.Type systemType, BoardingPartyQuality guardQuality) {
-		guards.put(systemType, guardQuality);
-	}
-
-	/** Remove a guard assignment from the given system type. */
-	public void removeGuard(SystemTarget.Type systemType) {
-		guards.remove(systemType);
-	}
-
-	/** Returns true if the given system type has a guard assigned. */
-	public boolean isGuarded(SystemTarget.Type systemType) {
-		return guards.containsKey(systemType);
-	}
-
-	/**
-	 * Returns the quality of the guard assigned to the given system, or null if
-	 * unguarded.
-	 */
-	public BoardingPartyQuality getGuardQuality(SystemTarget.Type systemType) {
-		return guards.get(systemType);
-	}
-
-	/**
-	 * Clear all guard assignments (called at start of turn after re-posting per
-	 * D7.834).
-	 */
-	public void clearGuards() {
-		guards.clear();
+	public GuardPosts getGuardPosts() {
+		return guardPosts;
 	}
 
 	// --- Enemy troops (D7.31) ---
