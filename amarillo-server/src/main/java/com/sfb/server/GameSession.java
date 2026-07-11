@@ -893,15 +893,14 @@ public class GameSession {
                 ship.setEcmAllocated(ecmReq);
                 ship.setEccmAllocated(eccmReq);
 
-                // Tractor energy pool (G7.15)
+                // Tractor energy pool (G7.15) — any amount may be pooled; a single
+                // range-3 grab costs 3 energy per effective point (G7.6) and auction
+                // bids stack beyond that, so there is no per-beam energy cap.
                 int tractorReq = Math.max(0, request.getTractorEnergy());
                 if (tractorReq > 0) {
                     int beams = ship.getTractors().getAvailableTractors();
                     if (beams == 0)
                         return ActionResult.fail(ship.getName() + " has no functional tractor beams");
-                    if (tractorReq > beams)
-                        return ActionResult.fail("Tractor energy " + tractorReq
-                                + " exceeds available tractor beams (" + beams + ")");
                 }
                 e.setTractors(tractorReq);
                 ship.getTractors().initForTurn(tractorReq);
