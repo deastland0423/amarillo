@@ -1,0 +1,145 @@
+package com.sfb.server;
+
+import com.sfb.Game;
+import com.sfb.Game.ActionResult;
+import com.sfb.objects.Ship;
+import com.sfb.properties.Location;
+import com.sfb.samples.FederationShips;
+import com.sfb.samples.KlingonShips;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Tests for the ALLOCATE request-translation layer in GameSession — the
+ * validations that live between the wire format and Game.submitAllocation.
+ * This layer had zero coverage until a stale per-beam cap on tractor energy
+ * (pre-G7.6 model) survived two rules revisions and surfaced in live play;
+ * these tests pin the corrected behaviors so drift has something to fail.
+ */
+class GameSessionAllocateTest {
+
+    private static final String HOST = "token-host";
+
+    private GameSession session;
+    private Game game;
+    private Ship fed;
+    private Ship klingon;
+
+    @BeforeEach
+    void setUp() {
+        session = new GameSession("game-1", HOST, "Alice");
+        game = session.getGame();
+
+        fed = new Ship();
+        fed.init(FederationShips.getFedCa());
+        fed.setName("USS Enterprise");
+        fed.setLocation(new Location(10, 10));
+        fed.setFacing(1);
+
+        klingon = new Ship();
+        klingon.init(KlingonShips.getD7());
+        klingon.setName("IKV Saber");
+        klingon.setLocation(new Location(30, 20));
+        klingon.setFacing(1);
+
+        game.getShips().add(fed);
+        game.getShips().add(klingon);
+        game.startTurn();
+    }
+
+    private ActionRequest allocate(String shipName) {
+        ActionRequest req = new ActionRequest();
+        req.setType("ALLOCATE");
+        req.setShipName(shipName);
+        req.setPlayerToken(HOST);
+        req.setSpeed(0);
+        req.setShieldMode("ACTIVE");
+        return req;
+    }
+
+    // -------------------------------------------------------------------------
+    // Tractor pool (G7.15 / G7.6) — the bug that motivated this suite
+    // -------------------------------------------------------------------------
+
+    @Test
+    void tractorEnergy_beyondBeamCount_isAccepted() {
+        // 3 beams; a single range-3 grab costs 3 energy per effective point
+        ActionRequest req = allocate("USS Enterprise");
+        req.setTractorEnergy(6);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertEquals(6, fed.getTractors().getTotalTractorEnergy());
+    }
+
+    @Test
+    void tractorEnergy_withNoFunctionalBeams_isRefused() {
+        fed.getTractors().destroyBeam(1);
+        fed.getTractors().destroyBeam(2);
+        fed.getTractors().destroyBeam(3);
+        ActionRequest req = allocate("USS Enterprise");
+        req.setTractorEnergy(2);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("no functional tractor beams"),
+                result.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // Other translation-layer validations, pinned against drift
+    // -------------------------------------------------------------------------
+
+    @Test
+    void speed_beyondWarpCapacity_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setSpeed(30);
+        req.setHetEnergy(20); // movement + HET reserve must fit in the warp engines
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("HET reserve"), result.getMessage());
+    }
+
+    @Test
+    void ecmPlusEccm_overSensorRating_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setEcm(4);
+        req.setEccm(4);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("sensor rating"), result.getMessage());
+    }
+
+    @Test
+    void warpTacticalManeuver_whileMoving_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setSpeed(5);
+        req.setWarpTacticalTurns(1);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("Tactical"), result.getMessage());
+    }
+
+    @Test
+    void plainAllocation_succeeds() {
+        ActionResult result = session.executeAction(allocate("USS Enterprise"));
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    @Test
+    void allocation_forUnknownShip_isRefused() {
+        ActionResult result = session.executeAction(allocate("USS Nonexistent"));
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("not found"), result.getMessage());
+    }
+}
