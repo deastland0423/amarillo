@@ -120,7 +120,7 @@ public class Game {
     private final List<PendingDamage> pendingInternalDamage = new ArrayList<>();
     private final List<PendingVolley> pendingVolleys = new ArrayList<>();
     private final SeekerMover     seekerMover     = new SeekerMover(this, seekers, activeShuttles, pendingVolleys, prevLocations);
-    private final ShuttleMover    shuttleMover    = new ShuttleMover(this, activeShuttles);
+    private final ShuttleMover    shuttleMover    = new ShuttleMover(this, activeShuttles, prevLocations);
     private final TractorResolver tractorResolver = new TractorResolver(this, ships, seekers, activeShuttles, prevLocations);
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
@@ -135,7 +135,7 @@ public class Game {
             pendingVolleys, pendingInternalDamage, pendingDacChoices, firedPairsThisPhase, uimUsedThisImpulse);
     private final BoardingResolver boardingResolver = new BoardingResolver(this, seekers, capturedThisTurn);
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
-    private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, prevLocations);
+    private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles, prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
@@ -1410,6 +1410,16 @@ public class Game {
     public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target, int facing, int speed) {
         return launchCoordinator.launchSuicideShuttle(launcher, bay, shuttle, target, facing, speed);
+    }
+
+    /** Declare the J1.621 special recovery procedure for a held friendly shuttle. */
+    public ActionResult beginShuttleRecovery(Ship ship, String shuttleName) {
+        return launchCoordinator.beginRecovery(ship, shuttleName);
+    }
+
+    /** Package hook for ShuttleMover: pull a recovered shuttle aboard, or null if the bay is not ready. */
+    String completeRecovery(Ship ship, com.sfb.objects.shuttles.Shuttle shuttle) {
+        return launchCoordinator.completeRecovery(ship, shuttle);
     }
 
     /** Land a friendly shuttle aboard this ship unassisted (J1.61). */

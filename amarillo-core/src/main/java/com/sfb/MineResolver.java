@@ -28,15 +28,18 @@ class MineResolver {
     private final List<SpaceMine> mines;
     private final List<Ship> ships;
     private final List<Seeker> seekers;
+    private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
     private final Map<Unit, Location> prevLocations;
 
     MineResolver(Game game, List<SpaceMine> mines, List<Ship> ships,
-            List<Seeker> seekers, Map<Unit, Location> prevLocations) {
-        this.game          = game;
-        this.mines         = mines;
-        this.ships         = ships;
-        this.seekers       = seekers;
-        this.prevLocations = prevLocations;
+            List<Seeker> seekers, List<com.sfb.objects.shuttles.Shuttle> activeShuttles,
+            Map<Unit, Location> prevLocations) {
+        this.game           = game;
+        this.mines          = mines;
+        this.ships          = ships;
+        this.seekers        = seekers;
+        this.activeShuttles = activeShuttles;
+        this.prevLocations  = prevLocations;
     }
 
     /**
@@ -211,6 +214,9 @@ class MineResolver {
             if (s instanceof Unit)
                 allUnits.add((Unit) s);
         }
+        // Shuttles trigger mines too (J3.26 treats them as such for detection;
+        // J1.6223 relies on this for recovered shuttles pulled through a field)
+        allUnits.addAll(activeShuttles);
 
         List<SpaceMine> detonated = new ArrayList<>();
 

@@ -1487,6 +1487,9 @@ interface SidebarProps {
   negTractorBidValue:  number;
   onSetNegTractorBid:  (v: number) => void;
   onSubmitNegTractorBid: () => void;
+  // J1.621 shuttle recovery
+  heldFriendlyShuttles: Set<string>;
+  onRecoverShuttle: (shuttleName: string) => void;
   // Tractor rotation (G7.7) — Initial Activity Phase
   rotateMode:    boolean;
   rotateTarget:  string | null;
@@ -1519,6 +1522,7 @@ function ShipSidebar({
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
   pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
+  heldFriendlyShuttles, onRecoverShuttle,
   rotateMode, rotateTarget, rotateError, onStartRotate, onCancelRotate,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
@@ -1756,6 +1760,18 @@ function ShipSidebar({
                     Tractor
                   </button>
                 )}
+                {/* J1.621 special recovery — pull a held friendly shuttle aboard */}
+                {(ship.tractoredTargetNames ?? []).filter(n => heldFriendlyShuttles.has(n)).map(targetName => (
+                  <button
+                    key={`recover-${targetName}`}
+                    className="action-strip-btn"
+                    onClick={() => onRecoverShuttle(targetName)}
+                    title={`Begin special recovery of ${targetName} (J1.621) — pulled one hex closer each impulse`}
+                    style={{ borderColor: '#3fb950', color: '#3fb950' }}
+                  >
+                    Recover {targetName}
+                  </button>
+                ))}
                 {/* Tractor beam — release (G7.33) */}
                 {(ship.tractoredTargetNames ?? []).map(targetName => (
                   <button
@@ -3340,6 +3356,21 @@ export default function GameBoard({ session, onLeave }: Props) {
     return (carrier as ShipObject | undefined) ?? null;
   }
 
+  /** Names of my shuttles currently held in any tractor (recovery candidates). */
+  const heldFriendlyShuttles = new Set(
+    (gameState?.mapObjects ?? [])
+      .filter(o => o.type === 'SHUTTLE' && myShips.has((o as ShuttleObject).parentShipName ?? ''))
+      .map(o => o.name));
+
+  async function handleRecoverShuttle(shuttleName: string) {
+    if (!liveShip) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'BEGIN_RECOVERY', shipName: liveShip.name, action: shuttleName,
+    });
+    if (!res.success) setActionError(res.message);
+    else addLog(res.message, 'combat');
+  }
+
   async function handleLandShuttle() {
     const carrier = landableCarrierFor(liveShuttle);
     if (!liveShuttle || !carrier) return;
@@ -3863,6 +3894,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             negTractorBidValue={negTractorBidValue}
             onSetNegTractorBid={setNegTractorBidValue}
             onSubmitNegTractorBid={handleSubmitNegTractorBid}
+            heldFriendlyShuttles={heldFriendlyShuttles}
+            onRecoverShuttle={handleRecoverShuttle}
             rotateMode={rotateMode}
             rotateTarget={rotateTarget}
             rotateError={rotateError}

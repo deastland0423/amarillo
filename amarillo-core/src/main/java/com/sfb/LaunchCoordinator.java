@@ -53,6 +53,9 @@ class LaunchCoordinator {
                 || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
                 || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
             return ActionResult.fail("SP, SS, and WW shuttles cannot drop chaff (D11.312)");
+        if (shuttle.isBeingRecovered())
+            return ActionResult.fail(shuttle.getName()
+                    + " is shut down for recovery and cannot drop chaff (J1.622)");
         if (shuttle.getChaffPacks() <= 0)
             return ActionResult.fail(shuttle.getName() + " has no chaff packs remaining");
         if (shuttle.isChaffLockedOut(game.getAbsoluteImpulse()))
@@ -568,5 +571,69 @@ class LaunchCoordinator {
         seekers.removeAll(chasing);
 
         return ActionResult.ok(msg.toString());
+    }
+
+    /**
+     * Declare the J1.621 special recovery procedure for a friendly shuttle the
+     * ship already holds in a tractor beam. The shuttle shuts down (J1.622: no
+     * fire, no chaff, no movement) and is pulled one hex closer per impulse,
+     * boarding on arrival. Releasing the tractor cancels the procedure
+     * (J1.6221). Not usable on Wild Weasels (J3.25 pull-in not implemented) or
+     * drones (J1.6216 — structurally impossible here).
+     */
+    ActionResult beginRecovery(Ship ship, String shuttleName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Recovery can only be declared during the Activity phase");
+
+        com.sfb.objects.shuttles.Shuttle shuttle = activeShuttles.stream()
+                .filter(sh -> sh.getName().equalsIgnoreCase(shuttleName))
+                .findFirst().orElse(null);
+        if (shuttle == null)
+            return ActionResult.fail("Shuttle not found on the map: " + shuttleName);
+        if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail("Wild Weasels cannot be recovered while active (J3.25)");
+        if (shuttle.isBeingRecovered())
+            return ActionResult.fail(shuttleName + " is already being recovered");
+        if (shuttle.getTractoringUnit() != ship)
+            return ActionResult.fail(ship.getName() + " must hold " + shuttleName
+                    + " in a tractor beam first (J1.62/J1.6215)");
+
+        String shipTeam    = ship.getOwner()    != null ? ship.getOwner().getTeamName()    : null;
+        String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
+        if (shipTeam == null || !shipTeam.equals(shuttleTeam))
+            return ActionResult.fail("Only friendly shuttles may use the special recovery procedure (J1.6214)");
+
+        shuttle.setBeingRecovered(true);
+        return ActionResult.ok(ship.getName() + " begins recovering " + shuttleName
+                + " — shuttle shut down, pulled one hex closer each impulse (J1.621)");
+    }
+
+    /**
+     * Final step of J1.621: pull the recovered shuttle aboard. Returns the log
+     * line on success, or null if no bay currently has both an empty box and a
+     * ready hatch (the shuttle holds at Range 0 — J1.6213). The hatch cooldown
+     * is shared with launches (J1.50).
+     */
+    String completeRecovery(Ship ship, com.sfb.objects.shuttles.Shuttle shuttle) {
+        int impulse = game.getAbsoluteImpulse();
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays()) {
+            if (b.getEmptySpaceCount() > 0 && b.canLaunch(impulse)) {
+                bay = b;
+                break;
+            }
+        }
+        if (bay == null)
+            return null;
+
+        bay.markUsed(impulse);
+        bay.addShuttle(shuttle);
+        activeShuttles.remove(shuttle);
+        if (ship.getTractors() != null && ship.getTractors().getTractoredUnits().contains(shuttle))
+            ship.getTractors().releaseTractor(shuttle); // also clears beingRecovered
+        shuttle.setBeingRecovered(false);
+        shuttle.setLocation(null);
+        shuttle.setParentShipName(ship.getName());
+        return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)";
     }
 }

@@ -82,6 +82,25 @@ public abstract class Shuttle extends Unit {
 		return false;
 	}
 
+	// J1.621: true while this shuttle is shut down and being pulled aboard a
+	// ship one hex per impulse. Cleared whenever the tractor link breaks.
+	private boolean beingRecovered = false;
+
+	public boolean isBeingRecovered() {
+		return beingRecovered;
+	}
+
+	public void setBeingRecovered(boolean beingRecovered) {
+		this.beingRecovered = beingRecovered;
+	}
+
+	@Override
+	public void releaseTractor() {
+		super.releaseTractor();
+		// J1.6221: releasing the tractor ends the landing procedure
+		beingRecovered = false;
+	}
+
 	public int getMaxSpeed() {
 		return maxSpeed;
 	}

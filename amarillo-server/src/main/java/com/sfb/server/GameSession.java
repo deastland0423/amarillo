@@ -1060,6 +1060,18 @@ public class GameSession {
                 return game.launchWildWeasel(ship, shuttleName, facing, speed);
             }
 
+            case "BEGIN_RECOVERY": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String recName = request.getAction(); // shuttle name in action field
+                if (recName == null || recName.isBlank())
+                    return ActionResult.fail("No shuttle specified");
+                ActionResult r = game.beginShuttleRecovery(ship, recName);
+                if (r.isSuccess()) appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "LAND_SHUTTLE": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)

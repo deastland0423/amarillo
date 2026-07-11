@@ -227,6 +227,7 @@ export interface ShipObject extends MapObjectBase {
 
 export interface ShuttleObject extends MapObjectBase {
   type:           'SHUTTLE' | 'SUICIDE_SHUTTLE' | 'SCATTER_PACK';
+  beingRecovered?: boolean;
   facing:         number;
   speed:          number;
   maxSpeed:       number;

@@ -311,6 +311,7 @@ public class GameStateDto {
     // -------------------------------------------------------------------------
 
     public static class ShuttleDto extends MapObjectDto {
+        public boolean beingRecovered;
         public int facing;
         public int speed;
         public int maxSpeed;
@@ -1013,6 +1014,7 @@ public class GameStateDto {
             dto.weapons = buildWeaponDtos(shuttle.getWeapons());
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
+        dto.beingRecovered = shuttle.isBeingRecovered();
         return dto;
     }
 

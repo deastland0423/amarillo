@@ -367,6 +367,8 @@ class DamageResolver {
         }
         if (attacker instanceof com.sfb.objects.shuttles.Shuttle) {
             com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
+            if (s.isBeingRecovered())
+                return attacker.getName() + " is shut down for recovery and cannot fire (J1.622)";
             if (!s.canFireDirect(game.getAbsoluteImpulse()))
                 return attacker.getName() + " cannot fire yet — 8 impulses must pass since launch";
             if (s.isChaffLockedOut(game.getAbsoluteImpulse()))
