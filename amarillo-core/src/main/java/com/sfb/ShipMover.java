@@ -289,34 +289,61 @@ class ShipMover {
         }
     }
 
+    /**
+     * G7.36: the tractor link is rigid — any hex displacement by one linked
+     * ship displaces every linked unit one hex in the same absolute direction.
+     * Facing changes never propagate (no swinging the tractored ship around;
+     * only G7.7 rotation changes the formation's geometry).
+     */
+    private void dragLinkedShips(Ship ship, int dir, StringBuilder log) {
+        for (Ship s : tractorResolver.getTractorLinkedShips(ship)) {
+            Location sPrev = s.getLocation();
+            s.dragSideslipInDirection(dir, game.getMapCols(), game.getMapRows());
+            prevLocations.putIfAbsent(s, sPrev);
+            log.append("; ").append(s.getName()).append(" towed");
+            if (game.isAsteroidHex(s.getLocation()))
+                log.append("\n").append(applyAsteroidCollision(s));
+        }
+    }
+
     public ActionResult turnLeft(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
+        com.sfb.properties.Location prevLoc = ship.getLocation();
         boolean moved = ship.turnLeft();
         if (moved) {
+            prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
-            if (game.isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship);
-                return ActionResult.ok(ship.getName() + " turned left\n" + hit);
-            }
+            StringBuilder log = new StringBuilder(ship.getName() + " turned left");
+            if (game.isAsteroidHex(ship.getLocation()))
+                log.append("\n").append(applyAsteroidCollision(ship));
+            // A turn displaces one hex in the NEW facing — the rigid link follows
+            int turnDir = MapUtils.getTrueBearing(1, ship.getFacing());
+            dragLinkedShips(ship, turnDir, log);
+            dragHeldSmallUnits(ship, turnDir, log);
+            return ActionResult.ok(log.toString());
         }
-        return moved ? ActionResult.ok(ship.getName() + " turned left")
-                : ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
+        return ActionResult.fail(ship.getName() + " cannot turn left yet (turn mode)");
     }
 
     public ActionResult turnRight(Ship ship) {
         if (!canMoveThisImpulse(ship))
             return moveOrderError(ship);
+        com.sfb.properties.Location prevLoc = ship.getLocation();
         boolean moved = ship.turnRight();
         if (moved) {
+            prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
-            if (game.isAsteroidHex(ship.getLocation())) {
-                String hit = applyAsteroidCollision(ship);
-                return ActionResult.ok(ship.getName() + " turned right\n" + hit);
-            }
+            StringBuilder log = new StringBuilder(ship.getName() + " turned right");
+            if (game.isAsteroidHex(ship.getLocation()))
+                log.append("\n").append(applyAsteroidCollision(ship));
+            // A turn displaces one hex in the NEW facing — the rigid link follows
+            int turnDir = MapUtils.getTrueBearing(1, ship.getFacing());
+            dragLinkedShips(ship, turnDir, log);
+            dragHeldSmallUnits(ship, turnDir, log);
+            return ActionResult.ok(log.toString());
         }
-        return moved ? ActionResult.ok(ship.getName() + " turned right")
-                : ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
+        return ActionResult.fail(ship.getName() + " cannot turn right yet (turn mode)");
     }
 
     public ActionResult sideslipLeft(Ship ship) {
@@ -332,14 +359,7 @@ class ShipMover {
                 log.append("\n").append(applyAsteroidCollision(ship));
             // G7.36: drag tractor-linked ships in the same sideslip direction
             int slDir = MapUtils.getTrueBearing(21, ship.getFacing());
-            for (Ship s : tractorResolver.getTractorLinkedShips(ship)) {
-                Location sPrev = s.getLocation();
-                s.dragSideslipInDirection(slDir, game.getMapCols(), game.getMapRows());
-                prevLocations.putIfAbsent(s, sPrev);
-                log.append("; ").append(s.getName()).append(" towed");
-                if (game.isAsteroidHex(s.getLocation()))
-                    log.append("\n").append(applyAsteroidCollision(s));
-            }
+            dragLinkedShips(ship, slDir, log);
             // G7.5: held drones and shuttles follow sideslips too
             dragHeldSmallUnits(ship, slDir, log);
             return ActionResult.ok(log.toString());
@@ -360,14 +380,7 @@ class ShipMover {
                 log.append("\n").append(applyAsteroidCollision(ship));
             // G7.36: drag tractor-linked ships in the same sideslip direction
             int srDir = MapUtils.getTrueBearing(5, ship.getFacing());
-            for (Ship s : tractorResolver.getTractorLinkedShips(ship)) {
-                Location sPrev = s.getLocation();
-                s.dragSideslipInDirection(srDir, game.getMapCols(), game.getMapRows());
-                prevLocations.putIfAbsent(s, sPrev);
-                log.append("; ").append(s.getName()).append(" towed");
-                if (game.isAsteroidHex(s.getLocation()))
-                    log.append("\n").append(applyAsteroidCollision(s));
-            }
+            dragLinkedShips(ship, srDir, log);
             // G7.5: held drones and shuttles follow sideslips too
             dragHeldSmallUnits(ship, srDir, log);
             return ActionResult.ok(log.toString());

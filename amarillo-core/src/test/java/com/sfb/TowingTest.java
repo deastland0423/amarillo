@@ -176,6 +176,78 @@ public class TowingTest {
     }
 
     // -------------------------------------------------------------------------
+    // G7.36 — the link is rigid through TURNS too (bug found in play 2026-07-12:
+    // turns displaced the mover one hex but dragged nothing, stretching the link)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void turn_dragsLinkedShipPreservingRange() {
+        allocate(12.0); // fed moves; klingon (held) plotted speed 0
+        klingon.setLocation(new com.sfb.properties.Location(10, 8)); // range 2 dead ahead
+        fed.getTractors().initForTurn(4);
+        assertTrue(fed.getTractors().linkUnit(klingon));
+        assertEquals(2, game.getRange(fed, klingon));
+
+        // Move forward until turn mode is satisfied, then turn right
+        boolean turned = false;
+        for (int guard = 0; guard < 30 && !turned; guard++) {
+            advanceUntilCanMove(fed);
+            Location shipPrev = fed.getLocation();
+            Location heldPrev = klingon.getLocation();
+            Game.ActionResult r = game.turnRight(fed);
+            if (r.isSuccess()) {
+                turned = true;
+                // The held ship must be displaced in the same absolute direction
+                int dir = -1;
+                for (int d : new int[] { 1, 5, 9, 13, 17, 21 })
+                    if (fed.getLocation().equals(com.sfb.utilities.MapUtils.getAdjacentHex(
+                            shipPrev, d, game.getMapCols(), game.getMapRows()))) {
+                        dir = d;
+                        break;
+                    }
+                assertTrue("Turn must displace the ship one hex", dir > 0);
+                assertEquals("Rigid link: held ship follows the turn's displacement (G7.36)",
+                        com.sfb.utilities.MapUtils.getAdjacentHex(heldPrev, dir,
+                                game.getMapCols(), game.getMapRows()),
+                        klingon.getLocation());
+                assertTrue("Log reports the tow: " + r.getMessage(),
+                        r.getMessage().contains("towed"));
+            } else {
+                assertTrue(game.moveForward(fed).isSuccess());
+            }
+        }
+        assertTrue("Ship never satisfied turn mode", turned);
+        assertEquals("Range preserved through the turn", 2, game.getRange(fed, klingon));
+    }
+
+    @Test
+    public void turn_dragsHeldDroneToo() {
+        allocate(12.0);
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("Held-1");
+        drone.setLocation(new Location(11, 10));
+        game.getSeekers().add(drone);
+        fed.getTractors().initForTurn(4);
+        assertTrue(fed.getTractors().linkUnit(drone));
+
+        boolean turned = false;
+        for (int guard = 0; guard < 30 && !turned; guard++) {
+            advanceUntilCanMove(fed);
+            Location shipPrev = fed.getLocation();
+            Location dronePrev = drone.getLocation();
+            Game.ActionResult r = game.turnRight(fed);
+            if (r.isSuccess()) {
+                turned = true;
+                assertNotEquals("Held drone must follow the turn (G7.5)",
+                        dronePrev, drone.getLocation());
+            } else {
+                assertTrue(game.moveForward(fed).isSuccess());
+            }
+        }
+        assertTrue(turned);
+    }
+
+    // -------------------------------------------------------------------------
     // G7.13 — one link per beam per turn
     // -------------------------------------------------------------------------
 
