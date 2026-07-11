@@ -417,6 +417,17 @@ public class TractorTest {
 
         assertEquals(10, fed.getSpeed());
         assertEquals(10, klingon.getSpeed());
+        // Plotted speed preserved for the UI's "20 (10)" display
+        assertEquals(20, fed.getTractorTrueSpeed());
+        assertEquals(20, klingon.getTractorTrueSpeed());
+    }
+
+    @Test
+    public void pseudoSpeed_notLimited_trueSpeedStaysUnset() {
+        game.submitAllocation(fed,     makeAllocation(fed,     20.0));
+        game.submitAllocation(klingon, makeAllocation(klingon, 20.0));
+
+        assertEquals("No tractor link — no pseudo-speed marker", -1, fed.getTractorTrueSpeed());
     }
 
     @Test

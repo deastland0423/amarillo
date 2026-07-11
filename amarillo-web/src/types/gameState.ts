@@ -115,6 +115,7 @@ export interface ShipObject extends MapObjectBase {
   faction: string;
   facing:  number;
   speed:   number;
+  tractorTrueSpeed?: number;   // plotted speed before tractor pseudo-speed (G7.34); -1 = not limited
   shields: ShieldState[];
   // Weapons
   weapons:          WeaponState[];

@@ -2,7 +2,6 @@ package com.sfb.objects;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.sfb.constants.Constants;
 import com.sfb.exceptions.CapacitorException;
-import com.sfb.properties.BoardingPartyQuality;
 import com.sfb.properties.Faction;
 import com.sfb.properties.ShieldStatus;
-import com.sfb.properties.SystemTarget;
 import com.sfb.properties.TurnMode;
 import com.sfb.systemgroups.CloakingDevice;
 import com.sfb.systemgroups.ControlSpaces;
@@ -153,6 +150,12 @@ public class Ship extends Unit implements DroneController {
 	 * Guards persist across turns and are re-tasked during Energy Allocation.
 	 */
 	private final GuardPosts guardPosts = new GuardPosts(this);
+
+	/**
+	 * Plotted speed before tractor pseudo-speed lowered it this turn (G7.34);
+	 * -1 when speed is not tractor-limited. Display-only.
+	 */
+	private int tractorTrueSpeed = -1;
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
@@ -398,6 +401,20 @@ public class Ship extends Unit implements DroneController {
 		performanceData.cleanUp();
 		ecmAllocated = 0;
 		eccmAllocated = 0;
+		tractorTrueSpeed = -1;
+	}
+
+	/**
+	 * The plotted speed before tractor pseudo-speed lowered it this turn
+	 * (G7.34), or -1 when speed is not tractor-limited. Display-only: the
+	 * effective speed for movement remains getSpeed().
+	 */
+	public int getTractorTrueSpeed() {
+		return tractorTrueSpeed;
+	}
+
+	public void setTractorTrueSpeed(int speed) {
+		this.tractorTrueSpeed = speed;
 	}
 
 	/**

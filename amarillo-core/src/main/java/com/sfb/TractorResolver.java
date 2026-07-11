@@ -128,8 +128,17 @@ class TractorResolver {
                         + heldShip.getPerformanceData().getMovementCost();
                 int holderPseudo = (int) (holder.getEnergyAllocated().getWarpMovement() / combined);
                 int heldPseudo   = (int) (heldShip.getEnergyAllocated().getWarpMovement() / combined);
-                if (holderPseudo < holder.getSpeed())   holder.setSpeed(holderPseudo);
-                if (heldPseudo   < heldShip.getSpeed()) heldShip.setSpeed(heldPseudo);
+                // Remember the plotted speed so the UI can show "16 (8)"
+                if (holderPseudo < holder.getSpeed()) {
+                    if (holder.getTractorTrueSpeed() < 0)
+                        holder.setTractorTrueSpeed(holder.getSpeed());
+                    holder.setSpeed(holderPseudo);
+                }
+                if (heldPseudo < heldShip.getSpeed()) {
+                    if (heldShip.getTractorTrueSpeed() < 0)
+                        heldShip.setTractorTrueSpeed(heldShip.getSpeed());
+                    heldShip.setSpeed(heldPseudo);
+                }
             }
         }
     }

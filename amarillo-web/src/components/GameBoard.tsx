@@ -2308,7 +2308,10 @@ function ShipSidebar({
         <StatRow label="Faction"  value={ship.faction} />
         <StatRow label="Location" value={locationLabel(ship.location)} />
         <StatRow label="Facing"   value={facingLabel(ship.facing)} />
-        <StatRow label="Speed"    value={ship.speed} />
+        {/* Tractor pseudo-speed (G7.34): plotted speed with the effective speed in parens */}
+        <StatRow label="Speed"    value={(ship.tractorTrueSpeed ?? -1) >= 0
+          ? `${ship.tractorTrueSpeed} (${ship.speed})`
+          : ship.speed} />
         {ship.turnMode != null && (
           <StatRow
             label="Turn Mode"

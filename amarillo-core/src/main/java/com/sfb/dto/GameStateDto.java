@@ -183,6 +183,7 @@ public class GameStateDto {
         public String faction;
         public int facing;
         public int speed;
+        public int tractorTrueSpeed; // plotted speed before tractor pseudo-speed (G7.34); -1 = not limited
         public List<ShieldDto> shields;
         public String cloakState;
         public int cloakFadeStep;
@@ -701,6 +702,7 @@ public class GameStateDto {
         dto.location = ship.getLocation() != null ? ship.getLocation().toString() : null;
         dto.facing = ship.getFacing();
         dto.speed = ship.getSpeed();
+        dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
         dto.hull = ship.getHullType();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
