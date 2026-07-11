@@ -13,15 +13,15 @@ public class Probe extends Weapon implements DirectFire {
 	private ProbeArmingType armingType;		// Probe armed as INFORMATION or WEAPON
 	private int             armingTurn;		// The turn in the arming cycle (takes 2 turns to arm)
 	private boolean         armed;			// True if the probe is ready to fire.
-	private boolean         functional;		// True if the probe box is not destroyed.
-	
+	// functional state inherited from Weapon — a shadowing copy here made
+	// probes indestructible (Weapon.damage() flipped a flag nobody read)
+
 	// Create a new probe box with the proper initial values.
 	public Probe() {
 		availableAmmo = ammo;
 		setDacHitLocaiton("probe");
 		setToInformation();
 		armingTurn = 0;
-		functional = true;
 		armed = false;
 	}
 	
@@ -156,10 +156,6 @@ public class Probe extends Weapon implements DirectFire {
 	
 	public int getArmingTurn() {
 		return this.armingTurn;
-	}
-	
-	public boolean isFunctional() {
-		return functional;
 	}
 	
 	public void setToInformation() {

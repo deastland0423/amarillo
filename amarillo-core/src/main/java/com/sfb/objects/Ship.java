@@ -1404,6 +1404,11 @@ public class Ship extends Unit implements DroneController {
 		return getDacChoiceOptions(system, null);
 	}
 
+	/** For testing only: exposes tryApplySystemHit (same-package access). */
+	String applySystemHitForTest(String system) {
+		return tryApplySystemHit(system, null);
+	}
+
 	/** Resets the rule-of-3 phaser group state. Called before each fresh damage chain (D4.3221). */
 	public void resetPhaserDacGroup() {
 		phaserDacGroupPos  = 0;
@@ -1735,6 +1740,18 @@ public class Ship extends Unit implements DroneController {
 				// Auto-pick (idle beams exist, or a single holding beam — see
 				// requiresPlayerChoice for when the owner is prompted instead)
 				return tractors.damageAutoPick();
+			case "trans":
+				return transporters.damage() ? "trans HIT" : null;
+			case "lab":
+				return labs.damage() ? "lab HIT" : null;
+			case "probe":
+				return probes.damage() ? "probe HIT" : null;
+			case "excess":
+				// Explicit column-13 entry; distinct from the exhausted-chart path,
+				// which reaches excess via fetchNextHit returning null
+				return specialFunctions.damageExcessDamage()
+						? "excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)"
+						: null;
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;
 			case "sensor":

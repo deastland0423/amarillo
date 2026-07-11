@@ -103,6 +103,21 @@ public class ProbeLaunchers implements Systems {
 		return null;
 	}
 
+	/**
+	 * Destroy one probe launcher box (DAC "probe" hit).
+	 *
+	 * @return True if a functional launcher was destroyed, false if none remain.
+	 */
+	public boolean damage() {
+		for (Probe probe : launcherArray) {
+			if (probe.isFunctional()) {
+				probe.damage();
+				return true;
+			}
+		}
+		return false;
+	}
+
 	@Override
 	public void cleanUp() {
 		// TODO Auto-generated method stub
