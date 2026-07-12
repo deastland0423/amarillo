@@ -200,9 +200,13 @@ class SeekerMover {
                     log.add("  Scatter pack released " + released.size() + " drones at "
                             + (target != null ? target.getName() : "?"));
                     game.checkControlOverflow();
-                    // Shuttle stays on map — move to activeShuttles for drift
+                    // The shuttle stays on the map at speed 0 (recoverable
+                    // later). This is a seeker→shuttle TRANSITION, not a
+                    // removal — it must NOT go through removeSeekerFromPlay,
+                    // which would pull it off the map and kill legitimate
+                    // chasers and lock-ons.
                     activeShuttles.add(pack);
-                    expired.add(pack);
+                    seekers.remove(pack); // safe: loop iterates a copy
                     continue;
                 }
 

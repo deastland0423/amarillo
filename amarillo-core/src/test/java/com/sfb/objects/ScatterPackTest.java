@@ -245,6 +245,52 @@ public class ScatterPackTest {
     }
 
     @Test
+    public void release_leavesShuttleOnMapAtSpeedZero() {
+        // After releasing its drones the pack is an ordinary shuttle: it stays
+        // in its hex at speed 0 and can be picked up later. Regression: the
+        // seeker-removal centralization briefly routed this transition through
+        // removeSeekerFromPlay, which yanked the shuttle off the map.
+        // The 8-impulse release timer needs a running clock: start the turn
+        // and allocate both ships at speed 0.
+        game.startTurn();
+        game.submitAllocation(launcher, makeAllocation(launcher));
+        game.submitAllocation(target,   makeAllocation(target));
+        for (int guard = 0; guard < 20
+                && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; guard++)
+            game.advancePhase();
+        assertEquals(Game.ImpulsePhase.ACTIVITY, game.getCurrentPhase());
+
+        ActionResult launch = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
+        assertTrue(launch.getMessage(), launch.isSuccess());
+
+        for (int guard = 0; guard < 200 && !loadedPack.isReleased(); guard++)
+            game.advancePhase();
+        assertTrue("Pack must eventually release (8 impulses)", loadedPack.isReleased());
+
+        assertFalse("Released pack leaves the seeker list",
+                game.getSeekers().contains(loadedPack));
+        assertTrue("...but stays on the map as a shuttle",
+                game.getActiveShuttles().contains(loadedPack));
+        assertNotNull(loadedPack.getLocation());
+        assertEquals("Sits at speed 0 - recoverable later", 0, loadedPack.getSpeed());
+
+        Location rest = loadedPack.getLocation();
+        for (int i = 0; i < 16; i++)
+            game.advancePhase();
+        assertEquals("Does not drift from its hex", rest, loadedPack.getLocation());
+        assertTrue(game.getActiveShuttles().contains(loadedPack));
+    }
+
+    private com.sfb.systemgroups.Energy makeAllocation(Ship ship) {
+        com.sfb.systemgroups.Energy e = new com.sfb.systemgroups.Energy();
+        e.setLifeSupport(ship.getLifeSupportCost());
+        e.setFireControl(ship.getFireControlCost());
+        e.setActivateShields(ship.getActiveShieldCost());
+        e.setWarpMovement(0.0);
+        return e;
+    }
+
+    @Test
     public void launch_failsWhenNotActivityPhase() {
         game.advancePhase(); // ACTIVITY → DIRECT_FIRE
         assertEquals(Game.ImpulsePhase.DIRECT_FIRE, game.getCurrentPhase());
