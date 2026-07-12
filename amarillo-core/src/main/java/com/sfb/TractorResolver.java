@@ -400,9 +400,12 @@ class TractorResolver {
                         // Same fate as being tractor-dragged there by movement (G7.274):
                         // the unit is destroyed, the link released, and the log says so
                         targetShip.getTractors().releaseTractor(held);
-                        held.setLocation(null);
-                        seekers.removeIf(s -> s == held);
-                        activeShuttles.removeIf(s -> s == held);
+                        if (held instanceof com.sfb.objects.Seeker)
+                            game.removeSeekerFromPlay((com.sfb.objects.Seeker) held);
+                        else if (held instanceof Shuttle)
+                            game.removeShuttleFromPlay((Shuttle) held, "target destroyed");
+                        else
+                            held.setLocation(null);
                         msg.append("; ").append(held.getName())
                            .append(newHeldLoc == null ? " rotated off map — destroyed"
                                                       : " rotated into planet — destroyed");

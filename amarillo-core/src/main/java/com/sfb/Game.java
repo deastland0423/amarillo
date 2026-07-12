@@ -89,6 +89,9 @@ public class Game {
     private final List<Seeker> seekers = new ArrayList<>();
     private final List<Ship> capturedThisTurn = new ArrayList<>(); // ships captured in the current endTurn()
     private int seekerSeq = 0; // monotonic counter for unique seeker names
+    // Secondary-effect lines from unit removal (chasers losing tracking);
+    // drained into the next advancePhase() log
+    private final List<String> removalLog = new ArrayList<>();
     private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles = new ArrayList<>(); // non-seeker shuttles on
                                                                                              // the map
     private final List<SpaceMine> mines = new ArrayList<>();
@@ -604,6 +607,9 @@ public class Game {
                 currentPhase = ImpulsePhase.MOVEMENT;
                 break;
         }
+        // Secondary effects of units leaving play (chasers losing tracking)
+        log.addAll(removalLog);
+        removalLog.clear();
         // Self-healing: drop any tractor link whose held unit left play this
         // phase (impacted, shot down, expired) — no matter which path removed it
         log.addAll(tractorResolver.releaseDeadLinks());
@@ -919,6 +925,45 @@ public class Game {
             for (Ship ship : ships)
                 ship.removeLockOn(unit);
             unit.setLocation(null);
+            clearChasersOf(unit, "target destroyed");
+        }
+    }
+
+    /**
+     * The single exit for a non-seeker shuttle leaving play by destruction.
+     * Seeking shuttles delegate to {@link #removeSeekerFromPlay}. Landing and
+     * recovery are survival paths with their own handling — they only share
+     * {@link #clearChasersOf}.
+     */
+    void removeShuttleFromPlay(com.sfb.objects.shuttles.Shuttle shuttle, String chaserReason) {
+        if (shuttle instanceof Seeker) {
+            removeSeekerFromPlay((Seeker) shuttle);
+            return;
+        }
+        activeShuttles.remove(shuttle);
+        tractorResolver.releaseLinksHolding(shuttle);
+        for (Ship ship : ships)
+            ship.removeLockOn(shuttle);
+        shuttle.setLocation(null);
+        clearChasersOf(shuttle, chaserReason);
+    }
+
+    /**
+     * Seekers chasing a unit that just left play lose tracking and
+     * self-destruct (their guidance has nothing to home on). Without this,
+     * chasers ghost-chase a stale location or NPE on a nulled one. Log lines
+     * go to removalLog, drained by the next advancePhase(). Wild Weasels never
+     * pass through here — their chasers follow J3.21x explosion rules instead.
+     */
+    void clearChasersOf(Unit gone, String reason) {
+        List<Seeker> chasing = new ArrayList<>();
+        for (Seeker sk : seekers)
+            if (gone.equals(sk.getTarget()))
+                chasing.add(sk);
+        for (Seeker sk : chasing) {
+            removalLog.add((sk instanceof Unit ? ((Unit) sk).getName() : "seeker")
+                    + " lost tracking — " + reason);
+            removeSeekerFromPlay(sk);
         }
     }
 

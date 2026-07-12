@@ -565,6 +565,8 @@ class LaunchCoordinator {
                .append(" lost tracking — target landed");
             game.removeSeekerFromPlay(sk);
         }
+        for (com.sfb.objects.Ship s : game.getShips())
+            s.removeLockOn(shuttle); // no lock-ons on a shuttle in a bay
 
         return ActionResult.ok(msg.toString());
     }
@@ -630,6 +632,11 @@ class LaunchCoordinator {
         shuttle.setBeingRecovered(false);
         shuttle.setLocation(null);
         shuttle.setParentShipName(ship.getName());
+        // Chasers lose tracking (target no longer in space) and lock-ons clear —
+        // same as landing (J1.61); log lines surface via the phase log
+        game.clearChasersOf(shuttle, "target recovered aboard " + ship.getName());
+        for (com.sfb.objects.Ship s : game.getShips())
+            s.removeLockOn(shuttle);
         return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)";
     }
 }

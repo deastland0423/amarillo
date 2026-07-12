@@ -46,7 +46,8 @@ class ShuttleMover {
                 offMap.add(shuttle);
             }
         }
-        activeShuttles.removeAll(offMap);
+        for (Shuttle gone : offMap)
+            game.removeShuttleFromPlay(gone, "target left the map");
 
         // J1.621: shuttles under the special recovery procedure are pulled one
         // hex closer to their holder each impulse, and aboard on arrival. Runs

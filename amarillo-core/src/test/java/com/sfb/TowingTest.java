@@ -338,6 +338,41 @@ public class TowingTest {
     }
 
     @Test
+    public void destroyedShuttle_chasersLoseTrackingAndStateIsClean() {
+        // Without central removal, a drone chasing a destroyed shuttle either
+        // ghost-chased its stale location or NPE'd on a nulled one.
+        allocate(0.0);
+        Shuttle shuttle = launchAndGrabShuttle(); // fed's shuttle, in fed's own beam
+
+        Drone chaser = new Drone(DroneType.TypeI);
+        chaser.setName("Chaser-1");
+        chaser.setLocation(new Location(14, 10));
+        chaser.setTarget(shuttle);
+        chaser.setSpeed(12);
+        chaser.setEndurance(10);
+        chaser.setController(klingon);
+        assertTrue(klingon.acquireControl(chaser));
+        game.getSeekers().add(chaser);
+        klingon.addLockOn(shuttle);
+
+        game.removeShuttleFromPlay(shuttle, "target destroyed");
+
+        assertFalse(game.getActiveShuttles().contains(shuttle));
+        assertFalse("Chaser loses tracking and self-destructs",
+                game.getSeekers().contains(chaser));
+        assertEquals("Chaser's control channel freed", 0, klingon.getControlUsed());
+        assertFalse("Lock-ons on the dead shuttle cleared",
+                klingon.getLockOns().contains(shuttle));
+        assertTrue("Tractor link dropped",
+                fed.getTractors().getTractoredUnits().isEmpty());
+        assertNull(shuttle.getLocation());
+
+        // And the seeker phase must keep running cleanly afterwards
+        for (int i = 0; i < 8; i++)
+            game.advancePhase();
+    }
+
+    @Test
     public void tractoredShuttle_cannotFlyOutOfTheBeam() {
         allocate(0.0);
         Shuttle shuttle = launchAndGrabShuttle();

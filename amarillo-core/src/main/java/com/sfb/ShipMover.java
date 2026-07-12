@@ -248,13 +248,14 @@ class ShipMover {
      * (G7.542). Drones cannot be death-dragged (G7.53). Fighter HET breakaway
      * (G7.543/G7.55) is not yet implemented.
      */
-    /** A dragged small unit dies: seekers exit via the central path; plain shuttles locally. */
+    /** A dragged small unit dies: exit through the central removal paths. */
     private void removeHeldUnitFromPlay(com.sfb.objects.Unit held) {
         if (held instanceof com.sfb.objects.Seeker) {
             game.removeSeekerFromPlay((com.sfb.objects.Seeker) held);
+        } else if (held instanceof com.sfb.objects.shuttles.Shuttle) {
+            game.removeShuttleFromPlay((com.sfb.objects.shuttles.Shuttle) held, "target destroyed");
         } else {
             held.setLocation(null);
-            activeShuttles.removeIf(sh -> sh == held);
         }
     }
 

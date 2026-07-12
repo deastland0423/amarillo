@@ -302,7 +302,7 @@ class DamageResolver {
         if (isSeeker) {
             game.removeSeekerFromPlay((Seeker) shuttle);
         } else {
-            activeShuttles.remove(shuttle);
+            game.removeShuttleFromPlay(shuttle, "target destroyed");
         }
     }
 
