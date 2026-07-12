@@ -83,6 +83,11 @@ class SeekerMover {
         }
 
         for (Seeker seeker : ordered) {
+            // G7.5: a tractored seeker is held fast — it cannot move itself
+            // (position changes only by the holder dragging it) and cannot
+            // close on its target while the tractor is maintained.
+            if (seeker instanceof Unit && ((Unit) seeker).isTractored())
+                continue;
             if (seeker instanceof Drone) {
                 Drone drone = (Drone) seeker;
                 if (!MovementUtil.moveThisImpulse(impulse, drone.getSpeed()))
@@ -408,6 +413,10 @@ class SeekerMover {
             if (!unit.getLocation().equals(ship.getLocation()))
                 continue;
             if (seeker.getTarget() != ship)
+                continue;
+            // G7.5: a held seeker cannot impact while the tractor is maintained,
+            // even if the target moves into its hex
+            if (unit.isTractored())
                 continue;
 
             // Enveloping plasma is the only special case — all other seekers use position-based shield

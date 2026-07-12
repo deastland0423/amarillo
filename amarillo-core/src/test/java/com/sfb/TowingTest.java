@@ -248,6 +248,55 @@ public class TowingTest {
     }
 
     // -------------------------------------------------------------------------
+    // G7.5 — a held seeker is held FAST (bug found in play 2026-07-12: a drone
+    // tractored mid-turn kept its speed, closed the last hex, and impacted)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void tractoredDrone_neitherMovesNorImpacts() {
+        allocate(0.0);
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("Incoming-1");
+        drone.setLocation(new Location(10, 9)); // range 1, closing on fed at (10,10)
+        drone.setTarget(fed);
+        drone.setSpeed(12);
+        drone.setEndurance(10);
+        game.getSeekers().add(drone);
+
+        fed.getTractors().initForTurn(4);
+        assertTrue(fed.getTractors().linkUnit(drone)); // mid-turn grab, like the UI does
+
+        Location held = drone.getLocation();
+        for (int i = 0; i < 32; i++) // 8 full impulses
+            game.advancePhase();
+
+        assertEquals("Held drone must not move itself (G7.5)", held, drone.getLocation());
+        assertTrue("Held drone must not impact", game.getSeekers().contains(drone));
+
+        // Release — the hunt resumes
+        assertTrue(game.releaseTractor(fed, "Incoming-1").isSuccess());
+        boolean acted = false;
+        for (int i = 0; i < 32 && !acted; i++) {
+            game.advancePhase();
+            acted = !game.getSeekers().contains(drone) // impacted fed at range 1
+                    || !held.equals(drone.getLocation()); // or moved
+        }
+        assertTrue("Released drone must resume moving/attacking", acted);
+    }
+
+    @Test
+    public void tractoredShuttle_cannotFlyOutOfTheBeam() {
+        allocate(0.0);
+        Shuttle shuttle = launchAndGrabShuttle();
+        shuttle.setSpeed(6);
+        shuttle.setCurrentSpeed(6);
+
+        assertFalse("Held shuttle is not movable (G7.5)",
+                game.canMoveShuttleThisImpulse(shuttle));
+        assertFalse(game.getMovableShuttles().contains(shuttle));
+    }
+
+    // -------------------------------------------------------------------------
     // G7.13 — one link per beam per turn
     // -------------------------------------------------------------------------
 

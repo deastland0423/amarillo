@@ -119,8 +119,10 @@ class TractorResolver {
             if (held.isEmpty()) continue;
             for (Unit target : held) {
                 if (!(target instanceof Ship)) {
-                    // G7.5: drones/shuttles have effective speed 0 when tractored
-                    target.setSpeed(0);
+                    // G7.5: held drones/shuttles cannot move themselves — enforced by
+                    // the isTractored() guards in SeekerMover/ShuttleMover, NOT by
+                    // zeroing speed here (which was never restored on release,
+                    // leaving freed drones dead in space).
                     continue;
                 }
                 Ship heldShip = (Ship) target;

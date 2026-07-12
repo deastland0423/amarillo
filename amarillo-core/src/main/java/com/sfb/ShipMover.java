@@ -529,6 +529,8 @@ class ShipMover {
                 continue;
             if (s.isBeingRecovered())
                 continue; // shut down for recovery (J1.622)
+            if (s.isTractored())
+                continue; // held fast — cannot fly out of the beam (G7.5)
             if (MovementUtil.moveThisImpulse(impulse, s.getSpeed())
                     && !movedShuttlesThisImpulse.contains(s)) {
                 movable.add(s);
@@ -544,6 +546,8 @@ class ShipMover {
             return false;
         if (shuttle.isBeingRecovered())
             return false; // shut down for recovery (J1.622)
+        if (shuttle.isTractored())
+            return false; // held fast — cannot fly out of the beam (G7.5)
         if (!getMovableShips().isEmpty())
             return false;
         if (!MovementUtil.moveThisImpulse(game.getCurrentImpulse(), shuttle.getSpeed()))
