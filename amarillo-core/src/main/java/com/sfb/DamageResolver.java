@@ -220,17 +220,13 @@ class DamageResolver {
         } else if (target instanceof Drone) {
             Drone drone = (Drone) target;
             if (damage == com.sfb.weapons.ADD.HIT) {
-                seekers.remove(drone);
-                if (drone.getController() instanceof DroneController)
-                    ((DroneController) drone.getController()).releaseControl(drone);
+                game.removeSeekerFromPlay(drone);
                 return "HIT — " + drone.getName() + " destroyed";
             }
             int remaining = drone.getHull() - damage;
             drone.setHull(Math.max(0, remaining));
             if (drone.getHull() <= 0) {
-                seekers.remove(drone);
-                if (drone.getController() instanceof DroneController)
-                    ((DroneController) drone.getController()).releaseControl(drone);
+                game.removeSeekerFromPlay(drone);
                 return drone.getName() + " destroyed (" + damage + " damage)";
             }
             return drone.getName() + " hit for " + damage
@@ -294,7 +290,7 @@ class DamageResolver {
             torp.applyPhaserDamage(damage);
             int after = torp.getCurrentStrength();
             if (after <= 0) {
-                seekers.remove(torp);
+                game.removeSeekerFromPlay(torp);
                 return torp.getName() + " destroyed by phaser fire (" + damage + " pts)";
             }
             return torp.getName() + " hit for " + damage + " phaser pts — strength " + before + " → " + after;
@@ -304,16 +300,7 @@ class DamageResolver {
 
     private void removeDeadShuttle(com.sfb.objects.shuttles.Shuttle shuttle, boolean isSeeker) {
         if (isSeeker) {
-            seekers.remove((Seeker) shuttle);
-            if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle) {
-                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) shuttle;
-                if (ss.getController() instanceof DroneController)
-                    ((DroneController) ss.getController()).releaseControl(ss);
-            } else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack) {
-                com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) shuttle;
-                if (sp.getController() instanceof DroneController)
-                    ((DroneController) sp.getController()).releaseControl(sp);
-            }
+            game.removeSeekerFromPlay((Seeker) shuttle);
         } else {
             activeShuttles.remove(shuttle);
         }

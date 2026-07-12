@@ -73,6 +73,16 @@ class TractorResolver {
         return log;
     }
 
+    /** Drop every tractor link holding the given unit — it is leaving play. */
+    void releaseLinksHolding(Unit gone) {
+        for (Ship holder : ships) {
+            if (holder.getTractors() == null)
+                continue;
+            if (holder.getTractors().getTractoredUnits().contains(gone))
+                holder.getTractors().releaseTractor(gone);
+        }
+    }
+
     /** True if any ship currently holds at least one unit in a tractor beam. */
     boolean anyTractorLinksExist() {
         for (Ship s : ships) {

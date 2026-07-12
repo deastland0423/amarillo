@@ -877,9 +877,7 @@ public class Game {
             if (selfGuiding) {
                 log = ((Unit) seeker).getName() + " released — continuing self-guided";
             } else {
-                seekers.remove(seeker);
-                if (seeker instanceof com.sfb.objects.shuttles.Shuttle)
-                    activeShuttles.remove((com.sfb.objects.shuttles.Shuttle) seeker);
+                removeSeekerFromPlay(seeker);
                 log = ((Unit) seeker).getName() + " released — self-destructed";
             }
         }
@@ -899,6 +897,29 @@ public class Game {
     /** Voluntarily transfer control of a seeker to an allied ship (FD1.7). */
     public ActionResult transferSeekerControl(String seekerName, String toShipName) {
         return seekerControl.transferSeekerControl(seekerName, toShipName);
+    }
+
+    /**
+     * The single exit for a seeker leaving play — impact, destruction by fire,
+     * chaff distraction, endurance expiry, death drag, whatever removes it.
+     * Frees the controller's channel, drops any tractor beam holding it,
+     * clears lock-ons on it, empties its position, and removes it from the
+     * unit lists. Idempotent, so batch callers may pass duplicates. Callers
+     * log WHY the seeker left play; this method only makes it gone.
+     */
+    void removeSeekerFromPlay(Seeker seeker) {
+        seekers.remove(seeker);
+        if (seeker.getController() instanceof com.sfb.objects.DroneController)
+            ((com.sfb.objects.DroneController) seeker.getController()).releaseControl(seeker);
+        if (seeker instanceof com.sfb.objects.shuttles.Shuttle)
+            activeShuttles.remove((com.sfb.objects.shuttles.Shuttle) seeker);
+        if (seeker instanceof Unit) {
+            Unit unit = (Unit) seeker;
+            tractorResolver.releaseLinksHolding(unit);
+            for (Ship ship : ships)
+                ship.removeLockOn(unit);
+            unit.setLocation(null);
+        }
     }
 
     public List<com.sfb.objects.shuttles.Shuttle> getActiveShuttles() {

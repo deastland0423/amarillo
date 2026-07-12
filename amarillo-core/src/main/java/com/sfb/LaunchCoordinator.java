@@ -78,11 +78,9 @@ class LaunchCoordinator {
                 + ") — " + distracted.size() + " seeker(s) distracted");
 
         for (Seeker s : distracted) {
-            if (s.getController() instanceof DroneController)
-                ((DroneController) s.getController()).releaseControl(s);
             sb.append("\n  ").append(s instanceof Unit ? ((Unit) s).getName() : "seeker").append(" — lost tracking");
+            game.removeSeekerFromPlay(s);
         }
-        seekers.removeAll(distracted);
 
         sb.append("; ").append(shuttle.getChaffPacks()).append(" pack(s) remaining");
         return ActionResult.ok(sb.toString());
@@ -563,12 +561,10 @@ class LaunchCoordinator {
                 chasing.add(sk);
         }
         for (Seeker sk : chasing) {
-            if (sk.getController() instanceof DroneController)
-                ((DroneController) sk.getController()).releaseControl(sk);
             msg.append("\n  ").append(sk instanceof Unit ? ((Unit) sk).getName() : "seeker")
                .append(" lost tracking — target landed");
+            game.removeSeekerFromPlay(sk);
         }
-        seekers.removeAll(chasing);
 
         return ActionResult.ok(msg.toString());
     }

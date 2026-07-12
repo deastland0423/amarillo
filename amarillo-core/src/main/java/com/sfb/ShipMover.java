@@ -248,6 +248,16 @@ class ShipMover {
      * (G7.542). Drones cannot be death-dragged (G7.53). Fighter HET breakaway
      * (G7.543/G7.55) is not yet implemented.
      */
+    /** A dragged small unit dies: seekers exit via the central path; plain shuttles locally. */
+    private void removeHeldUnitFromPlay(com.sfb.objects.Unit held) {
+        if (held instanceof com.sfb.objects.Seeker) {
+            game.removeSeekerFromPlay((com.sfb.objects.Seeker) held);
+        } else {
+            held.setLocation(null);
+            activeShuttles.removeIf(sh -> sh == held);
+        }
+    }
+
     private void dragHeldSmallUnits(Ship ship, int moveDir, StringBuilder log) {
         if (ship.getTractors() == null)
             return;
@@ -259,9 +269,7 @@ class ShipMover {
                 int rated = hs.isCrippled() ? (int) Math.ceil(hs.getMaxSpeed() / 2.0) : hs.getMaxSpeed();
                 if (ship.getSpeed() > 2 * rated) {
                     ship.getTractors().releaseTractor(held);
-                    held.setLocation(null);
-                    seekers.removeIf(sk -> sk == held);
-                    activeShuttles.removeIf(sh -> sh == held);
+                    removeHeldUnitFromPlay(held);
                     log.append("\n").append(held.getName())
                             .append(" death-dragged at speed ").append(ship.getSpeed())
                             .append(" (max safe tow ").append(2 * rated)
@@ -276,9 +284,7 @@ class ShipMover {
                 // Links persist across turns now — release explicitly so the
                 // dead unit doesn't occupy a beam or hold the rotation phase open
                 ship.getTractors().releaseTractor(held);
-                held.setLocation(null);
-                seekers.removeIf(sk -> sk == held);
-                activeShuttles.removeIf(sh -> sh == held);
+                removeHeldUnitFromPlay(held);
                 log.append("\n").append(held.getName())
                         .append(heldNext == null ? " dragged off map — destroyed" : " dragged into planet — destroyed");
             } else {

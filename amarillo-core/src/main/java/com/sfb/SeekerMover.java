@@ -354,18 +354,8 @@ class SeekerMover {
             }
         }
 
-        for (Seeker s : expired) {
-            if (s instanceof Drone) {
-                Drone d = (Drone) s;
-                if (d.getController() instanceof DroneController)
-                    ((DroneController) d.getController()).releaseControl(d);
-            } else if (s instanceof SuicideShuttle) {
-                SuicideShuttle ss = (SuicideShuttle) s;
-                if (ss.getController() instanceof DroneController)
-                    ((DroneController) ss.getController()).releaseControl(ss);
-            }
-        }
-        seekers.removeAll(expired);
+        for (Seeker s : expired)
+            game.removeSeekerFromPlay(s);
 
         // Transition exploding WWs whose 4-impulse window just ended to post-explosion (J3.212)
         for (Shuttle shuttle : activeShuttles) {
@@ -447,7 +437,8 @@ class SeekerMover {
             }
             toRemove.add(seeker);
         }
-        seekers.removeAll(toRemove);
+        for (Seeker s : toRemove)
+            game.removeSeekerFromPlay(s);
         return log;
     }
 

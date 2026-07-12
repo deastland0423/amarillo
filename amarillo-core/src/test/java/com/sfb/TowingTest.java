@@ -310,6 +310,34 @@ public class TowingTest {
     }
 
     @Test
+    public void removeSeekerFromPlay_cleansUpEverything() {
+        // Central-exit contract: controller channel freed, tractor link dropped,
+        // lock-ons cleared, location emptied, lists purged — in one call.
+        allocate(0.0);
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("Doomed-1");
+        drone.setLocation(new Location(11, 10));
+        drone.setTarget(fed);
+        drone.setController(klingon);
+        assertTrue(klingon.acquireControl(drone));
+        int channelsUsed = klingon.getControlUsed();
+        game.getSeekers().add(drone);
+        fed.getTractors().initForTurn(4);
+        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.addLockOn(drone);
+
+        game.removeSeekerFromPlay(drone);
+
+        assertFalse(game.getSeekers().contains(drone));
+        assertEquals("Control channel freed", channelsUsed - 1, klingon.getControlUsed());
+        assertTrue("Tractor link dropped", fed.getTractors().getTractoredUnits().isEmpty());
+        assertFalse("Lock-on cleared", fed.getLockOns().contains(drone));
+        assertNull("Position emptied", drone.getLocation());
+        assertEquals("Beam stays spent for the turn (G7.13)",
+                2, fed.getTractors().getBeamsAvailableThisTurn());
+    }
+
+    @Test
     public void tractoredShuttle_cannotFlyOutOfTheBeam() {
         allocate(0.0);
         Shuttle shuttle = launchAndGrabShuttle();
