@@ -285,6 +285,31 @@ public class TowingTest {
     }
 
     @Test
+    public void heldUnitLeavingPlay_releasesTheLink() {
+        // Bug found in play 2026-07-12: a held drone destroyed while in the
+        // beam left a stale link — phantom Release button, beam still occupied.
+        allocate(0.0);
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("Held-1");
+        drone.setLocation(new Location(11, 10));
+        drone.setTarget(fed);
+        game.getSeekers().add(drone);
+        fed.getTractors().initForTurn(4);
+        assertTrue(fed.getTractors().linkUnit(drone));
+
+        // Remove the drone from play by any path (stands in for phaser/ADD kill)
+        game.getSeekers().remove(drone);
+        drone.setLocation(null);
+
+        game.advancePhase(); // reconcile sweep runs at every phase advance
+
+        assertTrue("Stale link must be dropped",
+                fed.getTractors().getTractoredUnits().isEmpty());
+        assertEquals("The beam stays spent for the turn (G7.13)",
+                2, fed.getTractors().getBeamsAvailableThisTurn());
+    }
+
+    @Test
     public void tractoredShuttle_cannotFlyOutOfTheBeam() {
         allocate(0.0);
         Shuttle shuttle = launchAndGrabShuttle();

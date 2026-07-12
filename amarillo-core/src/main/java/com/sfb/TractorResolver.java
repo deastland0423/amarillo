@@ -45,6 +45,34 @@ class TractorResolver {
         rotatedThisTurn.clear();
     }
 
+    /**
+     * Self-healing sweep, run at the end of every phase advance: drop any
+     * tractor link whose held unit has left play (impacted, shot down,
+     * expired, off-map) — regardless of which code path removed it. The beam
+     * stays used for the turn (G7.13). Held SHIPS are additionally handled at
+     * their remove-from-play sites via releaseAllLinksInvolving (G7.28).
+     */
+    List<String> releaseDeadLinks() {
+        List<String> log = new ArrayList<>();
+        for (Ship holder : ships) {
+            if (holder.getTractors() == null)
+                continue;
+            for (Unit held : new ArrayList<>(holder.getTractors().getTractoredUnits())) {
+                boolean inPlay = held.getLocation() != null
+                        && (held instanceof Ship
+                                ? ships.contains(held)
+                                : seekers.stream().anyMatch(s -> s == held)
+                                        || activeShuttles.stream().anyMatch(s -> s == held));
+                if (!inPlay) {
+                    holder.getTractors().releaseTractor(held);
+                    log.add(holder.getName() + " tractor link released — "
+                            + held.getName() + " is no longer in play");
+                }
+            }
+        }
+        return log;
+    }
+
     /** True if any ship currently holds at least one unit in a tractor beam. */
     boolean anyTractorLinksExist() {
         for (Ship s : ships) {

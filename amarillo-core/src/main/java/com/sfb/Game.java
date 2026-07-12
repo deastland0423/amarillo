@@ -604,6 +604,9 @@ public class Game {
                 currentPhase = ImpulsePhase.MOVEMENT;
                 break;
         }
+        // Self-healing: drop any tractor link whose held unit left play this
+        // phase (impacted, shot down, expired) — no matter which path removed it
+        log.addAll(tractorResolver.releaseDeadLinks());
         String message = log.isEmpty() ? "" : String.join("\n", log);
         return ActionResult.ok(message);
     }
