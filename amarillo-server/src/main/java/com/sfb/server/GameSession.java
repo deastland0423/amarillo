@@ -1087,6 +1087,29 @@ public class GameSession {
                 return game.launchWildWeasel(ship, shuttleName, facing, speed);
             }
 
+            case "ASSIGN_GUARD": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String targetCode = request.getAction(); // guard target code in action field
+                if (targetCode == null || targetCode.isBlank())
+                    return ActionResult.fail("No guard target specified");
+                // Deliberately NOT appended to the combat log: guard posts are
+                // secret (the raider learns of one by walking into it, D7.831).
+                // The acting player sees the result in the action response.
+                return game.assignGuard(ship, targetCode, request.isCommando());
+            }
+
+            case "REMOVE_GUARD": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String targetCode = request.getAction();
+                if (targetCode == null || targetCode.isBlank())
+                    return ActionResult.fail("No guard target specified");
+                return game.removeGuard(ship, targetCode); // secret — not logged
+            }
+
             case "BEGIN_RECOVERY": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)

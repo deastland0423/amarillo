@@ -134,6 +134,12 @@ public class ActionRequest {
     public boolean isDeclare()              { return declare; }
     public void    setDeclare(boolean d)    { this.declare = d; }
 
+    // ASSIGN_GUARD field — post a commando squad instead of a normal BP (D7.83)
+    private boolean commando;
+
+    public boolean isCommando()               { return commando; }
+    public void    setCommando(boolean c)     { this.commando = c; }
+
     // LAUNCH_PLASMA fields
     private boolean pseudo;
     private boolean fastLoad;

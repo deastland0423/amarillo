@@ -317,6 +317,11 @@ public class GuardPosts {
         return list == null ? 0 : list.size();
     }
 
+    /** True for fungible-pool guard targets (guards/boxes interception). */
+    public static boolean isPoolType(SystemTarget.Type type) {
+        return POOL_TYPES.contains(type);
+    }
+
     /** Total boarding parties currently standing guard. */
     public int totalPosted() {
         int total = weaponGuards.size() + tractorGuards.size() + singletonGuards.size();
@@ -415,7 +420,8 @@ public class GuardPosts {
         return null;
     }
 
-    private int poolBoxCount(SystemTarget.Type type) {
+    /** Current box count of a pool target (the denominator of guards/boxes). */
+    public int poolBoxCount(SystemTarget.Type type) {
         switch (type) {
             case TRANSPORTERS: return ship.getTransporters().getAvailableTrans();
             case BATTERY:      return ship.getPowerSystems().getAvailableBattery();

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
+import type { GuardOptions } from '../api/gameApi';
 
 // Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
 const TURN_MODE_TABLES: Record<string, number[]> = {
@@ -215,6 +216,100 @@ function Collapsible({ title, color, children, defaultOpen = false }: { title: s
       </button>
       {open && <div className="ea-collapsible-body">{children}</div>}
     </div>
+  );
+}
+
+// ---- Guards (D7.83) ----
+// Guard posts are secret: state comes from the owner-only guard-options
+// endpoint, never the broadcast DTO. Posting/withdrawal fire immediately as
+// ASSIGN_GUARD/REMOVE_GUARD actions (guards cost boarding parties, not
+// energy, and persist across turns), so server refusals surface at click time.
+
+export function GuardSection({ gameId, playerToken, shipName, readOnly = false }: {
+  gameId: string; playerToken: string; shipName: string; readOnly?: boolean;
+}) {
+  const [opts, setOpts]         = useState<GuardOptions | null>(null);
+  const [err, setErr]           = useState('');
+  const [busy, setBusy]         = useState(false);
+  const [commando, setCommando] = useState(false);
+
+  const load = useCallback(() => {
+    gameApi.getGuardOptions(gameId, playerToken, shipName)
+      .then(o => { setOpts(o); setErr(''); })
+      .catch(e => setErr(e instanceof Error ? e.message : String(e)));
+  }, [gameId, playerToken, shipName]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function act(type: 'ASSIGN_GUARD' | 'REMOVE_GUARD', code: string) {
+    setBusy(true);
+    try {
+      const res = await gameApi.submitAction(gameId, playerToken, {
+        type, shipName, action: code,
+        commando: type === 'ASSIGN_GUARD' ? commando : false,
+      });
+      setErr(res.success ? '' : res.message);
+      load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!opts) return null;
+  const bpFree = opts.normalAvailable + opts.commandosAvailable;
+  if (bpFree === 0 && opts.totalPosted === 0) return null;
+
+  const btn: React.CSSProperties = {
+    background: '#21262d', border: '1px solid #30363d', color: '#e6edf3',
+    borderRadius: 4, padding: '1px 8px', fontSize: 11, cursor: 'pointer', marginLeft: 6,
+  };
+
+  return (
+    <Collapsible title={`GUARDS  (${opts.totalPosted} posted · ${bpFree} BP free)`} color="#d29922">
+      <div className="ea-note-dim" style={{ marginBottom: 6 }}>
+        Guards are boarding parties — while posted they do not fight boarding actions (D7.834).
+        Posts persist across turns and are hidden from the enemy.
+      </div>
+      {!readOnly && opts.commandosAvailable > 0 && (
+        <label className="ea-note-dim" style={{ display: 'block', marginBottom: 6 }}>
+          <input type="checkbox" checked={commando}
+                 onChange={e => setCommando(e.target.checked)} /> post commando squads
+        </label>
+      )}
+      <div style={{ maxHeight: 190, overflowY: 'auto' }}>
+        {opts.targets.map(t => (
+          <div key={t.code} style={{ display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', padding: '1px 0', fontSize: 12 }}>
+            <span style={{ color: t.guarded ? '#d29922' : '#8b949e' }}>
+              {t.label}
+              {t.kind === 'pool' && <> — {t.guards ?? 0}/{t.boxes ?? 0} guarded</>}
+              {t.kind === 'exact' && t.guarded && <> — guarded</>}
+            </span>
+            {!readOnly && (
+              <span style={{ whiteSpace: 'nowrap' }}>
+                {t.kind === 'pool' ? (
+                  <>
+                    <button style={btn} disabled={busy || bpFree === 0 || (t.guards ?? 0) >= (t.boxes ?? 0)}
+                            onClick={() => act('ASSIGN_GUARD', t.code)}>+</button>
+                    <button style={btn} disabled={busy || (t.guards ?? 0) === 0}
+                            onClick={() => act('REMOVE_GUARD', t.code)}>−</button>
+                  </>
+                ) : t.guarded ? (
+                  <button style={btn} disabled={busy}
+                          onClick={() => act('REMOVE_GUARD', t.code)}>Withdraw</button>
+                ) : (
+                  <button style={btn} disabled={busy || bpFree === 0}
+                          onClick={() => act('ASSIGN_GUARD', t.code)}>Post</button>
+                )}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {err && <div style={{ color: '#f85149', fontSize: 12, marginTop: 4 }}>{err}</div>}
+    </Collapsible>
   );
 }
 
@@ -587,6 +682,11 @@ export default function EnergyAllocationDialog({
             </Collapsible>
           </div>
         )}
+
+        {/* ---- Guards (D7.83) — posted/withdrawn immediately, not part of ALLOCATE ---- */}
+        <div className="ea-section">
+          <GuardSection gameId={gameId} playerToken={playerToken} shipName={ship.name} />
+        </div>
 
         {/* ---- Shields ---- */}
         <div className="ea-section">

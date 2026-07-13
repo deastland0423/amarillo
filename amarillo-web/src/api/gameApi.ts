@@ -3,6 +3,22 @@
  * All paths are relative — Vite proxies /api → localhost:8080 in dev.
  */
 
+export interface GuardTarget {
+  code:     string;            // wire code: "WEAPON:name", "TRACTOR:2", "SENSORS", ...
+  label:    string;
+  kind:     'exact' | 'pool';
+  guarded:  boolean;           // exact targets: has a guard posted
+  guards?:  number;            // pool targets: guards posted
+  boxes?:   number;            // pool targets: current box count
+}
+
+export interface GuardOptions {
+  normalAvailable:    number;
+  commandosAvailable: number;
+  totalPosted:        number;
+  targets:            GuardTarget[];
+}
+
 export interface CreateGameResponse {
   gameId: string;
   hostToken: string;
@@ -230,6 +246,18 @@ export const gameApi = {
   ): Promise<{ code: string; label: string }[]> {
     return request(
       `/api/games/${gameId}/har-options?attacker=${encodeURIComponent(attacker)}&target=${encodeURIComponent(target)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
+  // Owner-only: guard posts are secret (D7.831) and absent from the broadcast state
+  getGuardOptions(
+    gameId: string,
+    playerToken: string,
+    ship: string,
+  ): Promise<GuardOptions> {
+    return request(
+      `/api/games/${gameId}/guard-options?ship=${encodeURIComponent(ship)}`,
       { headers: { 'X-Player-Token': playerToken } },
     );
   },

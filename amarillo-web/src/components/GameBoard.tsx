@@ -85,6 +85,48 @@ function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
 
 // ---- Sub-components ----
 
+/**
+ * Owner-only, lazily fetched guard summary (D7.83). Guard posts are secret —
+ * they never ride the broadcast state, so this row fetches from the
+ * guard-options endpoint only when expanded, and only renders for own ships.
+ */
+function GuardSummaryRow({ gameId, playerToken, shipName }: {
+  gameId: string; playerToken: string; shipName: string;
+}) {
+  // Mounted with key={shipName}, so state resets naturally on ship change
+  const [open, setOpen] = useState(false);
+  const [opts, setOpts] = useState<import('../api/gameApi').GuardOptions | null>(null);
+
+  useEffect(() => {
+    if (open)
+      gameApi.getGuardOptions(gameId, playerToken, shipName)
+        .then(setOpts).catch(() => setOpts(null));
+  }, [open, gameId, playerToken, shipName]);
+
+  const posted = opts?.targets.filter(t => t.guarded || (t.guards ?? 0) > 0) ?? [];
+  return (
+    <div className="sidebar-stat-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
+           onClick={() => setOpen(o => !o)}>
+        <span className="sidebar-stat-label">Guards</span>
+        <span className="sidebar-stat-value">
+          {open ? (opts ? `${opts.totalPosted} posted ▾` : '…') : 'show ▸'}
+        </span>
+      </div>
+      {open && opts && (
+        <div style={{ fontSize: 11, color: '#8b949e', marginTop: 2 }}>
+          {posted.length === 0 && <div>No guards posted (post during Energy Allocation)</div>}
+          {posted.map(t => (
+            <div key={t.code}>
+              {t.label}{t.kind === 'pool' ? ` — ${t.guards}/${t.boxes} guarded` : ''}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatRow({ label, value, dmg }: { label: string; value: string | number; dmg?: boolean }) {
   return (
     <div className="sidebar-stat-row">
@@ -1368,6 +1410,8 @@ interface SidebarProps {
   isMine:          boolean;
   canMove:         boolean;
   phase:           string;
+  gameId:          string;
+  playerToken:     string;
   fireTarget:      MapObject | null;
   fireOptions:     FireOptions | null;
   loadingOptions:  boolean;
@@ -1499,7 +1543,7 @@ interface SidebarProps {
 }
 
 function ShipSidebar({
-  ship, isMine, canMove, phase,
+  ship, isMine, canMove, phase, gameId, playerToken,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
   onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
@@ -2312,6 +2356,9 @@ function ShipSidebar({
         <StatRow label="Speed"    value={(ship.tractorTrueSpeed ?? -1) >= 0
           ? `${ship.tractorTrueSpeed} (${ship.speed})`
           : ship.speed} />
+        {isMine && (
+          <GuardSummaryRow key={ship.name} gameId={gameId} playerToken={playerToken} shipName={ship.name} />
+        )}
         {ship.turnMode != null && (
           <StatRow
             label="Turn Mode"
@@ -3793,6 +3840,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             isMine={myShips.has(liveShip.name)}
             canMove={canMove}
             phase={phase}
+            gameId={session.gameId}
+            playerToken={session.playerToken}
             fireTarget={fireTarget}
             fireOptions={fireOptions}
             loadingOptions={loadingOptions}

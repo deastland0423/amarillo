@@ -653,6 +653,73 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Guard options — owner-only: guard posts are secret (D7.831); they are
+    // deliberately absent from the broadcast GameStateDto, which both players
+    // receive identically. The raider learns of a guard by walking into it.
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/guard-options")
+    public ResponseEntity<?> getGuardOptions(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestParam String ship) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.hasPlayer(token))
+            return ResponseEntity.status(403).body(Map.of("error", "Invalid player token"));
+        if (!session.ownsShip(token, ship))
+            return ResponseEntity.status(403).body(Map.of("error", "You do not own ship: " + ship));
+
+        return locked(session, () -> {
+            Ship shipObj = session.getGame().getShips().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(ship))
+                    .findFirst().orElse(null);
+            if (shipObj == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Ship not found: " + ship));
+
+            com.sfb.objects.GuardPosts posts = shipObj.getGuardPosts();
+            List<Map<String, Object>> targets = new ArrayList<>();
+            for (com.sfb.properties.SystemTarget st : session.getGame().getTargetableSystems(shipObj)) {
+                if (st.getType() == com.sfb.properties.SystemTarget.Type.UIM)
+                    continue; // not guardable (UIM system itself deferred)
+                Map<String, Object> t = new java.util.LinkedHashMap<>();
+                String code;
+                boolean guarded;
+                if (st.getType() == com.sfb.properties.SystemTarget.Type.WEAPON) {
+                    code = "WEAPON:" + st.getDisplayName();
+                    guarded = posts.isGuarded(st.getWeapon());
+                } else if (st.getType() == com.sfb.properties.SystemTarget.Type.TRACTOR) {
+                    code = "TRACTOR:" + st.getIndex();
+                    guarded = posts.isBeamGuarded(st.getIndex());
+                } else {
+                    code = st.getType().name();
+                    guarded = posts.isGuarded(st.getType());
+                }
+                t.put("code", code);
+                t.put("label", st.getDisplayName());
+                if (com.sfb.objects.GuardPosts.isPoolType(st.getType())) {
+                    t.put("kind", "pool");
+                    t.put("guards", posts.poolGuardCount(st.getType()));
+                    t.put("boxes", posts.poolBoxCount(st.getType()));
+                } else {
+                    t.put("kind", "exact");
+                }
+                t.put("guarded", guarded);
+                targets.add(t);
+            }
+
+            com.sfb.objects.TroopCount troops = shipObj.getCrew().getFriendlyTroops();
+            return ResponseEntity.ok(Map.of(
+                    "normalAvailable", troops.normal,
+                    "commandosAvailable", troops.commandos,
+                    "totalPosted", posts.totalPosted(),
+                    "targets", targets));
+        });
+    }
+
+    // -------------------------------------------------------------------------
     // Action
     // -------------------------------------------------------------------------
 
