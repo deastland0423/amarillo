@@ -28,7 +28,7 @@ export function useGameSocket(gameId: string, playerToken: string): GameState | 
       reconnectDelay: 3000,
       onConnect: () => {
         if (!active) return;  // already cleaned up before this connection completed
-        client.subscribe(`/topic/games/${gameId}/state`, (message) => {
+        const onState = (message: { body: string }) => {
           if (!active) return;  // discard if this subscription was already cleaned up
           const incoming = JSON.parse(message.body) as GameState;
           setState(prev => {
@@ -41,7 +41,12 @@ export function useGameSocket(gameId: string, playerToken: string): GameState | 
             }
             return { ...incoming, myShips: knownShips };
           });
-        });
+        };
+        // Shared topic: omniscient broadcasts while ships are unassigned
+        // (solo/dev). Per-token topic: this player's REDACTED view once
+        // assignments exist — hidden info never reaches this client at all.
+        client.subscribe(`/topic/games/${gameId}/state`, onState);
+        client.subscribe(`/topic/games/${gameId}/state/${playerToken}`, onState);
       },
     });
 

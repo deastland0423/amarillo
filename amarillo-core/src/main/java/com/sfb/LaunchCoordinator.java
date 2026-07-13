@@ -119,7 +119,7 @@ class LaunchCoordinator {
         int wwSpeed = Math.max(0, Math.min(6, speed));
 
         com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
-        ww.setName(foundShuttle.getName());
+        ww.setName(ship.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming
         ww.setParentShipName(ship.getName());
         ww.setOwner(ship.getOwner());
         foundShuttleBay.launch(foundShuttle, wwSpeed, wwFacing, game.getAbsoluteImpulse());
@@ -349,7 +349,7 @@ class LaunchCoordinator {
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
 
-        torpedo.setName(launcher.getName() + "-Pseudo-" + game.nextSeekerSeq());
+        torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq()); // named like a real one — the name must not reveal pseudo status
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
@@ -392,6 +392,12 @@ class LaunchCoordinator {
         launched.setParentShipName(launcher.getName());
         launched.setOwner(launcher.getOwner());
         launched.setLaunchImpulse(game.getAbsoluteImpulse());
+        // Uniform anonymous naming: every launched non-fighter shuttle is
+        // "<Ship>-Shuttle-<n>" so the NAME never reveals whether it is an
+        // admin shuttle, suicide shuttle, scatter pack, or weasel. Fighters
+        // keep their names — a fighter is visibly a fighter.
+        if (!(launched instanceof com.sfb.objects.shuttles.Fighter))
+            launched.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq());
         activeShuttles.add(launched);
         return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
     }
@@ -424,7 +430,7 @@ class LaunchCoordinator {
             voidWildWeasel(launcher);
 
         bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        shuttle.setName(launcher.getName() + "-Suicide-" + game.nextSeekerSeq());
+        shuttle.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays hidden
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
@@ -473,7 +479,7 @@ class LaunchCoordinator {
         launcher.forceAcquireControl(pack);
 
         bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        pack.setName(launcher.getName() + "-Pack-" + game.nextSeekerSeq());
+        pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays hidden
         pack.setLocation(launcher.getLocation());
         pack.setTarget(target);
         pack.setController(launcher);

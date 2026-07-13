@@ -500,7 +500,21 @@ public class GameStateDto {
     public GameStateDto() {
     }
 
+    /** Omniscient snapshot — solo/unassigned (dev) mode only. */
     public GameStateDto(Game game) {
+        this(game, null);
+    }
+
+    /**
+     * Snapshot through one player's eyes. {@code viewerTeam} null = see
+     * everything. For enemy units the builder hides what the tabletop hides:
+     * seeking shuttles (suicide shuttles, unreleased scatter packs) render as
+     * plain shuttles until identified, plasma keeps its type/pseudo/target
+     * secret until identified, drone types stay unknown until identified, and
+     * enemy bay contents are not sent at all. Wild Weasels are public — their
+     * interference announces them the moment they launch.
+     */
+    public GameStateDto(Game game, String viewerTeam) {
         this.mapCols = game.getMapCols();
         this.mapRows = game.getMapRows();
         this.maxTurns = game.getMaxTurns();
@@ -556,26 +570,41 @@ public class GameStateDto {
         this.mapObjects = new ArrayList<>();
 
         for (Ship ship : game.getShips())
-            mapObjects.add(fromShip(ship, game));
+            mapObjects.add(fromShip(ship, game, hiddenFrom(viewerTeam, ship.getOwner())));
 
         for (com.sfb.objects.shuttles.Shuttle shuttle : game.getActiveShuttles()) {
             if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+                // Public by rule: a weasel's interference announces it at launch
                 mapObjects.add(fromWildWeasel((com.sfb.objects.shuttles.WildWeaselShuttle) shuttle));
             else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack)
+                // Only released packs live here — the release was visible to all
                 mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
                 mapObjects.add(fromShuttle(shuttle));
         }
 
         for (Seeker seeker : game.getSeekers()) {
-            if (seeker instanceof Drone)
-                mapObjects.add(fromDrone((Drone) seeker));
-            else if (seeker instanceof PlasmaTorpedo)
-                mapObjects.add(fromPlasma((PlasmaTorpedo) seeker));
-            else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle)
-                mapObjects.add(fromSuicideShuttle((com.sfb.objects.shuttles.SuicideShuttle) seeker));
-            else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack)
-                mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) seeker));
+            if (seeker instanceof Drone) {
+                Drone d = (Drone) seeker;
+                mapObjects.add(fromDrone(d,
+                        hiddenFrom(viewerTeam, ownerOfController(d.getController())) && !d.isIdentified()));
+            } else if (seeker instanceof PlasmaTorpedo) {
+                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
+                mapObjects.add(fromPlasma(torp,
+                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())) && !torp.isIdentified()));
+            } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
+                if (hiddenFrom(viewerTeam, ss.getOwner()) && !ss.isIdentified())
+                    mapObjects.add(fromShuttle(ss)); // renders as a plain shuttle
+                else
+                    mapObjects.add(fromSuicideShuttle(ss));
+            } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
+                com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
+                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isIdentified())
+                    mapObjects.add(fromShuttle(pack)); // unreleased pack: plain shuttle
+                else
+                    mapObjects.add(fromScatterPack(pack));
+            }
         }
 
         for (SpaceMine mine : game.getMines())
@@ -696,7 +725,21 @@ public class GameStateDto {
     // Builders
     // -------------------------------------------------------------------------
 
-    private static ShipDto fromShip(Ship ship, Game game) {
+    /**
+     * True when the viewer must not see this unit's secrets: a real viewer is
+     * set, the unit has an owner, and the owner is on a different team.
+     * Null viewer = omniscient (solo/dev); unowned units are public.
+     */
+    private static boolean hiddenFrom(String viewerTeam, com.sfb.Player owner) {
+        return viewerTeam != null && owner != null && !viewerTeam.equals(owner.getTeamName());
+    }
+
+    /** Owner of a seeker's controller, when the controller is a ship. */
+    private static com.sfb.Player ownerOfController(Object controller) {
+        return controller instanceof Ship ? ((Ship) controller).getOwner() : null;
+    }
+
+    private static ShipDto fromShip(Ship ship, Game game, boolean hideSecrets) {
         ShipDto dto = new ShipDto();
         dto.name = ship.getName();
         dto.location = ship.getLocation() != null ? ship.getLocation().toString() : null;
@@ -906,7 +949,14 @@ public class GameStateDto {
             dto.weapons.add(wd);
         }
 
+        // Rack loadouts and bay contents are the owner's secrets — COI drone
+        // choices, WW charges, suicide-shuttle arming, scatter-pack payloads.
+        // Enemy viewers get empty lists (the SSD itself is public knowledge;
+        // what is LOADED is not).
         dto.droneRacks = new ArrayList<>();
+        dto.shuttleBays = new ArrayList<>();
+        if (hideSecrets)
+            return dto;
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack))
                 continue;
@@ -1088,28 +1138,37 @@ public class GameStateDto {
         return dto;
     }
 
-    private static DroneDto fromDrone(Drone drone) {
+    private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
         DroneDto dto = new DroneDto();
         dto.name = drone.getName();
         dto.location = drone.getLocation() != null ? drone.getLocation().toString() : null;
         dto.facing = drone.getFacing();
         dto.speed = drone.getSpeed();
-        dto.droneType = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
-        dto.warheadDamage = drone.getWarheadDamage();
-        dto.hull = drone.getHull();
-        dto.maxHull = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
-        dto.damageTaken = dto.maxHull - drone.getHull();
+        if (hideSecrets) {
+            // Type, warhead, and endurance are unknown until identified (labs)
+            dto.droneType = "?";
+            dto.warheadDamage = 0;
+            dto.hull = drone.getHull();
+            dto.maxHull = drone.getHull();
+            dto.damageTaken = 0;
+        } else {
+            dto.droneType = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
+            dto.warheadDamage = drone.getWarheadDamage();
+            dto.hull = drone.getHull();
+            dto.maxHull = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+            dto.damageTaken = dto.maxHull - drone.getHull();
+        }
         dto.targetName = drone.getTarget() != null ? drone.getTarget().getName() : null;
         dto.controllerFaction = controllerFaction(drone.getController());
         dto.controllerName = drone.getController() != null ? drone.getController().getName() : null;
         dto.launcherName = drone.getLauncherName();
-        dto.endurance = drone.getEndurance();
+        dto.endurance = hideSecrets ? 0 : drone.getEndurance();
         dto.launchImpulse = drone.getLaunchImpulse();
         dto.isIdentified = drone.isIdentified();
         return dto;
     }
 
-    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp) {
+    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean hideSecrets) {
         PlasmaTorpedoDto dto = new PlasmaTorpedoDto();
         dto.name = torp.getName();
         dto.location = torp.getLocation() != null ? torp.getLocation().toString() : null;
@@ -1118,12 +1177,20 @@ public class GameStateDto {
         dto.currentStrength = torp.getCurrentStrength();
         dto.controllerFaction = controllerFaction(torp.getController());
         dto.controllerName = torp.getController() != null ? torp.getController().getName() : null;
-        dto.plasmaType = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
+        if (hideSecrets) {
+            // Type, pseudo status, and target stay unknown until identified —
+            // a pseudo must be indistinguishable from a real torpedo (FP1.4)
+            dto.plasmaType = "?";
+            dto.pseudo = false;
+            dto.targetName = null;
+        } else {
+            dto.plasmaType = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
+            dto.pseudo = torp.isPseudoPlasma();
+            dto.targetName = torp.getTarget() != null ? torp.getTarget().getName() : null;
+        }
         dto.distanceTraveled = torp.getDistanceTraveled();
-        dto.pseudo = torp.isPseudoPlasma();
         dto.damageTaken = torp.getDamageTaken();
         dto.launchImpulse = torp.getLaunchImpulse();
-        dto.targetName = torp.getTarget() != null ? torp.getTarget().getName() : null;
         dto.isIdentified = torp.isIdentified();
         return dto;
     }

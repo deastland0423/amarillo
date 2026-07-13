@@ -1,6 +1,7 @@
 package com.sfb.server;
 
 import com.sfb.Game.ActionResult;
+import com.sfb.dto.GameStateDto;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.scenario.ScenarioSpec;
@@ -53,26 +54,50 @@ public class GameController {
         }
     }
 
-    /** Snapshot for REST GET — never drains the combat log. */
-    private GameStateDto snapshotState(GameSession session) {
-        GameStateDto dto = new GameStateDto(session.getGame());
+    /** Snapshot through one viewer's eyes — never drains the combat log. */
+    private GameStateDto snapshotState(GameSession session, String viewerTeam) {
+        GameStateDto dto = new GameStateDto(session.getGame(), viewerTeam);
         dto.readyCount = session.getReadyCount();
         dto.playerCount = session.getPlayerCount();
-        // combatLog intentionally empty — events are delivered exclusively via
-        // WebSocket
         return dto;
     }
 
     /**
-     * Broadcast for WebSocket — drains the combat log so it is delivered exactly
-     * once.
+     * Viewer team for a token: null (omniscient) until ships are assigned —
+     * solo/dev mode. A tokened player without ships sees only public info.
+     */
+    private String viewerTeamFor(GameSession session, String token) {
+        boolean anyAssigned = session.getGame().getShips().stream()
+                .anyMatch(s -> s.getOwner() != null);
+        if (!anyAssigned)
+            return null;
+        String team = token != null ? session.getTeamNameFor(token) : null;
+        return team != null ? team : "__spectator__";
+    }
+
+    /**
+     * Broadcast for WebSocket — drains the combat log so it is delivered
+     * exactly once. Once ships are assigned, each player gets a REDACTED
+     * snapshot on their own destination: hidden information (seeker shuttle
+     * identity, pseudo plasma, bay contents) must never reach the other
+     * player's client, however politely the UI declines to render it.
      */
     private void broadcastState(GameSession session) {
-        GameStateDto dto = snapshotState(session);
-        dto.combatLog = session.drainCombatLog();
-        broker.convertAndSend(
-                "/topic/games/" + session.getId() + "/state",
-                dto);
+        List<String> combatLog = session.drainCombatLog();
+        boolean anyAssigned = session.getGame().getShips().stream()
+                .anyMatch(s -> s.getOwner() != null);
+        if (!anyAssigned) {
+            GameStateDto dto = snapshotState(session, null);
+            dto.combatLog = combatLog;
+            broker.convertAndSend("/topic/games/" + session.getId() + "/state", dto);
+            return;
+        }
+        for (String token : session.getPlayers().keySet()) {
+            GameStateDto dto = snapshotState(session, viewerTeamFor(session, token));
+            dto.combatLog = combatLog;
+            dto.myShips = session.getEffectiveShipNamesForPlayer(token);
+            broker.convertAndSend("/topic/games/" + session.getId() + "/state/" + token, dto);
+        }
     }
 
     private void broadcastLobby(GameSession session) {
@@ -811,7 +836,7 @@ public class GameController {
             return ResponseEntity.badRequest().body(Map.of("error", "Game has not started"));
 
         return locked(session, () -> {
-            GameStateDto dto = snapshotState(session);
+            GameStateDto dto = snapshotState(session, viewerTeamFor(session, token));
 
             // Populate myShips if the caller identifies themselves.
             // In unassigned (solo) mode, the player controls all ships.
