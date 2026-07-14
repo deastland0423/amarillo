@@ -1084,7 +1084,11 @@ public class GameSession {
                 String shuttleName = request.getAction();
                 int facing = request.getRange(); // reuse range field for facing (same as LAUNCH_SHUTTLE)
                 int speed = request.getSpeed();
-                return game.launchWildWeasel(ship, shuttleName, facing, speed);
+                ActionResult wwRes = game.launchWildWeasel(ship, shuttleName, facing, speed);
+                if (wwRes.isSuccess())
+                    appendCombatLog(ship.getName()
+                            + " launched a Wild Weasel"); // weasels are public at launch (user ruling)
+                return wwRes;
             }
 
             case "ASSIGN_GUARD": {
@@ -1159,7 +1163,13 @@ public class GameSession {
                 }
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Shuttle not found: " + shuttleName);
-                return game.launchShuttle(ship, foundBay, foundShuttle, speed, facing);
+                ActionResult launchRes = game.launchShuttle(ship, foundBay, foundShuttle, speed, facing);
+                // Public announcement, redacted: the launch is visible to all,
+                // the TYPE is not (detail stays in the actor's private response)
+                if (launchRes.isSuccess())
+                    appendCombatLog(ship.getName() + " launched a "
+                            + (foundShuttle instanceof com.sfb.objects.shuttles.Fighter ? "fighter" : "shuttle"));
+                return launchRes;
             }
 
             case "LAUNCH_SCATTER_PACK": {
@@ -1186,8 +1196,11 @@ public class GameSession {
                 }
                 if (foundBay == null || foundPack == null)
                     return ActionResult.fail("Scatter pack not found: " + packName);
-                return game.launchScatterPack(launcher, foundBay, foundPack, target,
+                ActionResult spRes = game.launchScatterPack(launcher, foundBay, foundPack, target,
                         request.getFacing(), request.getSpeed());
+                if (spRes.isSuccess())
+                    appendCombatLog(launcher.getName() + " launched a shuttle"); // type is secret
+                return spRes;
             }
 
             case "LAUNCH_SUICIDE_SHUTTLE": {
@@ -1214,8 +1227,11 @@ public class GameSession {
                 }
                 if (foundBay == null || foundShuttle == null)
                     return ActionResult.fail("Armed suicide shuttle not found: " + shuttleName);
-                return game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target,
+                ActionResult ssRes = game.launchSuicideShuttle(launcher, foundBay, foundShuttle, target,
                         request.getFacing(), request.getSpeed());
+                if (ssRes.isSuccess())
+                    appendCombatLog(launcher.getName() + " launched a shuttle"); // type is secret
+                return ssRes;
             }
 
             case "PERFORM_FIGHTER_HET": {
@@ -1277,7 +1293,11 @@ public class GameSession {
                 if (droneIndex < 0 || droneIndex >= rack.getAmmo().size())
                     return ActionResult.fail("Invalid drone index: " + droneIndex);
                 com.sfb.objects.Drone drone = rack.getAmmo().get(droneIndex);
-                return game.execute(new LaunchDroneCommand(attacker, target, rack, drone, request.getFacing()));
+                ActionResult droneRes = game.execute(
+                        new LaunchDroneCommand(attacker, target, rack, drone, request.getFacing()));
+                if (droneRes.isSuccess())
+                    appendCombatLog(attacker.getName() + " launched a drone"); // type/target are secret
+                return droneRes;
             }
 
             case "LAUNCH_PLASMA": {
@@ -1298,9 +1318,13 @@ public class GameSession {
                         .findFirst().orElse(null);
                 if (launcher == null)
                     return ActionResult.fail("Plasma launcher not found: " + wName);
-                return game.execute(
+                ActionResult plasmaRes = game.execute(
                         new LaunchPlasmaCommand(attacker, target, launcher, request.isPseudo(), request.isFastLoad(),
                                 request.getFacing()));
+                if (plasmaRes.isSuccess())
+                    appendCombatLog(attacker.getName()
+                            + " launched a plasma torpedo"); // type/pseudo/target are secret
+                return plasmaRes;
             }
 
             case "PLACE_TBOMB": {
