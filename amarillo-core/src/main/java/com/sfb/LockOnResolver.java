@@ -67,10 +67,7 @@ class LockOnResolver {
                         ship.addLockOn(target);
                         maybeRerollRetention(ship, target, dice); // G13.3322
                     } else {
-                        // G13.301: no new lock-on on a cloaked ship
-                        // (G13.333 reacquisition attempt: not yet implemented)
-                        lastLockOnLog.add(ship.getName() + " cannot acquire lock-on to "
-                                + target.getName() + " (fully cloaked; G13.301)");
+                        rollReacquisition(ship, target, dice); // G13.333
                     }
                     continue;
                 }
@@ -174,6 +171,36 @@ class LockOnResolver {
                 - rangeFactor(MapUtils.getRange(attacker, cloaked))
                 + speedFactor(cloaked.getSpeed())
                 - 4;
+    }
+
+    /** P = S \u2212 EW \u2212 RF + SF \u2212 10 (G13.333) \u2014 reacquiring a lost/never-held lock-on. */
+    int reacquisitionProbability(Ship attacker, Ship cloaked) {
+        return attacker.getSpecialFunctions().getSensor()
+                - rangeFactor(MapUtils.getRange(attacker, cloaked))
+                + speedFactor(cloaked.getSpeed())
+                - 10;
+    }
+
+    /**
+     * G13.333: turn-start attempt to acquire a lock-on to a fully cloaked ship
+     * when none is held. Practically only succeeds against a fast cloaked ship
+     * at short range. A success is a retained lock-on thereafter \u2014 its G13.3322
+     * baseline is stored so later turn-start checks use the retention rules.
+     * (Mid-turn attempts when conditions improve are deferred with EW.)
+     */
+    private void rollReacquisition(Ship attacker, Ship cloaked, DiceRoller dice) {
+        int p = reacquisitionProbability(attacker, cloaked);
+        int roll = dice.rollOneDie();
+        if (roll <= p) {
+            attacker.addLockOn(cloaked);
+            lastRetentionP.put(retentionKey(attacker, cloaked),
+                    retentionProbability(attacker, cloaked));
+            lastLockOnLog.add(attacker.getName() + " RE-ACQUIRES lock-on to cloaked "
+                    + cloaked.getName() + " (die " + roll + " \u2264 " + p + "; G13.333)");
+        } else {
+            lastLockOnLog.add(attacker.getName() + " cannot acquire lock-on to cloaked "
+                    + cloaked.getName() + " (die " + roll + " > " + p + "; G13.333)");
+        }
     }
 
     private static String retentionKey(Ship attacker, Ship cloaked) {

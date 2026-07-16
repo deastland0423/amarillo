@@ -190,7 +190,7 @@ public class CloakRetentionTest {
     }
 
     @Test
-    public void noRetainedLockOn_cannotBeAcquiredAtTurnStart() {
+    public void noRetainedLockOn_reacquisitionImpossibleOnSlowCloaker() {
         submitAllocations(true, 0.0);
         cloakAndCompleteFadeOut();
         assertFalse(fed.hasLockOn(rom));
@@ -198,9 +198,39 @@ public class CloakRetentionTest {
         advanceToTurnEnd();
         submitAllocations(true, 0.0);
 
+        // Reacquisition P = 6 − 0 − 2 − 10 = −6 → the G13.333 roll cannot succeed
         assertEquals(CloakState.FULLY_CLOAKED, rom.getCloakingDevice().getState());
-        assertFalse("no new lock-on on a cloaked ship (G13.301; G13.333 not yet in)",
+        assertFalse("stationary cloaker cannot be re-acquired (G13.333)",
                 fed.hasLockOn(rom));
+    }
+
+    @Test
+    public void reacquisitionProbability_matchesG13333Formula() {
+        // fed sensor 6, range 1 (RF 0): P = 6 − 0 + SF − 10
+        rom.setSpeed(20); // SF +6
+        assertEquals(2, game.reacquisitionProbability(fed, rom));
+        rom.setSpeed(0);  // SF −2
+        assertEquals(-6, game.reacquisitionProbability(fed, rom));
+    }
+
+    @Test
+    public void fastCloaker_eventuallyReacquiredAtTurnStart() {
+        // Turn 1: cloak while stationary — retention P = 0, fed certainly loses
+        submitAllocations(true, 0.0);
+        cloakAndCompleteFadeOut();
+        assertFalse(fed.hasLockOn(rom));
+
+        // Following turns: rom runs speed 20 while cloaked → reacquisition
+        // P = 2 → succeeds per turn with chance 1/3; sixty turns make failure
+        // odds ~1e-11, so this is deterministic in practice
+        boolean reacquired = false;
+        for (int turn = 0; turn < 60 && !reacquired; turn++) {
+            advanceToTurnEnd();
+            submitAllocations(true, 20.0);
+            reacquired = fed.hasLockOn(rom);
+        }
+        assertEquals(CloakState.FULLY_CLOAKED, rom.getCloakingDevice().getState());
+        assertTrue("fast cloaked ship is eventually re-acquired (G13.333)", reacquired);
     }
 
     // -------------------------------------------------------------------------

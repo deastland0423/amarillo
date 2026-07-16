@@ -406,6 +406,11 @@ public class Game {
         return lockOnResolver.getEffectiveRange(attacker, target);
     }
 
+    /** Reacquisition probability vs a cloaked ship (G13.333) — package-private hook. */
+    int reacquisitionProbability(Ship attacker, Ship cloaked) {
+        return lockOnResolver.reacquisitionProbability(attacker, cloaked);
+    }
+
     /**
      * End-of-turn cleanup. Resets per-turn weapon states, shield reinforcement,
      * etc. Then starts the next turn's energy allocation.
