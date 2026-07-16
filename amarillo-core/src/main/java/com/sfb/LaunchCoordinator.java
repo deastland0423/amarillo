@@ -1,5 +1,6 @@
 package com.sfb;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.Game.ActionResult;
@@ -136,12 +137,14 @@ class LaunchCoordinator {
                 seeker.setTarget(ww);
         }
 
-        // Deactivate fire control and clear all lock-ons (J3.132, J3.13)
+        // Deactivate fire control (J3.132) — the setter clears all lock-ons
+        // (D6.62); drones this ship was guiding are released (D6.122)
         ship.setActiveFireControl(false);
-        ship.clearLockOns();
-
-        return ActionResult.ok(ship.getName() + " launched Wild Weasel " + ww.getName()
+        List<String> log = new ArrayList<>();
+        log.add(ship.getName() + " launched Wild Weasel " + ww.getName()
                 + " — fire control deactivated, all lock-ons lost, +6 ECM active");
+        log.addAll(game.releaseOrphanedDrones());
+        return ActionResult.ok(String.join("\n", log));
     }
 
     /**

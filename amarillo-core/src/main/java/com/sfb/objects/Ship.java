@@ -990,6 +990,7 @@ public class Ship extends Unit implements DroneController {
 	public void setActiveFireControl(boolean active) {
 		this.activeFireControl = active;
 		if (active) this.fcActivatingUntil = -1;
+		else clearLockOns(); // D6.62: lock-ons exist only while fire control is active
 	}
 
 	public boolean isFcPaidThisTurn()  { return fcPaidThisTurn; }
@@ -1000,6 +1001,7 @@ public class Ship extends Unit implements DroneController {
 	public void goPassiveFc() {
 		this.activeFireControl = false;
 		this.fcActivatingUntil = -1;
+		clearLockOns(); // D6.62: lock-ons exist only while fire control is active
 	}
 
 	/**

@@ -104,6 +104,17 @@ public class CloakFireControlTest {
     }
 
     @Test
+    public void cloak_clearsOwnLockOns() {
+        submitAllocations(true);
+        advanceToPhase(Game.ImpulsePhase.ACTIVITY);
+
+        assertTrue("KR sensor 6 → auto lock-on at turn start", rom.hasLockOn(fed));
+        assertTrue(game.cloak(rom).isSuccess());
+        assertFalse("cloaking ship loses its own lock-ons (D6.62, G13.133)",
+                rom.hasLockOn(fed));
+    }
+
+    @Test
     public void cloakedShip_cannotEstablishTractor_viaFcCheck() {
         submitAllocations(true);
         advanceToPhase(Game.ImpulsePhase.ACTIVITY);

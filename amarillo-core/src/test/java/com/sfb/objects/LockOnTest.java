@@ -60,6 +60,24 @@ public class LockOnTest {
         assertTrue("Fed should re-acquire lock-on with sensor 6", fed.hasLockOn(klingon));
     }
 
+    // -------------------------------------------------------------------------
+    // D6.62 — lock-ons exist only while fire control is active
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void fcOff_clearsAllOwnLockOns() {
+        fed.addLockOn(klingon);
+        fed.setActiveFireControl(false);
+        assertFalse("dropping FC loses every lock-on (D6.62)", fed.hasLockOn(klingon));
+    }
+
+    @Test
+    public void goPassiveFc_clearsAllOwnLockOns() {
+        fed.addLockOn(klingon);
+        fed.goPassiveFc();
+        assertFalse("going passive loses every lock-on (D6.62)", fed.hasLockOn(klingon));
+    }
+
     @Test
     public void checkLockOnsForUnit_noFireControl_noLockOn() {
         fed.setActiveFireControl(false);

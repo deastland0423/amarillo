@@ -1075,13 +1075,26 @@ public class Game {
     }
 
     /**
+     * Drop any seekers whose controller no longer holds lock-on to their target
+     * (D6.122). Package-private hook for resolvers acting after a mid-turn
+     * fire-control drop; Game's own sites call seekerControl directly.
+     */
+    List<String> releaseOrphanedDrones() {
+        return seekerControl.releaseOrphanedDrones();
+    }
+
+    /**
      * Set FC to passive immediately (D6.632). Any impulse, any phase.
+     * Dropping FC loses every lock-on (D6.62) and releases guided drones (D6.122).
      */
     public ActionResult goPassiveFireControl(Ship ship) {
         if (!ship.isActiveFireControl() && !ship.isFcActivating())
             return ActionResult.fail(ship.getName() + " fire control is already passive");
         ship.goPassiveFc();
-        return ActionResult.ok(ship.getName() + " fire control set to passive");
+        List<String> log = new ArrayList<>();
+        log.add(ship.getName() + " fire control set to passive — all lock-ons lost");
+        log.addAll(seekerControl.releaseOrphanedDrones());
+        return ActionResult.ok(String.join("\n", log));
     }
 
     /**
@@ -1597,11 +1610,16 @@ public class Game {
             return ActionResult.fail(ship.getName() + " did not allocate energy for the cloaking device");
         if (!cloak.activate(clock.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot cloak now (already cloaking or cloaked this turn)");
-        // G13: an operating cloak precludes active fire control — and through it
-        // tractors (G7.41) and transporters (D6.124). FC reactivates when the
-        // ship leaves full cloak (uncloak(), or turn start if the cost lapses).
+        // G13.131: an operating cloak precludes active fire control — and through
+        // it tractors (G7.41) and transporters (D6.124). Dropping FC also loses
+        // the ship's own lock-ons (D6.62, G13.133) and releases its guided drones
+        // (D6.122). FC reactivates when the ship leaves full cloak (uncloak(),
+        // or turn start if the cost lapses).
         ship.goPassiveFc();
-        return ActionResult.ok(ship.getName() + " begins cloaking — fading out; fire control passive");
+        List<String> log = new ArrayList<>();
+        log.add(ship.getName() + " begins cloaking — fading out; fire control passive, all lock-ons lost");
+        log.addAll(seekerControl.releaseOrphanedDrones());
+        return ActionResult.ok(String.join("\n", log));
     }
 
     /**
