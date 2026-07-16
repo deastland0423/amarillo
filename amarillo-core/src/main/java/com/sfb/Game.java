@@ -1644,7 +1644,13 @@ public class Game {
     /**
      * Shared consequences of leaving full cloak, voluntary (uncloak) or forced
      * (cloak damaged mid-cloak): re-acquisition rolls (D6.113) and fire-control
-     * reactivation if FC energy was paid this turn (G13).
+     * reactivation if FC energy was paid this turn.
+     *
+     * G13.132: reactivation is not instant — it runs the normal 4-impulse
+     * activation countdown (D6.633), and is assumed wanted unless the player
+     * declines (they can cancel any time via goPassiveFireControl, D6.632).
+     * The cloak restrictions persist until fade-in completes regardless
+     * (G13.51, enforced by cloakActionBlock).
      */
     List<String> decloakConsequences(Ship ship, boolean wasFullyCloaked) {
         List<String> log = new ArrayList<>();
@@ -1652,9 +1658,15 @@ public class Game {
             // Ship is targetable again — others roll re-acquisition (D6.113)
             log.addAll(checkLockOnsForUnit(ship));
         }
-        if (ship.isFcPaidThisTurn() && !ship.isActiveFireControl() && !ship.isFcActivating()) {
-            ship.setActiveFireControl(true);
-            log.add(ship.getName() + " fire control active (decloaked).");
+        // An active Wild Weasel forces FC to stay passive (J3.132) — activating
+        // would void it (D6.65), so that must remain the player's explicit choice.
+        boolean wwForcesPassive = ship.hasActiveWildWeasel()
+                && !ship.getActiveWildWeasel().isPostExplosion();
+        if (ship.isFcPaidThisTurn() && !ship.isActiveFireControl() && !ship.isFcActivating()
+                && !wwForcesPassive) {
+            ActionResult activation = beginActivatingFireControl(ship);
+            if (activation.isSuccess())
+                log.add(activation.getMessage() + " (G13.132)");
         }
         return log;
     }

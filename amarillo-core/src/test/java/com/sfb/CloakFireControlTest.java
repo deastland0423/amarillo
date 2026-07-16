@@ -173,9 +173,17 @@ public class CloakFireControlTest {
         advanceToPhase(Game.ImpulsePhase.ACTIVITY);
         Game.ActionResult r = game.uncloak(rom);
         assertTrue(r.getMessage(), r.isSuccess());
-        assertTrue("FC paid this turn → reactivates on decloak", rom.isActiveFireControl());
+        // G13.132: reactivation is the 4-impulse D6.633 countdown, not instant
+        assertFalse(rom.isActiveFireControl());
+        assertTrue("FC paid this turn → activation countdown starts on decloak",
+                rom.isFcActivating());
         // Fed CA sensor rating 6 → re-acquisition is automatic (D6.113)
         assertTrue("re-acquisition rolled on decloak", fed.hasLockOn(rom));
+
+        // Countdown completes 4 impulses later
+        for (int guard = 0; guard < 60 && !rom.isActiveFireControl(); guard++)
+            game.advancePhase();
+        assertTrue("FC fully active after the countdown", rom.isActiveFireControl());
     }
 
     @Test
@@ -189,7 +197,9 @@ public class CloakFireControlTest {
         Game.ActionResult r = game.uncloak(rom);
         assertTrue(r.getMessage(), r.isSuccess());
         assertEquals(CloakState.FADING_IN, rom.getCloakingDevice().getState());
-        assertTrue(rom.isActiveFireControl());
+        // G13.132: countdown starts; not instantly active
+        assertFalse(rom.isActiveFireControl());
+        assertTrue(rom.isFcActivating());
         assertTrue(fed.hasLockOn(rom));
     }
 
