@@ -215,6 +215,11 @@ function WeaponRow({ w }: { w: WeaponState }) {
 
 // ---- Launch helpers ----
 
+// G13: any non-inactive cloak state blocks weapons, seekers, tractors, transporters
+function isCloakOperating(ship: ShipObject): boolean {
+  return !!ship.cloakState && ship.cloakState !== 'NONE' && ship.cloakState !== 'INACTIVE';
+}
+
 function hasLaunchableWeapons(ship: ShipObject): boolean {
   const hasPlasma      = (ship.weapons    ?? []).some(w => w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady));
   const hasLoadedRack  = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0 && r.canFire);
@@ -1740,8 +1745,9 @@ function ShipSidebar({
             </>
           )}
 
-          {/* Initial Activity phase: tractor rotation (G7.7) */}
-          {isInitialActivityPhase && (ship.tractoredTargetNames ?? []).length > 0 && (
+          {/* Initial Activity phase: tractor rotation (G7.7) — blocked while the cloak operates (G13) */}
+          {isInitialActivityPhase && (ship.tractoredTargetNames ?? []).length > 0 &&
+           !isCloakOperating(ship) && (
             <div className="action-btn-row">
               {(ship.tractoredTargetNames ?? []).map(targetName => (
                 <button
@@ -1792,9 +1798,10 @@ function ShipSidebar({
                     WW {s.name}
                   </button>
                 ))}
-                {/* Tractor beam — establish (G7.3) */}
+                {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13) */}
                 {(ship.availableTractors ?? 0) > 0 && (ship.tractorEnergy ?? 0) > 0 &&
-                 (ship.tractoredTargetNames ?? []).length < (ship.availableTractors ?? 0) && (
+                 (ship.tractoredTargetNames ?? []).length < (ship.availableTractors ?? 0) &&
+                 !isCloakOperating(ship) && (
                   <button
                     className={`action-strip-btn${tractorMode ? ' active' : ''}`}
                     onClick={tractorMode ? onCancelTractor : onStartTractor}

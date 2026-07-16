@@ -336,8 +336,22 @@ public class Game {
         // fade-in for any device whose cost was not paid this turn
         int impulse1 = clock.getImpulse() + 1; // impulse after nextImpulse() call below
         for (Ship ship : ships) {
-            if (ship.getCloakingDevice() != null)
-                ship.getCloakingDevice().newTurn(impulse1);
+            com.sfb.systemgroups.CloakingDevice cd = ship.getCloakingDevice();
+            if (cd == null)
+                continue;
+            com.sfb.systemgroups.CloakingDevice.CloakState before = cd.getState();
+            cd.newTurn(impulse1);
+            if (before != com.sfb.systemgroups.CloakingDevice.CloakState.FADING_IN
+                    && cd.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_IN)
+                lastSeekerLog.add("  " + ship.getName()
+                        + " did not pay the cloak cost — involuntary fade-in (G13)");
+            // G13: FC stays passive while the cloak is operating (fading out or
+            // fully cloaked) — Ship.startTurn() above reactivates paid FC
+            // unconditionally, so re-suppress it here. A fading-in ship is
+            // decloaking and may run active FC (same as uncloak()).
+            if (cd.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_OUT
+                    || cd.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED)
+                ship.goPassiveFc();
         }
         // J3.131: WW is voided if the protected ship exceeds maneuver rate 4
         for (Ship ship : ships) {
@@ -571,18 +585,11 @@ public class Game {
                         }
                         log.add(ship.getName() + " is now fully cloaked — all lock-ons lost.");
                         log.addAll(seekerControl.releaseOrphanedDrones());
-
-                    } else if (before == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED
-                            && after != com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED) {
-                        // Ship just became visible again — roll re-acquisition (D6.113)
-                        log.add(ship.getName() + " is decloaking — rolling re-acquisition.");
-                        log.addAll(checkLockOnsForUnit(ship));
-                        // FC auto-activates on decloak if energy was paid this turn
-                        if (ship.isFcPaidThisTurn() && !ship.isActiveFireControl() && !ship.isFcActivating()) {
-                            ship.setActiveFireControl(true);
-                            log.add(ship.getName() + " fire control active (decloaked).");
-                        }
                     }
+                    // Leaving FULLY_CLOAKED never happens in updateState() — only
+                    // uncloak(), CloakingDevice.newTurn() (cost lapse, handled in
+                    // beginImpulses()), and damage() do that, and each site runs
+                    // the re-acquisition / fire-control consequences itself.
                 }
                 // FC activation countdown check (D6.633)
                 int absNow = clock.getImpulse();
@@ -1590,7 +1597,11 @@ public class Game {
             return ActionResult.fail(ship.getName() + " did not allocate energy for the cloaking device");
         if (!cloak.activate(clock.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot cloak now (already cloaking or cloaked this turn)");
-        return ActionResult.ok(ship.getName() + " begins cloaking — fading out");
+        // G13: an operating cloak precludes active fire control — and through it
+        // tractors (G7.41) and transporters (D6.124). FC reactivates when the
+        // ship leaves full cloak (uncloak(), or turn start if the cost lapses).
+        ship.goPassiveFc();
+        return ActionResult.ok(ship.getName() + " begins cloaking — fading out; fire control passive");
     }
 
     /**
@@ -1602,9 +1613,32 @@ public class Game {
         com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
         if (cloak == null)
             return ActionResult.fail(ship.getName() + " has no cloaking device");
+        boolean wasFullyCloaked =
+                cloak.getState() == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED;
         if (!cloak.deactivate(clock.getImpulse()))
             return ActionResult.fail(ship.getName() + " cannot decloak now (already inactive or uncloaked this turn)");
-        return ActionResult.ok(ship.getName() + " begins decloaking — fading in");
+        List<String> log = new ArrayList<>();
+        log.add(ship.getName() + " begins decloaking — fading in");
+        log.addAll(decloakConsequences(ship, wasFullyCloaked));
+        return ActionResult.ok(String.join("\n", log));
+    }
+
+    /**
+     * Shared consequences of leaving full cloak, voluntary (uncloak) or forced
+     * (cloak damaged mid-cloak): re-acquisition rolls (D6.113) and fire-control
+     * reactivation if FC energy was paid this turn (G13).
+     */
+    List<String> decloakConsequences(Ship ship, boolean wasFullyCloaked) {
+        List<String> log = new ArrayList<>();
+        if (wasFullyCloaked) {
+            // Ship is targetable again — others roll re-acquisition (D6.113)
+            log.addAll(checkLockOnsForUnit(ship));
+        }
+        if (ship.isFcPaidThisTurn() && !ship.isActiveFireControl() && !ship.isFcActivating()) {
+            ship.setActiveFireControl(true);
+            log.add(ship.getName() + " fire control active (decloaked).");
+        }
+        return log;
     }
 
     // --- Hit & Run raids ---

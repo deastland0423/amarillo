@@ -458,8 +458,9 @@ class BoardingResolver {
             boolean partyLost = (result == HarResult.BOTH_DESTROYED || result == HarResult.BP_DESTROYED);
 
             String hitResult;
+            List<String> followUp = new ArrayList<>();
             if (systemHit) {
-                boolean damaged = applyHitAndRunHit(target, st);
+                boolean damaged = applyHitAndRunHit(target, st, followUp);
                 hitResult = damaged ? st.getDisplayName() + " DAMAGED"
                         : st.getDisplayName() + " already destroyed";
                 // D7.832: the guard's box was just destroyed by the raid
@@ -473,6 +474,8 @@ class BoardingResolver {
             log.append("  Roll ").append(roll).append(" [").append(quality).append("]: ")
                     .append(hitResult)
                     .append(",  boarding party ").append(partyLost ? "lost" : "safe").append("\n");
+            for (String line : followUp)
+                log.append("    ").append(line).append("\n");
             if (partyLost)
                 partiesLost++;
         }
@@ -491,8 +494,10 @@ class BoardingResolver {
     /**
      * Apply a single Hit &amp; Run hit to the given system on the target ship.
      * Returns true if the system was actually damaged (false if already destroyed).
+     * Side-effect log lines that must follow the roll line (e.g. re-acquisition
+     * after a forced decloak) are added to {@code followUp}.
      */
-    private boolean applyHitAndRunHit(Ship target, SystemTarget system) {
+    private boolean applyHitAndRunHit(Ship target, SystemTarget system, List<String> followUp) {
         switch (system.getType()) {
             case WEAPON: {
                 Weapon w = system.getWeapon();
@@ -530,7 +535,14 @@ class BoardingResolver {
                 com.sfb.systemgroups.CloakingDevice cloak = target.getCloakingDevice();
                 if (cloak == null || !cloak.isFunctional())
                     return false;
+                boolean wasFullyCloaked = cloak.getState()
+                        == com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED;
                 cloak.damage(game.getAbsoluteImpulse());
+                // Forced fade-in: the ship is targetable again — same consequences
+                // as a voluntary decloak (D6.113 re-acquisition, FC reactivation)
+                if (cloak.getState()
+                        == com.sfb.systemgroups.CloakingDevice.CloakState.FADING_IN)
+                    followUp.addAll(game.decloakConsequences(target, wasFullyCloaked));
                 return true;
             }
             case DERFACS: {

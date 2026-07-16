@@ -210,6 +210,11 @@ class TractorResolver {
     // -------------------------------------------------------------------------
 
     ActionResult establishTractor(Ship holder, String targetName, int bid) {
+        // G13: an operating cloak precludes tractor use (in any fade state —
+        // the FC check below only covers it once FC has actually dropped)
+        ActionResult cloakBlock = game.cloakActionBlock(holder);
+        if (cloakBlock != null)
+            return cloakBlock;
         if (holder.getTractors().getTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no tractor beams");
         if (holder.getTractors().getAvailableTractors() == 0)
@@ -315,6 +320,10 @@ class TractorResolver {
     // -------------------------------------------------------------------------
 
     ActionResult rotateTractored(Ship holder, String targetName, int destCol, int destRow) {
+        // G13: rotation is active tractor use — blocked while the cloak operates
+        ActionResult cloakBlock = game.cloakActionBlock(holder);
+        if (cloakBlock != null)
+            return cloakBlock;
         if (holder.getTractors() == null)
             return ActionResult.fail(holder.getName() + " has no tractor system");
 
