@@ -326,6 +326,13 @@ class LaunchCoordinator {
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        // G13.32: launching at a fully cloaked target is only possible on a
+        // retained lock-on — the torpedo inherits that tracking
+        if (torpTarget instanceof Ship) {
+            com.sfb.systemgroups.CloakingDevice targetCloak = ((Ship) torpTarget).getCloakingDevice();
+            if (targetCloak != null && targetCloak.breaksLockOn())
+                torpedo.setCloakLockRetained(true);
+        }
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
 

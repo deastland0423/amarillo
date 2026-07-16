@@ -125,7 +125,9 @@ public class LockOnTest {
     // -------------------------------------------------------------------------
 
     @Test
-    public void checkLockOnsForUnit_cloakedTarget_removesExistingLockOns() {
+    public void checkLockOnsForUnit_cloakedTarget_retainedLockOnPersists() {
+        // A lock-on still held on a fully cloaked ship survived the G13.331
+        // retention roll — a mid-turn re-check must not strip it (G13.3321)
         Ship romulan = buildRomulan();
         fed.addLockOn(romulan);
         assertTrue(fed.hasLockOn(romulan));
@@ -133,9 +135,9 @@ public class LockOnTest {
         fullyCloak(romulan);
         List<String> log = game.checkLockOnsForUnit(romulan);
 
-        assertFalse("Lock-on should be removed when target is fully cloaked",
+        assertTrue("Retained lock-on persists through a mid-turn re-check",
                 fed.hasLockOn(romulan));
-        assertFalse("Log should mention lock-on loss", log.isEmpty());
+        assertFalse("Log should note the cloak", log.isEmpty());
     }
 
     @Test
@@ -164,14 +166,14 @@ public class LockOnTest {
     }
 
     @Test
-    public void checkLockOnsForUnit_cloakedTarget_logMentionsLoss() {
+    public void checkLockOnsForUnit_cloakedTarget_logMentionsCloak() {
         Ship romulan = buildRomulan();
         fed.addLockOn(romulan);
         fullyCloak(romulan);
 
         List<String> log = game.checkLockOnsForUnit(romulan);
 
-        assertTrue("Log should mention cloaked lock-on loss",
+        assertTrue("Log should mention the cloak blocking acquisition",
                 log.stream().anyMatch(l -> l.contains("cloaked")));
     }
 

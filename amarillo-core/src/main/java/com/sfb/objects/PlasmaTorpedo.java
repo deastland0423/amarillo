@@ -31,6 +31,7 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     private double damageTaken = 0.0; // accumulated phaser damage (1 phaser pt = 0.5 damage)
     private Seeker.SeekerType seekerType = Seeker.SeekerType.PLASMA;
     private boolean identified = false;
+    private boolean cloakLockRetained = false; // G13.3343 — won retention vs a cloaked target
     private boolean pseudoPlasma = false; // True if this torpedo is a pseudo-torpedo: behaves like a real torpedo but
                                           // deals zero damage on impact.
 
@@ -215,6 +216,20 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     @Override
     public void setSelfGuiding(boolean sg) {
         this.selfGuiding = sg;
+    }
+
+    /**
+     * True once this torpedo has won its own G13.3343 retention roll against a
+     * target that completed fade-out (or was launched on a retained lock-on,
+     * G13.32). Consulted only while the target is fully cloaked; re-baselined
+     * by the next fade-out-completion roll, so it never needs explicit clearing.
+     */
+    public boolean isCloakLockRetained() {
+        return cloakLockRetained;
+    }
+
+    public void setCloakLockRetained(boolean retained) {
+        this.cloakLockRetained = retained;
     }
 
     @Override

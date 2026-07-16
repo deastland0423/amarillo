@@ -53,20 +53,29 @@ public class CloakFireControlTest {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private Energy makeAllocation(Ship ship, boolean cloakPaid) {
+    private Energy makeAllocation(Ship ship, boolean cloakPaid, double warp) {
         Energy e = new Energy();
         e.setLifeSupport(ship.getLifeSupportCost());
         e.setFireControl(ship.getFireControlCost());
         e.setActivateShields(ship.getActiveShieldCost());
-        e.setWarpMovement(4.0);
+        e.setWarpMovement(warp);
         e.setCloakPaid(cloakPaid);
         return e;
     }
 
     /** Submit both allocations (rom first) — triggers beginImpulses(). */
     private void submitAllocations(boolean romCloakPaid) {
-        game.submitAllocation(rom, makeAllocation(rom, romCloakPaid));
-        game.submitAllocation(fed, makeAllocation(fed, false));
+        submitAllocations(romCloakPaid, 4.0);
+    }
+
+    /**
+     * Variant with explicit rom warp: rom's speed drives the G13.331 retention
+     * SpeedFactor. Warp 0 → speed 0 → SF −2 → P = 0 for a sensor-6 attacker at
+     * range 1: guaranteed lock-on loss on full cloak.
+     */
+    private void submitAllocations(boolean romCloakPaid, double romWarp) {
+        game.submitAllocation(rom, makeAllocation(rom, romCloakPaid, romWarp));
+        game.submitAllocation(fed, makeAllocation(fed, false, 4.0));
     }
 
     private void advanceToPhase(Game.ImpulsePhase target) {
@@ -162,12 +171,14 @@ public class CloakFireControlTest {
 
     @Test
     public void uncloak_reactivatesFcAndRollsReacquisition() {
-        submitAllocations(true);
+        // rom warp 0 → speed 0 → retention P = 0 → fed's lock-on loss is certain
+        submitAllocations(true, 0.0);
         advanceToPhase(Game.ImpulsePhase.ACTIVITY);
         assertTrue(game.cloak(rom).isSuccess());
         advanceUntilFullyCloaked();
 
-        assertFalse("full cloak breaks lock-on (D6.111)", fed.hasLockOn(rom));
+        assertFalse("stationary cloaker: retention fails, lock-on lost (G13.331)",
+                fed.hasLockOn(rom));
         assertFalse(rom.isActiveFireControl());
 
         advanceToPhase(Game.ImpulsePhase.ACTIVITY);

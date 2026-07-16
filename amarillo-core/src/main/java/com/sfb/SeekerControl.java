@@ -207,11 +207,46 @@ class SeekerControl {
                     }
                 }
             } else if (s instanceof PlasmaTorpedo) {
-                // Self-guiding — foiled by full cloak
-                if (isTargetFullyCloaked(s)) {
+                // Self-guiding — foiled by full cloak unless it won its own
+                // retention roll (G13.3343), made when the fade-out completed
+                if (isTargetFullyCloaked(s) && !((PlasmaTorpedo) s).isCloakLockRetained()) {
                     log.add("  Plasma torpedo lost tracking — " + s.getTarget().getName() + " is fully cloaked");
                     toRemove.add(s);
                 }
+            }
+        }
+        seekers.removeAll(toRemove);
+        return log;
+    }
+
+    /**
+     * G13.3343/G13.3344: uncontrolled self-guiding seekers (plasma) targeting a
+     * ship that just completed fade-out make their own retention attempt at
+     * sensor rating 6: P = 6 − RF + SF − 4. Success marks the torpedo as having
+     * kept tracking through the cloak; failure removes it from play. Called
+     * once, at the fade-out-completion transition.
+     */
+    List<String> rollPlasmaCloakRetention(Ship cloaked) {
+        List<String> log = new ArrayList<>();
+        DiceRoller dice = new DiceRoller();
+        List<Seeker> toRemove = new ArrayList<>();
+        for (Seeker s : seekers) {
+            if (!(s instanceof PlasmaTorpedo) || s.getTarget() != cloaked)
+                continue;
+            PlasmaTorpedo torp = (PlasmaTorpedo) s;
+            int p = 6
+                    - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))
+                    + LockOnResolver.speedFactor(cloaked.getSpeed())
+                    - 4;
+            int roll = dice.rollOneDie();
+            if (roll <= p) {
+                torp.setCloakLockRetained(true);
+                log.add("  " + torp.getName() + " retains tracking on cloaked " + cloaked.getName()
+                        + " (die " + roll + " ≤ " + p + "; G13.3343)");
+            } else {
+                log.add("  " + torp.getName() + " lost tracking — failed retention on cloaked "
+                        + cloaked.getName() + " (die " + roll + " > " + p + "; G13.3343)");
+                toRemove.add(s);
             }
         }
         seekers.removeAll(toRemove);

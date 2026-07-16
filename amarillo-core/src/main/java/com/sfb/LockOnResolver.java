@@ -24,6 +24,11 @@ class LockOnResolver {
     private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
     private final List<String> lastLockOnLog = new ArrayList<>();
 
+    // G13.3322: a retained lock-on is only re-rolled when the equation result
+    // has changed. Last computed P per "attacker→target" pair; refreshed on
+    // every retention roll, so a later re-cloak always re-baselines it.
+    private final java.util.Map<String, Integer> lastRetentionP = new java.util.HashMap<>();
+
     LockOnResolver(Game game, List<Ship> ships, List<Seeker> seekers,
             List<com.sfb.objects.shuttles.Shuttle> activeShuttles) {
         this.game           = game;
@@ -42,6 +47,12 @@ class LockOnResolver {
         lastLockOnLog.clear();
         DiceRoller dice = new DiceRoller();
         for (Ship ship : ships) {
+            // G13.402/G13.3321: lock-ons retained on fully cloaked ships survive
+            // the turn boundary — snapshot them before the D6.11 fresh-roll clear
+            List<Ship> retainedCloaked = new ArrayList<>();
+            for (Ship target : ships)
+                if (target != ship && isFullyCloaked(target) && ship.hasLockOn(target))
+                    retainedCloaked.add(target);
             ship.clearLockOns();
             if (!ship.isActiveFireControl())
                 continue; // D6.1143: no fire control = no lock-on
@@ -51,9 +62,16 @@ class LockOnResolver {
             for (Ship target : ships) {
                 if (target == ship)
                     continue;
-                if (target.getCloakingDevice() != null && target.getCloakingDevice().breaksLockOn()) {
-                    lastLockOnLog.add(
-                            ship.getName() + " cannot acquire lock-on to " + target.getName() + " (fully cloaked)");
+                if (isFullyCloaked(target)) {
+                    if (retainedCloaked.contains(target)) {
+                        ship.addLockOn(target);
+                        maybeRerollRetention(ship, target, dice); // G13.3322
+                    } else {
+                        // G13.301: no new lock-on on a cloaked ship
+                        // (G13.333 reacquisition attempt: not yet implemented)
+                        lastLockOnLog.add(ship.getName() + " cannot acquire lock-on to "
+                                + target.getName() + " (fully cloaked; G13.301)");
+                    }
                     continue;
                 }
                 rollLockOn(ship, target, sensorRating, dice);
@@ -99,6 +117,97 @@ class LockOnResolver {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // G13.33 \u2014 retaining a lock-on against a cloaking ship
+    // -------------------------------------------------------------------------
+
+    /**
+     * G13.331: when a ship completes fade-out, every ship holding a lock-on to
+     * it rolls to retain it. Roll one die; retained on roll \u2264 P where
+     * P = Sensor \u2212 EW \u2212 RangeFactor + SpeedFactor \u2212 4.
+     * The EW term is 0 until electronic warfare is implemented.
+     */
+    List<String> rollRetention(Ship cloaked) {
+        List<String> log = new ArrayList<>();
+        DiceRoller dice = new DiceRoller();
+        for (Ship attacker : ships) {
+            if (attacker == cloaked || !attacker.hasLockOn(cloaked))
+                continue;
+            rollRetentionFor(attacker, cloaked, dice, log);
+        }
+        return log;
+    }
+
+    private void rollRetentionFor(Ship attacker, Ship cloaked, DiceRoller dice, List<String> log) {
+        int p = retentionProbability(attacker, cloaked);
+        lastRetentionP.put(retentionKey(attacker, cloaked), p);
+        int roll = dice.rollOneDie();
+        if (roll <= p) {
+            log.add(attacker.getName() + " RETAINS lock-on to cloaked " + cloaked.getName()
+                    + " (die " + roll + " \u2264 " + p + "; G13.331)");
+        } else {
+            attacker.removeLockOn(cloaked);
+            log.add(attacker.getName() + " loses lock-on to cloaked " + cloaked.getName()
+                    + " (die " + roll + " > " + p + "; G13.331)");
+        }
+    }
+
+    /**
+     * Turn-start check for a lock-on retained on a still-cloaked ship: re-roll
+     * only if the equation result changed since the last roll (G13.3322),
+     * otherwise the lock-on is kept without a roll.
+     */
+    private void maybeRerollRetention(Ship attacker, Ship cloaked, DiceRoller dice) {
+        int p = retentionProbability(attacker, cloaked);
+        Integer last = lastRetentionP.get(retentionKey(attacker, cloaked));
+        if (last != null && last == p) {
+            lastLockOnLog.add(attacker.getName() + " keeps lock-on to cloaked " + cloaked.getName()
+                    + " (conditions unchanged; G13.3322)");
+            return;
+        }
+        rollRetentionFor(attacker, cloaked, dice, lastLockOnLog);
+    }
+
+    /** P = S \u2212 EW \u2212 RF + SF \u2212 4 (G13.331); EW is 0 until EW is implemented. */
+    int retentionProbability(Ship attacker, Ship cloaked) {
+        return attacker.getSpecialFunctions().getSensor()
+                - rangeFactor(MapUtils.getRange(attacker, cloaked))
+                + speedFactor(cloaked.getSpeed())
+                - 4;
+    }
+
+    private static String retentionKey(Ship attacker, Ship cloaked) {
+        return attacker.getName() + "\u2192" + cloaked.getName();
+    }
+
+    /** Range Adjustment Factor by true range (G13.331). */
+    static int rangeFactor(int trueRange) {
+        if (trueRange == 0)   return -1;
+        if (trueRange <= 4)   return 0;
+        if (trueRange <= 10)  return 1;
+        if (trueRange <= 15)  return 2;
+        if (trueRange <= 20)  return 3;
+        if (trueRange <= 30)  return 4;
+        if (trueRange <= 40)  return 5;
+        return 6;
+    }
+
+    /** Speed Adjustment Factor by the cloaked ship's maneuver rate (G13.331/C2.42). */
+    static int speedFactor(int maneuverRate) {
+        if (maneuverRate == 0)   return -2;
+        if (maneuverRate <= 4)   return 0;
+        if (maneuverRate <= 8)   return 1;
+        if (maneuverRate <= 12)  return 2;
+        if (maneuverRate <= 15)  return 3;
+        if (maneuverRate <= 17)  return 4;
+        if (maneuverRate == 18)  return 5;
+        return 6;
+    }
+
+    private static boolean isFullyCloaked(Ship ship) {
+        return ship.getCloakingDevice() != null && ship.getCloakingDevice().breaksLockOn();
+    }
+
     List<String> drainLastLockOnLog() {
         List<String> copy = new ArrayList<>(lastLockOnLog);
         lastLockOnLog.clear();
@@ -114,9 +223,9 @@ class LockOnResolver {
      * lock-on rolls to re-acquire. Ships that already have lock-on keep it
      * (no need to re-roll — they haven't lost it).
      *
-     * If the target is cloaked, all lock-ons to it are removed immediately.
-     * (Future: G13.332/G13.333 will replace this with a cloaked re-acquisition
-     * roll instead of a hard remove.)
+     * If the target is fully cloaked, no new lock-on can be gained (G13.301);
+     * lock-ons retained via G13.331 are untouched. (Future: G13.333 will add
+     * the reacquisition attempt against cloaked ships.)
      *
      * @param target The ship whose conditions just changed.
      * @return Log lines describing the re-check results.
@@ -124,19 +233,11 @@ class LockOnResolver {
     List<String> checkLockOnsForUnit(Ship target) {
         List<String> log = new ArrayList<>();
 
-        // If the target is cloaked, no one can lock onto it (D6.111)
-        // Future hook: replace this block with cloaked lock-on attempt (G13.332)
-        boolean targetCloaked = target.getCloakingDevice() != null
-                && target.getCloakingDevice().breaksLockOn();
-        if (targetCloaked) {
-            for (Ship attacker : ships) {
-                if (attacker == target)
-                    continue;
-                if (attacker.hasLockOn(target)) {
-                    attacker.removeLockOn(target);
-                    log.add(attacker.getName() + " lost lock-on to " + target.getName() + " (cloaked)");
-                }
-            }
+        // Fully cloaked target: no NEW lock-on can be gained (G13.301) —
+        // reacquisition (G13.333) is not yet implemented. Lock-ons retained
+        // through the G13.331 retention roll persist untouched.
+        if (isFullyCloaked(target)) {
+            log.add("No lock-on can be acquired on " + target.getName() + " (fully cloaked; G13.301)");
             return log;
         }
 
