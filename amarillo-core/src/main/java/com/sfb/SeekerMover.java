@@ -147,7 +147,8 @@ class SeekerMover {
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(drone, (Ship) target);
                         int ecmShift = computeSeekerEcmShift(drone, target);
-                        int dmg = applyProximityRoll(drone.impact(), ecmShift, log);
+                        int dmg = adjustForCloak(
+                                applyProximityRoll(drone.impact(), ecmShift, log), (Ship) target, log);
                         String controllerName = drone.getController() instanceof Ship
                                 ? drone.getController().getName()
                                 : drone.getName();
@@ -259,7 +260,8 @@ class SeekerMover {
                     } else if (target instanceof Ship) {
                         int shieldNum = getDroneImpactShield(ss, (Ship) target);
                         int ecmShift = computeSeekerEcmShift(ss, target);
-                        int dmg = applyProximityRoll(ss.impact(), ecmShift, log);
+                        int dmg = adjustForCloak(
+                                applyProximityRoll(ss.impact(), ecmShift, log), (Ship) target, log);
                         String controllerName = ss.getController() instanceof Ship
                                 ? ss.getController().getName()
                                 : ss.getName();
@@ -332,7 +334,8 @@ class SeekerMover {
                                 ? torp.getController().getName()
                                 : torp.getName();
                         if (torp.isEnveloping()) {
-                            int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
+                            int ecmTotal = adjustForCloak(
+                                    applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
                             String hitMsg = "  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
                                     + ship.getName() + "  total damage " + ecmTotal + " spread to all shields";
                             pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
@@ -340,7 +343,8 @@ class SeekerMover {
                             log.add(hitMsg + " — queued for Reinforcement phase");
                         } else {
                             int shieldNum = getDroneImpactShield(torp, ship);
-                            int dmg = applyProximityRoll(torp.impact(), ecmShift, log);
+                            int dmg = adjustForCloak(
+                                    applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
                             String hitMsg = "  Plasma-" + torp.getPlasmaType() + " impacted "
                                     + ship.getName() + " shield #" + shieldNum + "  damage " + dmg;
                             pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
@@ -417,7 +421,8 @@ class SeekerMover {
             if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int ecmTotal = applyProximityRoll(torp.impact(), ecmShift, log);
+                int ecmTotal = adjustForCloak(
+                        applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
                 String controllerName = torp.getController() instanceof Ship
                         ? torp.getController().getName()
                         : torp.getName();
@@ -429,7 +434,8 @@ class SeekerMover {
             } else {
                 int shieldNum = game.getShieldNumber(unit, ship);
                 int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int dmg = applyProximityRoll(seeker.impact(), ecmShift, log);
+                int dmg = adjustForCloak(
+                        applyProximityRoll(seeker.impact(), ecmShift, log), ship, log);
                 String controllerName = seeker.getController() instanceof Ship
                         ? seeker.getController().getName()
                         : unit.getName();
@@ -444,6 +450,23 @@ class SeekerMover {
         for (Seeker s : toRemove)
             game.removeSeekerFromPlay(s);
         return log;
+    }
+
+    /**
+     * G13.35: a seeker reaching a fully cloaked ship's hex has a substantial
+     * chance of not finding the target — its warhead rolls the G13.37 fire
+     * adjustment chart. No-op unless the target is fully cloaked.
+     */
+    private int adjustForCloak(int dmg, Ship target, List<String> log) {
+        com.sfb.systemgroups.CloakingDevice cloak = target.getCloakingDevice();
+        if (dmg <= 0 || cloak == null || !cloak.breaksLockOn())
+            return dmg;
+        int die = new com.sfb.utilities.DiceRoller().rollOneDie();
+        int scaled = com.sfb.systemgroups.CloakingDevice.fireAdjustedDamage(dmg, die);
+        log.add("  Fire adjustment vs cloak (G13.37): die " + die + " → "
+                + com.sfb.systemgroups.CloakingDevice.fireAdjustmentLabel(die)
+                + (scaled != dmg ? " (" + dmg + " → " + scaled + ")" : ""));
+        return scaled;
     }
 
     // -------------------------------------------------------------------------

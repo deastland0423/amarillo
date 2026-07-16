@@ -254,6 +254,31 @@ public class CloakingDevice implements Systems {
     public void setCostPaid(boolean paid) { this.costPaidThisTurn = paid; }
 
     // -------------------------------------------------------------------------
+    // G13.37 Fire Adjustment Chart
+    // -------------------------------------------------------------------------
+
+    /**
+     * G13.37: damage adjustment for one weapon (or seeker) that hit a fully
+     * cloaked ship. One die per individual weapon (G13.373):
+     * 1-2 = full, 3-4 = half, 5-6 = quarter, 7+ = none (only reachable once
+     * die modifiers exist). Fractions of 0.5+ round up (G13.371).
+     */
+    public static int fireAdjustedDamage(int damage, int die) {
+        if (die <= 2) return damage;
+        if (die <= 4) return (int) Math.floor(damage / 2.0 + 0.5);
+        if (die <= 6) return (int) Math.floor(damage / 4.0 + 0.5);
+        return 0;
+    }
+
+    /** Human-readable G13.37 result for the combat log. */
+    public static String fireAdjustmentLabel(int die) {
+        if (die <= 2) return "full damage";
+        if (die <= 4) return "1/2 damage";
+        if (die <= 6) return "1/4 damage";
+        return "no damage";
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 

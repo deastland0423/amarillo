@@ -360,6 +360,45 @@ public class CloakingDeviceTest {
     }
 
     // -------------------------------------------------------------------------
+    // G13.37 Fire Adjustment Chart
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void fireAdjustment_die1And2_fullDamage() {
+        assertEquals(9, CloakingDevice.fireAdjustedDamage(9, 1));
+        assertEquals(9, CloakingDevice.fireAdjustedDamage(9, 2));
+    }
+
+    @Test
+    public void fireAdjustment_die3And4_halfDamage_roundsHalfUp() {
+        assertEquals(4, CloakingDevice.fireAdjustedDamage(8, 3)); // 4.0
+        assertEquals(3, CloakingDevice.fireAdjustedDamage(5, 3)); // 2.5 → 3 (G13.371)
+        assertEquals(1, CloakingDevice.fireAdjustedDamage(1, 4)); // 0.5 → 1
+    }
+
+    @Test
+    public void fireAdjustment_die5And6_quarterDamage_roundsHalfUp() {
+        assertEquals(2, CloakingDevice.fireAdjustedDamage(8, 5)); // 2.0
+        assertEquals(2, CloakingDevice.fireAdjustedDamage(6, 5)); // 1.5 → 2
+        assertEquals(1, CloakingDevice.fireAdjustedDamage(5, 6)); // 1.25 → 1
+        assertEquals(0, CloakingDevice.fireAdjustedDamage(1, 6)); // 0.25 → 0
+    }
+
+    @Test
+    public void fireAdjustment_die7Plus_noDamage() {
+        // Unreachable with a plain d6 today — needs positive modifiers (G13.62)
+        assertEquals(0, CloakingDevice.fireAdjustedDamage(9, 7));
+    }
+
+    @Test
+    public void fireAdjustment_labels() {
+        assertEquals("full damage", CloakingDevice.fireAdjustmentLabel(2));
+        assertEquals("1/2 damage",  CloakingDevice.fireAdjustmentLabel(3));
+        assertEquals("1/4 damage",  CloakingDevice.fireAdjustmentLabel(6));
+        assertEquals("no damage",   CloakingDevice.fireAdjustmentLabel(7));
+    }
+
+    // -------------------------------------------------------------------------
     // Helper
     // -------------------------------------------------------------------------
 

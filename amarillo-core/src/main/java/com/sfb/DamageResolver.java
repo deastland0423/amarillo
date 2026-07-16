@@ -443,6 +443,20 @@ class DamageResolver {
                 }
                 if (isFusionSuicide)
                     fusionSuicideFired = true;
+                // G13.37: each weapon that hits a fully cloaked ship rolls the
+                // fire adjustment chart. Fades use normal EW instead (G13.362).
+                if (dmg > 0 && dmg != ADD.HIT && targetShip != null
+                        && targetShip.getCloakingDevice() != null
+                        && targetShip.getCloakingDevice().breaksLockOn()) {
+                    int fireAdj = new com.sfb.utilities.DiceRoller().rollOneDie();
+                    int scaled = com.sfb.systemgroups.CloakingDevice.fireAdjustedDamage(dmg, fireAdj);
+                    log.append("  ").append(w.getName())
+                            .append("  fire adjustment vs cloak (G13.37): die ").append(fireAdj)
+                            .append(" → ").append(com.sfb.systemgroups.CloakingDevice.fireAdjustmentLabel(fireAdj))
+                            .append(scaled != dmg ? " (" + dmg + " → " + scaled + ")" : "")
+                            .append("\n");
+                    dmg = scaled;
+                }
                 String rollStr = w.getLastRoll() > 0 ? "  (die " + w.getLastRoll() + ")" : "";
                 if (dmg == ADD.HIT) {
                     addHit = true;
