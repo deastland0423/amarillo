@@ -213,10 +213,15 @@ public class CloakRetentionTest {
      * the phase loop with damage resolution) before the retention roll.
      */
     private PlasmaTorpedo plasmaTargeting(Ship target) {
+        return plasmaTargeting(target, null);
+    }
+
+    private PlasmaTorpedo plasmaTargeting(Ship target, Ship controller) {
         PlasmaTorpedo torp = new PlasmaTorpedo(PlasmaType.G, WeaponArmingType.STANDARD);
         torp.setName("Test-Plasma");
         torp.setLocation(new Location(28, 10));
         torp.setTarget(target);
+        torp.setController(controller);
         torp.setSeekerType(Seeker.SeekerType.PLASMA);
         game.getSeekers().add(torp);
         return torp;
@@ -239,6 +244,30 @@ public class CloakRetentionTest {
         cloakAndCompleteFadeOut();
 
         assertFalse("torpedo removed from play after failed retention (G13.3343)",
+                game.getSeekers().contains(torp));
+    }
+
+    @Test
+    public void controlledPlasma_guidingShipRetains_tracksAutomatically() {
+        submitAllocations(true, 20.0); // fed's retention P = 8 → ship certainly retains
+        PlasmaTorpedo torp = plasmaTargeting(rom, fed);
+        cloakAndCompleteFadeOut();
+
+        assertTrue("guiding ship retained its lock-on (G13.331)", fed.hasLockOn(rom));
+        assertTrue("controlled torpedo tracks via the ship's lock-on (G13.3341)",
+                torp.isCloakLockRetained());
+        assertTrue(game.getSeekers().contains(torp));
+    }
+
+    @Test
+    public void controlledPlasma_guidingShipFails_releasedAndRollsOwn() {
+        submitAllocations(true, 0.0); // fed's P = 0 → ship certainly fails;
+                                      // torpedo's own P = 2 − RF(≈2) − 2 < 0 → also fails
+        PlasmaTorpedo torp = plasmaTargeting(rom, fed);
+        cloakAndCompleteFadeOut();
+
+        assertFalse("guiding ship lost its lock-on (G13.331)", fed.hasLockOn(rom));
+        assertFalse("released torpedo failed its own retention and is removed (G13.3342/.3343)",
                 game.getSeekers().contains(torp));
     }
 }

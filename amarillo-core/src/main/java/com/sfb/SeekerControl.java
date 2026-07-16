@@ -220,11 +220,16 @@ class SeekerControl {
     }
 
     /**
-     * G13.3343/G13.3344: uncontrolled self-guiding seekers (plasma) targeting a
-     * ship that just completed fade-out make their own retention attempt at
-     * sensor rating 6: P = 6 − RF + SF − 4. Success marks the torpedo as having
-     * kept tracking through the cloak; failure removes it from play. Called
-     * once, at the fade-out-completion transition.
+     * G13.334: self-guiding seekers (plasma) targeting a ship that just
+     * completed fade-out. Must run AFTER the ships' own retention rolls
+     * (G13.331):
+     * - Controlled by a ship that retained its lock-on → tracks automatically,
+     *   no roll of its own (G13.3341).
+     * - Controlling ship failed (or none) → the torpedo is released (G13.3342/
+     *   F3.4) and makes its own attempt at sensor rating 6 (G13.3343/G13.3344):
+     *   P = 6 − RF + SF − 4. Failure removes it from play. The release itself
+     *   is a no-op in this engine: plasma occupies no control channels and
+     *   cannot be steered, and the launcher reference is kept for display.
      */
     List<String> rollPlasmaCloakRetention(Ship cloaked) {
         List<String> log = new ArrayList<>();
@@ -234,6 +239,17 @@ class SeekerControl {
             if (!(s instanceof PlasmaTorpedo) || s.getTarget() != cloaked)
                 continue;
             PlasmaTorpedo torp = (PlasmaTorpedo) s;
+            Unit controller = s.getController();
+            if (controller instanceof Ship && ((Ship) controller).hasLockOn(cloaked)) {
+                // G13.3341: the guiding ship retained its lock-on
+                torp.setCloakLockRetained(true);
+                log.add("  " + torp.getName() + " keeps tracking cloaked " + cloaked.getName()
+                        + " via " + controller.getName() + "'s retained lock-on (G13.3341)");
+                continue;
+            }
+            if (controller instanceof Ship)
+                log.add("  " + torp.getName() + " released — " + controller.getName()
+                        + " lost its lock-on (G13.3342); rolling own retention");
             int p = 6
                     - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))
                     + LockOnResolver.speedFactor(cloaked.getSpeed())
