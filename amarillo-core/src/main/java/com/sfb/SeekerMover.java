@@ -145,18 +145,8 @@ class SeekerMover {
                         }
                         expired.add(seeker);
                     } else if (target instanceof Ship) {
-                        int shieldNum = getDroneImpactShield(drone, (Ship) target);
-                        int ecmShift = computeSeekerEcmShift(drone, target);
-                        int dmg = adjustForCloak(
-                                applyProximityRoll(drone.impact(), ecmShift, log), (Ship) target, log);
-                        String controllerName = drone.getController() instanceof Ship
-                                ? drone.getController().getName()
-                                : drone.getName();
-                        String hitMsg = "  Drone (" + drone.getDroneType() + ") impacted "
-                                + target.getName() + " shield #" + shieldNum + "  damage " + dmg;
-                        pendingVolleys.add(new Game.PendingVolley(controllerName, null, target,
-                                shieldNum, dmg, 0, false, false, hitMsg, null));
-                        log.add(hitMsg + " — queued for Reinforcement phase");
+                        queueSeekerImpact(drone, (Ship) target,
+                                "Drone (" + drone.getDroneType() + ") impacted " + target.getName(), log);
                         expired.add(seeker);
                     }
                     continue;
@@ -258,18 +248,8 @@ class SeekerMover {
                             log.add("  Suicide shuttle caught in Wild Weasel explosion — destroyed");
                         }
                     } else if (target instanceof Ship) {
-                        int shieldNum = getDroneImpactShield(ss, (Ship) target);
-                        int ecmShift = computeSeekerEcmShift(ss, target);
-                        int dmg = adjustForCloak(
-                                applyProximityRoll(ss.impact(), ecmShift, log), (Ship) target, log);
-                        String controllerName = ss.getController() instanceof Ship
-                                ? ss.getController().getName()
-                                : ss.getName();
-                        String hitMsg = "  Suicide shuttle impacted " + target.getName()
-                                + " shield #" + shieldNum + "  damage " + dmg;
-                        pendingVolleys.add(new Game.PendingVolley(controllerName, null, target,
-                                shieldNum, dmg, 0, false, false, hitMsg, null));
-                        log.add(hitMsg + " — queued for Reinforcement phase");
+                        queueSeekerImpact(ss, (Ship) target,
+                                "Suicide shuttle impacted " + target.getName(), log);
                     }
                     expired.add(ss);
                 }
@@ -329,28 +309,10 @@ class SeekerMover {
                         }
                     } else if (target instanceof Ship) {
                         Ship ship = (Ship) target;
-                        int ecmShift = computeSeekerEcmShift(torp, ship);
-                        String controllerName = torp.getController() instanceof Ship
-                                ? torp.getController().getName()
-                                : torp.getName();
-                        if (torp.isEnveloping()) {
-                            int ecmTotal = adjustForCloak(
-                                    applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
-                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " (enveloping) impacted "
-                                    + ship.getName() + "  total damage " + ecmTotal + " spread to all shields";
-                            pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
-                                    0, ecmTotal, 0, false, false, hitMsg, torp));
-                            log.add(hitMsg + " — queued for Reinforcement phase");
-                        } else {
-                            int shieldNum = getDroneImpactShield(torp, ship);
-                            int dmg = adjustForCloak(
-                                    applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
-                            String hitMsg = "  Plasma-" + torp.getPlasmaType() + " impacted "
-                                    + ship.getName() + " shield #" + shieldNum + "  damage " + dmg;
-                            pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
-                                    shieldNum, dmg, 0, false, false, hitMsg, null));
-                            log.add(hitMsg + " — queued for Reinforcement phase");
-                        }
+                        queueSeekerImpact(torp, ship,
+                                "Plasma-" + torp.getPlasmaType()
+                                        + (torp.isEnveloping() ? " (enveloping)" : "")
+                                        + " impacted " + ship.getName(), log);
                     } else {
                         int dmg = torp.impact();
                         String dmgLog = game.applyDamageToUnit(dmg, target, 1);
@@ -417,39 +379,44 @@ class SeekerMover {
             if (unit.isTractored())
                 continue;
 
-            // Enveloping plasma is the only special case — all other seekers use position-based shield
-            if (seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()) {
-                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
-                int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int ecmTotal = adjustForCloak(
-                        applyProximityRoll(torp.impact(), ecmShift, log), ship, log);
-                String controllerName = torp.getController() instanceof Ship
-                        ? torp.getController().getName()
-                        : torp.getName();
-                String hitMsg = "  " + ship.getName() + " moved into plasma-" + torp.getPlasmaType()
-                        + " (enveloping)  total damage " + ecmTotal + " spread to all shields";
-                pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
-                        0, ecmTotal, 0, false, false, hitMsg, torp));
-                log.add(hitMsg + " — queued for Reinforcement phase");
-            } else {
-                int shieldNum = game.getShieldNumber(unit, ship);
-                int ecmShift = computeSeekerEcmShift(seeker, ship);
-                int dmg = adjustForCloak(
-                        applyProximityRoll(seeker.impact(), ecmShift, log), ship, log);
-                String controllerName = seeker.getController() instanceof Ship
-                        ? seeker.getController().getName()
-                        : unit.getName();
-                String hitMsg = "  " + ship.getName() + " moved into " + unit.getName()
-                        + "  shield #" + shieldNum + "  damage " + dmg;
-                pendingVolleys.add(new Game.PendingVolley(controllerName, null, ship,
-                        shieldNum, dmg, 0, false, false, hitMsg, null));
-                log.add(hitMsg + " — queued for Reinforcement phase");
-            }
+            String description = seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping()
+                    ? ship.getName() + " moved into plasma-"
+                            + ((PlasmaTorpedo) seeker).getPlasmaType() + " (enveloping)"
+                    : ship.getName() + " moved into " + unit.getName();
+            queueSeekerImpact(seeker, ship, description, log);
             toRemove.add(seeker);
         }
         for (Seeker s : toRemove)
             game.removeSeekerFromPlay(s);
         return log;
+    }
+
+    /**
+     * Shared tail for every seeker-vs-ship impact, whichever unit moved into
+     * the other's hex: proximity roll (D6.361), G13.37 cloak adjustment, volley
+     * queued for the Reinforcement phase, and log line. The impact shield comes
+     * from the seeker's direction of travel — it strikes the facing it
+     * approached, which also holds when the SHIP moved into the seeker's hex
+     * (a position bearing is degenerate at range 0). Enveloping plasma instead
+     * wraps the ship: "shield 0", spread across all shields, with the torpedo
+     * attached for enveloping resolution.
+     */
+    private void queueSeekerImpact(Seeker seeker, Ship target, String description, List<String> log) {
+        Unit unit = (Unit) seeker;
+        boolean enveloping = seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping();
+        int shieldNum = enveloping ? 0 : getDroneImpactShield(unit, target);
+        int ecmShift = computeSeekerEcmShift(seeker, target);
+        int dmg = adjustForCloak(applyProximityRoll(seeker.impact(), ecmShift, log), target, log);
+        String controllerName = seeker.getController() instanceof Ship
+                ? seeker.getController().getName()
+                : unit.getName();
+        String hitMsg = enveloping
+                ? "  " + description + "  total damage " + dmg + " spread to all shields"
+                : "  " + description + " shield #" + shieldNum + "  damage " + dmg;
+        pendingVolleys.add(new Game.PendingVolley(controllerName, null, target,
+                shieldNum, dmg, 0, false, false, hitMsg,
+                enveloping ? (PlasmaTorpedo) seeker : null));
+        log.add(hitMsg + " — queued for Reinforcement phase");
     }
 
     /**
