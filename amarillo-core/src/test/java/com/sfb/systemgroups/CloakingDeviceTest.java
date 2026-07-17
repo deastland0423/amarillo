@@ -197,6 +197,59 @@ public class CloakingDeviceTest {
     }
 
     // -------------------------------------------------------------------------
+    // G13.115 — reversing a fade retraces it, not a fresh 5-impulse fade
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void reversedFadeIn_matchesRulebookExample() {
+        // G13.115 example: cloak dropped on impulse 10 (+5), fading in on 11
+        // (+4) and 12 (+3); reversed on 13 → 13 (+4), 14 (+5), fully cloaked 15
+        activateAndFullyCloak(1);
+        cloak.deactivate(10);
+        assertEquals(5, cloak.getCloakBonus(10));
+        cloak.updateState(11);
+        assertEquals(4, cloak.getCloakBonus(11));
+        cloak.updateState(12);
+        assertEquals(3, cloak.getCloakBonus(12));
+
+        // New turn so the once-per-turn flags allow the reversal
+        cloak.newTurn(13);
+        assertTrue(cloak.activate(13));
+        assertEquals(CloakState.FADING_OUT, cloak.getState());
+        assertEquals(4, cloak.getCloakBonus(13));
+        cloak.updateState(14);
+        assertEquals(5, cloak.getCloakBonus(14));
+        cloak.updateState(15);
+        assertEquals(CloakState.FULLY_CLOAKED, cloak.getState());
+    }
+
+    @Test
+    public void reversedFadeOut_fadesBackTheSameNumberOfImpulses() {
+        // Fade-out impulses 1 (+1) and 2 (+2); reversed on 3 → 3 (+1), inactive 4
+        cloak.setCostPaid(true);
+        cloak.activate(1);
+        assertEquals(1, cloak.getCloakBonus(1));
+        cloak.updateState(2);
+        assertEquals(2, cloak.getCloakBonus(2));
+
+        assertTrue(cloak.deactivate(3));
+        assertEquals(CloakState.FADING_IN, cloak.getState());
+        assertEquals(1, cloak.getCloakBonus(3));
+        cloak.updateState(4);
+        assertEquals(CloakState.INACTIVE, cloak.getState());
+    }
+
+    @Test
+    public void reversedFade_cannotBeReversedAgainSameTurn() {
+        // G13.115: once reversed, that fade cannot be reversed again — the
+        // combined action consumes both the turn's cloak and uncloak
+        cloak.setCostPaid(true);
+        cloak.activate(1);
+        assertTrue(cloak.deactivate(3));  // reversal
+        assertFalse(cloak.activate(4));   // blocked: already cloaked this turn
+    }
+
+    // -------------------------------------------------------------------------
     // Fade-in sequence
     // -------------------------------------------------------------------------
 

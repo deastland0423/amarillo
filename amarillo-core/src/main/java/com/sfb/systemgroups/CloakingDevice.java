@@ -161,8 +161,12 @@ public class CloakingDevice implements Systems {
         if (cloakedThisTurn)   return false;
         if (state == CloakState.FADING_OUT || state == CloakState.FULLY_CLOAKED) return false;
 
+        // G13.115: reversing a fade-in retraces the impulses already faded
+        // instead of starting a fresh 5-impulse fade-out
+        transitionImpulse = state == CloakState.FADING_IN
+                ? mirroredTransition(currentImpulse)
+                : currentImpulse;
         state = CloakState.FADING_OUT;
-        transitionImpulse = currentImpulse;
         cloakedThisTurn = true;
         return true;
     }
@@ -179,8 +183,12 @@ public class CloakingDevice implements Systems {
         if (uncloakedThisTurn) return false;
         if (state == CloakState.INACTIVE || state == CloakState.FADING_IN) return false;
 
+        // G13.115: reversing a fade-out retraces the impulses already faded
+        // instead of starting a fresh 5-impulse fade-in
+        transitionImpulse = state == CloakState.FADING_OUT
+                ? mirroredTransition(currentImpulse)
+                : currentImpulse;
         state = CloakState.FADING_IN;
-        transitionImpulse = currentImpulse;
         uncloakedThisTurn = true;
         return true;
     }
@@ -283,8 +291,23 @@ public class CloakingDevice implements Systems {
     // -------------------------------------------------------------------------
 
     private int impulsesElapsed(int currentImpulse) {
-        if (transitionImpulse < 0) return 0;
+        // Guard on state, not the sentinel: a reversed fade's mirrored
+        // transition impulse can legitimately be negative early in a game
+        if (state != CloakState.FADING_OUT && state != CloakState.FADING_IN) return 0;
         return currentImpulse - transitionImpulse + 1; // activation impulse = step 1
+    }
+
+    /**
+     * G13.115: a reversed fade retraces the impulses already faded. A fade that
+     * has shown n step values (n = current − transitionImpulse) continues from
+     * value n−1 in the opposite direction and reaches its terminal state after
+     * exactly n impulses. Rulebook example: cloak dropped on impulse 10 (+5),
+     * fading in 11 (+4) and 12 (+3), reversed on 13 → 13 (+4), 14 (+5), fully
+     * cloaked on 15. This transition value makes the standard step arithmetic
+     * produce that retrace.
+     */
+    private int mirroredTransition(int currentImpulse) {
+        return currentImpulse + (currentImpulse - transitionImpulse) - (FADE_IMPULSES + 1);
     }
 
     /**
