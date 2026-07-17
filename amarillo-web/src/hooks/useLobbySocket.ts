@@ -15,6 +15,12 @@ export interface LobbyState {
   gameId: string;
   scenarioLoaded: boolean;
   scenarioId: string | null;
+  // Scenario identity, broadcast to every player — joiners have no local
+  // scenario list, so this is their only source for what they're playing
+  scenarioName: string | null;
+  scenarioDescription: string | null;
+  scenarioYear: number;
+  scenarioSpecialRules: string[];
   started: boolean;
   allCoiReady: boolean;
   players: LobbyPlayer[];

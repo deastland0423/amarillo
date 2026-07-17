@@ -29,6 +29,12 @@ public class LobbyStateDto {
     public final String          gameId;
     public final boolean         scenarioLoaded;
     public final String          scenarioId;
+    // Scenario identity for EVERY player — joiners have no local scenario list,
+    // so the broadcast is their only source for what they are sitting down to
+    public final String          scenarioName;
+    public final String          scenarioDescription;
+    public final int             scenarioYear;
+    public final List<String>    scenarioSpecialRules;
     public final boolean         started;
     public final boolean         allCoiReady;
     public final List<PlayerDto> players;
@@ -38,6 +44,12 @@ public class LobbyStateDto {
         this.gameId          = session.getId();
         this.scenarioLoaded  = session.isScenarioLoaded();
         this.scenarioId      = session.getLoadedScenarioId();
+        com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
+        this.scenarioName         = spec != null && spec.name != null ? spec.name : null;
+        this.scenarioDescription  = spec != null && spec.description != null ? spec.description : null;
+        this.scenarioYear         = spec != null ? spec.year : 0;
+        this.scenarioSpecialRules = spec != null && spec.specialRules != null
+                ? spec.specialRules : List.of();
         this.started         = session.isStarted();
         this.allCoiReady     = session.allCoiDone();
 

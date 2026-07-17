@@ -419,6 +419,11 @@ public class GameSession {
         return loadedScenarioId;
     }
 
+    /** The parsed spec of the loaded scenario, or null — lobby display uses it. */
+    public com.sfb.scenario.ScenarioSpec getLoadedSpec() {
+        return loadedSpec;
+    }
+
     // -------------------------------------------------------------------------
     // Action dispatch
     // -------------------------------------------------------------------------

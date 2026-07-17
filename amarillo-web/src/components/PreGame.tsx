@@ -253,6 +253,32 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         )}
       </div>
 
+      {/* Scenario identity for players without the local catalog (joiners) —
+          sourced from the lobby broadcast; the host's richer detail card
+          below supersedes this one */}
+      {lobby?.scenarioLoaded && !activeScenario && (
+        <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
+          <div className="scenario-detail-header">
+            <span className="scenario-detail-id">{lobby.scenarioId}</span>
+            <span className="scenario-detail-name">{lobby.scenarioName ?? lobby.scenarioId}</span>
+            {lobby.scenarioYear > 0 && (
+              <span className="scenario-detail-year">Y{lobby.scenarioYear}</span>
+            )}
+          </div>
+          {lobby.scenarioDescription && (
+            <p className="scenario-detail-desc">{lobby.scenarioDescription}</p>
+          )}
+          {(lobby.scenarioSpecialRules?.length ?? 0) > 0 && (
+            <div className="scenario-section">
+              <div className="scenario-section-title">Special Rules</div>
+              <ul className="scenario-rules-list">
+                {lobby.scenarioSpecialRules.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Host: ship assignment panel (after scenario loaded) */}
       {session.isHost && lobby?.scenarioLoaded && lobby.unassignedShips.length > 0 && (
         <div className="card" style={{ width: '100%', maxWidth: 480 }}>
