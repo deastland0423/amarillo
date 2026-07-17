@@ -424,6 +424,12 @@ public class GameStateDto {
     public List<MapObjectDto> mapObjects;
     public int readyCount; // players who have clicked Ready this phase
     public int playerCount; // total players in the session
+    // Fire declaration round (D6.315) — session-level, injected at broadcast.
+    // Only WHO has responded is public; commit contents stay sealed server-side.
+    public boolean fireDeclarationOpen;
+    public String fireDeclarationCaller;
+    public List<String> fireDeclarationResponded = new ArrayList<>();
+    public boolean fireDeclarationSpent; // this impulse's round already resolved
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement

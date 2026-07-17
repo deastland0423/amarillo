@@ -95,6 +95,27 @@ public class GameSession {
     /** Tokens of players who have clicked "Ready" for the current phase. */
     private final Set<String> readyPlayers = new HashSet<>();
 
+    // ---- Fire declaration round (D6.315 written orders) ----
+    // One round per impulse: the first FIRE call convenes everyone; each player
+    // seals a commit (fire plan and/or EW changes) or passes; all responses in
+    // → EW applies first, then all fire resolves against the new EW.
+
+    /** A player's sealed orders — invisible to others until the reveal. */
+    private static class DeclarationCommit {
+        final List<ActionRequest.FireOrder> fireOrders;
+        final List<ActionRequest.EwAdjustment> ewAdjustments;
+        DeclarationCommit(List<ActionRequest.FireOrder> fire, List<ActionRequest.EwAdjustment> ew) {
+            this.fireOrders = fire != null ? fire : List.of();
+            this.ewAdjustments = ew != null ? ew : List.of();
+        }
+    }
+
+    private boolean declarationOpen = false;
+    private String declarationCallerToken = null;
+    private int declarationImpulse = -1;      // absolute impulse the round belongs to
+    private boolean declarationSpent = false; // this impulse's round already resolved
+    private final Map<String, DeclarationCommit> declarationCommits = new LinkedHashMap<>();
+
     /**
      * Combat events accumulated since the last broadcast; drained by
      * drainCombatLog().
@@ -421,6 +442,13 @@ public class GameSession {
 
             case "ADVANCE_PHASE": {
                 String token = request.getPlayerToken();
+                // An open fire declaration must be answered before the phase moves
+                if (game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE) {
+                    refreshDeclarationState();
+                    if (declarationOpen)
+                        return ActionResult.fail("MUST_RESPOND_DECLARATION:"
+                                + getFireDeclarationCallerName());
+                }
                 // During movement phase, reject ready if this player still has ships or
                 // shuttles to move
                 if (game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT) {
@@ -934,53 +962,10 @@ public class GameSession {
             }
 
             case "FIRE": {
-                // Attacker may be a ship or an active shuttle/fighter
-                Unit attacker = findUnit(request.getShipName());
-                if (attacker == null)
-                    return ActionResult.fail("Attacker not found: " + request.getShipName());
-
-                Unit target = findUnit(request.getTargetName());
-                if (target == null)
-                    return ActionResult.fail("Target not found: " + request.getTargetName());
-
-                List<String> weaponNames = request.getWeaponNames();
-                if (weaponNames == null || weaponNames.isEmpty())
-                    return ActionResult.fail("No weapons specified");
-
-                com.sfb.systemgroups.Weapons attackerWeapons = attacker instanceof Ship
-                        ? ((Ship) attacker).getWeapons()
-                        : ((Shuttle) attacker).getWeapons();
-
-                // Apply FighterFusion shot modes before resolving weapon list
-                Map<String, String> shotModes = request.getShotModes();
-                if (shotModes != null && !shotModes.isEmpty()) {
-                    for (Weapon w : attackerWeapons.fetchAllWeapons()) {
-                        if (w instanceof com.sfb.weapons.FighterFusion) {
-                            String mode = shotModes.get(w.getName());
-                            if ("DOUBLE".equalsIgnoreCase(mode))
-                                ((com.sfb.weapons.FighterFusion) w)
-                                        .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.DOUBLE);
-                            else if ("SINGLE".equalsIgnoreCase(mode))
-                                ((com.sfb.weapons.FighterFusion) w)
-                                        .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
-                        }
-                    }
-                }
-
-                List<Weapon> weapons = new ArrayList<>();
-                for (String wName : weaponNames) {
-                    Weapon w = attackerWeapons.fetchAllWeapons().stream()
-                            .filter(x -> x.getName().equalsIgnoreCase(wName))
-                            .findFirst().orElse(null);
-                    if (w == null)
-                        return ActionResult.fail("Weapon not found on attacker: " + wName);
-                    weapons.add(w);
-                }
-
-                ActionResult fireResult = game.execute(new FireCommand(
-                        attacker, target, weapons,
+                ActionResult fireResult = resolveFire(request.getShipName(), request.getTargetName(),
+                        request.getWeaponNames(), request.getShotModes(),
                         request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
-                        request.isUseUim(), request.isDirectFire()));
+                        request.isUseUim(), request.isDirectFire());
                 if (fireResult.isSuccess())
                     appendCombatLog(fireResult.getMessage());
                 return fireResult;
@@ -1447,9 +1432,208 @@ public class GameSession {
                 return game.execute(new UncloakCommand(ship));
             }
 
+            case "CALL_FIRE_DECLARATION": {
+                if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
+                    return ActionResult.fail("Fire declarations happen during the Direct Fire phase");
+                refreshDeclarationState();
+                if (declarationOpen)
+                    return ActionResult.fail("A fire declaration is already open");
+                if (declarationSpent)
+                    return ActionResult.fail("This impulse's fire declaration has already resolved (one per impulse)");
+                PlayerInfo caller = players.get(request.getPlayerToken());
+                if (caller == null)
+                    return ActionResult.fail("Unknown player");
+                declarationOpen = true;
+                declarationCallerToken = request.getPlayerToken();
+                declarationImpulse = game.getAbsoluteImpulse();
+                declarationCommits.clear();
+                // Stale readies can't stand as an answer to the call (D6.315)
+                readyPlayers.clear();
+                appendCombatLog("⚔ " + caller.getName()
+                        + " calls a fire declaration — all players commit orders (D6.315)");
+                return ActionResult.ok("FIRE_DECLARATION_CALLED");
+            }
+
+            case "COMMIT_FIRE_DECLARATION": {
+                refreshDeclarationState();
+                if (!declarationOpen)
+                    return ActionResult.fail("No fire declaration is open");
+                String token = request.getPlayerToken();
+                PlayerInfo pi = players.get(token);
+                if (pi == null)
+                    return ActionResult.fail("Unknown player");
+                if (declarationCommits.containsKey(token))
+                    return ActionResult.fail("Orders already committed — they are sealed");
+                // Ownership check now; full rules validation happens at the reveal
+                List<String> myNames = pi.getShipNames();
+                if (request.getFireOrders() != null)
+                    for (ActionRequest.FireOrder o : request.getFireOrders())
+                        if (!containsIgnoreCase(myNames, o.getShipName()))
+                            return ActionResult.fail("Cannot fire another player's unit: " + o.getShipName());
+                if (request.getEwAdjustments() != null)
+                    for (ActionRequest.EwAdjustment a : request.getEwAdjustments())
+                        if (!containsIgnoreCase(myNames, a.getShipName()))
+                            return ActionResult.fail("Cannot adjust another player's EW: " + a.getShipName());
+                declarationCommits.put(token,
+                        new DeclarationCommit(request.getFireOrders(), request.getEwAdjustments()));
+                appendCombatLog(pi.getName() + " has committed orders ("
+                        + declarationCommits.size() + "/" + players.size() + ")");
+                if (declarationCommits.size() >= players.size())
+                    resolveDeclarationRound();
+                return ActionResult.ok("COMMITTED:" + declarationCommits.size() + "/" + players.size());
+            }
+
+            case "PASS_FIRE_DECLARATION": {
+                refreshDeclarationState();
+                if (!declarationOpen)
+                    return ActionResult.fail("No fire declaration is open");
+                String token = request.getPlayerToken();
+                PlayerInfo pi = players.get(token);
+                if (pi == null)
+                    return ActionResult.fail("Unknown player");
+                if (declarationCommits.containsKey(token))
+                    return ActionResult.fail("Orders already committed — they are sealed");
+                declarationCommits.put(token, new DeclarationCommit(null, null));
+                appendCombatLog(pi.getName() + " has committed orders ("
+                        + declarationCommits.size() + "/" + players.size() + ")");
+                if (declarationCommits.size() >= players.size())
+                    resolveDeclarationRound();
+                return ActionResult.ok("COMMITTED:" + declarationCommits.size() + "/" + players.size());
+            }
+
             default:
                 return ActionResult.fail("Unknown action type: " + request.getType());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Fire declaration round helpers (D6.315)
+    // -------------------------------------------------------------------------
+
+    /** A stale round from a previous impulse evaporates; spent-flag resets too. */
+    private void refreshDeclarationState() {
+        if (declarationImpulse != game.getAbsoluteImpulse()) {
+            declarationOpen = false;
+            declarationCallerToken = null;
+            declarationSpent = false;
+            declarationCommits.clear();
+            declarationImpulse = game.getAbsoluteImpulse();
+        }
+    }
+
+    /**
+     * The reveal: every player has responded. EW adjustments apply first —
+     * simultaneous with the fire decisions per D6.315, so all declared fire
+     * resolves against the post-adjustment EW. Illegal orders fizzle with a
+     * logged reason rather than rejecting the sealed round.
+     */
+    private void resolveDeclarationRound() {
+        StringBuilder log = new StringBuilder("— Fire declaration resolves —");
+        for (Map.Entry<String, DeclarationCommit> e : declarationCommits.entrySet()) {
+            PlayerInfo pi = players.get(e.getKey());
+            String who = pi != null ? pi.getName() : "?";
+            for (ActionRequest.EwAdjustment adj : e.getValue().ewAdjustments) {
+                Ship ship = findShip(adj.getShipName());
+                if (ship == null) {
+                    log.append("\n").append(who).append(": ship not found — ").append(adj.getShipName());
+                    continue;
+                }
+                ActionResult r = game.adjustEw(ship, adj.getEcm(), adj.getEccm());
+                log.append("\n").append(r.getMessage());
+            }
+        }
+        for (Map.Entry<String, DeclarationCommit> e : declarationCommits.entrySet()) {
+            for (ActionRequest.FireOrder o : e.getValue().fireOrders) {
+                ActionResult r = resolveFire(o.getShipName(), o.getTargetName(),
+                        o.getWeaponNames(), o.getShotModes(),
+                        o.getRange(), o.getAdjustedRange(), o.getShieldNumber(),
+                        o.isUseUim(), o.isDirectFire());
+                log.append("\n").append(r.getMessage());
+            }
+        }
+        declarationOpen = false;
+        declarationSpent = true;
+        declarationCommits.clear();
+        appendCombatLog(log.toString());
+    }
+
+    /** Shared FIRE resolution — used by the FIRE action and the declaration reveal. */
+    private ActionResult resolveFire(String attackerName, String targetName,
+            List<String> weaponNames, Map<String, String> shotModes,
+            int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
+        Unit attacker = findUnit(attackerName);
+        if (attacker == null)
+            return ActionResult.fail("Attacker not found: " + attackerName);
+        Unit target = findUnit(targetName);
+        if (target == null)
+            return ActionResult.fail("Target not found: " + targetName);
+        if (weaponNames == null || weaponNames.isEmpty())
+            return ActionResult.fail("No weapons specified");
+
+        com.sfb.systemgroups.Weapons attackerWeapons = attacker instanceof Ship
+                ? ((Ship) attacker).getWeapons()
+                : ((Shuttle) attacker).getWeapons();
+
+        // Apply FighterFusion shot modes before resolving weapon list
+        if (shotModes != null && !shotModes.isEmpty()) {
+            for (Weapon w : attackerWeapons.fetchAllWeapons()) {
+                if (w instanceof com.sfb.weapons.FighterFusion) {
+                    String mode = shotModes.get(w.getName());
+                    if ("DOUBLE".equalsIgnoreCase(mode))
+                        ((com.sfb.weapons.FighterFusion) w)
+                                .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.DOUBLE);
+                    else if ("SINGLE".equalsIgnoreCase(mode))
+                        ((com.sfb.weapons.FighterFusion) w)
+                                .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
+                }
+            }
+        }
+
+        List<Weapon> weapons = new ArrayList<>();
+        for (String wName : weaponNames) {
+            Weapon w = attackerWeapons.fetchAllWeapons().stream()
+                    .filter(x -> x.getName().equalsIgnoreCase(wName))
+                    .findFirst().orElse(null);
+            if (w == null)
+                return ActionResult.fail("Weapon not found on attacker: " + wName);
+            weapons.add(w);
+        }
+
+        return game.execute(new FireCommand(attacker, target, weapons,
+                range, adjustedRange, shieldNumber, useUim, directFire));
+    }
+
+    private static boolean containsIgnoreCase(List<String> names, String name) {
+        if (name == null)
+            return false;
+        for (String n : names)
+            if (n.equalsIgnoreCase(name))
+                return true;
+        return false;
+    }
+
+    // Declaration state exposed for the per-player DTO broadcast
+    public boolean isFireDeclarationOpen() {
+        return declarationOpen && declarationImpulse == game.getAbsoluteImpulse();
+    }
+
+    public String getFireDeclarationCallerName() {
+        PlayerInfo pi = declarationCallerToken != null ? players.get(declarationCallerToken) : null;
+        return pi != null ? pi.getName() : null;
+    }
+
+    public List<String> getFireDeclarationRespondedNames() {
+        List<String> names = new ArrayList<>();
+        for (String token : declarationCommits.keySet()) {
+            PlayerInfo pi = players.get(token);
+            if (pi != null)
+                names.add(pi.getName());
+        }
+        return names;
+    }
+
+    public boolean isFireDeclarationSpent() {
+        return declarationSpent && declarationImpulse == game.getAbsoluteImpulse();
     }
 
     private Ship findShip(String name) {

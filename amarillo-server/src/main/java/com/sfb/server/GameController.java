@@ -59,6 +59,10 @@ public class GameController {
         GameStateDto dto = new GameStateDto(session.getGame(), viewerTeam);
         dto.readyCount = session.getReadyCount();
         dto.playerCount = session.getPlayerCount();
+        dto.fireDeclarationOpen = session.isFireDeclarationOpen();
+        dto.fireDeclarationCaller = session.getFireDeclarationCallerName();
+        dto.fireDeclarationResponded = session.getFireDeclarationRespondedNames();
+        dto.fireDeclarationSpent = session.isFireDeclarationSpent();
         return dto;
     }
 

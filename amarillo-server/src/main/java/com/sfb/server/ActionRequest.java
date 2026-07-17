@@ -252,4 +252,59 @@ public class ActionRequest {
 
     public List<ReinforcementEntry> getReinforcements()                        { return reinforcements; }
     public void                     setReinforcements(List<ReinforcementEntry> r) { this.reinforcements = r; }
+
+    // COMMIT_FIRE_DECLARATION fields — a sealed fire plan (D6.315 written orders).
+    // One FireOrder mirrors the FIRE action's payload; EwAdjustment carries a
+    // ship's new EW totals for Game.adjustEw.
+    public static class FireOrder {
+        private String shipName;
+        private String targetName;
+        private List<String> weaponNames;
+        private java.util.Map<String, String> shotModes;
+        private int range;
+        private int adjustedRange;
+        private int shieldNumber;
+        private boolean useUim;
+        private boolean directFire = true;
+
+        public String getShipName()                          { return shipName; }
+        public void   setShipName(String s)                  { this.shipName = s; }
+        public String getTargetName()                        { return targetName; }
+        public void   setTargetName(String t)                { this.targetName = t; }
+        public List<String> getWeaponNames()                 { return weaponNames; }
+        public void   setWeaponNames(List<String> w)         { this.weaponNames = w; }
+        public java.util.Map<String, String> getShotModes()  { return shotModes; }
+        public void   setShotModes(java.util.Map<String, String> m) { this.shotModes = m; }
+        public int     getRange()                            { return range; }
+        public void    setRange(int r)                       { this.range = r; }
+        public int     getAdjustedRange()                    { return adjustedRange; }
+        public void    setAdjustedRange(int r)               { this.adjustedRange = r; }
+        public int     getShieldNumber()                     { return shieldNumber; }
+        public void    setShieldNumber(int n)                { this.shieldNumber = n; }
+        public boolean isUseUim()                            { return useUim; }
+        public void    setUseUim(boolean b)                  { this.useUim = b; }
+        public boolean isDirectFire()                        { return directFire; }
+        public void    setDirectFire(boolean b)              { this.directFire = b; }
+    }
+
+    public static class EwAdjustment {
+        private String shipName;
+        private int ecm;
+        private int eccm;
+
+        public String getShipName()         { return shipName; }
+        public void   setShipName(String s) { this.shipName = s; }
+        public int    getEcm()              { return ecm; }
+        public void   setEcm(int e)         { this.ecm = e; }
+        public int    getEccm()             { return eccm; }
+        public void   setEccm(int e)        { this.eccm = e; }
+    }
+
+    private List<FireOrder> fireOrders;
+    private List<EwAdjustment> ewAdjustments;
+
+    public List<FireOrder> getFireOrders()                     { return fireOrders; }
+    public void            setFireOrders(List<FireOrder> f)    { this.fireOrders = f; }
+    public List<EwAdjustment> getEwAdjustments()               { return ewAdjustments; }
+    public void               setEwAdjustments(List<EwAdjustment> e) { this.ewAdjustments = e; }
 }
