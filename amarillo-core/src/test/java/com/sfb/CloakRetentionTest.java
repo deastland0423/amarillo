@@ -198,6 +198,28 @@ public class CloakRetentionTest {
         assertEquals(0, game.reacquisitionProbability(fed, rom));
     }
 
+    @Test
+    public void seekerEcmShift_controllerEccmAndBuiltInStack() {
+        // D6.34 Step 2: guiding ship's ECCM + weapon's built-in stack.
+        // Plasma built-in ECCM = 3 (FP4.31); rom (target) ECM 6.
+        PlasmaTorpedo torp = new PlasmaTorpedo(PlasmaType.G, WeaponArmingType.STANDARD);
+        torp.setTarget(rom);
+        rom.setEcmAllocated(6);
+
+        // Uncontrolled: net = 6 − 3 = 3 → shift 1
+        assertEquals(1, SeekerMover.computeSeekerEcmShift(torp, rom));
+
+        // Controlled by fed with ECCM 3 and active FC: net = 6 − 3 − 3 = 0
+        torp.setController(fed);
+        fed.setEccmAllocated(3);
+        fed.setActiveFireControl(true);
+        assertEquals(0, SeekerMover.computeSeekerEcmShift(torp, rom));
+
+        // Passive FC → controller ECCM inert (D19.12): back to net 3 → shift 1
+        fed.setActiveFireControl(false);
+        assertEquals(1, SeekerMover.computeSeekerEcmShift(torp, rom));
+    }
+
     // -------------------------------------------------------------------------
     // Ship lock-on retention (G13.331)
     // -------------------------------------------------------------------------

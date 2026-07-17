@@ -498,11 +498,13 @@ class SeekerMover {
     }
 
     /**
-     * D6.36: ECM net shift for a seeker impact roll.
+     * D6.36: ECM net shift for a seeker impact roll. The guiding ship's ECCM
+     * (active FC required) and the weapon's built-in ECCM stack (D6.34 Step 2):
      * shift = floor(sqrt(max(0, targetEcm - controllerEccm - builtInEccm)))
      * TypeVI warp-seekers are immune (D6.38) — returns 0.
+     * Package-private for tests.
      */
-    private static int computeSeekerEcmShift(Seeker seeker, Unit target) {
+    static int computeSeekerEcmShift(Seeker seeker, Unit target) {
         if (seeker.isWarpSeeker())
             return 0;
         int targetEcm = 0;
