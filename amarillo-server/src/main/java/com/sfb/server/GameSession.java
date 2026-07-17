@@ -883,15 +883,18 @@ public class GameSession {
                     }
                 }
 
-                // ECM/ECCM — validate and store on ship
+                // ECM/ECCM — validate and assign to the ship's EW circuits.
+                // Circuit mode commitments persist across turns (D6.312), so an
+                // allocation may be rejected if it needs a still-locked switch.
                 int ecmReq = Math.max(0, request.getEcm());
                 int eccmReq = Math.max(0, request.getEccm());
                 int sensorRating = ship.getSpecialFunctions().getSensor();
                 if (ecmReq + eccmReq > sensorRating)
                     return ActionResult.fail(
                             "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds sensor rating (" + sensorRating + ")");
-                ship.setEcmAllocated(ecmReq);
-                ship.setEccmAllocated(eccmReq);
+                String ewErr = ship.allocateEw(ecmReq, eccmReq, game.getAbsoluteImpulse() + 1);
+                if (ewErr != null)
+                    return ActionResult.fail(ewErr);
 
                 // Tractor energy pool (G7.15) — any amount may be pooled; a single
                 // range-3 grab costs 3 energy per effective point (G7.6) and auction

@@ -119,6 +119,36 @@ class GameSessionAllocateTest {
     }
 
     @Test
+    void ecmEccm_validMix_landsOnShipCircuits() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setEcm(3);
+        req.setEccm(2);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertEquals(3, fed.getEcmAllocated());
+        assertEquals(2, fed.getEccmAllocated());
+    }
+
+    @Test
+    void ecmAllocation_needingLockedCircuitFlip_isRefused() {
+        // Commit all six circuits to ECCM one impulse before EA — they are
+        // mode-locked for 8 impulses (D6.312/D6.316), so an all-ECM allocation
+        // cannot be satisfied yet
+        assertNull(fed.allocateEw(6, 0, 1));
+        assertNull(fed.adjustEw(0, 6, 1));
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setEcm(6);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("D6.316"), result.getMessage());
+    }
+
+    @Test
     void warpTacticalManeuver_whileMoving_isRefused() {
         ActionRequest req = allocate("USS Enterprise");
         req.setSpeed(5);

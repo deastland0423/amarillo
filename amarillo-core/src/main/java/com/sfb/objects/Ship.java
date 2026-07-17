@@ -83,8 +83,9 @@ public class Ship extends Unit implements DroneController {
 	private int fireControlCost = 1; // Cost for active fire control (always 1).
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
-	private int ecmAllocated = 0; // ECM points allocated this turn (hide)
-	private int eccmAllocated = 0; // ECCM points allocated this turn (seek)
+	// EW circuit bank (D6.31) — powered counts are this turn's ECM/ECCM;
+	// mode commitments and switch lockouts persist across turns (D6.312)
+	private final com.sfb.systemgroups.EwCircuits ewCircuits = new com.sfb.systemgroups.EwCircuits();
 	private int nuclearSpaceMines = 0; // Number of nuclear space mines available. (Romulan special weapon)
 	/** Enemy boarding parties currently on board (D7.31). */
 	private final TroopCount enemyTroops = new TroopCount();
@@ -399,8 +400,7 @@ public class Ship extends Unit implements DroneController {
 		// re-tasking happens during Energy Allocation) — nothing to clear here.
 		crew.cleanUp();
 		performanceData.cleanUp();
-		ecmAllocated = 0;
-		eccmAllocated = 0;
+		ewCircuits.cleanUp(); // power lapses; reserve buys expire (D6.312)
 		tractorTrueSpeed = -1;
 	}
 
@@ -640,19 +640,44 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	public int getEcmAllocated() {
-		return ecmAllocated;
+		return ewCircuits.getEcm();
 	}
 
+	/** Force ECM to an exact value, bypassing circuit lockouts — tests/sync only. */
 	public void setEcmAllocated(int ecm) {
-		this.ecmAllocated = ecm;
+		ewCircuits.force(ecm, ewCircuits.getEccm(), specialFunctions.getSensor());
 	}
 
 	public int getEccmAllocated() {
-		return eccmAllocated;
+		return ewCircuits.getEccm();
 	}
 
+	/** Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only. */
 	public void setEccmAllocated(int eccm) {
-		this.eccmAllocated = eccm;
+		ewCircuits.force(ewCircuits.getEcm(), eccm, specialFunctions.getSensor());
+	}
+
+	/**
+	 * Energy Allocation assignment of this turn's EW (D6.310). Returns an error
+	 * message if the mix would flip circuits still inside their 8-impulse mode
+	 * commitment (D6.312), null on success.
+	 */
+	public String allocateEw(int ecm, int eccm, int impulse) {
+		return ewCircuits.allocate(ecm, eccm, impulse, specialFunctions.getSensor());
+	}
+
+	/**
+	 * Mid-turn EW adjustment (D6.315): drops are free and irrevocable,
+	 * additions are reserve-bought — the caller pays battery via
+	 * {@link #ewAdjustBatteryCost}. Error message or null.
+	 */
+	public String adjustEw(int newEcm, int newEccm, int impulse) {
+		return ewCircuits.adjust(newEcm, newEccm, impulse, specialFunctions.getSensor());
+	}
+
+	/** Battery cost of an adjustEw to these totals: 1 per added point (D6.312). */
+	public int ewAdjustBatteryCost(int newEcm, int newEccm) {
+		return ewCircuits.batteryCost(newEcm, newEccm);
 	}
 
 	public int getTBombs() {

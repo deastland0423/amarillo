@@ -1096,6 +1096,34 @@ public class Game {
     }
 
     /**
+     * Mid-turn EW adjustment (D6.315) — the Fire Decision Step. Drops are free
+     * and irrevocable; additions cost 1 battery per point (reserve power,
+     * D6.312) and expire at end of turn. Circuit switch lockouts (D6.316) are
+     * enforced by the ship's EW circuit bank. Changes are announced (D6.32)
+     * and effective immediately for this impulse's direct fire.
+     */
+    public ActionResult adjustEw(Ship ship, int newEcm, int newEccm) {
+        if (currentPhase != ImpulsePhase.DIRECT_FIRE)
+            return ActionResult.fail("EW can only be adjusted during the Direct Fire phase (D6.315)");
+        int oldEcm = ship.getEcmAllocated();
+        int oldEccm = ship.getEccmAllocated();
+        if (newEcm == oldEcm && newEccm == oldEccm)
+            return ActionResult.fail("No EW change requested");
+        int cost = ship.ewAdjustBatteryCost(newEcm, newEccm);
+        if (cost > ship.getPowerSystems().getBatteryPower())
+            return ActionResult.fail("Need " + cost + " reserve power for added EW points, have "
+                    + ship.getPowerSystems().getBatteryPower() + " battery (D6.312)");
+        String err = ship.adjustEw(newEcm, newEccm, clock.getImpulse());
+        if (err != null)
+            return ActionResult.fail(err);
+        if (cost > 0)
+            ship.getPowerSystems().useBattery(cost);
+        return ActionResult.ok(ship.getName() + " adjusts EW: ECM " + oldEcm + " → " + newEcm
+                + ", ECCM " + oldEccm + " → " + newEccm
+                + (cost > 0 ? " (" + cost + " reserve power; D6.312)" : " (D6.315)"));
+    }
+
+    /**
      * Set FC to passive immediately (D6.632). Any impulse, any phase.
      * Dropping FC loses every lock-on (D6.62) and releases guided drones (D6.122).
      */
