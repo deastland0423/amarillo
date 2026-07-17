@@ -122,7 +122,6 @@ class LockOnResolver {
      * G13.331: when a ship completes fade-out, every ship holding a lock-on to
      * it rolls to retain it. Roll one die; retained on roll \u2264 P where
      * P = Sensor \u2212 EW \u2212 RangeFactor + SpeedFactor \u2212 4.
-     * The EW term is 0 until electronic warfare is implemented.
      */
     List<String> rollRetention(Ship cloaked) {
         List<String> log = new ArrayList<>();
@@ -165,9 +164,10 @@ class LockOnResolver {
         rollRetentionFor(attacker, cloaked, dice, lastLockOnLog);
     }
 
-    /** P = S \u2212 EW \u2212 RF + SF \u2212 4 (G13.331); EW is 0 until EW is implemented. */
+    /** P = S \u2212 EW \u2212 RF + SF \u2212 4 (G13.331). */
     int retentionProbability(Ship attacker, Ship cloaked) {
         return attacker.getSpecialFunctions().getSensor()
+                - ewAdjustment(attacker, cloaked)
                 - rangeFactor(MapUtils.getRange(attacker, cloaked))
                 + speedFactor(cloaked.getSpeed())
                 - 4;
@@ -176,9 +176,31 @@ class LockOnResolver {
     /** P = S \u2212 EW \u2212 RF + SF \u2212 10 (G13.333) \u2014 reacquiring a lost/never-held lock-on. */
     int reacquisitionProbability(Ship attacker, Ship cloaked) {
         return attacker.getSpecialFunctions().getSensor()
+                - ewAdjustment(attacker, cloaked)
                 - rangeFactor(MapUtils.getRange(attacker, cloaked))
                 + speedFactor(cloaked.getSpeed())
                 - 10;
+    }
+
+    /**
+     * G13.331 EW Adjustment: the D6.34 Step-3 differential (cloaked ship's ECM
+     * minus the attacker's ECCM; ECCM requires active fire control, D6.32),
+     * pushed through the net-shift chart. A negative differential \u2014 attacker
+     * ECCM out-jamming the cloak's ECM \u2014 applies as a negative number, i.e. a
+     * retention bonus.
+     */
+    private static int ewAdjustment(Ship attacker, Ship cloaked) {
+        int eccm = attacker.isActiveFireControl() ? attacker.getEccmAllocated() : 0;
+        return signedNetEcmShift(cloaked.getEcmAllocated() - eccm);
+    }
+
+    /**
+     * D6.34 net ECM shift with sign preserved: \u230a\u221a|net|\u230b (the Step-5 chart),
+     * negated when the differential is negative (G13.331 EW Adjustment).
+     */
+    static int signedNetEcmShift(int netEcm) {
+        int shift = (int) Math.floor(Math.sqrt(Math.abs(netEcm)));
+        return netEcm < 0 ? -shift : shift;
     }
 
     /**

@@ -133,6 +133,72 @@ public class CloakRetentionTest {
     }
 
     // -------------------------------------------------------------------------
+    // G13.331 EW Adjustment (D6.34 differential, signed)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void signedNetEcmShift_matchesD634Chart() {
+        assertEquals(0,  LockOnResolver.signedNetEcmShift(0));
+        assertEquals(1,  LockOnResolver.signedNetEcmShift(1));
+        assertEquals(1,  LockOnResolver.signedNetEcmShift(3));
+        assertEquals(2,  LockOnResolver.signedNetEcmShift(4));
+        assertEquals(2,  LockOnResolver.signedNetEcmShift(8));
+        assertEquals(3,  LockOnResolver.signedNetEcmShift(9));
+        assertEquals(3,  LockOnResolver.signedNetEcmShift(15));
+        assertEquals(4,  LockOnResolver.signedNetEcmShift(16));
+        assertEquals(-1, LockOnResolver.signedNetEcmShift(-3));
+        assertEquals(-2, LockOnResolver.signedNetEcmShift(-4));
+    }
+
+    @Test
+    public void retentionProbability_includesEwAdjustment() {
+        rom.setSpeed(20); // SF +6, range 1 (RF 0), fed sensor 6 → base P = 8
+        fed.setActiveFireControl(true);
+        assertEquals(8, game.retentionProbability(fed, rom));
+
+        rom.setEcmAllocated(6);  // net +6 → shift +2 against the attacker
+        assertEquals(6, game.retentionProbability(fed, rom));
+
+        fed.setEccmAllocated(6); // net 0 → no shift
+        assertEquals(8, game.retentionProbability(fed, rom));
+
+        rom.setEcmAllocated(0);  // net −6 → shift −2 → retention bonus
+        assertEquals(10, game.retentionProbability(fed, rom));
+    }
+
+    @Test
+    public void ewAdjustment_matchesG133323GornExample() {
+        // G13.3323: attacker ECCM 3 vs cloaked ECM 2 → net shift of −1 in the
+        // attacker's favor
+        rom.setSpeed(20);
+        fed.setActiveFireControl(true);
+        int base = game.retentionProbability(fed, rom);
+        rom.setEcmAllocated(2);
+        fed.setEccmAllocated(3);
+        assertEquals(base + 1, game.retentionProbability(fed, rom));
+    }
+
+    @Test
+    public void eccm_requiresActiveFireControl() {
+        rom.setSpeed(20);
+        rom.setEcmAllocated(4);          // +2 shift when unopposed
+        fed.setEccmAllocated(6);
+        fed.setActiveFireControl(false); // passive FC → ECCM inert (D6.32)
+        assertEquals(6, game.retentionProbability(fed, rom));
+        fed.setActiveFireControl(true);  // net 4−6 = −2 → −1 shift
+        assertEquals(9, game.retentionProbability(fed, rom));
+    }
+
+    @Test
+    public void reacquisitionProbability_includesEwAdjustment() {
+        rom.setSpeed(20);
+        fed.setActiveFireControl(true);
+        assertEquals(2, game.reacquisitionProbability(fed, rom));
+        rom.setEcmAllocated(4); // +2 shift → reacquisition impossible
+        assertEquals(0, game.reacquisitionProbability(fed, rom));
+    }
+
+    // -------------------------------------------------------------------------
     // Ship lock-on retention (G13.331)
     // -------------------------------------------------------------------------
 

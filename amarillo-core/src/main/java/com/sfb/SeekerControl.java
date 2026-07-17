@@ -227,7 +227,8 @@ class SeekerControl {
      *   no roll of its own (G13.3341).
      * - Controlling ship failed (or none) → the torpedo is released (G13.3342/
      *   F3.4) and makes its own attempt at sensor rating 6 (G13.3343/G13.3344):
-     *   P = 6 − RF + SF − 4. Failure removes it from play. The release itself
+     *   P = 6 − EW − RF + SF − 4, with EW using the torpedo's built-in ECCM
+     *   (D6.393). Failure removes it from play. The release itself
      *   is a no-op in this engine: plasma occupies no control channels and
      *   cannot be steered, and the launcher reference is kept for display.
      */
@@ -250,7 +251,12 @@ class SeekerControl {
             if (controller instanceof Ship)
                 log.add("  " + torp.getName() + " released — " + controller.getName()
                         + " lost its lock-on (G13.3342); rolling own retention");
+            // G13.3343: no outside ECCM, but built-in ECCM (D6.393) counts —
+            // EW adjustment = signed chart of (cloaked ECM − built-in ECCM)
+            int ew = LockOnResolver.signedNetEcmShift(
+                    cloaked.getEcmAllocated() - s.getBuiltInEccm());
             int p = 6
+                    - ew
                     - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))
                     + LockOnResolver.speedFactor(cloaked.getSpeed())
                     - 4;
