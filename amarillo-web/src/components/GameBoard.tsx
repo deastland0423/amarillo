@@ -2543,6 +2543,21 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [useUim, setUseUim]                 = useState(false);
   const [directFire, setDirectFire]         = useState(false);
   const [fireError, setFireError]           = useState<string | null>(null);
+  // Fire declaration round (D6.315) — locally drafted orders, sealed on commit.
+  // Drafts exist only while a round is open (the first order places the call),
+  // and are cleared by commit/pass; committedRound keys the sealed state to
+  // this turn+impulse so it self-resets when the next round opens.
+  type DeclOrder = {
+    label: string; shipName: string; targetName: string; weaponNames: string[];
+    shotModes?: Record<string, string>; range: number; adjustedRange: number;
+    shieldNumber: number; useUim: boolean; directFire: boolean;
+  };
+  const [declarationOrders, setDeclarationOrders] = useState<DeclOrder[]>([]);
+  const [declarationEw, setDeclarationEw] = useState<{ ecm: number; eccm: number } | null>(null);
+  const [committedRound, setCommittedRound] = useState<string | null>(null);
+  const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
+  const declarationOpen = gameState?.fireDeclarationOpen ?? false;
+  const myCommitted = committedRound === roundKey;
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
   const [fighterShotModes, setFighterShotModes]   = useState<Record<string, 'SINGLE' | 'DOUBLE'>>({});
@@ -2892,9 +2907,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     if ((!liveShip && !fighterAttacker) || !fireTarget || !fireOptions) return;
     setFireError(null);
     try {
-      // Build base request
+      // Build the order (same shape as the FIRE wire format)
       const req: Record<string, unknown> = {
-        type:          'FIRE',
         shipName:      fighterAttacker ? fighterAttacker.name : liveShip!.name,
         targetName:    fireTarget.name,
         range:         fireOptions.range,
@@ -2924,24 +2938,95 @@ export default function GameBoard({ session, onLeave }: Props) {
         req.useUim     = useUim;
         req.directFire = directFire;
       }
-      const res = await gameApi.submitAction(session.gameId, session.playerToken, req);
-      if (!res.success) {
-        setFireError(res.message);
-        addLog(res.message, 'error');
-      } else {
-        // Fire result arrives via WebSocket combatLog broadcast — don't add it
-        // here too or it will appear twice (once per source).
-        setFireTarget(null);
-        setFireOptions(null);
-        setSelectedWeapons(new Set());
-        setShotCounts(new Map());
-        setUseUim(false);
-        setDirectFire(false);
-        // Keep fighterAttacker so the player can fire again at a new target
-        setFighterShotModes({});
+      // Fire declaration flow (D6.315): the first order places the call —
+      // everyone is convened to commit sealed orders; this order joins the
+      // local draft plan and is submitted with COMMIT_FIRE_DECLARATION.
+      if (myCommitted) {
+        setFireError('Orders already sealed for this declaration');
+        return;
       }
+      if (!declarationOpen) {
+        if (gameState?.fireDeclarationSpent) {
+          setFireError("This impulse's fire declaration has already resolved (one per impulse)");
+          return;
+        }
+        const call = await gameApi.submitAction(session.gameId, session.playerToken,
+            { type: 'CALL_FIRE_DECLARATION' });
+        if (!call.success) {
+          setFireError(call.message);
+          addLog(call.message, 'error');
+          return;
+        }
+      }
+      const attackerName = fighterAttacker ? fighterAttacker.name : liveShip!.name;
+      setDeclarationOrders(prev => [...prev, {
+        label: `${attackerName} → ${fireTarget.name} (${(req.weaponNames as string[]).length} wpn)`,
+        shipName: attackerName,
+        targetName: fireTarget.name,
+        weaponNames: req.weaponNames as string[],
+        shotModes: req.shotModes as Record<string, string> | undefined,
+        range: fireOptions.range,
+        adjustedRange: fireOptions.adjustedRange,
+        shieldNumber: fireOptions.shieldNumber,
+        useUim: (req.useUim as boolean) ?? false,
+        directFire: (req.directFire as boolean) ?? false,
+      }]);
+      setFireTarget(null);
+      setFireOptions(null);
+      setSelectedWeapons(new Set());
+      setShotCounts(new Map());
+      setUseUim(false);
+      setDirectFire(false);
+      // Keep fighterAttacker so the player can add another order for it
+      setFighterShotModes({});
     } catch (e: unknown) {
       setFireError(e instanceof Error ? e.message : 'Fire failed');
+    }
+  }
+
+  async function handleCommitDeclaration() {
+    setActionError(null);
+    try {
+      const ewAdjustments = declarationEw && liveShip
+          && (declarationEw.ecm !== liveShip.ecmAllocated
+              || declarationEw.eccm !== liveShip.eccmAllocated)
+          ? [{ shipName: liveShip.name, ecm: declarationEw.ecm, eccm: declarationEw.eccm }]
+          : [];
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'COMMIT_FIRE_DECLARATION',
+        fireOrders: declarationOrders.map(o => ({
+          shipName: o.shipName, targetName: o.targetName, weaponNames: o.weaponNames,
+          shotModes: o.shotModes, range: o.range, adjustedRange: o.adjustedRange,
+          shieldNumber: o.shieldNumber, useUim: o.useUim, directFire: o.directFire,
+        })),
+        ewAdjustments,
+      });
+      if (!res.success) {
+        setActionError(res.message);
+        return;
+      }
+      setCommittedRound(roundKey);
+      setDeclarationOrders([]);
+      setDeclarationEw(null);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Commit failed');
+    }
+  }
+
+  async function handlePassDeclaration() {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken,
+          { type: 'PASS_FIRE_DECLARATION' });
+      if (!res.success) {
+        setActionError(res.message);
+        return;
+      }
+      setCommittedRound(roundKey);
+      setDeclarationOrders([]);
+      setDeclarationEw(null);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Pass failed');
     }
   }
 
@@ -3788,6 +3873,14 @@ export default function GameBoard({ session, onLeave }: Props) {
               Waiting for: <strong>{opponentMovablePending[0]}</strong>
             </span>
           )}
+          {isFirePhase && declarationOpen && (
+            <span className="topbar-move-warn" style={{ borderColor: '#a78bfa', color: '#a78bfa' }}>
+              ⚔ Fire declaration by <strong>{gameState?.fireDeclarationCaller}</strong>
+              {myCommitted
+                ? ` — sealed ✓ (${(gameState?.fireDeclarationResponded ?? []).length}/${gameState?.playerCount ?? 0})`
+                : ' — commit orders or pass'}
+            </span>
+          )}
           {(() => {
             const readyCount   = gameState?.readyCount  ?? 0;
             const playerCount  = gameState?.playerCount ?? 0;
@@ -3803,9 +3896,13 @@ export default function GameBoard({ session, onLeave }: Props) {
             return (
               <button
                 onClick={handleAdvancePhase}
-                disabled={(isMovementPhase && myMovablePending.length > 0) || isReinforcementPhase}
+                disabled={(isMovementPhase && myMovablePending.length > 0) || isReinforcementPhase
+                  || (isFirePhase && declarationOpen && !myCommitted)}
                 className={btnClass}
-                title={isReinforcementPhase ? 'Use the Reinforcement dialog to confirm and ready up' : undefined}
+                title={isReinforcementPhase ? 'Use the Reinforcement dialog to confirm and ready up'
+                  : isFirePhase && declarationOpen && !myCommitted
+                    ? 'Respond to the fire declaration first (commit orders or pass)'
+                    : undefined}
               >
                 {label}
               </button>
@@ -4064,6 +4161,56 @@ export default function GameBoard({ session, onLeave }: Props) {
           </div>
         )}
       </div>
+
+      {/* Fire declaration panel (D6.315) — drafted orders + EW, sealed on commit */}
+      {isFirePhase && declarationOpen && !myCommitted && (
+        <div className="board-log" style={{ borderColor: '#a78bfa', padding: '8px 12px' }}>
+          <div style={{ color: '#a78bfa', fontWeight: 600, marginBottom: 4 }}>
+            ⚔ Fire declaration — seal your orders
+          </div>
+          <div style={{ fontSize: '0.85em', marginBottom: 4 }}>
+            {declarationOrders.length === 0
+              ? 'No fire orders yet — click an enemy, pick weapons, and Fire to add one. Committing nothing is a legal bluff.'
+              : declarationOrders.map((o, i) => (
+                  <div key={i}>
+                    {o.label}{' '}
+                    <button className="secondary" style={{ padding: '0 6px' }}
+                      onClick={() => setDeclarationOrders(prev => prev.filter((_, j) => j !== i))}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+          </div>
+          {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
+            const ew = declarationEw ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
+            const sensor = liveShip.sensorRating ?? 0;
+            const added = Math.max(0, ew.ecm - (liveShip.ecmAllocated ?? 0))
+                        + Math.max(0, ew.eccm - (liveShip.eccmAllocated ?? 0));
+            const step = (field: 'ecm' | 'eccm', delta: number) => {
+              const next = { ...ew, [field]: Math.max(0, ew[field] + delta) };
+              if (next.ecm + next.eccm <= sensor) setDeclarationEw(next);
+            };
+            return (
+              <div style={{ fontSize: '0.85em', marginBottom: 4 }}>
+                EW — {liveShip.name}:{' '}
+                ECM <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('ecm', -1)}>−</button>
+                {' '}{ew.ecm}{' '}
+                <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('ecm', 1)}>+</button>
+                {'   '}ECCM <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('eccm', -1)}>−</button>
+                {' '}{ew.eccm}{' '}
+                <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('eccm', 1)}>+</button>
+                {'   '}(sensor {sensor}, battery {liveShip.batteryCharge ?? 0}
+                {added > 0 ? `, +${added} costs ${added} battery` : ''})
+                {' '}<span style={{ color: '#8b949e' }}>drops are lost for the turn</span>
+              </div>
+            );
+          })()}
+          <button onClick={handleCommitDeclaration} style={{ marginRight: 8 }}>
+            Commit orders ({declarationOrders.length})
+          </button>
+          <button className="secondary" onClick={handlePassDeclaration}>Pass</button>
+        </div>
+      )}
 
       {/* Combat log */}
       <div className="board-log">

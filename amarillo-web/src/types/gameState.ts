@@ -349,6 +349,11 @@ export interface GameState {
   myShips:            string[] | null;
   readyCount:         number;
   playerCount:        number;
+  // Fire declaration round (D6.315) — who responded is public, commits are sealed
+  fireDeclarationOpen:      boolean;
+  fireDeclarationCaller:    string | null;
+  fireDeclarationResponded: string[];
+  fireDeclarationSpent:     boolean;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];
