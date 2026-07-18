@@ -2553,7 +2553,9 @@ export default function GameBoard({ session, onLeave }: Props) {
     shieldNumber: number; useUim: boolean; directFire: boolean;
   };
   const [declarationOrders, setDeclarationOrders] = useState<DeclOrder[]>([]);
-  const [declarationEw, setDeclarationEw] = useState<{ ecm: number; eccm: number } | null>(null);
+  // Keyed by ship name — a multi-ship player may adjust EW on several ships
+  // in one sealed commit, and switching selection must not retarget a draft
+  const [declarationEw, setDeclarationEw] = useState<Record<string, { ecm: number; eccm: number }>>({});
   const [committedRound, setCommittedRound] = useState<string | null>(null);
   const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
@@ -2987,11 +2989,13 @@ export default function GameBoard({ session, onLeave }: Props) {
   async function handleCommitDeclaration() {
     setActionError(null);
     try {
-      const ewAdjustments = declarationEw && liveShip
-          && (declarationEw.ecm !== liveShip.ecmAllocated
-              || declarationEw.eccm !== liveShip.eccmAllocated)
-          ? [{ shipName: liveShip.name, ecm: declarationEw.ecm, eccm: declarationEw.eccm }]
-          : [];
+      // One adjustment per ship whose drafted EW differs from its current values
+      const ewAdjustments = Object.entries(declarationEw).flatMap(([shipName, ew]) => {
+        const ship = (gameState?.mapObjects ?? []).find(o => o.name === shipName) as ShipObject | undefined;
+        if (ship && ew.ecm === (ship.ecmAllocated ?? 0) && ew.eccm === (ship.eccmAllocated ?? 0))
+          return [];
+        return [{ shipName, ecm: ew.ecm, eccm: ew.eccm }];
+      });
       const res = await gameApi.submitAction(session.gameId, session.playerToken, {
         type: 'COMMIT_FIRE_DECLARATION',
         fireOrders: declarationOrders.map(o => ({
@@ -3007,7 +3011,7 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
       setCommittedRound(roundKey);
       setDeclarationOrders([]);
-      setDeclarationEw(null);
+      setDeclarationEw({});
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Commit failed');
     }
@@ -3024,7 +3028,7 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
       setCommittedRound(roundKey);
       setDeclarationOrders([]);
-      setDeclarationEw(null);
+      setDeclarationEw({});
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Pass failed');
     }
@@ -4182,13 +4186,15 @@ export default function GameBoard({ session, onLeave }: Props) {
                 ))}
           </div>
           {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
-            const ew = declarationEw ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
+            const ew = declarationEw[liveShip.name]
+                ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
             const sensor = liveShip.sensorRating ?? 0;
             const added = Math.max(0, ew.ecm - (liveShip.ecmAllocated ?? 0))
                         + Math.max(0, ew.eccm - (liveShip.eccmAllocated ?? 0));
             const step = (field: 'ecm' | 'eccm', delta: number) => {
               const next = { ...ew, [field]: Math.max(0, ew[field] + delta) };
-              if (next.ecm + next.eccm <= sensor) setDeclarationEw(next);
+              if (next.ecm + next.eccm <= sensor)
+                setDeclarationEw(prev => ({ ...prev, [liveShip.name]: next }));
             };
             return (
               <div style={{ fontSize: '0.85em', marginBottom: 4 }}>
