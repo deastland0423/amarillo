@@ -9,7 +9,6 @@ import com.sfb.exceptions.CapacitorException;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Drone;
-import com.sfb.objects.DroneController;
 import com.sfb.objects.Marker;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
@@ -32,13 +31,13 @@ import com.sfb.Game.PendingVolley;
  */
 class DamageResolver {
 
-    private final Game                game;
-    private final List<Seeker>        seekers;
+    private final Game game;
+    private final List<Seeker> seekers;
     private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
     private final List<PendingVolley> pendingVolleys;
     private final List<PendingDamage> pendingInternalDamage;
     private final List<PendingDacChoice> pendingDacChoices;
-    private final Set<String>         firedPairsThisPhase;
+    private final Set<String> firedPairsThisPhase;
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse;
 
     DamageResolver(Game game, List<Seeker> seekers,
@@ -48,14 +47,14 @@ class DamageResolver {
             List<PendingDacChoice> pendingDacChoices,
             Set<String> firedPairsThisPhase,
             Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse) {
-        this.game                  = game;
-        this.seekers               = seekers;
-        this.activeShuttles        = activeShuttles;
-        this.pendingVolleys        = pendingVolleys;
+        this.game = game;
+        this.seekers = seekers;
+        this.activeShuttles = activeShuttles;
+        this.pendingVolleys = pendingVolleys;
         this.pendingInternalDamage = pendingInternalDamage;
-        this.pendingDacChoices     = pendingDacChoices;
-        this.firedPairsThisPhase   = firedPairsThisPhase;
-        this.uimUsedThisImpulse    = uimUsedThisImpulse;
+        this.pendingDacChoices = pendingDacChoices;
+        this.firedPairsThisPhase = firedPairsThisPhase;
+        this.uimUsedThisImpulse = uimUsedThisImpulse;
     }
 
     // -------------------------------------------------------------------------
@@ -238,19 +237,18 @@ class DamageResolver {
                 int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
                 shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - roll));
                 if (shuttle.getCurrentHull() <= 0) {
-            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
-                // to its 4-impulse explosion period; ECM continues (J3.2111) and
-                // seekers keep following it. Post-explosion pockets can't die again.
-                com.sfb.objects.shuttles.WildWeaselShuttle ww =
-                        (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
-                if (!ww.isExploding() && !ww.isPostExplosion()) {
-                    ww.startExplosion(game.getAbsoluteImpulse());
-                    return "Wild Weasel " + ww.getName()
-                            + " destroyed — exploding for 4 impulses (J3.21)";
-                }
-                return "Wild Weasel " + ww.getName() + " is already destroyed";
-            }
+                    if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                        // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
+                        // to its 4-impulse explosion period; ECM continues (J3.2111) and
+                        // seekers keep following it. Post-explosion pockets can't die again.
+                        com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
+                        if (!ww.isExploding() && !ww.isPostExplosion()) {
+                            ww.startExplosion(game.getAbsoluteImpulse());
+                            return "Wild Weasel " + ww.getName()
+                                    + " destroyed — exploding for 4 impulses (J3.21)";
+                        }
+                        return "Wild Weasel " + ww.getName() + " is already destroyed";
+                    }
                     removeDeadShuttle(shuttle, isSeeker);
                     return "HIT — " + shuttle.getName() + " destroyed (" + roll + " hull damage)";
                 }
@@ -262,19 +260,18 @@ class DamageResolver {
             }
             shuttle.setCurrentHull(Math.max(0, shuttle.getCurrentHull() - damage));
             if (shuttle.getCurrentHull() <= 0) {
-            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
-                // to its 4-impulse explosion period; ECM continues (J3.2111) and
-                // seekers keep following it. Post-explosion pockets can't die again.
-                com.sfb.objects.shuttles.WildWeaselShuttle ww =
-                        (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
-                if (!ww.isExploding() && !ww.isPostExplosion()) {
-                    ww.startExplosion(game.getAbsoluteImpulse());
-                    return "Wild Weasel " + ww.getName()
-                            + " destroyed — exploding for 4 impulses (J3.21)";
+                if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                    // J3.21: a destroyed WW is NOT removed (and not voided) — it flips
+                    // to its 4-impulse explosion period; ECM continues (J3.2111) and
+                    // seekers keep following it. Post-explosion pockets can't die again.
+                    com.sfb.objects.shuttles.WildWeaselShuttle ww = (com.sfb.objects.shuttles.WildWeaselShuttle) shuttle;
+                    if (!ww.isExploding() && !ww.isPostExplosion()) {
+                        ww.startExplosion(game.getAbsoluteImpulse());
+                        return "Wild Weasel " + ww.getName()
+                                + " destroyed — exploding for 4 impulses (J3.21)";
+                    }
+                    return "Wild Weasel " + ww.getName() + " is already destroyed";
                 }
-                return "Wild Weasel " + ww.getName() + " is already destroyed";
-            }
                 removeDeadShuttle(shuttle, isSeeker);
                 return shuttle.getName() + " destroyed (" + damage + " damage)";
             }
@@ -532,8 +529,8 @@ class DamageResolver {
      *
      * All damage arriving through the same shield facing in the same phase is one
      * volley (C3.14): shields absorb the combined total and bleed-through runs
-     * through the DAC once.  EPT volleys (envelopingTorp != null) are always
-     * separate and distribute across all 6 shields.  Enveloping Hellbore damage
+     * through the DAC once. EPT volleys (envelopingTorp != null) are always
+     * separate and distribute across all 6 shields. Enveloping Hellbore damage
      * is always a separate volley per E10.43 and is not combined.
      */
     List<String> applyPendingVolleys() {
@@ -541,25 +538,28 @@ class DamageResolver {
 
         // Helper: one accumulated group per (target identity, shieldNumber)
         class ShieldGroup {
-            final Unit        target;
-            final int         shieldNumber;
+            final Unit target;
+            final int shieldNumber;
             final StringBuilder pvLog = new StringBuilder();
-            int               totalDamage = 0;
-            Ship              lastAttacker = null;
+            int totalDamage = 0;
+            Ship lastAttacker = null;
             final List<Integer> hellboreDamages = new ArrayList<>();
 
             ShieldGroup(Unit target, int shieldNumber) {
-                this.target      = target;
+                this.target = target;
                 this.shieldNumber = shieldNumber;
             }
         }
 
-        List<ShieldGroup>  groups  = new ArrayList<>();
+        List<ShieldGroup> groups = new ArrayList<>();
         List<PendingVolley> eptVolleys = new ArrayList<>();
 
         for (PendingVolley pv : pendingVolleys) {
             // EPT: distribute to all shields — always separate
-            if (pv.envelopingTorp != null) { eptVolleys.add(pv); continue; }
+            if (pv.envelopingTorp != null) {
+                eptVolleys.add(pv);
+                continue;
+            }
 
             // Non-Ship targets (seekers, shuttles) have no shields — apply immediately
             if (!(pv.target instanceof Ship)) {
@@ -567,16 +567,16 @@ class DamageResolver {
                 if (pv.fusionSuicideFired && pv.attackerShip != null) {
                     pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                     pvLog.append("  Fusion suicide overload — 1 internal damage to ")
-                         .append(pv.attackerShip.getName()).append("\n");
+                            .append(pv.attackerShip.getName()).append("\n");
                 }
                 if (pv.addHit) {
                     pvLog.append("  ADD result: ")
-                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
+                            .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
                 }
                 if (pv.totalDamage > 0) {
                     pvLog.append("  ")
-                         .append(applyDamageToUnit(pv.totalDamage, pv.target, pv.shieldNumber))
-                         .append("\n");
+                            .append(applyDamageToUnit(pv.totalDamage, pv.target, pv.shieldNumber))
+                            .append("\n");
                 }
                 log.add(pvLog.toString());
                 continue;
@@ -585,24 +585,30 @@ class DamageResolver {
             // Find or create the group for this (target, shield facing)
             ShieldGroup g = null;
             for (ShieldGroup candidate : groups)
-                if (candidate.target == pv.target && candidate.shieldNumber == pv.shieldNumber)
-                    { g = candidate; break; }
-            if (g == null) { g = new ShieldGroup(pv.target, pv.shieldNumber); groups.add(g); }
+                if (candidate.target == pv.target && candidate.shieldNumber == pv.shieldNumber) {
+                    g = candidate;
+                    break;
+                }
+            if (g == null) {
+                g = new ShieldGroup(pv.target, pv.shieldNumber);
+                groups.add(g);
+            }
 
             // Per-volley effects accumulated into the group log
             g.pvLog.append(pv.attackerLog);
             if (pv.fusionSuicideFired && pv.attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                 g.pvLog.append("  Fusion suicide overload — 1 internal damage to ")
-                       .append(pv.attackerShip.getName()).append("\n");
+                        .append(pv.attackerShip.getName()).append("\n");
             }
             if (pv.addHit) {
                 g.pvLog.append("  ADD result: ")
-                       .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
+                        .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
             }
 
             g.totalDamage += pv.totalDamage;
-            if (pv.attackerShip != null) g.lastAttacker = pv.attackerShip;
+            if (pv.attackerShip != null)
+                g.lastAttacker = pv.attackerShip;
             // Hellbore enveloping stays per-volley (E10.43)
             if (pv.envelopingHellboreDamage > 0)
                 g.hellboreDamages.add(pv.envelopingHellboreDamage);
@@ -614,7 +620,7 @@ class DamageResolver {
             int bleed = target.damageShield(g.shieldNumber, g.totalDamage);
             if (bleed > 0) {
                 g.pvLog.append("  BLEED-THROUGH: ").append(bleed)
-                       .append(" (resolves at end of segment)\n");
+                        .append(" (resolves at end of segment)\n");
                 pendingInternalDamage.add(new PendingDamage(target, bleed, g.lastAttacker));
             }
             // Enveloping Hellbore: each volley is its own separate bleed chain (E10.43)
@@ -632,15 +638,16 @@ class DamageResolver {
             if (pv.fusionSuicideFired && pv.attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(pv.attackerShip, 1));
                 pvLog.append("  Fusion suicide overload — 1 internal damage to ")
-                     .append(pv.attackerShip.getName()).append("\n");
+                        .append(pv.attackerShip.getName()).append("\n");
             }
             if (pv.addHit) {
                 pvLog.append("  ADD result: ")
-                     .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
+                        .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
             }
             int[] spread = pv.envelopingTorp.computeEnvelopingDamage(pv.totalDamage);
             for (int i = 0; i < 6; i++)
-                if (spread[i] > 0) markShieldDamage((Ship) pv.target, i + 1, spread[i], null);
+                if (spread[i] > 0)
+                    markShieldDamage((Ship) pv.target, i + 1, spread[i], null);
             if (pv.envelopingHellboreDamage > 0) {
                 pvLog.append("  Hellbore enveloping volley: ").append(pv.envelopingHellboreDamage).append("\n");
                 for (String line : applyHellboreEnvelopingDamage((Ship) pv.target, pv.envelopingHellboreDamage))
