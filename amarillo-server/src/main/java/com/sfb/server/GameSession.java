@@ -436,9 +436,32 @@ public class GameSession {
     public ActionResult executeAction(ActionRequest request) {
         lock.lock();
         try {
-            return doExecuteAction(request);
+            ActionResult result = doExecuteAction(request);
+            autoAdvanceEndOfImpulse();
+            return result;
         } finally {
             lock.unlock();
+        }
+    }
+
+    /**
+     * 6E is pure bookkeeping — no player action is gated to END_OF_IMPULSE, so
+     * a Done round-trip there would carry no decision. Whenever an action
+     * leaves the game sitting in it (Direct Fire exit, or a Reinforcement/DAC
+     * interrupt returning into it), advance immediately. The end-of-impulse
+     * log still lands in the combat log; players read it during the next
+     * Movement phase, which keeps its Ready gate.
+     */
+    private void autoAdvanceEndOfImpulse() {
+        int guard = 0;
+        while (game.getCurrentPhase() == Game.ImpulsePhase.END_OF_IMPULSE && guard++ < 4) {
+            ActionResult r = game.execute(new AdvancePhaseCommand());
+            if (!r.isSuccess())
+                break;
+            if (r.getMessage() != null && !r.getMessage().isBlank())
+                appendCombatLog(r.getMessage());
+            // End-of-turn boarding combat inside this advance can capture ships
+            transferCapturedShipOwnership();
         }
     }
 

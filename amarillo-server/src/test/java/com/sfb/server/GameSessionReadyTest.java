@@ -209,6 +209,26 @@ class GameSessionReadyTest {
     // Helpers
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // End-of-Impulse auto-advance (6E is pure bookkeeping — no Done round-trip)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void endOfImpulse_autoAdvances_neverRestsThere() {
+        com.sfb.Game game = session.getGame();
+        game.getClock().nextImpulse(); // enter impulse 1 — a fresh game sits pre-turn
+        int impulseBefore = game.getAbsoluteImpulse();
+
+        advancePhase(HOST); // MOVEMENT → ACTIVITY
+        advancePhase(HOST); // ACTIVITY → DIRECT_FIRE
+        advancePhase(HOST); // DIRECT_FIRE → END_OF_IMPULSE, auto-advanced onward
+
+        assertEquals(com.sfb.Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase(),
+                "the game must never rest in END_OF_IMPULSE");
+        assertEquals(impulseBefore + 1, game.getAbsoluteImpulse(),
+                "the auto-advance carries into the next impulse");
+    }
+
     private ActionResult advancePhase(String token) {
         ActionRequest req = new ActionRequest();
         req.setType("ADVANCE_PHASE");
