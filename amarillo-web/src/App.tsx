@@ -62,7 +62,10 @@ export default function App() {
   }
 
   function handleLeave() {
-    clearSession();
+    // Keep the saved session: the player token is the only key back to this
+    // seat (ships are bound to it), so Leave must stay resumable. Stale
+    // sessions still self-clean via the resume check when the game is gone,
+    // and joining another game overwrites the slot.
     setSession(null);
     setScreen('lobby');
   }
