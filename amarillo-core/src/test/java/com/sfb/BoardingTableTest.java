@@ -8,13 +8,10 @@ import org.junit.Test;
 import com.sfb.BoardingResolver.HarGuardResult;
 import com.sfb.BoardingResolver.HarResult;
 import com.sfb.objects.Ship;
-import com.sfb.objects.TroopCount;
 import com.sfb.properties.BoardingPartyQuality;
-import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
-import com.sfb.systemgroups.Crew.CrewQuality;
 
 /**
  * Deterministic coverage for the internal boarding/H&R tables and
@@ -30,8 +27,8 @@ public class BoardingTableTest {
 
     @Before
     public void setUp() {
-        game    = new Game();
-        fed     = new Ship();
+        game = new Game();
+        fed = new Ship();
         fed.init(FederationShips.getFedCa());
         fed.setName("Enterprise");
         fed.setLocation(new Location(10, 10));
@@ -99,7 +96,7 @@ public class BoardingTableTest {
     @Test
     public void d7421_eachRowHas10Columns() {
         for (int i = 0; i < 6; i++) {
-            assertEquals("Row " + (i+1) + " should have 10 columns",
+            assertEquals("Row " + (i + 1) + " should have 10 columns",
                     10, BoardingResolver.D7421_TABLE[i].length);
         }
     }
@@ -109,77 +106,119 @@ public class BoardingTableTest {
     // =========================================================================
 
     // --- NORMAL column ---
-    @Test public void har_normal_roll1_systemAndBPReturns() {
+    @Test
+    public void har_normal_roll1_systemAndBPReturns() {
         assertEquals(HarResult.SYSTEM_BP_RETURNS, BoardingResolver.resolveHarTable(1, BoardingPartyQuality.NORMAL));
     }
-    @Test public void har_normal_roll2_bothDestroyed() {
-        assertEquals(HarResult.BOTH_DESTROYED,    BoardingResolver.resolveHarTable(2, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void har_normal_roll2_bothDestroyed() {
+        assertEquals(HarResult.BOTH_DESTROYED, BoardingResolver.resolveHarTable(2, BoardingPartyQuality.NORMAL));
     }
-    @Test public void har_normal_roll3_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(3, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void har_normal_roll3_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(3, BoardingPartyQuality.NORMAL));
     }
-    @Test public void har_normal_roll5_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(5, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void har_normal_roll5_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(5, BoardingPartyQuality.NORMAL));
     }
-    @Test public void har_normal_roll6_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(6, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void har_normal_roll6_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(6, BoardingPartyQuality.NORMAL));
     }
 
     // --- COMMANDO column ---
-    @Test public void har_commando_roll1_systemAndBPReturns() {
+    @Test
+    public void har_commando_roll1_systemAndBPReturns() {
         assertEquals(HarResult.SYSTEM_BP_RETURNS, BoardingResolver.resolveHarTable(1, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void har_commando_roll2_bothDestroyed() {
-        assertEquals(HarResult.BOTH_DESTROYED,    BoardingResolver.resolveHarTable(2, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void har_commando_roll2_bothDestroyed() {
+        assertEquals(HarResult.BOTH_DESTROYED, BoardingResolver.resolveHarTable(2, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void har_commando_roll3_bothDestroyed() {
-        assertEquals(HarResult.BOTH_DESTROYED,    BoardingResolver.resolveHarTable(3, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void har_commando_roll3_bothDestroyed() {
+        assertEquals(HarResult.BOTH_DESTROYED, BoardingResolver.resolveHarTable(3, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void har_commando_roll4_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(4, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void har_commando_roll4_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(4, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void har_commando_roll5_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(5, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void har_commando_roll5_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(5, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void har_commando_roll6_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(6, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void har_commando_roll6_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(6, BoardingPartyQuality.COMMANDO));
     }
 
     // --- OUTSTANDING column ---
-    @Test public void har_outstanding_roll1_systemAndBPReturns() {
-        assertEquals(HarResult.SYSTEM_BP_RETURNS, BoardingResolver.resolveHarTable(1, BoardingPartyQuality.OUTSTANDING));
+    @Test
+    public void har_outstanding_roll1_systemAndBPReturns() {
+        assertEquals(HarResult.SYSTEM_BP_RETURNS,
+                BoardingResolver.resolveHarTable(1, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void har_outstanding_roll2_systemAndBPReturns() {
-        assertEquals(HarResult.SYSTEM_BP_RETURNS, BoardingResolver.resolveHarTable(2, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void har_outstanding_roll2_systemAndBPReturns() {
+        assertEquals(HarResult.SYSTEM_BP_RETURNS,
+                BoardingResolver.resolveHarTable(2, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void har_outstanding_roll3_bothDestroyed() {
-        assertEquals(HarResult.BOTH_DESTROYED,    BoardingResolver.resolveHarTable(3, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void har_outstanding_roll3_bothDestroyed() {
+        assertEquals(HarResult.BOTH_DESTROYED, BoardingResolver.resolveHarTable(3, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void har_outstanding_roll4_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(4, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void har_outstanding_roll4_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(4, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void har_outstanding_roll5_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(5, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void har_outstanding_roll5_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(5, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void har_outstanding_roll6_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(6, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void har_outstanding_roll6_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(6, BoardingPartyQuality.OUTSTANDING));
     }
 
     // --- POOR column ---
-    @Test public void har_poor_roll1_bothDestroyed() {
-        assertEquals(HarResult.BOTH_DESTROYED,    BoardingResolver.resolveHarTable(1, BoardingPartyQuality.POOR));
+    @Test
+    public void har_poor_roll1_bothDestroyed() {
+        assertEquals(HarResult.BOTH_DESTROYED, BoardingResolver.resolveHarTable(1, BoardingPartyQuality.POOR));
     }
-    @Test public void har_poor_roll2_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(2, BoardingPartyQuality.POOR));
+
+    @Test
+    public void har_poor_roll2_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(2, BoardingPartyQuality.POOR));
     }
-    @Test public void har_poor_roll4_bpDestroyed() {
-        assertEquals(HarResult.BP_DESTROYED,      BoardingResolver.resolveHarTable(4, BoardingPartyQuality.POOR));
+
+    @Test
+    public void har_poor_roll4_bpDestroyed() {
+        assertEquals(HarResult.BP_DESTROYED, BoardingResolver.resolveHarTable(4, BoardingPartyQuality.POOR));
     }
-    @Test public void har_poor_roll5_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(5, BoardingPartyQuality.POOR));
+
+    @Test
+    public void har_poor_roll5_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(5, BoardingPartyQuality.POOR));
     }
-    @Test public void har_poor_roll6_bpReturns() {
-        assertEquals(HarResult.BP_RETURNS,        BoardingResolver.resolveHarTable(6, BoardingPartyQuality.POOR));
+
+    @Test
+    public void har_poor_roll6_bpReturns() {
+        assertEquals(HarResult.BP_RETURNS, BoardingResolver.resolveHarTable(6, BoardingPartyQuality.POOR));
     }
 
     // =========================================================================
@@ -187,59 +226,91 @@ public class BoardingTableTest {
     // =========================================================================
 
     // --- NORMAL guard ---
-    @Test public void guard_normal_roll1_bpDestroyed() {
+    @Test
+    public void guard_normal_roll1_bpDestroyed() {
         assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(1, BoardingPartyQuality.NORMAL));
     }
-    @Test public void guard_normal_roll3_bpDestroyed() {
+
+    @Test
+    public void guard_normal_roll3_bpDestroyed() {
         assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(3, BoardingPartyQuality.NORMAL));
     }
-    @Test public void guard_normal_roll4_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void guard_normal_roll4_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS, BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.NORMAL));
     }
-    @Test public void guard_normal_roll5_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void guard_normal_roll5_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS, BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.NORMAL));
     }
-    @Test public void guard_normal_roll6_conductHR() {
-        assertEquals(HarGuardResult.CONDUCT_HR,   BoardingResolver.resolveGuardTable(6, BoardingPartyQuality.NORMAL));
+
+    @Test
+    public void guard_normal_roll6_conductHR() {
+        assertEquals(HarGuardResult.CONDUCT_HR, BoardingResolver.resolveGuardTable(6, BoardingPartyQuality.NORMAL));
     }
 
     // --- COMMANDO guard ---
-    @Test public void guard_commando_roll2_bpDestroyed() {
+    @Test
+    public void guard_commando_roll2_bpDestroyed() {
         assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(2, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void guard_commando_roll3_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(3, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void guard_commando_roll3_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS, BoardingResolver.resolveGuardTable(3, BoardingPartyQuality.COMMANDO));
     }
-    @Test public void guard_commando_roll4_conductHR() {
-        assertEquals(HarGuardResult.CONDUCT_HR,   BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.COMMANDO));
+
+    @Test
+    public void guard_commando_roll4_conductHR() {
+        assertEquals(HarGuardResult.CONDUCT_HR, BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.COMMANDO));
     }
 
     // --- OUTSTANDING guard ---
-    @Test public void guard_outstanding_roll2_bpDestroyed() {
-        assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(2, BoardingPartyQuality.OUTSTANDING));
+    @Test
+    public void guard_outstanding_roll2_bpDestroyed() {
+        assertEquals(HarGuardResult.BP_DESTROYED,
+                BoardingResolver.resolveGuardTable(2, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void guard_outstanding_roll3_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(3, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void guard_outstanding_roll3_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS,
+                BoardingResolver.resolveGuardTable(3, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void guard_outstanding_roll4_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void guard_outstanding_roll4_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS,
+                BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.OUTSTANDING));
     }
-    @Test public void guard_outstanding_roll5_conductHR() {
-        assertEquals(HarGuardResult.CONDUCT_HR,   BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.OUTSTANDING));
+
+    @Test
+    public void guard_outstanding_roll5_conductHR() {
+        assertEquals(HarGuardResult.CONDUCT_HR,
+                BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.OUTSTANDING));
     }
 
     // --- POOR guard ---
-    @Test public void guard_poor_roll1_bpDestroyed() {
+    @Test
+    public void guard_poor_roll1_bpDestroyed() {
         assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(1, BoardingPartyQuality.POOR));
     }
-    @Test public void guard_poor_roll4_bpDestroyed() {
+
+    @Test
+    public void guard_poor_roll4_bpDestroyed() {
         assertEquals(HarGuardResult.BP_DESTROYED, BoardingResolver.resolveGuardTable(4, BoardingPartyQuality.POOR));
     }
-    @Test public void guard_poor_roll5_bpReturns() {
-        assertEquals(HarGuardResult.BP_RETURNS,   BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.POOR));
+
+    @Test
+    public void guard_poor_roll5_bpReturns() {
+        assertEquals(HarGuardResult.BP_RETURNS, BoardingResolver.resolveGuardTable(5, BoardingPartyQuality.POOR));
     }
-    @Test public void guard_poor_roll6_conductHR() {
-        assertEquals(HarGuardResult.CONDUCT_HR,   BoardingResolver.resolveGuardTable(6, BoardingPartyQuality.POOR));
+
+    @Test
+    public void guard_poor_roll6_conductHR() {
+        assertEquals(HarGuardResult.CONDUCT_HR, BoardingResolver.resolveGuardTable(6, BoardingPartyQuality.POOR));
     }
 
     // =========================================================================
@@ -254,7 +325,8 @@ public class BoardingTableTest {
     @Test
     public void securityMod_klingonNoStations_isZero() {
         // Damage all security stations
-        while (klingon.getControlSpaces().damageSecurity()) { /* drain */ }
+        while (klingon.getControlSpaces().damageSecurity()) {
+            /* drain */ }
         assertEquals(0, BoardingResolver.klingonSecurityMod(klingon));
     }
 
@@ -262,7 +334,8 @@ public class BoardingTableTest {
     public void securityMod_klingonOneStation_isOne() {
         // Damage all but one security station
         int stations = klingon.getControlSpaces().getAvailableSecurity();
-        for (int i = 0; i < stations - 1; i++) klingon.getControlSpaces().damageSecurity();
+        for (int i = 0; i < stations - 1; i++)
+            klingon.getControlSpaces().damageSecurity();
         assertEquals(1, BoardingResolver.klingonSecurityMod(klingon));
     }
 

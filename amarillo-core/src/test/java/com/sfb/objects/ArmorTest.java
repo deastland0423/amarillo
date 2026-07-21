@@ -8,7 +8,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.samples.FederationShips;
-import com.sfb.samples.KlingonShips;
 
 public class ArmorTest {
 
@@ -74,11 +73,11 @@ public class ArmorTest {
 
     @Test
     public void secondHitAfterDepletionGoesFullyToDac() {
-        ship.applyInternalDamage(6);   // depletes armor
+        ship.applyInternalDamage(6); // depletes armor
         assertEquals(0, ship.getArmor());
 
         List<String> log = ship.applyInternalDamage(4);
         assertEquals("All 4 bleed points should reach DAC after armor is gone", 4, log.size());
-        assertEquals(0, ship.getArmor());  // still 0, not negative
+        assertEquals(0, ship.getArmor()); // still 0, not negative
     }
 }

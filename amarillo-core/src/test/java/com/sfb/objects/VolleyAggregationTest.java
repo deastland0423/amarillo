@@ -8,7 +8,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.Game;
-import com.sfb.TurnTracker;
 import com.sfb.dto.GameStateDto;
 import com.sfb.dto.GameStateDto.PendingVolleyDto;
 import com.sfb.properties.Location;
@@ -18,20 +17,23 @@ import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Weapon;
 
 /**
- * Verifies that damage from multiple attackers hitting the same shield in the same
- * fire segment is aggregated into a single volley entry (for the UI) rather than
+ * Verifies that damage from multiple attackers hitting the same shield in the
+ * same
+ * fire segment is aggregated into a single volley entry (for the UI) rather
+ * than
  * appearing as separate entries.
  *
- * The raw game.getPendingVolleys() list retains one entry per fireWeapons() call
+ * The raw game.getPendingVolleys() list retains one entry per fireWeapons()
+ * call
  * (one per attacker). The DTO aggregates by (target, shieldNumber) so the
  * reinforcement dialog shows the defender the combined incoming damage.
  */
 public class VolleyAggregationTest {
 
-    private Game  game;
-    private Ship  attacker1;
-    private Ship  attacker2;
-    private Ship  target;
+    private Game game;
+    private Ship attacker1;
+    private Ship attacker2;
+    private Ship target;
 
     @Before
     public void setUp() {
@@ -137,7 +139,7 @@ public class VolleyAggregationTest {
         List<Weapon> w1 = singlePhaser("1");
         List<Weapon> w2 = singlePhaser("1");
 
-        game.fireWeapons(attacker1, target,  w1, 1, 1, 1);
+        game.fireWeapons(attacker1, target, w1, 1, 1, 1);
         game.fireWeapons(attacker2, target2, w2, 1, 1, 1);
 
         List<PendingVolleyDto> dto = new GameStateDto(game).pendingVolleys;
@@ -172,14 +174,14 @@ public class VolleyAggregationTest {
         game.advancePhase(); // → END_OF_IMPULSE or DAC_CHOICE
 
         // Game must not still be in REINFORCEMENT — progress was made.
-        // MOVEMENT-triggered reinforcement returns to ACTIVITY; DIRECT_FIRE-triggered returns
+        // MOVEMENT-triggered reinforcement returns to ACTIVITY; DIRECT_FIRE-triggered
+        // returns
         // to END_OF_IMPULSE. A DAC choice may also have been queued.
         assertNotEquals(Game.ImpulsePhase.REINFORCEMENT, game.getCurrentPhase());
 
-        boolean reachedExpectedPhase =
-            game.getCurrentPhase() == Game.ImpulsePhase.ACTIVITY ||
-            game.getCurrentPhase() == Game.ImpulsePhase.END_OF_IMPULSE ||
-            game.getCurrentPhase() == Game.ImpulsePhase.DAC_CHOICE;
+        boolean reachedExpectedPhase = game.getCurrentPhase() == Game.ImpulsePhase.ACTIVITY ||
+                game.getCurrentPhase() == Game.ImpulsePhase.END_OF_IMPULSE ||
+                game.getCurrentPhase() == Game.ImpulsePhase.DAC_CHOICE;
         assertTrue("Game must advance past REINFORCEMENT", reachedExpectedPhase);
     }
 

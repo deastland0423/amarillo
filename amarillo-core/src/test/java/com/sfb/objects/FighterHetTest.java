@@ -9,17 +9,16 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 
 /**
  * Tests for fighter Tactical Maneuver (HET) per C6.42:
- *   - Only fighters may HET; non-fighter shuttles cannot.
- *   - One HET per turn maximum.
- *   - Crippled fighters cannot HET (J1.336).
- *   - No energy cost, no breakdown roll.
- *   - Flag resets on startTurn().
+ * - Only fighters may HET; non-fighter shuttles cannot.
+ * - One HET per turn maximum.
+ * - Crippled fighters cannot HET (J1.336).
+ * - No energy cost, no breakdown roll.
+ * - Flag resets on startTurn().
  *
  * Also covers Game.performFighterHet() integration path.
  */

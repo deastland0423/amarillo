@@ -8,7 +8,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.Game;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;

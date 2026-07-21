@@ -6,7 +6,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.Game;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
@@ -15,17 +14,17 @@ import com.sfb.samples.KlingonShips;
  * Tests for applying weapon damage to seekers (drones and plasma torpedoes).
  *
  * Covers:
- *   - applyDamageToUnit routing to drone hull
- *   - Drone destruction and removal from seekers list
- *   - Correct seeker targeted when multiple seekers are present
- *     (regression guard for the empty-name bug that caused all fire to hit
- *     whichever seeker was first in the list)
+ * - applyDamageToUnit routing to drone hull
+ * - Drone destruction and removal from seekers list
+ * - Correct seeker targeted when multiple seekers are present
+ * (regression guard for the empty-name bug that caused all fire to hit
+ * whichever seeker was first in the list)
  */
 public class FireAtSeekerTest {
 
-    private Game  game;
-    private Ship  attacker;
-    private Ship  target;
+    private Game game;
+    private Ship attacker;
+    private Ship target;
 
     @Before
     public void setUp() {
@@ -144,7 +143,7 @@ public class FireAtSeekerTest {
     @Test
     public void damageAppliedToCorrectDrone_otherDroneUntouched() {
         Drone drone1 = addDrone("Enterprise-Drone-1", 10, 11);
-        Drone drone2 = addDrone("IKV-Drone-2",        10, 12);
+        Drone drone2 = addDrone("IKV-Drone-2", 10, 12);
 
         int hull1Before = drone1.getHull();
         int hull2Before = drone2.getHull();
@@ -153,18 +152,18 @@ public class FireAtSeekerTest {
         game.applyDamageToUnit(2, drone2, 0);
 
         assertEquals("Untargeted drone1 must be undamaged", hull1Before, drone1.getHull());
-        assertEquals("Targeted drone2 hull reduced",         hull2Before - 2, drone2.getHull());
+        assertEquals("Targeted drone2 hull reduced", hull2Before - 2, drone2.getHull());
     }
 
     @Test
     public void destroyingOneDrone_doesNotRemoveOther() {
         Drone drone1 = addDrone("Enterprise-Drone-1", 10, 11);
-        Drone drone2 = addDrone("IKV-Drone-2",        10, 12);
+        Drone drone2 = addDrone("IKV-Drone-2", 10, 12);
 
         game.applyDamageToUnit(drone1.getHull(), drone1, 0); // destroy drone1
 
         assertFalse("drone1 should be gone", game.getSeekers().contains(drone1));
-        assertTrue("drone2 must survive",    game.getSeekers().contains(drone2));
+        assertTrue("drone2 must survive", game.getSeekers().contains(drone2));
     }
 
     // -------------------------------------------------------------------------

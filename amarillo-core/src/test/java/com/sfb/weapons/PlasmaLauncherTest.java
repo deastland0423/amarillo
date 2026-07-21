@@ -5,7 +5,6 @@ import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.sfb.TurnTracker;
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.PlasmaTorpedo;
@@ -119,11 +118,11 @@ public class PlasmaLauncherTest {
     @Test
     public void plasmaSArmsAfterThreeTurns() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
-        assertTrue(launcher.arm(2));  // turn 1: sArmingCost[0]
+        assertTrue(launcher.arm(2)); // turn 1: sArmingCost[0]
         assertFalse(launcher.isArmed());
-        assertTrue(launcher.arm(2));  // turn 2
+        assertTrue(launcher.arm(2)); // turn 2
         assertFalse(launcher.isArmed());
-        assertTrue(launcher.arm(4));  // turn 3: sArmingCost[1]
+        assertTrue(launcher.arm(4)); // turn 3: sArmingCost[1]
         assertTrue(launcher.isArmed());
         assertEquals(PlasmaType.S, launcher.getPlasmaType());
         assertEquals(WeaponArmingType.STANDARD, launcher.getArmingType());
@@ -134,7 +133,7 @@ public class PlasmaLauncherTest {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
         launcher.arm(2);
         launcher.arm(2);
-        assertTrue(launcher.arm(8));  // double cost = EPT
+        assertTrue(launcher.arm(8)); // double cost = EPT
         assertTrue(launcher.isArmed());
         assertEquals(WeaponArmingType.OVERLOAD, launcher.getArmingType());
     }
@@ -144,20 +143,20 @@ public class PlasmaLauncherTest {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
         launcher.arm(2);
         launcher.arm(2);
-        assertTrue(launcher.arm(2));  // roll instead of finish
+        assertTrue(launcher.arm(2)); // roll instead of finish
         assertFalse(launcher.isArmed());
         assertTrue(launcher.isRolling());
-        assertTrue(launcher.arm(4));  // finish next turn
+        assertTrue(launcher.arm(4)); // finish next turn
         assertTrue(launcher.isArmed());
     }
 
     @Test
     public void plasmaSCanArmFInside() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
-        assertTrue(launcher.arm(1));  // fArmingCost[0]: start as F
+        assertTrue(launcher.arm(1)); // fArmingCost[0]: start as F
         assertEquals(PlasmaType.F, launcher.getPlasmaType());
         assertTrue(launcher.arm(1));
-        assertTrue(launcher.arm(3));  // fArmingCost[1]
+        assertTrue(launcher.arm(3)); // fArmingCost[1]
         assertTrue(launcher.isArmed());
         assertEquals(PlasmaType.F, launcher.getPlasmaType());
     }
@@ -165,7 +164,7 @@ public class PlasmaLauncherTest {
     @Test
     public void plasmaSWrongEnergyRejected() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
-        assertFalse(launcher.arm(5));  // nonsense value
+        assertFalse(launcher.arm(5)); // nonsense value
         assertEquals(0, launcher.getArmingTurn());
     }
 
@@ -176,11 +175,11 @@ public class PlasmaLauncherTest {
     @Test
     public void plasmaRArmsAfterThreeTurns() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
-        assertTrue(launcher.arm(2));  // rArmingCost[0]
+        assertTrue(launcher.arm(2)); // rArmingCost[0]
         assertFalse(launcher.isArmed());
         assertTrue(launcher.arm(2));
         assertFalse(launcher.isArmed());
-        assertTrue(launcher.arm(5));  // rArmingCost[1]
+        assertTrue(launcher.arm(5)); // rArmingCost[1]
         assertTrue(launcher.isArmed());
         assertEquals(PlasmaType.R, launcher.getPlasmaType());
         assertEquals(WeaponArmingType.STANDARD, launcher.getArmingType());
@@ -191,7 +190,7 @@ public class PlasmaLauncherTest {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
         launcher.arm(2);
         launcher.arm(2);
-        assertTrue(launcher.arm(10));  // double final cost = EPT
+        assertTrue(launcher.arm(10)); // double final cost = EPT
         assertTrue(launcher.isArmed());
         assertEquals(WeaponArmingType.OVERLOAD, launcher.getArmingType());
     }
@@ -201,10 +200,10 @@ public class PlasmaLauncherTest {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
         launcher.arm(2);
         launcher.arm(2);
-        assertTrue(launcher.arm(2));  // roll
+        assertTrue(launcher.arm(2)); // roll
         assertFalse(launcher.isArmed());
         assertTrue(launcher.isRolling());
-        assertTrue(launcher.arm(5));  // finish
+        assertTrue(launcher.arm(5)); // finish
         assertTrue(launcher.isArmed());
     }
 
@@ -217,7 +216,7 @@ public class PlasmaLauncherTest {
     @Test
     public void plasmaRWrongEnergyRejected() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
-        assertFalse(launcher.arm(5));  // wrong first-turn energy
+        assertFalse(launcher.arm(5)); // wrong first-turn energy
         assertEquals(0, launcher.getArmingTurn());
     }
 
@@ -228,7 +227,9 @@ public class PlasmaLauncherTest {
     @Test
     public void launchReturnsArmedTorpedo() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1); launcher.arm(3);
+        launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(3);
         PlasmaTorpedo torp = launcher.launch();
         assertNotNull(torp);
         assertEquals(PlasmaType.F, torp.getPlasmaType());
@@ -237,7 +238,9 @@ public class PlasmaLauncherTest {
     @Test
     public void launchResetsLauncher() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1); launcher.arm(3);
+        launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(3);
         launcher.launch();
         assertFalse(launcher.isArmed());
         assertEquals(0, launcher.getArmingTurn());
@@ -269,7 +272,9 @@ public class PlasmaLauncherTest {
     @Test
     public void boltFireOutOfRangeThrows() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1); launcher.arm(3);
+        launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(3);
         try {
             launcher.fire(31); // beyond bolt chart
             fail("Expected TargetOutOfRangeException");
@@ -285,7 +290,9 @@ public class PlasmaLauncherTest {
         // Run enough times to see both hits and misses aren't exceptions
         for (int trial = 0; trial < 20; trial++) {
             PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-            launcher.arm(1); launcher.arm(1); launcher.arm(3);
+            launcher.arm(1);
+            launcher.arm(1);
+            launcher.arm(3);
             int dmg = launcher.fire(0); // range 0, can't miss on chart (hit on 1-4)
             // damage = half of full strength at range 0; just verify non-negative
             assertTrue(dmg >= 0);
@@ -295,7 +302,9 @@ public class PlasmaLauncherTest {
     @Test
     public void boltFireResetsLauncher() throws Exception {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1); launcher.arm(3);
+        launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(3);
         launcher.fire(0);
         assertFalse(launcher.isArmed());
     }
@@ -332,7 +341,9 @@ public class PlasmaLauncherTest {
     @Test
     public void pseudoAndRealCannotFireSameImpulse() throws Exception {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1); launcher.arm(3);
+        launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(3);
         launcher.fire(0); // real bolt fires this impulse
         // pseudo should now be blocked
         assertFalse(launcher.canLaunchPseudo());
@@ -349,13 +360,14 @@ public class PlasmaLauncherTest {
         launcher.arm(2);
         assertFalse(launcher.canFastLoad()); // turn 1
         launcher.arm(2);
-        assertTrue(launcher.canFastLoad());  // turn 2 — eligible
+        assertTrue(launcher.canFastLoad()); // turn 2 — eligible
     }
 
     @Test
     public void fastLoad_notAvailableForFLauncher() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.F);
-        launcher.arm(1); launcher.arm(1);
+        launcher.arm(1);
+        launcher.arm(1);
         assertFalse(launcher.canFastLoad()); // F launchers excluded
     }
 
@@ -370,7 +382,9 @@ public class PlasmaLauncherTest {
     @Test
     public void fastLoad_notAvailableOnTurnThree() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.G);
-        launcher.arm(2); launcher.arm(2); launcher.arm(3); // fully armed G
+        launcher.arm(2);
+        launcher.arm(2);
+        launcher.arm(3); // fully armed G
         assertFalse(launcher.canFastLoad()); // fully armed, not eligible
     }
 
@@ -400,14 +414,16 @@ public class PlasmaLauncherTest {
     @Test
     public void fastLoad_availableForSLauncher() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.S);
-        launcher.arm(2); launcher.arm(2);
+        launcher.arm(2);
+        launcher.arm(2);
         assertTrue(launcher.canFastLoad());
     }
 
     @Test
     public void fastLoad_availableForRLauncher() {
         PlasmaLauncher launcher = new PlasmaLauncher(PlasmaType.R);
-        launcher.arm(2); launcher.arm(2);
+        launcher.arm(2);
+        launcher.arm(2);
         assertTrue(launcher.canFastLoad());
     }
 }

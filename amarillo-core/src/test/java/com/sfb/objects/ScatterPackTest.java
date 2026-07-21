@@ -9,7 +9,6 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
@@ -26,8 +25,8 @@ public class ScatterPackTest {
     // -------------------------------------------------------------------------
 
     private ScatterPack pack;
-    private Drone       typeI;
-    private Drone       typeII;
+    private Drone typeI;
+    private Drone typeII;
 
     @Test
     public void newPack_hasEmptyPayload() {
@@ -59,7 +58,8 @@ public class ScatterPackTest {
 
     @Test
     public void addDrone_rejectsWhenFull() {
-        for (int i = 0; i < 6; i++) pack.addDrone(new Drone(DroneType.TypeI));
+        for (int i = 0; i < 6; i++)
+            pack.addDrone(new Drone(DroneType.TypeI));
         assertFalse(pack.addDrone(new Drone(DroneType.TypeI)));
         assertEquals(6, pack.getPayload().size());
     }
@@ -67,8 +67,10 @@ public class ScatterPackTest {
     @Test
     public void addDrone_typeIItakesMoreSpace() {
         // TypeII drones are larger — fewer fit
-        for (int i = 0; i < 3; i++) pack.addDrone(new Drone(DroneType.TypeII));
-        // Whether a 4th fits depends on TypeII rack size; just verify it doesn't exceed 6
+        for (int i = 0; i < 3; i++)
+            pack.addDrone(new Drone(DroneType.TypeII));
+        // Whether a 4th fits depends on TypeII rack size; just verify it doesn't exceed
+        // 6
         assertTrue(pack.getPayloadSpaces() <= 6);
     }
 
@@ -106,13 +108,13 @@ public class ScatterPackTest {
     @Test
     public void notReadyToRelease_before8ImpulsesElapsed() {
         pack.setLaunchImpulse(1);
-        assertFalse(pack.isReadyToRelease(8));  // only 7 elapsed
+        assertFalse(pack.isReadyToRelease(8)); // only 7 elapsed
     }
 
     @Test
     public void readyToRelease_after8ImpulsesElapsed() {
         pack.setLaunchImpulse(1);
-        assertTrue(pack.isReadyToRelease(9));   // exactly 8 elapsed
+        assertTrue(pack.isReadyToRelease(9)); // exactly 8 elapsed
     }
 
     @Test
@@ -169,18 +171,18 @@ public class ScatterPackTest {
     // Integration tests — Game.launchScatterPack()
     // -------------------------------------------------------------------------
 
-    private Game  game;
-    private Ship  launcher;
-    private Ship  target;
+    private Game game;
+    private Ship launcher;
+    private Ship target;
     private ScatterPack loadedPack;
-    private ShuttleBay  bay;
+    private ShuttleBay bay;
 
     @Before
     public void setUp() {
         // Unit-test fixtures
-        pack   = new ScatterPack(new AdminShuttle());
+        pack = new ScatterPack(new AdminShuttle());
         pack.setName("SP-1");
-        typeI  = new Drone(DroneType.TypeI);
+        typeI = new Drone(DroneType.TypeI);
         typeII = new Drone(DroneType.TypeII);
 
         // Integration-test fixtures
@@ -240,7 +242,7 @@ public class ScatterPackTest {
     @Test
     public void launch_setsTargetAndController() {
         game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
-        assertEquals(target,   loadedPack.getTarget());
+        assertEquals(target, loadedPack.getTarget());
         assertEquals(launcher, loadedPack.getController());
     }
 
@@ -254,7 +256,7 @@ public class ScatterPackTest {
         // and allocate both ships at speed 0.
         game.startTurn();
         game.submitAllocation(launcher, makeAllocation(launcher));
-        game.submitAllocation(target,   makeAllocation(target));
+        game.submitAllocation(target, makeAllocation(target));
         for (int guard = 0; guard < 20
                 && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; guard++)
             game.advancePhase();

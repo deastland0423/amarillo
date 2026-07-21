@@ -11,7 +11,6 @@ import org.junit.Test;
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.Game.ImpulsePhase;
-import com.sfb.TurnTracker;
 import com.sfb.properties.BoardingPartyQuality;
 import com.sfb.properties.Location;
 import com.sfb.properties.SystemTarget;
@@ -21,11 +20,11 @@ import com.sfb.systemgroups.Crew.CrewQuality;
 
 /**
  * Tests for Hit-and-Run raid resolution (D7.8):
- *   - precondition validation
- *   - boarding party quality on SystemTarget
- *   - guard assignment API on Ship (D7.83)
- *   - crew quality on Crew (D7.73)
- *   - integration smoke tests (raid runs without error)
+ * - precondition validation
+ * - boarding party quality on SystemTarget
+ * - guard assignment API on Ship (D7.83)
+ * - crew quality on Crew (D7.73)
+ * - integration smoke tests (raid runs without error)
  */
 public class HitAndRunTest {
 

@@ -9,14 +9,14 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 import com.sfb.systemgroups.ShuttleBay;
 
 /**
- * Tests for SuicideShuttle arming mechanics (unit) and Game.launchSuicideShuttle()
+ * Tests for SuicideShuttle arming mechanics (unit) and
+ * Game.launchSuicideShuttle()
  * preconditions (integration).
  */
 public class SuicideShuttleTest {
@@ -82,7 +82,9 @@ public class SuicideShuttleTest {
 
     @Test
     public void arm_rejectsWhenAlreadyArmed() {
-        shuttle.arm(1); shuttle.arm(1); shuttle.arm(1);
+        shuttle.arm(1);
+        shuttle.arm(1);
+        shuttle.arm(1);
         assertTrue(shuttle.isArmed());
         assertFalse(shuttle.arm(1)); // already armed
         assertEquals(3, shuttle.getArmingTurnsComplete());
@@ -98,13 +100,17 @@ public class SuicideShuttleTest {
 
     @Test
     public void warheadDamage_maxAt9Energy() {
-        shuttle.arm(3); shuttle.arm(3); shuttle.arm(3);
+        shuttle.arm(3);
+        shuttle.arm(3);
+        shuttle.arm(3);
         assertEquals(18, shuttle.getWarheadDamage()); // max: 9 * 2
     }
 
     @Test
     public void impact_returnsWarheadDamage() {
-        shuttle.arm(2); shuttle.arm(2); shuttle.arm(2);
+        shuttle.arm(2);
+        shuttle.arm(2);
+        shuttle.arm(2);
         assertEquals(shuttle.getWarheadDamage(), shuttle.impact());
     }
 
@@ -127,11 +133,11 @@ public class SuicideShuttleTest {
     // Integration tests — Game.launchSuicideShuttle()
     // -------------------------------------------------------------------------
 
-    private Game  game;
-    private Ship  launcher;
-    private Ship  target;
+    private Game game;
+    private Ship launcher;
+    private Ship target;
     private SuicideShuttle armedShuttle;
-    private ShuttleBay     bay;
+    private ShuttleBay bay;
 
     @Before
     public void setUpGame() {
@@ -155,7 +161,9 @@ public class SuicideShuttleTest {
         // Build an armed suicide shuttle in a bay
         armedShuttle = new SuicideShuttle(new AdminShuttle());
         armedShuttle.setName("SS-1");
-        armedShuttle.arm(3); armedShuttle.arm(3); armedShuttle.arm(3);
+        armedShuttle.arm(3);
+        armedShuttle.arm(3);
+        armedShuttle.arm(3);
         assertTrue(armedShuttle.isArmed());
 
         bay = launcher.getShuttles().getBays().isEmpty()
@@ -198,7 +206,7 @@ public class SuicideShuttleTest {
     @Test
     public void launch_setsTargetAndController() {
         game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
-        assertEquals(target,   armedShuttle.getTarget());
+        assertEquals(target, armedShuttle.getTarget());
         assertEquals(launcher, armedShuttle.getController());
     }
 

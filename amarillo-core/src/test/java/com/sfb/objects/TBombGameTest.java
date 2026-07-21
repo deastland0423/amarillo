@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 
@@ -20,8 +19,8 @@ import com.sfb.samples.FederationShips;
  */
 public class TBombGameTest {
 
-    private Game  game;
-    private Ship  ship;
+    private Game game;
+    private Ship ship;
 
     /**
      * Builds a minimal game with one ship at (10, 10) facing hex 1,
@@ -36,7 +35,7 @@ public class TBombGameTest {
         ship.init(FederationShips.getFedCa());
         ship.setName("Enterprise");
         ship.setLocation(new Location(10, 10));
-        ship.setFacing(1);  // facing "up" / toward lower y
+        ship.setFacing(1); // facing "up" / toward lower y
 
         // Give the ship transporter energy (5 uses worth)
         ship.getTransporters().bankEnergy(1.0);
@@ -161,7 +160,7 @@ public class TBombGameTest {
         game.placeTBomb(ship, new Location(10, 11), true);
 
         assertEquals(startingTBombs - 1, ship.getTBombs());
-        assertEquals(startingDummies,    ship.getDummyTBombs()); // unchanged
+        assertEquals(startingDummies, ship.getDummyTBombs()); // unchanged
     }
 
     @Test
@@ -192,12 +191,12 @@ public class TBombGameTest {
 
     @Test
     public void placeTBomb_dummy_decrementsDummyInventory() {
-        int startingTBombs  = ship.getTBombs();
+        int startingTBombs = ship.getTBombs();
         int startingDummies = ship.getDummyTBombs();
 
         game.placeTBomb(ship, new Location(10, 12), false);
 
-        assertEquals(startingTBombs,      ship.getTBombs());      // unchanged
+        assertEquals(startingTBombs, ship.getTBombs()); // unchanged
         assertEquals(startingDummies - 1, ship.getDummyTBombs());
     }
 
@@ -254,7 +253,8 @@ public class TBombGameTest {
         SpaceMine mine = game.getMines().get(0);
         int placedImpulse = mine.getPlacedOnImpulse();
 
-        // Layer still adjacent to mine — irrelevant because mine was not placed adjacent
+        // Layer still adjacent to mine — irrelevant because mine was not placed
+        // adjacent
         mine.tryActivate(placedImpulse + 2, 1);
 
         assertTrue(mine.isActive());
@@ -262,7 +262,8 @@ public class TBombGameTest {
 
     @Test
     public void adjacentMine_doesNotArmWhileLayerStillInZone() {
-        // Placed at range 1 — M3.32 requires layer to leave detection zone before arming
+        // Placed at range 1 — M3.32 requires layer to leave detection zone before
+        // arming
         game.placeTBomb(ship, new Location(10, 11), true);
 
         SpaceMine mine = game.getMines().get(0);

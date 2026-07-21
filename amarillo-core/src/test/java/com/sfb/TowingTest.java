@@ -68,7 +68,7 @@ public class TowingTest {
     }
 
     private void allocate(double fedWarp) {
-        game.submitAllocation(fed,     makeAllocation(fed, fedWarp));
+        game.submitAllocation(fed, makeAllocation(fed, fedWarp));
         game.submitAllocation(klingon, makeAllocation(klingon, 0.0));
     }
 
@@ -233,7 +233,6 @@ public class TowingTest {
         boolean turned = false;
         for (int guard = 0; guard < 30 && !turned; guard++) {
             advanceUntilCanMove(fed);
-            Location shipPrev = fed.getLocation();
             Location dronePrev = drone.getLocation();
             Game.ActionResult r = game.turnRight(fed);
             if (r.isSuccess()) {
@@ -431,7 +430,7 @@ public class TowingTest {
 
         // Next turn: fresh beam usage
         game.startTurn();
-        game.submitAllocation(fed,     makeAllocation(fed, 0.0));
+        game.submitAllocation(fed, makeAllocation(fed, 0.0));
         game.submitAllocation(klingon, makeAllocation(klingon, 0.0));
         fed.getTractors().initForTurn(2);
         fed.setActiveFireControl(true);

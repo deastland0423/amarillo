@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.BoardingCombatResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
@@ -95,7 +94,7 @@ public class BoardingCombatTest {
     public void crew_friendlyTroops_loadedFromInit() {
         // Fed CA has boardingparties=10 in samples; commandos defaults to 0
         assertEquals(10, fed.getCrew().getFriendlyTroops().normal);
-        assertEquals(0,  fed.getCrew().getFriendlyTroops().commandos);
+        assertEquals(0, fed.getCrew().getFriendlyTroops().commandos);
         assertEquals(10, fed.getCrew().getAvailableBoardingParties());
     }
 
@@ -151,7 +150,8 @@ public class BoardingCombatTest {
     @Test
     public void controlSpaces_captureRoom_failsWhenNoneAvailable() {
         // Damage all bridge boxes first, then try to capture
-        while (fed.getControlSpaces().damageBridge()) { /* drain */ }
+        while (fed.getControlSpaces().damageBridge()) {
+            /* drain */ }
         boolean captured = fed.getControlSpaces().captureRoom(RoomType.BRIDGE);
         assertFalse("Cannot capture a destroyed room", captured);
     }
@@ -165,8 +165,10 @@ public class BoardingCombatTest {
     public void controlSpaces_allControlRoomsCaptured_trueWhenAllGone() {
         // Capture every undestroyed non-security room
         for (RoomType room : RoomType.values()) {
-            if (room == RoomType.SECURITY) continue;
-            while (fed.getControlSpaces().captureRoom(room)) { /* capture all */ }
+            if (room == RoomType.SECURITY)
+                continue;
+            while (fed.getControlSpaces().captureRoom(room)) {
+                /* capture all */ }
         }
         assertTrue(fed.getControlSpaces().allControlRoomsCaptured());
     }
@@ -235,8 +237,10 @@ public class BoardingCombatTest {
     public void boardingCombat_shipCapturedWhenAllRoomsGone() {
         // Strip all control room boxes via capture, then run combat
         for (RoomType room : RoomType.values()) {
-            if (room == RoomType.SECURITY) continue;
-            while (fed.getControlSpaces().captureRoom(room)) { /* capture all */ }
+            if (room == RoomType.SECURITY)
+                continue;
+            while (fed.getControlSpaces().captureRoom(room)) {
+                /* capture all */ }
         }
         // Now one more combat — ship should register as captured
         fed.addEnemyBoardingParties(1);

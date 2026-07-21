@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import com.sfb.objects.Ship;
 import com.sfb.samples.FederationShips;
-import com.sfb.samples.KlingonShips;
 
 public class PowerSystemsTest {
 

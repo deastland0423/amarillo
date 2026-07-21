@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.sfb.properties.TurnMode;
-import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 
 public class ShipTest {

@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import com.sfb.Game;
 import com.sfb.Game.ActionResult;
-import com.sfb.TurnTracker;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
@@ -15,16 +14,16 @@ import com.sfb.weapons.DroneRack;
 
 /**
  * Tests for seeker launch mechanics:
- *   - Unique name assignment at launch (regression guard for the empty-name bug
- *     that caused any fire command to hit whichever seeker was launched first)
- *   - Lock-on acquisition at launch (checkLockOnsForNewUnit): launcher always
- *     gets lock-on; other ships with fire control roll per sensor rating
+ * - Unique name assignment at launch (regression guard for the empty-name bug
+ * that caused any fire command to hit whichever seeker was launched first)
+ * - Lock-on acquisition at launch (checkLockOnsForNewUnit): launcher always
+ * gets lock-on; other ships with fire control roll per sensor rating
  */
 public class SeekerLaunchTest {
 
-    private Game  game;
-    private Ship  launcher;   // FedFFG — has drone rack, sensor 6
-    private Ship  target;     // Klingon D7 — the fire target
+    private Game game;
+    private Ship launcher; // FedFFG — has drone rack, sensor 6
+    private Ship target; // Klingon D7 — the fire target
     private DroneRack rack;
     private Drone firstDrone;
 
@@ -109,7 +108,7 @@ public class SeekerLaunchTest {
         assertNotNull("FedOCL must have a drone rack", rack2);
         Drone drone2 = rack2.getAmmo().get(0);
 
-        game.launchDrone(launcher,  target, rack,  firstDrone, 0);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
         game.launchDrone(launcher2, target, rack2, drone2, 0);
 
         assertEquals("Two drones should be in the seekers list", 2, game.getSeekers().size());
@@ -139,7 +138,7 @@ public class SeekerLaunchTest {
                 .findFirst().orElse(null);
         assertNotNull("FedOCL must have a drone rack", rack2);
 
-        game.launchDrone(launcher,  target, rack,  firstDrone, 0);
+        game.launchDrone(launcher, target, rack, firstDrone, 0);
         game.launchDrone(launcher2, target, rack2, rack2.getAmmo().get(0), 0);
 
         String name1 = ((Unit) game.getSeekers().get(0)).getName();

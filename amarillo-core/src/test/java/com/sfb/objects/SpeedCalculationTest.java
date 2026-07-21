@@ -8,33 +8,33 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 
 /**
  * Verifies that the warp/impulse speed rules are applied correctly:
- *   - Warp energy drives speed up to 30 (each moveCost energy = 1 hex)
- *   - 1 impulse point buys exactly +1 speed at flat cost (allowing speed 31)
- *   - No ship can exceed speed 31
+ * - Warp energy drives speed up to 30 (each moveCost energy = 1 hex)
+ * - 1 impulse point buys exactly +1 speed at flat cost (allowing speed 31)
+ * - No ship can exceed speed 31
  */
 public class SpeedCalculationTest {
 
     /** Clone the D7 spec and override movement-related fields for isolation. */
     private Map<String, Object> spec(int lWarp, int rWarp, int impulse, double moveCost) {
         Map<String, Object> m = new HashMap<>(KlingonShips.getD7());
-        m.put("lwarp",   lWarp);
-        m.put("rwarp",   rWarp);
+        m.put("lwarp", lWarp);
+        m.put("rwarp", rWarp);
         m.put("impulse", impulse);
-        m.put("apr",     0);           // remove APR so only warp+impulse are in play
+        m.put("apr", 0); // remove APR so only warp+impulse are in play
         m.put("movecost", moveCost);
-        m.put("weapons", new ArrayList<>());  // no weapons — simplifies setup
+        m.put("weapons", new ArrayList<>()); // no weapons — simplifies setup
         return m;
     }
 
     private Ship buildAndStart(Map<String, Object> spec) {
         Ship ship = new Ship();
         ship.init(spec);
-        // Seed C2.2 history so acceleration cap never interferes with speed calculation tests
+        // Seed C2.2 history so acceleration cap never interferes with speed calculation
+        // tests
         ship.setSpeedPreviousTurn(31);
         ship.setSpeedTwoTurnsAgo(31);
         ship.allocateEnergy(ship.buildAutoAllocation());
@@ -62,7 +62,8 @@ public class SpeedCalculationTest {
 
     @Test
     public void warpCappedWithFractionalMoveCost() {
-        // moveCost=0.5, 10+10 warp, 0 impulse → warpMovement=min(20,15)=15, speed=15/0.5=30
+        // moveCost=0.5, 10+10 warp, 0 impulse → warpMovement=min(20,15)=15,
+        // speed=15/0.5=30
         Ship ship = buildAndStart(spec(10, 10, 0, 0.5));
         assertEquals(30, ship.getSpeed());
     }
@@ -87,7 +88,8 @@ public class SpeedCalculationTest {
 
     @Test
     public void impulseIsFlatPlusOneWithOneThirdMoveCost() {
-        // moveCost=1/3, 5+5 warp, 1 impulse → warpMovement=min(10,10)=10, speed=30, +1=31
+        // moveCost=1/3, 5+5 warp, 1 impulse → warpMovement=min(10,10)=10, speed=30,
+        // +1=31
         Ship ship = buildAndStart(spec(5, 5, 1, 1.0 / 3.0));
         assertEquals(31, ship.getSpeed());
     }
@@ -174,7 +176,8 @@ public class SpeedCalculationTest {
 
     @Test
     public void accelCap_enforcedAtStartTurn() {
-        // Ship was at speed 5 both prior turns: cap = 15; allocate speed 20 → capped to 15
+        // Ship was at speed 5 both prior turns: cap = 15; allocate speed 20 → capped to
+        // 15
         Ship ship = new Ship();
         ship.init(spec(15, 15, 0, 1.0));
         ship.setSpeedPreviousTurn(5);
