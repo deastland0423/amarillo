@@ -10,6 +10,7 @@
   "breakdown": 3,
   "bonusHets": 1,
   "commandRating": 10,
+  "tokenArt": "federation/dn.png",
   
   "shields": [39, 32, 26, 26, 26, 32],
   

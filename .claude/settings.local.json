@@ -40,7 +40,22 @@
       "Bash(cmd /c \"tasklist | findstr java\")",
       "Bash(cmd /c \"curl -v http://127.0.0.1:8080/api/games 2>&1\")",
       "Bash(cmd /c \"powershell -command \\\\\"\\(Invoke-WebRequest -Uri 'http://localhost:8080/api/games' -Method POST -ContentType 'application/json' -Body '{\\\\\"name\\\\\":\\\\\"test\\\\\"}' -ErrorAction SilentlyContinue\\).StatusCode\\\\\" 2>&1\")",
-      "Bash(mvn install:*)"
+      "Bash(mvn install:*)",
+      "PowerShell(java -version)",
+      "PowerShell(mvn -version)",
+      "PowerShell(mvn clean install)",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\DEASTL~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--repos-amarillo\\\\338a1d99-3edf-43be-a2e5-40a62b386108\\\\tasks\\\\bvdfigcy6.output\" -Pattern \"ERROR|FAIL|BUILD\" | Select-Object -First 40 | ForEach-Object { $_.Line })",
+      "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; mvn install -rf :amarillo-server)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\DEASTL~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--repos-amarillo\\\\338a1d99-3edf-43be-a2e5-40a62b386108\\\\tasks\\\\bumvzmabt.output\" -Tail 8; [Environment]::GetEnvironmentVariable\\('MAVEN_OPTS','User'\\); [Environment]::GetEnvironmentVariable\\('MAVEN_OPTS','Machine'\\))",
+      "PowerShell([Environment]::SetEnvironmentVariable\\('MAVEN_OPTS','-Djavax.net.ssl.trustStoreType=Windows-ROOT','User'\\); [Environment]::GetEnvironmentVariable\\('MAVEN_OPTS','User'\\))",
+      "PowerShell(git checkout eastlander)",
+      "PowerShell(git merge appmod/java-upgrade-20260716131841)",
+      "PowerShell(git push origin eastlander)",
+      "PowerShell(git -C .claude/worktrees/agent-a84cc2fba8d6e6a56 status)",
+      "PowerShell(git -C .claude/worktrees/agent-a84cc2fba8d6e6a56 log --oneline -5)",
+      "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; $r = Invoke-WebRequest -UseBasicParsing \"https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/maven-metadata.xml\"; \\([xml]$r.Content\\).metadata.versioning.versions.version | Select-Object -Last 12)",
+      "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; mvn clean install)",
+      "PowerShell(git add pom.xml)"
     ]
   }
 }
