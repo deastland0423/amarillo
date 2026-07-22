@@ -32,7 +32,15 @@
       "PowerShell(git add amarillo-core/src/main/java/com/sfb/DamageResolver.java)",
       "PowerShell(git grep -n \"ShipObject\" -- amarillo-web/src/components/GameBoard.tsx | Select-Object -First 3; Set-Location amarillo-web; npx tsc -b --pretty false 2>&1 | Select-String -Pattern \"GameBoard\" | ForEach-Object { $_.Line }; npm run lint 2>&1 | Select-String -Pattern \"problems\" | ForEach-Object { $_.Line })",
       "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; mvn clean install 2>&1 | Select-String -Pattern \"Tests run: \\\\d+, Fail|Results|FAILURE|BUILD|ReadyTest\" | Select-Object -Last 8 | ForEach-Object { $_.Line })",
-      "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; mvn clean install 2>&1 | Select-String -Pattern \"Results|Tests run: \\\\d+, Fail|BUILD\" | Select-Object -Last 5 | ForEach-Object { $_.Line })"
+      "PowerShell($env:MAVEN_OPTS = \"-Djavax.net.ssl.trustStoreType=Windows-ROOT\"; mvn clean install 2>&1 | Select-String -Pattern \"Results|Tests run: \\\\d+, Fail|BUILD\" | Select-Object -Last 5 | ForEach-Object { $_.Line })",
+      "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn test -pl amarillo-core -Dtest=\"CloakRetentionTest,EwAdjustTest,CloakFireControlTest\")",
+      "Bash(git checkout *)",
+      "Bash(git diff *)",
+      "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn clean install)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(xargs -I{} sh -c 'echo \"{}: $\\(grep tokenArt {}\\)\"')"
     ]
   }
 }

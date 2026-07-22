@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Drone;
-import com.sfb.objects.DroneController;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -30,8 +29,8 @@ class LaunchCoordinator {
 
     LaunchCoordinator(Game game, List<Seeker> seekers,
             List<com.sfb.objects.shuttles.Shuttle> activeShuttles) {
-        this.game           = game;
-        this.seekers        = seekers;
+        this.game = game;
+        this.seekers = seekers;
         this.activeShuttles = activeShuttles;
     }
 
@@ -359,7 +358,8 @@ class LaunchCoordinator {
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
 
-        torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq()); // named like a real one — the name must not reveal pseudo status
+        torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq()); // named like a real one — the name
+                                                                                 // must not reveal pseudo status
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
         torpedo.setTarget(target);
@@ -440,7 +440,8 @@ class LaunchCoordinator {
             voidWildWeasel(launcher);
 
         bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        shuttle.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays hidden
+        shuttle.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
+                                                                                  // hidden
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
@@ -489,7 +490,8 @@ class LaunchCoordinator {
         launcher.forceAcquireControl(pack);
 
         bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays hidden
+        pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
+                                                                               // hidden
         pack.setLocation(launcher.getLocation());
         pack.setTarget(target);
         pack.setController(launcher);
@@ -529,7 +531,7 @@ class LaunchCoordinator {
             return ActionResult.fail(
                     "Active suicide shuttles, scatter packs, and Wild Weasels cannot land aboard (J1.611)");
 
-        String shipTeam    = ship.getOwner()    != null ? ship.getOwner().getTeamName()    : null;
+        String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
         String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
         if (shipTeam == null || !shipTeam.equals(shuttleTeam))
             return ActionResult.fail("Only friendly shuttles may land aboard unassisted (J1.61/J1.612)");
@@ -578,7 +580,7 @@ class LaunchCoordinator {
         }
         for (Seeker sk : chasing) {
             msg.append("\n  ").append(sk instanceof Unit ? ((Unit) sk).getName() : "seeker")
-               .append(" lost tracking — target landed");
+                    .append(" lost tracking — target landed");
             game.removeSeekerFromPlay(sk);
         }
         for (com.sfb.objects.Ship s : game.getShips())
@@ -612,7 +614,7 @@ class LaunchCoordinator {
             return ActionResult.fail(ship.getName() + " must hold " + shuttleName
                     + " in a tractor beam first (J1.62/J1.6215)");
 
-        String shipTeam    = ship.getOwner()    != null ? ship.getOwner().getTeamName()    : null;
+        String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
         String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
         if (shipTeam == null || !shipTeam.equals(shuttleTeam))
             return ActionResult.fail("Only friendly shuttles may use the special recovery procedure (J1.6214)");
