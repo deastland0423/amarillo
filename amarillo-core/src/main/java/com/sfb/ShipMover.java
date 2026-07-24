@@ -33,6 +33,7 @@ class ShipMover {
 
     private final Game game;
     private final List<Ship> ships;
+    @SuppressWarnings("unused")
     private final List<Seeker> seekers;
     private final List<com.sfb.objects.shuttles.Shuttle> activeShuttles;
     private final Set<Ship> movedThisImpulse;

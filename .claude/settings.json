@@ -40,7 +40,8 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(xargs -I{} sh -c 'echo \"{}: $\\(grep tokenArt {}\\)\"')"
+      "Bash(xargs -I{} sh -c 'echo \"{}: $\\(grep tokenArt {}\\)\"')",
+      "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn test -pl amarillo-core -Dtest=\"PlasmaLauncherTest,WeaponTest,FighterHetTest\")"
     ]
   }
 }
