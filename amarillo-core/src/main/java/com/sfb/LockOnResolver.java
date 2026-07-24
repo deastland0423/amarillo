@@ -29,6 +29,13 @@ class LockOnResolver {
     // every retention roll, so a later re-cloak always re-baselines it.
     private final java.util.Map<String, Integer> lastRetentionP = new java.util.HashMap<>();
 
+    // P2.322: ship pairs whose line of sight was planet-blocked at the END of
+    // the previous movement phase. LOS is evaluated only at phase boundaries —
+    // the rule's own passing exemption (both units moving in the same step
+    // with sight at start and end never lose lock) means mid-phase flicker is
+    // deliberately invisible. Unordered pair keys (names sorted).
+    private final java.util.Set<String> losBlockedPairs = new java.util.HashSet<>();
+
     LockOnResolver(Game game, List<Ship> ships, List<Seeker> seekers,
             List<com.sfb.objects.shuttles.Shuttle> activeShuttles) {
         this.game           = game;
@@ -70,6 +77,12 @@ class LockOnResolver {
                     ship.addLockOn(target);
                     lastLockOnLog.add(ship.getName() + " lock-on to " + target.getName()
                             + " (automatic — tractor link, G7.412)");
+                    continue;
+                }
+                // P2.322: no lock-on can be held or gained through a planet
+                if (game.losBlocked(ship.getLocation(), target.getLocation())) {
+                    lastLockOnLog.add(ship.getName() + " cannot acquire lock-on to "
+                            + target.getName() + " — planet blocks line of sight (P2.322)");
                     continue;
                 }
                 if (isFullyCloaked(target)) {
@@ -263,6 +276,82 @@ class LockOnResolver {
         return 6;
     }
 
+    // -------------------------------------------------------------------------
+    // P2.322 — planets blocking line of sight
+    // -------------------------------------------------------------------------
+
+    /**
+     * End-of-movement-phase sweep: recompute which ship pairs have planetary
+     * surface strictly between them and act on the TRANSITIONS only.
+     * Newly blocked → both lock-ons lost (P2.322). Newly cleared → each side
+     * without a lock-on rolls to re-acquire, timed as "the Activity Segment of
+     * the first impulse after the obstacle has passed" — which is exactly the
+     * phase this sweep advances into.
+     */
+    List<String> sweepPlanetLos() {
+        List<String> log = new ArrayList<>();
+        if (!game.anyPlanetSurface())
+            return log; // fast path — planetless maps pay nothing
+        DiceRoller dice = new DiceRoller();
+        java.util.Set<String> nowBlocked = new java.util.HashSet<>();
+
+        for (int i = 0; i < ships.size(); i++) {
+            for (int j = i + 1; j < ships.size(); j++) {
+                Ship a = ships.get(i), b = ships.get(j);
+                if (a.getLocation() == null || b.getLocation() == null)
+                    continue;
+                String key = pairKey(a, b);
+                if (game.losBlocked(a.getLocation(), b.getLocation())) {
+                    nowBlocked.add(key);
+                    boolean hadLock = a.hasLockOn(b) || b.hasLockOn(a);
+                    // Idempotent strip: nothing may hold a lock through a planet
+                    a.removeLockOn(b);
+                    b.removeLockOn(a);
+                    if (!losBlockedPairs.contains(key) && hadLock)
+                        log.add("Planet blocks line of sight between " + a.getName()
+                                + " and " + b.getName() + " — lock-ons lost (P2.322)");
+                } else if (losBlockedPairs.contains(key)) {
+                    // Obstacle passed — each side may roll to re-acquire
+                    reacquireAfterLos(a, b, dice, log);
+                    reacquireAfterLos(b, a, dice, log);
+                }
+            }
+        }
+        losBlockedPairs.clear();
+        losBlockedPairs.addAll(nowBlocked);
+        return log;
+    }
+
+    /** Re-acquisition roll after a planet clears the line (P2.322 → D6.11). */
+    private void reacquireAfterLos(Ship attacker, Ship target, DiceRoller dice, List<String> log) {
+        if (!attacker.isActiveFireControl() || attacker.hasLockOn(target))
+            return;
+        if (game.tractorLinkBetween(attacker, target)) {
+            attacker.addLockOn(target);
+            log.add(attacker.getName() + " lock-on to " + target.getName()
+                    + " (automatic — tractor link, G7.412)");
+            return;
+        }
+        if (isFullyCloaked(target))
+            return; // no new lock-on on a cloaked ship (G13.301)
+        int sensorRating = attacker.getSpecialFunctions().getSensor();
+        int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
+        if (roll <= sensorRating) {
+            attacker.addLockOn(target);
+            log.add(attacker.getName() + " re-acquired lock-on to " + target.getName()
+                    + " after clearing the planet (P2.322)");
+        } else {
+            log.add(attacker.getName() + " failed to re-acquire lock-on to " + target.getName()
+                    + " after clearing the planet (rolled " + roll + ", needs ≤" + sensorRating + ")");
+        }
+    }
+
+    private static String pairKey(Ship a, Ship b) {
+        return a.getName().compareTo(b.getName()) <= 0
+                ? a.getName() + "|" + b.getName()
+                : b.getName() + "|" + a.getName();
+    }
+
     private static boolean isFullyCloaked(Ship ship) {
         return ship.getCloakingDevice() != null && ship.getCloakingDevice().breaksLockOn();
     }
@@ -316,6 +405,9 @@ class LockOnResolver {
                         + " (automatic — tractor link, G7.412)");
                 continue;
             }
+            // P2.322: no lock-on through a planet
+            if (game.losBlocked(attacker.getLocation(), target.getLocation()))
+                continue;
 
             int sensorRating = attacker.getSpecialFunctions().getSensor();
             int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();

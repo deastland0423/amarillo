@@ -362,6 +362,12 @@ class DamageResolver {
         if (cloakBlock != null)
             return cloakBlock.getMessage();
 
+        // P2.321: direct fire cannot pass through a planetary surface hex
+        // (fire exactly along the edge is legal — the exact-geometry test)
+        if (game.losBlocked(attacker.getLocation(), target.getLocation()))
+            return attacker.getName() + " has no line of sight to " + target.getName()
+                    + " — planet in the way (P2.321)";
+
         // Each attacker may fire at a given target only once per Direct-Fire segment
         String firePair = attacker.getName() + "→" + target.getName();
         if (!firedPairsThisPhase.add(firePair))

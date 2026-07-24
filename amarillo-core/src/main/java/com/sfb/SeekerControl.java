@@ -220,6 +220,40 @@ class SeekerControl {
     }
 
     /**
+     * P2.33: a self-guided seeking weapon whose target passes behind a planet
+     * loses that target, acquires the PLANET as its new target, and strikes
+     * it. Simplification: the impact is resolved immediately (the weapon can
+     * no longer harm any unit, and the P2.525 general-destruction scoring is
+     * scenario-optional). Controlled seekers are handled separately via their
+     * guiding ship's lock-on (P2.3222 → releaseOrphanedDrones); a planet
+     * between a controller and its own weapon never matters (P2.34).
+     */
+    List<String> sweepSelfGuidedLos() {
+        List<String> log = new ArrayList<>();
+        if (!game.anyPlanetSurface())
+            return log;
+        List<Seeker> lost = new ArrayList<>();
+        for (Seeker s : seekers) {
+            if (!(s instanceof Unit) || s.getTarget() == null)
+                continue;
+            boolean selfGuided = s.isSelfGuiding() || s instanceof PlasmaTorpedo;
+            if (!selfGuided)
+                continue;
+            Unit unit = (Unit) s;
+            if (unit.getLocation() == null || s.getTarget().getLocation() == null)
+                continue;
+            if (game.losBlocked(unit.getLocation(), s.getTarget().getLocation())) {
+                log.add("  " + unit.getName() + " loses sight of " + s.getTarget().getName()
+                        + " behind the planet — acquires the planet and impacts it (P2.33)");
+                lost.add(s);
+            }
+        }
+        for (Seeker s : lost)
+            game.removeSeekerFromPlay(s);
+        return log;
+    }
+
+    /**
      * G13.334: self-guiding seekers (plasma) targeting a ship that just
      * completed fade-out. Must run AFTER the ships' own retention rolls
      * (G13.331):

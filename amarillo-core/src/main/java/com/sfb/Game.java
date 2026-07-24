@@ -539,6 +539,12 @@ public class Game {
                 lastSeekerLog.addAll(moveShuttles());
                 List<String> mineLog = mineResolver.processMines();
                 lastSeekerLog.addAll(mineLog);
+                // P2.32x: all movement for the impulse is in — evaluate planet
+                // LOS at the phase boundary (transitions only; the same-step
+                // passing exemption falls out of checking nowhere else)
+                lastSeekerLog.addAll(lockOnResolver.sweepPlanetLos());
+                lastSeekerLog.addAll(seekerControl.sweepSelfGuidedLos());
+                lastSeekerLog.addAll(seekerControl.releaseOrphanedDrones());
                 log.addAll(lastSeekerLog);
                 if (!pendingVolleys.isEmpty()) {
                     reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
@@ -1705,6 +1711,11 @@ public class Game {
      */
     public boolean losBlocked(Location a, Location b) {
         return com.sfb.utilities.LosUtils.blocked(a, b, planetSurfaceHexes);
+    }
+
+    /** Fast-path guard: LOS sweeps are no-ops on maps without planetary surface. */
+    boolean anyPlanetSurface() {
+        return !planetSurfaceHexes.isEmpty();
     }
 
     /** Pure-atmosphere ring of a large gas giant (P2.222) — no-entry, but see-through. */
