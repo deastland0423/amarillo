@@ -51,6 +51,11 @@ public class TractorBeam {
         this.heldUnit = null;
     }
 
+    /** Expend this beam's per-turn use with no link formed (failed D6.372 attempt). */
+    void markUsed() {
+        this.usedThisTurn = true;
+    }
+
     void setFunctional(boolean functional) {
         this.functional = functional;
     }

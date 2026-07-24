@@ -416,6 +416,58 @@ public class Game {
         return lockOnResolver.reacquisitionProbability(attacker, cloaked);
     }
 
+    /** True when either unit holds the other in a tractor beam (G7.412). */
+    boolean tractorLinkBetween(Ship a, com.sfb.objects.Unit b) {
+        return tractorResolver.linkExistsBetween(a, b);
+    }
+
+    /** Outcome of a D6.372 lock-strength roll: blocked flag + dice-log line. */
+    static final class D637Result {
+        final boolean blocked;
+        final String line;
+        D637Result(boolean blocked, String line) {
+            this.blocked = blocked;
+            this.line = line;
+        }
+    }
+
+    /**
+     * D6.34 net ECM shift for a tractor/transporter action (D6.372), with the
+     * exemptions that make it zero: non-ship targets have no ECM; friendly
+     * units ignore generated/lent EW (D6.373/D6.3146); a tractor link makes
+     * lock-on automatic in both directions (G7.412).
+     */
+    int d637Shift(Ship actor, Unit target) {
+        if (!(target instanceof Ship))
+            return 0;
+        Ship tship = (Ship) target;
+        if (isSameTeam(actor, tship))
+            return 0;
+        if (tractorLinkBetween(actor, target))
+            return 0;
+        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus();
+        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
+        return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
+    }
+
+    /**
+     * D6.372: roll one die per individual tractor/transporter action and add
+     * the net ECM shift; a total over six means the lock-on is not strong
+     * enough and the system cannot be used. Returns null when no roll is
+     * needed (shift 0 — a bare d6 cannot exceed six).
+     */
+    D637Result rollD637(Ship actor, Unit target, String systemName) {
+        int shift = d637Shift(actor, target);
+        if (shift <= 0)
+            return null;
+        int die = new com.sfb.utilities.DiceRoller().rollOneDie();
+        boolean blocked = die + shift > 6;
+        String line = systemName + " vs " + target.getName() + " ECM: die " + die
+                + " + shift " + shift + " = " + (die + shift)
+                + (blocked ? " > 6 — cannot achieve lock (D6.372)" : " — lock achieved (D6.372)");
+        return new D637Result(blocked, line);
+    }
+
     /**
      * End-of-turn cleanup. Resets per-turn weapon states, shield reinforcement,
      * etc. Then starts the next turn's energy allocation.

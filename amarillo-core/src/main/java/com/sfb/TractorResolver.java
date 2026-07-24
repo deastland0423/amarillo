@@ -83,6 +83,15 @@ class TractorResolver {
         }
     }
 
+    /** True when either unit holds the other in a tractor beam (G7.412). */
+    boolean linkExistsBetween(Ship a, Unit b) {
+        if (a.getTractors() != null && a.getTractors().getTractoredUnits().contains(b))
+            return true;
+        return b instanceof Ship
+                && ((Ship) b).getTractors() != null
+                && ((Ship) b).getTractors().getTractoredUnits().contains(a);
+    }
+
     /** True if any ship currently holds at least one unit in a tractor beam. */
     boolean anyTractorLinksExist() {
         for (Ship s : ships) {
@@ -263,16 +272,30 @@ class TractorResolver {
         if (holder.getTractors().getTractoredUnits().contains(target))
             return ActionResult.fail(holder.getName() + " is already tractoring " + targetName);
 
+        // D6.372: the beam must burn through the target's ECM for a firm enough
+        // lock. On failure the declared bid energy is lost and the beam's
+        // per-turn use is expended (rate of operations) — the defender is
+        // never even asked. No roll vs friendlies, tractor-linked units
+        // (G7.412), or when the net shift is zero.
+        Game.D637Result ew = game.rollD637(holder, target, holder.getName() + " tractor beam");
+        if (ew != null && ew.blocked) {
+            spendTractorEnergy(holder, bid * rangeMultiplier);
+            holder.getTractors().expendBeamUse();
+            return ActionResult.ok(ew.line + " — " + (bid * rangeMultiplier)
+                    + " energy lost, beam expended for the turn");
+        }
+        String ewLog = ew != null ? ew.line + "\n" : "";
+
         // Non-Ship targets (drones, shuttles) cannot resist — resolve immediately (G7.5)
         if (!(target instanceof Ship)) {
             spendTractorEnergy(holder, rangeMultiplier);
             holder.getTractors().linkUnit(target);
-            return ActionResult.ok(holder.getName() + " tractors " + targetName
+            return ActionResult.ok(ewLog + holder.getName() + " tractors " + targetName
                     + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)"));
         }
 
         pendingTractorAuction = new Game.PendingTractorAuction(holder, target, bid, rangeMultiplier);
-        return ActionResult.ok(holder.getName() + " bids " + bid + " effective tractor"
+        return ActionResult.ok(ewLog + holder.getName() + " bids " + bid + " effective tractor"
                 + (rangeMultiplier > 1 ? " (" + (bid * rangeMultiplier) + " energy at range " + range + "; G7.6)" : "")
                 + " on " + targetName + " — awaiting defender response (G7.42)");
     }

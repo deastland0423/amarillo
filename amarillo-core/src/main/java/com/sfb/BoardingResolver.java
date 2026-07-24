@@ -351,6 +351,30 @@ class BoardingResolver {
         if (check != null)
             return check;
 
+        StringBuilder log = new StringBuilder();
+        log.append("=== Boarding Action: ").append(actingShip.getName())
+                .append("  →  ").append(target.getName()).append(" ===\n");
+
+        // D6.372: each transporter rolls its own lock through the target's ECM.
+        // Jammed uses are already spent; those parties never leave the ship —
+        // normals are held back before commandos.
+        int jammed = 0;
+        for (int i = 0; i < numParties; i++) {
+            Game.D637Result ew = game.rollD637(actingShip, target, "Transporter");
+            if (ew == null)
+                break; // shift 0 — no roll needed for any of them
+            log.append("  ").append(ew.line).append("\n");
+            if (ew.blocked)
+                jammed++;
+        }
+        int jammedNormal = Math.min(jammed, normal);
+        normal -= jammedNormal;
+        commandos -= (jammed - jammedNormal);
+        if (normal + commandos <= 0)
+            return ActionResult.ok(log
+                    .append("  Every transporter was jammed — no boarding parties transported\n")
+                    .toString());
+
         // Deduct from acting ship
         actingShip.getCrew().getFriendlyTroops().commandos -= commandos;
         actingShip.getCrew().getFriendlyTroops().removeCasualties(normal); // removes normal first
@@ -362,9 +386,6 @@ class BoardingResolver {
         if (target.getBoardingAttacker() == null)
             target.setBoardingAttacker(actingShip.getOwner());
 
-        StringBuilder log = new StringBuilder();
-        log.append("=== Boarding Action: ").append(actingShip.getName())
-                .append("  →  ").append(target.getName()).append(" ===\n");
         log.append("  Transported: ").append(normal).append(" BP(s)");
         if (commandos > 0)
             log.append(" + ").append(commandos).append(" commando(s)");
@@ -428,6 +449,17 @@ class BoardingResolver {
 
         int partiesLost = 0;
         for (SystemTarget st : targetSystems) {
+            // D6.372: each transporter rolls its own lock through the target's
+            // ECM. A jammed transporter's use and energy are already spent;
+            // the party never leaves the ship (safe, but wasted).
+            Game.D637Result ew = game.rollD637(actingShip, target, "Transporter");
+            if (ew != null && ew.blocked) {
+                log.append("  ").append(ew.line).append(" — party stays aboard\n");
+                continue;
+            }
+            if (ew != null)
+                log.append("  ").append(ew.line).append("\n");
+
             com.sfb.properties.BoardingPartyQuality quality = st.getAttackerQuality();
             int roll = Math.min(6, Math.max(1, dice.rollOneDie() + crewMod));
 

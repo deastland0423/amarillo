@@ -62,6 +62,16 @@ class LockOnResolver {
             for (Ship target : ships) {
                 if (target == ship)
                     continue;
+                // G7.412: an attached tractor makes lock-on automatic in both
+                // directions — no roll, cannot fail, cloak state irrelevant.
+                // (The FC gate above still applies: D6.62 lock-ons need active
+                // fire control; the physical link only replaces the sensor roll.)
+                if (game.tractorLinkBetween(ship, target)) {
+                    ship.addLockOn(target);
+                    lastLockOnLog.add(ship.getName() + " lock-on to " + target.getName()
+                            + " (automatic — tractor link, G7.412)");
+                    continue;
+                }
                 if (isFullyCloaked(target)) {
                     if (retainedCloaked.contains(target)) {
                         ship.addLockOn(target);
@@ -299,6 +309,13 @@ class LockOnResolver {
                 continue;
             if (attacker.hasLockOn(target))
                 continue; // already locked on — keep it
+            // G7.412: an attached tractor makes lock-on automatic — no roll
+            if (game.tractorLinkBetween(attacker, target)) {
+                attacker.addLockOn(target);
+                log.add(attacker.getName() + " lock-on to " + target.getName()
+                        + " (automatic — tractor link, G7.412)");
+                continue;
+            }
 
             int sensorRating = attacker.getSpecialFunctions().getSensor();
             int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();

@@ -84,6 +84,19 @@ public class Tractors implements Systems {
 		return null;
 	}
 
+	/**
+	 * Expend one beam's per-turn use without forming a link — a tractor attempt
+	 * that failed its D6.372 EW roll still consumes the beam for the turn (the
+	 * standard rate-of-operations lockout).
+	 */
+	public boolean expendBeamUse() {
+		TractorBeam beam = firstFreeBeam();
+		if (beam == null)
+			return false;
+		beam.markUsed();
+		return true;
+	}
+
 	/** Beams that can still initiate a NEW link this turn (G7.13). */
 	public int getBeamsAvailableThisTurn() {
 		int count = 0;
