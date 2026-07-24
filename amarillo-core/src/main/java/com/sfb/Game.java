@@ -1698,6 +1698,15 @@ public class Game {
         return loc != null && planetSurfaceHexes.contains(loc);
     }
 
+    /**
+     * P2.322: true when planetary surface lies strictly between the two hexes
+     * (center-to-center line through any part of a surface hex, but not along
+     * its edge or corner). Atmosphere hexes never block sight (P2.321).
+     */
+    public boolean losBlocked(Location a, Location b) {
+        return com.sfb.utilities.LosUtils.blocked(a, b, planetSurfaceHexes);
+    }
+
     /** Pure-atmosphere ring of a large gas giant (P2.222) — no-entry, but see-through. */
     public boolean isPlanetAtmosphereHex(Location loc) {
         return loc != null && planetAtmosphereHexes.contains(loc);
