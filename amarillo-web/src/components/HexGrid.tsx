@@ -396,9 +396,13 @@ function drawObjects(
             ctx.stroke();
           }
         }
-      } else if (obj.terrainType === 'PLANET') {
-        const pr = 30;
-        if (planetImage) {
+      } else if (obj.terrainType === 'PLANET' || obj.terrainType === 'GAS_GIANT') {
+        // Footprint radius r spans r hexes of √3·SIZE pitch beyond the center
+        // hex; r=0 keeps the classic single-hex planet disc
+        const fr = obj.radius ?? 0;
+        const pr = fr === 0 ? 30 : SQRT3 * SIZE * (fr + 0.5);
+        const isGiant = obj.terrainType === 'GAS_GIANT';
+        if (planetImage && !isGiant) {
           ctx.save();
           ctx.beginPath();
           ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
@@ -406,12 +410,23 @@ function drawObjects(
           ctx.drawImage(planetImage, cx - pr, cy - pr, pr * 2, pr * 2);
           ctx.restore();
         } else {
-          ctx.fillStyle = '#2d6a8a';
+          ctx.fillStyle = isGiant ? '#a5713f' : '#2d6a8a';
           ctx.beginPath();
           ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
           ctx.fill();
+          if (isGiant) {
+            // Simple banding so giants read as gas, not rock
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
+            ctx.clip();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
+            for (let band = -3; band <= 3; band += 2)
+              ctx.fillRect(cx - pr, cy + (band * pr) / 4, pr * 2, pr / 5);
+            ctx.restore();
+          }
         }
-        ctx.strokeStyle = '#4a9aba';
+        ctx.strokeStyle = isGiant ? '#c9955c' : '#4a9aba';
         ctx.lineWidth   = 2;
         ctx.beginPath();
         ctx.arc(cx, cy, pr, 0, 2 * Math.PI);

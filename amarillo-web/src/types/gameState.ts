@@ -175,7 +175,6 @@ export interface ShipObject extends MapObjectBase {
   availableTransporters?:   number;
   totalTransporters?:       number;
   transporterEnergyCost?:   number;
-  availableTractors?:       number;
   totalTractors?:           number;
   uimFunctional:            boolean;  // true if ship has a functional UIM this impulse
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
@@ -288,7 +287,8 @@ export interface MineObject extends MapObjectBase {
 
 export interface TerrainObject extends MapObjectBase {
   type:        'TERRAIN';
-  terrainType: 'ASTEROID' | 'PLANET';
+  terrainType: 'ASTEROID' | 'PLANET' | 'GAS_GIANT';
+  radius?:     number;   // footprint radius in hexes (0/absent = single hex)
 }
 
 export interface WildWeaselObject extends MapObjectBase {

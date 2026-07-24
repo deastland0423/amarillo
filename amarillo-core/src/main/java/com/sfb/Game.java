@@ -97,7 +97,9 @@ public class Game {
     private final List<SpaceMine> mines = new ArrayList<>();
     private final List<Terrain> terrain = new ArrayList<>();
     private final Set<Location> asteroidHexes = new HashSet<>();
-    private final Set<Location> planetHexes = new HashSet<>();
+    private final Set<Location> planetHexes = new HashSet<>();          // full footprint — no-entry
+    private final Set<Location> planetSurfaceHexes = new HashSet<>();    // blocks LOS (P2.321)
+    private final Set<Location> planetAtmosphereHexes = new HashSet<>(); // large-giant outer ring (P2.222)
 
     static final int[][] ASTEROID_DAMAGE = {
             // Speed bracket: 0=1-6, 1=7-14, 2=15-25, 3=26+ (P3.2)
@@ -212,6 +214,8 @@ public class Game {
         terrain.clear();
         asteroidHexes.clear();
         planetHexes.clear();
+        planetSurfaceHexes.clear();
+        planetAtmosphereHexes.clear();
 
         for (Terrain t : ScenarioLoader.loadTerrain(scenario))
             addTerrain(t);
@@ -1650,10 +1654,31 @@ public class Game {
 
     public void addTerrain(Terrain t) {
         terrain.add(t);
-        if (t.getTerrainType() == TerrainType.ASTEROID)
+        if (t.getTerrainType() == TerrainType.ASTEROID) {
             asteroidHexes.add(t.getLocation());
-        else if (t.getTerrainType() == TerrainType.PLANET)
-            planetHexes.add(t.getLocation());
+        } else if (t.getTerrainType() == TerrainType.PLANET
+                || t.getTerrainType() == TerrainType.GAS_GIANT) {
+            // Expand the footprint: every hex within the radius is no-entry
+            // (planetHexes — entering without landing/atmospheric-flight rules
+            // is a catastrophic landing, P2.224). Large gas giants (7+ across,
+            // P2.222) split into a pure-atmosphere outer ring and an interior
+            // surface; only SURFACE hexes will block line of sight (P2.321).
+            Location c = t.getLocation();
+            int r = t.getRadius();
+            for (int col = c.getX() - r - 1; col <= c.getX() + r + 1; col++) {
+                for (int row = c.getY() - r - 1; row <= c.getY() + r + 1; row++) {
+                    Location hex = new Location(col, row);
+                    int dist = com.sfb.utilities.MapUtils.getRange(c, hex);
+                    if (dist > r)
+                        continue;
+                    planetHexes.add(hex);
+                    if (t.isLargeGasGiant() && dist == r)
+                        planetAtmosphereHexes.add(hex);
+                    else
+                        planetSurfaceHexes.add(hex);
+                }
+            }
+        }
     }
 
     public List<Terrain> getTerrain() {
@@ -1666,6 +1691,16 @@ public class Game {
 
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
+    }
+
+    /** Solid planetary surface — blocks line of sight (P2.321/P2.322). */
+    public boolean isPlanetSurfaceHex(Location loc) {
+        return loc != null && planetSurfaceHexes.contains(loc);
+    }
+
+    /** Pure-atmosphere ring of a large gas giant (P2.222) — no-entry, but see-through. */
+    public boolean isPlanetAtmosphereHex(Location loc) {
+        return loc != null && planetAtmosphereHexes.contains(loc);
     }
 
     /** Place a T-bomb (real or dummy) via transporter (M2.31). */

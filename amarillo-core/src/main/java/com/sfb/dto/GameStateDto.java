@@ -53,7 +53,8 @@ public class GameStateDto {
     }
 
     public static class TerrainDto extends MapObjectDto {
-        public String terrainType; // "ASTEROID" | "PLANET"
+        public String terrainType; // "ASTEROID" | "PLANET" | "GAS_GIANT"
+        public int radius;         // footprint radius in hexes (0 = single hex)
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -1219,6 +1220,7 @@ public class GameStateDto {
         dto.name = t.getName();
         dto.location = t.getLocation() != null ? t.getLocation().toString() : null;
         dto.terrainType = t.getTerrainType().name();
+        dto.radius = t.getRadius();
         return dto;
     }
 

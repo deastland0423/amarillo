@@ -92,7 +92,13 @@ public class ScenarioLoader {
                 continue;
             }
             Location loc = parseHex(setup.hex);
-            Terrain t = new Terrain(type, loc.getX(), loc.getY());
+            int radius = setup.radius;
+            if (radius > 0 && type != TerrainType.GAS_GIANT) {
+                System.err.println("ScenarioLoader: radius only applies to GAS_GIANT — ignored for "
+                        + setup.type + " at " + setup.hex + " (class-M fills exactly one hex, P2.211)");
+                radius = 0;
+            }
+            Terrain t = new Terrain(type, loc.getX(), loc.getY(), radius);
             t.setName(setup.name != null ? setup.name : setup.type + "-" + setup.hex);
             result.add(t);
         }

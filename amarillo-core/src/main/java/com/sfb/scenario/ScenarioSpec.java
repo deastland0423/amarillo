@@ -74,9 +74,10 @@ public class ScenarioSpec {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class TerrainSetup {
-        public String type; // "ASTEROID" | "PLANET"
-        public String hex;  // CCRR notation, e.g. "0515"
-        public String name; // optional display name (mainly for planets)
+        public String type;     // "ASTEROID" | "PLANET" | "GAS_GIANT"
+        public String hex;      // CCRR notation, e.g. "0515" — the center hex
+        public String name;     // optional display name (mainly for planets)
+        public int    radius = 0; // GAS_GIANT footprint radius (diameter 2r+1); ignored for other types
     }
 
     // -------------------------------------------------------------------------
