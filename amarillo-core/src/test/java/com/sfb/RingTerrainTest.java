@@ -1,8 +1,15 @@
 package com.sfb;
 
+import com.sfb.objects.PlasmaTorpedo;
+import com.sfb.objects.Seeker;
+import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
 import com.sfb.properties.Location;
+import com.sfb.properties.PlasmaType;
 import com.sfb.properties.TerrainType;
+import com.sfb.properties.WeaponArmingType;
+import com.sfb.samples.FederationShips;
+import com.sfb.systemgroups.Energy;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -88,5 +95,47 @@ public class RingTerrainTest {
     public void noRings_whenBandsEmpty() {
         game.addTerrain(new Terrain(TerrainType.GAS_GIANT, 20, 15, 3));
         assertEquals(0, countHexes(game::isRingHex));
+    }
+
+    @Test
+    public void selfGuidedPlasma_erodesCrossingTheRing() {
+        // Giant at (20,20) r2 with a ring band at 4..5. A plasma torpedo flies
+        // west along row 16 toward a target at (12,16): it clips the ring hexes
+        // near column 20 (distance 4 from center) but never touches the no-entry
+        // body (rows 18-22). It should log a ring collision (P2.223), not pass
+        // through unharmed.
+        game.addTerrain(giant(20, 20, 2, List.of(new int[] { 4, 5 })));
+
+        Ship fed = new Ship();
+        fed.init(FederationShips.getFedCa());
+        fed.setName("USS Enterprise");
+        fed.setLocation(new Location(12, 16));
+        fed.setFacing(1);
+        fed.setSpeedPreviousTurn(31);
+        fed.setSpeedTwoTurnsAgo(31);
+        game.getShips().add(fed);
+
+        game.startTurn();
+        Energy e = new Energy();
+        e.setLifeSupport(fed.getLifeSupportCost());
+        e.setFireControl(fed.getFireControlCost());
+        e.setActivateShields(fed.getActiveShieldCost());
+        e.setWarpMovement(0.0);
+        game.submitAllocation(fed, e);
+
+        PlasmaTorpedo torp = new PlasmaTorpedo(PlasmaType.G, WeaponArmingType.STANDARD);
+        torp.setName("Test-Plasma");
+        torp.setLocation(new Location(28, 16));
+        torp.setTarget(fed);
+        torp.setSeekerType(Seeker.SeekerType.PLASMA);
+        game.getSeekers().add(torp);
+
+        StringBuilder allLog = new StringBuilder();
+        boolean sawRing = false;
+        for (int guard = 0; guard < 300 && !sawRing && game.getSeekers().contains(torp); guard++) {
+            allLog.append(game.advancePhase().getMessage()).append('\n');
+            sawRing = allLog.indexOf("ring hex") >= 0;
+        }
+        assertTrue("plasma logs a ring collision crossing the ring band (P2.223)", sawRing);
     }
 }

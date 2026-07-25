@@ -114,8 +114,8 @@ class SeekerMover {
                     continue;
                 }
 
-                if (game.isAsteroidHex(drone.getLocation())) {
-                    String asteroidResult = applyAsteroidCollisionToDrone(drone);
+                if (game.isAsteroidHex(drone.getLocation()) || game.isRingHex(drone.getLocation())) {
+                    String asteroidResult = applyTerrainCollisionToDrone(drone);
                     log.add(asteroidResult);
                     if (drone.getHull() <= 0) {
                         expired.add(drone);
@@ -280,8 +280,8 @@ class SeekerMover {
                     continue;
                 }
 
-                if (game.isAsteroidHex(torp.getLocation())) {
-                    log.add(applyAsteroidCollisionToPlasma(torp));
+                if (game.isAsteroidHex(torp.getLocation()) || game.isRingHex(torp.getLocation())) {
+                    log.add(applyTerrainCollisionToPlasma(torp));
                     if (torp.getCurrentStrength() <= 0) {
                         expired.add(seeker);
                         continue;
@@ -548,15 +548,19 @@ class SeekerMover {
     }
 
     /**
-     * Roll asteroid collision damage and apply directly to a drone's hull (P3.2).
-     * Returns a log line; removes the drone from play if hull reaches 0.
+     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
+     * (P2.223) — and apply it directly to a drone's hull. Returns a log line;
+     * removes the drone from play if hull reaches 0.
      */
-    private String applyAsteroidCollisionToDrone(Drone drone) {
+    private String applyTerrainCollisionToDrone(Drone drone) {
+        boolean asteroid = game.isAsteroidHex(drone.getLocation());
+        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
+        String terrainName = asteroid ? "asteroid" : "ring";
         int speed = drone.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int roll = new DiceRoller().rollOneDie();
-        int damage = Game.ASTEROID_DAMAGE[roll - 1][bracket];
-        String base = "  Drone (" + drone.getDroneType() + ") enters asteroid hex"
+        int damage = table[roll - 1][bracket];
+        String base = "  Drone (" + drone.getDroneType() + ") enters " + terrainName + " hex"
                 + " (speed " + speed + ", die " + roll + ")";
         if (damage == 0)
             return base + " — no damage";
@@ -572,16 +576,20 @@ class SeekerMover {
     }
 
     /**
-     * Roll asteroid collision damage and apply as phaser damage to a plasma torpedo (P3.2).
-     * Each point of asteroid damage reduces torpedo strength by 0.5 (same as direct phaser fire).
-     * Returns a log line; removes the torpedo if strength reaches 0.
+     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
+     * (P2.223) — and apply it as phaser damage to a plasma torpedo. Each point
+     * reduces strength by 0.5 (same as direct phaser fire). Returns a log line;
+     * removes the torpedo if strength reaches 0.
      */
-    private String applyAsteroidCollisionToPlasma(PlasmaTorpedo torp) {
+    private String applyTerrainCollisionToPlasma(PlasmaTorpedo torp) {
+        boolean asteroid = game.isAsteroidHex(torp.getLocation());
+        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
+        String terrainName = asteroid ? "asteroid" : "ring";
         int speed = torp.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int roll = new DiceRoller().rollOneDie();
-        int damage = Game.ASTEROID_DAMAGE[roll - 1][bracket];
-        String base = "  Plasma-" + torp.getPlasmaType() + " enters asteroid hex"
+        int damage = table[roll - 1][bracket];
+        String base = "  Plasma-" + torp.getPlasmaType() + " enters " + terrainName + " hex"
                 + " (speed " + speed + ", die " + roll + ")";
         if (damage == 0)
             return base + " — no damage";
