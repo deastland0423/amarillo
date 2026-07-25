@@ -101,6 +101,24 @@ public class ScenarioLoader {
             Terrain t = new Terrain(type, loc.getX(), loc.getY(), radius);
             t.setName(setup.name != null ? setup.name : setup.type + "-" + setup.hex);
             t.setTokenArt(setup.tokenArt);
+            if (setup.rings != null && !setup.rings.isEmpty()) {
+                if (type != TerrainType.GAS_GIANT) {
+                    System.err.println("ScenarioLoader: rings only apply to GAS_GIANT — ignored for "
+                            + setup.type + " at " + setup.hex);
+                } else {
+                    List<int[]> bands = new ArrayList<>();
+                    for (ScenarioSpec.RingBand rb : setup.rings) {
+                        int inner = Math.min(rb.inner, rb.outer);
+                        int outer = Math.max(rb.inner, rb.outer);
+                        if (inner <= radius)
+                            System.err.println("ScenarioLoader: ring band inner=" + rb.inner
+                                    + " overlaps the giant body (radius " + radius + ") at " + setup.hex
+                                    + " — body hexes stay no-entry, ring hexes only where inner > radius");
+                        bands.add(new int[] { inner, outer });
+                    }
+                    t.setRingBands(bands);
+                }
+            }
             result.add(t);
         }
         return result;

@@ -79,6 +79,14 @@ public class ScenarioSpec {
         public String name;     // optional display name (mainly for planets)
         public int    radius = 0; // GAS_GIANT footprint radius (diameter 2r+1); ignored for other types
         public String tokenArt; // optional counter art path under /tokens/ (overrides the per-type default)
+        public List<RingBand> rings; // GAS_GIANT planetary rings (P2.223); ignored for other types
+    }
+
+    /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class RingBand {
+        public int inner;
+        public int outer;
     }
 
     // -------------------------------------------------------------------------

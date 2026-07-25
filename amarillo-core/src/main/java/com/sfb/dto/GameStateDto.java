@@ -56,6 +56,7 @@ public class GameStateDto {
         public String terrainType; // "ASTEROID" | "PLANET" | "GAS_GIANT"
         public int radius;         // footprint radius in hexes (0 = single hex)
         public String tokenArt;    // optional per-instance counter art (null → per-type default)
+        public int[][] rings;      // planetary ring bands as {inner, outer} hex-distance pairs (P2.223)
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -1223,6 +1224,8 @@ public class GameStateDto {
         dto.terrainType = t.getTerrainType().name();
         dto.radius = t.getRadius();
         dto.tokenArt = t.getTokenArt();
+        if (!t.getRingBands().isEmpty())
+            dto.rings = t.getRingBands().toArray(new int[0][]);
         return dto;
     }
 

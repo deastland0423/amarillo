@@ -206,8 +206,7 @@ class ShipMover {
             prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " moved forward");
-            if (game.isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship));
+            log.append(applyTerrainCollision(ship));
             List<String> collisions = seekerMover.checkSeekerCollisions(ship);
             if (!collisions.isEmpty())
                 log.append("\n").append(String.join("\n", collisions));
@@ -226,8 +225,7 @@ class ShipMover {
                     s.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());
                     prevLocations.putIfAbsent(s, sPrev);
                     log.append("; ").append(s.getName()).append(" towed");
-                    if (game.isAsteroidHex(s.getLocation()))
-                        log.append("\n").append(applyAsteroidCollision(s));
+                    log.append(applyTerrainCollision(s));
                     List<String> sColl = seekerMover.checkSeekerCollisions(s);
                     if (!sColl.isEmpty())
                         log.append("\n").append(String.join("\n", sColl));
@@ -309,8 +307,7 @@ class ShipMover {
             s.dragSideslipInDirection(dir, game.getMapCols(), game.getMapRows());
             prevLocations.putIfAbsent(s, sPrev);
             log.append("; ").append(s.getName()).append(" towed");
-            if (game.isAsteroidHex(s.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(s));
+            log.append(applyTerrainCollision(s));
         }
     }
 
@@ -323,8 +320,7 @@ class ShipMover {
             prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " turned left");
-            if (game.isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship));
+            log.append(applyTerrainCollision(ship));
             // A turn displaces one hex in the NEW facing — the rigid link follows
             int turnDir = MapUtils.getTrueBearing(1, ship.getFacing());
             dragLinkedShips(ship, turnDir, log);
@@ -343,8 +339,7 @@ class ShipMover {
             prevLocations.putIfAbsent(ship, prevLoc);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " turned right");
-            if (game.isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship));
+            log.append(applyTerrainCollision(ship));
             // A turn displaces one hex in the NEW facing — the rigid link follows
             int turnDir = MapUtils.getTrueBearing(1, ship.getFacing());
             dragLinkedShips(ship, turnDir, log);
@@ -363,8 +358,7 @@ class ShipMover {
             prevLocations.putIfAbsent(ship, prevLocSl);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " sideslipped left");
-            if (game.isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship));
+            log.append(applyTerrainCollision(ship));
             // G7.36: drag tractor-linked ships in the same sideslip direction
             int slDir = MapUtils.getTrueBearing(21, ship.getFacing());
             dragLinkedShips(ship, slDir, log);
@@ -384,8 +378,7 @@ class ShipMover {
             prevLocations.putIfAbsent(ship, prevLocSr);
             movedThisImpulse.add(ship);
             StringBuilder log = new StringBuilder(ship.getName() + " sideslipped right");
-            if (game.isAsteroidHex(ship.getLocation()))
-                log.append("\n").append(applyAsteroidCollision(ship));
+            log.append(applyTerrainCollision(ship));
             // G7.36: drag tractor-linked ships in the same sideslip direction
             int srDir = MapUtils.getTrueBearing(5, ship.getFacing());
             dragLinkedShips(ship, srDir, log);
@@ -616,12 +609,20 @@ class ShipMover {
     }
 
     /**
-     * Roll asteroid collision damage and apply to the appropriate shield (P3.2).
-     * Shield hit is determined by the direction the ship entered the hex
-     * (entryDirection relative to facing → shield 1-6).
-     * Returns a log line describing the result.
+     * Roll terrain collision damage for a ship entering an asteroid (P3.2) or
+     * planetary ring (P2.223) hex and apply it to the entry-facing shield.
+     * Returns a newline-prefixed log line, or "" when the hex is neither (so
+     * call sites can append unconditionally). Asteroid takes precedence if a
+     * hex is somehow both.
      */
-    private String applyAsteroidCollision(Ship ship) {
+    private String applyTerrainCollision(Ship ship) {
+        boolean asteroid = game.isAsteroidHex(ship.getLocation());
+        boolean ring = !asteroid && game.isRingHex(ship.getLocation());
+        if (!asteroid && !ring)
+            return "";
+        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
+        String terrainName = asteroid ? "asteroid" : "ring";
+
         int entryDir = ship.getEntryDirection();
         int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
         int shieldNum = (relBearing - 1) / 4 + 1;
@@ -629,8 +630,8 @@ class ShipMover {
         int speed = ship.getSpeed();
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int roll = new DiceRoller().rollOneDie();
-        int damage = Game.ASTEROID_DAMAGE[roll - 1][bracket];
-        String base = "  " + ship.getName() + " enters asteroid hex"
+        int damage = table[roll - 1][bracket];
+        String base = "\n  " + ship.getName() + " enters " + terrainName + " hex"
                 + " (speed " + speed + ", die " + roll + ", shield " + shieldNum + ")";
         if (damage == 0)
             return base + " — no damage";

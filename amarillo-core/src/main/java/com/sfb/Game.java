@@ -100,6 +100,7 @@ public class Game {
     private final Set<Location> planetHexes = new HashSet<>();          // full footprint — no-entry
     private final Set<Location> planetSurfaceHexes = new HashSet<>();    // blocks LOS (P2.321)
     private final Set<Location> planetAtmosphereHexes = new HashSet<>(); // large-giant outer ring (P2.222)
+    private final Set<Location> ringHexes = new HashSet<>();             // planetary rings — enterable (P2.223)
 
     static final int[][] ASTEROID_DAMAGE = {
             // Speed bracket: 0=1-6, 1=7-14, 2=15-25, 3=26+ (P3.2)
@@ -109,6 +110,17 @@ public class Game {
             { 0, 2, 6, 15 }, // die 4
             { 0, 6, 10, 20 }, // die 5
             { 0, 10, 15, 30 }, // die 6
+    };
+
+    static final int[][] RING_DAMAGE = {
+            // Ring Material Damage Table (P2.223) — lighter than asteroids at
+            // low speed, comparable at high. Speed brackets as ASTEROID_DAMAGE.
+            { 0, 0, 0, 0 },  // die 1
+            { 0, 0, 0, 2 },  // die 2
+            { 0, 0, 1, 5 },  // die 3
+            { 0, 1, 3, 7 },  // die 4
+            { 0, 3, 5, 10 }, // die 5
+            { 0, 5, 7, 15 }, // die 6
     };
     private final Set<Ship> movedThisImpulse = new HashSet<>();
     // Pre-move location of each unit that moved this impulse — used by
@@ -216,6 +228,7 @@ public class Game {
         planetHexes.clear();
         planetSurfaceHexes.clear();
         planetAtmosphereHexes.clear();
+        ringHexes.clear();
 
         for (Terrain t : ScenarioLoader.loadTerrain(scenario))
             addTerrain(t);
@@ -1684,6 +1697,21 @@ public class Game {
                         planetSurfaceHexes.add(hex);
                 }
             }
+            // Planetary rings (P2.223): enterable asteroid-like hexes in each
+            // banded distance range. Kept OUT of planetHexes so ships fly
+            // through them (taking ring-material collision, P2.223); any hex
+            // that lands inside the body footprint is skipped — the body wins.
+            for (int[] band : t.getRingBands()) {
+                int inner = band[0], outer = band[1];
+                for (int col = c.getX() - outer - 1; col <= c.getX() + outer + 1; col++) {
+                    for (int row = c.getY() - outer - 1; row <= c.getY() + outer + 1; row++) {
+                        Location hex = new Location(col, row);
+                        int dist = com.sfb.utilities.MapUtils.getRange(c, hex);
+                        if (dist >= inner && dist <= outer && !planetHexes.contains(hex))
+                            ringHexes.add(hex);
+                    }
+                }
+            }
         }
     }
 
@@ -1693,6 +1721,11 @@ public class Game {
 
     public boolean isAsteroidHex(Location loc) {
         return loc != null && asteroidHexes.contains(loc);
+    }
+
+    /** Planetary ring hex (P2.223) — enterable, asteroid-like collision + ECM. */
+    public boolean isRingHex(Location loc) {
+        return loc != null && ringHexes.contains(loc);
     }
 
     public boolean isPlanetHex(Location loc) {

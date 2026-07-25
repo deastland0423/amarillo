@@ -290,6 +290,7 @@ export interface TerrainObject extends MapObjectBase {
   terrainType: 'ASTEROID' | 'PLANET' | 'GAS_GIANT';
   radius?:     number;   // footprint radius in hexes (0/absent = single hex)
   tokenArt?:   string;   // per-instance counter art path (null/absent → per-type default)
+  rings?:      number[][]; // planetary ring bands as [inner, outer] hex-distance pairs (P2.223)
 }
 
 export interface WildWeaselObject extends MapObjectBase {

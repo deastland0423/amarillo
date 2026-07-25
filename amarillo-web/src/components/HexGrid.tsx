@@ -436,6 +436,24 @@ function drawObjects(
         ctx.beginPath();
         ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
         ctx.stroke();
+        // Planetary rings (P2.223): translucent annular bands drawn over the
+        // body. A band [inner, outer] spans hex-distances inner-0.5 .. outer+0.5.
+        for (const band of obj.rings ?? []) {
+          const innerPx = SQRT3 * SIZE * (band[0] - 0.5);
+          const outerPx = SQRT3 * SIZE * (band[1] + 0.5);
+          ctx.beginPath();
+          ctx.arc(cx, cy, outerPx, 0, 2 * Math.PI, false);
+          ctx.arc(cx, cy, innerPx, 0, 2 * Math.PI, true); // reverse → donut hole
+          ctx.fillStyle = 'rgba(201, 149, 92, 0.22)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(201, 149, 92, 0.5)';
+          ctx.lineWidth   = 1;
+          for (const rr of [innerPx, outerPx]) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, rr, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+        }
         ctx.fillStyle    = '#ffffff';
         ctx.font         = 'bold 11px sans-serif';
         ctx.textAlign    = 'center';

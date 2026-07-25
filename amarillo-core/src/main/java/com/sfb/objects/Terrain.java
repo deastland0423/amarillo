@@ -15,6 +15,10 @@ public class Terrain extends Marker {
     // Optional per-instance counter art (path under /tokens/). Null falls back
     // to a per-type default (planet1.png for PLANET) or procedural rendering.
     private String tokenArt;
+    // Planetary rings (P2.223): annular bands as {innerDist, outerDist} hex
+    // distances from center. Enterable asteroid-like hexes (NOT the no-entry
+    // atmosphere ring). Gas giants only. Empty for everything else.
+    private java.util.List<int[]> ringBands = java.util.List.of();
 
     public Terrain(TerrainType terrainType, int col, int row) {
         this(terrainType, col, row, 0);
@@ -33,6 +37,13 @@ public class Terrain extends Marker {
     public String getTokenArt() { return tokenArt; }
 
     public void setTokenArt(String tokenArt) { this.tokenArt = tokenArt; }
+
+    /** Ring bands as {innerDist, outerDist} hex-distance pairs from center (P2.223). */
+    public java.util.List<int[]> getRingBands() { return ringBands; }
+
+    public void setRingBands(java.util.List<int[]> ringBands) {
+        this.ringBands = ringBands != null ? ringBands : java.util.List.of();
+    }
 
     /** P2.222: gas giants 7+ hexes across have a pure-atmosphere outer ring. */
     public boolean isLargeGasGiant() {
