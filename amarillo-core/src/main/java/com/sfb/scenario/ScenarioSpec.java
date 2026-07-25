@@ -78,6 +78,7 @@ public class ScenarioSpec {
         public String hex;      // CCRR notation, e.g. "0515" — the center hex
         public String name;     // optional display name (mainly for planets)
         public int    radius = 0; // GAS_GIANT footprint radius (diameter 2r+1); ignored for other types
+        public String tokenArt; // optional counter art path under /tokens/ (overrides the per-type default)
     }
 
     // -------------------------------------------------------------------------

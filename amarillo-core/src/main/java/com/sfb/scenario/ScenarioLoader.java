@@ -100,6 +100,7 @@ public class ScenarioLoader {
             }
             Terrain t = new Terrain(type, loc.getX(), loc.getY(), radius);
             t.setName(setup.name != null ? setup.name : setup.type + "-" + setup.hex);
+            t.setTokenArt(setup.tokenArt);
             result.add(t);
         }
         return result;

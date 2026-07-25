@@ -402,12 +402,17 @@ function drawObjects(
         const fr = obj.radius ?? 0;
         const pr = fr === 0 ? 30 : SQRT3 * SIZE * (fr + 0.5);
         const isGiant = obj.terrainType === 'GAS_GIANT';
-        if (planetImage && !isGiant) {
+        // Counter-art resolution chain: instance tokenArt → per-type default
+        // (planet1.png for PLANET; giants have no default) → procedural disc.
+        const terrainImg = obj.tokenArt
+          ? loadTokenImage(obj.tokenArt, onImageLoad)
+          : (isGiant ? null : planetImage);
+        if (terrainImg) {
           ctx.save();
           ctx.beginPath();
           ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
           ctx.clip();
-          ctx.drawImage(planetImage, cx - pr, cy - pr, pr * 2, pr * 2);
+          ctx.drawImage(terrainImg, cx - pr, cy - pr, pr * 2, pr * 2);
           ctx.restore();
         } else {
           ctx.fillStyle = isGiant ? '#a5713f' : '#2d6a8a';
