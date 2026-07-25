@@ -553,26 +553,24 @@ class SeekerMover {
      * removes the drone from play if hull reaches 0.
      */
     private String applyTerrainCollisionToDrone(Drone drone) {
-        boolean asteroid = game.isAsteroidHex(drone.getLocation());
-        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
-        String terrainName = asteroid ? "asteroid" : "ring";
-        int speed = drone.getSpeed();
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll = new DiceRoller().rollOneDie();
-        int damage = table[roll - 1][bracket];
-        String base = "  Drone (" + drone.getDroneType() + ") enters " + terrainName + " hex"
-                + " (speed " + speed + ", die " + roll + ")";
-        if (damage == 0)
+        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
+        Game.TerrainHit hit = game.rollTerrainCollision(drone.getLocation(), drone.getSpeed(),
+                false, null);
+        if (hit == null)
+            return "";
+        String base = "  Drone (" + drone.getDroneType() + ") enters " + hit.terrainName + " hex"
+                + " (speed " + drone.getSpeed() + ", die " + hit.die + ")";
+        if (hit.damage == 0)
             return base + " — no damage";
-        int remaining = drone.getHull() - damage;
+        int remaining = drone.getHull() - hit.damage;
         drone.setHull(Math.max(0, remaining));
         if (drone.getHull() <= 0) {
             seekers.remove(drone);
             if (drone.getController() instanceof DroneController)
                 ((DroneController) drone.getController()).releaseControl(drone);
-            return base + " — " + damage + " hull damage — destroyed";
+            return base + " — " + hit.damage + " hull damage — destroyed";
         }
-        return base + " — " + damage + " hull damage — " + drone.getHull() + " remaining";
+        return base + " — " + hit.damage + " hull damage — " + drone.getHull() + " remaining";
     }
 
     /**
@@ -582,24 +580,22 @@ class SeekerMover {
      * removes the torpedo if strength reaches 0.
      */
     private String applyTerrainCollisionToPlasma(PlasmaTorpedo torp) {
-        boolean asteroid = game.isAsteroidHex(torp.getLocation());
-        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
-        String terrainName = asteroid ? "asteroid" : "ring";
-        int speed = torp.getSpeed();
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll = new DiceRoller().rollOneDie();
-        int damage = table[roll - 1][bracket];
-        String base = "  Plasma-" + torp.getPlasmaType() + " enters " + terrainName + " hex"
-                + " (speed " + speed + ", die " + roll + ")";
-        if (damage == 0)
+        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
+        Game.TerrainHit hit = game.rollTerrainCollision(torp.getLocation(), torp.getSpeed(),
+                false, null);
+        if (hit == null)
+            return "";
+        String base = "  Plasma-" + torp.getPlasmaType() + " enters " + hit.terrainName + " hex"
+                + " (speed " + torp.getSpeed() + ", die " + hit.die + ")";
+        if (hit.damage == 0)
             return base + " — no damage";
         int before = torp.getCurrentStrength();
-        torp.applyPhaserDamage(damage);
+        torp.applyPhaserDamage(hit.damage);
         int after = torp.getCurrentStrength();
         if (after <= 0) {
             seekers.remove(torp);
-            return base + " — " + damage + " phaser pts — destroyed";
+            return base + " — " + hit.damage + " phaser pts — destroyed";
         }
-        return base + " — " + damage + " phaser pts — strength " + before + " → " + after;
+        return base + " — " + hit.damage + " phaser pts — strength " + before + " → " + after;
     }
 }

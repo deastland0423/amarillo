@@ -1728,6 +1728,48 @@ public class Game {
         return loc != null && ringHexes.contains(loc);
     }
 
+    /**
+     * Result of a terrain-collision roll: the terrain kind, the die, and the
+     * damage points. The caller applies the damage in its entity-specific way
+     * (ship shield / drone hull / plasma strength / shuttle hull).
+     */
+    static final class TerrainHit {
+        final String terrainName;
+        final int die;
+        final int damage;
+        TerrainHit(String terrainName, int die, int damage) {
+            this.terrainName = terrainName;
+            this.die = die;
+            this.damage = damage;
+        }
+    }
+
+    /**
+     * One shared collision roll for anything entering an asteroid (P3.2) or
+     * planetary ring (P2.223) hex — ships, seeking weapons, and shuttles all
+     * route through here. Picks the table by hex kind, brackets the speed,
+     * rolls, and (future) applies the C11.21 nimble / G21 crew die-shift.
+     * Returns null when {@code loc} is neither asteroid nor ring.
+     *
+     * @param nimble true for nimble ships and ALL shuttles/fighters (C11 note)
+     * @param crew   crew quality for the die-shift, or null when the unit has none
+     */
+    TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
+            com.sfb.systemgroups.Crew.CrewQuality crew) {
+        boolean asteroid = isAsteroidHex(loc);
+        boolean ring = !asteroid && isRingHex(loc);
+        if (!asteroid && !ring)
+            return null;
+        int[][] table = asteroid ? ASTEROID_DAMAGE : RING_DAMAGE;
+        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
+        int die = new com.sfb.utilities.DiceRoller().rollOneDie();
+        // TODO die-shift: nimble ships/shuttles (C11.21) and outstanding crew
+        // shift down, poor crew up, EM adds to speed (P3.222). Magnitudes
+        // pending the rulebook text; params are plumbed so wiring is drop-in.
+        int damage = table[die - 1][bracket];
+        return new TerrainHit(asteroid ? "asteroid" : "ring", die, damage);
+    }
+
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
     }

@@ -13,7 +13,6 @@ import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.properties.Location;
-import com.sfb.utilities.DiceRoller;
 import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
 
@@ -616,26 +615,18 @@ class ShipMover {
      * hex is somehow both.
      */
     private String applyTerrainCollision(Ship ship) {
-        boolean asteroid = game.isAsteroidHex(ship.getLocation());
-        boolean ring = !asteroid && game.isRingHex(ship.getLocation());
-        if (!asteroid && !ring)
+        Game.TerrainHit hit = game.rollTerrainCollision(ship.getLocation(), ship.getSpeed(),
+                ship.isNimble(), ship.getCrew().getCrewQuality());
+        if (hit == null)
             return "";
-        int[][] table = asteroid ? Game.ASTEROID_DAMAGE : Game.RING_DAMAGE;
-        String terrainName = asteroid ? "asteroid" : "ring";
-
         int entryDir = ship.getEntryDirection();
         int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
         int shieldNum = (relBearing - 1) / 4 + 1;
-
-        int speed = ship.getSpeed();
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int roll = new DiceRoller().rollOneDie();
-        int damage = table[roll - 1][bracket];
-        String base = "\n  " + ship.getName() + " enters " + terrainName + " hex"
-                + " (speed " + speed + ", die " + roll + ", shield " + shieldNum + ")";
-        if (damage == 0)
+        String base = "\n  " + ship.getName() + " enters " + hit.terrainName + " hex"
+                + " (speed " + ship.getSpeed() + ", die " + hit.die + ", shield " + shieldNum + ")";
+        if (hit.damage == 0)
             return base + " — no damage";
-        game.markShieldDamage(ship, shieldNum, damage);
-        return base + " — " + damage + " to shield " + shieldNum;
+        game.markShieldDamage(ship, shieldNum, hit.damage);
+        return base + " — " + hit.damage + " to shield " + shieldNum;
     }
 }
