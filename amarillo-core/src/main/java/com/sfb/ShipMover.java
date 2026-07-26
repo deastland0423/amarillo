@@ -623,7 +623,8 @@ class ShipMover {
         int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
         int shieldNum = (relBearing - 1) / 4 + 1;
         String base = "\n  " + ship.getName() + " enters " + hit.terrainName + " hex"
-                + " (speed " + ship.getSpeed() + ", die " + hit.die + ", shield " + shieldNum + ")";
+                + " (speed " + ship.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "")
+                + ", shield " + shieldNum + ")";
         if (hit.damage == 0)
             return base + " — no damage";
         game.markShieldDamage(ship, shieldNum, hit.damage);

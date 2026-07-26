@@ -4,6 +4,7 @@ import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
+import com.sfb.systemgroups.Crew.CrewQuality;
 import com.sfb.properties.Location;
 import com.sfb.properties.PlasmaType;
 import com.sfb.properties.TerrainType;
@@ -95,6 +96,40 @@ public class RingTerrainTest {
     public void noRings_whenBandsEmpty() {
         game.addTerrain(new Terrain(TerrainType.GAS_GIANT, 20, 15, 3));
         assertEquals(0, countHexes(game::isRingHex));
+    }
+
+    // -------------------------------------------------------------------------
+    // C11.21 nimble collision die-shift (with C11.33 poor-crew negation)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void nimble_subtractsOneFromCollisionDie() {
+        assertEquals("C11.21: nimble −1", 4, Game.nimbleAdjustedDie(5, true, CrewQuality.NORMAL));
+        assertEquals("non-nimble unchanged", 5, Game.nimbleAdjustedDie(5, false, CrewQuality.NORMAL));
+    }
+
+    @Test
+    public void nimbleShift_floorsAtOne() {
+        assertEquals("die 1 can't go below 1", 1, Game.nimbleAdjustedDie(1, true, CrewQuality.NORMAL));
+    }
+
+    @Test
+    public void poorCrew_negatesNimbleBenefit() {
+        // C11.33: a nimble ship with a poor crew gets no nimble benefit
+        assertEquals(5, Game.nimbleAdjustedDie(5, true, CrewQuality.POOR));
+    }
+
+    @Test
+    public void outstandingCrew_keepsNimbleShift() {
+        // C11.33's outstanding-crew clause is about retaining nimble when
+        // crippled, not a further shift — the −1 still applies normally
+        assertEquals(4, Game.nimbleAdjustedDie(5, true, CrewQuality.OUTSTANDING));
+    }
+
+    @Test
+    public void nullCrew_shuttleStyle_keepsNimbleShift() {
+        // Shuttles/fighters are always nimble (C11 note) and pass no crew
+        assertEquals(4, Game.nimbleAdjustedDie(5, true, null));
     }
 
     @Test

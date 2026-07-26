@@ -1735,24 +1735,38 @@ public class Game {
      */
     static final class TerrainHit {
         final String terrainName;
-        final int die;
+        final int die;          // the raw die rolled (before the nimble shift)
+        final boolean nimble;   // whether the C11.21 nimble −1 was applied
         final int damage;
-        TerrainHit(String terrainName, int die, int damage) {
+        TerrainHit(String terrainName, int die, boolean nimble, int damage) {
             this.terrainName = terrainName;
             this.die = die;
+            this.nimble = nimble;
             this.damage = damage;
         }
+    }
+
+    /**
+     * C11.21: nimble units subtract 1 from the collision die (lower die = less
+     * damage on the tables), for both asteroid (P3.221) and ring (P2.223).
+     * C11.33: a poor crew negates a ship's nimble benefit. Not yet modeled:
+     * C11.31 loss-when-crippled/breakdown/warp, and the separate G21 crew /
+     * P3.222 EM shifts. Package-private for direct unit testing.
+     */
+    static int nimbleAdjustedDie(int die, boolean nimble, com.sfb.systemgroups.Crew.CrewQuality crew) {
+        boolean effective = nimble && crew != com.sfb.systemgroups.Crew.CrewQuality.POOR;
+        return effective ? Math.max(1, die - 1) : die;
     }
 
     /**
      * One shared collision roll for anything entering an asteroid (P3.2) or
      * planetary ring (P2.223) hex — ships, seeking weapons, and shuttles all
      * route through here. Picks the table by hex kind, brackets the speed,
-     * rolls, and (future) applies the C11.21 nimble / G21 crew die-shift.
-     * Returns null when {@code loc} is neither asteroid nor ring.
+     * rolls, and applies the C11.21 nimble die-shift. Returns null when
+     * {@code loc} is neither asteroid nor ring.
      *
      * @param nimble true for nimble ships and ALL shuttles/fighters (C11 note)
-     * @param crew   crew quality for the die-shift, or null when the unit has none
+     * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
     TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
             com.sfb.systemgroups.Crew.CrewQuality crew) {
@@ -1762,12 +1776,10 @@ public class Game {
             return null;
         int[][] table = asteroid ? ASTEROID_DAMAGE : RING_DAMAGE;
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
-        int die = new com.sfb.utilities.DiceRoller().rollOneDie();
-        // TODO die-shift: nimble ships/shuttles (C11.21) and outstanding crew
-        // shift down, poor crew up, EM adds to speed (P3.222). Magnitudes
-        // pending the rulebook text; params are plumbed so wiring is drop-in.
+        int rawDie = new com.sfb.utilities.DiceRoller().rollOneDie();
+        int die = nimbleAdjustedDie(rawDie, nimble, crew);
         int damage = table[die - 1][bracket];
-        return new TerrainHit(asteroid ? "asteroid" : "ring", die, damage);
+        return new TerrainHit(asteroid ? "asteroid" : "ring", rawDie, die != rawDie, damage);
     }
 
     public boolean isPlanetHex(Location loc) {

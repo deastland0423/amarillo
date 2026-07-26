@@ -559,7 +559,7 @@ class SeekerMover {
         if (hit == null)
             return "";
         String base = "  Drone (" + drone.getDroneType() + ") enters " + hit.terrainName + " hex"
-                + " (speed " + drone.getSpeed() + ", die " + hit.die + ")";
+                + " (speed " + drone.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
         if (hit.damage == 0)
             return base + " — no damage";
         int remaining = drone.getHull() - hit.damage;
@@ -586,7 +586,7 @@ class SeekerMover {
         if (hit == null)
             return "";
         String base = "  Plasma-" + torp.getPlasmaType() + " enters " + hit.terrainName + " hex"
-                + " (speed " + torp.getSpeed() + ", die " + hit.die + ")";
+                + " (speed " + torp.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
         if (hit.damage == 0)
             return base + " — no damage";
         int before = torp.getCurrentStrength();
