@@ -85,17 +85,23 @@ class DisengagementResolver {
         String exitDir = String.valueOf((char) ('A' + ((ship.getFacing() - 1) / 4)));
         tractorResolver.releaseAllLinksInvolving(ship); // G7.28
         if (badDirs.contains(exitDir)) {
+            // Destroyed on the way out — objectives drop (before location clears)
+            List<String> dropped = game.dropObjectivesFrom(ship, false);
             ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
             ship.setLocation(null);
             destroyedShips.add(ship);
             ships.remove(ship);
             game.refreshGameEnd();
-            return ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir
+            String msg = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir
                     + " (destruction zone)";
+            return dropped.isEmpty() ? msg : msg + "\n" + String.join("\n", dropped);
         }
+        // Safe exit — any carried objectives are secured to this player (permanent)
+        List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
         ship.setLocation(null);
-        return ship.getName() + " has disengaged by acceleration (C7.1)";
+        String msg = ship.getName() + " has disengaged by acceleration (C7.1)";
+        return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
     }
 
     // -------------------------------------------------------------------------
@@ -132,9 +138,11 @@ class DisengagementResolver {
     ActionResult disengageBySeparation(Ship ship) {
         if (!canDisengageBySeparation(ship))
             return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
+        List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
         ship.setLocation(null);
-        return ActionResult.ok(ship.getName() + " has disengaged by separation (C7.2)");
+        String msg = ship.getName() + " has disengaged by separation (C7.2)";
+        return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
     }
 
     // -------------------------------------------------------------------------

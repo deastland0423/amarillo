@@ -1756,6 +1756,8 @@ public class Game {
                 .findFirst().orElse(null);
         if (obj == null)
             return ActionResult.fail("Objective not found: " + objectiveName);
+        if (obj.isSecured())
+            return ActionResult.fail(objectiveName + " has been carried off the map — out of play");
         if (obj.isCarried())
             return ActionResult.fail(objectiveName + " is already aboard "
                     + obj.getCarrier().getName());
@@ -1776,6 +1778,27 @@ public class Game {
         obj.setCarrier(ship);
         return ActionResult.ok(ship.getName() + " retrieves " + objectiveName
                 + " by " + method.toString().toLowerCase());
+    }
+
+    /**
+     * A ship carries its objectives off a valid map edge — ownership becomes
+     * permanent (SH35.5 "on board at disengagement"). Each carried objective is
+     * secured to the ship's owner and taken out of play (no carrier, no map
+     * location). One-way; secured objectives no longer change hands. Returns
+     * log lines.
+     */
+    List<String> secureObjectivesFor(Ship ship) {
+        List<String> log = new ArrayList<>();
+        for (com.sfb.objects.Objective o : objectives) {
+            if (o.getCarrier() != ship)
+                continue;
+            o.setSecuredBy(ship.getOwner());
+            o.setCarrier(null);
+            o.setLocation(null);
+            String team = ship.getOwner() != null ? ship.getOwner().getTeamName() : ship.getName();
+            log.add(o.getName() + " secured by " + team + " — carried off the map");
+        }
+        return log;
     }
 
     /**

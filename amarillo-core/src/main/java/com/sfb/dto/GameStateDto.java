@@ -63,6 +63,8 @@ public class GameStateDto {
     public static class ObjectiveDto extends MapObjectDto {
         public String carrierName;           // null when free on the map; else the carrying ship
         public java.util.List<String> retrieval; // permitted retrieval methods
+        public String ownerTeam;             // current controlling team (secured owner, or carrier's), else null
+        public boolean secured;              // carried off a valid edge — permanent, out of play
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -1247,6 +1249,9 @@ public class GameStateDto {
         dto.carrierName = o.getCarrier() != null ? o.getCarrier().getName() : null;
         dto.retrieval = o.getAllowedRetrieval().stream().map(Enum::name)
                 .collect(java.util.stream.Collectors.toList());
+        dto.secured = o.isSecured();
+        com.sfb.Player owner = o.getCurrentOwner();
+        dto.ownerTeam = owner != null ? owner.getTeamName() : null;
         return dto;
     }
 
