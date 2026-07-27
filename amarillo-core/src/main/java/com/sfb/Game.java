@@ -25,6 +25,7 @@ import com.sfb.properties.TerrainType;
 import com.sfb.systemgroups.Energy;
 import com.sfb.properties.Faction;
 import com.sfb.properties.Location;
+import com.sfb.properties.RetrievalMethod;
 import com.sfb.properties.SystemTarget;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
@@ -96,6 +97,7 @@ public class Game {
                                                                                              // the map
     private final List<SpaceMine> mines = new ArrayList<>();
     private final List<Terrain> terrain = new ArrayList<>();
+    private final List<com.sfb.objects.Objective> objectives = new ArrayList<>(); // capturable scenario objects
     private final Set<Location> asteroidHexes = new HashSet<>();
     private final Set<Location> planetHexes = new HashSet<>();          // full footprint — no-entry
     private final Set<Location> planetSurfaceHexes = new HashSet<>();    // blocks LOS (P2.321)
@@ -224,6 +226,7 @@ public class Game {
         activeShuttles.clear();
         mines.clear();
         terrain.clear();
+        objectives.clear();
         asteroidHexes.clear();
         planetHexes.clear();
         planetSurfaceHexes.clear();
@@ -232,6 +235,8 @@ public class Game {
 
         for (Terrain t : ScenarioLoader.loadTerrain(scenario))
             addTerrain(t);
+        for (com.sfb.objects.Objective o : ScenarioLoader.loadObjectives(scenario))
+            addObjective(o);
 
         for (int i = 0; i < scenario.sides.size(); i++) {
             ScenarioSpec.SideSpec side = scenario.sides.get(i);
@@ -1485,6 +1490,8 @@ public class Game {
         ships.removeIf(s -> {
             if (s.isDestroyed()) {
                 tractorResolver.releaseAllLinksInvolving(s);
+                // Carried objectives drop free or are annihilated (SH47.475/SH35.454)
+                lastInternalDamageLog.addAll(dropObjectivesFrom(s, false));
                 lastInternalDamageLog.add(s.getName() + " has been destroyed and removed from play.");
                 destroyedShips.add(s);
                 return true;
@@ -1720,6 +1727,78 @@ public class Game {
 
     public List<Terrain> getTerrain() {
         return terrain;
+    }
+
+    public List<com.sfb.objects.Objective> getObjectives() {
+        return objectives;
+    }
+
+    public void addObjective(com.sfb.objects.Objective o) {
+        objectives.add(o);
+    }
+
+    /**
+     * Bring a free objective aboard a ship (visible-capture MVP). The objective
+     * must permit the retrieval method, and the ship must satisfy the same
+     * preconditions as the underlying system: lock-on (D6.124/G7.412) and range
+     * (transporter ≤5, tractor ≤3). On success the objective becomes CARRIED.
+     * (Method-specific extras — shields-down, the SH47 multi-turn study, the
+     * SH35 J1.621 shuttle-rotation tractor — are deferred refinements.)
+     */
+    public ActionResult pickUpObjective(Ship ship, String objectiveName, RetrievalMethod method) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Objectives can only be retrieved during the Activity phase");
+        ActionResult cloakBlock = cloakActionBlock(ship);
+        if (cloakBlock != null)
+            return cloakBlock;
+        com.sfb.objects.Objective obj = objectives.stream()
+                .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
+                .findFirst().orElse(null);
+        if (obj == null)
+            return ActionResult.fail("Objective not found: " + objectiveName);
+        if (obj.isCarried())
+            return ActionResult.fail(objectiveName + " is already aboard "
+                    + obj.getCarrier().getName());
+        if (!obj.allows(method))
+            return ActionResult.fail(objectiveName + " cannot be retrieved by " + method
+                    + " (allowed: " + obj.getAllowedRetrieval() + ")");
+        int range = com.sfb.utilities.MapUtils.getRange(ship.getLocation(), obj.getLocation());
+        int maxRange = method == RetrievalMethod.TRACTOR ? 3 : 5;
+        if (range > maxRange)
+            return ActionResult.fail(objectiveName + " is out of " + method + " range ("
+                    + range + " hexes, max " + maxRange + ")");
+        // Lock-on to the hex is required for either method. A tractor link is
+        // automatic lock-on (G7.412), but an objective isn't a Unit to link, so
+        // require the ship to have active fire control for the sensor solution.
+        if (!ship.isActiveFireControl())
+            return ActionResult.fail(ship.getName() + " needs active fire control to retrieve "
+                    + objectiveName + " (D6.124/G7.41)");
+        obj.setCarrier(ship);
+        return ActionResult.ok(ship.getName() + " retrieves " + objectiveName
+                + " by " + method.toString().toLowerCase());
+    }
+
+    /**
+     * Drop every objective a departing ship was carrying (destroyed, captured,
+     * or disengaged). Survivors fall free into the ship's last hex (SH47.475);
+     * others are annihilated with it (SH35.454). Returns log lines.
+     */
+    List<String> dropObjectivesFrom(Ship ship, boolean shipSurvivesForCargo) {
+        List<String> log = new ArrayList<>();
+        for (com.sfb.objects.Objective o : new ArrayList<>(objectives)) {
+            if (o.getCarrier() != ship)
+                continue;
+            if (o.isSurvivesCarrierDestruction() && !shipSurvivesForCargo) {
+                o.setCarrier(null);
+                o.setLocation(ship.getLocation());
+                log.add(o.getName() + " drifts free at " + ship.getLocation()
+                        + " (its carrier " + ship.getName() + " is gone)");
+            } else if (!o.isSurvivesCarrierDestruction()) {
+                objectives.remove(o);
+                log.add(o.getName() + " was annihilated with " + ship.getName());
+            }
+        }
+        return log;
     }
 
     public boolean isAsteroidHex(Location loc) {

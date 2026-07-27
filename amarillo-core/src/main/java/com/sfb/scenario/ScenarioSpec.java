@@ -64,6 +64,7 @@ public class ScenarioSpec {
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;
     public List<TerrainSetup>    terrain;          // optional — asteroid/planet hexes
+    public List<ObjectiveSetup>  objectives;       // optional — capturable objects (stasis boxes, canisters, cargo)
     public VictoryConditions     victoryConditions;
     public ShuttleRules          shuttleRules    = new ShuttleRules();
     public CommanderOptions      commanderOptions = new CommanderOptions();
@@ -80,6 +81,15 @@ public class ScenarioSpec {
         public int    radius = 0; // GAS_GIANT footprint radius (diameter 2r+1); ignored for other types
         public String tokenArt; // optional counter art path under /tokens/ (overrides the per-type default)
         public List<RingBand> rings; // GAS_GIANT planetary rings (P2.223); ignored for other types
+    }
+
+    /** A capturable scenario objective (stasis box, probe canister, cargo pod). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ObjectiveSetup {
+        public String       name;                 // display name
+        public String       hex;                  // CCRR starting hex
+        public List<String> retrieval;            // ["TRACTOR"|"TRANSPORTER"|"SHUTTLE_PICKUP"]; default TRANSPORTER
+        public boolean      survivesDestruction = true; // survives its carrier's destruction (SH47.475)
     }
 
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */

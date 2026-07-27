@@ -124,6 +124,32 @@ public class ScenarioLoader {
         return result;
     }
 
+    public static List<com.sfb.objects.Objective> loadObjectives(ScenarioSpec spec) {
+        List<com.sfb.objects.Objective> result = new ArrayList<>();
+        if (spec.objectives == null)
+            return result;
+        for (ScenarioSpec.ObjectiveSetup setup : spec.objectives) {
+            Location loc = parseHex(setup.hex);
+            com.sfb.objects.Objective obj = new com.sfb.objects.Objective(
+                    setup.name != null ? setup.name : "Objective-" + setup.hex, loc.getX(), loc.getY());
+            obj.setSurvivesCarrierDestruction(setup.survivesDestruction);
+            List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
+                    ? setup.retrieval
+                    : List.of("TRANSPORTER"); // sensible default
+            for (String m : methods) {
+                try {
+                    obj.getAllowedRetrieval().add(
+                            com.sfb.properties.RetrievalMethod.valueOf(m.toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    System.err.println("ScenarioLoader: unknown retrieval method '" + m
+                            + "' on objective " + setup.name + " — skipped");
+                }
+            }
+            result.add(obj);
+        }
+        return result;
+    }
+
     /**
      * Parse SFB CCRR hex notation to a Location(column, row).
      * "0515" → Location(5, 15).

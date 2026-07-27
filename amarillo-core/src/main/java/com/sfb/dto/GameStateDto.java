@@ -45,6 +45,7 @@ public class GameStateDto {
             @JsonSubTypes.Type(value = PlasmaTorpedoDto.class, name = "PLASMA"),
             @JsonSubTypes.Type(value = MineDto.class, name = "MINE"),
             @JsonSubTypes.Type(value = TerrainDto.class, name = "TERRAIN"),
+            @JsonSubTypes.Type(value = ObjectiveDto.class, name = "OBJECTIVE"),
             @JsonSubTypes.Type(value = WildWeaselDto.class, name = "WILD_WEASEL"),
     })
     public static abstract class MapObjectDto {
@@ -57,6 +58,11 @@ public class GameStateDto {
         public int radius;         // footprint radius in hexes (0 = single hex)
         public String tokenArt;    // optional per-instance counter art (null → per-type default)
         public int[][] rings;      // planetary ring bands as {inner, outer} hex-distance pairs (P2.223)
+    }
+
+    public static class ObjectiveDto extends MapObjectDto {
+        public String carrierName;           // null when free on the map; else the carrying ship
+        public java.util.List<String> retrieval; // permitted retrieval methods
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -621,6 +627,9 @@ public class GameStateDto {
 
         for (Terrain t : game.getTerrain())
             mapObjects.add(fromTerrain(t));
+
+        for (com.sfb.objects.Objective o : game.getObjectives())
+            mapObjects.add(fromObjective(o));
 
         // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
         // shows the combined incoming total per shield facing. EPT volleys
@@ -1226,6 +1235,18 @@ public class GameStateDto {
         dto.tokenArt = t.getTokenArt();
         if (!t.getRingBands().isEmpty())
             dto.rings = t.getRingBands().toArray(new int[0][]);
+        return dto;
+    }
+
+    private static ObjectiveDto fromObjective(com.sfb.objects.Objective o) {
+        ObjectiveDto dto = new ObjectiveDto();
+        dto.name = o.getName();
+        // Effective location: the carrier's hex when carried, else its own
+        com.sfb.properties.Location loc = o.getEffectiveLocation();
+        dto.location = loc != null ? loc.toString() : null;
+        dto.carrierName = o.getCarrier() != null ? o.getCarrier().getName() : null;
+        dto.retrieval = o.getAllowedRetrieval().stream().map(Enum::name)
+                .collect(java.util.stream.Collectors.toList());
         return dto;
     }
 

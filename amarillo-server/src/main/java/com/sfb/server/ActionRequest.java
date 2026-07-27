@@ -62,6 +62,14 @@ public class ActionRequest {
     public String getTargetName()                  { return targetName; }
     public void   setTargetName(String targetName) { this.targetName = targetName; }
 
+    // PICKUP_OBJECTIVE
+    private String objectiveName;
+    private String retrievalMethod; // "TRACTOR" | "TRANSPORTER" | "SHUTTLE_PICKUP"
+    public String getObjectiveName()                    { return objectiveName; }
+    public void   setObjectiveName(String n)            { this.objectiveName = n; }
+    public String getRetrievalMethod()                  { return retrievalMethod; }
+    public void   setRetrievalMethod(String m)          { this.retrievalMethod = m; }
+
     public List<String> getWeaponNames()                       { return weaponNames; }
     public void         setWeaponNames(List<String> weaponNames) { this.weaponNames = weaponNames; }
 
