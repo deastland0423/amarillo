@@ -293,6 +293,12 @@ export interface TerrainObject extends MapObjectBase {
   rings?:      number[][]; // planetary ring bands as [inner, outer] hex-distance pairs (P2.223)
 }
 
+export interface ObjectiveObject extends MapObjectBase {
+  type:        'OBJECTIVE';
+  carrierName: string | null;   // null = free on the map; else the carrying ship
+  retrieval:   string[];        // permitted retrieval methods
+}
+
 export interface WildWeaselObject extends MapObjectBase {
   type:           'WILD_WEASEL';
   facing:         number;
@@ -310,6 +316,7 @@ export type MapObject =
   | PlasmaObject
   | MineObject
   | TerrainObject
+  | ObjectiveObject
   | WildWeaselObject;
 
 export interface ShipVpRow {

@@ -478,6 +478,24 @@ function drawObjects(
       ctx.stroke();
       continue;
     }
+    if (obj.type === 'OBJECTIVE') {
+      const o = obj as import('../types/gameState').ObjectiveObject;
+      if (o.carrierName) continue; // carried — travels with its ship, not drawn on the map
+      const s = 8;
+      ctx.fillStyle   = '#e0b34a';
+      ctx.strokeStyle = '#8a6d1f';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.rect(cx - s, cy - s, s * 2, s * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle    = '#ffffff';
+      ctx.font         = 'bold 9px sans-serif';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(o.name ?? 'Objective', cx, cy + s + 2);
+      continue;
+    }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
       const shuttle = obj as import('../types/gameState').ShuttleObject;
       const angle   = facingToAngle(shuttle.facing);
