@@ -219,6 +219,35 @@ public class ObjectiveTest {
     }
 
     @Test
+    public void carryingObjectiveOffSafeMapEdge_securesIt() {
+        // fed at (10,1) facing 1 (north) moves off the TOP edge — a safe edge
+        // (no destruction edges configured), carrying an objective → secured
+        Player fed = owner("Federation", Faction.Federation);
+        this.fed.setOwner(fed);
+        this.fed.setLocation(new Location(10, 1));
+        this.fed.setFacing(1);
+        Objective o = addObjective("Box", 10, 1, RetrievalMethod.TRANSPORTER);
+        o.setCarrier(this.fed); // aboard before the run
+
+        game.startTurn();
+        Energy e = new Energy();
+        e.setLifeSupport(this.fed.getLifeSupportCost());
+        e.setFireControl(this.fed.getFireControlCost());
+        e.setActivateShields(this.fed.getActiveShieldCost());
+        e.setWarpMovement(8.0);
+        game.submitAllocation(this.fed, e);
+        for (int guard = 0; guard < 60 && !(game.getCurrentPhase() == Game.ImpulsePhase.MOVEMENT
+                && game.canMoveThisImpulse(this.fed)); guard++)
+            game.advancePhase();
+        assertEquals(Game.ImpulsePhase.MOVEMENT, game.getCurrentPhase());
+
+        Game.ActionResult r = game.moveForward(this.fed);
+        assertTrue(r.getMessage(), r.getMessage().contains("disengaged"));
+        assertTrue("carried off a safe map edge → secured", o.isSecured());
+        assertEquals(fed, o.getSecuredBy());
+    }
+
+    @Test
     public void securedObjective_cannotBePickedUpAgain() {
         Player fed = owner("Federation", Faction.Federation);
         this.fed.setOwner(fed);

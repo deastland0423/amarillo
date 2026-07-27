@@ -173,20 +173,25 @@ class ShipMover {
                     : new HashSet<>();
             tractorResolver.releaseAllLinksInvolving(ship); // G7.28/G7.273
             if (teamEdges.contains(exitEdge)) {
-                // Destruction edge — ship is destroyed, not disengaged
+                // Destruction edge — ship is destroyed, not disengaged.
+                // Carried objectives drop before the location clears.
+                List<String> dropped = game.dropObjectivesFrom(ship, false);
                 ship.setBattleStatus(com.sfb.properties.BattleStatus.DESTROYED);
                 ship.setLocation(null);
                 destroyedShips.add(ship);
                 ships.remove(ship);
                 game.refreshGameEnd();
-                return ActionResult.ok(ship.getName() + " has been destroyed (exited a destruction edge)");
+                String msg = ship.getName() + " has been destroyed (exited a destruction edge)";
+                return ActionResult.ok(dropped.isEmpty() ? msg : msg + "\n" + String.join("\n", dropped));
             }
 
-            // Safe edge — mark as disengaged and remove from play
+            // Safe edge — disengaged; any carried objectives are secured (permanent)
+            List<String> secured = game.secureObjectivesFor(ship);
             ship.setDisengaged(true);
             ship.setLocation(null);
             movedThisImpulse.add(ship);
-            return ActionResult.ok(ship.getName() + " has disengaged (exited the map)");
+            String msg = ship.getName() + " has disengaged (exited the map)";
+            return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
         }
         if (game.isPlanetHex(nextHex)) {
             // Ship collides with planet — destroyed (P2.0)
