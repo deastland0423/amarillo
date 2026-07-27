@@ -1,5 +1,8 @@
 package com.sfb.utilities;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.sfb.objects.Marker;
 import com.sfb.properties.Location;
 
@@ -911,5 +914,66 @@ public class MapUtils {
 			default:
 				return "?";
 		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Hex-line enumeration (for terrain ECM counting along a line of fire)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * The hexes a center-to-center line from {@code a} to {@code b} passes
+	 * through, inclusive of both endpoints — the standard cube hex-line draw
+	 * (one hex per step, so a line grazing a shared edge yields a single hex,
+	 * matching P3.33's "counts only one"). Used to COUNT terrain hexes for the
+	 * ECM magnitude (P3.33/P2.223); this is not a legality test, so unlike the
+	 * exact-integer LosUtils geometry it may use interpolation.
+	 */
+	public static List<Location> hexLine(Location a, Location b) {
+		List<Location> line = new ArrayList<>();
+		if (a == null || b == null)
+			return line;
+		int n = getRange(a, b);
+		int[] ac = toCube(a);
+		int[] bc = toCube(b);
+		Location prev = null;
+		for (int i = 0; i <= n; i++) {
+			double t = n == 0 ? 0.0 : (double) i / n;
+			Location hex = cubeRound(
+					ac[0] + (bc[0] - ac[0]) * t,
+					ac[1] + (bc[1] - ac[1]) * t,
+					ac[2] + (bc[2] - ac[2]) * t);
+			if (prev == null || !hex.equals(prev)) { // guard against duplicate steps
+				line.add(hex);
+				prev = hex;
+			}
+		}
+		return line;
+	}
+
+	// Offset (even-q: even columns shifted down) → cube {x, y, z}.
+	private static int[] toCube(Location h) {
+		int x = h.getX();
+		int z = h.getY() - (h.getX() + (h.getX() & 1)) / 2;
+		return new int[] { x, -x - z, z };
+	}
+
+	private static Location fromCube(int x, int z) {
+		return new Location(x, z + (x + (x & 1)) / 2);
+	}
+
+	private static Location cubeRound(double x, double y, double z) {
+		int rx = (int) Math.round(x);
+		int ry = (int) Math.round(y);
+		int rz = (int) Math.round(z);
+		double dx = Math.abs(rx - x);
+		double dy = Math.abs(ry - y);
+		double dz = Math.abs(rz - z);
+		if (dx > dy && dx > dz)
+			rx = -ry - rz;
+		else if (dy > dz)
+			ry = -rx - rz;
+		else
+			rz = -rx - ry;
+		return fromCube(rx, rz);
 	}
 }

@@ -462,7 +462,10 @@ public class Game {
             return 0;
         if (tractorLinkBetween(actor, target))
             return 0;
-        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus();
+        // P3.33: asteroid/ring hexes between actor and target add natural ECM
+        // (the SH35.452 "ring ECM affects tractor lock-on" case)
+        int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus() + terrainEcm;
         int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
         return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
     }
@@ -1726,6 +1729,28 @@ public class Game {
     /** Planetary ring hex (P2.223) — enterable, asteroid-like collision + ECM. */
     public boolean isRingHex(Location loc) {
         return loc != null && ringHexes.contains(loc);
+    }
+
+    /**
+     * P3.33 / P2.223: natural ECM the target gains from terrain hexes on the
+     * center-to-center line between {@code from} and {@code to} (inclusive of
+     * both endpoint hexes, per P3.33). Each asteroid hex = 1 point, each ring
+     * hex = ½ (the total's ½ fraction rounds up, P2.223). The caller folds this
+     * into the target's ECM; the attacker's ECCM counters it as usual (P3.33).
+     * Applies to fire, seeking weapons, and tractor/transporter — NOT lock-on
+     * (P3.31). Counted in half-points so the round-up is exact.
+     */
+    int terrainEcmAlongLine(Location from, Location to) {
+        if (from == null || to == null || (asteroidHexes.isEmpty() && ringHexes.isEmpty()))
+            return 0;
+        int halves = 0;
+        for (Location hex : com.sfb.utilities.MapUtils.hexLine(from, to)) {
+            if (isAsteroidHex(hex))
+                halves += 2;
+            else if (isRingHex(hex))
+                halves += 1;
+        }
+        return (halves + 1) / 2; // ceil(halves / 2) — P2.223 rounds ½ up
     }
 
     /**

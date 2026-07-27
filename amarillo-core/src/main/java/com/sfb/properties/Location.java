@@ -28,16 +28,11 @@ public class Location {
 	
 	@Override
 	public boolean equals(Object o) {
-		// Cast the object as a Locaiton object
-		Location otherLocation = (Location)o;
-		
-		boolean result = false;
-		
-		if (otherLocation.getX() == this.x && otherLocation.getY() == this.y) {
-			result = true;
-		}
-		
-		return result;
+		// equals(null) and cross-type must return false, not throw (equals contract)
+		if (!(o instanceof Location))
+			return false;
+		Location otherLocation = (Location) o;
+		return otherLocation.getX() == this.x && otherLocation.getY() == this.y;
 	}
 	
 	@Override

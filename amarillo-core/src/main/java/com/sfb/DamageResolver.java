@@ -407,16 +407,21 @@ class DamageResolver {
         boolean uimInUse = activeUim != null;
         java.util.List<com.sfb.weapons.Disruptor> uimFiredDisruptors = new java.util.ArrayList<>();
 
-        // D6.34/D6.35: net ECM = target ECM − attacker ECCM; shift = floor(√net)
+        // D6.34/D6.35: net ECM = target ECM − attacker ECCM; shift = floor(√net).
+        // P3.33: asteroid/ring hexes on the line of fire add natural ECM to the
+        // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        int targetEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
+        int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
+        int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
+        int targetEcm = allocatedEcm + terrainEcm;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
                 ? attackerShip.getEccmAllocated()
                 : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
         if (ecmShift > 0)
-            log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(targetEcm)
+            log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(allocatedEcm)
+                    .append(terrainEcm > 0 ? " +" + terrainEcm + " terrain" : "")
                     .append(", attacker ECCM ").append(attackerEccm).append(")\n");
 
         for (Weapon w : selected) {

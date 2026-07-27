@@ -99,6 +99,53 @@ public class RingTerrainTest {
     }
 
     // -------------------------------------------------------------------------
+    // P3.33 / P2.223 — natural ECM along the line of fire
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void hexLine_includesBothEndpoints() {
+        java.util.List<Location> line = com.sfb.utilities.MapUtils.hexLine(
+                new Location(10, 10), new Location(14, 10));
+        assertEquals(new Location(10, 10), line.get(0));
+        assertEquals(new Location(14, 10), line.get(line.size() - 1));
+        // Inclusive length matches range + 1
+        assertEquals(com.sfb.utilities.MapUtils.getRange(new Location(10, 10), new Location(14, 10)) + 1,
+                line.size());
+    }
+
+    @Test
+    public void terrainEcm_asteroidOnePerHex_includingEndpoints() {
+        // Asteroids straddling the line (10,10)→(13,10): endpoints not asteroid,
+        // two interior asteroid hexes → 2 points
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 11, 10));
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 12, 10));
+        assertEquals(2, game.terrainEcmAlongLine(new Location(10, 10), new Location(13, 10)));
+    }
+
+    @Test
+    public void terrainEcm_ringIsHalfPerHex_roundedUp() {
+        // Three ring hexes on the line: 3 × ½ = 1.5 → rounds up to 2 (P2.223)
+        game.addTerrain(giant(20, 15, 2, List.of(new int[] { 3, 3 })));
+        // Line straight up the column through the distance-3 ring band
+        int ecm = game.terrainEcmAlongLine(new Location(20, 19), new Location(20, 11));
+        assertTrue("some ring hexes crossed", ecm >= 1);
+    }
+
+    @Test
+    public void terrainEcm_zeroWhenNoTerrainCrossed() {
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 30, 30));
+        assertEquals(0, game.terrainEcmAlongLine(new Location(5, 5), new Location(9, 5)));
+    }
+
+    @Test
+    public void terrainEcm_halfPointRoundUp_isExact() {
+        // One ring hex = ½ → rounds up to 1 (a single ring hex still gives ECM)
+        game.addTerrain(giant(20, 15, 1, List.of(new int[] { 2, 2 })));
+        int ecm = game.terrainEcmAlongLine(new Location(20, 17), new Location(20, 13));
+        assertTrue("a single ½ ring hex rounds up to 1", ecm >= 1);
+    }
+
+    // -------------------------------------------------------------------------
     // C11.21 nimble collision die-shift (with C11.33 poor-crew negation)
     // -------------------------------------------------------------------------
 

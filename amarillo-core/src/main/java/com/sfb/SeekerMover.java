@@ -405,7 +405,14 @@ class SeekerMover {
         Unit unit = (Unit) seeker;
         boolean enveloping = seeker instanceof PlasmaTorpedo && ((PlasmaTorpedo) seeker).isEnveloping();
         int shieldNum = enveloping ? 0 : getDroneImpactShield(unit, target);
-        int ecmShift = computeSeekerEcmShift(seeker, target);
+        // P3.33: terrain ECM along the guidance line (guiding ship → target,
+        // or the seeker itself → target when self-guided) adds to the target's
+        // ECM against the seeker.
+        com.sfb.properties.Location guideLoc = seeker.getController() instanceof Ship
+                ? ((Ship) seeker.getController()).getLocation()
+                : unit.getLocation();
+        int terrainEcm = game.terrainEcmAlongLine(guideLoc, target.getLocation());
+        int ecmShift = computeSeekerEcmShift(seeker, target, terrainEcm);
         int dmg = adjustForCloak(applyProximityRoll(seeker.impact(), ecmShift, log), target, log);
         String controllerName = seeker.getController() instanceof Ship
                 ? seeker.getController().getName()
@@ -505,12 +512,17 @@ class SeekerMover {
      * Package-private for tests.
      */
     static int computeSeekerEcmShift(Seeker seeker, Unit target) {
+        return computeSeekerEcmShift(seeker, target, 0);
+    }
+
+    /** As above, plus P3.33 terrain ECM along the guidance line (0 = none). */
+    static int computeSeekerEcmShift(Seeker seeker, Unit target, int terrainEcm) {
         if (seeker.isWarpSeeker())
-            return 0;
-        int targetEcm = 0;
+            return 0; // TypeVI warp-seekers are immune to EW (D6.38)
+        int targetEcm = terrainEcm;
         if (target instanceof Ship) {
             Ship tship = (Ship) target;
-            targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus();
+            targetEcm += tship.getEcmAllocated() + tship.getWwEcmBonus();
         }
         int controllerEccm = 0;
         Unit controller = seeker.getController();
