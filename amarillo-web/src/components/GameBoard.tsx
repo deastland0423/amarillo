@@ -3967,10 +3967,47 @@ export default function GameBoard({ session, onLeave }: Props) {
                         </span>
                       </div>
                     ))}
+                    {/* Objectives held by this team (no points yet — just control) */}
+                    {(() => {
+                      const held = gameState.scoreboard!.objectives.filter(o => o.ownerTeam === team.teamName);
+                      if (held.length === 0) return null;
+                      return (
+                        <div style={{ marginTop: '0.6rem' }}>
+                          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8b949e', marginBottom: 2 }}>
+                            Objectives held
+                          </div>
+                          {held.map(o => (
+                            <div key={o.name} style={{
+                              display: 'flex', justifyContent: 'space-between',
+                              fontSize: '0.85rem', padding: '3px 0', borderTop: '1px solid #21262d',
+                            }}>
+                              <span style={{ color: '#e0b34a' }}>{o.name}</span>
+                              <span style={{ color: o.state === 'SECURED' ? '#3fb950' : '#f0c040', fontWeight: 600 }}>
+                                {o.state === 'SECURED' ? 'secured' : 'carried'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               });
             })()}
+            {/* Unclaimed objectives still in play */}
+            {gameState.scoreboard && gameState.scoreboard.objectives.some(o => o.state === 'FREE') && (
+              <div style={{
+                background: '#0d1117', borderRadius: 8,
+                border: '1px solid #30363d', padding: '0.75rem 1rem', marginBottom: '1rem',
+              }}>
+                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8b949e', marginBottom: 4 }}>
+                  Unclaimed objectives
+                </div>
+                {gameState.scoreboard.objectives.filter(o => o.state === 'FREE').map(o => (
+                  <div key={o.name} style={{ fontSize: '0.85rem', color: '#e0b34a', padding: '2px 0' }}>{o.name}</div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
             {gameState.gameOver

@@ -507,9 +507,21 @@ public class GameStateDto {
         public String levelOfVictory;
     }
 
+    /**
+     * One objective's current control, for the scoreboard. No points are scored
+     * yet (per-scenario victory scoring is deferred) — this is a plain ownership
+     * listing so each side can see who holds what.
+     */
+    public static class ObjectiveStandingDto {
+        public String name;
+        public String ownerTeam;   // controlling team, or null if free/unclaimed
+        public String state;       // "SECURED" | "CARRIED" | "FREE"
+    }
+
     public static class ScoreboardDto {
         public List<ShipVpRowDto> ships = new ArrayList<>();
         public List<TeamScoreDto> teams = new ArrayList<>();
+        public List<ObjectiveStandingDto> objectives = new ArrayList<>();
     }
 
     // -------------------------------------------------------------------------
@@ -562,6 +574,15 @@ public class GameStateDto {
                 t.vpAgainst = ts.vpAgainst();
                 t.levelOfVictory = ts.levelOfVictory();
                 dto.teams.add(t);
+            }
+            // Objective control (no scoring yet — just who holds what)
+            for (com.sfb.objects.Objective o : game.getObjectives()) {
+                ObjectiveStandingDto os = new ObjectiveStandingDto();
+                os.name = o.getName();
+                com.sfb.Player owner = o.getCurrentOwner();
+                os.ownerTeam = owner != null ? owner.getTeamName() : null;
+                os.state = o.isSecured() ? "SECURED" : o.isCarried() ? "CARRIED" : "FREE";
+                dto.objectives.add(os);
             }
             this.scoreboard = dto;
         }

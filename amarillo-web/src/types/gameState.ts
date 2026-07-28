@@ -336,9 +336,16 @@ export interface TeamScore {
   levelOfVictory: string;
 }
 
+export interface ObjectiveStanding {
+  name:      string;
+  ownerTeam: string | null;                    // null = free / unclaimed
+  state:     'SECURED' | 'CARRIED' | 'FREE';
+}
+
 export interface Scoreboard {
-  ships: ShipVpRow[];
-  teams: TeamScore[];
+  ships:      ShipVpRow[];
+  teams:      TeamScore[];
+  objectives: ObjectiveStanding[];
 }
 
 export interface GameState {
