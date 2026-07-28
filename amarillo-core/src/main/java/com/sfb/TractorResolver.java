@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.sfb.objects.Objective;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Tractorable;
 import com.sfb.objects.Unit;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.properties.Location;
@@ -236,23 +238,30 @@ class TractorResolver {
         if (pendingTractorAuction != null)
             return ActionResult.fail("A tractor auction is already in progress");
 
-        Unit target = ships.stream()
+        Tractorable target = ships.stream()
                 .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                .<Unit>map(s -> s).findFirst().orElse(null);
+                .<Tractorable>map(s -> s).findFirst().orElse(null);
         if (target == null)
             target = seekers.stream()
                     .filter(s -> s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(targetName))
-                    .map(s -> (Unit) s).findFirst().orElse(null);
+                    .map(s -> (Tractorable) s).findFirst().orElse(null);
         if (target == null)
             target = activeShuttles.stream()
                     .filter(s -> s.getName().equalsIgnoreCase(targetName))
-                    .<Unit>map(s -> s).findFirst().orElse(null);
+                    .<Tractorable>map(s -> s).findFirst().orElse(null);
+        // SH35.452: a free probe canister may be caught in a tractor beam and
+        // drawn aboard with the J1.621 rotation system — an inert Tractorable.
+        if (target == null)
+            target = game.getObjectives().stream()
+                    .filter(o -> o.isFree() && o.getName().equalsIgnoreCase(targetName))
+                    .map(o -> (Tractorable) o).findFirst().orElse(null);
         if (target == null)
             return ActionResult.fail("Target not found: " + targetName);
         if (target == holder)
             return ActionResult.fail("Cannot tractor yourself");
 
-        int range           = MapUtils.getRange(holder, target);
+        boolean objectiveTarget = target instanceof Objective;
+        int range           = MapUtils.getRange(holder.getLocation(), target.getLocation());
         if (range > 3)
             return ActionResult.fail("Target is out of tractor range (max 3 hexes; see G7.6)");
         int rangeMultiplier = Math.max(1, range);
@@ -265,19 +274,23 @@ class TractorResolver {
                     + holder.getTractors().getRemainingTractorEnergy() + " + battery "
                     + holder.getPowerSystems().getBatteryPower()
                     + " = " + totalEnergy + " energy / " + rangeMultiplier + ")");
-        if (!holder.hasLockOn(target))
+        // An inert canister has no EW and no cloak, so lock-on is automatic
+        // (D6.38); only living units must first be acquired (G7.412).
+        if (!objectiveTarget && !holder.hasLockOn((Unit) target))
             return ActionResult.fail(holder.getName() + " does not have lock-on to " + targetName + " (G7.412)");
         if (!holder.isActiveFireControl())
             return ActionResult.fail(holder.getName() + " does not have active fire control (G7.41)");
-        if (holder.getTractors().getTractoredUnits().contains(target))
+        if (holder.getTractors().getTractored().contains(target))
             return ActionResult.fail(holder.getName() + " is already tractoring " + targetName);
 
         // D6.372: the beam must burn through the target's ECM for a firm enough
         // lock. On failure the declared bid energy is lost and the beam's
         // per-turn use is expended (rate of operations) — the defender is
         // never even asked. No roll vs friendlies, tractor-linked units
-        // (G7.412), or when the net shift is zero.
-        Game.D637Result ew = game.rollD637(holder, target, holder.getName() + " tractor beam");
+        // (G7.412), or when the net shift is zero. For a canister the only ECM
+        // is ring/asteroid natural ECM along the line (SH35.452).
+        Game.D637Result ew = game.rollD637(holder, (com.sfb.objects.Marker) target,
+                holder.getName() + " tractor beam");
         if (ew != null && ew.blocked) {
             spendTractorEnergy(holder, bid * rangeMultiplier);
             holder.getTractors().expendBeamUse();
@@ -286,15 +299,18 @@ class TractorResolver {
         }
         String ewLog = ew != null ? ew.line + "\n" : "";
 
-        // Non-Ship targets (drones, shuttles) cannot resist — resolve immediately (G7.5)
+        // Non-Ship targets (drones, shuttles, inert canisters) cannot resist —
+        // resolve immediately (G7.5). A canister then awaits a J1.621 recovery
+        // declaration to be drawn aboard.
         if (!(target instanceof Ship)) {
             spendTractorEnergy(holder, rangeMultiplier);
             holder.getTractors().linkUnit(target);
             return ActionResult.ok(ewLog + holder.getName() + " tractors " + targetName
-                    + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)"));
+                    + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)")
+                    + (objectiveTarget ? " — declare recovery to bring it aboard (J1.621)" : ""));
         }
 
-        pendingTractorAuction = new Game.PendingTractorAuction(holder, target, bid, rangeMultiplier);
+        pendingTractorAuction = new Game.PendingTractorAuction(holder, (Ship) target, bid, rangeMultiplier);
         return ActionResult.ok(ewLog + holder.getName() + " bids " + bid + " effective tractor"
                 + (rangeMultiplier > 1 ? " (" + (bid * rangeMultiplier) + " energy at range " + range + "; G7.6)" : "")
                 + " on " + targetName + " — awaiting defender response (G7.42)");

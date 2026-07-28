@@ -12,7 +12,7 @@ import com.sfb.utilities.TurnModeUtil;
 // a monster...anything that does more than simply exist.
 
 // In addition to a location, a unit has a facing and a speed.
-public class Unit extends Marker {
+public class Unit extends Marker implements Tractorable {
 
 	// Facing is a value representing
 	// a direction that the thing is facing, relative

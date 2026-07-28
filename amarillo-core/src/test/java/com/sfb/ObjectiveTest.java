@@ -266,13 +266,22 @@ public class ObjectiveTest {
     public void nonSurvivingObjective_annihilatedWithCarrier() {
         Objective o = addObjective("Canister", 12, 10, RetrievalMethod.TRACTOR);
         o.setSurvivesCarrierDestruction(false);
-        toActivityPhase();
-        fed.setActiveFireControl(true);
-        assertTrue(game.pickUpObjective(fed, "Canister", RetrievalMethod.TRACTOR).isSuccess());
+        o.setCarrier(fed); // aboard (recovered earlier)
 
         fed.setBattleStatus(BattleStatus.DESTROYED);
         game.cleanupDestroyedShips();
 
         assertFalse("canister annihilated with its carrier (SH35.454)", game.getObjectives().contains(o));
+    }
+
+    @Test
+    public void pickUpObjective_rejectsTractor_directingToRecovery() {
+        addObjective("Canister", 11, 10, RetrievalMethod.TRACTOR);
+        toActivityPhase();
+        fed.setActiveFireControl(true);
+
+        Game.ActionResult r = game.pickUpObjective(fed, "Canister", RetrievalMethod.TRACTOR);
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("J1.621 recovery"));
     }
 }

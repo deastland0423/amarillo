@@ -108,6 +108,55 @@ class ShuttleMover {
             }
         }
 
+        // J1.621 / SH35.452: probe canisters declared for recovery are drawn one
+        // hex closer to their holder each impulse and brought aboard on arrival
+        // (counts as a shuttle landing). Canisters are inert cargo — not subject
+        // to death dragging (G7.54) — so they ride through ring/asteroid hexes
+        // untouched; only planets block the pull-in path.
+        for (com.sfb.objects.Objective obj : new ArrayList<>(game.getObjectives())) {
+            if (!obj.isBeingRecovered())
+                continue;
+            if (!(obj.getTractoringUnit() instanceof Ship)) {
+                obj.setBeingRecovered(false); // link broke — procedure ends (J1.6221)
+                continue;
+            }
+            Ship holder = (Ship) obj.getTractoringUnit();
+            if (holder.getLocation() == null || obj.getLocation() == null) {
+                obj.setBeingRecovered(false);
+                continue;
+            }
+            if (!obj.getLocation().equals(holder.getLocation())) {
+                Location best = null;
+                int bestRange = MapUtils.getRange(obj.getLocation(), holder.getLocation());
+                for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+                    Location cand = MapUtils.getAdjacentHex(obj.getLocation(), dir,
+                            game.getMapCols(), game.getMapRows());
+                    if (cand == null || game.isPlanetHex(cand))
+                        continue;
+                    int r = MapUtils.getRange(cand, holder.getLocation());
+                    if (r < bestRange) {
+                        bestRange = r;
+                        best = cand;
+                    }
+                }
+                if (best == null) {
+                    log.add("  " + obj.getName() + " recovery blocked — no legal hex closer to "
+                            + holder.getName() + " (J1.621)");
+                } else {
+                    obj.setLocation(best);
+                    log.add("  " + obj.getName() + " pulled one hex closer to "
+                            + holder.getName() + " (J1.621)");
+                }
+            }
+            if (obj.getLocation() != null && obj.getLocation().equals(holder.getLocation())) {
+                String aboard = game.completeObjectiveRecovery(holder, obj);
+                if (aboard != null)
+                    log.add("  " + aboard);
+                else
+                    log.add("  " + obj.getName() + " holding at Range 0 — bay hatch not ready (J1.6213)");
+            }
+        }
+
         // J3.13: a Wild Weasel only diverts seekers while within 35 hexes of the
         // ship it protects. Checked after all movement resolves — the separation
         // can come from the weasel drifting OR the protected ship moving away.

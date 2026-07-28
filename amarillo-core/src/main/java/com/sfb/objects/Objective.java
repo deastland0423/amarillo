@@ -16,12 +16,19 @@ import com.sfb.properties.RetrievalMethod;
  * Pickup moves free → carried; the carrier's destruction drops it back to free
  * in that hex, or annihilates it if it does not survive (SH35.454 vs SH47.475).
  */
-public class Objective extends Marker {
+public class Objective extends Marker implements Tractorable {
 
     private final Set<RetrievalMethod> allowedRetrieval = EnumSet.noneOf(RetrievalMethod.class);
     private boolean survivesCarrierDestruction = true;
     private Ship carrier;                 // null = free on the map (live possession)
     private com.sfb.Player securedBy;     // permanent owner once carried off a valid edge
+
+    // While free, an objective can be caught in a tractor beam and drawn aboard
+    // via the friendly-shuttle rotation system (J1.621 / SH35.452). These track
+    // that transient pull-in; the objective stays FREE (carrier == null) until
+    // recovery completes and sets the carrier.
+    private Unit tractoringUnit;          // the ship whose beam holds it, or null
+    private boolean beingRecovered;       // J1.621 pull-in declared
 
     public Objective() {}
 
@@ -43,6 +50,24 @@ public class Objective extends Marker {
     public Ship getCarrier() { return carrier; }
 
     public void setCarrier(Ship carrier) { this.carrier = carrier; }
+
+    // --- Tractorable: the beam's view of a free objective (J1.621 pull-in) ---
+
+    @Override
+    public Unit getTractoringUnit() { return tractoringUnit; }
+
+    @Override
+    public void applyTractor(Unit holder) { this.tractoringUnit = holder; }
+
+    @Override
+    public void releaseTractor() {
+        this.tractoringUnit = null;
+        this.beingRecovered = false; // link break ends the recovery (J1.6221)
+    }
+
+    public boolean isBeingRecovered() { return beingRecovered; }
+
+    public void setBeingRecovered(boolean beingRecovered) { this.beingRecovered = beingRecovered; }
 
     public boolean isFree() { return carrier == null && securedBy == null; }
 

@@ -657,4 +657,59 @@ class LaunchCoordinator {
             s.removeLockOn(shuttle);
         return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)";
     }
+
+    /**
+     * SH35.452: declare the J1.621 rotation procedure on a probe canister the
+     * ship already holds in a tractor beam. The canister is then pulled one hex
+     * closer each impulse (ShuttleMover) and brought aboard on arrival.
+     * Releasing the beam cancels the procedure (J1.6221, via releaseTractor).
+     */
+    ActionResult beginObjectiveRecovery(Ship ship, String objectiveName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Recovery can only be declared during the Activity phase");
+
+        com.sfb.objects.Objective obj = game.getObjectives().stream()
+                .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
+                .findFirst().orElse(null);
+        if (obj == null)
+            return ActionResult.fail("Objective not found on the map: " + objectiveName);
+        if (obj.getTractoringUnit() != ship)
+            return ActionResult.fail(ship.getName() + " must hold " + objectiveName
+                    + " in a tractor beam first (J1.621/SH35.452)");
+        if (obj.isBeingRecovered())
+            return ActionResult.fail(objectiveName + " is already being drawn aboard");
+
+        obj.setBeingRecovered(true);
+        return ActionResult.ok(ship.getName() + " begins drawing in " + objectiveName
+                + " — pulled one hex closer each impulse (J1.621)");
+    }
+
+    /**
+     * Final step of the canister's J1.621 recovery: bring it aboard. Uses one
+     * bay hatch operation (shared launch/land cooldown, J1.50) because SH35.452
+     * says this "counts as the landing of a shuttle for that impulse" — but the
+     * canister occupies no shuttle box, so only a ready hatch is needed, not an
+     * empty space. Returns the log line, or null if no hatch is ready (the
+     * canister holds at Range 0 — J1.6213).
+     */
+    String completeObjectiveRecovery(Ship ship, com.sfb.objects.Objective objective) {
+        int impulse = game.getAbsoluteImpulse();
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays()) {
+            if (b.canLaunch(impulse)) {
+                bay = b;
+                break;
+            }
+        }
+        if (bay == null)
+            return null;
+
+        bay.markUsed(impulse);
+        if (ship.getTractors() != null && ship.getTractors().getTractored().contains(objective))
+            ship.getTractors().releaseTractor(objective); // clears tractoringUnit + beingRecovered
+        objective.setBeingRecovered(false);
+        objective.setCarrier(ship);   // now CARRIED — location derives from the carrier
+        objective.setLocation(null);
+        return objective.getName() + " brought aboard " + ship.getName() + " (J1.621/SH35.452)";
+    }
 }

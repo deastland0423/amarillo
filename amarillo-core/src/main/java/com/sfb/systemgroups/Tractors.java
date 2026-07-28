@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.sfb.objects.Tractorable;
 import com.sfb.objects.Unit;
 
 /**
@@ -68,7 +69,7 @@ public class Tractors implements Systems {
 	// Establish the physical tractor link after auction resolution (no energy
 	// deduction). Uses the first beam that is functional, unused this turn
 	// (G7.13), and not already holding.
-	public boolean linkUnit(Unit target) {
+	public boolean linkUnit(Tractorable target) {
 		TractorBeam beam = firstFreeBeam();
 		if (beam == null)
 			return false;
@@ -114,9 +115,23 @@ public class Tractors implements Systems {
 			b.resetForTurn();
 	}
 
-	/** Units currently held, in beam order (fresh list — mutate via releaseTractor). */
+	/**
+	 * Held {@link Unit}s only, in beam order — the classic towing/rotation/
+	 * death-drag callers care about ships, seekers and shuttles, never inert
+	 * objectives. Use {@link #getTractored()} for everything the beams hold.
+	 * (Fresh list — mutate via releaseTractor.)
+	 */
 	public List<Unit> getTractoredUnits() {
 		List<Unit> held = new ArrayList<>();
+		for (TractorBeam b : beams)
+			if (b.getHeldUnit() instanceof Unit)
+				held.add((Unit) b.getHeldUnit());
+		return held;
+	}
+
+	/** Everything the beams hold, including objectives (J1.621 recovery). */
+	public List<Tractorable> getTractored() {
+		List<Tractorable> held = new ArrayList<>();
 		for (TractorBeam b : beams)
 			if (b.getHeldUnit() != null)
 				held.add(b.getHeldUnit());
@@ -137,7 +152,7 @@ public class Tractors implements Systems {
 
 	// Legacy direct-link (used only for non-contested establishes; prefer linkUnit
 	// after auction).
-	public void tractorUnit(int energy, Unit target) {
+	public void tractorUnit(int energy, Tractorable target) {
 		TractorBeam beam = firstFreeBeam();
 		if (energy <= remainingTractorEnergy && beam != null) {
 			target.applyTractor(owningUnit);
@@ -146,7 +161,7 @@ public class Tractors implements Systems {
 		}
 	}
 
-	public void releaseTractor(Unit target) {
+	public void releaseTractor(Tractorable target) {
 		for (TractorBeam b : beams) {
 			if (b.getHeldUnit() == target) {
 				target.releaseTractor();
@@ -248,7 +263,7 @@ public class Tractors implements Systems {
 		for (TractorBeam b : beams) {
 			if (b.getNumber() != number || !b.isFunctional())
 				continue;
-			Unit held = b.getHeldUnit();
+			Tractorable held = b.getHeldUnit();
 			if (held != null) {
 				held.releaseTractor();
 				b.dropLink();

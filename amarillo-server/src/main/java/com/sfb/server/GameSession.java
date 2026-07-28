@@ -1479,6 +1479,18 @@ public class GameSession {
                 return r;
             }
 
+            case "RECOVER_OBJECTIVE": {
+                // SH35.452 J1.621: draw a tractored canister aboard over impulses.
+                // (Tractor it first with ESTABLISH_TRACTOR using the canister name.)
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.beginObjectiveRecovery(ship, request.getObjectiveName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CALL_FIRE_DECLARATION": {
                 if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
                     return ActionResult.fail("Fire declarations happen during the Direct Fire phase");

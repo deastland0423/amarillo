@@ -1,6 +1,6 @@
 package com.sfb.systemgroups;
 
-import com.sfb.objects.Unit;
+import com.sfb.objects.Tractorable;
 
 /**
  * A single tractor beam box. Beams are individual objects (like weapons)
@@ -14,7 +14,7 @@ public class TractorBeam {
     private final int number;          // 1-based SSD position, for display ("Tractor #2")
     private boolean functional = true;
     private boolean usedThisTurn = false; // G7.13
-    private Unit heldUnit = null;
+    private Tractorable heldUnit = null;
 
     TractorBeam(int number) {
         this.number = number;
@@ -32,7 +32,7 @@ public class TractorBeam {
         return usedThisTurn;
     }
 
-    public Unit getHeldUnit() {
+    public Tractorable getHeldUnit() {
         return heldUnit;
     }
 
@@ -41,7 +41,7 @@ public class TractorBeam {
         return functional && !usedThisTurn && heldUnit == null;
     }
 
-    void hold(Unit unit) {
+    void hold(Tractorable unit) {
         this.heldUnit = unit;
         this.usedThisTurn = true;
     }

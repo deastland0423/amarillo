@@ -459,19 +459,26 @@ public class Game {
      * units ignore generated/lent EW (D6.373/D6.3146); a tractor link makes
      * lock-on automatic in both directions (G7.412).
      */
-    int d637Shift(Ship actor, Unit target) {
+    int d637Shift(Ship actor, com.sfb.objects.Marker target) {
+        // P3.33: asteroid/ring hexes between actor and target add natural ECM
+        // along the line of fire.
+        int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
+
+        if (target instanceof com.sfb.objects.Objective) {
+            // SH35.452: a probe canister has no EW of its own, but tractoring it
+            // through a gas-giant ring means the beam still has to burn through
+            // the ring's natural ECM — the whole reason the terrain ECM exists.
+            return (int) Math.floor(Math.sqrt(Math.max(0, terrainEcm - eccm)));
+        }
         if (!(target instanceof Ship))
-            return 0;
+            return 0; // drones, shuttles: no EW at all
         Ship tship = (Ship) target;
         if (isSameTeam(actor, tship))
             return 0;
-        if (tractorLinkBetween(actor, target))
+        if (tractorLinkBetween(actor, tship))
             return 0;
-        // P3.33: asteroid/ring hexes between actor and target add natural ECM
-        // (the SH35.452 "ring ECM affects tractor lock-on" case)
-        int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
         int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus() + terrainEcm;
-        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
         return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
     }
 
@@ -481,7 +488,7 @@ public class Game {
      * enough and the system cannot be used. Returns null when no roll is
      * needed (shift 0 — a bare d6 cannot exceed six).
      */
-    D637Result rollD637(Ship actor, Unit target, String systemName) {
+    D637Result rollD637(Ship actor, com.sfb.objects.Marker target, String systemName) {
         int shift = d637Shift(actor, target);
         if (shift <= 0)
             return null;
@@ -1638,6 +1645,23 @@ public class Game {
         return launchCoordinator.completeRecovery(ship, shuttle);
     }
 
+    /**
+     * Declare the J1.621 recovery procedure for a probe canister the ship holds
+     * in a tractor beam — it is drawn one hex closer each impulse and brought
+     * aboard on arrival (SH35.452).
+     */
+    public ActionResult beginObjectiveRecovery(Ship ship, String objectiveName) {
+        return launchCoordinator.beginObjectiveRecovery(ship, objectiveName);
+    }
+
+    /**
+     * Package hook for ShuttleMover: bring a recovered objective aboard (sets
+     * the carrier), or null if no bay hatch is ready this impulse (J1.6213).
+     */
+    String completeObjectiveRecovery(Ship ship, com.sfb.objects.Objective objective) {
+        return launchCoordinator.completeObjectiveRecovery(ship, objective);
+    }
+
     /** Land a friendly shuttle aboard this ship unassisted (J1.61). */
     public ActionResult landShuttle(Ship ship, String shuttleName) {
         return launchCoordinator.landShuttle(ship, shuttleName);
@@ -1738,14 +1762,24 @@ public class Game {
     }
 
     /**
-     * Bring a free objective aboard a ship (visible-capture MVP). The objective
-     * must permit the retrieval method, and the ship must satisfy the same
-     * preconditions as the underlying system: lock-on (D6.124/G7.412) and range
-     * (transporter ≤5, tractor ≤3). On success the objective becomes CARRIED.
-     * (Method-specific extras — shields-down, the SH47 multi-turn study, the
-     * SH35 J1.621 shuttle-rotation tractor — are deferred refinements.)
+     * Bring a free objective aboard a ship by a one-step system (TRANSPORTER,
+     * and later SHUTTLE_PICKUP). The objective must permit the method, and the
+     * ship must satisfy the underlying system's preconditions: lock-on
+     * (D6.124) and range (transporter ≤5). On success the objective becomes
+     * CARRIED.
+     *
+     * <p>TRACTOR retrieval does <em>not</em> go through here — a canister is
+     * caught with a real tractor beam ({@link #establishTractor}) and drawn
+     * aboard over several impulses with the J1.621 rotation procedure
+     * ({@link #beginObjectiveRecovery}), so it is subject to the beam's D6.37
+     * ring-ECM roll and counts as a shuttle landing (SH35.452).
+     * (Other method-specific extras — shields-down, the SH47 multi-turn study —
+     * are deferred refinements.)
      */
     public ActionResult pickUpObjective(Ship ship, String objectiveName, RetrievalMethod method) {
+        if (method == RetrievalMethod.TRACTOR)
+            return ActionResult.fail("Tractor retrieval uses the beam and the J1.621 recovery"
+                    + " procedure — establish a tractor on " + objectiveName + ", then declare recovery");
         if (currentPhase != ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Objectives can only be retrieved during the Activity phase");
         ActionResult cloakBlock = cloakActionBlock(ship);
@@ -1765,7 +1799,7 @@ public class Game {
             return ActionResult.fail(objectiveName + " cannot be retrieved by " + method
                     + " (allowed: " + obj.getAllowedRetrieval() + ")");
         int range = com.sfb.utilities.MapUtils.getRange(ship.getLocation(), obj.getLocation());
-        int maxRange = method == RetrievalMethod.TRACTOR ? 3 : 5;
+        int maxRange = 5;
         if (range > maxRange)
             return ActionResult.fail(objectiveName + " is out of " + method + " range ("
                     + range + " hexes, max " + maxRange + ")");
@@ -1798,6 +1832,7 @@ public class Game {
             String team = ship.getOwner() != null ? ship.getOwner().getTeamName() : ship.getName();
             log.add(o.getName() + " secured by " + team + " — carried off the map");
         }
+        releaseTractoredObjectives(ship, log);
         return log;
     }
 
@@ -1821,7 +1856,23 @@ public class Game {
                 log.add(o.getName() + " was annihilated with " + ship.getName());
             }
         }
+        releaseTractoredObjectives(ship, log);
         return log;
+    }
+
+    /**
+     * A canister still being drawn in (tractored, not yet carried) is set adrift
+     * when its beam ship leaves play — the link breaks (J1.6221) and it stays
+     * free in its current hex, never aboard. Applies to any departure: it is not
+     * "on board at disengagement" (SH35.5) so it is neither secured nor lost.
+     */
+    private void releaseTractoredObjectives(Ship ship, List<String> log) {
+        for (com.sfb.objects.Objective o : objectives) {
+            if (o.getCarrier() == null && o.getTractoringUnit() == ship) {
+                o.releaseTractor();
+                log.add(o.getName() + " released — the tractoring " + ship.getName() + " has left");
+            }
+        }
     }
 
     public boolean isAsteroidHex(Location loc) {
