@@ -1762,29 +1762,21 @@ public class Game {
     }
 
     /**
-     * Bring a free objective aboard a ship by a one-step system (TRANSPORTER,
-     * and later SHUTTLE_PICKUP). The objective must permit the method, and the
-     * ship must satisfy the underlying system's preconditions: lock-on
-     * (D6.124) and range (transporter ≤5). On success the objective becomes
-     * CARRIED.
-     *
-     * <p>TRACTOR retrieval does <em>not</em> go through here — a canister is
-     * caught with a real tractor beam ({@link #establishTractor}) and drawn
-     * aboard over several impulses with the J1.621 rotation procedure
-     * ({@link #beginObjectiveRecovery}), so it is subject to the beam's D6.37
-     * ring-ECM roll and counts as a shuttle landing (SH35.452).
-     * (Other method-specific extras — shields-down, the SH47 multi-turn study —
-     * are deferred refinements.)
+     * Bring a free objective aboard a ship. Each method routes through the real
+     * ship system it names, so it inherits that system's costs and limits:
+     * <ul>
+     *   <li>TRANSPORTER — one transporter operation (energy + facing shield
+     *       down + D6.37 lock roll), a single action ({@link BoardingResolver#retrieveObjectByTransporter}).</li>
+     *   <li>TRACTOR — <em>not</em> here: caught with a real tractor beam
+     *       ({@link #establishTractor}) and drawn aboard over impulses with the
+     *       J1.621 rotation procedure ({@link #beginObjectiveRecovery}).</li>
+     * </ul>
+     * (SHUTTLE_PICKUP and the SH47 multi-turn transporter study are deferred.)
      */
     public ActionResult pickUpObjective(Ship ship, String objectiveName, RetrievalMethod method) {
         if (method == RetrievalMethod.TRACTOR)
             return ActionResult.fail("Tractor retrieval uses the beam and the J1.621 recovery"
                     + " procedure — establish a tractor on " + objectiveName + ", then declare recovery");
-        if (currentPhase != ImpulsePhase.ACTIVITY)
-            return ActionResult.fail("Objectives can only be retrieved during the Activity phase");
-        ActionResult cloakBlock = cloakActionBlock(ship);
-        if (cloakBlock != null)
-            return cloakBlock;
         com.sfb.objects.Objective obj = objectives.stream()
                 .filter(o -> o.getName().equalsIgnoreCase(objectiveName))
                 .findFirst().orElse(null);
@@ -1798,20 +1790,12 @@ public class Game {
         if (!obj.allows(method))
             return ActionResult.fail(objectiveName + " cannot be retrieved by " + method
                     + " (allowed: " + obj.getAllowedRetrieval() + ")");
-        int range = com.sfb.utilities.MapUtils.getRange(ship.getLocation(), obj.getLocation());
-        int maxRange = 5;
-        if (range > maxRange)
-            return ActionResult.fail(objectiveName + " is out of " + method + " range ("
-                    + range + " hexes, max " + maxRange + ")");
-        // Lock-on to the hex is required for either method. A tractor link is
-        // automatic lock-on (G7.412), but an objective isn't a Unit to link, so
-        // require the ship to have active fire control for the sensor solution.
-        if (!ship.isActiveFireControl())
-            return ActionResult.fail(ship.getName() + " needs active fire control to retrieve "
-                    + objectiveName + " (D6.124/G7.41)");
-        obj.setCarrier(ship);
-        return ActionResult.ok(ship.getName() + " retrieves " + objectiveName
-                + " by " + method.toString().toLowerCase());
+        switch (method) {
+            case TRANSPORTER:
+                return boardingResolver.retrieveObjectByTransporter(ship, obj);
+            default:
+                return ActionResult.fail("Retrieval by " + method + " is not yet supported");
+        }
     }
 
     /**

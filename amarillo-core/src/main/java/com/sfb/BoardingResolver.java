@@ -230,6 +230,58 @@ class BoardingResolver {
     }
 
     /**
+     * Beam a free objective aboard with the transporter — the real system, one
+     * operation. Range ≤5, active fire control for the sensor solution (D6.124;
+     * an inert, uncloaked canister needs no stored lock-on, matching the tractor
+     * path), one transporter + one use spent, the acting ship's facing shield
+     * auto-lowered (G8), and the D6.372 lock roll — which, through a gas-giant
+     * ring, must burn the same natural ECM a tractor grab does (SH35/SH47 in
+     * terrain). Unlike a boarding party there is no target-ship shield (a
+     * canister has none) and no crew to hold back. A jammed beam is still spent.
+     */
+    ActionResult retrieveObjectByTransporter(Ship actingShip, com.sfb.objects.Objective objective) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Transporter actions can only be performed during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(actingShip);
+        if (cloakBlock != null)
+            return cloakBlock;
+
+        int range = com.sfb.utilities.MapUtils.getRange(actingShip.getLocation(), objective.getLocation());
+        if (range > 5)
+            return ActionResult.fail(objective.getName() + " is out of transporter range ("
+                    + range + " hexes, max 5)");
+        if (!actingShip.isActiveFireControl())
+            return ActionResult.fail(actingShip.getName() + " needs active fire control to beam "
+                    + objective.getName() + " aboard (D6.124)");
+        if (actingShip.getTransporters().getAvailableTrans() < 1)
+            return ActionResult.fail(actingShip.getName() + " has no working transporters");
+        if (actingShip.getTransporters().availableUses() < 1)
+            return ActionResult.fail(actingShip.getName()
+                    + " has no transporter energy allocated this turn");
+
+        // Acting ship's shield facing the objective must be passable (auto-lower, G8)
+        int shieldNum = game.getShieldNumber(objective, actingShip);
+        if (!actingShip.getShields().isTransportable(shieldNum)) {
+            boolean lowered = actingShip.getShields().lowerShield(shieldNum);
+            if (!lowered)
+                return ActionResult.fail("Cannot lower shield #" + shieldNum + " on "
+                        + actingShip.getName() + " — must wait 8 impulses since last toggle");
+        }
+
+        // D6.372: a jammed beam still expends the operation (spend it first)
+        actingShip.getTransporters().useTransporter();
+        Game.D637Result ew = game.rollD637(actingShip, objective, "Transporter");
+        if (ew != null && ew.blocked)
+            return ActionResult.ok(ew.line + " — transporter jammed, " + objective.getName()
+                    + " not beamed (operation spent)");
+        String ewLog = ew != null ? ew.line + " — " : "";
+
+        objective.setCarrier(actingShip);
+        return ActionResult.ok(ewLog + actingShip.getName() + " beams " + objective.getName()
+                + " aboard by transporter");
+    }
+
+    /**
      * Transport crew units from one unit to another (G8.32 non-combat rate).
      *
      * <p>

@@ -56,6 +56,9 @@ public class ObjectiveTest {
         for (int guard = 0; guard < 20 && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; guard++)
             game.advancePhase();
         assertEquals(Game.ImpulsePhase.ACTIVITY, game.getCurrentPhase());
+        // Transporter retrieval now spends real transporter energy (0.2/use) —
+        // bank enough for the beam.
+        fed.getTransporters().bankEnergy(2.0);
     }
 
     // -------------------------------------------------------------------------
@@ -92,6 +95,32 @@ public class ObjectiveTest {
         Game.ActionResult r = game.pickUpObjective(fed, "Canister", RetrievalMethod.TRANSPORTER);
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage(), r.getMessage().contains("cannot be retrieved by TRANSPORTER"));
+    }
+
+    @Test
+    public void transporterPickup_failsWithoutTransporterEnergy() {
+        addObjective("Box", 12, 10, RetrievalMethod.TRANSPORTER);
+        toActivityPhase();
+        fed.setActiveFireControl(true);
+        // Drain the banked transporter energy so no operation is available
+        while (fed.getTransporters().availableUses() > 0)
+            fed.getTransporters().useTransporter();
+
+        Game.ActionResult r = game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER);
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("transporter energy"));
+    }
+
+    @Test
+    public void transporterPickup_spendsOneTransporterOperation() {
+        addObjective("Box", 12, 10, RetrievalMethod.TRANSPORTER);
+        toActivityPhase();
+        fed.setActiveFireControl(true);
+        int before = fed.getTransporters().availableUses();
+
+        assertTrue(game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER).isSuccess());
+        assertEquals("one transporter operation spent", before - 1,
+                fed.getTransporters().availableUses());
     }
 
     @Test
