@@ -506,12 +506,20 @@ function drawObjects(
       const o = obj as import('../types/gameState').ObjectiveObject;
       if (o.carrierName) continue; // carried — travels with its ship, not drawn on the map
       const grabbed = !!o.tractoredBy; // held in a beam / being drawn aboard
+      // A party on a planet face (SH50.46) is nudged toward that side's edge, so
+      // several on one planet hex sit on their own faces (A=1 north, clockwise).
+      let ox = cx, oy = cy;
+      if (o.side && o.side >= 1 && o.side <= 6) {
+        const ang = (o.side - 1) * Math.PI / 3;
+        ox = cx + Math.sin(ang) * SIZE * 0.55;
+        oy = cy - Math.cos(ang) * SIZE * 0.55;
+      }
       const s = 8;
       ctx.fillStyle   = '#e0b34a';
       ctx.strokeStyle = grabbed ? '#22d3ee' : '#8a6d1f';
       ctx.lineWidth   = grabbed ? 2 : 1.5;
       ctx.beginPath();
-      ctx.rect(cx - s, cy - s, s * 2, s * 2);
+      ctx.rect(ox - s, oy - s, s * 2, s * 2);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle    = '#ffffff';
@@ -519,7 +527,7 @@ function drawObjects(
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
       const label = o.beingRecovered ? `${o.name ?? 'Objective'} ⟳` : (o.name ?? 'Objective');
-      ctx.fillText(label, cx, cy + s + 2);
+      ctx.fillText(label, ox, oy + s + 2);
       continue;
     }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {

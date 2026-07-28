@@ -176,10 +176,16 @@ public class MapUtils {
 	// 11 (shield 6)
 	// 12 (shield 6/1 border)
 	public static int getAbsoluteShieldFacing(Marker source, Marker target) {
-		// Get the locations of the source and target.
-		Location sourceLocation = source.getLocation();
-		Location targetLocation = target.getLocation();
+		return getAbsoluteShieldFacing(source.getLocation(), target.getLocation());
+	}
 
+	/**
+	 * Location form: which of {@code source}'s six sides — in the 12-point vertex
+	 * scheme (odd = a side dead-on, even = a vertex between two sides) — faces
+	 * {@code target}. Same geometry as the Marker overload, exposed on raw hexes
+	 * so planet-face logic can use it.
+	 */
+	public static int getAbsoluteShieldFacing(Location sourceLocation, Location targetLocation) {
 		// If in the same hex, special conditions exist.
 		if (targetLocation.equals(sourceLocation)) {
 			return 0;
@@ -273,6 +279,52 @@ public class MapUtils {
 				}
 			}
 		}
+	}
+
+	/**
+	 * The hex sides (1..6, A..F) of a planet hex that are visible from an
+	 * observing hex — the near hemisphere of the convex hex, and the bulk hides
+	 * the rest. Looking straight at a side (odd absolute facing) you see that
+	 * side and its two neighbours (3); looking straight at a vertex (even facing)
+	 * you see only the two sides that meet there (2); grazing sides are not seen.
+	 * Empty when the observer shares the planet's hex or either is null.
+	 *
+	 * <p>General geometry for any interaction with a particular planet face —
+	 * transporter/shuttle recovery of a surface party (SH50.46), face-specific
+	 * fire, etc.
+	 */
+	public static java.util.Set<Integer> visiblePlanetSides(Location planet, Location observer) {
+		java.util.Set<Integer> sides = new java.util.HashSet<>();
+		if (planet == null || observer == null || planet.equals(observer)) {
+			return sides;
+		}
+		int facing = getAbsoluteShieldFacing(planet, observer); // planet's side toward the observer
+		if (facing == 0) {
+			return sides;
+		}
+		if (facing % 2 == 1) {
+			// Odd → a side dead-on: that side and its two neighbours.
+			int side = (facing + 1) / 2;
+			sides.add(wrapSide(side - 1));
+			sides.add(side);
+			sides.add(wrapSide(side + 1));
+		} else {
+			// Even → a vertex: only the two sides that meet at it.
+			int lower = facing / 2;
+			sides.add(lower);
+			sides.add(wrapSide(lower + 1));
+		}
+		return sides;
+	}
+
+	/** Whether hex side {@code side} (1..6) of a planet is visible from {@code observer}. */
+	public static boolean isPlanetSideVisible(Location planet, Location observer, int side) {
+		return visiblePlanetSides(planet, observer).contains(side);
+	}
+
+	/** Keep a hex side value in the 1..6 range (wraps A..F). */
+	private static int wrapSide(int side) {
+		return ((side - 1) % 6 + 6) % 6 + 1;
 	}
 
 	// Get the relative shield facing (the actual shield number from the ship's

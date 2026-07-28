@@ -67,6 +67,7 @@ public class GameStateDto {
         public boolean secured;              // carried off a valid edge — permanent, out of play
         public String tractoredBy;           // ship holding it in a beam (still free), else null
         public boolean beingRecovered;       // J1.621 rotation pull-in underway
+        public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
     }
 
     public static class WildWeaselDto extends MapObjectDto {
@@ -1275,6 +1276,7 @@ public class GameStateDto {
         dto.secured = o.isSecured();
         dto.tractoredBy = o.getTractoringUnit() != null ? o.getTractoringUnit().getName() : null;
         dto.beingRecovered = o.isBeingRecovered();
+        dto.side = o.getSide();
         com.sfb.Player owner = o.getCurrentOwner();
         dto.ownerTeam = owner != null ? owner.getTeamName() : null;
         return dto;

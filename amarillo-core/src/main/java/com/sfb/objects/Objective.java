@@ -23,6 +23,11 @@ public class Objective extends Marker implements Tractorable {
     private Ship carrier;                 // null = free on the map (live possession)
     private com.sfb.Player securedBy;     // permanent owner once carried off a valid edge
 
+    // For a party sitting on a specific face of a planet (SH50.46): the hex side
+    // (1..6, A..F) it occupies. 0 = not tied to a planet face (a normal drifting
+    // object). Retrieval then requires that side to be visible from the ship.
+    private int side;
+
     // While free, an objective can be caught in a tractor beam and drawn aboard
     // via the friendly-shuttle rotation system (J1.621 / SH35.452). These track
     // that transient pull-in; the objective stays FREE (carrier == null) until
@@ -50,6 +55,11 @@ public class Objective extends Marker implements Tractorable {
     public Ship getCarrier() { return carrier; }
 
     public void setCarrier(Ship carrier) { this.carrier = carrier; }
+
+    /** Planet hex side (1..6) this party occupies, or 0 if not on a planet face. */
+    public int getSide() { return side; }
+
+    public void setSide(int side) { this.side = side; }
 
     // --- Tractorable: the beam's view of a free objective (J1.621 pull-in) ---
 

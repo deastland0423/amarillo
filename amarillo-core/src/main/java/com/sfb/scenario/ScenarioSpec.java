@@ -90,6 +90,7 @@ public class ScenarioSpec {
         public String       hex;                  // CCRR starting hex
         public List<String> retrieval;            // ["TRACTOR"|"TRANSPORTER"|"SHUTTLE_PICKUP"]; default TRANSPORTER
         public boolean      survivesDestruction = true; // survives its carrier's destruction (SH47.475)
+        public int          side;                 // planet hex side 1..6 (A..F) it sits on; 0 = none (SH50.46)
     }
 
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */

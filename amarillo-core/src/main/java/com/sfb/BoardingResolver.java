@@ -250,6 +250,15 @@ class BoardingResolver {
         if (range > 5)
             return ActionResult.fail(objective.getName() + " is out of transporter range ("
                     + range + " hexes, max 5)");
+        // A party on a planet face (SH50.46) can only be beamed if that side of
+        // the planet is facing the ship — the planet's bulk hides the far side.
+        if (objective.getSide() != 0
+                && !com.sfb.utilities.MapUtils.isPlanetSideVisible(
+                        objective.getLocation(), actingShip.getLocation(), objective.getSide()))
+            return ActionResult.fail(objective.getName() + " is on side "
+                    + (char) ('A' + objective.getSide() - 1)
+                    + " of the planet, not facing " + actingShip.getName()
+                    + " — no line of sight to beam it up (SH50.46)");
         if (!actingShip.isActiveFireControl())
             return ActionResult.fail(actingShip.getName() + " needs active fire control to beam "
                     + objective.getName() + " aboard (D6.124)");

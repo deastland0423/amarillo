@@ -124,6 +124,34 @@ public class ObjectiveTest {
     }
 
     @Test
+    public void transporterPickup_refusedWhenPartyOnFarSideOfPlanet() {
+        // fed at (10,10) is north of the "planet" hex (10,12); it sees sides
+        // F/A/B. A survey party on side D (south) is hidden by the planet.
+        Objective o = addObjective("Survey Team", 10, 12, RetrievalMethod.TRANSPORTER);
+        o.setSide(4); // D
+        toActivityPhase();
+        fed.setActiveFireControl(true);
+
+        Game.ActionResult r = game.pickUpObjective(fed, "Survey Team", RetrievalMethod.TRANSPORTER);
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("no line of sight"));
+        assertTrue(o.isFree());
+    }
+
+    @Test
+    public void transporterPickup_succeedsWhenPartySideFacesShip() {
+        // Same geometry, but the party is on side A (north) — facing the ship.
+        Objective o = addObjective("Survey Team", 10, 12, RetrievalMethod.TRANSPORTER);
+        o.setSide(1); // A
+        toActivityPhase();
+        fed.setActiveFireControl(true);
+
+        Game.ActionResult r = game.pickUpObjective(fed, "Survey Team", RetrievalMethod.TRANSPORTER);
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(o.isCarried());
+    }
+
+    @Test
     public void pickup_outOfRange_refused() {
         addObjective("Far Box", 20, 10, RetrievalMethod.TRANSPORTER); // 10 hexes > 5
         toActivityPhase();

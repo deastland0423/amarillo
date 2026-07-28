@@ -299,6 +299,7 @@ export interface ObjectiveObject extends MapObjectBase {
   retrieval:       string[];        // permitted retrieval methods
   tractoredBy?:    string | null;   // ship holding it in a beam (still free), else null
   beingRecovered?: boolean;         // J1.621 rotation pull-in underway
+  side?:           number;          // planet hex side 1..6 it sits on, or 0 (SH50.46)
 }
 
 export interface WildWeaselObject extends MapObjectBase {

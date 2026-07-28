@@ -133,6 +133,7 @@ public class ScenarioLoader {
             com.sfb.objects.Objective obj = new com.sfb.objects.Objective(
                     setup.name != null ? setup.name : "Objective-" + setup.hex, loc.getX(), loc.getY());
             obj.setSurvivesCarrierDestruction(setup.survivesDestruction);
+            obj.setSide(setup.side);
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default
