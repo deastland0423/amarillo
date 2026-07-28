@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ShieldState, WeaponState } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import HexGrid from './HexGrid';
@@ -1539,6 +1539,9 @@ interface SidebarProps {
   // J1.621 shuttle recovery
   heldFriendlyShuttles: Set<string>;
   onRecoverShuttle: (shuttleName: string) => void;
+  // J1.621 canister recovery (SH35.452)
+  tractoredObjectives: ObjectiveObject[];
+  onRecoverObjective: (objectiveName: string) => void;
   // Tractor rotation (G7.7) — Initial Activity Phase
   rotateMode:    boolean;
   rotateTarget:  string | null;
@@ -1572,6 +1575,7 @@ function ShipSidebar({
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
   pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
   heldFriendlyShuttles, onRecoverShuttle,
+  tractoredObjectives, onRecoverObjective,
   rotateMode, rotateTarget, rotateError, onStartRotate, onCancelRotate,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
@@ -1822,6 +1826,38 @@ function ShipSidebar({
                   >
                     Recover {targetName}
                   </button>
+                ))}
+                {/* J1.621 canister recovery / release — SH35.452 */}
+                {tractoredObjectives.filter(o => o.tractoredBy === ship.name).map(o => (
+                  <Fragment key={`obj-${o.name}`}>
+                    {o.beingRecovered ? (
+                      <button
+                        className="action-strip-btn"
+                        disabled
+                        title={`${o.name} is being drawn aboard (J1.621) — pulled one hex closer each impulse`}
+                        style={{ borderColor: '#3fb950', color: '#3fb950', opacity: 0.6 }}
+                      >
+                        Recovering {o.name}…
+                      </button>
+                    ) : (
+                      <button
+                        className="action-strip-btn"
+                        onClick={() => onRecoverObjective(o.name)}
+                        title={`Draw ${o.name} aboard with the J1.621 rotation procedure (SH35.452)`}
+                        style={{ borderColor: '#3fb950', color: '#3fb950' }}
+                      >
+                        Recover {o.name}
+                      </button>
+                    )}
+                    <button
+                      className="action-strip-btn"
+                      onClick={() => onReleaseTractor(o.name)}
+                      title={`Release tractor beam on ${o.name} (G7.33)`}
+                      style={{ borderColor: '#f87171', color: '#f87171' }}
+                    >
+                      Release {o.name}
+                    </button>
+                  </Fragment>
                 ))}
                 {/* Tractor beam — release (G7.33) */}
                 {(ship.tractoredTargetNames ?? []).map(targetName => (
@@ -2800,8 +2836,13 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
     if (tractorMode && liveShip && obj) {
       const tractorableTypes = new Set(['SHIP', 'DRONE', 'SHUTTLE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
-      const isEnemy = obj.type !== 'SHIP' || !myShips.has(obj.name);
-      if (tractorableTypes.has(obj.type) && isEnemy) {
+      // A probe canister is a neutral free object grabbed with the beam then
+      // drawn aboard by J1.621 (SH35.452); every other target must be an enemy.
+      const eligible =
+        obj.type === 'OBJECTIVE'
+          ? obj.carrierName == null && !obj.tractoredBy
+          : tractorableTypes.has(obj.type) && (obj.type !== 'SHIP' || !myShips.has(obj.name));
+      if (eligible) {
         const myCoords    = parseLocation(liveShip.location);
         const theirCoords = parseLocation(obj.location);
         if (myCoords && theirCoords) {
@@ -3517,6 +3558,19 @@ export default function GameBoard({ session, onLeave }: Props) {
     else addLog(res.message, 'combat');
   }
 
+  /** Probe canisters currently held in a tractor beam (recovery candidates). */
+  const tractoredObjectives = (gameState?.mapObjects ?? [])
+    .filter((o): o is ObjectiveObject => o.type === 'OBJECTIVE' && !!(o as ObjectiveObject).tractoredBy);
+
+  async function handleRecoverObjective(objectiveName: string) {
+    if (!liveShip) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'RECOVER_OBJECTIVE', shipName: liveShip.name, objectiveName,
+    });
+    if (!res.success) setActionError(res.message);
+    else addLog(res.message, 'combat');
+  }
+
   async function handleLandShuttle() {
     const carrier = landableCarrierFor(liveShuttle);
     if (!liveShuttle || !carrier) return;
@@ -4056,6 +4110,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSubmitNegTractorBid={handleSubmitNegTractorBid}
             heldFriendlyShuttles={heldFriendlyShuttles}
             onRecoverShuttle={handleRecoverShuttle}
+            tractoredObjectives={tractoredObjectives}
+            onRecoverObjective={handleRecoverObjective}
             rotateMode={rotateMode}
             rotateTarget={rotateTarget}
             rotateError={rotateError}

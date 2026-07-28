@@ -301,6 +301,30 @@ function drawObjects(
     ctx.restore();
   }
 
+  // Tractor lines to grabbed probe canisters being drawn aboard (J1.621/SH35.452)
+  for (const obj of objects) {
+    if (obj.type !== 'OBJECTIVE') continue;
+    const o = obj as import('../types/gameState').ObjectiveObject;
+    if (!o.tractoredBy || !o.location) continue;
+    const holder = objects.find(h => h.type === 'SHIP' && h.name === o.tractoredBy) as import('../types/gameState').ShipObject | undefined;
+    if (!holder?.location) continue;
+    const oc = parseLocation(o.location);
+    const hc = parseLocation(holder.location);
+    if (!oc || !hc) continue;
+    const [ox, oy] = hexCenter(oc[0], oc[1]);
+    const [hx, hy] = hexCenter(hc[0], hc[1]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(hx, hy);
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   // Two-pass rendering: terrain first so units always appear on top.
   const terrain = objects.filter(o => o.type === 'TERRAIN');
   const units   = objects.filter(o => o.type !== 'TERRAIN');
@@ -481,10 +505,11 @@ function drawObjects(
     if (obj.type === 'OBJECTIVE') {
       const o = obj as import('../types/gameState').ObjectiveObject;
       if (o.carrierName) continue; // carried — travels with its ship, not drawn on the map
+      const grabbed = !!o.tractoredBy; // held in a beam / being drawn aboard
       const s = 8;
       ctx.fillStyle   = '#e0b34a';
-      ctx.strokeStyle = '#8a6d1f';
-      ctx.lineWidth   = 1.5;
+      ctx.strokeStyle = grabbed ? '#22d3ee' : '#8a6d1f';
+      ctx.lineWidth   = grabbed ? 2 : 1.5;
       ctx.beginPath();
       ctx.rect(cx - s, cy - s, s * 2, s * 2);
       ctx.fill();
@@ -493,7 +518,8 @@ function drawObjects(
       ctx.font         = 'bold 9px sans-serif';
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(o.name ?? 'Objective', cx, cy + s + 2);
+      const label = o.beingRecovered ? `${o.name ?? 'Objective'} ⟳` : (o.name ?? 'Objective');
+      ctx.fillText(label, cx, cy + s + 2);
       continue;
     }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {

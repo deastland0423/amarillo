@@ -345,8 +345,19 @@ class TractorResolver {
             target = activeShuttles.stream()
                     .filter(s -> s.getName().equalsIgnoreCase(targetName))
                     .<Unit>map(s -> s).findFirst().orElse(null);
-        if (target == null)
+        if (target == null) {
+            // A tractored canister isn't a Unit — look among everything the beams
+            // hold and release it directly (also ends any J1.621 recovery, J1.6221).
+            Tractorable heldObjective = holder.getTractors().getTractored().stream()
+                    .filter(t -> t instanceof Objective && t.getName().equalsIgnoreCase(targetName))
+                    .findFirst().orElse(null);
+            if (heldObjective != null) {
+                holder.getTractors().releaseTractor(heldObjective);
+                return ActionResult.ok(holder.getName() + " released tractor beam on "
+                        + targetName + " (G7.33)");
+            }
             return ActionResult.fail("Target not found: " + targetName);
+        }
         if (!holder.getTractors().getTractoredUnits().contains(target))
             return ActionResult.fail(holder.getName() + " is not tractoring " + targetName);
 

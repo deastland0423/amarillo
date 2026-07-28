@@ -294,9 +294,11 @@ export interface TerrainObject extends MapObjectBase {
 }
 
 export interface ObjectiveObject extends MapObjectBase {
-  type:        'OBJECTIVE';
-  carrierName: string | null;   // null = free on the map; else the carrying ship
-  retrieval:   string[];        // permitted retrieval methods
+  type:            'OBJECTIVE';
+  carrierName:     string | null;   // null = free on the map; else the carrying ship
+  retrieval:       string[];        // permitted retrieval methods
+  tractoredBy?:    string | null;   // ship holding it in a beam (still free), else null
+  beingRecovered?: boolean;         // J1.621 rotation pull-in underway
 }
 
 export interface WildWeaselObject extends MapObjectBase {
