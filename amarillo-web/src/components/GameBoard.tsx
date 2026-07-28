@@ -1500,6 +1500,11 @@ interface SidebarProps {
   // Transporters submenu
   transportersOpen:    boolean;
   onToggleTransporters: () => void;
+  // Beam a free objective aboard by transporter (SH47) — objective-pick mode
+  beamObjectMode:       boolean;
+  canBeamObjectTargets: boolean;
+  onStartBeamObject:    () => void;
+  onCancelBeamObject:   () => void;
   // Transport crew
   crewMode:        boolean;
   crewTarget:      ShipObject | null;
@@ -1566,6 +1571,7 @@ function ShipSidebar({
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
   transportersOpen, onToggleTransporters,
+  beamObjectMode, canBeamObjectTargets, onStartBeamObject, onCancelBeamObject,
   crewMode, crewTarget, crewAmount, crewError,
   onStartCrew, onCancelCrew, onSetCrewAmount, onSubmitCrew,
   onDisengageSeparation,
@@ -1605,7 +1611,10 @@ function ShipSidebar({
   const canTransferCrew = isActivityPhase && isMine
                         && (ship.availableCrewUnits ?? 0) > 0
                         && (ship.availableTransporters ?? 0) > 0;
-  const canUseTransporters = canTBomb || canBoard || canHar || canTransferCrew;
+  const canBeamObject   = isActivityPhase && isMine
+                        && (ship.availableTransporters ?? 0) > 0
+                        && canBeamObjectTargets;
+  const canUseTransporters = canTBomb || canBoard || canHar || canTransferCrew || canBeamObject;
   const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
@@ -2005,6 +2014,12 @@ function ShipSidebar({
                     onClick={crewMode ? onCancelCrew : onStartCrew}
                     title="Transport crew to another unit"
                   >Send Crew</button>
+                  <button
+                    className={`action-strip-btn${beamObjectMode ? ' active' : ''}`}
+                    disabled={!canBeamObject}
+                    onClick={beamObjectMode ? onCancelBeamObject : onStartBeamObject}
+                    title="Beam a free objective aboard by transporter (within 5 hexes)"
+                  >Beam Aboard</button>
                 </div>
               )}
             </>
@@ -2063,10 +2078,19 @@ function ShipSidebar({
       {tractorMode && (
         <div className="sidebar-action-detail">
           <div className="sidebar-section-title" style={{ color: '#22d3ee' }}>
-            Tractor — click an enemy ship, drone, or shuttle
+            Tractor — click an enemy ship, drone, shuttle, or free canister
           </div>
           {tractorError && <div style={{ color: '#f85149', fontSize: '0.75rem' }}>{tractorError}</div>}
           <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelTractor}>Cancel</button>
+        </div>
+      )}
+
+      {beamObjectMode && (
+        <div className="sidebar-action-detail">
+          <div className="sidebar-section-title" style={{ color: '#3fb950' }}>
+            Beam Aboard — click a free objective within 5 hexes
+          </div>
+          <button className="secondary" style={{ marginTop: 4 }} onClick={onCancelBeamObject}>Cancel</button>
         </div>
       )}
 
@@ -2628,6 +2652,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [rotateError,  setRotateError]  = useState<string | null>(null);
   // Boarding action state
   const [boardingMode,    setBoardingMode]    = useState(false);
+  const [beamObjectMode,  setBeamObjectMode]  = useState(false);
   const [boardingTarget,  setBoardingTarget]  = useState<ShipObject | null>(null);
   const [boardingNormal,  setBoardingNormal]  = useState(0);
   const [boardingCommandos, setBoardingCommandos] = useState(0);
@@ -2856,6 +2881,14 @@ export default function GameBoard({ session, onLeave }: Props) {
           setTractorMode(false);
           return;
         }
+      }
+    }
+    if (beamObjectMode && liveShip && obj?.type === 'OBJECTIVE') {
+      // Beam a free, transporter-eligible canister aboard (SH47). Range/energy/
+      // shield/D6.37 are all validated server-side; surface any failure.
+      if (!obj.carrierName && (obj.retrieval?.includes('TRANSPORTER') ?? false)) {
+        handleBeamObject(obj.name);
+        return;
       }
     }
     if (boardingMode && liveShip && obj?.type === 'SHIP') {
@@ -3223,6 +3256,19 @@ export default function GameBoard({ session, onLeave }: Props) {
     setLaunchTarget(null);
     setTBombMode(false);
     setTBombPendingHex(null);
+    setBeamObjectMode(false);
+  }
+
+  function handleStartBeamObject() {
+    setBeamObjectMode(true);
+    setBoardingMode(false);
+    setTractorMode(false);
+    setLaunchMode(false);
+    setTBombMode(false);
+  }
+
+  function handleCancelBeamObject() {
+    setBeamObjectMode(false);
   }
 
   async function handleSubmitTractorBid() {
@@ -3569,6 +3615,28 @@ export default function GameBoard({ session, onLeave }: Props) {
     });
     if (!res.success) setActionError(res.message);
     else addLog(res.message, 'combat');
+  }
+
+  /** Free, transporter-retrievable canisters within transporter range (5) of the acting ship. */
+  const beamableObjectives = (gameState?.mapObjects ?? []).filter((o): o is ObjectiveObject => {
+    if (o.type !== 'OBJECTIVE') return false;
+    const oo = o as ObjectiveObject;
+    if (oo.carrierName || !(oo.retrieval?.includes('TRANSPORTER'))) return false;
+    if (!liveShip) return false;
+    const a = parseLocation(liveShip.location);
+    const b = oo.location ? parseLocation(oo.location) : null;
+    if (!a || !b) return false;
+    return hexRange({ col: a[0], row: a[1] }, { col: b[0], row: b[1] }) <= 5;
+  });
+
+  async function handleBeamObject(objectiveName: string) {
+    if (!liveShip) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'PICKUP_OBJECTIVE', shipName: liveShip.name, objectiveName, retrievalMethod: 'TRANSPORTER',
+    });
+    if (!res.success) setActionError(res.message);
+    else addLog(res.message, 'combat');
+    setBeamObjectMode(false);
   }
 
   async function handleLandShuttle() {
@@ -4049,6 +4117,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSetBoardingNormal={setBoardingNormal}
             onSetBoardingCommandos={setBoardingCommandos}
             onSubmitBoarding={handleSubmitBoarding}
+            beamObjectMode={beamObjectMode}
+            canBeamObjectTargets={beamableObjectives.length > 0}
+            onStartBeamObject={handleStartBeamObject}
+            onCancelBeamObject={handleCancelBeamObject}
             idMode={idMode}
             idSeekers={idSeekers}
             idSelected={idSelected}
