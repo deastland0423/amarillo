@@ -93,6 +93,43 @@ public class PlanetLandingTest {
     }
 
     @Test
+    public void inAtmosphereShuttleLandsTheTurnAfterEntry() {
+        AdminShuttle shuttle = shuttleAt(10, 7, 1, 0);
+        shuttle.setLandingPhase(LandingPhase.IN_ATMOSPHERE);
+        shuttle.setLandedHexSide(4); // D
+        shuttle.setAtmosphereEnteredTurn(game.getCurrentTurn() - 1); // entered last turn
+
+        java.util.List<String> log = game.landDescendingShuttles();
+
+        assertEquals(LandingPhase.LANDED, shuttle.getLandingPhase());
+        assertTrue(log.toString(), log.stream().anyMatch(l -> l.contains("landed")));
+    }
+
+    @Test
+    public void inAtmosphereShuttleDoesNotLandOnItsEntryTurn() {
+        AdminShuttle shuttle = shuttleAt(10, 7, 1, 0);
+        shuttle.setLandingPhase(LandingPhase.IN_ATMOSPHERE);
+        shuttle.setAtmosphereEnteredTurn(game.getCurrentTurn()); // entered this same turn
+
+        game.landDescendingShuttles();
+
+        assertEquals("Step 3 descent is a separate turn — no same-turn landing",
+                LandingPhase.IN_ATMOSPHERE, shuttle.getLandingPhase());
+    }
+
+    @Test
+    public void landedShuttleCannotMove() {
+        // P2.45: a landed unit cannot expend power for movement (except take-off).
+        AdminShuttle shuttle = shuttleAt(12, 12, 1, 1);
+        shuttle.setLandingPhase(LandingPhase.LANDED);
+        advanceToMovement(32);
+
+        Game.ActionResult r = game.moveShuttleForward(shuttle);
+
+        assertFalse("a landed shuttle cannot fly (P2.45)", r.isSuccess());
+    }
+
+    @Test
     public void shuttleEntersPlanetAtSpeedTwo_crashes() {
         AdminShuttle shuttle = shuttleAt(10, 8, 1, 2);
         advanceToMovement(16); // speed-2 units move on impulse 16

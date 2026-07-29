@@ -99,6 +99,7 @@ public abstract class Shuttle extends Unit {
 	// occupies (P2.611). NONE = in normal space.
 	private com.sfb.properties.LandingPhase landingPhase = com.sfb.properties.LandingPhase.NONE;
 	private int landedHexSide = 0;
+	private int atmosphereEnteredTurn = -1; // turn it entered the atmosphere (descent lands the NEXT turn)
 
 	public com.sfb.properties.LandingPhase getLandingPhase() {
 		return landingPhase;
@@ -115,6 +116,15 @@ public abstract class Shuttle extends Unit {
 
 	public void setLandedHexSide(int landedHexSide) {
 		this.landedHexSide = landedHexSide;
+	}
+
+	/** Turn on which this shuttle entered the atmosphere; it lands the next turn (P2.4113). */
+	public int getAtmosphereEnteredTurn() {
+		return atmosphereEnteredTurn;
+	}
+
+	public void setAtmosphereEnteredTurn(int turn) {
+		this.atmosphereEnteredTurn = turn;
 	}
 
 	@Override

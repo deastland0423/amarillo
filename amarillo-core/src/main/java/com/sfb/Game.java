@@ -527,6 +527,11 @@ public class Game {
             ship.cleanUp();
         }
 
+        // P2.4113: a shuttle that entered the atmosphere on a PRIOR turn spends
+        // this turn descending and lands on Impulse 32 (this turn boundary).
+        // getCurrentTurn() is still the turn just ended (startTurn() is below).
+        List<String> landingLog = landDescendingShuttles();
+
         // C7.1: identify ships eligible for disengagement by acceleration.
         // Players must confirm YES/NO before the next turn's EA begins.
         disengagementResolver.queueAccelDisengageCandidates();
@@ -539,8 +544,28 @@ public class Game {
         // else: startTurn() is deferred until all confirmAccelDisengage() calls are
         // processed
 
-        String msg = lastBoardingLog.isEmpty() ? "" : String.join("\n", lastBoardingLog);
-        return ActionResult.ok(msg);
+        List<String> endLog = new ArrayList<>(lastBoardingLog);
+        endLog.addAll(landingLog);
+        return ActionResult.ok(endLog.isEmpty() ? "" : String.join("\n", endLog));
+    }
+
+    /**
+     * P2.4113 Step 3: shuttles that entered a planet's atmosphere on an earlier
+     * turn finish their descent and land this turn (on Impulse 32). Called from
+     * {@link #endTurn()} while the clock still reads the turn that just ended, so
+     * a shuttle never lands on the same turn it entered.
+     */
+    List<String> landDescendingShuttles() {
+        List<String> log = new ArrayList<>();
+        for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
+            if (s.getLandingPhase() == com.sfb.properties.LandingPhase.IN_ATMOSPHERE
+                    && getCurrentTurn() > s.getAtmosphereEnteredTurn()) {
+                s.setLandingPhase(com.sfb.properties.LandingPhase.LANDED);
+                log.add(s.getName() + " has landed on the planet, side "
+                        + (char) ('A' + s.getLandedHexSide() - 1) + " (P2.4113)");
+            }
+        }
+        return log;
     }
 
     /**

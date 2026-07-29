@@ -553,6 +553,8 @@ class ShipMover {
             return false; // shut down for recovery (J1.622)
         if (shuttle.isTractored())
             return false; // held fast — cannot fly out of the beam (G7.5)
+        if (shuttle.getLandingPhase() != com.sfb.properties.LandingPhase.NONE)
+            return false; // descending or landed — no free movement (P2.45); take-off is separate
         if (!getMovableShips().isEmpty())
             return false;
         if (!MovementUtil.moveThisImpulse(game.getCurrentImpulse(), shuttle.getSpeed()))
@@ -587,6 +589,7 @@ class ShipMover {
             shuttle.setLocation(nextHex);
             shuttle.setLandingPhase(com.sfb.properties.LandingPhase.IN_ATMOSPHERE);
             shuttle.setLandedHexSide(side);
+            shuttle.setAtmosphereEnteredTurn(game.getCurrentTurn()); // descent lands next turn (P2.4113)
             movedShuttlesThisImpulse.add(shuttle);
             return ActionResult.ok(shuttle.getName() + " entered the atmosphere over side "
                     + (char) ('A' + side - 1) + " and is descending (P2.4112)");
