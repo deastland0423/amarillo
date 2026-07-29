@@ -558,7 +558,7 @@ public class Game {
     List<String> landDescendingShuttles() {
         List<String> log = new ArrayList<>();
         for (com.sfb.objects.shuttles.Shuttle s : activeShuttles) {
-            if (s.getLandingPhase() == com.sfb.properties.LandingPhase.IN_ATMOSPHERE
+            if (s.getLandingPhase() == com.sfb.properties.LandingPhase.DESCENDING
                     && getCurrentTurn() > s.getAtmosphereEnteredTurn()) {
                 s.setLandingPhase(com.sfb.properties.LandingPhase.LANDED);
                 log.add(s.getName() + " has landed on the planet, side "
@@ -566,6 +566,24 @@ public class Game {
             }
         }
         return log;
+    }
+
+    /**
+     * P2.412 take-off: a landed shuttle lifts off the surface and begins
+     * climbing through the atmosphere. It cannot leave the planet hex until a
+     * later turn (the climb takes time), enforced via the take-off turn. Power
+     * accounting for the procedure (P2.4121) is a deferred refinement, as it is
+     * for the landing side.
+     */
+    public ActionResult declareTakeoff(com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (shuttle.getLandingPhase() != com.sfb.properties.LandingPhase.LANDED)
+            return ActionResult.fail(shuttle.getName() + " is not landed on a planet");
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Take-off can only be declared during the Activity phase");
+        shuttle.setLandingPhase(com.sfb.properties.LandingPhase.CLIMBING);
+        shuttle.setTakeoffTurn(getCurrentTurn());
+        return ActionResult.ok(shuttle.getName()
+                + " lifts off the surface and begins climbing (P2.412) — may leave next turn");
     }
 
     /**

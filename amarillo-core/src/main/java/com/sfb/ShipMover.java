@@ -553,8 +553,16 @@ class ShipMover {
             return false; // shut down for recovery (J1.622)
         if (shuttle.isTractored())
             return false; // held fast — cannot fly out of the beam (G7.5)
-        if (shuttle.getLandingPhase() != com.sfb.properties.LandingPhase.NONE)
-            return false; // descending or landed — no free movement (P2.45); take-off is separate
+        // P2.45: descending or landed shuttles get no free movement. A climbing
+        // shuttle (took off) may fly out, but only after the take-off turn — it
+        // cannot lift off and leave the same turn (P2.412 is multi-turn).
+        com.sfb.properties.LandingPhase phase = shuttle.getLandingPhase();
+        if (phase == com.sfb.properties.LandingPhase.DESCENDING
+                || phase == com.sfb.properties.LandingPhase.LANDED)
+            return false;
+        if (phase == com.sfb.properties.LandingPhase.CLIMBING
+                && game.getCurrentTurn() <= shuttle.getTakeoffTurn())
+            return false;
         if (!getMovableShips().isEmpty())
             return false;
         if (!MovementUtil.moveThisImpulse(game.getCurrentImpulse(), shuttle.getSpeed()))
@@ -571,6 +579,22 @@ class ShipMover {
         int moveDir = MapUtils.getTrueBearing(1, shuttle.getFacing());
         Location prevLoc = shuttle.getLocation();
         Location nextHex = MapUtils.getAdjacentHex(prevLoc, moveDir, game.getMapCols(), game.getMapRows());
+
+        // Take-off departure (P2.4123): a climbing shuttle flying out of the
+        // planet hex into open space completes its take-off and is back in space.
+        if (shuttle.getLandingPhase() == com.sfb.properties.LandingPhase.CLIMBING
+                && (nextHex == null || !game.isPlanetHex(nextHex))) {
+            shuttle.setLandingPhase(com.sfb.properties.LandingPhase.NONE);
+            shuttle.setLandedHexSide(0);
+            shuttle.goForward(game.getMapCols(), game.getMapRows());
+            if (shuttle.getLocation() == null) {
+                activeShuttles.remove(shuttle);
+                return ActionResult.fail(shuttle.getName() + " moved off the map");
+            }
+            movedShuttlesThisImpulse.add(shuttle);
+            return ActionResult.ok(shuttle.getName() + " climbed out of the atmosphere into space (P2.4123)");
+        }
+
         if (nextHex != null && game.isPlanetHex(nextHex)) {
             if (shuttle.getSpeed() > 1) {
                 // Entered a planet hex at speed > 1 → catastrophic crash (P2.812/P2.431)
@@ -587,7 +611,7 @@ class ShipMover {
             int oppositeBearing = ((moveDir - 1 + 12) % 24) + 1; // planet → prevLoc
             int side = (oppositeBearing - 1) / 4 + 1;            // 1..6 (A..F)
             shuttle.setLocation(nextHex);
-            shuttle.setLandingPhase(com.sfb.properties.LandingPhase.IN_ATMOSPHERE);
+            shuttle.setLandingPhase(com.sfb.properties.LandingPhase.DESCENDING);
             shuttle.setLandedHexSide(side);
             shuttle.setAtmosphereEnteredTurn(game.getCurrentTurn()); // descent lands next turn (P2.4113)
             movedShuttlesThisImpulse.add(shuttle);

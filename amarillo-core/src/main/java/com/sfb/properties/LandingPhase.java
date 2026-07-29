@@ -7,14 +7,22 @@ package com.sfb.properties;
  *
  * <ul>
  *   <li>{@link #NONE} — in normal space.</li>
- *   <li>{@link #IN_ATMOSPHERE} — has entered the planet hex at speed ≤ 1 and is
- *       flying in its atmosphere (P2.4112 Step 2 / atmospheric flight P2.80).</li>
+ *   <li>{@link #DESCENDING} — entered the planet hex at speed ≤ 1 and is flying
+ *       down through its atmosphere; lands the next turn (P2.4112/P2.4113).</li>
  *   <li>{@link #LANDED} — on the surface, on a designated hex side; cannot move
  *       except to take off (P2.45).</li>
+ *   <li>{@link #CLIMBING} — has taken off from the surface and is flying up
+ *       through the atmosphere; may leave the planet hex the next turn (P2.412).</li>
  * </ul>
  */
 public enum LandingPhase {
     NONE,
-    IN_ATMOSPHERE,
-    LANDED
+    DESCENDING,
+    LANDED,
+    CLIMBING;
+
+    /** Flying within the planet hex (either direction) — for atmosphere effects. */
+    public boolean isInAtmosphere() {
+        return this == DESCENDING || this == CLIMBING;
+    }
 }

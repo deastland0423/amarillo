@@ -100,6 +100,7 @@ public abstract class Shuttle extends Unit {
 	private com.sfb.properties.LandingPhase landingPhase = com.sfb.properties.LandingPhase.NONE;
 	private int landedHexSide = 0;
 	private int atmosphereEnteredTurn = -1; // turn it entered the atmosphere (descent lands the NEXT turn)
+	private int takeoffTurn = -1;           // turn it lifted off (may leave the planet hex the NEXT turn)
 
 	public com.sfb.properties.LandingPhase getLandingPhase() {
 		return landingPhase;
@@ -125,6 +126,15 @@ public abstract class Shuttle extends Unit {
 
 	public void setAtmosphereEnteredTurn(int turn) {
 		this.atmosphereEnteredTurn = turn;
+	}
+
+	/** Turn on which this shuttle lifted off the surface; it may leave the hex the next turn (P2.412). */
+	public int getTakeoffTurn() {
+		return takeoffTurn;
+	}
+
+	public void setTakeoffTurn(int turn) {
+		this.takeoffTurn = turn;
 	}
 
 	@Override
