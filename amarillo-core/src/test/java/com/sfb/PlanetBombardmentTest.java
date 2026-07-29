@@ -49,7 +49,7 @@ public class PlanetBombardmentTest {
         e.setLifeSupport(fed.getLifeSupportCost());
         e.setFireControl(fed.getFireControlCost());
         e.setActivateShields(fed.getActiveShieldCost());
-        e.setPhaserCapacitor(6.0); // charge phasers so they can fire
+        e.setPhaserCapacitor(6.0); // charge phasers so they can fire (within the CA's capacitor)
         e.setWarpMovement(0.0);
         game.submitAllocation(fed, e);
     }
@@ -102,6 +102,39 @@ public class PlanetBombardmentTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage(), r.getMessage().contains("line of sight"));
         assertEquals(0, planet.getTotalDamage());
+    }
+
+    @Test
+    public void bombard_spreadsAcrossMultipleVisibleSides() {
+        // From the south, sides C(3)/D(4)/E(5) are all visible — fire one fore
+        // phaser at each of two of them, working toward SH63's "3 different sides".
+        // (Both fore phasers bear on the planet directly ahead.)
+        advanceToDirectFire();
+        List<Weapon> phasers = fed.getWeapons().getPhaserList();
+        List<Weapon> groupD = phasers.subList(0, 1); // fore phaser #1
+        List<Weapon> groupC = phasers.subList(1, 2); // fore phaser #2
+
+        assertTrue(game.bombardPlanet(fed, planet, 4, groupD).isSuccess());
+        assertTrue(game.bombardPlanet(fed, planet, 3, groupC).isSuccess());
+
+        assertTrue("side D took damage", planet.getDamageOnSide(4) > 0);
+        assertTrue("side C took damage", planet.getDamageOnSide(3) > 0);
+        assertEquals("total is the sum across the two sides",
+                planet.getDamageOnSide(4) + planet.getDamageOnSide(3), planet.getTotalDamage());
+    }
+
+    @Test
+    public void bombard_skipsWeaponsThatCannotBear() {
+        // Face the ship away from the planet: its fore phasers cannot bear on a
+        // target directly behind it, so those shots are skipped (arc check).
+        fed.setFacing(13); // south; the planet is due north (to the rear)
+        advanceToDirectFire();
+
+        Game.ActionResult r = game.bombardPlanet(fed, planet, 4, fed.getWeapons().getPhaserList());
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("fore phasers cannot bear on a planet behind the ship: " + r.getMessage(),
+                r.getMessage().contains("cannot bear"));
     }
 
     @Test

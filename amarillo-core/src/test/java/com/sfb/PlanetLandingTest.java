@@ -84,6 +84,38 @@ public class PlanetLandingTest {
         fail("Never reached ACTIVITY at impulse >= " + minImpulse);
     }
 
+    // --- Multi-turn drivers (submit fed's allocation each turn, then advance) ---
+
+    private Energy fedAlloc() {
+        Energy e = new Energy();
+        e.setLifeSupport(fed.getLifeSupportCost());
+        e.setFireControl(fed.getFireControlCost());
+        e.setActivateShields(fed.getActiveShieldCost());
+        e.setWarpMovement(0.0);
+        return e;
+    }
+
+    /** Advance real phases/turns until the turn counter reaches {@code target}. */
+    private void driveUntilTurn(int target) {
+        for (int i = 0; i < 800 && game.getCurrentTurn() < target; i++) {
+            if (game.isAwaitingAllocation()) game.submitAllocation(fed, fedAlloc());
+            else game.advancePhase();
+        }
+        assertTrue("reached turn " + target + " (at " + game.getCurrentTurn() + ")",
+                game.getCurrentTurn() >= target);
+    }
+
+    /** Advance real phases/turns until {@code phase} at impulse >= {@code minImpulse}. */
+    private void driveToPhase(Game.ImpulsePhase phase, int minImpulse) {
+        for (int i = 0; i < 800; i++) {
+            if (game.getCurrentPhase() == phase && game.getCurrentImpulse() >= minImpulse)
+                return;
+            if (game.isAwaitingAllocation()) game.submitAllocation(fed, fedAlloc());
+            else game.advancePhase();
+        }
+        fail("Never reached " + phase + " at impulse >= " + minImpulse);
+    }
+
     @Test
     public void shuttleEntersPlanetAtSpeed1_beginsDescentOnEntrySide() {
         // Just south of the planet at (10,8), heading north into (10,7), speed 1.
@@ -192,6 +224,60 @@ public class PlanetLandingTest {
         assertEquals(new Location(10, 6), shuttle.getLocation());
         assertEquals(LandingPhase.NONE, shuttle.getLandingPhase());
         assertTrue(r.getMessage(), r.getMessage().contains("climbed"));
+    }
+
+    @Test
+    public void entrySideFollowsApproachDirection_fromTheNorth() {
+        // North of the planet at (10,6), heading south (13) into (10,7).
+        AdminShuttle shuttle = shuttleAt(10, 6, 13, 1);
+        advanceToMovement(32);
+
+        Game.ActionResult r = game.moveShuttleForward(shuttle);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(new Location(10, 7), shuttle.getLocation());
+        assertEquals("came from the north → designated on the A (north) face",
+                1, shuttle.getLandedHexSide());
+    }
+
+    // --- Integration: a real landing + take-off across real turns -----------
+
+    @Test
+    public void fullRoundTrip_landsThenTakesOffAcrossRealTurns() {
+        AdminShuttle shuttle = shuttleAt(10, 8, 1, 1); // south of the planet, heading north
+        advanceToMovement(32);
+        assertTrue(game.moveShuttleForward(shuttle).isSuccess());
+        assertEquals(LandingPhase.DESCENDING, shuttle.getLandingPhase());
+        int entryTurn = game.getCurrentTurn();
+
+        // Descent turn: still descending, real endTurn hook has NOT landed it yet.
+        driveUntilTurn(entryTurn + 1);
+        assertEquals("still descending the turn after entry",
+                LandingPhase.DESCENDING, shuttle.getLandingPhase());
+
+        // End of the descent turn (real endTurn): now landed.
+        driveUntilTurn(entryTurn + 2);
+        assertEquals("landed at the end of the descent turn",
+                LandingPhase.LANDED, shuttle.getLandingPhase());
+        assertEquals(new Location(10, 7), shuttle.getLocation());
+
+        // Take off from the surface (Activity phase) → climbing.
+        driveToPhase(Game.ImpulsePhase.ACTIVITY, 1);
+        Game.ActionResult takeoff = game.declareTakeoff(shuttle);
+        assertTrue(takeoff.getMessage(), takeoff.isSuccess());
+        assertEquals(LandingPhase.CLIMBING, shuttle.getLandingPhase());
+        int takeoffTurn = game.getCurrentTurn();
+
+        // A later turn: fly out of the atmosphere into open space.
+        shuttle.setSpeed(1);
+        driveUntilTurn(takeoffTurn + 1);
+        driveToPhase(Game.ImpulsePhase.MOVEMENT, 32);
+        Game.ActionResult depart = game.moveShuttleForward(shuttle);
+
+        assertTrue(depart.getMessage(), depart.isSuccess());
+        assertEquals(LandingPhase.NONE, shuttle.getLandingPhase());
+        assertEquals("climbed out to the space hex north of the planet",
+                new Location(10, 6), shuttle.getLocation());
     }
 
     @Test
