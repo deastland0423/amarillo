@@ -49,6 +49,8 @@ public class AdminShuttle extends Shuttle {
 	public AdminShuttle() {
 		setHull(6);
 		setMaxSpeed(6);
+		setPersonnelCapacity(2);  // one crew unit OR two boarding parties (J2.211)
+		setCargoCapacity(15);     // base cargo spaces (G25.131; scaffolded, not yet enforced)
 
 		// Create a phaser 3 (360 arc) and put it with the shuttle weapons.
 		Phaser3 phaser1 = new Phaser3();

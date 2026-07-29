@@ -137,6 +137,57 @@ public abstract class Shuttle extends Unit {
 		this.takeoffTurn = turn;
 	}
 
+	// -------------------------------------------------------------------------
+	// Cargo / personnel hold (J2.2 / G25.13)
+	// -------------------------------------------------------------------------
+	//
+	// The hold carries passengers — crew units, boarding parties, commandos —
+	// and (later) cargo. Personnel occupy "spaces": a boarding party or commando
+	// is 1, a crew unit is 2, so a standard admin shuttle (capacity 2) holds one
+	// crew unit OR two boarding parties (J2.211). Cargo is a separate track
+	// (G25.11 50-space boxes) reduced by personnel aboard; its capacity is
+	// scaffolded here but not yet enforced (Annex #7K item sizes deferred).
+
+	public static final int SPACES_PER_BOARDING_PARTY = 1;
+	public static final int SPACES_PER_COMMANDO       = 1;
+	public static final int SPACES_PER_CREW_UNIT      = 2;
+
+	private final com.sfb.objects.PersonnelManifest hold = new com.sfb.objects.PersonnelManifest();
+	private int personnelCapacity = 0; // personnel spaces (admin shuttle = 2, J2.211)
+	private int cargoCapacity     = 0; // base cargo spaces (G25.13; scaffolded, not yet enforced)
+
+	public com.sfb.objects.PersonnelManifest getHold() {
+		return hold;
+	}
+
+	public int getPersonnelCapacity() {
+		return personnelCapacity;
+	}
+
+	public void setPersonnelCapacity(int spaces) {
+		this.personnelCapacity = spaces;
+	}
+
+	public int getCargoCapacity() {
+		return cargoCapacity;
+	}
+
+	public void setCargoCapacity(int spaces) {
+		this.cargoCapacity = spaces;
+	}
+
+	/** Personnel spaces occupied by everyone in the hold (J2.211 sizing). */
+	public int personnelSpacesUsed() {
+		return hold.getCrew()            * SPACES_PER_CREW_UNIT
+			 + hold.getBoardingParties() * SPACES_PER_BOARDING_PARTY
+			 + hold.getCommandos()       * SPACES_PER_COMMANDO;
+	}
+
+	/** Personnel spaces still available in the hold. */
+	public int personnelSpacesFree() {
+		return personnelCapacity - personnelSpacesUsed();
+	}
+
 	@Override
 	public void releaseTractor() {
 		super.releaseTractor();
