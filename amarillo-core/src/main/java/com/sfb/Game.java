@@ -1504,6 +1504,16 @@ public class Game {
     }
 
     /**
+     * Bombard a planet's surface (P2.311/P2.525): fire the selected direct-fire
+     * weapons at a chosen, visible hex side; damage accumulates on that side and
+     * the planet total. See {@link DamageResolver#bombardPlanet}.
+     */
+    public ActionResult bombardPlanet(Ship attacker, com.sfb.objects.Terrain planet,
+            int targetSide, List<Weapon> selected) {
+        return damageResolver.bombardPlanet(attacker, planet, targetSide, selected);
+    }
+
+    /**
      * Returns the current list of pending fire volleys (for the game-state DTO).
      */
     public List<PendingVolley> getPendingVolleys() {

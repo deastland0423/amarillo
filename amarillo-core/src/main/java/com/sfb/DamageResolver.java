@@ -329,6 +329,79 @@ class DamageResolver {
      * @return A formatted combat log string describing every shot and the total
      *         damage applied.
      */
+    /**
+     * Bombard a planet's surface (P2.311/P2.525). A planet has no shields or
+     * internals — direct-fire damage just accumulates on the chosen hex side
+     * (and the total). The side must be one the attacker can see (P2.52 line of
+     * sight), and firing suffers the +2 ground-clutter ECM (P2.52) plus any
+     * terrain ECM on the line. Seeking weapons (P2.522) and atmosphere weapon
+     * degradation (P2.54) are deferred; this is direct fire only.
+     */
+    com.sfb.Game.ActionResult bombardPlanet(Ship attacker, com.sfb.objects.Terrain planet,
+            int targetSide, List<Weapon> selected) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
+            return Game.ActionResult.fail("Weapons can only be fired during the Direct Fire phase");
+        if (planet == null || !(planet.getTerrainType() == com.sfb.properties.TerrainType.PLANET
+                || planet.getTerrainType() == com.sfb.properties.TerrainType.GAS_GIANT))
+            return Game.ActionResult.fail("Target is not a planet");
+        if (!attacker.isActiveFireControl())
+            return Game.ActionResult.fail(attacker.getName() + " needs active fire control to fire");
+        if (targetSide < 1 || targetSide > 6)
+            return Game.ActionResult.fail("Invalid planet side " + targetSide);
+        if (!com.sfb.utilities.MapUtils.isPlanetSideVisible(
+                planet.getLocation(), attacker.getLocation(), targetSide))
+            return Game.ActionResult.fail(attacker.getName() + " has no line of sight to side "
+                    + (char) ('A' + targetSide - 1) + " of the planet (P2.52)");
+
+        int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), planet.getLocation());
+        int groundClutter = 2; // P2.52 ground-clutter ECM
+        int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), planet.getLocation());
+        int eccm = attacker.getEccmAllocated();
+        int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, groundClutter + terrainEcm - eccm)));
+        int adjustedRange = range + attacker.getScanner();
+
+        int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), planet.getLocation());
+        int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
+
+        char sideLetter = (char) ('A' + targetSide - 1);
+        StringBuilder log = new StringBuilder(attacker.getName())
+                .append(" bombards side ").append(sideLetter).append(" of the planet:\n");
+        int dealt = 0;
+        for (Weapon w : selected) {
+            if (!(w instanceof com.sfb.weapons.DirectFire)) {
+                log.append("  ").append(w.getName()).append(" — seeking weapons cannot bombard (P2.522, deferred)\n");
+                continue;
+            }
+            if (!w.isFunctional()) {
+                log.append("  ").append(w.getName()).append(" destroyed — cannot fire\n");
+                continue;
+            }
+            if (range > w.getMaxRange()) {
+                log.append("  ").append(w.getName()).append(" out of range\n");
+                continue;
+            }
+            if (!w.inArc(relBearing)) {
+                log.append("  ").append(w.getName()).append(" cannot bear on the planet\n");
+                continue;
+            }
+            w.setEcmShift(ecmShift);
+            try {
+                int dmg = ((com.sfb.weapons.DirectFire) w).fire(range, adjustedRange);
+                if (dmg > 0) {
+                    planet.addDamage(targetSide, dmg);
+                    dealt += dmg;
+                    log.append("  ").append(w.getName()).append("  ").append(dmg).append(" damage\n");
+                }
+            } catch (Exception ex) {
+                log.append("  ").append(w.getName()).append(" cannot fire (").append(ex.getMessage()).append(")\n");
+            }
+        }
+        log.append(dealt).append(" damage to side ").append(sideLetter)
+                .append(" (side total ").append(planet.getDamageOnSide(targetSide))
+                .append(", planet total ").append(planet.getTotalDamage()).append(") — P2.311/P2.525");
+        return Game.ActionResult.ok(log.toString());
+    }
+
     String fireWeapons(Unit attacker, Unit target, List<Weapon> selected,
             int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
         if (attacker instanceof Ship && ((Ship) attacker).isCaptured())
