@@ -563,6 +563,35 @@ class ShipMover {
     public ActionResult moveShuttleForward(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (!canMoveShuttleThisImpulse(shuttle))
             return ActionResult.fail(shuttle.getName() + " cannot move this impulse");
+
+        // Planet entry (P2.4): a shuttle about to move into a planet hex is
+        // either beginning a landing (speed ≤ 1) or crashing (speed > 1, P2.812).
+        int moveDir = MapUtils.getTrueBearing(1, shuttle.getFacing());
+        Location prevLoc = shuttle.getLocation();
+        Location nextHex = MapUtils.getAdjacentHex(prevLoc, moveDir, game.getMapCols(), game.getMapRows());
+        if (nextHex != null && game.isPlanetHex(nextHex)) {
+            if (shuttle.getSpeed() > 1) {
+                // Entered a planet hex at speed > 1 → catastrophic crash (P2.812/P2.431)
+                game.removeShuttleFromPlay(shuttle, "crashed into the planet");
+                return ActionResult.ok(shuttle.getName()
+                        + " entered a planet hex at speed " + shuttle.getSpeed()
+                        + " — crash landing, shuttle destroyed (P2.812)");
+            }
+            // Step 2 (P2.4112): enter the atmosphere at speed ≤ 1. The hex side is
+            // the face toward the hex it came from (P2.611) — the reverse of its
+            // heading. moveDir is always a primary bearing {1,5,9,13,17,21}, so
+            // the side maps cleanly (unlike an adjacent hex's shield facing, which
+            // can fall on a border/vertex value).
+            int oppositeBearing = ((moveDir - 1 + 12) % 24) + 1; // planet → prevLoc
+            int side = (oppositeBearing - 1) / 4 + 1;            // 1..6 (A..F)
+            shuttle.setLocation(nextHex);
+            shuttle.setLandingPhase(com.sfb.properties.LandingPhase.IN_ATMOSPHERE);
+            shuttle.setLandedHexSide(side);
+            movedShuttlesThisImpulse.add(shuttle);
+            return ActionResult.ok(shuttle.getName() + " entered the atmosphere over side "
+                    + (char) ('A' + side - 1) + " and is descending (P2.4112)");
+        }
+
         shuttle.goForward(game.getMapCols(), game.getMapRows());
         if (shuttle.getLocation() == null) {
             activeShuttles.remove(shuttle);

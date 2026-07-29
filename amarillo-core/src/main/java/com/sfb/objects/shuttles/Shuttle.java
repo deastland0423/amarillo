@@ -94,6 +94,29 @@ public abstract class Shuttle extends Unit {
 		this.beingRecovered = beingRecovered;
 	}
 
+	// Planet landing procedure (P2.4). While IN_ATMOSPHERE or LANDED the shuttle
+	// sits in the planet hex; landedHexSide (1..6) is the face it entered on /
+	// occupies (P2.611). NONE = in normal space.
+	private com.sfb.properties.LandingPhase landingPhase = com.sfb.properties.LandingPhase.NONE;
+	private int landedHexSide = 0;
+
+	public com.sfb.properties.LandingPhase getLandingPhase() {
+		return landingPhase;
+	}
+
+	public void setLandingPhase(com.sfb.properties.LandingPhase landingPhase) {
+		this.landingPhase = landingPhase;
+	}
+
+	/** Planet hex side (1..6, A..F) this shuttle occupies, or 0 if not at a planet. */
+	public int getLandedHexSide() {
+		return landedHexSide;
+	}
+
+	public void setLandedHexSide(int landedHexSide) {
+		this.landedHexSide = landedHexSide;
+	}
+
 	@Override
 	public void releaseTractor() {
 		super.releaseTractor();
