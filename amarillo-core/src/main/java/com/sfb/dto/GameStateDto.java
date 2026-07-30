@@ -334,6 +334,12 @@ public class GameStateDto {
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
         public boolean crippled; // true if crippling effects have been applied (J1.33)
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
+        // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
+        public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
+        public int landedHexSide;       // 1..6 (A..F) when on a planet, else 0
+        public int holdCrew;            // crew units currently in the hold
+        public int holdSpacesUsed;      // personnel spaces occupied
+        public int personnelCapacity;   // personnel-space capacity of the hold
     }
 
     // -------------------------------------------------------------------------
@@ -1117,6 +1123,11 @@ public class GameStateDto {
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
         dto.beingRecovered = shuttle.isBeingRecovered();
+        dto.landingPhase = shuttle.getLandingPhase().name();
+        dto.landedHexSide = shuttle.getLandedHexSide();
+        dto.holdCrew = shuttle.getHold().getCrew();
+        dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
+        dto.personnelCapacity = shuttle.getPersonnelCapacity();
         return dto;
     }
 

@@ -776,6 +776,7 @@ function WwLaunchPanel({ ship, shuttleName, onLaunch, onCancel, error }: {
 
 function ShuttleMovementPanel({
   shuttle, isMine, canMove, phase, onMove, onHet, onClose, canLand, onLand,
+  onLoadPersonnel, onUnloadPersonnel,
 }: {
   shuttle:  ShuttleObject;
   isMine:   boolean;
@@ -786,6 +787,8 @@ function ShuttleMovementPanel({
   onClose:  () => void;
   canLand:  boolean;
   onLand:   () => void;
+  onLoadPersonnel:   () => void;
+  onUnloadPersonnel: () => void;
   onTacTurn?: (facing: number, sublight: boolean) => void;
 }) {
   const [hetMode, setHetMode]     = useState(false);
@@ -891,6 +894,39 @@ function ShuttleMovementPanel({
               Land Aboard
             </button>
           )}
+
+        </div>
+      )}
+
+      {/* Surface cargo: a shuttle landed on a planet loads/unloads crew (SH50.46).
+          Its own section — an Activity-phase action, outside the movement block. */}
+      {isMine && shuttle.landingPhase === 'LANDED' && (
+        <div className="sidebar-section">
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Surface</span>
+            <span className="sidebar-stat-value">
+              side {String.fromCharCode(64 + (shuttle.landedHexSide ?? 0))} · hold {shuttle.holdCrew ?? 0} crew
+              {' '}({shuttle.holdSpacesUsed ?? 0}/{shuttle.personnelCapacity ?? 0} sp)
+            </span>
+          </div>
+          <button
+            className="action-strip-btn"
+            style={{ marginTop: 4, width: '100%', borderColor: '#e0b34a', color: '#e0b34a' }}
+            disabled={phase !== 'Activity'}
+            onClick={onLoadPersonnel}
+            title="Load survey crew from this side of the planet into the hold (SH50.46)"
+          >
+            Load Crew ↑
+          </button>
+          <button
+            className="action-strip-btn"
+            style={{ marginTop: 4, width: '100%', borderColor: '#e0b34a', color: '#e0b34a' }}
+            disabled={phase !== 'Activity' || (shuttle.holdCrew ?? 0) === 0}
+            onClick={onUnloadPersonnel}
+            title="Unload crew from the hold onto this side of the planet"
+          >
+            Unload Crew ↓
+          </button>
         </div>
       )}
     </div>
@@ -3653,6 +3689,24 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  async function handleLoadPersonnel() {
+    if (!liveShuttle) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'LOAD_PERSONNEL', shipName: liveShuttle.name,
+    });
+    if (!res.success) setActionError(res.message);
+    else addLog(res.message, 'combat');
+  }
+
+  async function handleUnloadPersonnel() {
+    if (!liveShuttle) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'UNLOAD_PERSONNEL', shipName: liveShuttle.name,
+    });
+    if (!res.success) setActionError(res.message);
+    else addLog(res.message, 'combat');
+  }
+
   function handleHexClick(col: number, row: number) {
     if (tBombMode) {
       setTBombPendingHex({ col, row });
@@ -4241,6 +4295,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onClose={() => setSelected(null)}
             canLand={phase === 'Activity' && !!landableCarrierFor(liveShuttle)}
             onLand={handleLandShuttle}
+            onLoadPersonnel={handleLoadPersonnel}
+            onUnloadPersonnel={handleUnloadPersonnel}
           />
         )}
 

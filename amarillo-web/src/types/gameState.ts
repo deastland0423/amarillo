@@ -235,6 +235,11 @@ export interface ShuttleObject extends MapObjectBase {
   weapons?:       WeaponState[];  // non-null for fighters
   crippled?:      boolean;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
+  landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)
+  landedHexSide?:     number;        // 1..6 (A..F) when landed on a planet
+  holdCrew?:          number;        // crew units in the hold
+  holdSpacesUsed?:    number;        // personnel spaces occupied
+  personnelCapacity?: number;        // personnel-space capacity
   isIdentified?:     boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only

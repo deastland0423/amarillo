@@ -1286,6 +1286,30 @@ public class GameSession {
                 return game.execute(new ShuttleMoveCommand(shuttle, action));
             }
 
+            case "LOAD_PERSONNEL":
+            case "UNLOAD_PERSONNEL": {
+                String shuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(shuttleName))
+                        .findFirst().orElse(null);
+                if (shuttle == null)
+                    return ActionResult.fail("Active shuttle not found: " + shuttleName);
+                com.sfb.properties.PersonnelType type;
+                try {
+                    type = request.getAction() != null && !request.getAction().isBlank()
+                            ? com.sfb.properties.PersonnelType.valueOf(request.getAction().toUpperCase())
+                            : com.sfb.properties.PersonnelType.CREW_UNIT;
+                } catch (IllegalArgumentException e) {
+                    return ActionResult.fail("Unknown personnel type: " + request.getAction());
+                }
+                ActionResult r = request.getType().equals("LOAD_PERSONNEL")
+                        ? game.loadPersonnelFromPlanet(shuttle, type, Integer.MAX_VALUE)
+                        : game.unloadPersonnelToPlanet(shuttle, type, Integer.MAX_VALUE);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "LAUNCH_DRONE": {
                 Ship attacker = findShip(request.getShipName());
                 if (attacker == null)
