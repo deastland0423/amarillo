@@ -148,10 +148,6 @@ public abstract class Shuttle extends Unit {
 	// (G25.11 50-space boxes) reduced by personnel aboard; its capacity is
 	// scaffolded here but not yet enforced (Annex #7K item sizes deferred).
 
-	public static final int SPACES_PER_BOARDING_PARTY = 1;
-	public static final int SPACES_PER_COMMANDO       = 1;
-	public static final int SPACES_PER_CREW_UNIT      = 2;
-
 	private final com.sfb.objects.Manifest hold = new com.sfb.objects.Manifest();
 	private int personnelCapacity = 0; // personnel spaces (admin shuttle = 2, J2.211)
 	private int cargoCapacity     = 0; // base cargo spaces (G25.13; scaffolded, not yet enforced)
@@ -178,9 +174,7 @@ public abstract class Shuttle extends Unit {
 
 	/** Personnel spaces occupied by everyone in the hold (J2.211 sizing). */
 	public int personnelSpacesUsed() {
-		return hold.getCrew()            * SPACES_PER_CREW_UNIT
-			 + hold.getBoardingParties() * SPACES_PER_BOARDING_PARTY
-			 + hold.getCommandos()       * SPACES_PER_COMMANDO;
+		return hold.personnelSpaces();
 	}
 
 	/** Personnel spaces still available in the hold. */

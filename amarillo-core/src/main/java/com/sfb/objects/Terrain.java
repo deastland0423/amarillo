@@ -25,6 +25,12 @@ public class Terrain extends Marker {
     private int totalDamage = 0;
     private final int[] damageBySide = new int[6];
 
+    // Fungible personnel/cargo sitting on each hex side (1..6 = A..F) of a
+    // planet/moon surface — survey parties, garrisons, etc. Landed craft and
+    // ground bases track their own side (like a shuttle's landedHexSide) and are
+    // NOT stored here. Lazy: most terrain (asteroids, empty planets) holds none.
+    private Manifest[] sideManifests;
+
     public Terrain(TerrainType terrainType, int col, int row) {
         this(terrainType, col, row, 0);
     }
@@ -70,5 +76,18 @@ public class Terrain extends Marker {
         if (amount <= 0) return;
         totalDamage += amount;
         if (side >= 1 && side <= 6) damageBySide[side - 1] += amount;
+    }
+
+    /**
+     * The fungible contents (personnel/cargo) on hex side {@code side} (1..6 =
+     * A..F) of this planet/moon's surface, created on demand. Returns null only
+     * for an out-of-range side. A planet surface is uncapped — callers pass
+     * {@link Integer#MAX_VALUE} as the destination free space when loading it.
+     */
+    public Manifest getSideManifest(int side) {
+        if (side < 1 || side > 6) return null;
+        if (sideManifests == null) sideManifests = new Manifest[6];
+        if (sideManifests[side - 1] == null) sideManifests[side - 1] = new Manifest();
+        return sideManifests[side - 1];
     }
 }
