@@ -1196,11 +1196,14 @@ public class Ship extends Unit implements DroneController {
 	 * @param currentImpulse The impulse at which burnout occurred.
 	 */
 	public void activateNextStandby(com.sfb.systemgroups.UIM burned, int currentImpulse) {
-		int activateAt = currentImpulse + 8;
+		int activateAt = currentImpulse + com.sfb.systemgroups.UIM.STANDBY_DELAY;
 		for (com.sfb.systemgroups.UIM uim : uims) {
 			if (uim == burned || uim.isDamaged())
 				continue;
-			// First undamaged non-burned UIM becomes the next standby
+			// First undamaged non-burned UIM becomes the next standby, live after
+			// the standby delay. NOT modeled (intentional, vanishingly rare): using
+			// a live backup this same impulse for disruptors that did not fire under
+			// the module that burned out.
 			uim.scheduleActivation(activateAt);
 			return;
 		}

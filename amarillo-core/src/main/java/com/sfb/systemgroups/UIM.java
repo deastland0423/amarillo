@@ -24,7 +24,7 @@ public class UIM implements Systems {
 
     private static final int BURNOUT_THRESHOLD  = 2;  // roll ≤ 2 burns out
     private static final int LOCKOUT_DURATION   = 32; // impulses disruptors are locked
-    private static final int STANDBY_DELAY      = 8;  // impulses before standby becomes active
+    public  static final int STANDBY_DELAY      = 8;  // impulses before a standby becomes active
 
     private boolean damaged         = false;
     private int     standbyActiveAt = -1; // absolute impulse this unit becomes active (−1 = already active)
