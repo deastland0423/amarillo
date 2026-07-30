@@ -565,12 +565,14 @@ class LaunchCoordinator {
 
         // Land: the hatch operation shares the launch cooldown (J1.50)
         bay.markUsed(impulse);
+        String disembark = disembarkHold(ship, shuttle);
         bay.addShuttle(shuttle);
         activeShuttles.remove(shuttle);
         shuttle.setLocation(null);
         shuttle.setParentShipName(ship.getName());
 
-        StringBuilder msg = new StringBuilder(shuttleName + " landed aboard " + ship.getName() + " (J1.61)");
+        StringBuilder msg = new StringBuilder(shuttleName + " landed aboard " + ship.getName()
+                + " (J1.61)" + disembark);
 
         // Seekers chasing the shuttle lose their target — it is no longer in space
         java.util.List<Seeker> chasing = new java.util.ArrayList<>();
@@ -643,6 +645,7 @@ class LaunchCoordinator {
             return null;
 
         bay.markUsed(impulse);
+        String disembark = disembarkHold(ship, shuttle);
         bay.addShuttle(shuttle);
         activeShuttles.remove(shuttle);
         if (ship.getTractors() != null && ship.getTractors().getTractoredUnits().contains(shuttle))
@@ -655,7 +658,26 @@ class LaunchCoordinator {
         game.clearChasersOf(shuttle, "target recovered aboard " + ship.getName());
         for (com.sfb.objects.Ship s : game.getShips())
             s.removeLockOn(shuttle);
-        return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)";
+        return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)" + disembark;
+    }
+
+    /**
+     * On recovery, the shuttle's passengers disembark into the ship's manifest
+     * (survey parties, rescued crew — SH50.46), kept separate from the ship's
+     * operational Crew. Returns a "— N … disembarked" log suffix, or "".
+     */
+    private String disembarkHold(Ship ship, com.sfb.objects.shuttles.Shuttle shuttle) {
+        com.sfb.objects.Manifest hold = shuttle.getHold();
+        com.sfb.objects.Manifest dest = ship.getManifest();
+        StringBuilder moved = new StringBuilder();
+        for (com.sfb.properties.PersonnelType t : com.sfb.properties.PersonnelType.values()) {
+            int n = hold.transferTo(dest, t, hold.count(t), Integer.MAX_VALUE);
+            if (n > 0) {
+                if (moved.length() > 0) moved.append(", ");
+                moved.append(n).append(' ').append(t.label(n));
+            }
+        }
+        return moved.length() > 0 ? " — " + moved + " disembarked" : "";
     }
 
     /**

@@ -19,4 +19,17 @@ public enum PersonnelType {
     PersonnelType(int spaces) {
         this.spaces = spaces;
     }
+
+    /** Human-readable name, pluralised for {@code count} (e.g. "2 boarding parties"). */
+    public String label(int count) {
+        String base;
+        switch (this) {
+            case CREW_UNIT:      base = "crew unit";      break;
+            case BOARDING_PARTY: base = "boarding party"; break;
+            case COMMANDO:       base = "commando";       break;
+            default:             base = "unit";
+        }
+        if (count == 1) return base;
+        return base.endsWith("y") ? base.substring(0, base.length() - 1) + "ies" : base + "s";
+    }
 }

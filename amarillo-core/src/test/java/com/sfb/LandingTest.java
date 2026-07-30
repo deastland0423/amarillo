@@ -124,6 +124,22 @@ public class LandingTest {
     }
 
     @Test
+    public void recoveredShuttleDisembarksItsHoldIntoTheShip() {
+        allocate(0.0);
+        advanceToActivity(1);
+        Shuttle shuttle = launchStockShuttle();
+        shuttle.getHold().addCrew(1); // a survey team riding home in the shuttle
+        advanceToActivity(game.getCurrentImpulse() + 2); // hatch ready
+
+        Game.ActionResult r = game.landShuttle(fed, shuttle.getName());
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals("survey team disembarked into the ship (SH50.46)", 1, fed.getManifest().getCrew());
+        assertEquals("hold emptied on recovery", 0, shuttle.getHold().getCrew());
+        assertTrue("log notes it: " + r.getMessage(), r.getMessage().contains("disembarked"));
+    }
+
+    @Test
     public void land_failsWhenNotInShipsHex() {
         allocate(0.0);
         advanceToActivity(1);

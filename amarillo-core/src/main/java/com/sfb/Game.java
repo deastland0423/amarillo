@@ -1868,7 +1868,7 @@ public class Game {
         if (moved <= 0)
             return ActionResult.fail("Nothing loaded — no room in the shuttle, or none on side "
                     + (char) ('A' + side - 1));
-        return ActionResult.ok(shuttle.getName() + " loaded " + moved + " " + personnelLabel(type, moved)
+        return ActionResult.ok(shuttle.getName() + " loaded " + moved + " " + type.label(moved)
                 + " from side " + (char) ('A' + side - 1) + " (SH50.46)");
     }
 
@@ -1887,7 +1887,7 @@ public class Game {
                 .transferTo(planet.getSideManifest(side), type, amount, Integer.MAX_VALUE);
         if (moved <= 0)
             return ActionResult.fail("Nothing of that kind aboard to unload");
-        return ActionResult.ok(shuttle.getName() + " unloaded " + moved + " " + personnelLabel(type, moved)
+        return ActionResult.ok(shuttle.getName() + " unloaded " + moved + " " + type.label(moved)
                 + " onto side " + (char) ('A' + side - 1) + " (SH50.46)");
     }
 
@@ -1913,17 +1913,6 @@ public class Game {
         return null;
     }
 
-    private static String personnelLabel(com.sfb.properties.PersonnelType type, int n) {
-        String base;
-        switch (type) {
-            case CREW_UNIT:      base = "crew unit"; break;
-            case BOARDING_PARTY: base = "boarding party"; break;
-            case COMMANDO:       base = "commando"; break;
-            default:             base = "unit"; break;
-        }
-        if (n == 1) return base;
-        return base.endsWith("y") ? base.substring(0, base.length() - 1) + "ies" : base + "s";
-    }
 
     /**
      * A ship carries its objectives off a valid map edge — ownership becomes
