@@ -124,6 +124,27 @@ public class PlanetBombardmentTest {
     }
 
     @Test
+    public void bombard_appliesGroundClutterEcmToTheWeapon() {
+        // P2.52: a target on a planet gets +2 ECM ground clutter. Net ECM 2 →
+        // shift floor(sqrt(2)) = 1, applied to each firing weapon (which then
+        // shifts its damage down on the chart). No dice needed to verify the shift.
+        advanceToDirectFire();
+        List<Weapon> phasers = fed.getWeapons().getPhaserList();
+        assertTrue(game.bombardPlanet(fed, planet, 4, phasers).isSuccess());
+        assertEquals("ground-clutter ECM shift applied (P2.52)", 1, phasers.get(0).getEcmShift());
+    }
+
+    @Test
+    public void bombard_eccmCancelsTheGroundClutter() {
+        advanceToDirectFire();
+        assertTrue("allocate 2 ECCM", game.adjustEw(fed, 0, 2).isSuccess());
+        List<Weapon> phasers = fed.getWeapons().getPhaserList();
+        assertTrue(game.bombardPlanet(fed, planet, 4, phasers).isSuccess());
+        assertEquals("2 ECCM cancels the 2-point ground clutter → no shift",
+                0, phasers.get(0).getEcmShift());
+    }
+
+    @Test
     public void bombard_skipsWeaponsThatCannotBear() {
         // Face the ship away from the planet: its fore phasers cannot bear on a
         // target directly behind it, so those shots are skipped (arc check).
