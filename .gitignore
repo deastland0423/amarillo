@@ -6,3 +6,6 @@ replay_pid*.log
 # Web
 amarillo-web/node_modules/
 amarillo-web/dist/
+
+# Claude Code agent worktrees (ephemeral, per-agent)
+.claude/worktrees/
