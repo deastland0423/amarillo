@@ -1852,6 +1852,80 @@ public class Game {
     }
 
     /**
+     * Cargo gate — a shuttle landed on a planet loads personnel from the hex
+     * side it occupies into its hold (SH50.46 survey-unit recovery). Bounded by
+     * what's on that side and by the hold's spare capacity (J2.211); {@code
+     * amount} is the requested cap. Returns the count actually loaded.
+     */
+    public ActionResult loadPersonnelFromPlanet(com.sfb.objects.shuttles.Shuttle shuttle,
+            com.sfb.properties.PersonnelType type, int amount) {
+        ActionResult gate = cargoGate(shuttle);
+        if (gate != null) return gate;
+        Terrain planet = planetAt(shuttle.getLocation());
+        int side = shuttle.getLandedHexSide();
+        int moved = planet.getSideManifest(side)
+                .transferTo(shuttle.getHold(), type, amount, shuttle.personnelSpacesFree());
+        if (moved <= 0)
+            return ActionResult.fail("Nothing loaded — no room in the shuttle, or none on side "
+                    + (char) ('A' + side - 1));
+        return ActionResult.ok(shuttle.getName() + " loaded " + moved + " " + personnelLabel(type, moved)
+                + " from side " + (char) ('A' + side - 1) + " (SH50.46)");
+    }
+
+    /**
+     * Cargo gate — a shuttle landed on a planet unloads personnel from its hold
+     * onto the hex side it occupies (the planet surface is uncapped). Returns
+     * the count actually unloaded.
+     */
+    public ActionResult unloadPersonnelToPlanet(com.sfb.objects.shuttles.Shuttle shuttle,
+            com.sfb.properties.PersonnelType type, int amount) {
+        ActionResult gate = cargoGate(shuttle);
+        if (gate != null) return gate;
+        Terrain planet = planetAt(shuttle.getLocation());
+        int side = shuttle.getLandedHexSide();
+        int moved = shuttle.getHold()
+                .transferTo(planet.getSideManifest(side), type, amount, Integer.MAX_VALUE);
+        if (moved <= 0)
+            return ActionResult.fail("Nothing of that kind aboard to unload");
+        return ActionResult.ok(shuttle.getName() + " unloaded " + moved + " " + personnelLabel(type, moved)
+                + " onto side " + (char) ('A' + side - 1) + " (SH50.46)");
+    }
+
+    /** Shared preconditions for landed-shuttle cargo transfer; null when OK. */
+    private ActionResult cargoGate(com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (currentPhase != ImpulsePhase.ACTIVITY)
+            return ActionResult.fail("Cargo transfer can only be done during the Activity phase");
+        if (shuttle.getLandingPhase() != com.sfb.properties.LandingPhase.LANDED)
+            return ActionResult.fail(shuttle.getName() + " must be landed on the planet surface");
+        if (planetAt(shuttle.getLocation()) == null)
+            return ActionResult.fail(shuttle.getName() + " is not on a planet");
+        return null;
+    }
+
+    /** The planet/moon whose center hex is {@code loc}, or null. */
+    private Terrain planetAt(Location loc) {
+        if (loc == null) return null;
+        for (Terrain t : terrain)
+            if ((t.getTerrainType() == com.sfb.properties.TerrainType.PLANET
+                    || t.getTerrainType() == com.sfb.properties.TerrainType.GAS_GIANT)
+                    && loc.equals(t.getLocation()))
+                return t;
+        return null;
+    }
+
+    private static String personnelLabel(com.sfb.properties.PersonnelType type, int n) {
+        String base;
+        switch (type) {
+            case CREW_UNIT:      base = "crew unit"; break;
+            case BOARDING_PARTY: base = "boarding party"; break;
+            case COMMANDO:       base = "commando"; break;
+            default:             base = "unit"; break;
+        }
+        if (n == 1) return base;
+        return base.endsWith("y") ? base.substring(0, base.length() - 1) + "ies" : base + "s";
+    }
+
+    /**
      * A ship carries its objectives off a valid map edge — ownership becomes
      * permanent (SH35.5 "on board at disengagement"). Each carried objective is
      * secured to the ship's owner and taken out of play (no carrier, no map
