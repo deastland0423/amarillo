@@ -12,7 +12,7 @@ public class Marker {
 	private Location location = new Location(0,0);
 	protected String name = "";
 
-	private final PersonnelManifest personnel = new PersonnelManifest();
+	private final Manifest manifest = new Manifest();
 
 	public Marker() {}
 
@@ -31,6 +31,6 @@ public class Marker {
 		this.location = location;
 	}
 
-	public PersonnelManifest getPersonnel() { return personnel; }
+	public Manifest getManifest() { return manifest; }
 
 }

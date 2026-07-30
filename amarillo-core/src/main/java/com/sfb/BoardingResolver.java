@@ -362,7 +362,7 @@ class BoardingResolver {
             Ship destShip = (Ship) dest;
             destShip.getCrew().setAvailableCrewUnits(destShip.getCrew().getAvailableCrewUnits() + amount);
         } else {
-            dest.getPersonnel().addCrew(amount);
+            dest.getManifest().addCrew(amount);
         }
 
         StringBuilder log = new StringBuilder();

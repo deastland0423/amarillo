@@ -152,11 +152,11 @@ public abstract class Shuttle extends Unit {
 	public static final int SPACES_PER_COMMANDO       = 1;
 	public static final int SPACES_PER_CREW_UNIT      = 2;
 
-	private final com.sfb.objects.PersonnelManifest hold = new com.sfb.objects.PersonnelManifest();
+	private final com.sfb.objects.Manifest hold = new com.sfb.objects.Manifest();
 	private int personnelCapacity = 0; // personnel spaces (admin shuttle = 2, J2.211)
 	private int cargoCapacity     = 0; // base cargo spaces (G25.13; scaffolded, not yet enforced)
 
-	public com.sfb.objects.PersonnelManifest getHold() {
+	public com.sfb.objects.Manifest getHold() {
 		return hold;
 	}
 

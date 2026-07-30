@@ -1,16 +1,21 @@
 package com.sfb.objects;
 
 /**
- * Lightweight container for personnel (and future cargo) that can be held by
- * any map object — ships, markers, planets, escape pods, objective counters.
+ * Lightweight container for the fungible contents a map object can hold —
+ * personnel (crew units, boarding parties, commandos, prisoners) and (future)
+ * typed cargo. Held by ships, markers, planet sides, shuttle holds, etc.
  *
- * Ships use {@link com.sfb.systemgroups.Crew} for their full crew system; this
- * manifest is the stub for simpler holders (markers, terrain).
+ * <p>This is the FUNGIBLE tier: countable, interchangeable contents. Identity-
+ * bearing things (a specific canister, a named diplomat) are the separate
+ * {@link Objective} tier, not stored here.
  *
- * Future: add typed cargo (supplies, dilithium, VIP passengers, scenario
- * victory items) without changing the transport action interface.
+ * <p>Ships use {@link com.sfb.systemgroups.Crew} for their full crew system;
+ * this manifest is the stub for simpler holders (markers, terrain, shuttles).
+ *
+ * <p>Future: add typed cargo (supplies, dilithium, VIP passengers, scenario
+ * victory items) without changing the transfer interface.
  */
-public class PersonnelManifest {
+public class Manifest {
 
     private int crew          = 0; // operational crew units
     private int capturedCrew  = 0; // enemy crew taken prisoner
