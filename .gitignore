@@ -9,3 +9,6 @@ amarillo-web/dist/
 
 # Claude Code agent worktrees (ephemeral, per-agent)
 .claude/worktrees/
+
+# Personal per-user Claude Code project settings (local overrides)
+.claude/settings.local.json
