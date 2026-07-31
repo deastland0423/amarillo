@@ -57,6 +57,8 @@ public class Ship extends Unit implements DroneController {
 	private DAC dac = new DAC(); // Damage Allocation Chart
 	private Shields shields = new Shields(); // Shield systems
 	private HullBoxes hullBoxes = new HullBoxes(); // Hull boxes
+	private int stealthBonus = 0; // Orion Stealth Bonus in ECM points (G15.8); 0 if none
+	private java.util.List<OptionMount> optionMounts = new java.util.ArrayList<>(); // G15.4 "OPT" mounts
 	private PowerSystems powerSystems = new PowerSystems(); // Power systems (warp, impulse, apr, awr, battery)
 	private ControlSpaces controlSpaces = new ControlSpaces(); // Control systems (bridge, flag, aux, emer, security)
 	private SpecialFunctions specialFunctions = new SpecialFunctions(); // Special functions
@@ -212,6 +214,10 @@ public class Ship extends Unit implements DroneController {
 		minimumShieldCost = Constants.MINIMUM_SHIELD_COST[getSizeClass()];
 
 		// Odds and ends
+		stealthBonus = values.get("stealthbonus") == null ? 0 : (Integer) values.get("stealthbonus");
+		@SuppressWarnings("unchecked")
+		java.util.List<OptionMount> mounts = (java.util.List<OptionMount>) values.get("optionmounts");
+		if (mounts != null) optionMounts = mounts;
 		armor = values.get("armor") == null ? 0 : (Integer) values.get("armor");
 		tBombs = values.get("tbombs") == null ? 0 : (Integer) values.get("tbombs");
 		dummyTBombs = values.get("dummytbombs") == null ? 0 : (Integer) values.get("dummytbombs");
@@ -1051,6 +1057,16 @@ public class Ship extends Unit implements DroneController {
 			return true;
 		}
 		return false;
+	}
+
+	/** Orion Stealth Bonus in ECM points (G15.8); 0 for non-Orion or ships without it. */
+	public int getStealthBonus() {
+		return stealthBonus;
+	}
+
+	/** Orion optional weapon mounts (G15.4), empty until filled at scenario setup. */
+	public java.util.List<OptionMount> getOptionMounts() {
+		return optionMounts;
 	}
 
 	/// HULL BOXES ///

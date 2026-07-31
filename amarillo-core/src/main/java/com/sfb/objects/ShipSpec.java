@@ -46,6 +46,7 @@ public class ShipSpec {
     public int breakdown;
     public int bonusHets;
     public boolean nimble;
+    public int stealthBonus; // Orion Stealth Bonus in ECM points (G15.8), 0 if none
 
     public int[] shields;
 
@@ -58,6 +59,7 @@ public class ShipSpec {
     public CrewSpec crewData;
 
     public List<WeaponSpec> weapons;
+    public List<OptionMountSpec> optionMounts; // Orion "OPT" boxes (G15.4); empty until filled at setup
     public List<ShuttleBaySpec> shuttleBays;
     /** If present, applied instead of faction default Y175 upgrades. Empty lists = fully exempt. */
     public Y175Upgrades y175Upgrades;
@@ -74,6 +76,13 @@ public class ShipSpec {
         public int armor;
         public int cargo;
         public int barracks; // Not a real hull box type, but used for boarding party calculations
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class OptionMountSpec {
+        public String position;   // "CENTERLINE" | "WING" (G15.43)
+        public String designator; // e.g. "A"
+        public List<String> arcs; // e.g. ["FA"]
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -210,6 +219,10 @@ public class ShipSpec {
         m.put("bonushets", bonusHets);
         if (nimble)
             m.put("nimble", true);
+        if (stealthBonus > 0)
+            m.put("stealthbonus", stealthBonus);
+        if (optionMounts != null && !optionMounts.isEmpty())
+            m.put("optionmounts", buildOptionMounts());
 
         // Shields
         if (shields != null && shields.length >= 6) {
@@ -331,6 +344,18 @@ public class ShipSpec {
     // -------------------------------------------------------------------------
     // Weapon building
     // -------------------------------------------------------------------------
+
+    private List<OptionMount> buildOptionMounts() {
+        List<OptionMount> list = new ArrayList<>();
+        for (OptionMountSpec ms : optionMounts) {
+            OptionMount.Position pos = "WING".equalsIgnoreCase(ms.position)
+                    ? OptionMount.Position.WING
+                    : OptionMount.Position.CENTERLINE;
+            List<String> arcs = (ms.arcs == null || ms.arcs.isEmpty()) ? List.of("FULL") : ms.arcs;
+            list.add(new OptionMount(pos, ms.designator, arcs));
+        }
+        return list;
+    }
 
     private List<Weapon> buildWeapons() {
         List<Weapon> list = new ArrayList<>();

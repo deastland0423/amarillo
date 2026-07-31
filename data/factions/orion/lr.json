@@ -1,0 +1,70 @@
+{
+  "faction": "Orion",
+  "hull": "LR",
+  "name": "Lady Luck",
+  "serviceYear": 129,
+  "bpv": 68,
+  "turnMode": "AA",
+  "sizeClass": 4,
+  "moveCost": 0.333333333,
+  "breakdown": 6,
+  "bonusHets": 2,
+  "nimble": true,
+  "stealthBonus": 2,
+  "tokenArt": "orion/lr.png",
+
+  "shields": [15, 15, 15, 15, 15, 15],
+  
+  "hullBoxes": {
+    "chull": 3,
+    "cargo": 3
+  },
+  
+  "power": {
+    "leftWarp": 5,
+    "rightWarp": 5,
+    "impulse": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 5, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "cloakCost": 6
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 8,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] }
+  ],
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "B", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "C", "arcs": ["RS"] }
+  ]
+}
