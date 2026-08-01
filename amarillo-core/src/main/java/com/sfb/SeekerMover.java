@@ -522,7 +522,7 @@ class SeekerMover {
         int targetEcm = terrainEcm;
         if (target instanceof Ship) {
             Ship tship = (Ship) target;
-            targetEcm += tship.getEcmAllocated() + tship.getWwEcmBonus();
+            targetEcm += tship.getEcmAllocated() + tship.getWwEcmBonus() + tship.getStealthEcm();
         }
         int controllerEccm = 0;
         Unit controller = seeker.getController();

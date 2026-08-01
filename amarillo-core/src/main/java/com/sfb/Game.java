@@ -478,7 +478,8 @@ public class Game {
             return 0;
         if (tractorLinkBetween(actor, tship))
             return 0;
-        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus() + terrainEcm;
+        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus()
+                + tship.getStealthEcm() + terrainEcm;
         return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
     }
 

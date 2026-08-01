@@ -485,8 +485,9 @@ class DamageResolver {
         // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
         int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
+        int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
-        int targetEcm = allocatedEcm + terrainEcm;
+        int targetEcm = allocatedEcm + stealthEcm + terrainEcm;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
                 ? attackerShip.getEccmAllocated()
                 : 0;

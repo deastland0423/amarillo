@@ -1064,6 +1064,16 @@ public class Ship extends Unit implements DroneController {
 		return stealthBonus;
 	}
 
+	/**
+	 * Effective stealth ECM this ship contributes to its own defense (G15.8) —
+	 * summed into net ECM against fire, tractors/transporters, and seekers, like
+	 * any other ECM. Currently the raw bonus; once engine doubling exists it is
+	 * lost while any warp engine is doubled (G15.82).
+	 */
+	public int getStealthEcm() {
+		return stealthBonus;
+	}
+
 	/** Orion optional weapon mounts (G15.4), empty until filled at scenario setup. */
 	public java.util.List<OptionMount> getOptionMounts() {
 		return optionMounts;
