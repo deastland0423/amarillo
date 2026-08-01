@@ -52,6 +52,25 @@ public class Energy {
 	private boolean cloakPaid;      // true if the player paid the cloak cost this turn
 	private boolean energizeCaps;   // true if the player paid 1 pt to energize uncharged capacitors (WS-0)
 
+	// Orion engine doubling (G15.2) — which engines run at double output this turn.
+	// Declared only at Energy Allocation; costs an engine box at end of turn.
+	private boolean doubleLwarp;
+	private boolean doubleRwarp;
+	private boolean doubleCwarp;
+	private boolean doubleImpulse;
+
+	public boolean isDoubleLwarp()   { return doubleLwarp; }
+	public boolean isDoubleRwarp()   { return doubleRwarp; }
+	public boolean isDoubleCwarp()   { return doubleCwarp; }
+	public boolean isDoubleImpulse() { return doubleImpulse; }
+	public void setDoubleLwarp(boolean v)   { this.doubleLwarp = v; }
+	public void setDoubleRwarp(boolean v)   { this.doubleRwarp = v; }
+	public void setDoubleCwarp(boolean v)   { this.doubleCwarp = v; }
+	public void setDoubleImpulse(boolean v) { this.doubleImpulse = v; }
+	public boolean isAnyEngineDoubled() {
+		return doubleLwarp || doubleRwarp || doubleCwarp || doubleImpulse;
+	}
+
 	// Batteries
 	private int batteryDraw;       // Energy drawn FROM batteries this turn (adds to effective budget)
 	private int batteryRecharge;   // Energy put INTO batteries this turn (costs from ship power)

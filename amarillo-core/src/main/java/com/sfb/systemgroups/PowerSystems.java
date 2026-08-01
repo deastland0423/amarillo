@@ -209,16 +209,66 @@ public class PowerSystems implements Systems {
 	}
 	
 	public int getTotalAvailablePower() {
-		
-		return availableLwarp + availableRwarp + availableCwarp + availableImpulse + availableApr + availableAwr;
+		return availableLwarp + availableRwarp + availableCwarp + availableImpulse
+				+ availableApr + availableAwr + warpDoublingBonus + impulseDoublingBonus;
 	}
-	
+
 	public int getAvailableWarpPower() {
-		return availableLwarp + availableRwarp + availableCwarp + availableAwr;
+		return availableLwarp + availableRwarp + availableCwarp + availableAwr + warpDoublingBonus;
 	}
-	
+
 	public int getWarpEnginePower() {
-		return availableLwarp + availableRwarp + availableCwarp;
+		return availableLwarp + availableRwarp + availableCwarp + warpDoublingBonus;
+	}
+
+	// --- Orion engine doubling (G15.2) ---
+	// A doubled engine outputs 2x its boxes this turn (i.e. +1x its box count as
+	// bonus power), at the cost of one engine box destroyed at end of turn.
+	private boolean dblL, dblR, dblC, dblImp;
+	private int warpDoublingBonus = 0;
+	private int impulseDoublingBonus = 0;
+
+	/** Declare which engines run at double output this turn (G15.201). APR/AWR cannot (G15.29). */
+	public void applyDoubling(boolean lwarp, boolean rwarp, boolean cwarp, boolean impulse) {
+		dblL = lwarp; dblR = rwarp; dblC = cwarp; dblImp = impulse;
+		warpDoublingBonus = (lwarp ? availableLwarp : 0)
+				+ (rwarp ? availableRwarp : 0)
+				+ (cwarp ? availableCwarp : 0);
+		impulseDoublingBonus = impulse ? availableImpulse : 0;
+	}
+
+	/** True if any WARP engine is doubled this turn (stealth/cloak interactions). */
+	public boolean isWarpDoubled() {
+		return dblL || dblR || dblC;
+	}
+
+	public boolean isAnyEngineDoubled() {
+		return dblL || dblR || dblC || dblImp;
+	}
+
+	/**
+	 * End-of-turn engine-doubling damage (G15.202): destroy the required engine
+	 * box(es) and clear the doubling for next turn. Size class 4 loses ONE box
+	 * total — a warp box if any warp was doubled, else impulse (G15.213); size 3
+	 * loses one box per doubled engine (G15.212). Then the per-turn bonus resets.
+	 */
+	public void resolveDoublingBoxLoss(int sizeClass) {
+		if (!isAnyEngineDoubled()) return;
+		if (sizeClass <= 3) {
+			if (dblL) damageLWarp();
+			if (dblR) damageRWarp();
+			if (dblC) damageCWarp();
+			if (dblImp) damageImpulse();
+		} else if (isWarpDoubled()) {
+			if (!(dblL && damageLWarp()) && !(dblR && damageRWarp())) {
+				if (dblC) damageCWarp();
+			}
+		} else if (dblImp) {
+			damageImpulse();
+		}
+		dblL = dblR = dblC = dblImp = false;
+		warpDoublingBonus = 0;
+		impulseDoublingBonus = 0;
 	}
 	
 	public int getAvailableReactorPower() {

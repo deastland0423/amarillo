@@ -524,6 +524,10 @@ public class Game {
                 lastBoardingLog.add(result.log);
             }
         }
+        // G15.202: Orion engine doubling destroys an engine box at end of turn.
+        for (Ship ship : ships) {
+            ship.resolveEngineDoublingDamage();
+        }
         for (Ship ship : ships) {
             ship.cleanUp();
         }

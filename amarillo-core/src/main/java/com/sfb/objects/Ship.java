@@ -262,7 +262,26 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public void allocateEnergy(Energy allocation) {
 		this.energyAllocated = allocation;
+		// Orion engine doubling (G15.2): boost this turn's power budget; the box
+		// loss is applied at end of turn (resolveEngineDoublingDamage).
+		if (allocation.isAnyEngineDoubled() && canDoubleEngines()) {
+			powerSystems.applyDoubling(allocation.isDoubleLwarp(), allocation.isDoubleRwarp(),
+					allocation.isDoubleCwarp(), allocation.isDoubleImpulse());
+		}
+	}
 
+	/**
+	 * Orion ships (and only Orion ships) can double engine output (G15.2) — but
+	 * not captured ships or ones sold to another empire (G15.28), nor non-warship
+	 * freighters. Base rule here: an Orion warship that is not captured.
+	 */
+	public boolean canDoubleEngines() {
+		return faction == Faction.Orion && !isCaptured();
+	}
+
+	/** End-of-turn engine-doubling box loss (G15.202); called from endTurn. */
+	public void resolveEngineDoublingDamage() {
+		powerSystems.resolveDoublingBoxLoss(getSizeClass());
 	}
 
 	@Override
@@ -270,7 +289,9 @@ public class Ship extends Unit implements DroneController {
 		// Warp movement: each moveCost energy = 1 speed (max 30)
 		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost
 		// (max +1, giving speed 31)
-		int warpSpeed = (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost());
+		// Warp movement is capped at 30 (G15.26 for Orion doubling; 31 total with
+		// the +1 impulse box below). HET/EM energy is not movement (not capped).
+		int warpSpeed = Math.min(30, (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost()));
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
 		int requestedSpeed = Math.min(warpSpeed + impulseSpeed, 31);
 		setSpeed(Math.min(requestedSpeed, getMaxAccelerationSpeed()));
@@ -1071,7 +1092,7 @@ public class Ship extends Unit implements DroneController {
 	 * lost while any warp engine is doubled (G15.82).
 	 */
 	public int getStealthEcm() {
-		return stealthBonus;
+		return powerSystems.isWarpDoubled() ? 0 : stealthBonus; // G15.82: lost while a warp engine is doubled
 	}
 
 	/** Orion optional weapon mounts (G15.4), empty until filled at scenario setup. */
