@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.sfb.objects.ShipSpec.WeaponSpec;
+import com.sfb.weapons.Weapon;
 
 /**
  * One row of the Orion option-mount cost chart (Annex #8B, G15.4). Captures the
@@ -50,6 +52,30 @@ public class OptionCatalogEntry {
 
     /** Free-text carrying anything not otherwise structured (PF-only, arc, ammo, captured-only, etc.). */
     public String notes;
+
+    /**
+     * How to instantiate this option as a weapon (reuses the ship-JSON weapon
+     * recipe). Present only for options that (a) are weapons and (b) have an
+     * implementing class. Non-weapon systems (Cargo, Lab, Transporter, …) and
+     * not-yet-implemented weapons (Ion Cannon, ESG, …) leave this null — that is
+     * how the name → weapon-class translation reports "can't build this."
+     */
+    public WeaponSpec weaponSpec;
+
+    /** True if this option can be turned into a live weapon instance right now. */
+    public boolean isBuildableWeapon() {
+        return weaponSpec != null;
+    }
+
+    /**
+     * Translate this catalog row into a live weapon firing in the given arc
+     * (the mount's arc labels, e.g. ["FA"]). Returns null when the option isn't
+     * a buildable weapon — callers treat that as a non-weapon system or an
+     * unimplemented option.
+     */
+    public Weapon buildWeapon(List<String> mountArcs) {
+        return WeaponFactory.build(weaponSpec, mountArcs);
+    }
 
     /** True unless the entry sits at exactly the size-class bar (helper for readers). */
     public boolean allowedOnSizeClass(int sizeClass) {

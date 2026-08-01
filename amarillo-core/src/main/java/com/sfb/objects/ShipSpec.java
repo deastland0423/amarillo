@@ -10,21 +10,8 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sfb.properties.Faction;
-import com.sfb.properties.PlasmaType;
 import com.sfb.properties.TurnMode;
-import com.sfb.utilities.ArcUtils;
-import com.sfb.weapons.ADD;
-import com.sfb.weapons.Disruptor;
-import com.sfb.weapons.DroneRack;
-import com.sfb.weapons.Fusion;
-import com.sfb.weapons.Phaser1;
-import com.sfb.weapons.Phaser2;
-import com.sfb.weapons.Phaser3;
-import com.sfb.weapons.PhaserG;
-import com.sfb.weapons.Photon;
-import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
-import com.sfb.weapons.ADD.AddType;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ShipSpec {
@@ -361,10 +348,8 @@ public class ShipSpec {
             if (ms.weapon != null) {
                 // Pinned weapon (G15.4): build it with the MOUNT's arc — the mount
                 // defines where the option fires, not the weapon's native arc.
-                int arcMask = ArcUtils.calculateMask(arcs);
-                Weapon w = buildWeapon(ms.weapon, arcMask);
+                Weapon w = WeaponFactory.build(ms.weapon, arcs);
                 if (w != null) {
-                    w.setArcsFromJSON(arcs);
                     mount.setWeapon(w);
                 }
                 mount.setBpvCost(ms.bpvCost);
@@ -377,108 +362,12 @@ public class ShipSpec {
     private List<Weapon> buildWeapons() {
         List<Weapon> list = new ArrayList<>();
         for (WeaponSpec ws : weapons) {
-            List<String> arcs = (ws.arcs == null || ws.arcs.isEmpty()) ? List.of("FULL") : ws.arcs;
-            int arcMask = ArcUtils.calculateMask(arcs);
-            Weapon w = buildWeapon(ws, arcMask);
+            Weapon w = WeaponFactory.build(ws, ws.arcs);
             if (w != null) {
-                w.setArcsFromJSON(arcs);  // sets both bitmask and arcLabel
                 list.add(w);
             }
         }
         return list;
     }
 
-    private Weapon buildWeapon(WeaponSpec ws, int arcMask) {
-        switch (ws.type) {
-            case "Phaser1": {
-                Phaser1 p = new Phaser1();
-                p.setArcs(arcMask);
-                p.setDesignator(ws.designator);
-                return p;
-            }
-            case "Phaser2": {
-                Phaser2 p = new Phaser2();
-                p.setArcs(arcMask);
-                p.setDesignator(ws.designator);
-                return p;
-            }
-            case "Phaser3": {
-                Phaser3 p = new Phaser3();
-                p.setArcs(arcMask);
-                p.setDesignator(ws.designator);
-                return p;
-            }
-            case "Photon": {
-                Photon p = new Photon();
-                p.setArcs(arcMask);
-                p.setDesignator(ws.designator);
-                return p;
-            }
-            case "Disruptor": {
-                Disruptor d = new Disruptor(ws.range > 0 ? ws.range : 30);
-                d.setArcs(arcMask);
-                d.setDesignator(ws.designator);
-                return d;
-            }
-            case "PlasmaLauncher": {
-                PlasmaType pt = PlasmaType.valueOf(ws.plasmaType != null ? ws.plasmaType : "R");
-                PlasmaLauncher pl = new PlasmaLauncher(pt);
-                pl.setArcs(arcMask);
-                pl.setDesignator(ws.designator);
-                if (ws.launchDirections != null && !ws.launchDirections.isEmpty()) {
-                    pl.setLaunchDirections(ArcUtils.calculateMask(ws.launchDirections));
-                }
-                return pl;
-            }
-            case "DroneRack": {
-                DroneRack.DroneRackType rackType = ws.rackType != null
-                        ? DroneRack.DroneRackType.valueOf(ws.rackType)
-                        : DroneRack.DroneRackType.TYPE_F;
-                DroneRack rack = new DroneRack(rackType);
-                if (ws.spaces > 0)
-                    rack.setSpaces(ws.spaces);
-                rack.setDesignator(ws.designator);
-                // Default ammo: fill all spaces with TypeI drones; setAmmo builds reloads
-                // automatically
-                List<Drone> ammo = new ArrayList<>();
-                for (int i = 0; i < rack.getSpaces(); i++) {
-                    ammo.add(new Drone(DroneType.TypeI));
-                }
-                rack.setAmmo(ammo);
-                return rack;
-            }
-            case "PhaserG": {
-                PhaserG pg = new PhaserG();
-                pg.setArcs(arcMask);
-                pg.setDesignator(ws.designator);
-                return pg;
-            }
-            case "Fusion": {
-                Fusion f = new Fusion();
-                f.setArcs(arcMask);
-                f.setDesignator(ws.designator);
-                return f;
-            }
-            case "Hellbore": {
-                com.sfb.weapons.Hellbore h = new com.sfb.weapons.Hellbore();
-                h.setArcs(arcMask);
-                h.setDesignator(ws.designator);
-                return h;
-            }
-            case "ADD": {
-                AddType addType = ws.addType != null
-                        ? AddType.valueOf(ws.addType)
-                        : AddType.ADD_12;
-                ADD add = new ADD(addType, ws.shots > 0 ? ws.shots : 2);
-                add.setDesignator(ws.designator);
-                return add;
-            }
-            default:
-                System.err.println("Unknown weapon type in ShipSpec: " + ws.type);
-                return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Arc resolution
 }
