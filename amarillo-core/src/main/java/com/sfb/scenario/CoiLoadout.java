@@ -73,6 +73,15 @@ public class CoiLoadout {
      */
     public Map<String, WeaponArmingType> weaponArmingModes = new LinkedHashMap<>();
 
+    /**
+     * Orion option-mount choices (G15.4), keyed by mount designator (e.g. "A")
+     * → option name from Annex #8B (e.g. "Phaser-3"). Applied at ship setup via
+     * {@code OptionMountLoadout.equip}. These are the ship's inherent loadout —
+     * their BPV delta adjusts the ship's effective BPV, and (unlike BPs/T-bombs)
+     * is NOT charged against the commander's-option budget.
+     */
+    public Map<String, String> optionMounts = new LinkedHashMap<>();
+
     // --- Cost calculation helpers ---
 
     public static final double COST_EXTRA_BP          = 0.5;

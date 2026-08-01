@@ -433,6 +433,22 @@ public class ScenarioLoader {
                 }
             }
         }
+
+        // --- Orion option-mount weapons (G15.4) ---
+        // The ship's inherent loadout, not a commander's-option budget item: the
+        // BPV delta flows into effective BPV, not the COI budget. Illegal picks
+        // (wrong position/size/year, unavailable) are skipped with a reason.
+        if (!loadout.optionMounts.isEmpty()) {
+            com.sfb.objects.OptionMountCatalog catalog = com.sfb.objects.OptionMountCatalog.loadDefault();
+            for (Map.Entry<String, String> entry : loadout.optionMounts.entrySet()) {
+                try {
+                    com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue());
+                } catch (IllegalArgumentException e) {
+                    System.err.println("COI: option mount " + entry.getKey() + " ("
+                            + entry.getValue() + ") — " + e.getMessage());
+                }
+            }
+        }
     }
 
     /**

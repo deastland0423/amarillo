@@ -37,10 +37,45 @@ public class OptionMountCatalog {
     @JsonIgnore
     private Map<String, OptionCatalogEntry> index;
 
+    /** Standard on-disk location, relative to the process working directory. */
+    private static final String[] DEFAULT_PATHS = {
+        "data/reference/orion_option_mounts.json",     // server (cwd = repo root)
+        "../data/reference/orion_option_mounts.json",  // core tests (cwd = module dir)
+    };
+
+    private static OptionMountCatalog defaultCatalog;
+
     public static OptionMountCatalog fromJson(File file) throws IOException {
         OptionMountCatalog catalog = MAPPER.readValue(file, OptionMountCatalog.class);
         catalog.buildIndex();
         return catalog;
+    }
+
+    /**
+     * The catalog from its standard location, loaded once and cached. Returns an
+     * empty catalog (never null) if the file can't be found, so callers degrade
+     * gracefully rather than throwing during ship setup.
+     */
+    public static synchronized OptionMountCatalog loadDefault() {
+        if (defaultCatalog == null) {
+            for (String path : DEFAULT_PATHS) {
+                File f = new File(path);
+                if (f.exists()) {
+                    try {
+                        defaultCatalog = fromJson(f);
+                        break;
+                    } catch (IOException e) {
+                        System.err.println("Failed to read option-mount catalog at " + path + ": " + e.getMessage());
+                    }
+                }
+            }
+            if (defaultCatalog == null) {
+                System.err.println("Option-mount catalog not found on any default path; using empty catalog");
+                defaultCatalog = new OptionMountCatalog();
+                defaultCatalog.buildIndex();
+            }
+        }
+        return defaultCatalog;
     }
 
     private void buildIndex() {
