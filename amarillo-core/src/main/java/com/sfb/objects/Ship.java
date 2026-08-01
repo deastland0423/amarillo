@@ -237,6 +237,13 @@ public class Ship extends Unit implements DroneController {
 		probes.init(values);
 		shuttles.init(values);
 		weapons.init(values);
+		// G15.4: a filled option mount contributes its weapon to the ship's
+		// active weapons so it fires like any other (arc already set on the mount).
+		for (OptionMount mount : optionMounts) {
+			if (!mount.isEmpty()) {
+				weapons.addWeapon(mount.getWeapon());
+			}
+		}
 		crew.init(values);
 		performanceData.init(values);
 
@@ -638,6 +645,20 @@ public class Ship extends Unit implements DroneController {
 
 	public int getBpv() {
 		return this.battlePointValue;
+	}
+
+	/**
+	 * Effective BPV including Orion option-mount choices (G15.4): the base hull
+	 * value plus each filled mount's cost delta (Annex #8B). Deltas may be
+	 * negative or fractional (e.g. Phaser-2 is -0.25), so this returns a double.
+	 * Fleet-building budgets and victory scoring should use this, not getBpv().
+	 */
+	public double getEffectiveBpv() {
+		double total = battlePointValue;
+		for (OptionMount mount : optionMounts) {
+			total += mount.getBpvCost();
+		}
+		return total;
 	}
 
 	public int getEconomicBpv() {

@@ -84,6 +84,8 @@ public class ShipSpec {
         public String position;   // "CENTERLINE" | "WING" (G15.43)
         public String designator; // e.g. "A"
         public List<String> arcs; // e.g. ["FA"]
+        public WeaponSpec weapon; // pinned weapon (G15.4); null = empty mount, player-chosen at setup
+        public double bpvCost;    // BPV delta of the pinned option (Annex #8B); may be negative/fractional
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -355,7 +357,19 @@ public class ShipSpec {
                     ? OptionMount.Position.WING
                     : OptionMount.Position.CENTERLINE;
             List<String> arcs = (ms.arcs == null || ms.arcs.isEmpty()) ? List.of("FULL") : ms.arcs;
-            list.add(new OptionMount(pos, ms.designator, arcs));
+            OptionMount mount = new OptionMount(pos, ms.designator, arcs);
+            if (ms.weapon != null) {
+                // Pinned weapon (G15.4): build it with the MOUNT's arc — the mount
+                // defines where the option fires, not the weapon's native arc.
+                int arcMask = ArcUtils.calculateMask(arcs);
+                Weapon w = buildWeapon(ms.weapon, arcMask);
+                if (w != null) {
+                    w.setArcsFromJSON(arcs);
+                    mount.setWeapon(w);
+                }
+                mount.setBpvCost(ms.bpvCost);
+            }
+            list.add(mount);
         }
         return list;
     }

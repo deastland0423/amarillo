@@ -22,6 +22,7 @@ public class OptionMount {
     private final String designator;
     private final List<String> arcs;   // arc labels, e.g. ["FA"] — applied to the weapon when filled
     private Weapon weapon;              // chosen weapon, or null when empty
+    private double bpvCost;             // BPV delta of the chosen option (G15.4, Annex #8B); may be negative/fractional
 
     public OptionMount(Position position, String designator, List<String> arcs) {
         this.position = position;
@@ -34,5 +35,7 @@ public class OptionMount {
     public List<String> getArcs()   { return arcs; }
     public Weapon getWeapon()       { return weapon; }
     public void setWeapon(Weapon w) { this.weapon = w; }
+    public double getBpvCost()      { return bpvCost; }
+    public void setBpvCost(double c) { this.bpvCost = c; }
     public boolean isEmpty()        { return weapon == null; }
 }
