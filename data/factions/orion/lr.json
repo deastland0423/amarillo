@@ -42,8 +42,7 @@
 
   "auxiliary": {
     "transporters": 2,
-    "tractors": 2,
-    "cloakCost": 6
+    "tractors": 2
   },
 
   "shuttleBays": [

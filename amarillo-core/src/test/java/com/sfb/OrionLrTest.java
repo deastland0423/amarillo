@@ -27,7 +27,7 @@ public class OrionLrTest {
         assertEquals(4, lr.getSizeClass());
         assertTrue("LR is nimble (C11)", lr.isNimble());
         assertEquals("Orion Stealth Bonus (G15.8)", 2, lr.getStealthBonus());
-        assertNotNull("LR has a cloaking device", lr.getCloakingDevice());
+        assertNull("base LR has no cloak — that's a Y155 refit (+12 BPV)", lr.getCloakingDevice());
         assertEquals("three Ph-1s (Type-III chart is just the down-fire reference)",
                 3, lr.getWeapons().getPhaserList().size());
 

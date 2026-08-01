@@ -62,7 +62,9 @@ public class OrionShips {
         s.put("trans", 2);
         s.put("tractor", 2);
         s.put("shuttle", 2);
-        s.put("cloakcost", 6);
+        // No cloak on the base LR — the cloaking device is a Y155 refit (+12 BPV,
+        // G15.3); a cloaked LR is a separate variant file (only ~10% of Orion
+        // ships carry one).
 
         s.put("crew", 12);
         s.put("boardingparties", 8);
