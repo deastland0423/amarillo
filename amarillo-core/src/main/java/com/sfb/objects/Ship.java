@@ -58,6 +58,7 @@ public class Ship extends Unit implements DroneController {
 	private Shields shields = new Shields(); // Shield systems
 	private HullBoxes hullBoxes = new HullBoxes(); // Hull boxes
 	private int stealthBonus = 0; // Orion Stealth Bonus in ECM points (G15.8); 0 if none
+	private boolean enginesDoublingCapable = true; // G15.28: true unless JSON says otherwise (freighters, the one non-doubling warship)
 	private java.util.List<OptionMount> optionMounts = new java.util.ArrayList<>(); // G15.4 "OPT" mounts
 	private PowerSystems powerSystems = new PowerSystems(); // Power systems (warp, impulse, apr, awr, battery)
 	private ControlSpaces controlSpaces = new ControlSpaces(); // Control systems (bridge, flag, aux, emer, security)
@@ -215,6 +216,7 @@ public class Ship extends Unit implements DroneController {
 
 		// Odds and ends
 		stealthBonus = values.get("stealthbonus") == null ? 0 : (Integer) values.get("stealthbonus");
+		enginesDoublingCapable = values.get("candoubleengines") == null ? true : (Boolean) values.get("candoubleengines");
 		@SuppressWarnings("unchecked")
 		java.util.List<OptionMount> mounts = (java.util.List<OptionMount>) values.get("optionmounts");
 		if (mounts != null) optionMounts = mounts;
@@ -276,7 +278,7 @@ public class Ship extends Unit implements DroneController {
 	 * freighters. Base rule here: an Orion warship that is not captured.
 	 */
 	public boolean canDoubleEngines() {
-		return faction == Faction.Orion && !isCaptured();
+		return faction == Faction.Orion && !isCaptured() && enginesDoublingCapable;
 	}
 
 	/** End-of-turn engine-doubling box loss (G15.202); called from endTurn. */

@@ -47,6 +47,7 @@ public class ShipSpec {
     public int bonusHets;
     public boolean nimble;
     public int stealthBonus; // Orion Stealth Bonus in ECM points (G15.8), 0 if none
+    public Boolean canDoubleEngines; // G15.28: null/absent = capable (default); set false for freighters & the one non-doubling warship
 
     public int[] shields;
 
@@ -221,6 +222,8 @@ public class ShipSpec {
             m.put("nimble", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
+        if (canDoubleEngines != null)
+            m.put("candoubleengines", canDoubleEngines);
         if (optionMounts != null && !optionMounts.isEmpty())
             m.put("optionmounts", buildOptionMounts());
 

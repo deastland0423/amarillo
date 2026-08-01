@@ -87,6 +87,32 @@ public class OrionEngineDoublingTest {
     }
 
     @Test
+    public void orionShipFlaggedNonDoublingCannotDouble() {
+        // G15.28 — freighters and the one non-doubling warship carry
+        // "canDoubleEngines": false in their JSON.
+        java.util.Map<String, Object> map = OrionShips.getLr();
+        map.put("candoubleengines", false);
+        Ship freighter = new Ship();
+        freighter.init(map);
+
+        assertFalse("Orion hull explicitly flagged non-doubling (G15.28)",
+                freighter.canDoubleEngines());
+
+        int base = freighter.getPowerSystems().getTotalAvailablePower();
+        Energy e = new Energy();
+        e.setDoubleLwarp(true);
+        freighter.allocateEnergy(e);
+        assertEquals("flagged-off ship gets no doubling boost",
+                base, freighter.getPowerSystems().getTotalAvailablePower());
+    }
+
+    @Test
+    public void plainOrionShipCanDouble() {
+        // No flag in the map → capable by default.
+        assertTrue(lr().canDoubleEngines());
+    }
+
+    @Test
     public void nonOrionShipCannotDouble() {
         Ship fed = new Ship();
         fed.init(FederationShips.getFedCa());
