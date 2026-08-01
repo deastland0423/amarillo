@@ -15,11 +15,18 @@ public final class OptionMountLoadout {
 
     private OptionMountLoadout() {}
 
+    /** Validate using the ship's own intro year as the availability year (standalone default). */
+    public static String validate(Ship ship, OptionMount mount, OptionCatalogEntry entry) {
+        return validate(ship, mount, entry, ship.getYearInService());
+    }
+
     /**
+     * @param year the battle/scenario year the option must be available by; a
+     *             non-positive value skips the year check (year unknown).
      * @return null if {@code entry} may be placed in {@code mount} on {@code ship},
      *         otherwise a human-readable reason it may not.
      */
-    public static String validate(Ship ship, OptionMount mount, OptionCatalogEntry entry) {
+    public static String validate(Ship ship, OptionMount mount, OptionCatalogEntry entry, int year) {
         if (mount == null) {
             return "no such option mount";
         }
@@ -44,9 +51,9 @@ public final class OptionMountLoadout {
             return entry.name + " may not be used on a size-" + ship.getSizeClass()
                     + " hull (G15.4)";
         }
-        if (ship.getYearInService() > 0 && entry.yearAvailable > ship.getYearInService()) {
+        if (year > 0 && entry.yearAvailable > year) {
             return entry.name + " is not available until Y" + entry.yearAvailable
-                    + " (this ship is Y" + ship.getYearInService() + ")";
+                    + " (this battle is Y" + year + ")";
         }
         if (entry.mountsRequired > 1) {
             return entry.name + " requires " + entry.mountsRequired
@@ -62,7 +69,12 @@ public final class OptionMountLoadout {
      * @throws IllegalArgumentException with the validation reason if the choice is illegal.
      */
     public static Weapon equip(Ship ship, OptionMount mount, OptionCatalogEntry entry) {
-        String reason = validate(ship, mount, entry);
+        return equip(ship, mount, entry, ship.getYearInService());
+    }
+
+    /** Equip, gating option availability on the given battle/scenario year. */
+    public static Weapon equip(Ship ship, OptionMount mount, OptionCatalogEntry entry, int year) {
+        String reason = validate(ship, mount, entry, year);
         if (reason != null) {
             throw new IllegalArgumentException(reason);
         }
@@ -83,11 +95,16 @@ public final class OptionMountLoadout {
 
     public static Weapon equip(Ship ship, OptionMountCatalog catalog,
                                String mountDesignator, String optionName) {
+        return equip(ship, catalog, mountDesignator, optionName, ship.getYearInService());
+    }
+
+    public static Weapon equip(Ship ship, OptionMountCatalog catalog,
+                               String mountDesignator, String optionName, int year) {
         OptionMount mount = findMount(ship, mountDesignator);
         if (mount == null) {
             throw new IllegalArgumentException("no option mount '" + mountDesignator + "' on " + ship.getName());
         }
-        return equip(ship, mount, catalog.get(optionName));
+        return equip(ship, mount, catalog.get(optionName), year);
     }
 
     private static OptionMount findMount(Ship ship, String designator) {

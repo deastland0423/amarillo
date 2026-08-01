@@ -26,6 +26,9 @@ public class CoiRequest {
     /** Weapon designator → arming mode name ("STANDARD", "OVERLOAD", "SPECIAL"). */
     public Map<String, String> weaponArmingModes = new LinkedHashMap<>();
 
+    /** Orion option-mount choices (G15.4): mount designator → Annex #8B option name. */
+    public Map<String, String> optionMounts = new LinkedHashMap<>();
+
     /** Pre-game special shuttle preparations. */
     public static class ShuttlePrepRequest {
         public String shuttleName   = "";
@@ -58,6 +61,10 @@ public class CoiRequest {
             try {
                 out.weaponArmingModes.put(entry.getKey(), WeaponArmingType.valueOf(entry.getValue()));
             } catch (IllegalArgumentException e) { /* skip unknown modes */ }
+        }
+
+        if (optionMounts != null) {
+            out.optionMounts.putAll(optionMounts);
         }
 
         if (specialShuttlePrep != null) {

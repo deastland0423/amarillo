@@ -442,7 +442,7 @@ public class ScenarioLoader {
             com.sfb.objects.OptionMountCatalog catalog = com.sfb.objects.OptionMountCatalog.loadDefault();
             for (Map.Entry<String, String> entry : loadout.optionMounts.entrySet()) {
                 try {
-                    com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue());
+                    com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue(), spec.year);
                 } catch (IllegalArgumentException e) {
                     System.err.println("COI: option mount " + entry.getKey() + " ("
                             + entry.getValue() + ") — " + e.getMessage());

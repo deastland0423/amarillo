@@ -25,6 +25,7 @@ interface ShipCoi {
   weaponArmingModes:    Record<string, ArmMode>;
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
+  optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
 }
 
 function defaultShipCoi(): ShipCoi {
@@ -36,6 +37,7 @@ function defaultShipCoi(): ShipCoi {
     weaponArmingModes:    {},
     droneRackLoadouts:    {},
     shuttlePrep:          {},
+    optionMounts:         {},
   };
 }
 
@@ -112,6 +114,20 @@ function ShipCoiPanel({
   function setArmMode(designator: string, mode: ArmMode) {
     onChange({ ...coi, weaponArmingModes: { ...coi.weaponArmingModes, [designator]: mode } });
   }
+
+  function setOptionMount(designator: string, name: string) {
+    const next = { ...coi.optionMounts };
+    if (name) next[designator] = name;
+    else delete next[designator];
+    onChange({ ...coi, optionMounts: next });
+  }
+
+  // Running BPV delta from the chosen option mounts (Annex #8B; informational).
+  const optionBpvDelta = (ship.optionMounts ?? []).reduce((sum, m) => {
+    const sel = coi.optionMounts[m.designator];
+    if (!sel) return sum;
+    return sum + (m.legalOptions.find(o => o.name === sel)?.cost ?? 0);
+  }, 0);
 
   const prepCount = Object.values(coi.shuttlePrep).filter(v => v !== null).length;
 
@@ -244,6 +260,43 @@ function ShipCoiPanel({
                         </button>
                       ))}
                   </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Orion option mounts (G15.4) */}
+      {(ship.optionMounts?.length ?? 0) > 0 && (
+        <div className="coi-section">
+          <div className="coi-section-title">
+            Option Mounts (G15.4)
+            {optionBpvDelta !== 0 && (
+              <span className="coi-note">
+                {' '}— effective BPV {optionBpvDelta > 0 ? '+' : ''}{optionBpvDelta.toFixed(2)}
+              </span>
+            )}
+          </div>
+          {ship.optionMounts!.map(m => {
+            const selected = coi.optionMounts[m.designator] ?? '';
+            return (
+              <div key={m.designator} className="coi-row">
+                <label className="coi-label">
+                  {m.designator} · {m.position === 'CENTERLINE' ? 'centerline' : 'wing'} ({m.arcs.join(', ')})
+                </label>
+                {m.currentOption != null ? (
+                  <span className="coi-note">{m.currentOption} (fixed)</span>
+                ) : (
+                  <select value={selected}
+                    onChange={e => setOptionMount(m.designator, e.target.value)}>
+                    <option value="">(empty)</option>
+                    {m.legalOptions.map(o => (
+                      <option key={o.name} value={o.name}>
+                        {o.name}{o.cost !== 0 ? ` (${o.cost > 0 ? '+' : ''}${o.cost} BPV)` : ''}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </div>
             );
@@ -435,6 +488,8 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
                               ? coi.weaponArmingModes : undefined,
         specialShuttlePrep:   shuttlePrep.length > 0 ? shuttlePrep : undefined,
+        optionMounts:         Object.keys(coi.optionMounts).length > 0
+                              ? coi.optionMounts : undefined,
       };
     }
     return sub;

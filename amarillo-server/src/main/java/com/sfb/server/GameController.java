@@ -266,6 +266,34 @@ public class GameController {
                     s.put("heavyWeapons", heavy);
                     s.put("droneRacks", drones);
 
+                    // Orion option mounts (G15.4) — empty for non-Orion ships. Each
+                    // mount lists the options legal for it (position/size/year/etc.),
+                    // filtered against the same validator that equips them.
+                    if (!ship.getOptionMounts().isEmpty()) {
+                        com.sfb.objects.OptionMountCatalog catalog =
+                                com.sfb.objects.OptionMountCatalog.loadDefault();
+                        List<Map<String, Object>> mounts = new ArrayList<>();
+                        for (com.sfb.objects.OptionMount m : ship.getOptionMounts()) {
+                            Map<String, Object> mo = new java.util.LinkedHashMap<>();
+                            mo.put("designator", m.getDesignator());
+                            mo.put("position", m.getPosition().name());
+                            mo.put("arcs", m.getArcs());
+                            mo.put("currentOption", m.isEmpty() ? null : m.getWeapon().getName());
+                            List<Map<String, Object>> legal = new ArrayList<>();
+                            for (com.sfb.objects.OptionCatalogEntry e : catalog.all()) {
+                                if (com.sfb.objects.OptionMountLoadout.validate(ship, m, e, spec.year) == null) {
+                                    Map<String, Object> opt = new java.util.LinkedHashMap<>();
+                                    opt.put("name", e.name);
+                                    opt.put("cost", e.cost);
+                                    legal.add(opt);
+                                }
+                            }
+                            mo.put("legalOptions", legal);
+                            mounts.add(mo);
+                        }
+                        s.put("optionMounts", mounts);
+                    }
+
                     // Commander's options budget
                     int budgetPct = spec.commanderOptions != null
                             ? spec.commanderOptions.budgetPercent

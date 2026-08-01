@@ -117,6 +117,19 @@ export interface CoiDroneType {
 }
 
 
+export interface CoiOptionChoice {
+  name: string;
+  cost: number;   // BPV delta (Annex #8B); may be negative/fractional
+}
+
+export interface CoiOptionMount {
+  designator:    string;
+  position:      string;   // "CENTERLINE" | "WING"
+  arcs:          string[];
+  currentOption: string | null;  // pre-filled weapon name, if any
+  legalOptions:  CoiOptionChoice[];
+}
+
 export interface CoiShipData {
   shipName:            string;
   bpv:                 number;
@@ -131,6 +144,7 @@ export interface CoiShipData {
   availableDroneTypes: CoiDroneType[];
   convertibleShuttles: { name: string; types: string[] }[];
   maxPreparedShuttles: number;        // WS2=1, WS3=2, else 0
+  optionMounts?:       CoiOptionMount[];  // Orion only (G15.4)
 }
 
 export interface CoiSideData {
@@ -156,6 +170,7 @@ export interface CoiSubmission {
     droneRackLoadouts?:    Record<string, string[]>;
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
     specialShuttlePrep?:   CoiShuttlePrepEntry[];
+    optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
   };
 }
 
