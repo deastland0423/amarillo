@@ -142,6 +142,7 @@ export interface ShipObject extends MapObjectBase {
   skeleton:         boolean;
   reserveWarp:      number;
   hetCost:          number;
+  canDoubleEngines: boolean;   // G15.2 — Orion engine doubling available
   // Hull boxes
   availableFhull:   number;
   availableAhull:   number;

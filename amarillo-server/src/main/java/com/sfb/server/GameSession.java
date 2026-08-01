@@ -583,6 +583,18 @@ public class GameSession {
 
                 Energy e = new Energy();
 
+                // Orion engine doubling (G15.2) — declared here; only Orion ships
+                // that can double may (G15.28).
+                boolean anyDouble = request.isDoubleLwarp() || request.isDoubleRwarp()
+                        || request.isDoubleCwarp() || request.isDoubleImpulse();
+                if (anyDouble && !ship.canDoubleEngines())
+                    return ActionResult.fail(ship.getName()
+                            + " cannot double its engines (G15.2 — Orion warships only)");
+                e.setDoubleLwarp(request.isDoubleLwarp());
+                e.setDoubleRwarp(request.isDoubleRwarp());
+                e.setDoubleCwarp(request.isDoubleCwarp());
+                e.setDoubleImpulse(request.isDoubleImpulse());
+
                 // Life support and fire control — always full cost
                 e.setLifeSupport(ship.getLifeSupportCost());
                 e.setFireControl(ship.getFireControlCost());
@@ -602,7 +614,11 @@ public class GameSession {
                 int warpSpeed = Math.min(requestedSpeed, 30);
                 double warpEngineCapacity = ship.getPowerSystems().getAvailableLWarp()
                         + ship.getPowerSystems().getAvailableRWarp()
-                        + ship.getPowerSystems().getAvailableCWarp();
+                        + ship.getPowerSystems().getAvailableCWarp()
+                        // doubled warp engines output 2x their boxes (G15.2)
+                        + (request.isDoubleLwarp() ? ship.getPowerSystems().getAvailableLWarp() : 0)
+                        + (request.isDoubleRwarp() ? ship.getPowerSystems().getAvailableRWarp() : 0)
+                        + (request.isDoubleCwarp() ? ship.getPowerSystems().getAvailableCWarp() : 0);
                 double movementEnergyNeeded = warpSpeed * moveCost;
                 if (movementEnergyNeeded > warpEngineCapacity + 0.001) {
                     return ActionResult.fail("Insufficient warp engine power for speed " + requestedSpeed

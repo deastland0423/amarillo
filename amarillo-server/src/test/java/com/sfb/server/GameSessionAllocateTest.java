@@ -6,6 +6,7 @@ import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
+import com.sfb.samples.OrionShips;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -171,5 +172,40 @@ class GameSessionAllocateTest {
         ActionResult result = session.executeAction(allocate("USS Nonexistent"));
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("not found"), result.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // Engine doubling (G15.2) — Orion warships only (G15.28)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void engineDoubling_byNonOrion_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setDoubleLwarp(true);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("double its engines"), result.getMessage());
+    }
+
+    @Test
+    void engineDoubling_byOrion_isAccepted() {
+        Ship orion = new Ship();
+        orion.init(OrionShips.getLr());
+        orion.setName("Lady Luck");
+        orion.setLocation(new Location(15, 15));
+        orion.setFacing(1);
+        game.getShips().add(orion);
+        game.startTurn();
+
+        ActionRequest req = allocate("Lady Luck");
+        req.setDoubleLwarp(true);
+        req.setDoubleRwarp(true);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertTrue(orion.getPowerSystems().isAnyEngineDoubled());
     }
 }

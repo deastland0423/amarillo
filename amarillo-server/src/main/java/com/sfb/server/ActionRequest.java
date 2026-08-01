@@ -38,6 +38,10 @@ public class ActionRequest {
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private int                 batteryDraw;            // energy drawn from batteries this turn
     private int                 batteryRecharge;        // energy put into batteries this turn
+    private boolean             doubleLwarp;            // Orion engine doubling (G15.2) — left warp
+    private boolean             doubleRwarp;            // right warp
+    private boolean             doubleCwarp;            // center warp
+    private boolean             doubleImpulse;          // impulse
     private int                 generalReinforcement;   // general shield reinforcement points (2 energy each)
     private int[]               specificReinforcement;  // specific reinforcement per shield 1-6
     private Map<String, Map<String, Integer>> droneReloadSelections;   // rack name → {droneType → count}
@@ -108,6 +112,15 @@ public class ActionRequest {
 
     public int  getBatteryDraw()                       { return batteryDraw; }
     public void setBatteryDraw(int batteryDraw)        { this.batteryDraw = batteryDraw; }
+
+    public boolean isDoubleLwarp()                     { return doubleLwarp; }
+    public void    setDoubleLwarp(boolean v)           { this.doubleLwarp = v; }
+    public boolean isDoubleRwarp()                     { return doubleRwarp; }
+    public void    setDoubleRwarp(boolean v)           { this.doubleRwarp = v; }
+    public boolean isDoubleCwarp()                     { return doubleCwarp; }
+    public void    setDoubleCwarp(boolean v)           { this.doubleCwarp = v; }
+    public boolean isDoubleImpulse()                   { return doubleImpulse; }
+    public void    setDoubleImpulse(boolean v)         { this.doubleImpulse = v; }
 
     public int  getBatteryRecharge()                   { return batteryRecharge; }
     public void setBatteryRecharge(int batteryRecharge){ this.batteryRecharge = batteryRecharge; }

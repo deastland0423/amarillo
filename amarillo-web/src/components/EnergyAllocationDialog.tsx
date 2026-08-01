@@ -55,6 +55,10 @@ interface ShipAlloc {
   suicideHold:          Record<string, boolean>;  // shuttleName → paying hold this turn
   transUses:            number;
   cloakPaid:            boolean;
+  doubleLwarp:          boolean;   // G15.2 engine doubling
+  doubleRwarp:          boolean;
+  doubleCwarp:          boolean;
+  doubleImpulse:        boolean;
   batteryDraw:          number;
   batteryRecharge:      number;
   hetEnergy:            number;   // warp energy reserved for HETs (C6.2)
@@ -101,6 +105,10 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     suicideHold:         {},
     transUses:       0,
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
+    doubleLwarp:     false,
+    doubleRwarp:     false,
+    doubleCwarp:     false,
+    doubleImpulse:   false,
     batteryDraw:     0,
     batteryRecharge: 0,
     hetEnergy:         0,
@@ -163,8 +171,14 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
   const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost;
-  const total  = (ship.totalPower ?? 0) + alloc.batteryDraw;
-  return { spent, total };
+  // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
+  const doublingBonus =
+      (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
+      (alloc.doubleRwarp   ? (ship.availableRWarp   ?? 0) : 0) +
+      (alloc.doubleCwarp   ? (ship.availableCWarp   ?? 0) : 0) +
+      (alloc.doubleImpulse ? (ship.availableImpulse ?? 0) : 0);
+  const total  = (ship.totalPower ?? 0) + alloc.batteryDraw + doublingBonus;
+  return { spent, total, doublingBonus };
 }
 
 // ---- Weapon label ----
@@ -383,7 +397,7 @@ export default function EnergyAllocationDialog({
   const capFull  = ship.capacitorsCharged
     && (ship.phaserCapacitor ?? 0) >= (ship.phaserCapacitorMax ?? 0);
 
-  const { spent, total } = calcBudget(ship, alloc);
+  const { spent, total, doublingBonus } = calcBudget(ship, alloc);
   const overBudget = spent > total;
 
   // Check if any ship is over energy budget or over deck crew limit (blocks submit)
@@ -442,6 +456,10 @@ export default function EnergyAllocationDialog({
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
           cloakPaid:             a.cloakPaid,
+          doubleLwarp:           a.doubleLwarp,
+          doubleRwarp:           a.doubleRwarp,
+          doubleCwarp:           a.doubleCwarp,
+          doubleImpulse:         a.doubleImpulse,
           batteryDraw:           a.batteryDraw,
           batteryRecharge:       a.batteryRecharge,
           hetEnergy:             a.hetEnergy,
@@ -657,6 +675,40 @@ export default function EnergyAllocationDialog({
             </label>
           )}
         </div>
+
+        {/* ---- Engine Doubling (G15.2) — Orion warships only ---- */}
+        {ship.canDoubleEngines && (
+          <div className="ea-section">
+            <Collapsible
+              title={`ENGINE DOUBLING (G15.2)${doublingBonus > 0 ? `  +${doublingBonus} power` : ''}`}
+              color="#ff8c42">
+              <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>
+                A doubled engine outputs twice its boxes this turn.
+              </div>
+              {([
+                ['doubleLwarp',   'Left Warp',   ship.maxLWarp,   ship.availableLWarp,   true],
+                ['doubleRwarp',   'Right Warp',  ship.maxRWarp,   ship.availableRWarp,   true],
+                ['doubleCwarp',   'Center Warp', ship.maxCWarp,   ship.availableCWarp,   true],
+                ['doubleImpulse', 'Impulse',     ship.maxImpulse, ship.availableImpulse, false],
+              ] as [keyof ShipAlloc, string, number, number, boolean][])
+                .filter(([, , max]) => (max ?? 0) > 0)
+                .map(([key, label, , avail]) => (
+                  <label key={key} className="ea-radio-label" style={{ gap: 8, marginTop: 4 }}>
+                    <input type="checkbox"
+                      checked={alloc[key] as boolean}
+                      onChange={e => setAlloc(a => ({ ...a, [key]: e.target.checked }))}
+                    />
+                    {label} <span style={{ color: '#8b949e' }}>(+{avail ?? 0} power)</span>
+                  </label>
+                ))}
+              {(alloc.doubleLwarp || alloc.doubleRwarp || alloc.doubleCwarp) && (
+                <div style={{ fontSize: 12, color: '#f0c040', marginTop: 6 }}>
+                  ⚠ −1 warp box destroyed at end of turn (G15.21); stealth bonus lost this turn (G15.82).
+                </div>
+              )}
+            </Collapsible>
+          </div>
+        )}
 
         {/* ---- Electronic Warfare ---- */}
         {(ship.sensorRating ?? 0) > 0 && (
