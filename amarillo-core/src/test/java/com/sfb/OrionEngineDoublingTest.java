@@ -52,6 +52,21 @@ public class OrionEngineDoublingTest {
     }
 
     @Test
+    public void size4_boxLossTakenFromTheLargerDoubledWarpEngine() {
+        Ship lr = lr();
+        lr.getPowerSystems().setAvailableRWarp(3); // asymmetric: L=5, R=3
+        Energy e = new Energy();
+        e.setDoubleLwarp(true);
+        e.setDoubleRwarp(true);
+        lr.allocateEnergy(e);
+
+        lr.resolveEngineDoublingDamage();
+
+        assertEquals("box taken from the larger (left) warp engine", 4, lr.getPowerSystems().getAvailableLWarp());
+        assertEquals("smaller (right) warp engine untouched", 3, lr.getPowerSystems().getAvailableRWarp());
+    }
+
+    @Test
     public void stealthLostWhileWarpDoubled() {
         Ship lr = lr();
         assertEquals(2, lr.getStealthEcm());

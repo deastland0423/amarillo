@@ -260,9 +260,16 @@ public class PowerSystems implements Systems {
 			if (dblC) damageCWarp();
 			if (dblImp) damageImpulse();
 		} else if (isWarpDoubled()) {
-			if (!(dblL && damageLWarp()) && !(dblR && damageRWarp())) {
-				if (dblC) damageCWarp();
-			}
+			// One warp box lost (G15.213). Deterministic default: take it from the
+			// doubled warp engine with the most boxes remaining, so a smaller engine
+			// isn't crippled first. (Moot for the symmetric LR; player choice is
+			// deferred until an asymmetric Orion exists.)
+			int l = dblL ? availableLwarp : 0;
+			int r = dblR ? availableRwarp : 0;
+			int c = dblC ? availableCwarp : 0;
+			if (l >= r && l >= c && l > 0)      damageLWarp();
+			else if (r >= c && r > 0)           damageRWarp();
+			else if (c > 0)                     damageCWarp();
 		} else if (dblImp) {
 			damageImpulse();
 		}
