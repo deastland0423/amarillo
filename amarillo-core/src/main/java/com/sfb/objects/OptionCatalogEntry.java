@@ -54,6 +54,19 @@ public class OptionCatalogEntry {
     public String notes;
 
     /**
+     * Empire(s) that produce this weapon, for the Orion cartel quota (G15.44).
+     * Empty/absent means UNIVERSAL (phasers, tractors, …) — available to any
+     * cartel with no quota. A listed weapon takes the best cartel access tier
+     * across these empires.
+     */
+    public List<String> empires;
+
+    /** True if this option is produced everywhere (no origin empire → exempt from the cartel quota). */
+    public boolean isUniversal() {
+        return empires == null || empires.isEmpty();
+    }
+
+    /**
      * How to instantiate this option as a weapon (reuses the ship-JSON weapon
      * recipe). Present only for options that (a) are weapons and (b) have an
      * implementing class. Non-weapon systems (Cargo, Lab, Transporter, …) and

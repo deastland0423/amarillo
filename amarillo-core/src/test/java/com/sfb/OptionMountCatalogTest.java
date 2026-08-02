@@ -89,4 +89,18 @@ public class OptionMountCatalogTest {
         assertEquals(165, c.get("PPD").yearAvailable);
         assertEquals(170, c.get("Plasma-S Torp (Swivel)").yearAvailable);
     }
+
+    @Test
+    public void weaponOrigins_universalVsFactionSpecific() throws Exception {
+        OptionMountCatalog c = catalog();
+        // Universal — no origin, exempt from the cartel quota.
+        assertTrue("phasers are universal", c.get("Phaser-1").isUniversal());
+        assertTrue("tractors are universal", c.get("Tractor Beam").isUniversal());
+        // Faction-specific origins (G15.44).
+        assertFalse(c.get("Phaser-G").isUniversal());
+        assertEquals(java.util.List.of("Hydran"), c.get("Phaser-G").empires);
+        assertEquals(java.util.List.of("Federation"), c.get("Photon Torpedo").empires);
+        assertEquals(java.util.List.of("Klingon", "Kzinti", "Lyran"), c.get("Disruptor-30").empires);
+        assertTrue(c.get("Plasma-S Torp (Swivel)").empires.contains("Gorn"));
+    }
 }
