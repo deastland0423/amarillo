@@ -120,6 +120,13 @@ export interface CoiDroneType {
 export interface CoiOptionChoice {
   name: string;
   cost: number;   // BPV delta (Annex #8B); may be negative/fractional
+  empires?: string[] | null;   // producing empires; null/absent = universal (cartel-exempt, G15.44)
+}
+
+export interface Cartel {
+  name:          string;
+  home:          string;
+  operatingZone: string[];
 }
 
 export interface CoiOptionMount {
@@ -148,9 +155,11 @@ export interface CoiShipData {
 }
 
 export interface CoiSideData {
-  faction: string;
-  name:    string;
-  ships:   CoiShipData[];
+  faction:      string;
+  name:         string;
+  ships:        CoiShipData[];
+  cartel?:      string | null;  // scenario-fixed Orion cartel (G15.44), or null if the player picks
+  cartelPinned?: boolean;
 }
 
 export interface CoiShuttlePrepEntry {
@@ -171,6 +180,7 @@ export interface CoiSubmission {
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
     specialShuttlePrep?:   CoiShuttlePrepEntry[];
     optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
+    cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)
   };
 }
 
@@ -251,6 +261,10 @@ export const gameApi = {
 
   getCoiData(scenarioId: string): Promise<CoiSideData[]> {
     return request(`/api/games/scenarios/${scenarioId}/coi-data`);
+  },
+
+  listCartels(): Promise<Cartel[]> {
+    return request(`/api/games/scenarios/cartels`);
   },
 
   getHarOptions(

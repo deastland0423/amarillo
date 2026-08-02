@@ -108,6 +108,7 @@ public class ScenarioSpec {
     public static class SideSpec {
         public String            faction;          // e.g. "Federation"
         public String            name;             // display name, e.g. "Orion Pirates"
+        public String            cartel;           // Orion cartel (G15.44); null = player picks it at COI
         public List<ShipSetup>   ships;
         public List<Reinforcement> reinforcements; // ships arriving later (optional)
         /** Map edges that are destruction zones for this side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT". */

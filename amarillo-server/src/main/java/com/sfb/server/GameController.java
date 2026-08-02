@@ -285,6 +285,7 @@ public class GameController {
                                     Map<String, Object> opt = new java.util.LinkedHashMap<>();
                                     opt.put("name", e.name);
                                     opt.put("cost", e.cost);
+                                    opt.put("empires", e.empires);  // null = universal (cartel-exempt)
                                     legal.add(opt);
                                 }
                             }
@@ -357,6 +358,8 @@ public class GameController {
                 Map<String, Object> sideMap = new java.util.LinkedHashMap<>();
                 sideMap.put("faction", side.faction != null ? side.faction : "");
                 sideMap.put("name", side.name != null ? side.name : "");
+                sideMap.put("cartel", side.cartel);           // scenario-fixed Orion cartel, or null (player picks)
+                sideMap.put("cartelPinned", side.cartel != null);
                 sideMap.put("ships", shipList);
                 result.add(sideMap);
             }
@@ -364,6 +367,24 @@ public class GameController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
+    }
+
+    /**
+     * The Orion cartel table (G15.44): each cartel's home + operating-zone empires.
+     * Lets the COI dialog resolve an option's access tier and show the fleet quota.
+     */
+    @GetMapping("/scenarios/cartels")
+    public ResponseEntity<List<Map<String, Object>>> getCartels() {
+        com.sfb.objects.OrionCartelTable table = com.sfb.objects.OrionCartelTable.loadDefault();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (com.sfb.objects.OrionCartel c : table.all()) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("name", c.name);
+            m.put("home", c.home);
+            m.put("operatingZone", c.operatingZone);
+            out.add(m);
+        }
+        return ResponseEntity.ok(out);
     }
 
     // -------------------------------------------------------------------------
@@ -477,9 +498,20 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
 
             Map<String, com.sfb.scenario.CoiLoadout> loadouts = new java.util.LinkedHashMap<>();
+            String cartel = null;
             for (Map.Entry<String, CoiRequest> entry : body.entrySet()) {
                 loadouts.put(entry.getKey(), entry.getValue().toLoadout());
+                if (cartel == null && entry.getValue().cartel != null) {
+                    cartel = entry.getValue().cartel;
+                }
             }
+
+            // Cartel fleet-quota (G15.44) — reject an over-quota loadout.
+            String quotaViolation = session.validateCartelQuota(cartel, loadouts);
+            if (quotaViolation != null) {
+                return ResponseEntity.badRequest().body(Map.of("error", quotaViolation));
+            }
+
             session.submitCoi(token, loadouts);
             broadcastLobby(session);
             return ResponseEntity.ok(Map.of("message", "COI selections saved"));

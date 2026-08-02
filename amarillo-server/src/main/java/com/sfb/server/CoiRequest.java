@@ -29,6 +29,9 @@ public class CoiRequest {
     /** Orion option-mount choices (G15.4): mount designator → Annex #8B option name. */
     public Map<String, String> optionMounts = new LinkedHashMap<>();
 
+    /** The fleet's Orion cartel (G15.44), echoed on each ship's request; null if none. */
+    public String cartel;
+
     /** Pre-game special shuttle preparations. */
     public static class ShuttlePrepRequest {
         public String shuttleName   = "";

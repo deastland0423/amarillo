@@ -1,5 +1,56 @@
-import { useState } from 'react';
-import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiShuttlePrepEntry } from '../api/gameApi';
+import { useState, useEffect } from 'react';
+import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiShuttlePrepEntry, Cartel } from '../api/gameApi';
+import { gameApi } from '../api/gameApi';
+
+type Tier = 'HOME' | 'OPERATING' | 'OUTSIDE' | 'UNIVERSAL';
+
+/** Access tier of an option's producing empires under a cartel (mirrors OrionCartel.accessForAny). */
+function tierFor(empires: string[] | null | undefined, cartel: Cartel | undefined): Tier {
+  if (!empires || empires.length === 0 || !cartel) return 'UNIVERSAL';
+  let best: Tier = 'OUTSIDE';
+  for (const e of empires) {
+    if (e === cartel.home) return 'HOME';
+    if (cartel.operatingZone.includes(e)) best = 'OPERATING';
+  }
+  return best;
+}
+
+interface SideQuota {
+  hasMounts: boolean;
+  total:     number;
+  op:        number;  outUsed:  number;
+  opCap:     number;  outCap:   number;
+  within:    boolean;
+}
+
+/** Fleet cartel quota (G15.44): % of ALL option mounts, round to nearest, independent pools. */
+function computeSideQuota(
+  side:    CoiSideData,
+  cartel:  Cartel | undefined,
+  optionSel: (shipName: string) => Record<string, string>,
+): SideQuota {
+  let total = 0, op = 0, outUsed = 0;
+  for (const ship of side.ships) {
+    const mounts = ship.optionMounts ?? [];
+    total += mounts.length;
+    const sel = optionSel(ship.shipName);
+    for (const m of mounts) {
+      const chosen = sel[m.designator];
+      if (!chosen) continue;
+      const opt = m.legalOptions.find(o => o.name === chosen);
+      const tier = tierFor(opt?.empires, cartel);
+      if (tier === 'OPERATING') op++;
+      else if (tier === 'OUTSIDE') outUsed++;
+    }
+  }
+  const opCap  = Math.round(total * 0.20);
+  const outCap = Math.round(total * 0.10);
+  return {
+    hasMounts: total > 0,
+    total, op, outUsed, opCap, outCap,
+    within: !cartel || (op <= opCap && outUsed <= outCap),
+  };
+}
 
 interface Props {
   sides:       CoiSideData[];
@@ -454,8 +505,30 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
     return init;
   });
 
+  // Cartel table (G15.44), fetched once — lets us tier options and show the quota.
+  const [cartels, setCartels] = useState<Cartel[]>([]);
+  useEffect(() => { gameApi.listCartels().then(setCartels).catch(() => {}); }, []);
+  const cartelsByName: Record<string, Cartel> = Object.fromEntries(cartels.map(c => [c.name, c]));
+
+  // Chosen cartel per side (keyed by faction), seeded from any scenario-fixed value.
+  const [cartelChoice, setCartelChoice] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const side of sides) init[side.faction] = side.cartel ?? '';
+    return init;
+  });
+
+  const optionSelFor = (shipName: string) => coiMap[shipName]?.optionMounts ?? {};
+  const sideQuota = (side: CoiSideData) =>
+    computeSideQuota(side, cartelsByName[cartelChoice[side.faction] ?? ''], optionSelFor);
+
   function buildSubmission(): CoiSubmission {
     const sub: CoiSubmission = {};
+    // Ship → its fleet's cartel, echoed onto each ship's request.
+    const shipCartel: Record<string, string> = {};
+    for (const side of sides) {
+      const c = cartelChoice[side.faction];
+      if (c) for (const ship of side.ships) shipCartel[ship.shipName] = c;
+    }
     for (const [shipName, coi] of Object.entries(coiMap)) {
       // Convert droneRackLoadouts: Record<number, string[]> → Record<string, string[]>
       const rackLoadouts = Object.keys(coi.droneRackLoadouts).length > 0
@@ -490,6 +563,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         specialShuttlePrep:   shuttlePrep.length > 0 ? shuttlePrep : undefined,
         optionMounts:         Object.keys(coi.optionMounts).length > 0
                               ? coi.optionMounts : undefined,
+        cartel:               shipCartel[shipName],
       };
     }
     return sub;
@@ -498,6 +572,10 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
   const anyOverBudget = sides.some(side =>
     side.ships.some(ship => coiCost(coiMap[ship.shipName] ?? defaultShipCoi()) > ship.coiBudget)
   );
+  const anyOverQuota = sides.some(side => {
+    const q = sideQuota(side);
+    return q.hasMounts && cartelChoice[side.faction] && !q.within;
+  });
 
   return (
     <div className="card coi-dialog" style={{ width: '100%', maxWidth: 560 }}>
@@ -506,23 +584,54 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         Select pre-game loadout options for each ship. Budget is a percentage of BPV.
       </p>
 
-      {sides.map(side => (
-        <div key={side.faction} className="coi-side">
-          <div className="coi-side-title">{side.name || side.faction}</div>
-          {side.ships.map(ship => (
-            <ShipCoiPanel
-              key={ship.shipName}
-              ship={ship}
-              coi={coiMap[ship.shipName] ?? defaultShipCoi()}
-              onChange={next => setCoiMap(prev => ({ ...prev, [ship.shipName]: next }))}
-            />
-          ))}
-        </div>
-      ))}
+      {sides.map(side => {
+        const q = sideQuota(side);
+        const chosenCartel = cartelChoice[side.faction] ?? '';
+        return (
+          <div key={side.faction} className="coi-side">
+            <div className="coi-side-title">{side.name || side.faction}</div>
+
+            {q.hasMounts && (
+              <div className="coi-section">
+                <div className="coi-section-title">Orion Cartel (G15.44)</div>
+                <div className="coi-row">
+                  <label className="coi-label">Cartel</label>
+                  {side.cartelPinned ? (
+                    <span className="coi-note">{side.cartel} (fixed)</span>
+                  ) : (
+                    <select value={chosenCartel}
+                      onChange={e => setCartelChoice(prev => ({ ...prev, [side.faction]: e.target.value }))}>
+                      <option value="">(none — no quota)</option>
+                      {cartels.map(c => (
+                        <option key={c.name} value={c.name}>{c.name} — home {c.home}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                {chosenCartel && (
+                  <div className="coi-note" style={{ color: q.within ? undefined : '#f85149' }}>
+                    Operating {q.op}/{q.opCap} · Outside {q.outUsed}/{q.outCap}
+                    {' '}— of {q.total} option mounts (home &amp; universal unlimited)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {side.ships.map(ship => (
+              <ShipCoiPanel
+                key={ship.shipName}
+                ship={ship}
+                coi={coiMap[ship.shipName] ?? defaultShipCoi()}
+                onChange={next => setCoiMap(prev => ({ ...prev, [ship.shipName]: next }))}
+              />
+            ))}
+          </div>
+        );
+      })}
 
       <div className="button-row" style={{ marginTop: '1rem' }}>
         <button
-          disabled={busy || anyOverBudget}
+          disabled={busy || anyOverBudget || anyOverQuota}
           onClick={() => onSubmit(buildSubmission())}
         >
           {busy ? 'Saving…' : 'Save & Continue'}
@@ -534,6 +643,11 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
       {anyOverBudget && (
         <p style={{ color: '#f85149', marginTop: '0.5rem' }}>
           One or more ships exceed their COI budget.
+        </p>
+      )}
+      {anyOverQuota && (
+        <p style={{ color: '#f85149', marginTop: '0.5rem' }}>
+          A fleet exceeds its cartel's weapon-access quota (G15.44).
         </p>
       )}
     </div>

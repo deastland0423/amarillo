@@ -41,15 +41,35 @@ public final class CartelQuota {
      * @param catalog the option catalog, for each equipped option's origin empires
      */
     public static Result evaluate(List<Ship> fleet, OrionCartel cartel, OptionMountCatalog catalog) {
-        Result r = new Result();
-
+        int totalMounts = 0;
+        List<String> selected = new ArrayList<>();
         for (Ship ship : fleet) {
             for (OptionMount mount : ship.getOptionMounts()) {
-                r.totalMounts++;
-                if (cartel == null || mount.isEmpty() || mount.getOptionName() == null) {
-                    continue; // empty, pinned-without-name, or no cartel → not counted
+                totalMounts++;
+                if (!mount.isEmpty() && mount.getOptionName() != null) {
+                    selected.add(mount.getOptionName());
                 }
-                OptionCatalogEntry entry = catalog.get(mount.getOptionName());
+            }
+        }
+        return evaluate(totalMounts, selected, cartel, catalog);
+    }
+
+    /**
+     * Selection-based form: evaluate directly from the fleet's total option-mount
+     * count and the list of chosen option names — used at COI submission, before
+     * ships are equipped.
+     */
+    public static Result evaluate(int totalMounts, List<String> selectedOptionNames,
+                                  OrionCartel cartel, OptionMountCatalog catalog) {
+        Result r = new Result();
+        r.totalMounts = totalMounts;
+
+        if (cartel != null) {
+            for (String name : selectedOptionNames) {
+                if (name == null) {
+                    continue;
+                }
+                OptionCatalogEntry entry = catalog.get(name);
                 if (entry == null || entry.isUniversal()) {
                     continue; // universal weapons are unlimited
                 }
@@ -61,17 +81,17 @@ public final class CartelQuota {
             }
         }
 
-        r.operatingCap = (int) Math.round(r.totalMounts * OPERATING_FRACTION);
-        r.outsideCap   = (int) Math.round(r.totalMounts * OUTSIDE_FRACTION);
+        r.operatingCap = (int) Math.round(totalMounts * OPERATING_FRACTION);
+        r.outsideCap   = (int) Math.round(totalMounts * OUTSIDE_FRACTION);
 
         if (cartel != null) {
             if (r.operatingUsed > r.operatingCap) {
                 r.violations.add(cartel.name + ": " + r.operatingUsed + " operating-zone option mounts exceed the limit of "
-                        + r.operatingCap + " (20% of " + r.totalMounts + ")");
+                        + r.operatingCap + " (20% of " + totalMounts + ")");
             }
             if (r.outsideUsed > r.outsideCap) {
                 r.violations.add(cartel.name + ": " + r.outsideUsed + " outside-empire option mounts exceed the limit of "
-                        + r.outsideCap + " (10% of " + r.totalMounts + ")");
+                        + r.outsideCap + " (10% of " + totalMounts + ")");
             }
         }
         r.withinQuota = r.violations.isEmpty();

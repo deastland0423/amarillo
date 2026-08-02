@@ -238,6 +238,41 @@ public class GameSession {
         return null;
     }
 
+    /**
+     * Validate an Orion fleet's option-mount choices against its cartel quota
+     * (G15.44). Returns a violation message, or null if within quota / no cartel.
+     */
+    public String validateCartelQuota(String cartelName,
+                                      Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
+        if (cartelName == null || cartelName.isBlank() || loadedSideShips == null) {
+            return null;
+        }
+        com.sfb.objects.OrionCartel cartel =
+                com.sfb.objects.OrionCartelTable.loadDefault().get(cartelName);
+        if (cartel == null) {
+            return null;
+        }
+        Map<String, com.sfb.objects.Ship> byName = new java.util.HashMap<>();
+        for (List<com.sfb.objects.Ship> side : loadedSideShips) {
+            for (com.sfb.objects.Ship s : side) {
+                byName.put(s.getName(), s);
+            }
+        }
+        int totalMounts = 0;
+        List<String> selected = new java.util.ArrayList<>();
+        for (Map.Entry<String, com.sfb.scenario.CoiLoadout> e : loadouts.entrySet()) {
+            com.sfb.objects.Ship ship = byName.get(e.getKey());
+            if (ship == null) {
+                continue;
+            }
+            totalMounts += ship.getOptionMounts().size();
+            selected.addAll(e.getValue().optionMounts.values());
+        }
+        com.sfb.objects.CartelQuota.Result r = com.sfb.objects.CartelQuota.evaluate(
+                totalMounts, selected, cartel, com.sfb.objects.OptionMountCatalog.loadDefault());
+        return r.withinQuota ? null : String.join("; ", r.violations);
+    }
+
     /** All ship names across all scenario sides, in order. */
     public List<String> getAllShipNames() {
         if (loadedSideShips == null)
