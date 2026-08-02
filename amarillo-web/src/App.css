@@ -175,6 +175,49 @@ button.secondary:hover:not(:disabled) {
   font-size: 0.85rem;
   color: #8b949e;
   letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.board-turn {
+  color: #c9d1d9;
+}
+
+.board-sep {
+  color: #484f58;
+}
+
+.phase-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.phase-step {
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  color: #6e7681;               /* dim: an upcoming/past phase */
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  transition: color 0.15s, background 0.15s;
+}
+
+.phase-step-active {
+  color: #0d1117;
+  background: #f0c040;          /* bright: the current phase */
+  font-weight: 700;
+}
+
+.phase-arrow {
+  color: #484f58;
+}
+
+.phase-step-special {
+  background: #58a6ff;          /* interrupt / non-standard phase */
+  margin-left: 0.15rem;
 }
 
 .board-content {

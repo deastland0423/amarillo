@@ -2829,9 +2829,11 @@ export default function GameBoard({ session, onLeave }: Props) {
   const turnLabel  = gameState
     ? (gameState.maxTurns > 0 ? `Turn ${gameState.turn}/${gameState.maxTurns}` : `Turn ${gameState.turn}`)
     : 'Turn ?';
-  const phaseLabel = gameState
-    ? `${turnLabel}  |  Impulse ${gameState.impulse}  |  ${phase}`
-    : 'Loading…';
+  // The three phases of every impulse, shown as a progress strip with the
+  // current one highlighted so players can see where they are (MOVEMENT →
+  // ACTIVITY → DIRECT_FIRE). Other phases (Initial Activity, Reinforcement,
+  // End of Impulse, DAC Choice…) show as a separate chip.
+  const IMPULSE_PHASES = ['Movement', 'Activity', 'Direct Fire'];
 
   const selectedShip = selected?.type === 'SHIP' ? (selected as ShipObject) : null;
   const canMove      = selectedShip !== null && movableNow.includes(selectedShip.name);
@@ -4073,7 +4075,27 @@ export default function GameBoard({ session, onLeave }: Props) {
 
       <div className="board-topbar">
         <span className="board-title">Amarillo</span>
-        <span className="board-phase">{phaseLabel}</span>
+        <span className="board-phase">
+          {!gameState ? 'Loading…' : (
+            <>
+              <span className="board-turn">{turnLabel}</span>
+              <span className="board-sep">|</span>
+              <span className="board-turn">Impulse {gameState.impulse}</span>
+              <span className="board-sep">|</span>
+              <span className="phase-strip">
+                {IMPULSE_PHASES.map((p, i) => (
+                  <Fragment key={p}>
+                    {i > 0 && <span className="phase-arrow">→</span>}
+                    <span className={`phase-step${phase === p ? ' phase-step-active' : ''}`}>{p}</span>
+                  </Fragment>
+                ))}
+              </span>
+              {phase && !IMPULSE_PHASES.includes(phase) && (
+                <span className="phase-step phase-step-active phase-step-special">{phase}</span>
+              )}
+            </>
+          )}
+        </span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
           <button className="secondary" onClick={() => setShowScore(true)}
