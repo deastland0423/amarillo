@@ -82,6 +82,7 @@ public final class OptionMountLoadout {
         weapon.setDesignator("OPT-" + mount.getDesignator());
         mount.setWeapon(weapon);
         mount.setBpvCost(entry.cost);
+        mount.setOptionName(entry.name);
         ship.getWeapons().addWeapon(weapon);
         return weapon;
     }
