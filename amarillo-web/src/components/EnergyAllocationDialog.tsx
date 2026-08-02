@@ -81,7 +81,8 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
   const arming: Record<string, ArmChoice> = {};
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
-    if (w.isRolling)    arming[w.name] = 'ROLL';
+    if (w.cooldown)     arming[w.name] = 'SKIP';   // fired last turn — can't arm this turn (E7.x)
+    else if (w.isRolling)    arming[w.name] = 'ROLL';
     else if (w.armed && w.holdCost > 0)                        arming[w.name] = 'HOLD';     // armed (any mode): hold if supported
     else if (w.launcherType && w.armingTurn >= w.totalArmingTurns - 1)
                                                                arming[w.name] = 'FINISH';   // plasma final turn
@@ -816,7 +817,9 @@ export default function EnergyAllocationDialog({
                       <span className="ea-weapon-alloc-status">{armingStatus(w)}</span>
                     </div>
                     <div className="ea-weapon-alloc-options">
-                      {w.isRolling ? (
+                      {w.cooldown ? (
+                        <span className="ea-note-dim">Cooling down — fired last turn, cannot arm this turn (E7)</span>
+                      ) : w.isRolling ? (
                         <>
                           <ArmOption name={w.name} value="ROLL"    label={`Roll (${w.rollingCost})`}    current={choice} color="#f0c040" onChange={setArming} />
                           <ArmOption name={w.name} value="FINISH"  label={`Finish (${w.armingCost})`}   current={choice} color="#56d364" onChange={setArming} />

@@ -112,6 +112,7 @@ public class GameStateDto {
         public int holdCost; // energy to hold per turn; 0 = hold not supported
         public boolean canOverload; // weapon supports OVERLOAD mode
         public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+        public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
         public boolean canProximity; // weapon supports PROXIMITY (prox) mode (Photon only)
         public boolean overloadFinalTurnOnly; // OVERLOAD only choosable on the final arming turn
         public int totalArmingTurns; // turns to fully arm (0 for instant)
@@ -971,6 +972,9 @@ public class GameStateDto {
                 wd.canProximity = hw.supportsProximity();
                 wd.overloadFinalTurnOnly = hw.overloadFinalTurnOnly();
                 wd.totalArmingTurns = hw.totalArmingTurns();
+            }
+            if (w instanceof com.sfb.weapons.Fusion) {
+                wd.cooldown = ((com.sfb.weapons.Fusion) w).isOnCooldown();
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;

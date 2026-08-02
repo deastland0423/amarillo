@@ -32,6 +32,7 @@ export interface WeaponState {
   holdCost:          number;   // energy to hold per turn; 0 = hold not supported
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+  cooldown?:              boolean;  // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
   canProximity:           boolean;  // weapon supports PROXIMITY mode (Photon only)
   overloadFinalTurnOnly:  boolean;  // OVERLOAD only choosable on the final arming turn
   totalArmingTurns:  number;
