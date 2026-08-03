@@ -13,7 +13,7 @@ package com.sfb.weapons;
  * <p>Slice 1: no capacitor (G23.24), immediate activation (the 4-impulse
  * announcement of G23.31 is deferred), and simple damage-splitting.
  */
-public class Esg extends Weapon {
+public class ESG extends Weapon {
 
     /** G23.42 field-strength chart: STRENGTH[radius][energy], energy 1..5 (index 0 = none). */
     private static final int[][] STRENGTH = {
@@ -36,13 +36,13 @@ public class Esg extends Weapon {
     private int strength = 0;
     private int activatedImpulse = -1;
 
-    public Esg(boolean hasCapacitor) {
+    public ESG(boolean hasCapacitor) {
         this.hasCapacitor = hasCapacitor;
         setType("ESG");
         setDacHitLocaiton("esg"); // destroyed on 'drone' hits (G23.14) — DAC wiring deferred
     }
 
-    public Esg() {
+    public ESG() {
         this(false);
     }
 

@@ -13,7 +13,7 @@ import com.sfb.objects.Unit;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
-import com.sfb.weapons.Esg;
+import com.sfb.weapons.ESG;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -56,10 +56,10 @@ class EsgResolver {
                 continue;
             }
             for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
-                if (!(w instanceof Esg)) {
+                if (!(w instanceof ESG)) {
                     continue;
                 }
-                Esg esg = (Esg) w;
+                ESG esg = (ESG) w;
                 if (!esg.isActive()) {
                     continue;
                 }
@@ -74,7 +74,7 @@ class EsgResolver {
         return log;
     }
 
-    private void processField(Ship ship, Esg esg, List<String> log) {
+    private void processField(Ship ship, ESG esg, List<String> log) {
         int r = esg.getRadius();
         Location shipNow  = ship.getLocation();
         Location shipPrev = prevLocations.getOrDefault(ship, shipNow);
@@ -111,7 +111,7 @@ class EsgResolver {
         }
     }
 
-    private void applyDamage(Ship esgShip, Esg esg, Unit unit, List<String> log) {
+    private void applyDamage(Ship esgShip, ESG esg, Unit unit, List<String> log) {
         int strength = esg.getStrength();
 
         if (unit instanceof Ship) {

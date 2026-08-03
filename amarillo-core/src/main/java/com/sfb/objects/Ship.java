@@ -384,10 +384,10 @@ public class Ship extends Unit implements DroneController {
 		// ESG generators (G23.21) — add allocated energy to each matching ESG.
 		if (!energyAllocated.getEsgEnergy().isEmpty()) {
 			for (com.sfb.weapons.Weapon w : weapons.fetchAllWeapons()) {
-				if (w instanceof com.sfb.weapons.Esg) {
+				if (w instanceof com.sfb.weapons.ESG) {
 					Integer pts = energyAllocated.getEsgEnergy().get(w.getDesignator());
 					if (pts != null) {
-						((com.sfb.weapons.Esg) w).addEnergy(pts);
+						((com.sfb.weapons.ESG) w).addEnergy(pts);
 					}
 				}
 			}
@@ -1547,7 +1547,7 @@ public class Ship extends Unit implements DroneController {
 			case "drone": {
 				// ESGs are also destroyed on 'drone' hits (G23.14).
 				List<Weapon> candidates = weapons.fetchAllWeapons().stream()
-						.filter(w -> ("drone".equals(w.getDacHitLocaiton()) || w instanceof com.sfb.weapons.Esg)
+						.filter(w -> ("drone".equals(w.getDacHitLocaiton()) || w instanceof com.sfb.weapons.ESG)
 								&& w.isFunctional())
 						.collect(Collectors.toList());
 				if (droneDacGroupPos == 2 && !droneDacBestTaken && !candidates.isEmpty()) {
@@ -1652,7 +1652,7 @@ public class Ship extends Unit implements DroneController {
 						.findFirst().orElse(null);
 				if (w == null) return null;
 				int best = weapons.fetchAllWeapons().stream()
-						.filter(x -> ("drone".equals(x.getDacHitLocaiton()) || x instanceof com.sfb.weapons.Esg)
+						.filter(x -> ("drone".equals(x.getDacHitLocaiton()) || x instanceof com.sfb.weapons.ESG)
 								&& x.isFunctional())
 						.mapToInt(DacPriority::dronePriority).min().orElse(Integer.MAX_VALUE);
 				if (DacPriority.dronePriority(w) == best) droneDacBestTaken = true;

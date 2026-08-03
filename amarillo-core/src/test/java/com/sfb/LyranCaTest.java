@@ -5,7 +5,7 @@ import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.properties.Faction;
 import com.sfb.weapons.Disruptor;
-import com.sfb.weapons.Esg;
+import com.sfb.weapons.ESG;
 import com.sfb.weapons.Weapon;
 import org.junit.Test;
 
@@ -15,7 +15,7 @@ import static org.junit.Assert.*;
 
 /**
  * Lyran CA (Azure) — the first ESG-carrying ship. Verifies the JSON loads and
- * its two ESG boxes build as real {@link Esg} generators (G23.0/.11).
+ * its two ESG boxes build as real {@link ESG} generators (G23.0/.11).
  */
 public class LyranCaTest {
 
@@ -29,7 +29,7 @@ public class LyranCaTest {
         assertEquals("CA", ca.getHullType());
         assertEquals(3, ca.getSizeClass());
 
-        long esgs = ca.getWeapons().fetchAllWeapons().stream().filter(w -> w instanceof Esg).count();
+        long esgs = ca.getWeapons().fetchAllWeapons().stream().filter(w -> w instanceof ESG).count();
         assertEquals("two ESG generators (G23.11)", 2, esgs);
 
         long disruptors = ca.getWeapons().fetchAllWeapons().stream()
@@ -37,8 +37,8 @@ public class LyranCaTest {
         assertEquals("four disruptors alongside the ESGs", 4, disruptors);
 
         for (Weapon w : ca.getWeapons().fetchAllWeapons()) {
-            if (w instanceof Esg) {
-                assertTrue("a fresh ESG starts inactive", !((Esg) w).isActive());
+            if (w instanceof ESG) {
+                assertTrue("a fresh ESG starts inactive", !((ESG) w).isActive());
             }
         }
     }

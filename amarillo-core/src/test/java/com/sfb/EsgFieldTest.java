@@ -4,7 +4,7 @@ import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.systemgroups.Energy;
-import com.sfb.weapons.Esg;
+import com.sfb.weapons.ESG;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -22,7 +22,7 @@ public class EsgFieldTest {
     private Game game;
     private Ship esgShip;
     private Ship target;
-    private Esg  esg;
+    private ESG  esg;
 
     @Before
     public void setUp() {
@@ -35,7 +35,7 @@ public class EsgFieldTest {
         esgShip.setFacing(1);
 
         // Give it an active radius-2 ESG field (strength = chart[2][2] = 7).
-        esg = new Esg();
+        esg = new ESG();
         esg.setDesignator("A");
         esgShip.getWeapons().addWeapon(esg);
         esg.setStoredEnergy(2);

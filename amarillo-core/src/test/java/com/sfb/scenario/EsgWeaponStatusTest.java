@@ -2,7 +2,7 @@ package com.sfb.scenario;
 
 import com.sfb.objects.Ship;
 import com.sfb.samples.FederationShips;
-import com.sfb.weapons.Esg;
+import com.sfb.weapons.ESG;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -16,15 +16,15 @@ public class EsgWeaponStatusTest {
     private Ship shipWithEsg() {
         Ship ship = new Ship();
         ship.init(FederationShips.getFedCa());
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.setDesignator("A");
         ship.getWeapons().addWeapon(esg);
         return ship;
     }
 
-    private Esg esgOf(Ship ship) {
+    private ESG esgOf(Ship ship) {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof Esg) return (Esg) w;
+            if (w instanceof ESG) return (ESG) w;
         }
         return null;
     }

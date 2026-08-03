@@ -2,7 +2,7 @@ package com.sfb;
 
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.WeaponFactory;
-import com.sfb.weapons.Esg;
+import com.sfb.weapons.ESG;
 import com.sfb.weapons.Weapon;
 import org.junit.Test;
 
@@ -19,17 +19,17 @@ public class EsgTest {
 
     @Test
     public void strengthChart_matchesG2342() {
-        assertEquals(20, Esg.strengthFor(0, 5)); // radius 0, full energy
-        assertEquals(4,  Esg.strengthFor(1, 1));
-        assertEquals(10, Esg.strengthFor(2, 3));
-        assertEquals(15, Esg.strengthFor(3, 5)); // biggest radius, weakest for the energy
-        assertEquals(0,  Esg.strengthFor(0, 0)); // no energy → no field
-        assertEquals(0,  Esg.strengthFor(4, 3)); // radius out of range
+        assertEquals(20, ESG.strengthFor(0, 5)); // radius 0, full energy
+        assertEquals(4,  ESG.strengthFor(1, 1));
+        assertEquals(10, ESG.strengthFor(2, 3));
+        assertEquals(15, ESG.strengthFor(3, 5)); // biggest radius, weakest for the energy
+        assertEquals(0,  ESG.strengthFor(0, 0)); // no energy → no field
+        assertEquals(0,  ESG.strengthFor(4, 3)); // radius out of range
     }
 
     @Test
     public void energyAccumulates_cappedAtFive() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.addEnergy(3);
         esg.addEnergy(4);
         assertEquals("capped at MAX_ENERGY (G23.22)", 5, esg.getStoredEnergy());
@@ -37,7 +37,7 @@ public class EsgTest {
 
     @Test
     public void activate_formsFieldAndReleasesEnergy() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.setStoredEnergy(3);
 
         esg.activate(2, 10);
@@ -50,7 +50,7 @@ public class EsgTest {
 
     @Test
     public void activate_withNoEnergy_formsNoField() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.activate(1, 5);
         assertFalse(esg.isActive());
         assertEquals(0, esg.getStrength());
@@ -58,7 +58,7 @@ public class EsgTest {
 
     @Test
     public void absorbDamage_depletesAndCollapsesAtZero() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.setStoredEnergy(5);
         esg.activate(0, 0); // strength 20
 
@@ -73,7 +73,7 @@ public class EsgTest {
 
     @Test
     public void field_expiresAfter32Impulses() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.setStoredEnergy(2);
         esg.activate(1, 100);
 
@@ -87,12 +87,12 @@ public class EsgTest {
         ws.type = "ESG";
         ws.designator = "A";
         Weapon w = WeaponFactory.build(ws, List.of("FULL"));
-        assertTrue("ship JSON / option mounts can build an ESG", w instanceof Esg);
+        assertTrue("ship JSON / option mounts can build an ESG", w instanceof ESG);
     }
 
     @Test
     public void destroyedGenerator_collapsesTheField() {
-        Esg esg = new Esg();
+        ESG esg = new ESG();
         esg.setStoredEnergy(3);
         esg.activate(1, 0);
         assertTrue(esg.isActive());

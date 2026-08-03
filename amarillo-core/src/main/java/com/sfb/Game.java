@@ -2116,11 +2116,11 @@ public class Game {
         if (currentPhase != ImpulsePhase.ACTIVITY) {
             return ActionResult.fail("ESG can only be activated during the Activity phase");
         }
-        com.sfb.weapons.Esg esg = null;
+        com.sfb.weapons.ESG esg = null;
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof com.sfb.weapons.Esg
+            if (w instanceof com.sfb.weapons.ESG
                     && (designator == null || designator.equalsIgnoreCase(w.getDesignator()))) {
-                esg = (com.sfb.weapons.Esg) w;
+                esg = (com.sfb.weapons.ESG) w;
                 break;
             }
         }
@@ -2133,7 +2133,7 @@ public class Game {
         if (esg.isActive()) {
             return ActionResult.fail("That ESG field is already active");
         }
-        if (radius < 0 || radius > com.sfb.weapons.Esg.MAX_RADIUS) {
+        if (radius < 0 || radius > com.sfb.weapons.ESG.MAX_RADIUS) {
             return ActionResult.fail("ESG radius must be 0-3");
         }
         if (esg.getStoredEnergy() < 1) {
