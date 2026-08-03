@@ -61,6 +61,10 @@ const SQRT3   = Math.sqrt(3);
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4.0;
 
+// ESG field ring colour (G23.0) — one place to retune the look.
+const ESG_RING_STROKE = 'rgba(120, 220, 255, 0.9)';   // ring outline
+const ESG_RING_FILL   = 'rgba(120, 220, 255, 0.16)';  // ring hex tint
+
 /** Pixel center of hex (col, row), both 1-indexed. */
 function hexCenter(col: number, row: number): [number, number] {
   const h = SQRT3 * SIZE;
@@ -363,8 +367,8 @@ function drawObjects(
         if (!w.esgActive) continue;
         const rad = w.esgRadius ?? 0;
         ctx.save();
-        ctx.strokeStyle = 'rgba(120, 220, 255, 0.9)';
-        ctx.fillStyle   = 'rgba(120, 220, 255, 0.16)';
+        ctx.strokeStyle = ESG_RING_STROKE;
+        ctx.fillStyle   = ESG_RING_FILL;
         ctx.lineWidth   = 2;
         for (let c = Math.max(1, col - rad - 1); c <= Math.min(cols, col + rad + 1); c++) {
           for (let r = Math.max(1, row - rad - 1); r <= Math.min(rows, row + rad + 1); r++) {
