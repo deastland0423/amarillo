@@ -471,42 +471,25 @@ function drawObjects(
         ctx.beginPath();
         ctx.arc(cx, cy, pr, 0, 2 * Math.PI);
         ctx.stroke();
-        // Planetary rings (P2.223): translucent annular bands drawn over the
-        // body. A band [inner, outer] spans hex-distances inner-0.5 .. outer+0.5.
-        for (const band of obj.rings ?? []) {
-          const innerPx = SQRT3 * SIZE * (band[0] - 0.5);
-          const outerPx = SQRT3 * SIZE * (band[1] + 0.5);
-          ctx.beginPath();
-          ctx.arc(cx, cy, outerPx, 0, 2 * Math.PI, false);
-          ctx.arc(cx, cy, innerPx, 0, 2 * Math.PI, true); // reverse → donut hole
-          ctx.fillStyle = 'rgba(201, 149, 92, 0.22)';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(201, 149, 92, 0.5)';
-          ctx.lineWidth   = 1;
-          for (const rr of [innerPx, outerPx]) {
-            ctx.beginPath();
-            ctx.arc(cx, cy, rr, 0, 2 * Math.PI);
-            ctx.stroke();
-          }
-        }
-        // Outline the actual ring HEXES so it's unambiguous which hexes count
-        // as ring terrain (the smooth band above is aesthetic, not hex-aligned).
+        // Planetary rings (P2.223): tint each ring HEX so it's unambiguous
+        // which hexes are ring terrain. Bands are tinted by index — the inner
+        // ring (band 0) and outer ring (band 1) get slightly different tints.
+        // (Placeholder for future ring1/ring2 hex tokens.)
         if ((obj.rings?.length ?? 0) > 0) {
-          const maxOuter = Math.max(...obj.rings!.map(b => b[1]));
-          ctx.save();
-          ctx.strokeStyle = 'rgba(240, 200, 120, 0.9)';
-          ctx.lineWidth   = 1.5;
-          ctx.setLineDash([5, 4]);
+          const bands = obj.rings!;
+          const RING_TINTS = ['rgba(224, 170, 100, 0.34)', 'rgba(206, 184, 132, 0.22)'];
+          const maxOuter = Math.max(...bands.map(b => b[1]));
           for (let c = Math.max(1, col - maxOuter - 1); c <= Math.min(cols, col + maxOuter + 1); c++) {
             for (let r = Math.max(1, row - maxOuter - 1); r <= Math.min(rows, row + maxOuter + 1); r++) {
               const dist = hexRange(col, row, c, r);
-              if (!obj.rings!.some(b => dist >= b[0] && dist <= b[1])) continue;
+              const bandIdx = bands.findIndex(b => dist >= b[0] && dist <= b[1]);
+              if (bandIdx < 0) continue;
               const [hx, hy] = hexCenter(c, r);
               tracePath(ctx, hx, hy);
-              ctx.stroke();
+              ctx.fillStyle = RING_TINTS[bandIdx % RING_TINTS.length];
+              ctx.fill();
             }
           }
-          ctx.restore();
         }
         ctx.fillStyle    = '#ffffff';
         ctx.font         = 'bold 11px sans-serif';
