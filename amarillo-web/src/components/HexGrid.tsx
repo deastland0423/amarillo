@@ -357,6 +357,26 @@ function drawObjects(
         ctx.arc(cx, cy, SIZE * 0.42 + 6, 0, 2 * Math.PI);
         ctx.stroke();
       }
+      // Active ESG fields (G23.0): a hollow ring of hexes at the field's radius,
+      // moving with the ship. Drawn under the token so r=0 fields don't hide it.
+      for (const w of (obj as ShipObject).weapons ?? []) {
+        if (!w.esgActive) continue;
+        const rad = w.esgRadius ?? 0;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(120, 220, 255, 0.9)';
+        ctx.fillStyle   = 'rgba(120, 220, 255, 0.16)';
+        ctx.lineWidth   = 2;
+        for (let c = Math.max(1, col - rad - 1); c <= Math.min(cols, col + rad + 1); c++) {
+          for (let r = Math.max(1, row - rad - 1); r <= Math.min(rows, row + rad + 1); r++) {
+            if (hexRange(col, row, c, r) !== rad) continue;
+            const [hx, hy] = hexCenter(c, r);
+            tracePath(ctx, hx, hy);
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
       drawShip(ctx, cx, cy, obj, mySet.has(obj.name), obj.name === selectedName, onImageLoad);
       continue;
     }

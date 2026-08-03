@@ -14,6 +14,7 @@ export interface ShieldState {
 
 export interface WeaponState {
   name:              string;
+  designator?:       string;
   armed:             boolean;
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null
@@ -33,6 +34,12 @@ export interface WeaponState {
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
   cooldown?:              boolean;  // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
+  esg?:                   boolean;  // ESG generator (G23.0)
+  esgStoredEnergy?:       number;   // energy held (0–5)
+  esgMaxEnergy?:          number;   // 5
+  esgActive?:             boolean;  // a field is currently up
+  esgRadius?:             number;   // active field radius (0–3)
+  esgStrength?:           number;   // active field strength
   canProximity:           boolean;  // weapon supports PROXIMITY mode (Photon only)
   overloadFinalTurnOnly:  boolean;  // OVERLOAD only choosable on the final arming turn
   totalArmingTurns:  number;

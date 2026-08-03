@@ -677,6 +677,13 @@ public class GameSession {
                     e.setPhaserCapacitor(Math.max(0, Math.min(requested, capNeeded)));
                 }
 
+                // ESG generators (G23.21) — add allocated energy per ESG designator
+                if (request.getEsgEnergy() != null) {
+                    for (Map.Entry<String, Integer> entry : request.getEsgEnergy().entrySet()) {
+                        e.setEsgEnergy(entry.getKey(), Math.max(0, entry.getValue()));
+                    }
+                }
+
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();
                 for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -1555,6 +1562,17 @@ public class GameSession {
                     return ActionResult.fail("Unknown retrieval method: " + request.getRetrievalMethod());
                 }
                 ActionResult r = game.pickUpObjective(ship, request.getObjectiveName(), method);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "ACTIVATE_ESG": {
+                // Form an ESG field at a chosen radius (G23.3).
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.activateEsg(ship, request.getEsgDesignator(), request.getEsgRadius());
                 if (r.isSuccess())
                     appendCombatLog(r.getMessage());
                 return r;

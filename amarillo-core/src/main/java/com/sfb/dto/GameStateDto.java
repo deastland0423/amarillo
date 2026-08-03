@@ -94,6 +94,7 @@ public class GameStateDto {
 
     public static class WeaponDto {
         public String name;
+        public String designator;
         public boolean armed;
         public int armingTurn;
         public String armingType; // "STANDARD", "OVERLOAD", "SPECIAL", or null
@@ -113,6 +114,13 @@ public class GameStateDto {
         public boolean canOverload; // weapon supports OVERLOAD mode
         public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
         public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
+        // ESG generator (G23.0)
+        public boolean esg;            // true if this weapon is an ESG
+        public int esgStoredEnergy;    // energy held in the generator (0–5)
+        public int esgMaxEnergy;       // 5
+        public boolean esgActive;      // a field is currently up
+        public int esgRadius;          // active field radius (0–3)
+        public int esgStrength;        // active field strength
         public boolean canProximity; // weapon supports PROXIMITY (prox) mode (Photon only)
         public boolean overloadFinalTurnOnly; // OVERLOAD only choosable on the final arming turn
         public int totalArmingTurns; // turns to fully arm (0 for instant)
@@ -952,6 +960,7 @@ public class GameStateDto {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             WeaponDto wd = new WeaponDto();
             wd.name = w.getName();
+            wd.designator = w.getDesignator();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
@@ -975,6 +984,15 @@ public class GameStateDto {
             }
             if (w instanceof com.sfb.weapons.Fusion) {
                 wd.cooldown = ((com.sfb.weapons.Fusion) w).isOnCooldown();
+            }
+            if (w instanceof com.sfb.weapons.ESG) {
+                com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
+                wd.esg = true;
+                wd.esgStoredEnergy = esg.getStoredEnergy();
+                wd.esgMaxEnergy = com.sfb.weapons.ESG.MAX_ENERGY;
+                wd.esgActive = esg.isActive();
+                wd.esgRadius = esg.getRadius();
+                wd.esgStrength = esg.getStrength();
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
@@ -1142,6 +1160,7 @@ public class GameStateDto {
         for (com.sfb.weapons.Weapon w : wGroup.fetchAllWeapons()) {
             WeaponDto wd = new WeaponDto();
             wd.name = w.getName();
+            wd.designator = w.getDesignator();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();

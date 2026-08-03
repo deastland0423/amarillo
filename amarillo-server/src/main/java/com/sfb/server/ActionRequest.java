@@ -37,6 +37,9 @@ public class ActionRequest {
     private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
+    private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
+    private String              esgDesignator;          // ACTIVATE_ESG: which ESG to activate
+    private int                 esgRadius;              // ACTIVATE_ESG: field radius 0–3 (G23.41)
     private int                 batteryDraw;            // energy drawn from batteries this turn
     private int                 batteryRecharge;        // energy put into batteries this turn
     private boolean             doubleLwarp;            // Orion engine doubling (G15.2) — left warp
@@ -112,6 +115,12 @@ public class ActionRequest {
 
     public boolean isEnergizeCaps()                        { return energizeCaps; }
     public void    setEnergizeCaps(boolean energizeCaps)   { this.energizeCaps = energizeCaps; }
+    public Map<String, Integer> getEsgEnergy()             { return esgEnergy; }
+    public void    setEsgEnergy(Map<String, Integer> m)    { this.esgEnergy = m; }
+    public String  getEsgDesignator()                      { return esgDesignator; }
+    public void    setEsgDesignator(String d)              { this.esgDesignator = d; }
+    public int     getEsgRadius()                          { return esgRadius; }
+    public void    setEsgRadius(int r)                     { this.esgRadius = r; }
 
     public int  getBatteryDraw()                       { return batteryDraw; }
     public void setBatteryDraw(int batteryDraw)        { this.batteryDraw = batteryDraw; }

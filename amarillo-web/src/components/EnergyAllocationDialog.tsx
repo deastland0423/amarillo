@@ -47,6 +47,7 @@ interface ShipAlloc {
   generalReinf:         number;       // energy (multiples of 2)
   specificReinf:        number[];     // [0..5] energy per shield
   capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
+  esgEnergy:            Record<string, number>;   // ESG designator → energy this turn (G23.21)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
@@ -100,6 +101,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     capCharge:       ship.capacitorsCharged
                        ? Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0))
                        : 0,   // default to a full top-off; player can dial it down
+    esgEnergy:       {},
     energizeCaps:    false,
     weaponArming:    arming,
     droneReloads:        {},
@@ -172,7 +174,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost;
+  const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -454,6 +457,7 @@ export default function EnergyAllocationDialog({
           speed:                 a.impulse ? 31 : a.speed,
           shieldMode:            a.shieldMode,
           capacitorCharge:       a.capCharge,
+          esgEnergy:             Object.keys(a.esgEnergy).length > 0 ? a.esgEnergy : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
@@ -811,6 +815,32 @@ export default function EnergyAllocationDialog({
             </label>
           )}
         </div>
+
+        {/* ---- ESG Generators (G23.21) ---- */}
+        {(ship.weapons ?? []).some(w => w.esg) && (
+          <div className="ea-section">
+            <div className="ea-section-title" style={{ color: '#ff8c42' }}>ESG Generators</div>
+            {(ship.weapons ?? []).filter(w => w.esg).map(w => {
+              const key    = w.designator ?? w.name;
+              const stored = w.esgStoredEnergy ?? 0;
+              const max    = w.esgMaxEnergy ?? 5;
+              const room   = Math.max(0, max - stored);
+              const add    = Math.min(alloc.esgEnergy[key] ?? 0, room);
+              return (
+                <div key={w.name} className="ea-het-row">
+                  <Stepper
+                    value={add}
+                    min={0}
+                    max={room}
+                    onChange={v => setAlloc(a => ({ ...a, esgEnergy: { ...a.esgEnergy, [key]: v } }))}
+                    label={`ESG ${w.designator ?? ''} — holds ${stored}/${max}`
+                      + (w.esgActive ? ` · field up (r${w.esgRadius}, str ${w.esgStrength})` : '')}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ---- Heavy Weapons ---- */}
         {heavy.length > 0 && (

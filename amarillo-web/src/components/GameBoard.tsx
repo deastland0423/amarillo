@@ -1491,6 +1491,7 @@ interface SidebarProps {
   dropMineMode:    boolean;
   onToggleDropMine: () => void;
   onDropMine:      (mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') => void;
+  onActivateEsg:   (designator: string, radius: number) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1598,7 +1599,7 @@ function ShipSidebar({
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
-  dropMineMode, onToggleDropMine, onDropMine,
+  dropMineMode, onToggleDropMine, onDropMine, onActivateEsg,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2001,6 +2002,39 @@ function ShipSidebar({
                   </>
                 )}
               </div>
+
+              {/* ESG generators (G23.0) — state + activate-at-radius (Activity phase) */}
+              {(ship.weapons ?? []).some(w => w.esg) && (
+                <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
+                  <div style={{ color: '#78dcff', fontWeight: 600, marginBottom: 2 }}>ESG (G23.0)</div>
+                  {(ship.weapons ?? []).filter(w => w.esg).map(w => (
+                    <div key={w.name} style={{ marginBottom: 3 }}>
+                      <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
+                      {w.esgActive ? (
+                        <span style={{ color: '#78dcff' }}>
+                          field up — r{w.esgRadius}, str {w.esgStrength}
+                        </span>
+                      ) : (
+                        <>
+                          <span>holds {w.esgStoredEnergy ?? 0}/{w.esgMaxEnergy ?? 5}</span>
+                          {isMine && isActivityPhase && (w.esgStoredEnergy ?? 0) > 0 && (
+                            <span>{'  '}activate:{' '}
+                              {[0, 1, 2, 3].map(rad => (
+                                <button key={rad} className="action-strip-btn"
+                                  style={{ padding: '0 6px', marginLeft: 2 }}
+                                  onClick={() => onActivateEsg(w.designator ?? w.name, rad)}
+                                  title={`Form the field at radius ${rad}`}>
+                                  r{rad}
+                                </button>
+                              ))}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Emergency deceleration (C8.0) — stop button + countdown */}
               {ship.speed > 0 && !ship.decelerating && !ship.immobileUntilImpulse && (
@@ -3764,6 +3798,23 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombShieldChoice(null);
   }
 
+  async function handleActivateEsg(designator: string, radius: number) {
+    if (!liveShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:          'ACTIVATE_ESG',
+        shipName:      liveShip.name,
+        esgDesignator: designator,
+        esgRadius:     radius,
+      });
+      if (!res.success) setActionError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'ESG activation failed');
+    }
+  }
+
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
     setActionError(null);
@@ -4244,6 +4295,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             dropMineMode={dropMineMode}
             onToggleDropMine={() => setDropMineMode(m => !m)}
             onDropMine={handleDropMine}
+            onActivateEsg={handleActivateEsg}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}
