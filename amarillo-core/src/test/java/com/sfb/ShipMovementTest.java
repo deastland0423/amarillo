@@ -149,6 +149,22 @@ public class ShipMovementTest {
     }
 
     @Test
+    public void sideslip_advancesTurnModeCounter() {
+        // A sideslip is a hex of movement, so it counts toward the turn mode —
+        // it decrements "hexes until you can turn," like a forward move does.
+        allocate(30.0, 0.0);
+        advanceUntilCanMove(fed);
+        assertTrue(game.moveForward(fed).isSuccess()); // a slip needs a prior hex this turn
+
+        int before = fed.getTurnCount();
+        advanceUntilCanMove(fed);
+        assertTrue(game.sideslipRight(fed).isSuccess());
+
+        assertEquals("A sideslip advances the turn-mode counter by one hex",
+                before + 1, fed.getTurnCount());
+    }
+
+    @Test
     public void turnLeft_movesAndRotatesFacing() {
         // Turn-mode records are continuous across turns (C1.341); with straight
         // movement seeded from the previous turn the first-hex turn is legal.

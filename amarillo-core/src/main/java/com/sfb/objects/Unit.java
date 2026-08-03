@@ -173,6 +173,10 @@ public class Unit extends Marker implements Tractorable {
 		entryDirection = MapUtils.getTrueBearing(relativeBearing, getFacing());
 		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
+		// A sideslip is a hex of movement: it counts toward the turn mode
+		// (advances "hexes until you can turn") like a forward move, but resets
+		// the between-sideslips counter.
+		turnCount++;
 		sideslipCount = 0;
 		return true;
 	}
@@ -196,6 +200,10 @@ public class Unit extends Marker implements Tractorable {
 		entryDirection = MapUtils.getTrueBearing(relativeBearing, getFacing());
 		setLocation(MapUtils.getAdjacentHex(getLocation(), entryDirection));
 
+		// A sideslip is a hex of movement: it counts toward the turn mode
+		// (advances "hexes until you can turn") like a forward move, but resets
+		// the between-sideslips counter.
+		turnCount++;
 		sideslipCount = 0;
 		return true;
 	}
