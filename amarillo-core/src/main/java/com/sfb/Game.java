@@ -153,7 +153,7 @@ public class Game {
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
     private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles,
             prevLocations);
-    private final EsgResolver esgResolver = new EsgResolver(this, ships, seekers, prevLocations);
+    private final EsgResolver esgResolver = new EsgResolver(this, ships, seekers, activeShuttles, prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,

@@ -10,6 +10,7 @@ import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
+import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.Esg;
@@ -33,13 +34,16 @@ class EsgResolver {
     private final Game game;
     private final List<Ship> ships;
     private final List<Seeker> seekers;
+    private final List<Shuttle> activeShuttles;
     private final Map<Unit, Location> prevLocations;
 
-    EsgResolver(Game game, List<Ship> ships, List<Seeker> seekers, Map<Unit, Location> prevLocations) {
-        this.game          = game;
-        this.ships         = ships;
-        this.seekers       = seekers;
-        this.prevLocations = prevLocations;
+    EsgResolver(Game game, List<Ship> ships, List<Seeker> seekers,
+                List<Shuttle> activeShuttles, Map<Unit, Location> prevLocations) {
+        this.game           = game;
+        this.ships          = ships;
+        this.seekers        = seekers;
+        this.activeShuttles = activeShuttles;
+        this.prevLocations  = prevLocations;
     }
 
     /** Process every active ESG field for this impulse. Returns log lines. */
@@ -75,14 +79,16 @@ class EsgResolver {
         Location shipNow  = ship.getLocation();
         Location shipPrev = prevLocations.getOrDefault(ship, shipNow);
 
-        // Candidate targets: all ships + all drones. Plasma is immune (G23.81);
-        // the generating ship is not hit by its own field.
+        // Candidate targets: ships, drones and seeker-shuttles, and admin/WW
+        // shuttles. Plasma is immune (G23.81); the generating ship is not hit by
+        // its own field.
         List<Unit> targets = new ArrayList<>(ships);
         for (Seeker s : seekers) {
-            if (s instanceof Drone) {
-                targets.add((Drone) s);
+            if (s instanceof Unit && !(s instanceof PlasmaTorpedo)) {
+                targets.add((Unit) s);
             }
         }
+        targets.addAll(activeShuttles);
 
         for (Unit unit : targets) {
             if (unit == ship || unit.getLocation() == null || unit instanceof PlasmaTorpedo) {
@@ -132,6 +138,20 @@ class EsgResolver {
             } else {
                 log.add("  " + esgShip.getName() + "'s ESG field hit a drone for " + dealt
                         + " — field spent");
+            }
+
+        } else if (unit instanceof Shuttle) {
+            Shuttle shuttle = (Shuttle) unit;
+            int toDestroy = Math.max(1, shuttle.getCurrentHull());
+            int dealt = Math.min(strength, toDestroy);
+            esg.absorbDamage(dealt);
+            if (dealt >= toDestroy) {
+                game.removeShuttleFromPlay(shuttle, "destroyed by ESG field");
+                log.add("  " + esgShip.getName() + "'s ESG field destroyed " + shuttle.getName() + " (G23.51)");
+            } else {
+                shuttle.setCurrentHull(shuttle.getCurrentHull() - dealt);
+                log.add("  " + esgShip.getName() + "'s ESG field hit " + shuttle.getName()
+                        + " for " + dealt + " — field spent");
             }
         }
     }

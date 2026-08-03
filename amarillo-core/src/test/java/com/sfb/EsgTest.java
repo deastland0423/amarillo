@@ -1,7 +1,12 @@
 package com.sfb;
 
+import com.sfb.objects.ShipSpec;
+import com.sfb.objects.WeaponFactory;
 import com.sfb.weapons.Esg;
+import com.sfb.weapons.Weapon;
 import org.junit.Test;
+
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -74,5 +79,25 @@ public class EsgTest {
 
         assertFalse(esg.isExpired(131)); // 31 impulses elapsed
         assertTrue(esg.isExpired(132));  // 32 impulses elapsed (G23.32)
+    }
+
+    @Test
+    public void weaponFactory_buildsEsgFromRecipe() {
+        ShipSpec.WeaponSpec ws = new ShipSpec.WeaponSpec();
+        ws.type = "Esg";
+        ws.designator = "A";
+        Weapon w = WeaponFactory.build(ws, List.of("FULL"));
+        assertTrue("ship JSON / option mounts can build an ESG", w instanceof Esg);
+    }
+
+    @Test
+    public void destroyedGenerator_collapsesTheField() {
+        Esg esg = new Esg();
+        esg.setStoredEnergy(3);
+        esg.activate(1, 0);
+        assertTrue(esg.isActive());
+
+        esg.damage(); // 'drone' DAC hit destroys the ESG box (G23.14)
+        assertFalse("a destroyed generator's field collapses immediately", esg.isActive());
     }
 }

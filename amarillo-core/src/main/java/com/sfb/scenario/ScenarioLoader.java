@@ -597,6 +597,13 @@ public class ScenarioLoader {
                         // Already full — safe to ignore
                     }
                 }
+                // ESG generators start charged by weapon status (G23.23): WS-2 = 2, WS-3 = 5.
+                int esgInitial = weaponStatus == 3 ? 5 : 2;
+                for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                    if (w instanceof com.sfb.weapons.Esg) {
+                        ((com.sfb.weapons.Esg) w).setStoredEnergy(esgInitial);
+                    }
+                }
                 // WS-2: all-but-final arming turn completed (S4.12).
                 // armingTurn = totalArmingTurns - 1 for all eligible heavy weapons.
                 // Excludes Disruptors (always ready) and Fusion beams (not multi-turn).

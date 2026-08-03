@@ -96,4 +96,15 @@ public class EsgFieldTest {
         assertEquals("the generating ship is unhurt by its own field",
                 esgShipShield1, esgShip.getShields().getShieldStrength(1));
     }
+
+    @Test
+    public void droneDacHit_destroysTheEsg_andCollapsesItsField() {
+        // ESGs are destroyed on 'drone' DAC hits (G23.14).
+        assertTrue(esg.isFunctional());
+        String label = esgShip.applyDacChoiceHit("drone", esg.getName(), null);
+
+        assertNotNull("ESG is a valid target for a drone DAC hit", label);
+        assertFalse("the ESG box is destroyed", esg.isFunctional());
+        assertFalse("its active field collapses immediately", esg.isActive());
+    }
 }

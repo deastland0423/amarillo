@@ -1545,8 +1545,10 @@ public class Ship extends Unit implements DroneController {
 				return candidates.stream().map(Weapon::getName).collect(Collectors.toList());
 			}
 			case "drone": {
+				// ESGs are also destroyed on 'drone' hits (G23.14).
 				List<Weapon> candidates = weapons.fetchAllWeapons().stream()
-						.filter(w -> "drone".equals(w.getDacHitLocaiton()) && w.isFunctional())
+						.filter(w -> ("drone".equals(w.getDacHitLocaiton()) || w instanceof com.sfb.weapons.Esg)
+								&& w.isFunctional())
 						.collect(Collectors.toList());
 				if (droneDacGroupPos == 2 && !droneDacBestTaken && !candidates.isEmpty()) {
 					int best = candidates.stream().mapToInt(DacPriority::dronePriority).min().getAsInt();
@@ -1650,7 +1652,8 @@ public class Ship extends Unit implements DroneController {
 						.findFirst().orElse(null);
 				if (w == null) return null;
 				int best = weapons.fetchAllWeapons().stream()
-						.filter(x -> "drone".equals(x.getDacHitLocaiton()) && x.isFunctional())
+						.filter(x -> ("drone".equals(x.getDacHitLocaiton()) || x instanceof com.sfb.weapons.Esg)
+								&& x.isFunctional())
 						.mapToInt(DacPriority::dronePriority).min().orElse(Integer.MAX_VALUE);
 				if (DacPriority.dronePriority(w) == best) droneDacBestTaken = true;
 				w.damage();
