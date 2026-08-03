@@ -12,8 +12,8 @@
         {
           "hull": "CA+",
           "shipName": "USS Enterprise",
-          "startHex": "1201",
-          "startHeading": "D",
+          "startHex": "0101",
+          "startHeading": "C",
           "startSpeed": 16,
           "weaponStatus": 2
         }
@@ -26,8 +26,8 @@
         {
           "hull": "D7Bu",
           "shipName": "IKV Vengeance",
-          "startHex": "1212",
-          "startHeading": "A",
+          "startHex": "3030",
+          "startHeading": "F",
           "startSpeed": 16,
           "weaponStatus": 2
         }
@@ -35,16 +35,16 @@
     }
   ],
   "terrain": [
-    { "type": "PLANET", "name": "Donatu V", "hex": "1406" },
-    { "type": "ASTEROID", "hex": "1105" },
-    { "type": "ASTEROID", "hex": "1005" },
-    { "type": "ASTEROID", "hex": "0906" },
-    { "type": "ASTEROID", "hex": "0907" },
-    { "type": "ASTEROID", "hex": "1006" },
-    { "type": "ASTEROID", "hex": "0905" },
-    { "type": "ASTEROID", "hex": "0805" },
-    { "type": "ASTEROID", "hex": "0904" },
-    { "type": "ASTEROID", "hex": "0806" }
+    { 
+      "type": "GAS_GIANT", 
+      "hex": "2116", 
+      "radius": 5, 
+      "name": "Proxima IV", 
+      "rings": [
+        {"inner": 7, "outer": 8}, 
+        {"inner": 10, "outer": 12}
+        ] 
+      }
   ],
   "victoryConditions": {
     "type": "STANDARD"
