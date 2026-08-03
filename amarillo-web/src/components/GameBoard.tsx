@@ -4095,7 +4095,22 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       <div className="board-topbar">
-        <span className="board-title">Amarillo</span>
+        {/* Exit controls live top-left, away from Ready (top-right), so they
+            aren't clicked by accident when readying up. */}
+        <div className="topbar-left">
+          <span className="board-title">Amarillo</span>
+          {!gameState?.gameOver && (
+            <button
+              className="secondary"
+              style={{ borderColor: '#f85149', color: '#f85149' }}
+              onClick={handleConcede}
+              title="Concede — all your ships are destroyed"
+            >
+              Concede
+            </button>
+          )}
+          <button className="secondary" onClick={onLeave}>Leave</button>
+        </div>
         <span className="board-phase">
           {!gameState ? 'Loading…' : (
             <>
@@ -4168,17 +4183,6 @@ export default function GameBoard({ session, onLeave }: Props) {
               </button>
             );
           })()}
-          {!gameState?.gameOver && (
-            <button
-              className="secondary"
-              style={{ borderColor: '#f85149', color: '#f85149' }}
-              onClick={handleConcede}
-              title="Concede — all your ships are destroyed"
-            >
-              Concede
-            </button>
-          )}
-          <button className="secondary" onClick={onLeave}>Leave</button>
         </div>
       </div>
 
