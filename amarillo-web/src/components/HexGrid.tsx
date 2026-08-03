@@ -69,6 +69,17 @@ function hexCenter(col: number, row: number): [number, number] {
   return [x, y];
 }
 
+/** SFB hex range between two hexes — replicates MapUtils.getRange (x=col, y=row). */
+function hexRange(c1: number, r1: number, c2: number, r2: number): number {
+  const xDiff = Math.abs(c2 - c1);
+  if (xDiff === 0) return Math.abs(r2 - r1);
+  const even    = c1 % 2 === 0;
+  const topY    = even ? r1 - Math.floor(xDiff / 2) : r1 - Math.floor((xDiff + 1) / 2);
+  const bottomY = even ? r1 + Math.floor((xDiff + 1) / 2) : r1 + Math.floor(xDiff / 2);
+  if (r2 >= topY && r2 <= bottomY) return xDiff;
+  return r2 < topY ? xDiff + (topY - r2) : xDiff + (r2 - bottomY);
+}
+
 /** Return the [col, row] of the hex closest to pixel (px, py), or null if too far. */
 function pixelToHex(px: number, py: number, cols: number, rows: number): [number, number] | null {
   let bestCol = -1, bestRow = -1, bestDist = Infinity;
@@ -477,6 +488,25 @@ function drawObjects(
             ctx.arc(cx, cy, rr, 0, 2 * Math.PI);
             ctx.stroke();
           }
+        }
+        // Outline the actual ring HEXES so it's unambiguous which hexes count
+        // as ring terrain (the smooth band above is aesthetic, not hex-aligned).
+        if ((obj.rings?.length ?? 0) > 0) {
+          const maxOuter = Math.max(...obj.rings!.map(b => b[1]));
+          ctx.save();
+          ctx.strokeStyle = 'rgba(240, 200, 120, 0.9)';
+          ctx.lineWidth   = 1.5;
+          ctx.setLineDash([5, 4]);
+          for (let c = Math.max(1, col - maxOuter - 1); c <= Math.min(cols, col + maxOuter + 1); c++) {
+            for (let r = Math.max(1, row - maxOuter - 1); r <= Math.min(rows, row + maxOuter + 1); r++) {
+              const dist = hexRange(col, row, c, r);
+              if (!obj.rings!.some(b => dist >= b[0] && dist <= b[1])) continue;
+              const [hx, hy] = hexCenter(c, r);
+              tracePath(ctx, hx, hy);
+              ctx.stroke();
+            }
+          }
+          ctx.restore();
         }
         ctx.fillStyle    = '#ffffff';
         ctx.font         = 'bold 11px sans-serif';
