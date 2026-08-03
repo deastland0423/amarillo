@@ -435,10 +435,10 @@ function drawObjects(
         // Footprint radius r spans r hexes of √3·SIZE pitch beyond the center
         // hex; r=0 keeps the classic single-hex planet disc
         const fr = obj.radius ?? 0;
-        // Disc radius: reach ~a quarter-hex past the outermost footprint hex
-        // centers. The old +0.5 lapped a half-hex onto the surrounding empty
-        // hexes, making the planet look larger than its actual footprint.
-        const pr = fr === 0 ? 30 : SQRT3 * SIZE * (fr + 0.25);
+        // Disc radius: reach a fraction of a hex past the outermost footprint
+        // hex centers. The old +0.5 lapped a half-hex onto the surrounding
+        // empty hexes, making the planet look larger than its footprint.
+        const pr = fr === 0 ? 30 : SQRT3 * SIZE * (fr + 0.15);
         const isGiant = obj.terrainType === 'GAS_GIANT';
         // Counter-art resolution chain: instance tokenArt → per-type default
         // (planet1.png for PLANET; giants have no default) → procedural disc.
