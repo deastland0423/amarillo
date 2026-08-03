@@ -46,7 +46,7 @@ interface ShipAlloc {
   shieldMode:           ShieldMode;
   generalReinf:         number;       // energy (multiples of 2)
   specificReinf:        number[];     // [0..5] energy per shield
-  topOffCap:            boolean;
+  capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
@@ -97,7 +97,9 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     shieldMode:      'ACTIVE',
     generalReinf:    0,
     specificReinf:   [0, 0, 0, 0, 0, 0],
-    topOffCap:       ship.capacitorsCharged,
+    capCharge:       ship.capacitorsCharged
+                       ? Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0))
+                       : 0,   // default to a full top-off; player can dial it down
     energizeCaps:    false,
     weaponArming:    arming,
     droneReloads:        {},
@@ -138,8 +140,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
              : alloc.shieldMode === 'MINIMUM' ? (ship.minimumShieldCost ?? 0)
              : 0;
   const cap  = !ship.capacitorsCharged ? (alloc.energizeCaps ? 1 : 0)
-             : alloc.topOffCap ? Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0))
-             : 0;
+             : Math.min(alloc.capCharge, Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0)));
 
   let arm = 0;
   for (const w of ship.weapons ?? []) {
@@ -452,7 +453,7 @@ export default function EnergyAllocationDialog({
           shipName:              name,
           speed:                 a.impulse ? 31 : a.speed,
           shieldMode:            a.shieldMode,
-          topOffCap:             a.topOffCap,
+          capacitorCharge:       a.capCharge,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
@@ -785,14 +786,21 @@ export default function EnergyAllocationDialog({
           {ship.capacitorsCharged ? (
             <>
               <div className="ea-note">{(ship.phaserCapacitor ?? 0).toFixed(1)} of {(ship.phaserCapacitorMax ?? 0).toFixed(1)} charged</div>
-              {!capFull ? (
-                <label className="ea-check-label">
-                  <input type="checkbox" checked={alloc.topOffCap}
-                    onChange={e => setAlloc(a => ({ ...a, topOffCap: e.target.checked }))} />
-                  Top off capacitor
-                </label>
-              ) : (
-                <div className="ea-note ea-note-dim">Capacitor full — no top-off needed</div>
+              {!capFull ? (() => {
+                const capNeeded = Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0));
+                const charge    = Math.min(alloc.capCharge, capNeeded);
+                return (
+                  <Stepper
+                    value={charge}
+                    min={0}
+                    max={capNeeded}
+                    step={0.5}
+                    onChange={v => setAlloc(a => ({ ...a, capCharge: v }))}
+                    label={`Recharge (${charge.toFixed(1)} / ${capNeeded.toFixed(1)} to full)`}
+                  />
+                );
+              })() : (
+                <div className="ea-note ea-note-dim">Capacitor full — no recharge needed</div>
               )}
             </>
           ) : (

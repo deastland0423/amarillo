@@ -31,7 +31,8 @@ public class ActionRequest {
 
     // ALLOCATE fields
     private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
-    private boolean             topOffCap;              // true = charge phaser capacitor to full
+    private boolean             topOffCap;              // legacy: true = charge phaser capacitor to full
+    private double              capacitorCharge = -1;   // energy to add to the phaser capacitor; <0 = use topOffCap
     private String              shieldMode;             // "ACTIVE", "MINIMUM", or "OFF"
     private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
@@ -97,6 +98,8 @@ public class ActionRequest {
 
     public boolean isTopOffCap()                   { return topOffCap; }
     public void    setTopOffCap(boolean topOffCap) { this.topOffCap = topOffCap; }
+    public double  getCapacitorCharge()                 { return capacitorCharge; }
+    public void    setCapacitorCharge(double charge)    { this.capacitorCharge = charge; }
 
     public String getShieldMode()                        { return shieldMode; }
     public void   setShieldMode(String shieldMode)       { this.shieldMode = shieldMode; }

@@ -665,10 +665,16 @@ public class GameSession {
                 // Phaser capacitor
                 if (request.isEnergizeCaps() && !ship.isCapacitorsCharged()) {
                     e.setEnergizeCaps(true);
-                } else if (request.isTopOffCap() && ship.isCapacitorsCharged()) {
+                } else if (ship.isCapacitorsCharged()) {
                     double capNeeded = ship.getWeapons().getAvailablePhaserCapacitor()
                             - ship.getWeapons().getPhaserCapacitorEnergy();
-                    e.setPhaserCapacitor(Math.max(0, capNeeded));
+                    // Player may charge any amount up to what the capacitor can hold
+                    // (partial refill). A negative capacitorCharge means "use the
+                    // legacy top-off flag" (fill to full).
+                    double requested = request.getCapacitorCharge() >= 0
+                            ? request.getCapacitorCharge()
+                            : (request.isTopOffCap() ? capNeeded : 0);
+                    e.setPhaserCapacitor(Math.max(0, Math.min(requested, capNeeded)));
                 }
 
                 // Heavy weapon arming

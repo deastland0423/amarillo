@@ -175,6 +175,40 @@ class GameSessionAllocateTest {
     }
 
     // -------------------------------------------------------------------------
+    // Phaser capacitor — partial recharge (E1.x)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void capacitorCharge_partialAmount_isApplied() throws Exception {
+        com.sfb.systemgroups.Weapons w = fed.getWeapons();
+        w.drainPhaserCapacitor(w.getPhaserCapacitorEnergy()); // empty it — guaranteed room
+        assertTrue(w.getAvailablePhaserCapacitor() >= 1.5, "fed has capacitor capacity");
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setCapacitorCharge(1.5);
+        session.executeAction(req);
+        session.executeAction(allocate("IKV Saber")); // both allocated → impulses begin, charge applies
+
+        assertEquals(1.5, w.getPhaserCapacitorEnergy(), 1e-9,
+                "only the requested partial amount is charged");
+    }
+
+    @Test
+    void capacitorCharge_overRequest_isClampedToCapacity() throws Exception {
+        com.sfb.systemgroups.Weapons w = fed.getWeapons();
+        w.drainPhaserCapacitor(w.getPhaserCapacitorEnergy());
+        double max = w.getAvailablePhaserCapacitor();
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setCapacitorCharge(999.0); // more than the capacitor can hold
+        session.executeAction(req);
+        session.executeAction(allocate("IKV Saber"));
+
+        assertEquals(max, w.getPhaserCapacitorEnergy(), 1e-9,
+                "over-request fills to capacity, not beyond (no lost charge)");
+    }
+
+    // -------------------------------------------------------------------------
     // Engine doubling (G15.2) — Orion warships only (G15.28)
     // -------------------------------------------------------------------------
 
