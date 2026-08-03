@@ -4436,18 +4436,53 @@ export default function GameBoard({ session, onLeave }: Props) {
           <div style={{ color: '#a78bfa', fontWeight: 600, marginBottom: 4 }}>
             ⚔ Fire declaration — seal your orders
           </div>
-          <div style={{ fontSize: '0.85em', marginBottom: 4 }}>
-            {declarationOrders.length === 0
-              ? 'No fire orders yet — click an enemy, pick weapons, and Fire to add one. Committing nothing is a legal bluff.'
-              : declarationOrders.map((o, i) => (
-                  <div key={i}>
-                    {o.label}{' '}
-                    <button className="secondary" style={{ padding: '0 6px' }}
-                      onClick={() => setDeclarationOrders(prev => prev.filter((_, j) => j !== i))}>
-                      ✕
-                    </button>
-                  </div>
-                ))}
+          {/* Per-ship roster — every ship of mine, so none is forgotten. Click a
+              ship to select it, then pick an enemy + weapons and Fire. */}
+          <div style={{ fontSize: '0.85em', marginBottom: 6 }}>
+            {declarationOrders.length === 0 && (
+              <div style={{ color: '#8b949e', marginBottom: 4 }}>
+                Select one of your ships below (or on the map), pick an enemy + weapons, and Fire.
+                Committing nothing is a legal bluff.
+              </div>
+            )}
+            {myFireShips.map(name => {
+              const orders = declarationOrders.filter(o => o.shipName === name);
+              const isSel  = liveShip?.name === name;
+              const selectShip = () => {
+                const obj = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === name);
+                if (obj) setSelected(obj);
+              };
+              return (
+                <div key={name} style={{
+                  borderLeft: `3px solid ${isSel ? '#a78bfa' : 'transparent'}`,
+                  paddingLeft: 6, marginBottom: 3,
+                }}>
+                  <span onClick={selectShip}
+                    style={{ cursor: 'pointer', fontWeight: 600,
+                             color: orders.length ? '#e6edf3' : '#f0c040' }}>
+                    {name}
+                  </span>
+                  <span style={{ color: '#8b949e' }}>
+                    {' — '}{orders.length === 0
+                      ? 'no orders (holds fire)'
+                      : `${orders.length} order${orders.length > 1 ? 's' : ''}`}
+                    {isSel ? ' · selected' : ''}
+                  </span>
+                  {orders.map(o => {
+                    const idx = declarationOrders.indexOf(o);
+                    return (
+                      <div key={idx} style={{ paddingLeft: 12, color: '#c9d1d9' }}>
+                        {o.label}{' '}
+                        <button className="secondary" style={{ padding: '0 6px' }}
+                          onClick={() => setDeclarationOrders(prev => prev.filter((_, j) => j !== idx))}>
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
           {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
             const ew = declarationEw[liveShip.name]
