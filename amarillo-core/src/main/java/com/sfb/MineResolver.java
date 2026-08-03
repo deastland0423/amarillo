@@ -248,15 +248,16 @@ class MineResolver {
             if (inRange.isEmpty())
                 continue;
 
-            // Detection check — only units that moved INTO range 1 this impulse.
-            // A unit standing still in range, or moving within range, does not trigger.
+            // Detection check — any unit that MOVED this impulse while within the
+            // detection range (M2.5). This includes a unit that enters range AND
+            // one that moves from one in-range hex to another (e.g. sliding past
+            // an adjacent mine): each impulse it moves in range earns a detection
+            // roll. A unit that did not move this impulse does not trigger.
             boolean triggered = false;
             for (Unit unit : inRange) {
                 com.sfb.properties.Location prev = prevLocations.get(unit);
                 if (prev == null)
-                    continue; // did not move this impulse
-                if (prev != null && MapUtils.getRange(mine.getLocation(), prev) <= 1)
-                    continue; // was already in range
+                    continue; // did not move this impulse — stationary units don't trigger
                 int roll = dice.rollOneDie();
                 if (mine.detectsUnit(unit.getSpeed(), roll)) {
                     log.add("  tBomb detection: " + unit.getName()
