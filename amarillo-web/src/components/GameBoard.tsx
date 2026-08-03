@@ -2654,6 +2654,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [declarationEw, setDeclarationEw] = useState<Record<string, { ecm: number; eccm: number }>>({});
   const [committedRound, setCommittedRound] = useState<string | null>(null);
   const [showCommitConfirm, setShowCommitConfirm] = useState(false);
+  const [confirmExit, setConfirmExit] = useState<null | 'concede' | 'leave'>(null);
   const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
   const myCommitted = committedRound === roundKey;
@@ -3474,8 +3475,6 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   async function handleConcede() {
-    if (!window.confirm('Concede the battle? All your ships will be marked DESTROYED and the game may end.'))
-      return;
     const res = await gameApi.submitAction(session.gameId, session.playerToken, {
       type: 'CONCEDE',
     });
@@ -4103,13 +4102,13 @@ export default function GameBoard({ session, onLeave }: Props) {
             <button
               className="secondary"
               style={{ borderColor: '#f85149', color: '#f85149' }}
-              onClick={handleConcede}
+              onClick={() => setConfirmExit('concede')}
               title="Concede — all your ships are destroyed"
             >
               Concede
             </button>
           )}
-          <button className="secondary" onClick={onLeave}>Leave</button>
+          <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
         </div>
         <span className="board-phase">
           {!gameState ? 'Loading…' : (
@@ -4564,6 +4563,42 @@ export default function GameBoard({ session, onLeave }: Props) {
             </div>
             <button onClick={handleCommitDeclaration} style={{ marginRight: 8 }}>Commit — seal orders</button>
             <button className="secondary" onClick={() => setShowCommitConfirm(false)}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {/* Exit confirmation — Concede / Leave both guarded so neither quits by accident */}
+      {confirmExit && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.82)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem',
+        }}>
+          <div style={{
+            background: '#161b22', border: '1px solid #f85149',
+            borderRadius: 12, padding: '1.5rem', width: '100%', maxWidth: 400,
+          }}>
+            <div style={{ color: '#f85149', fontWeight: 700, fontSize: '1.1rem', marginBottom: 6 }}>
+              {confirmExit === 'concede' ? 'Concede the battle?' : 'Leave the game?'}
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#c9d1d9', marginBottom: 16 }}>
+              {confirmExit === 'concede'
+                ? 'All your ships will be marked DESTROYED and the game may end.'
+                : 'You will exit this game and return to the lobby.'}
+            </div>
+            <button
+              onClick={() => {
+                const action = confirmExit;
+                setConfirmExit(null);
+                if (action === 'concede') handleConcede();
+                else onLeave();
+              }}
+              style={{ marginRight: 8, borderColor: '#f85149', color: '#f85149' }}
+              className="secondary"
+            >
+              {confirmExit === 'concede' ? 'Concede' : 'Leave'}
+            </button>
+            <button className="secondary" onClick={() => setConfirmExit(null)}>Cancel</button>
           </div>
         </div>
       )}
