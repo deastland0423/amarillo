@@ -96,7 +96,7 @@ class SeekerMover {
                 Unit target = drone.getTarget();
                 if (target == null) {
                     // Orphaned drone — no guidance, self-destructs immediately
-                    log.add("  Drone (" + drone.getDroneType() + ") lost guidance — self-destructed");
+                    log.add("  " + droneLabel(drone) + " lost guidance — self-destructed");
                     expired.add(drone);
                     continue;
                 }
@@ -109,7 +109,7 @@ class SeekerMover {
                 drone.goForward(game.getMapCols(), game.getMapRows());
 
                 if (drone.getLocation() == null) {
-                    log.add("  Drone (" + drone.getDroneType() + ") moved off the map");
+                    log.add("  " + droneLabel(drone) + " moved off the map");
                     expired.add(seeker);
                     continue;
                 }
@@ -129,31 +129,31 @@ class SeekerMover {
                         && drone.getLocation().equals(target.getLocation())) {
                     if (target instanceof Drone) {
                         Drone targetDrone = (Drone) target;
-                        log.add("  Drone (" + drone.getDroneType() + ") collided with drone ("
-                                + targetDrone.getDroneType() + ") — both destroyed");
+                        log.add("  " + droneLabel(drone) + " collided with "
+                                + droneLabel(targetDrone) + " — both destroyed");
                         expired.add(seeker);
                         expired.add(targetDrone);
                     } else if (target instanceof WildWeaselShuttle) {
                         WildWeaselShuttle ww = (WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
                             ww.startExplosion(impulse);
-                            log.add("  Drone (" + drone.getDroneType() + ") hit Wild Weasel "
+                            log.add("  " + droneLabel(drone) + " hit Wild Weasel "
                                     + ww.getName() + " — WW exploding for 4 impulses");
                         } else {
-                            log.add("  Drone (" + drone.getDroneType()
-                                    + ") caught in Wild Weasel explosion — destroyed");
+                            log.add("  " + droneLabel(drone)
+                                    + " caught in Wild Weasel explosion — destroyed");
                         }
                         expired.add(seeker);
                     } else if (target instanceof Ship) {
                         queueSeekerImpact(drone, (Ship) target,
-                                "Drone (" + drone.getDroneType() + ") impacted " + target.getName(), log);
+                                droneLabel(drone) + " impacted " + target.getName(), log);
                         expired.add(seeker);
                     }
                     continue;
                 }
 
                 if (drone.getEndurance() <= 0) {
-                    log.add("  Drone (" + drone.getDroneType() + ") targeting "
+                    log.add("  " + droneLabel(drone) + " targeting "
                             + (target != null ? target.getName() : "?") + " ran out of endurance");
                     expired.add(seeker);
                 }
@@ -564,13 +564,23 @@ class SeekerMover {
      * (P2.223) — and apply it directly to a drone's hull. Returns a log line;
      * removes the drone from play if hull reaches 0.
      */
+    /**
+     * Non-revealing label for a drone in the shared combat log: its name (owner +
+     * sequence), never its type. A drone's type is hidden from the enemy until
+     * identified (D17), and the log is broadcast to both players — so naming the
+     * type here would leak what the DTO deliberately conceals.
+     */
+    private static String droneLabel(Drone d) {
+        return d.getName() != null ? d.getName() : "a drone";
+    }
+
     private String applyTerrainCollisionToDrone(Drone drone) {
         // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
         Game.TerrainHit hit = game.rollTerrainCollision(drone.getLocation(), drone.getSpeed(),
                 false, null);
         if (hit == null)
             return "";
-        String base = "  Drone (" + drone.getDroneType() + ") enters " + hit.terrainName + " hex"
+        String base = "  " + droneLabel(drone) + " enters " + hit.terrainName + " hex"
                 + " (speed " + drone.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
         if (hit.damage == 0)
             return base + " — no damage";
