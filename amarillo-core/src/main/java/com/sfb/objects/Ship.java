@@ -381,6 +381,18 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
+		// ESG generators (G23.21) — add allocated energy to each matching ESG.
+		if (!energyAllocated.getEsgEnergy().isEmpty()) {
+			for (com.sfb.weapons.Weapon w : weapons.fetchAllWeapons()) {
+				if (w instanceof com.sfb.weapons.Esg) {
+					Integer pts = energyAllocated.getEsgEnergy().get(w.getDesignator());
+					if (pts != null) {
+						((com.sfb.weapons.Esg) w).addEnergy(pts);
+					}
+				}
+			}
+		}
+
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
 			transporters.bankEnergy(energyAllocated.getTransporters());

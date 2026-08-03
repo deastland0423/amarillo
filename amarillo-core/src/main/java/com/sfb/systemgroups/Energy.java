@@ -39,6 +39,9 @@ public class Energy {
 	
 	// Phasers
 	private double phaserCapacitor;
+
+	// ESG generators (G23.21): points allocated this turn, keyed by ESG designator.
+	private java.util.Map<String, Integer> esgEnergy = new java.util.LinkedHashMap<>();
 	
 	// Probes
 	private int probes;
@@ -180,6 +183,15 @@ public class Energy {
 
 	public void setPhaserCapacitor(double phaserCapacitor) {
 		this.phaserCapacitor = phaserCapacitor;
+	}
+
+	/** ESG energy allocations this turn (designator → points, G23.21). */
+	public java.util.Map<String, Integer> getEsgEnergy() {
+		return esgEnergy;
+	}
+
+	public void setEsgEnergy(String designator, int points) {
+		esgEnergy.put(designator, points);
 	}
 
 	public int getProbes() {

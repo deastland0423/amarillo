@@ -153,6 +153,7 @@ public class Game {
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
     private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles,
             prevLocations);
+    private final EsgResolver esgResolver = new EsgResolver(this, ships, seekers, prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
@@ -626,6 +627,8 @@ public class Game {
                 lastSeekerLog.addAll(moveShuttles());
                 List<String> mineLog = mineResolver.processMines();
                 lastSeekerLog.addAll(mineLog);
+                // ESG fields (G23.0) — ring moves with the ship, damages entrants
+                lastSeekerLog.addAll(esgResolver.processFields());
                 // P2.32x: all movement for the impulse is in — evaluate planet
                 // LOS at the phase boundary (transitions only; the same-step
                 // passing exemption falls out of checking nowhere else)
@@ -2102,6 +2105,44 @@ public class Game {
     /** Pure-atmosphere ring of a large gas giant (P2.222) — no-entry, but see-through. */
     public boolean isPlanetAtmosphereHex(Location loc) {
         return loc != null && planetAtmosphereHexes.contains(loc);
+    }
+
+    /**
+     * Activate an ESG field on a ship at the given radius (G23.3). Slice 1:
+     * immediate (no 4-impulse announcement), during the Activity phase. Releases
+     * all of the generator's stored energy into the field.
+     */
+    public ActionResult activateEsg(Ship ship, String designator, int radius) {
+        if (currentPhase != ImpulsePhase.ACTIVITY) {
+            return ActionResult.fail("ESG can only be activated during the Activity phase");
+        }
+        com.sfb.weapons.Esg esg = null;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.Esg
+                    && (designator == null || designator.equalsIgnoreCase(w.getDesignator()))) {
+                esg = (com.sfb.weapons.Esg) w;
+                break;
+            }
+        }
+        if (esg == null) {
+            return ActionResult.fail("No ESG '" + designator + "' on " + ship.getName());
+        }
+        if (!esg.isFunctional()) {
+            return ActionResult.fail("That ESG is destroyed");
+        }
+        if (esg.isActive()) {
+            return ActionResult.fail("That ESG field is already active");
+        }
+        if (radius < 0 || radius > com.sfb.weapons.Esg.MAX_RADIUS) {
+            return ActionResult.fail("ESG radius must be 0-3");
+        }
+        if (esg.getStoredEnergy() < 1) {
+            return ActionResult.fail("ESG has no stored energy to release");
+        }
+        int energy = esg.getStoredEnergy();
+        esg.activate(radius, getAbsoluteImpulse());
+        return ActionResult.ok(ship.getName() + " activated an ESG field at radius " + radius
+                + " — strength " + esg.getStrength() + " (" + energy + " energy released, G23.3)");
     }
 
     /** Place a T-bomb (real or dummy) via transporter (M2.31). */
