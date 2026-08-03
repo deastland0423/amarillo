@@ -2653,6 +2653,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   // in one sealed commit, and switching selection must not retarget a draft
   const [declarationEw, setDeclarationEw] = useState<Record<string, { ecm: number; eccm: number }>>({});
   const [committedRound, setCommittedRound] = useState<string | null>(null);
+  const [showCommitConfirm, setShowCommitConfirm] = useState(false);
   const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
   const myCommitted = committedRound === roundKey;
@@ -3102,8 +3103,24 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Ships of mine actually on the board (can fire this declaration).
+  const myFireShips = (gameState?.myShips ?? []).filter(name =>
+    (gameState?.mapObjects ?? []).some(o => o.type === 'SHIP' && o.name === name));
+
+  // Commit seals orders for the WHOLE fleet at once. With more than one ship,
+  // confirm first — showing exactly which ships fire and which hold — so a
+  // player doesn't seal the fleet after ordering just one ship.
+  function requestCommit() {
+    if (myFireShips.length > 1) {
+      setShowCommitConfirm(true);
+    } else {
+      handleCommitDeclaration();
+    }
+  }
+
   async function handleCommitDeclaration() {
     setActionError(null);
+    setShowCommitConfirm(false);
     try {
       // One adjustment per ship whose drafted EW differs from its current values
       const ewAdjustments = Object.entries(declarationEw).flatMap(([shipName, ew]) => {
@@ -4458,10 +4475,57 @@ export default function GameBoard({ session, onLeave }: Props) {
               </div>
             );
           })()}
-          <button onClick={handleCommitDeclaration} style={{ marginRight: 8 }}>
+          <button onClick={requestCommit} style={{ marginRight: 8 }}>
             Commit orders ({declarationOrders.length})
           </button>
           <button className="secondary" onClick={handlePassDeclaration}>Pass</button>
+        </div>
+      )}
+
+      {/* Commit confirmation — seals the whole fleet's orders at once (D6.315) */}
+      {showCommitConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.82)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem',
+        }}>
+          <div style={{
+            background: '#161b22', border: '1px solid #a78bfa',
+            borderRadius: 12, padding: '1.5rem', width: '100%', maxWidth: 460,
+          }}>
+            <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>
+              Seal fire orders for your whole fleet?
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#8b949e', marginBottom: 12 }}>
+              Committing seals orders for <strong>all</strong> your ships at once — this can't be changed once sealed (D6.315).
+            </div>
+            {(() => {
+              const holdCount = myFireShips.filter(n => !declarationOrders.some(o => o.shipName === n)).length;
+              return holdCount > 0 ? (
+                <div style={{ fontSize: '0.85rem', color: '#f0c040', marginBottom: 10 }}>
+                  ⚠ {holdCount} of your {myFireShips.length} ships will hold fire.
+                </div>
+              ) : null;
+            })()}
+            <div style={{ marginBottom: 16 }}>
+              {myFireShips.map(name => {
+                const orders = declarationOrders.filter(o => o.shipName === name);
+                const holds  = orders.length === 0;
+                return (
+                  <div key={name} style={{ borderTop: '1px solid #21262d', padding: '6px 0' }}>
+                    <div style={{ fontWeight: 600, color: holds ? '#f0c040' : '#e6edf3' }}>
+                      {name}{holds && ' — holds fire'}
+                    </div>
+                    {orders.map((o, i) => (
+                      <div key={i} style={{ fontSize: '0.85rem', color: '#8b949e', paddingLeft: 12 }}>{o.label}</div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={handleCommitDeclaration} style={{ marginRight: 8 }}>Commit — seal orders</button>
+            <button className="secondary" onClick={() => setShowCommitConfirm(false)}>Back</button>
+          </div>
         </div>
       )}
 
