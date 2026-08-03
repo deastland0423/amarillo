@@ -84,7 +84,7 @@ public class EsgTest {
     @Test
     public void weaponFactory_buildsEsgFromRecipe() {
         ShipSpec.WeaponSpec ws = new ShipSpec.WeaponSpec();
-        ws.type = "Esg";
+        ws.type = "ESG";
         ws.designator = "A";
         Weapon w = WeaponFactory.build(ws, List.of("FULL"));
         assertTrue("ship JSON / option mounts can build an ESG", w instanceof Esg);

@@ -135,7 +135,7 @@ public final class WeaponFactory {
                 add.setDesignator(ws.designator);
                 return add;
             }
-            case "Esg": {
+            case "ESG": {
                 // ESG has no firing arc — it generates a field (G23.0). Slice 1:
                 // no capacitor; the with-capacitor variant is a later slice.
                 com.sfb.weapons.Esg esg = new com.sfb.weapons.Esg();
