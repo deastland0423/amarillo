@@ -30,16 +30,17 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [error,  setError]  = useState('');
   const [busy,   setBusy]   = useState(false);
 
-  // ---- Load scenario list for host picker ----
+  // ---- Load scenario list ----
+  // Everyone loads it, not just the host: joiners need the full scenario
+  // details (forces, map, victory, ships) to see the same summary the host
+  // sees. The host also uses it to populate the picker.
   useEffect(() => {
-    if (session.isHost) {
-      gameApi.listScenarios()
-        .then(list => {
-          setScenarios(list);
-          if (list.length === 1) setSelectedScenario(list[0].id);
-        })
-        .catch(() => setError('Could not load scenarios.'));
-    }
+    gameApi.listScenarios()
+      .then(list => {
+        setScenarios(list);
+        if (session.isHost && list.length === 1) setSelectedScenario(list[0].id);
+      })
+      .catch(() => { if (session.isHost) setError('Could not load scenarios.'); });
   }, [session.isHost]);
 
   // ---- Host: refresh token-bearing player list whenever lobby player count changes ----
@@ -147,7 +148,9 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     }
   }
 
-  const activeScenario = scenarios.find(s => s.id === selectedScenario);
+  // Host previews their picked scenario; joiners (no selection) resolve the
+  // loaded scenario from the lobby broadcast so they see the same full summary.
+  const activeScenario = scenarios.find(s => s.id === (selectedScenario || lobby?.scenarioId));
   const myLobbyEntry   = lobby?.players.find(p => p.name === session.playerName);
   const myShips        = myLobbyEntry?.assignedShips ?? [];
   const iAmCoiDone     = myLobbyEntry?.coiDone ?? false;
@@ -253,9 +256,9 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         )}
       </div>
 
-      {/* Scenario identity for players without the local catalog (joiners) —
-          sourced from the lobby broadcast; the host's richer detail card
-          below supersedes this one */}
+      {/* Transient fallback from the lobby broadcast, shown until the full
+          scenario catalog has loaded and the rich detail card below resolves
+          (for the brief moment a joiner is still fetching it). */}
       {lobby?.scenarioLoaded && !activeScenario && (
         <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
           <div className="scenario-detail-header">
