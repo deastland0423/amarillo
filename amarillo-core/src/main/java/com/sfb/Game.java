@@ -300,11 +300,22 @@ public class Game {
         for (com.sfb.objects.shuttles.Shuttle s : activeShuttles)
             s.attachClock(clock);
         allocationQueue.clear();
-        allocationQueue.addAll(ships);
+        // Disengaged ships have left the battle (C7.0): they neither allocate
+        // energy nor move, so keep them out of the allocation queue entirely.
+        for (Ship ship : ships) {
+            if (!ship.isDisengaged()) {
+                allocationQueue.add(ship);
+            }
+        }
         awaitingAllocation = true;
         for (Ship ship : ships) {
             ship.getLabs().resetForTurn();
             ship.resetHetsThisTurn();
+        }
+        // No engaged ships left to allocate (e.g. all disengaged) — don't stall
+        // the turn waiting for allocations that will never come.
+        if (allocationQueue.isEmpty()) {
+            beginImpulses();
         }
     }
 

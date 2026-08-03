@@ -73,6 +73,11 @@ class ShipMover {
         int impulse = game.getCurrentImpulse();
         List<Ship> movable = new ArrayList<>();
         for (Ship ship : ships) {
+            // Disengaged / off-map ships are out of the battle (C7.0) — they are
+            // never scheduled to move, so they can't stall the movement phase.
+            if (ship.isDisengaged() || ship.getLocation() == null) {
+                continue;
+            }
             if (ship.movesThisImpulse(impulse) && !movedThisImpulse.contains(ship)) {
                 movable.add(ship);
             }
