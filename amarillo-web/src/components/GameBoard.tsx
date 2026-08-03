@@ -2805,11 +2805,15 @@ export default function GameBoard({ session, onLeave }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.combatLog]);
 
-  // Reset ready state whenever the server advances (phase OR impulse changes)
+  // Reset local ready state whenever the server advances (phase OR impulse
+  // changes) — and also when a fire declaration opens/closes. A declaration
+  // keeps the same phase+impulse but the server clears everyone's ready
+  // (D6.315), so without this the caller's opponent stays visually "Ready"
+  // while the declaration bar is up, forcing a needless Cancel + re-Ready.
   const impulse = gameState?.impulse ?? 0;
   useEffect(() => {
     setIsReady(false);
-  }, [phase, impulse]);
+  }, [phase, impulse, declarationOpen]);
 
   // Auto-scroll log to bottom
   useEffect(() => {
