@@ -1491,7 +1491,7 @@ interface SidebarProps {
   dropMineMode:    boolean;
   onToggleDropMine: () => void;
   onDropMine:      (mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') => void;
-  onAnnounceEsg:   (designator: string, radius: number) => void;
+  onAnnounceEsg:   (designator: string, radius: number, amount?: number) => void;
   onCancelEsg:     (designator: string) => void;
   onDeactivateEsg: (designator: string) => void;
   // Boarding
@@ -1626,6 +1626,8 @@ function ShipSidebar({
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
   const [tacMode,   setTacMode]   = useState(false);
+  // Capacitor ESGs choose how much to release (1–5, G23.242); keyed by designator.
+  const [esgReleaseAmt, setEsgReleaseAmt] = useState<Record<string, number>>({});
 
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
@@ -2013,6 +2015,11 @@ function ShipSidebar({
                   <div style={{ color: '#78dcff', fontWeight: 600, marginBottom: 2 }}>ESG (G23.0)</div>
                   {(ship.weapons ?? []).filter(w => w.esg).map(w => {
                     const desig = w.designator ?? w.name;
+                    const stored = w.esgStoredEnergy ?? 0;
+                    const maxRel = Math.min(5, stored);           // a single release uses ≤5 (G23.42)
+                    const amt = w.esgHasCapacitor
+                      ? Math.min(esgReleaseAmt[desig] ?? maxRel, maxRel)
+                      : maxRel;
                     return (
                     <div key={w.name} style={{ marginBottom: 3 }}>
                       <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
@@ -2041,14 +2048,29 @@ function ShipSidebar({
                         </>
                       ) : (
                         <>
-                          <span>holds {w.esgStoredEnergy ?? 0}/{w.esgMaxEnergy ?? 5}</span>
-                          {isMine && isActivityPhase && (w.esgStoredEnergy ?? 0) > 0 && (
-                            <span>{'  '}announce:{' '}
+                          <span>holds {stored}/{w.esgMaxEnergy ?? 5}{w.esgHasCapacitor ? ' (cap)' : ''}</span>
+                          {isMine && isActivityPhase && stored > 0 && (
+                            <span>
+                              {w.esgHasCapacitor && (
+                                <span style={{ marginLeft: 6 }}>release {amt}:
+                                  <button className="action-strip-btn" style={{ padding: '0 5px', marginLeft: 2 }}
+                                    disabled={amt <= 1}
+                                    onClick={() => setEsgReleaseAmt(m => ({ ...m, [desig]: Math.max(1, amt - 1) }))}
+                                    title="Release fewer points (keeps the rest in the capacitor, G23.242)">−</button>
+                                  <button className="action-strip-btn" style={{ padding: '0 5px', marginLeft: 2 }}
+                                    disabled={amt >= maxRel}
+                                    onClick={() => setEsgReleaseAmt(m => ({ ...m, [desig]: Math.min(maxRel, amt + 1) }))}
+                                    title="Release more points">+</button>
+                                </span>
+                              )}
+                              {'  '}announce:{' '}
                               {[0, 1, 2, 3].map(rad => (
                                 <button key={rad} className="action-strip-btn"
                                   style={{ padding: '0 6px', marginLeft: 2 }}
-                                  onClick={() => onAnnounceEsg(desig, rad)}
-                                  title={`Announce a release — the field forms 4 impulses later at radius ${rad} (G23.31)`}>
+                                  onClick={() => onAnnounceEsg(desig, rad, w.esgHasCapacitor ? amt : undefined)}
+                                  title={w.esgHasCapacitor
+                                    ? `Announce a release of ${amt} at radius ${rad} — forms in 4 impulses (G23.31)`
+                                    : `Announce a release — the field forms 4 impulses later at radius ${rad} (G23.31)`}>
                                   r{rad}
                                 </button>
                               ))}
@@ -3828,6 +3850,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     type: 'ANNOUNCE_ESG' | 'CANCEL_ESG' | 'DEACTIVATE_ESG',
     designator: string,
     radius?: number,
+    releaseAmount?: number,
   ) {
     if (!liveShip) return;
     setActionError(null);
@@ -3837,6 +3860,7 @@ export default function GameBoard({ session, onLeave }: Props) {
         shipName:      liveShip.name,
         esgDesignator: designator,
         ...(radius !== undefined ? { esgRadius: radius } : {}),
+        ...(releaseAmount !== undefined ? { esgReleaseAmount: releaseAmount } : {}),
       });
       if (!res.success) setActionError(res.message);
       else addLog(res.message, 'combat');
@@ -3845,7 +3869,7 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  const handleAnnounceEsg   = (designator: string, radius: number) => sendEsgAction('ANNOUNCE_ESG', designator, radius);
+  const handleAnnounceEsg   = (designator: string, radius: number, amount?: number) => sendEsgAction('ANNOUNCE_ESG', designator, radius, amount);
   const handleCancelEsg     = (designator: string) => sendEsgAction('CANCEL_ESG', designator);
   const handleDeactivateEsg = (designator: string) => sendEsgAction('DEACTIVATE_ESG', designator);
 

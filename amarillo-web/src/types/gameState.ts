@@ -35,8 +35,9 @@ export interface WeaponState {
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
   cooldown?:              boolean;  // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
   esg?:                   boolean;  // ESG generator (G23.0)
-  esgStoredEnergy?:       number;   // energy held (0–5)
-  esgMaxEnergy?:          number;   // 5
+  esgHasCapacitor?:       boolean;  // G23.24 capacitor: holds up to 7, releases a chosen 1–5
+  esgStoredEnergy?:       number;   // energy held (0–maxStorage)
+  esgMaxEnergy?:          number;   // storage cap: 7 with a capacitor, else 5
   esgActive?:             boolean;  // a field is currently up
   esgRadius?:             number;   // active field radius (0–3); -1 hidden while announced
   esgStrength?:           number;   // active field strength (0 when hidden from opponents)

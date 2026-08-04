@@ -364,6 +364,9 @@ public class ShipSpec {
         for (WeaponSpec ws : weapons) {
             Weapon w = WeaponFactory.build(ws, ws.arcs);
             if (w != null) {
+                // ESG capacitor presence (G23.24) is decided by the SCENARIO year in
+                // ScenarioLoader (a Y120 hull in a Y167+ battle still has capacitors),
+                // not here — weapons are built before the battle year is known.
                 list.add(w);
             }
         }

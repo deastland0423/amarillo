@@ -2113,7 +2113,7 @@ public class Game {
      * announcement is made in the Activity phase (our proxy for the Seeking Weapons
      * Stage 6B6). Honors the cancellation (G23.33) and reactivation (G23.323) lockouts.
      */
-    public ActionResult announceEsg(Ship ship, String designator, int radius) {
+    public ActionResult announceEsg(Ship ship, String designator, int radius, int releaseAmount) {
         if (currentPhase != ImpulsePhase.ACTIVITY) {
             return ActionResult.fail("ESG can only be announced during the Activity phase");
         }
@@ -2136,12 +2136,17 @@ public class Game {
         if (esg.getStoredEnergy() < 1) {
             return ActionResult.fail("ESG has no stored energy to release");
         }
+        // A capacitor releases a chosen 1–5 points (G23.242); a plain generator dumps
+        // all its stored energy, so the amount is ignored there.
+        if (esg.hasCapacitor() && (releaseAmount < 1 || releaseAmount > esg.maxReleasable())) {
+            return ActionResult.fail("ESG release must be 1-" + esg.maxReleasable() + " points");
+        }
         int now = getAbsoluteImpulse();
         if (now < esg.earliestAnnounceImpulse()) {
             return ActionResult.fail("That ESG is still in its post-drop lockout (G23.33/.323)");
         }
-        esg.announce(radius, now);
-        // Radius is secret (G23.311); the public log states only that a release is coming.
+        esg.announce(radius, releaseAmount, now);
+        // Radius and energy are secret (G23.311); the public log states only that a release is coming.
         return ActionResult.ok(ship.getName() + " announced an ESG release — field forms in "
                 + com.sfb.weapons.ESG.ANNOUNCE_DELAY + " impulses (G23.31)");
     }

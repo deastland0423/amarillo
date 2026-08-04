@@ -40,6 +40,7 @@ public class ActionRequest {
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private String              esgDesignator;          // ANNOUNCE_ESG/CANCEL_ESG/DEACTIVATE_ESG: which ESG
     private int                 esgRadius;              // ANNOUNCE_ESG: field radius 0–3 (G23.41)
+    private int                 esgReleaseAmount;       // ANNOUNCE_ESG: capacitor release 1–5 (G23.242); 0 = all
     private int                 batteryDraw;            // energy drawn from batteries this turn
     private int                 batteryRecharge;        // energy put into batteries this turn
     private boolean             doubleLwarp;            // Orion engine doubling (G15.2) — left warp
@@ -121,6 +122,8 @@ public class ActionRequest {
     public void    setEsgDesignator(String d)              { this.esgDesignator = d; }
     public int     getEsgRadius()                          { return esgRadius; }
     public void    setEsgRadius(int r)                     { this.esgRadius = r; }
+    public int     getEsgReleaseAmount()                   { return esgReleaseAmount; }
+    public void    setEsgReleaseAmount(int a)              { this.esgReleaseAmount = a; }
 
     public int  getBatteryDraw()                       { return batteryDraw; }
     public void setBatteryDraw(int batteryDraw)        { this.batteryDraw = batteryDraw; }

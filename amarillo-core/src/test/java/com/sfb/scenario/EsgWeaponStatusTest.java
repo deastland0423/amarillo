@@ -49,4 +49,20 @@ public class EsgWeaponStatusTest {
         ScenarioLoader.applyWeaponStatus(ship, 0);
         assertEquals(0, esgOf(ship).getStoredEnergy());
     }
+
+    @Test
+    public void esgGetsCapacitorsInY167PlusScenario() {
+        Ship ship = shipWithEsg();
+        ScenarioLoader.applyEsgCapacitors(ship, 168); // even a pre-167 hull, if the battle is Y167+
+        assertTrue("Y168 scenario fits capacitors (G23.24)", esgOf(ship).hasCapacitor());
+        assertEquals(7, esgOf(ship).maxStorage());
+    }
+
+    @Test
+    public void esgHasNoCapacitorInPreY167Scenario() {
+        Ship ship = shipWithEsg();
+        ScenarioLoader.applyEsgCapacitors(ship, 120);
+        assertFalse("pre-capacitor era (G23.245)", esgOf(ship).hasCapacitor());
+        assertEquals(5, esgOf(ship).maxStorage());
+    }
 }

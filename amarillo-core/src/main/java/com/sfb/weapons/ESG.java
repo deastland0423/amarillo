@@ -27,7 +27,8 @@ public class ESG extends Weapon {
         { 0, 3, 6,  9, 12, 15 }, // radius 3
     };
 
-    public static final int MAX_ENERGY     = 5;  // most an ESG can hold (G23.22)
+    public static final int MAX_ENERGY     = 5;  // most a single field can use (chart tops out at 5, G23.42)
+    public static final int MAX_CAPACITOR  = 7;  // most a capacitor can hold (G23.242)
     public static final int MAX_RADIUS     = 3;
     public static final int FIELD_DURATION = 32; // impulses a field stays active (G23.32)
 
@@ -38,8 +39,8 @@ public class ESG extends Weapon {
     /** Reactivation lockout after a field is dropped (G23.323). */
     public static final int REACTIVATION_LOCKOUT = 32;
 
-    private final boolean hasCapacitor;   // slice 1: false ("ESG without capacitor")
-    private int storedEnergy = 0;         // energy accumulated in the generator, 0..5 (G23.211/.22)
+    private boolean hasCapacitor;         // G23.24: capacitor holds ≤7 and releases 1–5, keeping the rest
+    private int storedEnergy = 0;         // energy held (0..maxStorage(), G23.211/.22/.242)
 
     // Active-field state
     private boolean active = false;
@@ -49,8 +50,9 @@ public class ESG extends Weapon {
 
     // Announcement state (G23.31) — an intention to release, pending its 4-impulse notice.
     private boolean announced = false;
-    private int announcedRadius = 0;   // recorded at announcement, secret until release (G23.311)
-    private int releaseImpulse = -1;   // absolute impulse the field forms (announce + ANNOUNCE_DELAY)
+    private int announcedRadius = 0;         // recorded at announcement, secret until release (G23.311)
+    private int announcedReleaseAmount = MAX_ENERGY; // energy to release (capacitor only; else all, G23.242)
+    private int releaseImpulse = -1;         // absolute impulse the field forms (announce + ANNOUNCE_DELAY)
 
     // Lockouts (absolute impulses; 0 = none pending)
     private int announceAllowedImpulse = 0;     // earliest re-announce after a cancellation (G23.33)
@@ -66,6 +68,16 @@ public class ESG extends Weapon {
         this(false);
     }
 
+    /** Set whether this ESG has a capacitor (G23.24) — resolved from ship year/spec at build time. */
+    public void setHasCapacitor(boolean hasCapacitor) {
+        this.hasCapacitor = hasCapacitor;
+    }
+
+    /** Most energy the generator can hold: 7 with a capacitor, else 5 (G23.242/.22). */
+    public int maxStorage() {
+        return hasCapacitor ? MAX_CAPACITOR : MAX_ENERGY;
+    }
+
     /** Field strength for a radius + stored-energy amount (G23.42). */
     public static int strengthFor(int radius, int energy) {
         if (radius < 0 || radius > MAX_RADIUS || energy < 1 || energy > MAX_ENERGY) {
@@ -74,9 +86,16 @@ public class ESG extends Weapon {
         return STRENGTH[radius][energy];
     }
 
-    /** Add allocated energy to the generator, capped at {@link #MAX_ENERGY}. */
+    /**
+     * Add allocated energy to the generator, capped at {@link #maxStorage()}. Energy
+     * cannot be stored in an active field unless it has a capacitor (G23.243) — an
+     * active no-capacitor generator ignores it.
+     */
     public void addEnergy(int points) {
-        storedEnergy = Math.max(0, Math.min(MAX_ENERGY, storedEnergy + points));
+        if (active && !hasCapacitor) {
+            return;
+        }
+        storedEnergy = Math.max(0, Math.min(maxStorage(), storedEnergy + points));
     }
 
     public int getStoredEnergy() {
@@ -84,20 +103,30 @@ public class ESG extends Weapon {
     }
 
     public void setStoredEnergy(int energy) {
-        storedEnergy = Math.max(0, Math.min(MAX_ENERGY, energy));
+        storedEnergy = Math.max(0, Math.min(maxStorage(), energy));
     }
 
     /**
-     * Form the field at {@code radius} (G23.3). Strength comes off the chart for
-     * the currently-stored energy, and all of that energy is released (G23.222).
-     * A field only forms if it would have positive strength.
+     * Form the field at {@code radius} (G23.3), releasing up to {@code amount} points
+     * (never more than 5 — the chart's max, G23.42). A capacitor keeps the unspent
+     * remainder (G23.242); a plain generator loses it ("all power must be used",
+     * G23.223). A field only forms if it would have positive strength.
      */
-    public void activate(int radius, int currentImpulse) {
+    private void formField(int radius, int amount, int currentImpulse) {
+        int used = Math.max(0, Math.min(Math.min(amount, storedEnergy), MAX_ENERGY));
         this.radius = Math.max(0, Math.min(MAX_RADIUS, radius));
-        this.strength = strengthFor(this.radius, storedEnergy);
+        this.strength = strengthFor(this.radius, used);
         this.active = strength > 0;
         this.activatedImpulse = currentImpulse;
-        this.storedEnergy = 0;
+        this.storedEnergy = hasCapacitor ? Math.max(0, storedEnergy - used) : 0;
+    }
+
+    /**
+     * Form the field releasing <em>all</em> stored energy (≤5 effective). Used by the
+     * immediate/no-capacitor path and tests; the announcement path uses {@link #release}.
+     */
+    public void activate(int radius, int currentImpulse) {
+        formField(radius, MAX_ENERGY, currentImpulse);
     }
 
     // --- Announcement window (G23.31) ---
@@ -140,12 +169,30 @@ public class ESG extends Weapon {
     /**
      * Record an intention to release a field at {@code radius}, forming 4 impulses
      * later (G23.31). The radius is recorded but stays secret until release (G23.311);
-     * energy is <em>not</em> released until the field forms (G23.222/.46).
+     * energy is <em>not</em> released until the field forms (G23.222/.46). A capacitor
+     * releases {@code amount} (1–5) and keeps the rest; a plain generator dumps all its
+     * stored energy regardless (G23.242).
      */
+    public void announce(int radius, int amount, int currentImpulse) {
+        this.announcedRadius        = Math.max(0, Math.min(MAX_RADIUS, radius));
+        this.announcedReleaseAmount = hasCapacitor ? Math.max(1, Math.min(MAX_ENERGY, amount)) : MAX_ENERGY;
+        this.releaseImpulse         = currentImpulse + ANNOUNCE_DELAY;
+        this.announced              = true;
+    }
+
+    /** Announce a full-energy release (no-capacitor / immediate path). */
     public void announce(int radius, int currentImpulse) {
-        this.announcedRadius = Math.max(0, Math.min(MAX_RADIUS, radius));
-        this.releaseImpulse  = currentImpulse + ANNOUNCE_DELAY;
-        this.announced       = true;
+        announce(radius, MAX_ENERGY, currentImpulse);
+    }
+
+    /** The energy amount the pending announcement will release (capacitor only; else all). */
+    public int getAnnouncedReleaseAmount() {
+        return announcedReleaseAmount;
+    }
+
+    /** Most energy a single release can use right now: min(stored, 5) (G23.242/.42). */
+    public int maxReleasable() {
+        return Math.min(storedEnergy, MAX_ENERGY);
     }
 
     /** True once the announced release impulse has arrived (G23.31). */
@@ -159,7 +206,7 @@ public class ESG extends Weapon {
      * available the field never forms and counts as dropped this impulse (G23.3121).
      */
     public void release(int currentImpulse) {
-        activate(announcedRadius, currentImpulse);
+        formField(announcedRadius, announcedReleaseAmount, currentImpulse);
         this.announced      = false;
         this.releaseImpulse = -1;
         if (!active) {

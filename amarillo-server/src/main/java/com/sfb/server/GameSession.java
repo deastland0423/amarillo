@@ -1572,7 +1572,8 @@ public class GameSession {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
-                ActionResult r = game.announceEsg(ship, request.getEsgDesignator(), request.getEsgRadius());
+                ActionResult r = game.announceEsg(ship, request.getEsgDesignator(),
+                        request.getEsgRadius(), request.getEsgReleaseAmount());
                 if (r.isSuccess())
                     appendCombatLog(r.getMessage());
                 return r;

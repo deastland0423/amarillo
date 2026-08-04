@@ -116,8 +116,9 @@ public class GameStateDto {
         public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
         // ESG generator (G23.0)
         public boolean esg;            // true if this weapon is an ESG
-        public int esgStoredEnergy;    // energy held in the generator (0–5)
-        public int esgMaxEnergy;       // 5
+        public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
+        public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
+        public int esgMaxEnergy;       // storage cap: 7 with a capacitor, else 5
         public boolean esgActive;      // a field is currently up
         public int esgRadius;          // active field radius (0–3); -1 hidden from opponents while announced
         public int esgStrength;        // active field strength; 0 when hidden (always secret to opponents)
@@ -990,7 +991,8 @@ public class GameStateDto {
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
                 wd.esg = true;
-                wd.esgMaxEnergy = com.sfb.weapons.ESG.MAX_ENERGY;
+                wd.esgHasCapacitor = esg.hasCapacitor();
+                wd.esgMaxEnergy = esg.maxStorage();
                 wd.esgActive = esg.isActive();
                 wd.esgAnnounced = esg.isAnnounced();
                 wd.esgReleaseIn = esg.announceCountdown(game.getAbsoluteImpulse());

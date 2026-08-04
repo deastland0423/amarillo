@@ -72,8 +72,24 @@ public class ScenarioLoader {
         ship.setSpeedPreviousTurn(setup.startSpeed);
         ship.setSpeedTwoTurnsAgo(setup.startSpeed);
         applyYearUpgrades(ship, faction, year, shipSpec);
+        applyEsgCapacitors(ship, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
+    }
+
+    /**
+     * Fit ESG capacitors by scenario year (G23.24). The Lyrans fielded them Y167–169;
+     * a ship in a Y167+ battle carries them regardless of when its hull was introduced
+     * (pre-capacitor ships cost 1 BPV less, G23.245). The rare G17.5 "repaired without a
+     * capacitor" case is not modelled.
+     */
+    static void applyEsgCapacitors(Ship ship, int year) {
+        boolean hasCapacitors = year >= 167;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.ESG) {
+                ((com.sfb.weapons.ESG) w).setHasCapacitor(hasCapacitors);
+            }
+        }
     }
 
     /**
