@@ -61,13 +61,15 @@ const SQRT3   = Math.sqrt(3);
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4.0;
 
-// ESG field ring colour (G23.0) — one place to retune the look.
-const ESG_RING_STROKE = 'rgba(120, 220, 255, 0.9)';   // ring outline
-const ESG_RING_FILL   = 'rgba(120, 220, 255, 0.16)';  // ring hex tint
+// ESG visuals (G23.0) — one base colour drives everything ESG on the map
+// (active-field ring + announcement glow). Change ESG_RGB to re-theme them all.
+const ESG_RGB         = '120, 220, 255';              // base theme colour (r, g, b)
+const ESG_RING_STROKE = `rgba(${ESG_RGB}, 0.9)`;      // active-field ring outline
+const ESG_RING_FILL   = `rgba(${ESG_RGB}, 0.16)`;     // active-field ring hex tint
+const ESG_GLOW_RGB    = ESG_RGB;                       // announcement aura; alpha scales with countdown
 // Announcement aura (G23.31): a soft glow round the ship while a release is
 // pending, brightening as the 4-impulse countdown nears formation.
-const ESG_ANNOUNCE_DELAY = 4;                 // impulses of advance notice
-const ESG_GLOW_RGB       = '120, 220, 255';   // rgb; alpha scales with the countdown
+const ESG_ANNOUNCE_DELAY = 4;                          // impulses of advance notice
 
 /** Pixel center of hex (col, row), both 1-indexed. */
 function hexCenter(col: number, row: number): [number, number] {
