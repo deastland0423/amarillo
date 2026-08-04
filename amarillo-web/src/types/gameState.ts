@@ -38,8 +38,10 @@ export interface WeaponState {
   esgStoredEnergy?:       number;   // energy held (0–5)
   esgMaxEnergy?:          number;   // 5
   esgActive?:             boolean;  // a field is currently up
-  esgRadius?:             number;   // active field radius (0–3)
-  esgStrength?:           number;   // active field strength
+  esgRadius?:             number;   // active field radius (0–3); -1 hidden while announced
+  esgStrength?:           number;   // active field strength (0 when hidden from opponents)
+  esgAnnounced?:          boolean;  // a release is announced but not yet formed (G23.31)
+  esgReleaseIn?:          number;   // impulses until the announced field forms
   canProximity:           boolean;  // weapon supports PROXIMITY mode (Photon only)
   overloadFinalTurnOnly:  boolean;  // OVERLOAD only choosable on the final arming turn
   totalArmingTurns:  number;

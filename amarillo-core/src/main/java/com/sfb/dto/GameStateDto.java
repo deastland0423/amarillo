@@ -119,8 +119,10 @@ public class GameStateDto {
         public int esgStoredEnergy;    // energy held in the generator (0–5)
         public int esgMaxEnergy;       // 5
         public boolean esgActive;      // a field is currently up
-        public int esgRadius;          // active field radius (0–3)
-        public int esgStrength;        // active field strength
+        public int esgRadius;          // active field radius (0–3); -1 hidden from opponents while announced
+        public int esgStrength;        // active field strength; 0 when hidden (always secret to opponents)
+        public boolean esgAnnounced;   // a release is announced but not yet formed (G23.31) — public
+        public int esgReleaseIn;       // impulses until the announced field forms (drives the map glow)
         public boolean canProximity; // weapon supports PROXIMITY (prox) mode (Photon only)
         public boolean overloadFinalTurnOnly; // OVERLOAD only choosable on the final arming turn
         public int totalArmingTurns; // turns to fully arm (0 for instant)
@@ -988,11 +990,24 @@ public class GameStateDto {
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
                 wd.esg = true;
-                wd.esgStoredEnergy = esg.getStoredEnergy();
                 wd.esgMaxEnergy = com.sfb.weapons.ESG.MAX_ENERGY;
                 wd.esgActive = esg.isActive();
-                wd.esgRadius = esg.getRadius();
-                wd.esgStrength = esg.getStrength();
+                wd.esgAnnounced = esg.isAnnounced();
+                wd.esgReleaseIn = esg.announceCountdown(game.getAbsoluteImpulse());
+                // Public info: an active field's radius is visible to all (the ring is on
+                // the map); a pending announcement reveals only that a field is coming
+                // (G23.311). Stored energy and field strength are always the owner's secret.
+                wd.esgRadius = esg.isActive() ? esg.getRadius() : -1;
+                if (hideSecrets) {
+                    wd.esgStoredEnergy = 0;
+                    wd.esgStrength = 0;
+                } else {
+                    wd.esgStoredEnergy = esg.getStoredEnergy();
+                    wd.esgStrength = esg.getStrength();
+                    if (esg.isAnnounced()) {
+                        wd.esgRadius = esg.getAnnouncedRadius(); // owner sees where it will form
+                    }
+                }
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;

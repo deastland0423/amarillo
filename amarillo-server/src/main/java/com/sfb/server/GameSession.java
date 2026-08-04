@@ -1567,12 +1567,34 @@ public class GameSession {
                 return r;
             }
 
-            case "ACTIVATE_ESG": {
-                // Form an ESG field at a chosen radius (G23.3).
+            case "ANNOUNCE_ESG": {
+                // Announce a release; the field forms 4 impulses later (G23.31).
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
-                ActionResult r = game.activateEsg(ship, request.getEsgDesignator(), request.getEsgRadius());
+                ActionResult r = game.announceEsg(ship, request.getEsgDesignator(), request.getEsgRadius());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "CANCEL_ESG": {
+                // Publicly cancel a pending ESG announcement before it forms (G23.33).
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.cancelEsgAnnouncement(ship, request.getEsgDesignator());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "DEACTIVATE_ESG": {
+                // Voluntarily drop an active ESG field (G23.47).
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.deactivateEsg(ship, request.getEsgDesignator());
                 if (r.isSuccess())
                     appendCombatLog(r.getMessage());
                 return r;

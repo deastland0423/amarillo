@@ -1491,7 +1491,9 @@ interface SidebarProps {
   dropMineMode:    boolean;
   onToggleDropMine: () => void;
   onDropMine:      (mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') => void;
-  onActivateEsg:   (designator: string, radius: number) => void;
+  onAnnounceEsg:   (designator: string, radius: number) => void;
+  onCancelEsg:     (designator: string) => void;
+  onDeactivateEsg: (designator: string) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1599,7 +1601,7 @@ function ShipSidebar({
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
-  dropMineMode, onToggleDropMine, onDropMine, onActivateEsg,
+  dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2003,27 +2005,50 @@ function ShipSidebar({
                 )}
               </div>
 
-              {/* ESG generators (G23.0) — state + activate-at-radius (Activity phase) */}
+              {/* ESG generators (G23.0) — announce / countdown / drop (Activity phase).
+                  A release is announced 4 impulses ahead (G23.31); the radius stays
+                  the owner's secret until the field forms (G23.311). */}
               {(ship.weapons ?? []).some(w => w.esg) && (
                 <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
                   <div style={{ color: '#78dcff', fontWeight: 600, marginBottom: 2 }}>ESG (G23.0)</div>
-                  {(ship.weapons ?? []).filter(w => w.esg).map(w => (
+                  {(ship.weapons ?? []).filter(w => w.esg).map(w => {
+                    const desig = w.designator ?? w.name;
+                    return (
                     <div key={w.name} style={{ marginBottom: 3 }}>
                       <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
                       {w.esgActive ? (
-                        <span style={{ color: '#78dcff' }}>
-                          field up — r{w.esgRadius}, str {w.esgStrength}
-                        </span>
+                        <>
+                          <span style={{ color: '#78dcff' }}>
+                            field up — r{w.esgRadius}{w.esgStrength ? `, str ${w.esgStrength}` : ''}
+                          </span>
+                          {isMine && isActivityPhase && (
+                            <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 6 }}
+                              onClick={() => onDeactivateEsg(desig)}
+                              title="Voluntarily drop the field (G23.47)">drop</button>
+                          )}
+                        </>
+                      ) : w.esgAnnounced ? (
+                        <>
+                          <span style={{ color: '#ffd479' }}>
+                            releasing{(w.esgReleaseIn ?? 0) > 0 ? ` in ${w.esgReleaseIn}` : ' now'}
+                            {(w.esgRadius ?? -1) >= 0 ? ` — r${w.esgRadius}` : ''}
+                          </span>
+                          {isMine && isActivityPhase && (
+                            <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 6 }}
+                              onClick={() => onCancelEsg(desig)}
+                              title="Cancel the announcement (G23.33) — 8-impulse re-announce lockout">cancel</button>
+                          )}
+                        </>
                       ) : (
                         <>
                           <span>holds {w.esgStoredEnergy ?? 0}/{w.esgMaxEnergy ?? 5}</span>
                           {isMine && isActivityPhase && (w.esgStoredEnergy ?? 0) > 0 && (
-                            <span>{'  '}activate:{' '}
+                            <span>{'  '}announce:{' '}
                               {[0, 1, 2, 3].map(rad => (
                                 <button key={rad} className="action-strip-btn"
                                   style={{ padding: '0 6px', marginLeft: 2 }}
-                                  onClick={() => onActivateEsg(w.designator ?? w.name, rad)}
-                                  title={`Form the field at radius ${rad}`}>
+                                  onClick={() => onAnnounceEsg(desig, rad)}
+                                  title={`Announce a release — the field forms 4 impulses later at radius ${rad} (G23.31)`}>
                                   r{rad}
                                 </button>
                               ))}
@@ -2032,7 +2057,8 @@ function ShipSidebar({
                         </>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -3798,22 +3824,30 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombShieldChoice(null);
   }
 
-  async function handleActivateEsg(designator: string, radius: number) {
+  async function sendEsgAction(
+    type: 'ANNOUNCE_ESG' | 'CANCEL_ESG' | 'DEACTIVATE_ESG',
+    designator: string,
+    radius?: number,
+  ) {
     if (!liveShip) return;
     setActionError(null);
     try {
       const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-        type:          'ACTIVATE_ESG',
+        type,
         shipName:      liveShip.name,
         esgDesignator: designator,
-        esgRadius:     radius,
+        ...(radius !== undefined ? { esgRadius: radius } : {}),
       });
       if (!res.success) setActionError(res.message);
       else addLog(res.message, 'combat');
     } catch (e: unknown) {
-      setActionError(e instanceof Error ? e.message : 'ESG activation failed');
+      setActionError(e instanceof Error ? e.message : 'ESG action failed');
     }
   }
+
+  const handleAnnounceEsg   = (designator: string, radius: number) => sendEsgAction('ANNOUNCE_ESG', designator, radius);
+  const handleCancelEsg     = (designator: string) => sendEsgAction('CANCEL_ESG', designator);
+  const handleDeactivateEsg = (designator: string) => sendEsgAction('DEACTIVATE_ESG', designator);
 
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
@@ -4295,7 +4329,9 @@ export default function GameBoard({ session, onLeave }: Props) {
             dropMineMode={dropMineMode}
             onToggleDropMine={() => setDropMineMode(m => !m)}
             onDropMine={handleDropMine}
-            onActivateEsg={handleActivateEsg}
+            onAnnounceEsg={handleAnnounceEsg}
+            onCancelEsg={handleCancelEsg}
+            onDeactivateEsg={handleDeactivateEsg}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}

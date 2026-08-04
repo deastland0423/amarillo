@@ -60,11 +60,25 @@ class EsgResolver {
                     continue;
                 }
                 ESG esg = (ESG) w;
+                // Release a previously-announced field (G23.31). It forms now but does
+                // NOT damage anything this impulse — only units that ENTER on a later
+                // impulse are hit (G23.56/.46).
+                if (esg.readyToRelease(impulse)) {
+                    esg.release(impulse);
+                    if (esg.isActive()) {
+                        log.add("  " + ship.getName() + "'s ESG field formed at radius "
+                                + esg.getRadius() + " — strength " + esg.getStrength() + " (G23.44)");
+                    } else {
+                        log.add("  " + ship.getName() + "'s ESG released with no stored energy — no field (G23.3121)");
+                    }
+                    continue;
+                }
                 if (!esg.isActive()) {
                     continue;
                 }
                 if (esg.isExpired(impulse)) {
                     esg.deactivate();
+                    esg.recordDrop(impulse);
                     log.add("  " + ship.getName() + "'s ESG field collapsed — 32 impulses elapsed (G23.32)");
                     continue;
                 }
@@ -105,6 +119,7 @@ class EsgResolver {
             if (inNow && !inPrev) {
                 applyDamage(ship, esg, unit, log);
                 if (!esg.isActive()) {
+                    esg.recordDrop(game.getAbsoluteImpulse()); // strength spent → reactivation lockout (G23.323)
                     break; // field spent
                 }
             }

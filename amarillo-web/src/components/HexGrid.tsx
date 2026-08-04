@@ -64,6 +64,10 @@ const MAX_ZOOM = 4.0;
 // ESG field ring colour (G23.0) — one place to retune the look.
 const ESG_RING_STROKE = 'rgba(120, 220, 255, 0.9)';   // ring outline
 const ESG_RING_FILL   = 'rgba(120, 220, 255, 0.16)';  // ring hex tint
+// Announcement aura (G23.31): a soft glow round the ship while a release is
+// pending, brightening as the 4-impulse countdown nears formation.
+const ESG_ANNOUNCE_DELAY = 4;                 // impulses of advance notice
+const ESG_GLOW_RGB       = '120, 220, 255';   // rgb; alpha scales with the countdown
 
 /** Pixel center of hex (col, row), both 1-indexed. */
 function hexCenter(col: number, row: number): [number, number] {
@@ -364,6 +368,39 @@ function drawObjects(
       // Active ESG fields (G23.0): a hollow ring of hexes at the field's radius,
       // moving with the ship. Drawn under the token so r=0 fields don't hide it.
       for (const w of (obj as ShipObject).weapons ?? []) {
+        // Announced-but-not-formed (G23.31): a faint aura that brightens toward
+        // formation. Public to all (a field is coming); only the owner sees the
+        // target radius (opponents get esgRadius < 0 from the DTO, G23.311).
+        if (w.esgAnnounced) {
+          const releaseIn = Math.max(0, Math.min(ESG_ANNOUNCE_DELAY, w.esgReleaseIn ?? ESG_ANNOUNCE_DELAY));
+          const t = (ESG_ANNOUNCE_DELAY - releaseIn) / ESG_ANNOUNCE_DELAY; // 0 at announce → 1 at formation
+          const peak  = 0.18 + t * 0.34;
+          const glowR = SIZE * (1.4 + t * 0.5);
+          ctx.save();
+          const grad = ctx.createRadialGradient(cx, cy, SIZE * 0.15, cx, cy, glowR);
+          grad.addColorStop(0, `rgba(${ESG_GLOW_RGB}, ${peak})`);
+          grad.addColorStop(1, `rgba(${ESG_GLOW_RGB}, 0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, glowR, 0, 2 * Math.PI);
+          ctx.fill();
+          const ghostRad = w.esgRadius ?? -1;
+          if (ghostRad >= 0) { // owner-only ghost ring at the chosen radius
+            ctx.strokeStyle = `rgba(${ESG_GLOW_RGB}, ${0.35 + t * 0.3})`;
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            for (let c = Math.max(1, col - ghostRad - 1); c <= Math.min(cols, col + ghostRad + 1); c++) {
+              for (let r = Math.max(1, row - ghostRad - 1); r <= Math.min(rows, row + ghostRad + 1); r++) {
+                if (hexRange(col, row, c, r) !== ghostRad) continue;
+                const [hx, hy] = hexCenter(c, r);
+                tracePath(ctx, hx, hy);
+                ctx.stroke();
+              }
+            }
+          }
+          ctx.restore();
+          continue;
+        }
         if (!w.esgActive) continue;
         const rad = w.esgRadius ?? 0;
         ctx.save();

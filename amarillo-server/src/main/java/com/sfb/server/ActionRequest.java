@@ -38,8 +38,8 @@ public class ActionRequest {
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
-    private String              esgDesignator;          // ACTIVATE_ESG: which ESG to activate
-    private int                 esgRadius;              // ACTIVATE_ESG: field radius 0–3 (G23.41)
+    private String              esgDesignator;          // ANNOUNCE_ESG/CANCEL_ESG/DEACTIVATE_ESG: which ESG
+    private int                 esgRadius;              // ANNOUNCE_ESG: field radius 0–3 (G23.41)
     private int                 batteryDraw;            // energy drawn from batteries this turn
     private int                 batteryRecharge;        // energy put into batteries this turn
     private boolean             doubleLwarp;            // Orion engine doubling (G15.2) — left warp

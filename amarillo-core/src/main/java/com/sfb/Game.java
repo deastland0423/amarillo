@@ -2108,22 +2108,16 @@ public class Game {
     }
 
     /**
-     * Activate an ESG field on a ship at the given radius (G23.3). Slice 1:
-     * immediate (no 4-impulse announcement), during the Activity phase. Releases
-     * all of the generator's stored energy into the field.
+     * Announce the intention to release an ESG field at {@code radius} (G23.31). The
+     * field forms 4 impulses later; the radius stays secret until then (G23.311). The
+     * announcement is made in the Activity phase (our proxy for the Seeking Weapons
+     * Stage 6B6). Honors the cancellation (G23.33) and reactivation (G23.323) lockouts.
      */
-    public ActionResult activateEsg(Ship ship, String designator, int radius) {
+    public ActionResult announceEsg(Ship ship, String designator, int radius) {
         if (currentPhase != ImpulsePhase.ACTIVITY) {
-            return ActionResult.fail("ESG can only be activated during the Activity phase");
+            return ActionResult.fail("ESG can only be announced during the Activity phase");
         }
-        com.sfb.weapons.ESG esg = null;
-        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
-            if (w instanceof com.sfb.weapons.ESG
-                    && (designator == null || designator.equalsIgnoreCase(w.getDesignator()))) {
-                esg = (com.sfb.weapons.ESG) w;
-                break;
-            }
-        }
+        com.sfb.weapons.ESG esg = findEsg(ship, designator);
         if (esg == null) {
             return ActionResult.fail("No ESG '" + designator + "' on " + ship.getName());
         }
@@ -2133,16 +2127,66 @@ public class Game {
         if (esg.isActive()) {
             return ActionResult.fail("That ESG field is already active");
         }
+        if (esg.isAnnounced()) {
+            return ActionResult.fail("That ESG already has a release announced");
+        }
         if (radius < 0 || radius > com.sfb.weapons.ESG.MAX_RADIUS) {
             return ActionResult.fail("ESG radius must be 0-3");
         }
         if (esg.getStoredEnergy() < 1) {
             return ActionResult.fail("ESG has no stored energy to release");
         }
-        int energy = esg.getStoredEnergy();
-        esg.activate(radius, getAbsoluteImpulse());
-        return ActionResult.ok(ship.getName() + " activated an ESG field at radius " + radius
-                + " — strength " + esg.getStrength() + " (" + energy + " energy released, G23.3)");
+        int now = getAbsoluteImpulse();
+        if (now < esg.earliestAnnounceImpulse()) {
+            return ActionResult.fail("That ESG is still in its post-drop lockout (G23.33/.323)");
+        }
+        esg.announce(radius, now);
+        // Radius is secret (G23.311); the public log states only that a release is coming.
+        return ActionResult.ok(ship.getName() + " announced an ESG release — field forms in "
+                + com.sfb.weapons.ESG.ANNOUNCE_DELAY + " impulses (G23.31)");
+    }
+
+    /** Publicly cancel a pending ESG announcement before the field forms (G23.33). */
+    public ActionResult cancelEsgAnnouncement(Ship ship, String designator) {
+        if (currentPhase != ImpulsePhase.ACTIVITY) {
+            return ActionResult.fail("ESG announcements can only be cancelled during the Activity phase");
+        }
+        com.sfb.weapons.ESG esg = findEsg(ship, designator);
+        if (esg == null) {
+            return ActionResult.fail("No ESG '" + designator + "' on " + ship.getName());
+        }
+        if (!esg.isAnnounced()) {
+            return ActionResult.fail("That ESG has no announcement to cancel");
+        }
+        esg.cancelAnnouncement(getAbsoluteImpulse());
+        return ActionResult.ok(ship.getName() + " cancelled its ESG announcement (G23.33)");
+    }
+
+    /** Voluntarily deactivate an active ESG field (G23.47), arming the reactivation lockout. */
+    public ActionResult deactivateEsg(Ship ship, String designator) {
+        if (currentPhase != ImpulsePhase.ACTIVITY) {
+            return ActionResult.fail("ESG can only be deactivated during the Activity phase");
+        }
+        com.sfb.weapons.ESG esg = findEsg(ship, designator);
+        if (esg == null) {
+            return ActionResult.fail("No ESG '" + designator + "' on " + ship.getName());
+        }
+        if (!esg.isActive()) {
+            return ActionResult.fail("That ESG has no active field");
+        }
+        esg.deactivate();
+        esg.recordDrop(getAbsoluteImpulse());
+        return ActionResult.ok(ship.getName() + " deactivated its ESG field (G23.47)");
+    }
+
+    private com.sfb.weapons.ESG findEsg(Ship ship, String designator) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.ESG
+                    && (designator == null || designator.equalsIgnoreCase(w.getDesignator()))) {
+                return (com.sfb.weapons.ESG) w;
+            }
+        }
+        return null;
     }
 
     /** Place a T-bomb (real or dummy) via transporter (M2.31). */
