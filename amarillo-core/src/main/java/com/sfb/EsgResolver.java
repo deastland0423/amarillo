@@ -1,6 +1,8 @@
 package com.sfb;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -99,10 +101,18 @@ class EsgResolver {
         // hex damage each other. This is priority 2 in G23.52, ahead of units (step 5).
         resolveFieldVsField(active, impulse, log);
 
-        // Pass 3: each surviving field damages the units that entered it (G23.51/.52).
-        for (Field f : active) {
-            if (f.esg.isActive()) {
-                processField(f.ship, f.esg, log);
+        // Pass 3: each ship's surviving fields damage the units that entered them,
+        // resolved outermost-ring-first and combined into one volley per unit
+        // (G23.122 encounter order + G23.75 double-ram).
+        for (Ship ship : ships) {
+            List<ESG> shipFields = new ArrayList<>();
+            for (Field f : active) {
+                if (f.ship == ship && f.esg.isActive()) {
+                    shipFields.add(f.esg);
+                }
+            }
+            if (!shipFields.isEmpty()) {
+                resolveShipFields(ship, shipFields, impulse, log);
             }
         }
         return log;
@@ -164,14 +174,73 @@ class EsgResolver {
         return false;
     }
 
-    private void processField(Ship ship, ESG esg, List<String> log) {
-        int r = esg.getRadius();
+    /**
+     * Resolve all of one ship's fields against the units that entered them this impulse.
+     * Fields are taken outermost-ring-first, since a closing target meets the larger ring
+     * first (G23.122), and each field must be fully resolved before the next — so a unit
+     * a field destroys is out of reach of the inner fields. The damage a unit takes from
+     * this ship's several fields is combined into a single volley (G23.75).
+     */
+    private void resolveShipFields(Ship ship, List<ESG> fields, int impulse, List<String> log) {
+        fields.sort((x, y) -> Integer.compare(y.getRadius(), x.getRadius())); // outer ring first (G23.122)
+
         Location shipNow  = ship.getLocation();
         Location shipPrev = prevLocations.getOrDefault(ship, shipNow);
+        List<Unit> targets = collectTargets(ship);
 
-        // Candidate targets: ships, drones and seeker-shuttles, and admin/WW
-        // shuttles. Plasma is immune (G23.81); the generating ship is not hit by
-        // its own field.
+        // Combined damage per unit across this ship's fields — one volley each (G23.75).
+        Map<Unit, Integer> combined = new LinkedHashMap<>();
+
+        for (ESG esg : fields) {
+            int r = esg.getRadius();
+            List<Entrant> entrants = new ArrayList<>();
+            for (Unit unit : targets) {
+                if (unit.getLocation() == null) {
+                    continue;
+                }
+                int already = combined.getOrDefault(unit, 0);
+                int cap = capToDestroy(unit);
+                if (already >= cap) {
+                    continue; // already destroyed by an outer field (G23.122)
+                }
+                int rPrev = MapUtils.getRange(shipPrev, prevLocations.getOrDefault(unit, unit.getLocation()));
+                int rNow  = MapUtils.getRange(shipNow, unit.getLocation());
+                if (entersRing(rPrev, rNow, r)) {
+                    entrants.add(new Entrant(unit, cap - already)); // remaining cap after outer fields
+                }
+            }
+            if (entrants.isEmpty()) {
+                continue;
+            }
+
+            // G23.52: the field scores one point on each entrant in turn, smallest size-
+            // class first, capped at what destroys each, until spent or all destroyed.
+            entrants.sort(Comparator.comparingLong(e -> sizeKey(e.unit)));
+            int[] caps = new int[entrants.size()];
+            for (int i = 0; i < caps.length; i++) {
+                caps[i] = entrants.get(i).cap;
+            }
+            int[] dmg = roundRobin(esg.getStrength(), caps);
+            int spent = 0;
+            for (int i = 0; i < dmg.length; i++) {
+                spent += dmg[i];
+                if (dmg[i] > 0) {
+                    combined.merge(entrants.get(i).unit, dmg[i], Integer::sum);
+                }
+            }
+            esg.absorbDamage(spent);
+            if (!esg.isActive()) {
+                esg.recordDrop(impulse); // strength spent → reactivation lockout (G23.323)
+            }
+        }
+
+        for (Map.Entry<Unit, Integer> e : combined.entrySet()) {
+            applyCombinedDamage(ship, e.getKey(), e.getValue(), log);
+        }
+    }
+
+    /** Units an ESG can hit: other ships, drones/seeker-shuttles, admin/WW shuttles. Plasma is immune (G23.81). */
+    private List<Unit> collectTargets(Ship esgShip) {
         List<Unit> targets = new ArrayList<>(ships);
         for (Seeker s : seekers) {
             if (s instanceof Unit && !(s instanceof PlasmaTorpedo)) {
@@ -179,44 +248,17 @@ class EsgResolver {
             }
         }
         targets.addAll(activeShuttles);
-
-        // Everything that ENTERED the ring this impulse (G23.51/.571) — landed on a
-        // ring hex or crossed it as the unit and/or the field-carrying ship moved.
-        List<Entrant> entrants = new ArrayList<>();
-        for (Unit unit : targets) {
-            if (unit == ship || unit.getLocation() == null || unit instanceof PlasmaTorpedo) {
-                continue;
-            }
-            int rPrev = MapUtils.getRange(shipPrev, prevLocations.getOrDefault(unit, unit.getLocation()));
-            int rNow  = MapUtils.getRange(shipNow, unit.getLocation());
-            if (entersRing(rPrev, rNow, r)) {
-                entrants.add(new Entrant(unit));
-            }
-        }
-        if (entrants.isEmpty()) {
-            return;
-        }
-
-        // G23.52: with several simultaneous entrants the field scores one point on each
-        // in turn, smallest size-class first, capped at what destroys each, repeating
-        // until the field is spent or all are destroyed. (Priority steps 1–4 — pass-
-        // throughs, other ESGs, terrain, mines — aren't reachable in this single-impulse
-        // hex model / are later slices; this is step 5, "other units".)
-        int dealt = distributeDamage(ship, esg, entrants, log);
-        esg.absorbDamage(dealt);
-        if (!esg.isActive()) {
-            esg.recordDrop(game.getAbsoluteImpulse()); // strength spent → reactivation lockout (G23.323)
-        }
+        targets.remove(esgShip); // a ship is not hit by its own field
+        return targets;
     }
 
     /** One entrant sharing a field's strength this impulse (G23.52). */
     private static final class Entrant {
         final Unit unit;
-        final int  cap;   // damage that destroys it (MAX_VALUE for ships, G23.511)
-        int        dmg;   // points accumulated so far
-        Entrant(Unit unit) {
+        final int  cap;   // remaining damage that destroys it (MAX_VALUE for ships, G23.511)
+        Entrant(Unit unit, int cap) {
             this.unit = unit;
-            this.cap  = capToDestroy(unit);
+            this.cap  = cap;
         }
     }
 
@@ -237,30 +279,6 @@ class EsgResolver {
         if (unit instanceof Shuttle) return 1_000;
         if (unit instanceof Ship)    return 2_000 - ((Ship) unit).getSizeClass();
         return 3_000;
-    }
-
-    /**
-     * Round-robin the field's strength across the entrants (G23.52): one point to each
-     * still-alive unit per pass, smallest first, until the field is spent or everyone is
-     * at their destroy cap. Returns the total points dealt (to deplete the field once).
-     */
-    private int distributeDamage(Ship esgShip, ESG esg, List<Entrant> entrants, List<String> log) {
-        entrants.sort(java.util.Comparator.comparingLong(e -> sizeKey(e.unit)));
-        int[] caps = new int[entrants.size()];
-        for (int i = 0; i < caps.length; i++) {
-            caps[i] = entrants.get(i).cap;
-        }
-        int[] dmg = roundRobin(esg.getStrength(), caps);
-        int dealt = 0;
-        for (int i = 0; i < dmg.length; i++) {
-            Entrant e = entrants.get(i);
-            e.dmg = dmg[i];
-            dealt += dmg[i];
-            if (dmg[i] > 0) {
-                applyEntrantDamage(esgShip, e, log);
-            }
-        }
-        return dealt;
     }
 
     /**
@@ -306,18 +324,23 @@ class EsgResolver {
         return Math.min(rPrev, rNow) <= r && r <= Math.max(rPrev, rNow);
     }
 
-    /** Apply one entrant's accumulated ESG damage (G23.51): ship→facing shield, seeker/shuttle→destroy or wound. */
-    private void applyEntrantDamage(Ship esgShip, Entrant e, List<String> log) {
-        Unit unit = e.unit;
-        boolean destroyed = e.dmg >= e.cap;
+    /**
+     * Apply a unit's combined ESG damage from one ship this impulse as a single volley
+     * (G23.75): ship → facing shield, seeker/shuttle → destroyed or wounded.
+     */
+    private void applyCombinedDamage(Ship esgShip, Unit unit, int dmg, List<String> log) {
+        if (dmg <= 0) {
+            return;
+        }
+        boolean destroyed = dmg >= capToDestroy(unit);
 
         if (unit instanceof Ship) {
             // The field scores on the shield facing the generating ship (G23.513).
             Ship target = (Ship) unit;
             int shieldNum = game.getShieldNumber(esgShip, target);
-            game.markShieldDamage(target, shieldNum, e.dmg);
+            game.markShieldDamage(target, shieldNum, dmg);
             log.add("  " + esgShip.getName() + "'s ESG field struck " + target.getName()
-                    + " (shield #" + shieldNum + ", " + e.dmg + " points, G23.51)");
+                    + " (shield #" + shieldNum + ", " + dmg + " points, G23.51)");
 
         } else if (unit instanceof Drone) {
             Drone drone = (Drone) unit;
@@ -328,7 +351,7 @@ class EsgResolver {
                 }
                 log.add("  " + esgShip.getName() + "'s ESG field destroyed a drone (G23.51)");
             } else {
-                log.add("  " + esgShip.getName() + "'s ESG field hit a drone for " + e.dmg);
+                log.add("  " + esgShip.getName() + "'s ESG field hit a drone for " + dmg);
             }
 
         } else if (unit instanceof Shuttle) {
@@ -337,8 +360,8 @@ class EsgResolver {
                 game.removeShuttleFromPlay(shuttle, "destroyed by ESG field");
                 log.add("  " + esgShip.getName() + "'s ESG field destroyed " + shuttle.getName() + " (G23.51)");
             } else {
-                shuttle.setCurrentHull(shuttle.getCurrentHull() - e.dmg);
-                log.add("  " + esgShip.getName() + "'s ESG field hit " + shuttle.getName() + " for " + e.dmg);
+                shuttle.setCurrentHull(shuttle.getCurrentHull() - dmg);
+                log.add("  " + esgShip.getName() + "'s ESG field hit " + shuttle.getName() + " for " + dmg);
             }
         }
     }
