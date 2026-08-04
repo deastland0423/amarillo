@@ -37,14 +37,16 @@ class EsgResolver {
     private final List<Ship> ships;
     private final List<Seeker> seekers;
     private final List<Shuttle> activeShuttles;
+    private final List<com.sfb.objects.SpaceMine> mines;
     private final Map<Unit, Location> prevLocations;
 
-    EsgResolver(Game game, List<Ship> ships, List<Seeker> seekers,
-                List<Shuttle> activeShuttles, Map<Unit, Location> prevLocations) {
+    EsgResolver(Game game, List<Ship> ships, List<Seeker> seekers, List<Shuttle> activeShuttles,
+                List<com.sfb.objects.SpaceMine> mines, Map<Unit, Location> prevLocations) {
         this.game           = game;
         this.ships          = ships;
         this.seekers        = seekers;
         this.activeShuttles = activeShuttles;
+        this.mines          = mines;
         this.prevLocations  = prevLocations;
     }
 
@@ -193,6 +195,24 @@ class EsgResolver {
 
         for (ESG esg : fields) {
             int r = esg.getRadius();
+
+            // G23.653 (priority step 3): a field that strikes a planet or moon is spread
+            // over too wide an area — it collapses entirely, doing no damage to the planet.
+            if (strikesPlanet(shipNow, r)) {
+                esg.deactivate();
+                esg.recordDrop(impulse);
+                log.add("  " + ship.getName() + "'s ESG field struck a planet and collapsed (G23.653)");
+                continue;
+            }
+
+            // G23.61 (priority step 4, ahead of units): the field detonates active mines
+            // it sweeps over, spending strength and possibly collapsing before it reaches
+            // any units.
+            detonateMines(ship, esg, r, shipNow, shipPrev, impulse, log);
+            if (!esg.isActive()) {
+                continue; // field spent itself on the mines
+            }
+
             List<Entrant> entrants = new ArrayList<>();
             for (Unit unit : targets) {
                 if (unit.getLocation() == null) {
@@ -236,6 +256,67 @@ class EsgResolver {
 
         for (Map.Entry<Unit, Integer> e : combined.entrySet()) {
             applyCombinedDamage(ship, e.getKey(), e.getValue(), log);
+        }
+    }
+
+    /** True if any hex of the radius-{@code r} ring around {@code shipNow} lies in a planet footprint (G23.653). */
+    private boolean strikesPlanet(Location shipNow, int r) {
+        if (shipNow == null) {
+            return false;
+        }
+        for (int x = shipNow.getX() - r; x <= shipNow.getX() + r; x++) {
+            for (int y = shipNow.getY() - r; y <= shipNow.getY() + r; y++) {
+                Location h = new Location(x, y);
+                if (MapUtils.getRange(shipNow, h) == r && game.isPlanetHex(h)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * G23.61: the field detonates every active, real mine it sweeps over this impulse.
+     * Each mine's strength is absorbed by the field; any overflow (mine stronger than the
+     * remaining field) spills onto the ESG ship's facing shield (G23.61) — the explosion
+     * hits no other unit. Mines are taken smallest-first (G23.6112).
+     */
+    private void detonateMines(Ship ship, ESG esg, int r, Location shipNow, Location shipPrev,
+                               int impulse, List<String> log) {
+        if (mines.isEmpty()) {
+            return;
+        }
+        List<com.sfb.objects.SpaceMine> touched = new ArrayList<>();
+        for (com.sfb.objects.SpaceMine mine : mines) {
+            if (!mine.isActive() || !mine.isReal() || mine.getLocation() == null) {
+                continue;
+            }
+            int rPrev = MapUtils.getRange(shipPrev, mine.getLocation());
+            int rNow  = MapUtils.getRange(shipNow, mine.getLocation());
+            if (entersRing(rPrev, rNow, r)) {
+                touched.add(mine);
+            }
+        }
+        if (touched.isEmpty()) {
+            return;
+        }
+        touched.sort(Comparator.comparingInt(m -> m.getMineType().damage));
+        for (com.sfb.objects.SpaceMine mine : touched) {
+            int mineDmg  = mine.getMineType().damage;
+            int absorbed = Math.min(mineDmg, esg.getStrength());
+            esg.absorbDamage(absorbed);
+            int overflow = mineDmg - absorbed;
+            int shieldNum = game.getShieldNumber(mine, ship);
+            if (overflow > 0) {
+                game.markShieldDamage(ship, shieldNum, overflow);
+            }
+            log.add("  " + ship.getName() + "'s ESG field detonated a " + mine.getMineType().label
+                    + " (" + mineDmg + " dmg — field absorbed " + absorbed
+                    + (overflow > 0 ? ", " + overflow + " to shield #" + shieldNum : "") + ", G23.61)");
+        }
+        mines.removeAll(touched);
+        if (!esg.isActive()) {
+            esg.recordDrop(impulse); // spent itself on the mines
         }
     }
 
