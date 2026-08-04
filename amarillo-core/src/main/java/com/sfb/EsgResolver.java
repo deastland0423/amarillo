@@ -111,12 +111,13 @@ class EsgResolver {
             Location unitNow  = unit.getLocation();
             Location unitPrev = prevLocations.getOrDefault(unit, unitNow);
 
-            // "Entered the field this impulse": on the ring now, but not on the
-            // ring at the start of the impulse (either the unit moved onto it or
-            // the ship's movement swept the ring onto the unit, G23.45/.51).
-            boolean inNow  = MapUtils.getRange(shipNow, unitNow) == r;
-            boolean inPrev = MapUtils.getRange(shipPrev, unitPrev) == r;
-            if (inNow && !inPrev) {
+            // Entered the field this impulse: landed on a ring hex, or crossed it as
+            // the unit and/or the field-carrying ship moved (G23.45/.51). When both
+            // move toward each other the range can jump the ring in one step — the
+            // target still cannot "jump" the field unharmed (G23.571).
+            int rPrev = MapUtils.getRange(shipPrev, unitPrev);
+            int rNow  = MapUtils.getRange(shipNow, unitNow);
+            if (entersRing(rPrev, rNow, r)) {
                 applyDamage(ship, esg, unit, log);
                 if (!esg.isActive()) {
                     esg.recordDrop(game.getAbsoluteImpulse()); // strength spent → reactivation lockout (G23.323)
@@ -124,6 +125,22 @@ class EsgResolver {
                 }
             }
         }
+    }
+
+    /**
+     * True if a unit whose range to the ESG ship was {@code rPrev} at the start of
+     * the impulse and {@code rNow} at the end has ENTERED the radius-{@code r} ring
+     * this impulse — either landing on it or crossing it (G23.51/.571). A unit
+     * already on the ring at the start of the impulse is not re-entering. Because
+     * ships move one hex at a time, a single mover changes the range by at most one;
+     * only combined same-impulse movement can jump the ring, and that still counts
+     * as entering (the target cannot "jump" the field unharmed, G23.571).
+     */
+    static boolean entersRing(int rPrev, int rNow, int r) {
+        if (rPrev == r) {
+            return false; // already in the field at the start of the impulse
+        }
+        return Math.min(rPrev, rNow) <= r && r <= Math.max(rPrev, rNow);
     }
 
     private void applyDamage(Ship esgShip, ESG esg, Unit unit, List<String> log) {
