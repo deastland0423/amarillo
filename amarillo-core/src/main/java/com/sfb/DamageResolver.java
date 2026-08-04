@@ -116,6 +116,48 @@ class DamageResolver {
      *
      * @return log lines describing how damage was distributed.
      */
+    /** True if the ship generates at least one active ESG field (G23.84). */
+    private boolean hasActiveEsg(Ship ship) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.ESG && ((com.sfb.weapons.ESG) w).isActive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Reduce a ship's active ESG fields by an auto-hitting hellbore (G23.841). Fields are
+     * taken outermost-first ("a second sphere inside the first"): each absorbs up to its
+     * strength, and the remaining hellbore power passes to the next inner field and finally
+     * to the ship. Returns the carryover damage left for the generating ship.
+     */
+    private int reduceEsgFields(Ship ship, int hellboreDamage, StringBuilder log) {
+        java.util.List<com.sfb.weapons.ESG> fields = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.ESG && ((com.sfb.weapons.ESG) w).isActive()) {
+                fields.add((com.sfb.weapons.ESG) w);
+            }
+        }
+        fields.sort((a, b) -> Integer.compare(b.getRadius(), a.getRadius())); // outer ring first
+        int remaining = hellboreDamage;
+        int impulse = game.getAbsoluteImpulse();
+        for (com.sfb.weapons.ESG esg : fields) {
+            if (remaining <= 0) {
+                break;
+            }
+            int absorbed = Math.min(remaining, esg.getStrength());
+            esg.absorbDamage(absorbed);
+            remaining -= absorbed;
+            if (!esg.isActive()) {
+                esg.recordDrop(impulse); // field dropped → reactivation lockout (G23.323)
+            }
+            log.append("    ESG field (r").append(esg.getRadius()).append(") absorbed ").append(absorbed)
+                    .append(esg.isActive() ? "" : " — collapsed").append(" (G23.841)\n");
+        }
+        return remaining;
+    }
+
     List<String> applyHellboreEnvelopingDamage(Ship target, int damage) {
         List<String> log = new ArrayList<>();
         if (damage <= 0)
@@ -505,6 +547,24 @@ class DamageResolver {
                 continue;
             }
             try {
+                // G23.84: an enveloping hellbore fired at a ship generating an active ESG
+                // hits the field automatically (no roll). The field absorbs up to its
+                // strength; any remainder envelops the ship undiminished (G23.841). Fields
+                // are resolved outer-first, and once one collapses a later hellbore in this
+                // volley finds no field and rolls normally (G23.844).
+                if (!directFire && w instanceof com.sfb.weapons.Hellbore
+                        && targetShip != null && hasActiveEsg(targetShip)) {
+                    int hbDmg = ((com.sfb.weapons.Hellbore) w).fireAtEsg(range);
+                    int carry = reduceEsgFields(targetShip, hbDmg, log);
+                    if (carry > 0) {
+                        envelopingHellboreDamage += carry;
+                    }
+                    log.append("  ").append(w.getName())
+                            .append("  auto-hit ESG field (").append(hbDmg).append(") — ")
+                            .append(carry > 0 ? carry + " carried to ship (G23.841)" : "absorbed (G23.841)")
+                            .append("\n");
+                    continue;
+                }
                 boolean isFusionSuicide = w instanceof com.sfb.weapons.Fusion
                         && ((com.sfb.weapons.Fusion) w).getArmingType() == com.sfb.properties.WeaponArmingType.SPECIAL;
                 int dmg;

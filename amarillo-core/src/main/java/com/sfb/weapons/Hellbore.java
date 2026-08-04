@@ -73,6 +73,26 @@ public class Hellbore extends HitOrMissWeapon implements DirectFire, HeavyWeapon
     }
 
     /**
+     * Fire at an ESG field (G23.841): the hit on the field is automatic, so there is no
+     * to-hit roll — this returns the full enveloping damage for the range. The caller
+     * reduces the field by this and carries any remainder to the generating ship.
+     */
+    public int fireAtEsg(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+        if (!armed)
+            throw new WeaponUnarmedException("Hellbore is not armed.");
+        if (range < getMinRange() || range > getMaxRange())
+            throw new TargetOutOfRangeException("Target out of Hellbore range.");
+
+        int damage = (armingType == WeaponArmingType.OVERLOAD)
+                ? OVLD_ENV_DAMAGE[range]           // overload is indexed by range 0–8
+                : ENV_DAMAGE[rangeBand(range)];
+        setLastRoll(0); // automatic hit on the field — no roll (G23.841)
+        reset();
+        registerFire();
+        return damage;
+    }
+
+    /**
      * Fire in direct-fire mode (E10.7) — half damage to the facing shield only.
      * The caller applies the returned damage to the facing shield normally.
      * Same pattern as PlasmaLauncher.fireBolt().

@@ -93,6 +93,26 @@ public class HellboreTest {
     }
 
     // -------------------------------------------------------------------------
+    // Auto-hit vs ESG field (G23.841)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void fireAtEsg_standard_returnsFullEnvelopingDamage_noRoll() throws Exception {
+        Hellbore h = new Hellbore();
+        h.setArmingTurn(2); // armed, standard
+        assertEquals("standard enveloping at range 4 (band 2)", 15, h.fireAtEsg(4));
+        assertEquals("automatic hit — no die rolled", 0, h.getLastRoll());
+    }
+
+    @Test
+    public void fireAtEsg_overload_returnsOverloadDamage() throws Exception {
+        Hellbore h = new Hellbore();
+        h.setOverload();
+        h.setArmingTurn(2); // armed, overload
+        assertEquals("overload enveloping at range 4", 22, h.fireAtEsg(4));
+    }
+
+    // -------------------------------------------------------------------------
     // Rolling delay
     // -------------------------------------------------------------------------
 
