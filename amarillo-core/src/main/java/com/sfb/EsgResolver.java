@@ -62,8 +62,11 @@ class EsgResolver {
         List<String> log = new ArrayList<>();
         int impulse = game.getAbsoluteImpulse();
 
-        // Pass 1: release announced fields, expire old ones, and gather the live fields.
-        List<Field> active = new ArrayList<>();
+        // Pass 1a: expire old fields (deactivation precedes activation, G23.711), then
+        // release announced ones — keeping the survivors and the just-formed fields
+        // apart for the overlap check below.
+        List<Field> preExisting  = new ArrayList<>();
+        List<Field> justReleased = new ArrayList<>();
         for (Ship ship : ships) {
             if (ship.getLocation() == null) {
                 continue;
@@ -79,8 +82,7 @@ class EsgResolver {
                 if (esg.readyToRelease(impulse)) {
                     esg.release(impulse);
                     if (esg.isActive()) {
-                        log.add("  " + ship.getName() + "'s ESG field formed at radius "
-                                + esg.getRadius() + " — strength " + esg.getStrength() + " (G23.44)");
+                        justReleased.add(new Field(ship, esg));
                     } else {
                         log.add("  " + ship.getName() + "'s ESG released with no stored energy — no field (G23.3121)");
                     }
@@ -95,7 +97,46 @@ class EsgResolver {
                     log.add("  " + ship.getName() + "'s ESG field collapsed — 32 impulses elapsed (G23.32)");
                     continue;
                 }
-                active.add(new Field(ship, esg));
+                preExisting.add(new Field(ship, esg));
+            }
+        }
+
+        // Pass 1b: G23.71/.712 — the spheres of two different ships cannot overlap or be
+        // contained. A field released into an already-active enemy field is the "second"
+        // and collapses (energy lost); two forming into each other simultaneously both
+        // fail. Same-ship fields are exempt (G23.12 — they operate independently).
+        java.util.Set<ESG> failed = new java.util.HashSet<>();
+        for (int i = 0; i < justReleased.size(); i++) {
+            Field jr = justReleased.get(i);
+            for (Field pe : preExisting) {
+                if (pe.ship != jr.ship && discsOverlap(jr, pe)) {
+                    failed.add(jr.esg); // the just-formed field is the second one
+                }
+            }
+            for (int j = i + 1; j < justReleased.size(); j++) {
+                Field jr2 = justReleased.get(j);
+                if (jr2.ship != jr.ship && discsOverlap(jr, jr2)) {
+                    failed.add(jr.esg);
+                    failed.add(jr2.esg);
+                }
+            }
+        }
+        for (Field jr : justReleased) {
+            if (failed.contains(jr.esg)) {
+                jr.esg.deactivate();
+                jr.esg.recordDrop(impulse); // never formed; counts as dropped (G23.3121/.323)
+                log.add("  " + jr.ship.getName()
+                        + "'s ESG field could not form — it would overlap another ship's field (G23.712)");
+            } else {
+                log.add("  " + jr.ship.getName() + "'s ESG field formed at radius "
+                        + jr.esg.getRadius() + " — strength " + jr.esg.getStrength() + " (G23.44)");
+            }
+        }
+
+        List<Field> active = new ArrayList<>(preExisting);
+        for (Field jr : justReleased) {
+            if (jr.esg.isActive()) {
+                active.add(jr);
             }
         }
 
@@ -154,6 +195,19 @@ class EsgResolver {
                 }
             }
         }
+    }
+
+    /**
+     * True if two fields' spheres (filled discs, not just the rings) overlap or one
+     * contains the other (G23.71) — i.e. the centers are within the sum of the radii.
+     */
+    private boolean discsOverlap(Field a, Field b) {
+        Location la = a.ship.getLocation();
+        Location lb = b.ship.getLocation();
+        if (la == null || lb == null) {
+            return false;
+        }
+        return MapUtils.getRange(la, lb) <= a.esg.getRadius() + b.esg.getRadius();
     }
 
     /**
