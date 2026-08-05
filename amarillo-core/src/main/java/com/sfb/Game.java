@@ -2146,9 +2146,16 @@ public class Game {
             return ActionResult.fail("That ESG is still in its post-drop lockout (G23.33/.323)");
         }
         esg.announce(radius, releaseAmount, now);
+        // G23.48 (J3.46): using an ESG is an act a decoy can't perform — it voids the
+        // ship's own Wild Weasel.
+        String wwNote = "";
+        if (ship.hasActiveWildWeasel()) {
+            voidWildWeasel(ship);
+            wwNote = " — Wild Weasel voided (G23.48)";
+        }
         // Radius and energy are secret (G23.311); the public log states only that a release is coming.
         return ActionResult.ok(ship.getName() + " announced an ESG release — field forms in "
-                + com.sfb.weapons.ESG.ANNOUNCE_DELAY + " impulses (G23.31)");
+                + com.sfb.weapons.ESG.ANNOUNCE_DELAY + " impulses (G23.31)" + wwNote);
     }
 
     /** Publicly cancel a pending ESG announcement before the field forms (G23.33). */
