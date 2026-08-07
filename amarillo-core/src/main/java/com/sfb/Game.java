@@ -2130,6 +2130,13 @@ public class Game {
         if (esg.isAnnounced()) {
             return ActionResult.fail("That ESG already has a release announced");
         }
+        // G23.622: a ship cannot operate an ESG while its cloak is up or fading — only
+        // once fade-in is complete (state back to INACTIVE).
+        com.sfb.systemgroups.CloakingDevice cloak = ship.getCloakingDevice();
+        if (cloak != null
+                && cloak.getState() != com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE) {
+            return ActionResult.fail("Cannot operate an ESG while cloaked or fading (G23.622)");
+        }
         if (radius < 0 || radius > com.sfb.weapons.ESG.MAX_RADIUS) {
             return ActionResult.fail("ESG radius must be 0-3");
         }
@@ -2243,6 +2250,22 @@ public class Game {
         ship.goPassiveFc();
         List<String> log = new ArrayList<>();
         log.add(ship.getName() + " begins cloaking — fading out; fire control passive, all lock-ons lost");
+        // G23.622: an active ESG field must be dropped to cloak (and a pending
+        // announcement cancelled) — done as the cloak is activated.
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.ESG)) {
+                continue;
+            }
+            com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
+            if (esg.isActive()) {
+                esg.deactivate();
+                esg.recordDrop(clock.getImpulse());
+                log.add(ship.getName() + "'s ESG field dropped to cloak (G23.622)");
+            } else if (esg.isAnnounced()) {
+                esg.cancelAnnouncement(clock.getImpulse());
+                log.add(ship.getName() + "'s ESG announcement cancelled to cloak (G23.622)");
+            }
+        }
         log.addAll(seekerControl.releaseOrphanedDrones());
         return ActionResult.ok(String.join("\n", log));
     }
