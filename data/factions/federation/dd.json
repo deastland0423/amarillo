@@ -9,7 +9,8 @@
   "moveCost": 0.5,
   "breakdown": 3,
   "bonusHets": 1,
-  
+  "tokenArt": "federation/dd.png",
+
   "shields": [20, 18, 16, 16, 16, 18],
   
   "hullBoxes": {

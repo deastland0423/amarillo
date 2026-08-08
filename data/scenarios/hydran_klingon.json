@@ -1,0 +1,55 @@
+{
+  "id": "HYDRAN_KLINGON",
+  "name": "Clash of Giants",
+  "year": 175,
+  "description": "A standard Klingon vs. Hydran training scenario.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "Hydran Kingdom",
+      "faction": "Hydran",
+      "ships": [
+        {
+          "hull": "HN",
+          "shipName": "HMS Defender",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        },
+        {
+          "hull": "HN",
+          "shipName": "HMS Guardian",
+          "startHex": "1601",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    },
+    {
+      "name": "Klingon Empire",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "F5",
+          "shipName": "IKV Swift",
+          "startHex": "1212",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 3        },
+        {
+          "hull": "E4",
+          "shipName": "IKV Dart",
+          "startHex": "1612",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 3
+        }
+      ]
+    }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

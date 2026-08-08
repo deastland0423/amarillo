@@ -1,0 +1,52 @@
+{
+  "id": "SIMPLE_DUEL",
+  "name": "Simple Duel",
+  "year": 175,
+  "description": "A simple Federation vs Klingon duel scenario. One ship per side, closing from opposite ends of the map.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CA+",
+          "shipName": "USS Enterprise",
+          "startHex": "0101",
+          "startHeading": "C",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        }
+      ]
+    },
+    {
+      "name": "Klingon Empire",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D7Bu",
+          "shipName": "IKV Vengeance",
+          "startHex": "3030",
+          "startHeading": "F",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        }
+      ]
+    }
+  ],
+  "terrain": [
+    { 
+      "type": "GAS_GIANT", 
+      "hex": "2116", 
+      "radius": 5, 
+      "name": "Proxima IV", 
+      "rings": [
+        {"inner": 7, "outer": 8}, 
+        {"inner": 10, "outer": 12}
+        ] 
+      }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

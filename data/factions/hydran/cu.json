@@ -1,0 +1,65 @@
+{
+  "faction": "Hydran",
+  "hull": "HN",
+  "name": "HMS Hullcrusher",
+  "serviceYear": 158,
+  "bpv": 61,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333333,
+  "breakdown": 6,
+  "bonusHets": 1,
+  
+  "shields": [17, 12, 10, 11, 10, 12],
+  
+  "hullBoxes": {
+    "chull": 9
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 10,
+    "boardingParties": 6,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "PhaserG", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["LF", "L"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RF", "R"] },
+    { "type": "Hellbore",  "designator": "A", "arcs": ["FA"] }
+  ]
+}

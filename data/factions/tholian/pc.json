@@ -1,0 +1,65 @@
+{
+  "faction": "Tholian",
+  "hull": "PC",
+  "name": "TDFS Avoidance",
+  "serviceYear": 83,
+  "bpv": 59,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333333,
+  "breakdown": 5,
+  "bonusHets": 2,
+  
+  "shields": [18, 18, 18, 18, 18, 18],
+  
+  "hullBoxes": {
+    "chull": 7
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1,
+    "nimble": true,
+    "web": 2
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 6,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FX"] }
+  ]
+}

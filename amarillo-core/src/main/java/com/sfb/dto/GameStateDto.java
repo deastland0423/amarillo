@@ -1,0 +1,1354 @@
+package com.sfb.dto;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.sfb.Game;
+import com.sfb.objects.*;
+import com.sfb.systemgroups.CloakingDevice;
+import com.sfb.systemgroups.ShuttleBay;
+import com.sfb.weapons.DroneRack;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Serializable snapshot of all game state, broadcast over WebSocket after
+ * each action.
+ *
+ * Map objects form a hierarchy that mirrors the core object model:
+ *
+ * MapObjectDto (type, name, location) ← mirrors Marker
+ * ShipDto (hull, faction, shields, cloak)
+ * ShuttleDto (parentShip, speed, facing)
+ * DroneDto (droneType, warhead, target, faction)
+ * PlasmaTorpedoDto (currentStrength, controllerFaction)
+ * MineDto (active, revealed)
+ *
+ * Adding a new map object type in the future (base, asteroid, monster, etc.)
+ * means adding a new subclass and a @JsonSubTypes entry — nothing else changes.
+ */
+public class GameStateDto {
+
+    // -------------------------------------------------------------------------
+    // Polymorphic base — mirrors Marker
+    // -------------------------------------------------------------------------
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+            @JsonSubTypes.Type(value = ShipDto.class, name = "SHIP"),
+            @JsonSubTypes.Type(value = ShuttleDto.class, name = "SHUTTLE"),
+            @JsonSubTypes.Type(value = SuicideShuttleDto.class, name = "SUICIDE_SHUTTLE"),
+            @JsonSubTypes.Type(value = ScatterPackDto.class, name = "SCATTER_PACK"),
+            @JsonSubTypes.Type(value = DroneDto.class, name = "DRONE"),
+            @JsonSubTypes.Type(value = PlasmaTorpedoDto.class, name = "PLASMA"),
+            @JsonSubTypes.Type(value = MineDto.class, name = "MINE"),
+            @JsonSubTypes.Type(value = TerrainDto.class, name = "TERRAIN"),
+            @JsonSubTypes.Type(value = ObjectiveDto.class, name = "OBJECTIVE"),
+            @JsonSubTypes.Type(value = WildWeaselDto.class, name = "WILD_WEASEL"),
+    })
+    public static abstract class MapObjectDto {
+        public String name;
+        public String location; // "<x|y>" or null if off-map
+    }
+
+    public static class TerrainDto extends MapObjectDto {
+        public String terrainType; // "ASTEROID" | "PLANET" | "GAS_GIANT"
+        public int radius;         // footprint radius in hexes (0 = single hex)
+        public String tokenArt;    // optional per-instance counter art (null → per-type default)
+        public int[][] rings;      // planetary ring bands as {inner, outer} hex-distance pairs (P2.223)
+    }
+
+    public static class ObjectiveDto extends MapObjectDto {
+        public String carrierName;           // null when free on the map; else the carrying ship
+        public java.util.List<String> retrieval; // permitted retrieval methods
+        public String ownerTeam;             // current controlling team (secured owner, or carrier's), else null
+        public boolean secured;              // carried off a valid edge — permanent, out of play
+        public String tractoredBy;           // ship holding it in a beam (still free), else null
+        public boolean beingRecovered;       // J1.621 rotation pull-in underway
+        public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
+    }
+
+    public static class WildWeaselDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public String parentShipName;
+        public String parentPlayer;
+        public boolean exploding;
+        public boolean postExplosion;
+    }
+
+    // -------------------------------------------------------------------------
+    // Ship
+    // -------------------------------------------------------------------------
+
+    public static class ShieldDto {
+        public int shieldNum;
+        public int current; // includes specific reinforcement (owner-only display)
+        public int baseStrength; // without reinforcement (public display)
+        public int max;
+        public boolean active;
+        public int impulsesUntilRaiseable; // 0 = can raise now; >0 = impulses remaining in lockout
+    }
+
+    public static class WeaponDto {
+        public String name;
+        public String designator;
+        public boolean armed;
+        public int armingTurn;
+        public String armingType; // "STANDARD", "OVERLOAD", "SPECIAL", or null
+        public int lastImpulseFired; // for canFire() checks client-side
+        public boolean readyToFire; // functional + armed (if heavy) + impulse gap satisfied
+        public String arcLabel; // e.g. "FA", "FX + 13", "LF + L + RR + 5"
+        public int arcMask; // 24-bit bitmask: bit N-1 set = direction N in arc
+        public int launchDirectionsMask; // PlasmaLauncher/DroneRack: valid launch facing bitmask; 0 = use arcMask
+        public boolean functional;
+        public String plasmaType; // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
+        public String launcherType; // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
+        public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
+        public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
+        // Energy-allocation helpers for heavy weapons
+        public int armingCost; // energy to arm (standard, unarmed)
+        public int holdCost; // energy to hold per turn; 0 = hold not supported
+        public boolean canOverload; // weapon supports OVERLOAD mode
+        public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
+        public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
+        // ESG generator (G23.0)
+        public boolean esg;            // true if this weapon is an ESG
+        public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
+        public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
+        public int esgMaxEnergy;       // storage cap: 7 with a capacitor, else 5
+        public boolean esgActive;      // a field is currently up
+        public int esgRadius;          // active field radius (0–3); -1 hidden from opponents while announced
+        public int esgStrength;        // active field strength; 0 when hidden (always secret to opponents)
+        public boolean esgAnnounced;   // a release is announced but not yet formed (G23.31) — public
+        public int esgReleaseIn;       // impulses until the announced field forms (drives the map glow)
+        public boolean canProximity; // weapon supports PROXIMITY (prox) mode (Photon only)
+        public boolean overloadFinalTurnOnly; // OVERLOAD only choosable on the final arming turn
+        public int totalArmingTurns; // turns to fully arm (0 for instant)
+        public boolean isRolling; // PlasmaLauncher only: currently in rolling mode
+        public int rollingCost; // PlasmaLauncher only: energy to keep rolling (always sent for plasma)
+        public boolean canEpt; // PlasmaLauncher only: can fire as Enveloping Plasma Torpedo
+        public boolean canFastLoad; // PlasmaLauncher only: FP1.93 fast-load eligible (G/S/R on turn 2)
+        public int eptCost; // PlasmaLauncher only: energy cost for EPT on final arming turn
+        public int maxShotsPerTurn; // how many times this weapon may fire per turn
+        public int shotsThisTurn; // shots already fired this turn
+        public int minImpulseGap; // minimum global impulses between shots (0 = same-impulse multi-shot ok)
+        public int chargesRemaining; // FighterFusion only: charges left (0-2); ignored for other weapons
+        public boolean canFireDouble; // FighterFusion only: true when 2 charges remain
+        public int addShots; // ADD only: shots remaining in current load
+        public int addReloads; // ADD only: reserve shots remaining
+        public int addCapacity; // ADD only: shots per full load (6 or 12)
+    }
+
+    public static class DroneInRackDto {
+        public String droneType; // "I", "II", etc.
+        public int warheadDamage;
+        public int speed;
+        public int endurance;
+    }
+
+    /** One entry per distinct drone type in the reload pool. */
+    public static class ReloadPoolEntryDto {
+        public String droneType; // e.g. "TYPE_I", "TYPE_IV"
+        public double rackSize; // spaces this drone type consumes
+        public int count; // how many drones of this type are available
+    }
+
+    public static class DroneRackDto {
+        public String name;
+        public boolean functional;
+        public boolean canFire;
+        public List<DroneInRackDto> drones;
+        public int reloadCount;
+        public double reloadDeckCrewCost;
+        public boolean reloadingThisTurn;
+        public List<ReloadPoolEntryDto> reloadPool;
+        public int launchDirectionsMask; // 0 = unrestricted
+    }
+
+    public static class ShuttleInBayDto {
+        public String name;
+        public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
+        public int maxSpeed;
+        public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
+        public boolean armed; // suicide only: true when armingTurnsComplete >= 3
+        public int armingTurnsComplete; // suicide only: 0-3
+        public int warheadDamage; // suicide only: totalEnergy * 2
+        public List<String> payload; // scatterpack only: live drone type names (e.g. "TypeIM")
+        public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
+        public int maxDroneSpaces; // scatterpack only: max rack spaces (default 6)
+        public double committedSpaces; // scatterpack only: payload + pending spaces already used
+        public int wwChargeCount; // admin only: 0=uncharged, 1=primed, 2=ready to launch
+        public boolean wwReady; // admin only: true when wwChargeCount >= 2
+    }
+
+    public static class ShuttleSpaceDto {
+        public int spaceIndex;
+        public boolean destroyed;
+        public boolean empty;
+        public boolean armed;
+        public ShuttleInBayDto shuttle; // null if empty or destroyed
+    }
+
+    public static class ShuttleBayDto {
+        public int bayIndex;
+        public boolean canLaunch;
+        public int launchTubeCount;
+        public int availableTubes;
+        public int totalSpaces;
+        public int destroyedSpaces;
+        public int emptySpaces;
+        public List<ShuttleInBayDto> shuttles; // occupied spaces only (for launch UI)
+        public List<ShuttleSpaceDto> spaces; // all spaces (for DAC damage UI)
+    }
+
+    public static class ShipDto extends MapObjectDto {
+        public String hull;
+        public String faction;
+        public int facing;
+        public int speed;
+        public int tractorTrueSpeed; // plotted speed before tractor pseudo-speed (G7.34); -1 = not limited
+        public List<ShieldDto> shields;
+        public String cloakState;
+        public int cloakFadeStep;
+        public int cloakTransitionImpulse;
+        public double phaserCapacitor;
+        public double phaserCapacitorMax;
+        public boolean capacitorsCharged;
+        public boolean activeFireControl;
+        public int scannerBonus;
+        public int sensorRating;
+        public int ecmAllocated;
+        public int eccmAllocated;
+        public List<WeaponDto> weapons;
+        public List<DroneRackDto> droneRacks;
+        public List<ShuttleBayDto> shuttleBays;
+        public int tBombs;
+        public int dummyTBombs;
+        public int nuclearSpaceMines;
+        public int transporterUses;
+        public int boardingParties;
+        public int commandos;
+        public int availableLab;
+        // Crew
+        public int availableCrewUnits;
+        public int capturedCrew;
+        public int minimumCrew;
+        public int availableDeckCrews;
+        public String crewQuality; // "POOR" | "NORMAL" | "OUTSTANDING"
+        public int availableTransporters;
+        public int totalTransporters;
+        public double transporterEnergyCost;
+        public int availableTractors;
+        public int totalTractors;
+        // Hull box damage state
+        public int availableFhull;
+        public int availableAhull;
+        public int availableChull;
+        public int maxFhull;
+        public int maxAhull;
+        public int maxChull;
+        // Power system damage state
+        public int availableLWarp;
+        public int availableRWarp;
+        public int availableCWarp;
+        public int availableImpulse;
+        public int availableApr;
+        public int availableAwr;
+        public int maxLWarp;
+        public int maxRWarp;
+        public int maxCWarp;
+        public int maxImpulse;
+        public int maxApr;
+        public int maxAwr;
+        public int availableBattery;
+        public int batteryPower;
+        // Control space damage state (current / max)
+        public int availableBridge;
+        public int maxBridge;
+        public int availableFlag;
+        public int maxFlag;
+        public int availableEmer;
+        public int maxEmer;
+        public int availableAuxcon;
+        public int maxAuxcon;
+        public int availableSecurity;
+        public int maxSecurity;
+        // Crew state
+        public boolean skeleton;
+        // HET state
+        public int reserveWarp;
+        public int hetCost;
+        public int hetsThisTurn;
+        public int lastHetImpulse;
+        public int immobileUntilImpulse;
+        // Weapon damaged flags — stored alongside existing WeaponDto.destroyed field
+        // Energy Allocation helper fields
+        public boolean uimFunctional; // true if ship has a functional UIM this impulse
+        public boolean canDoubleEngines; // Orion engine doubling available (G15.2)
+        public int totalPower; // total power available for allocation
+        public double moveCost; // warp energy per speed point
+        public double lifeSupportCost; // housekeeping cost
+        public int fireControlCost; // always 1
+        public int activeShieldCost; // energy to keep shields fully active
+        public double minimumShieldCost; // energy for minimum shields
+        public int batteryCharge; // current battery energy available to draw
+        public int cloakCost; // energy to maintain cloak (0 if no cloaking device)
+        public int maxSpeedNextTurn; // C2.2 acceleration cap for this turn's EA
+        public int commandRating;
+        public List<String> lockOnTargets; // names of units this ship has lock-on to
+        public String tokenArt; // optional path to PNG token image
+        // Turn mode display helpers
+        public String turnMode; // e.g. "A", "B", "C"
+        public int turnHexes; // hexes required between turns at current speed
+        public int hexesUntilTurn; // 0 = may turn now; >0 = hexes still needed
+        // Capture / disengagement state
+        public boolean captured;
+        public boolean disengaged;
+        public boolean canDisengageBySeparation;
+        public java.util.List<String> destructionDirections; // A–F directions that destroy on accel disengage
+        public String ownerName; // name of the controlling player (may change on capture)
+        public String teamName; // display name of the team/side this ship belongs to
+        // Emergency deceleration state (C8.0)
+        public boolean decelerating; // true during the 2-impulse deceleration period
+        public int decelerationEndsAtImpulse; // absolute impulse when ship stops; -1 if not decelerating
+        public boolean wildWeaselActive; // true while a WW decoy is on the map for this ship
+        public int wwEcmBonus; // +6 while WW is active (J3.23), else 0
+        // Tractor beam state (G7.0)
+        public boolean tractored; // true if held in another ship's tractor beam
+        public String tractoredByName; // name of the holding ship, or null
+        public int tractorEnergy; // total tractor energy allocated in EA this turn
+        public int tractorEnergyRemaining; // unspent tractor pool energy
+        public int negativeTractorAccumulated; // cumulative negative-tractor spent this turn (G7.35)
+        public java.util.List<String> tractoredTargetNames; // names of ships this ship is currently tractoring
+        // Active Fire Control state (D6.6)
+        public boolean fireControlActivating; // true during 4-impulse countdown to going active
+        public int fcActivatingUntil; // absolute impulse when activation completes; -1 if not activating
+        public boolean fcPaidThisTurn; // true if FC energy was allocated this turn
+        // Tactical Maneuvers (C5.0)
+        public int tacAvailable; // earned warp TACs ready to use (0 or 1)
+        public int tacBudget; // warp TACs still to be earned this turn
+        public boolean sublightTacAvailable; // true if sublight TAC paid and not yet used
+    }
+
+    // -------------------------------------------------------------------------
+    // Shuttle
+    // -------------------------------------------------------------------------
+
+    public static class ShuttleDto extends MapObjectDto {
+        public boolean beingRecovered;
+        public int facing;
+        public int speed;
+        public int maxSpeed;
+        public String parentPlayer; // name of the player who owns this shuttle
+        public String parentShipName; // name of the ship that launched this shuttle
+        public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
+        public boolean crippled; // true if crippling effects have been applied (J1.33)
+        public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
+        // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
+        public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
+        public int landedHexSide;       // 1..6 (A..F) when on a planet, else 0
+        public int holdCrew;            // crew units currently in the hold
+        public int holdSpacesUsed;      // personnel spaces occupied
+        public int personnelCapacity;   // personnel-space capacity of the hold
+    }
+
+    // -------------------------------------------------------------------------
+    // Suicide shuttle (seeker)
+    // -------------------------------------------------------------------------
+
+    public static class SuicideShuttleDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public String controllerFaction;
+        public String controllerName; // name of the controlling ship
+        public String targetName;
+        public int warheadDamage; // totalEnergy * 2
+        public int armingTurnsComplete;
+        public boolean isIdentified;
+    }
+
+    // -------------------------------------------------------------------------
+    // Scatter pack (seeker — moves toward target, releases drones after 8 impulses)
+    // -------------------------------------------------------------------------
+
+    public static class ScatterPackDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public String controllerFaction;
+        public String controllerName;
+        public String targetName;
+        public List<String> payload; // drone type names still loaded; empty after release
+        public boolean released; // true after drones have been deployed
+        public boolean isIdentified;
+    }
+
+    // -------------------------------------------------------------------------
+    // Drone
+    // -------------------------------------------------------------------------
+
+    public static class DroneDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public String droneType; // "I", "II", etc. — revealed on identification
+        public int warheadDamage; // revealed on identification
+        public int hull; // current hull remaining
+        public int damageTaken; // maxHull - hull — always public (visible on the drone)
+        public int maxHull; // hull at launch (from DroneType) — revealed on identification
+        public int endurance; // revealed on identification
+        public String targetName; // revealed on identification
+        public String controllerFaction;
+        public String controllerName; // name of the controlling ship — always public
+        public String launcherName; // name of the ship that originally launched this drone (stable, even when
+                                    // inert)
+        public int launchImpulse; // always public
+        public boolean isIdentified; // true once identified by an enemy
+    }
+
+    // -------------------------------------------------------------------------
+    // Plasma torpedo
+    // -------------------------------------------------------------------------
+
+    public static class PlasmaTorpedoDto extends MapObjectDto {
+        public int facing;
+        public int speed;
+        public int currentStrength; // always public
+        public String controllerFaction;
+        public String controllerName; // name of the launching ship — always public
+        public String plasmaType; // "F", "G", "S", "R" — never revealed to enemy
+        public int distanceTraveled;
+        public boolean pseudo; // never revealed to enemy
+        public double damageTaken;
+        public int launchImpulse; // always public
+        public String targetName; // revealed on identification
+        public boolean isIdentified; // true once identified by an enemy
+    }
+
+    // -------------------------------------------------------------------------
+    // Space mine / tBomb
+    // -------------------------------------------------------------------------
+
+    public static class MineDto extends MapObjectDto {
+        public boolean active;
+        public boolean revealed;
+    }
+
+    // -------------------------------------------------------------------------
+    // Top-level fields
+    // -------------------------------------------------------------------------
+
+    public int mapCols;
+    public int mapRows;
+    public int maxTurns;
+    public boolean gameOver;
+    public String winnerTeam; // null = draw or ongoing
+    public String endReason; // human-readable explanation, null if ongoing
+    public int turn;
+    public int impulse;
+    public int absoluteImpulse;
+    public String phase;
+    public List<String> movableNow;
+    public List<String> myShips; // ships owned by the requesting player (null = all ships)
+    public boolean awaitingAllocation;
+    public List<String> pendingAllocation; // ship names not yet allocated this turn
+    public List<String> pendingAccelDisengage; // ship names awaiting player YES/NO for C7.1 accel disengage
+    public List<MapObjectDto> mapObjects;
+    public int readyCount; // players who have clicked Ready this phase
+    public int playerCount; // total players in the session
+    // Fire declaration round (D6.315) — session-level, injected at broadcast.
+    // Only WHO has responded is public; commit contents stay sealed server-side.
+    public boolean fireDeclarationOpen;
+    public String fireDeclarationCaller;
+    public List<String> fireDeclarationResponded = new ArrayList<>();
+    public boolean fireDeclarationSpent; // this impulse's round already resolved
+    public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
+    public ScoreboardDto scoreboard; // live standings, present in every broadcast
+    public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
+    public List<PendingDacChoiceDto> pendingDacChoices = new ArrayList<>();
+    public List<PendingControlOverflowDto> pendingControlOverflows = new ArrayList<>();
+    public PendingTractorAuctionDto pendingTractorAuction = null;
+
+    public static class PendingTractorAuctionDto {
+        public String attackerName;
+        public String targetName;
+        public int attackerBid; // effective tractor points
+        public int rangeMultiplier; // 1 for range 0-1; 2 for range 2; 3 for range 3 (G7.6)
+        public int defenderAccumulated; // existing negative-tractor on target (for defender's UI)
+        public int defenderMaxBid; // target's remaining pool + battery
+    }
+
+    public static class PendingVolleyDto {
+        public String attackerName;
+        public String targetShipName;
+        public int shieldNumber;
+        public int totalDamage;
+        public int envelopingHellboreDamage;
+        public boolean addHit;
+    }
+
+    public static class PendingDacChoiceDto {
+        public String targetShipName;
+        public String dacType; // "phaser" | "drone" | "torp" | "weapon" | "warp"
+        public int roll;
+        public List<String> options; // weapon names or warp engine ids
+    }
+
+    public static class PendingControlOverflowDto {
+        public String shipName;
+        public int overLimitCount; // how many seekers must be released or transferred
+        public List<SeekerChoiceDto> seekers = new ArrayList<>();
+
+        public static class SeekerChoiceDto {
+            public String name;
+            public String label; // e.g. "Drone (Type I)", "Suicide Shuttle"
+            public String targetName;
+            public List<String> transferOptions = new ArrayList<>(); // allied ships eligible to take control
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Scoreboard (S2.21 victory points)
+    // -------------------------------------------------------------------------
+
+    public static class ShipVpRowDto {
+        public String shipName;
+        public String teamName;
+        public int gabpv;
+        public String status; // "INTACT" | "DAMAGED" | "CRIPPLED" | "DISENGAGED" | "DESTROYED" | "CAPTURED"
+        public int vpScored; // VPs scored against this ship by the enemy
+    }
+
+    public static class TeamScoreDto {
+        public String teamName;
+        public int vpScored;
+        public int vpAgainst;
+        public String levelOfVictory;
+    }
+
+    /**
+     * One objective's current control, for the scoreboard. No points are scored
+     * yet (per-scenario victory scoring is deferred) — this is a plain ownership
+     * listing so each side can see who holds what.
+     */
+    public static class ObjectiveStandingDto {
+        public String name;
+        public String ownerTeam;   // controlling team, or null if free/unclaimed
+        public String state;       // "SECURED" | "CARRIED" | "FREE"
+    }
+
+    public static class ScoreboardDto {
+        public List<ShipVpRowDto> ships = new ArrayList<>();
+        public List<TeamScoreDto> teams = new ArrayList<>();
+        public List<ObjectiveStandingDto> objectives = new ArrayList<>();
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructor — builds from live Game state
+    // -------------------------------------------------------------------------
+
+    public GameStateDto() {
+    }
+
+    /** Omniscient snapshot — solo/unassigned (dev) mode only. */
+    public GameStateDto(Game game) {
+        this(game, null);
+    }
+
+    /**
+     * Snapshot through one player's eyes. {@code viewerTeam} null = see
+     * everything. For enemy units the builder hides what the tabletop hides:
+     * seeking shuttles (suicide shuttles, unreleased scatter packs) render as
+     * plain shuttles until identified, plasma keeps its type/pseudo/target
+     * secret until identified, drone types stay unknown until identified, and
+     * enemy bay contents are not sent at all. Wild Weasels are public — their
+     * interference announces them the moment they launch.
+     */
+    public GameStateDto(Game game, String viewerTeam) {
+        this.mapCols = game.getMapCols();
+        this.mapRows = game.getMapRows();
+        this.maxTurns = game.getMaxTurns();
+        Game.GameEndResult end = game.getGameEnd();
+        this.gameOver = end != null;
+        this.winnerTeam = end != null ? end.winnerTeam() : null;
+        this.endReason = end != null ? end.reason() : null;
+        {
+            // Live standings (S2.21): computed every broadcast so players can
+            // check the current score mid-battle, not only at game end.
+            Game.Scoreboard sb = game.calculateVictoryPoints();
+            ScoreboardDto dto = new ScoreboardDto();
+            for (Game.ShipVpRow row : sb.rows()) {
+                ShipVpRowDto r = new ShipVpRowDto();
+                r.shipName = row.shipName();
+                r.teamName = row.teamName();
+                r.gabpv = row.gabpv();
+                r.status = row.status();
+                r.vpScored = row.vpScored();
+                dto.ships.add(r);
+            }
+            for (Game.TeamScore ts : sb.teams()) {
+                TeamScoreDto t = new TeamScoreDto();
+                t.teamName = ts.teamName();
+                t.vpScored = ts.vpScored();
+                t.vpAgainst = ts.vpAgainst();
+                t.levelOfVictory = ts.levelOfVictory();
+                dto.teams.add(t);
+            }
+            // Objective control (no scoring yet — just who holds what)
+            for (com.sfb.objects.Objective o : game.getObjectives()) {
+                ObjectiveStandingDto os = new ObjectiveStandingDto();
+                os.name = o.getName();
+                com.sfb.Player owner = o.getCurrentOwner();
+                os.ownerTeam = owner != null ? owner.getTeamName() : null;
+                os.state = o.isSecured() ? "SECURED" : o.isCarried() ? "CARRIED" : "FREE";
+                dto.objectives.add(os);
+            }
+            this.scoreboard = dto;
+        }
+        this.turn = game.getCurrentTurn();
+        this.impulse = game.getCurrentImpulse();
+        this.absoluteImpulse = game.getAbsoluteImpulse();
+        this.phase = game.getCurrentPhase().getLabel();
+
+        this.movableNow = new ArrayList<>();
+        for (Ship s : game.getMovableShips())
+            movableNow.add(s.getName());
+        for (com.sfb.objects.shuttles.Shuttle s : game.getMovableShuttles())
+            movableNow.add(s.getName());
+
+        this.awaitingAllocation = game.isAwaitingAllocation();
+        this.pendingAllocation = new ArrayList<>();
+        if (game.isAwaitingAllocation()) {
+            for (Ship s : game.getAllocationQueue())
+                pendingAllocation.add(s.getName());
+        }
+        this.pendingAccelDisengage = new ArrayList<>();
+        for (Ship s : game.getPendingAccelDisengage())
+            pendingAccelDisengage.add(s.getName());
+
+        this.mapObjects = new ArrayList<>();
+
+        for (Ship ship : game.getShips())
+            mapObjects.add(fromShip(ship, game, hiddenFrom(viewerTeam, ship.getOwner())));
+
+        for (com.sfb.objects.shuttles.Shuttle shuttle : game.getActiveShuttles()) {
+            if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+                // Public by rule: a weasel's interference announces it at launch
+                mapObjects.add(fromWildWeasel((com.sfb.objects.shuttles.WildWeaselShuttle) shuttle));
+            else if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack)
+                // Only released packs live here — the release was visible to all
+                mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
+            else
+                mapObjects.add(fromShuttle(shuttle));
+        }
+
+        for (Seeker seeker : game.getSeekers()) {
+            if (seeker instanceof Drone) {
+                Drone d = (Drone) seeker;
+                mapObjects.add(fromDrone(d,
+                        hiddenFrom(viewerTeam, ownerOfController(d.getController())) && !d.isIdentified()));
+            } else if (seeker instanceof PlasmaTorpedo) {
+                PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
+                mapObjects.add(fromPlasma(torp,
+                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())) && !torp.isIdentified()));
+            } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
+                if (hiddenFrom(viewerTeam, ss.getOwner()) && !ss.isIdentified())
+                    mapObjects.add(fromShuttle(ss)); // renders as a plain shuttle
+                else
+                    mapObjects.add(fromSuicideShuttle(ss));
+            } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
+                com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
+                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isIdentified())
+                    mapObjects.add(fromShuttle(pack)); // unreleased pack: plain shuttle
+                else
+                    mapObjects.add(fromScatterPack(pack));
+            }
+        }
+
+        for (SpaceMine mine : game.getMines())
+            mapObjects.add(fromMine(mine));
+
+        for (Terrain t : game.getTerrain())
+            mapObjects.add(fromTerrain(t));
+
+        for (com.sfb.objects.Objective o : game.getObjectives())
+            mapObjects.add(fromObjective(o));
+
+        // Aggregate volleys by (target, shieldNumber) so the reinforcement dialog
+        // shows the combined incoming total per shield facing. EPT volleys
+        // (envelopingTorp != null) always stay separate. Enveloping Hellbore
+        // damage is summed for display but applied separately (E10.43).
+        java.util.LinkedHashMap<String, PendingVolleyDto> volleyMap = new java.util.LinkedHashMap<>();
+        for (Game.PendingVolley pv : game.getPendingVolleys()) {
+            String targetName = pv.target != null ? pv.target.getName() : "";
+            if (pv.envelopingTorp != null) {
+                // EPT: always a distinct entry
+                PendingVolleyDto d = new PendingVolleyDto();
+                d.attackerName = pv.attackerName;
+                d.targetShipName = targetName;
+                d.shieldNumber = pv.shieldNumber;
+                d.totalDamage = pv.totalDamage;
+                d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
+                d.addHit = pv.addHit;
+                pendingVolleys.add(d);
+                continue;
+            }
+            String key = targetName + ":" + pv.shieldNumber;
+            PendingVolleyDto existing = volleyMap.get(key);
+            if (existing == null) {
+                PendingVolleyDto d = new PendingVolleyDto();
+                d.attackerName = pv.attackerName;
+                d.targetShipName = targetName;
+                d.shieldNumber = pv.shieldNumber;
+                d.totalDamage = pv.totalDamage;
+                d.envelopingHellboreDamage = pv.envelopingHellboreDamage;
+                d.addHit = pv.addHit;
+                volleyMap.put(key, d);
+            } else {
+                existing.totalDamage += pv.totalDamage;
+                existing.envelopingHellboreDamage += pv.envelopingHellboreDamage;
+                existing.addHit = existing.addHit || pv.addHit;
+                if (!existing.attackerName.contains(pv.attackerName))
+                    existing.attackerName += ", " + pv.attackerName;
+            }
+        }
+        pendingVolleys.addAll(volleyMap.values());
+
+        for (Game.PendingDacChoice dc : game.getPendingDacChoices()) {
+            PendingDacChoiceDto d = new PendingDacChoiceDto();
+            d.targetShipName = dc.targetShipName;
+            d.dacType = dc.dacType;
+            d.roll = dc.roll;
+            d.options = new ArrayList<>(dc.options);
+            pendingDacChoices.add(d);
+        }
+
+        for (Game.PendingControlOverflow ov : game.getPendingControlOverflows()) {
+            com.sfb.objects.Ship ovShip = ov.ship;
+            PendingControlOverflowDto dto = new PendingControlOverflowDto();
+            dto.shipName = ovShip.getName();
+            dto.overLimitCount = ovShip.getControlUsed() - ovShip.getControlCapacity();
+            for (com.sfb.objects.Seeker s : ovShip.getControlledSeekers()) {
+                PendingControlOverflowDto.SeekerChoiceDto sc = new PendingControlOverflowDto.SeekerChoiceDto();
+                if (s instanceof com.sfb.objects.Unit)
+                    sc.name = ((com.sfb.objects.Unit) s).getName();
+                sc.label = seekerLabel(s);
+                com.sfb.objects.Unit target = s.getTarget();
+                sc.targetName = target != null ? target.getName() : null;
+                // Allied ships that can accept control (lock-on + spare capacity)
+                if (target != null) {
+                    for (com.sfb.objects.Ship ally : game.getShips()) {
+                        if (ally == ovShip)
+                            continue;
+                        if (!game.isSameTeam(ovShip, ally))
+                            continue;
+                        if (!ally.hasLockOn(target))
+                            continue;
+                        if (ally.getControlUsed() >= ally.getControlCapacity())
+                            continue;
+                        sc.transferOptions.add(ally.getName());
+                    }
+                }
+                dto.seekers.add(sc);
+            }
+            pendingControlOverflows.add(dto);
+        }
+
+        Game.PendingTractorAuction pta = game.getPendingTractorAuction();
+        if (pta != null) {
+            PendingTractorAuctionDto d = new PendingTractorAuctionDto();
+            Ship ptaTarget = (Ship) pta.target; // auction only created for Ship targets
+            d.attackerName = pta.attacker.getName();
+            d.targetName = pta.target.getName();
+            d.attackerBid = pta.attackerBid;
+            d.rangeMultiplier = pta.rangeMultiplier;
+            d.defenderAccumulated = ptaTarget.getTractors().getNegativeTractorAccumulated();
+            d.defenderMaxBid = ptaTarget.getTractors().getRemainingTractorEnergy()
+                    + ptaTarget.getPowerSystems().getBatteryPower();
+            this.pendingTractorAuction = d;
+        }
+    }
+
+    private static String seekerLabel(com.sfb.objects.Seeker s) {
+        if (s instanceof com.sfb.objects.Drone) {
+            com.sfb.objects.Drone d = (com.sfb.objects.Drone) s;
+            String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+            return "Drone (Type " + type + ")";
+        }
+        if (s instanceof com.sfb.objects.shuttles.ScatterPack)
+            return "Scatter Pack";
+        if (s instanceof com.sfb.objects.shuttles.SuicideShuttle)
+            return "Suicide Shuttle";
+        return "Seeker";
+    }
+
+    // -------------------------------------------------------------------------
+    // Builders
+    // -------------------------------------------------------------------------
+
+    /**
+     * True when the viewer must not see this unit's secrets: a real viewer is
+     * set, the unit has an owner, and the owner is on a different team.
+     * Null viewer = omniscient (solo/dev); unowned units are public.
+     */
+    private static boolean hiddenFrom(String viewerTeam, com.sfb.Player owner) {
+        return viewerTeam != null && owner != null && !viewerTeam.equals(owner.getTeamName());
+    }
+
+    /** Owner of a seeker's controller, when the controller is a ship. */
+    private static com.sfb.Player ownerOfController(Object controller) {
+        return controller instanceof Ship ? ((Ship) controller).getOwner() : null;
+    }
+
+    private static ShipDto fromShip(Ship ship, Game game, boolean hideSecrets) {
+        ShipDto dto = new ShipDto();
+        dto.name = ship.getName();
+        dto.location = ship.getLocation() != null ? ship.getLocation().toString() : null;
+        dto.facing = ship.getFacing();
+        dto.speed = ship.getSpeed();
+        dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
+        dto.hull = ship.getHullType();
+        dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
+
+        dto.shields = new ArrayList<>();
+        for (int s = 1; s <= 6; s++) {
+            ShieldDto sd = new ShieldDto();
+            sd.shieldNum = s;
+            sd.current = ship.getShields().getShieldStrength(s);
+            sd.baseStrength = ship.getShields().getBaseShieldStrength(s);
+            sd.max = ship.getShields().getMaxShieldStrength(s);
+            sd.active = ship.getShields().isShieldActive(s);
+            int toggled = ship.getShields().getImpulseShieldToggled(s);
+            int delay = com.sfb.constants.Constants.IMPULSES_PER_TURN / 4;
+            sd.impulsesUntilRaiseable = Math.max(0, toggled + delay - game.getAbsoluteImpulse());
+            dto.shields.add(sd);
+        }
+
+        CloakingDevice cloak = ship.getCloakingDevice();
+        if (cloak != null) {
+            dto.cloakState = cloak.getState().name();
+            dto.cloakFadeStep = cloak.getFadeStep(game.getAbsoluteImpulse());
+            dto.cloakTransitionImpulse = cloak.getTransitionImpulse();
+        } else {
+            dto.cloakState = "NONE";
+            dto.cloakFadeStep = 0;
+            dto.cloakTransitionImpulse = -1;
+        }
+
+        dto.phaserCapacitor = ship.getWeapons().getPhaserCapacitorEnergy();
+        dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
+        dto.capacitorsCharged = ship.isCapacitorsCharged();
+        dto.activeFireControl = ship.isActiveFireControl();
+        dto.scannerBonus = ship.getSpecialFunctions().getScanner();
+        dto.sensorRating = ship.getSpecialFunctions().getSensor();
+        dto.ecmAllocated = ship.getEcmAllocated();
+        dto.eccmAllocated = ship.getEccmAllocated();
+        dto.tBombs = ship.getTBombs();
+        dto.dummyTBombs = ship.getDummyTBombs();
+        dto.nuclearSpaceMines = ship.getNuclearSpaceMines();
+        dto.transporterUses = ship.getTransporters().availableUses();
+        dto.boardingParties = ship.getCrew().getAvailableBoardingParties();
+        dto.commandos = ship.getCrew().getFriendlyTroops().commandos;
+        dto.availableLab = ship.getLabs().getAvailableLab();
+        dto.availableCrewUnits = ship.getCrew().getAvailableCrewUnits();
+        dto.capturedCrew = ship.getCrew().getCapturedCrew();
+        dto.minimumCrew = ship.getCrew().getMinimumCrew();
+        dto.availableDeckCrews = ship.getCrew().getAvailableDeckCrews();
+        dto.crewQuality = ship.getCrew().getCrewQuality().name();
+        dto.availableTransporters = ship.getTransporters().getAvailableTrans();
+        dto.totalTransporters = ship.getTransporters().fetchOriginalTotalBoxes();
+        dto.transporterEnergyCost = com.sfb.constants.Constants.TRANS_ENERGY;
+        dto.availableTractors = ship.getTractors().fetchRemainingTotalBoxes();
+        dto.totalTractors = ship.getTractors().fetchOriginalTotalBoxes();
+
+        // Hull box damage state
+        com.sfb.systemgroups.HullBoxes hb = ship.getHullBoxes();
+        dto.availableFhull = hb.getAvailableFhull();
+        dto.availableAhull = hb.getAvailableAhull();
+        dto.availableChull = hb.getAvailableChull();
+        dto.maxFhull = hb.getMaxFhull();
+        dto.maxAhull = hb.getMaxAhull();
+        dto.maxChull = hb.getMaxChull();
+
+        // Power system damage state
+        com.sfb.systemgroups.PowerSystems ps = ship.getPowerSystems();
+        dto.availableLWarp = ps.getAvailableLWarp();
+        dto.availableRWarp = ps.getAvailableRWarp();
+        dto.availableCWarp = ps.getAvailableCWarp();
+        dto.availableImpulse = ps.getAvailableImpulse();
+        dto.availableApr = ps.getAvailableApr();
+        dto.availableAwr = ps.getAvailableAwr();
+        dto.maxLWarp = ps.getMaxLWarp();
+        dto.maxRWarp = ps.getMaxRWarp();
+        dto.maxCWarp = ps.getMaxCWarp();
+        dto.maxImpulse = ps.getMaxImpulse();
+        dto.maxApr = ps.getMaxApr();
+        dto.maxAwr = ps.getMaxAwr();
+        dto.availableBattery = ps.getAvailableBattery();
+        dto.batteryPower = ps.getBatteryPower();
+        dto.reserveWarp = ps.getReserveWarp();
+
+        // Crew state
+        dto.skeleton = ship.getCrew().isSkeleton();
+
+        // HET state
+        dto.hetCost = (int) Math.ceil(ship.getPerformanceData().getHetCost());
+        dto.hetsThisTurn = ship.getHetsThisTurn();
+        dto.lastHetImpulse = ship.getLastHetImpulse();
+        dto.immobileUntilImpulse = ship.getImmobileUntilImpulse();
+
+        // Energy Allocation helper fields
+        dto.totalPower = ps.getTotalAvailablePower();
+        dto.moveCost = ship.getPerformanceData().getMovementCost();
+        dto.lifeSupportCost = ship.getLifeSupportCost();
+        dto.fireControlCost = ship.getFireControlCost();
+        dto.activeShieldCost = ship.getActiveShieldCost();
+        dto.minimumShieldCost = ship.getMinimumShieldCost();
+        dto.batteryCharge = ps.getBatteryPower();
+        dto.cloakCost = cloak != null ? cloak.getPowerToActivate() : 0;
+        dto.maxSpeedNextTurn = ship.getMaxAccelerationSpeed();
+        dto.commandRating = ship.getCommandRating();
+        dto.uimFunctional = ship.getActiveUim(game.getAbsoluteImpulse()) != null;
+        dto.canDoubleEngines = ship.canDoubleEngines();
+        dto.tokenArt = ship.getTokenArt();
+        dto.turnMode = ship.getTurnMode() != null ? ship.getTurnMode().name() : null;
+        dto.turnHexes = ship.getTurnHexes();
+        dto.hexesUntilTurn = Math.max(0, ship.getTurnHexes() - ship.getTurnCount());
+        dto.lockOnTargets = ship.getLockOns().stream()
+                .map(com.sfb.objects.Unit::getName)
+                .collect(java.util.stream.Collectors.toList());
+        dto.captured = ship.isCaptured();
+        dto.disengaged = ship.isDisengaged();
+        dto.canDisengageBySeparation = game.canDisengageBySeparation(ship);
+        dto.destructionDirections = game.getDestructionDirections(ship);
+        dto.ownerName = ship.getOwner() != null ? ship.getOwner().getName() : null;
+        dto.teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+        dto.decelerating = ship.isDecelerating();
+        dto.decelerationEndsAtImpulse = ship.getDecelerationEndsAtImpulse();
+        dto.wildWeaselActive = ship.hasActiveWildWeasel();
+        dto.wwEcmBonus = ship.getWwEcmBonus();
+        dto.tractored = ship.isTractored();
+        dto.tractoredByName = ship.isTractored() && ship.getTractoringUnit() != null
+                ? ship.getTractoringUnit().getName()
+                : null;
+        dto.tractorEnergy = ship.getTractors().getTotalTractorEnergy();
+        dto.tractorEnergyRemaining = ship.getTractors().getRemainingTractorEnergy();
+        dto.negativeTractorAccumulated = ship.getTractors().getNegativeTractorAccumulated();
+        dto.tractoredTargetNames = ship.getTractors().getTractoredUnits().stream()
+                .map(com.sfb.objects.Unit::getName)
+                .collect(java.util.stream.Collectors.toList());
+        dto.fireControlActivating = ship.isFcActivating();
+        dto.fcActivatingUntil = ship.getFcActivatingUntil();
+        dto.fcPaidThisTurn = ship.isFcPaidThisTurn();
+        dto.tacAvailable = ship.getTacAvailable();
+        dto.tacBudget = ship.getTacBudget();
+        dto.sublightTacAvailable = ship.isSublightTacAvailable();
+
+        // Control space damage state
+        com.sfb.systemgroups.ControlSpaces cs = ship.getControlSpaces();
+        dto.availableBridge = cs.getAvailableBridge();
+        dto.maxBridge = cs.getBridge();
+        dto.availableFlag = cs.getAvailableFlag();
+        dto.maxFlag = cs.getFlag();
+        dto.availableEmer = cs.getAvailableEmer();
+        dto.maxEmer = cs.getEmer();
+        dto.availableAuxcon = cs.getAvailableAuxcon();
+        dto.maxAuxcon = cs.getAuxcon();
+        dto.availableSecurity = cs.getAvailableSecurity();
+        dto.maxSecurity = cs.getSecurity();
+
+        dto.weapons = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            WeaponDto wd = new WeaponDto();
+            wd.name = w.getName();
+            wd.designator = w.getDesignator();
+            wd.lastImpulseFired = w.getLastImpulseFired();
+            wd.functional = w.isFunctional();
+            wd.arcLabel = w.getArcLabel();
+            wd.arcMask = w.getArcs();
+            boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
+                    || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
+            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.canFire();
+            if (w instanceof com.sfb.weapons.HeavyWeapon) {
+                com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
+                wd.armed = hw.isArmed();
+                wd.armingTurn = hw.getArmingTurn();
+                wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
+                wd.isHeavy = true;
+                wd.armingCost = hw.energyToArm();
+                wd.holdCost = hw.holdEnergyCost();
+                wd.canOverload = hw.supportsOverload();
+                wd.canSuicide = hw.supportsSuicide();
+                wd.canProximity = hw.supportsProximity();
+                wd.overloadFinalTurnOnly = hw.overloadFinalTurnOnly();
+                wd.totalArmingTurns = hw.totalArmingTurns();
+            }
+            if (w instanceof com.sfb.weapons.Fusion) {
+                wd.cooldown = ((com.sfb.weapons.Fusion) w).isOnCooldown();
+            }
+            if (w instanceof com.sfb.weapons.ESG) {
+                com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
+                wd.esg = true;
+                wd.esgHasCapacitor = esg.hasCapacitor();
+                wd.esgMaxEnergy = esg.maxStorage();
+                wd.esgActive = esg.isActive();
+                wd.esgAnnounced = esg.isAnnounced();
+                wd.esgReleaseIn = esg.announceCountdown(game.getAbsoluteImpulse());
+                // Public info: an active field's radius is visible to all (the ring is on
+                // the map); a pending announcement reveals only that a field is coming
+                // (G23.311). Stored energy and field strength are always the owner's secret.
+                wd.esgRadius = esg.isActive() ? esg.getRadius() : -1;
+                if (hideSecrets) {
+                    wd.esgStoredEnergy = 0;
+                    wd.esgStrength = 0;
+                } else {
+                    wd.esgStoredEnergy = esg.getStoredEnergy();
+                    wd.esgStrength = esg.getStrength();
+                    if (esg.isAnnounced()) {
+                        wd.esgRadius = esg.getAnnouncedRadius(); // owner sees where it will form
+                    }
+                }
+            }
+            if (w instanceof com.sfb.weapons.PlasmaLauncher) {
+                com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
+                wd.plasmaType = pl.getPlasmaType() != null ? pl.getPlasmaType().name() : null;
+                wd.launcherType = pl.getLauncherType() != null ? pl.getLauncherType().name() : null;
+                wd.pseudoPlasmaReady = pl.isPseudoPlasmaReady();
+                wd.isRolling = pl.isRolling();
+                wd.rollingCost = pl.rollingCost();
+                wd.canEpt = pl.canEpt();
+                wd.eptCost = pl.eptCost();
+                wd.canFastLoad = pl.canFastLoad();
+                wd.launchDirectionsMask = pl.getLaunchDirections();
+            }
+            wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
+            wd.shotsThisTurn = w.getShotsThisTurn();
+            wd.minImpulseGap = w.getMinImpulseGap();
+            if (w instanceof com.sfb.weapons.FighterFusion) {
+                com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
+                wd.chargesRemaining = ff.getChargesRemaining();
+                wd.canFireDouble = ff.canFireDouble();
+            }
+            if (w instanceof com.sfb.weapons.ADD) {
+                com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
+                wd.addShots = add.getShots();
+                wd.addReloads = add.getReloadsAvailable();
+                wd.addCapacity = add.getCapacity();
+            }
+            dto.weapons.add(wd);
+        }
+
+        // Rack loadouts and bay contents are the owner's secrets — COI drone
+        // choices, WW charges, suicide-shuttle arming, scatter-pack payloads.
+        // Enemy viewers get empty lists (the SSD itself is public knowledge;
+        // what is LOADED is not).
+        dto.droneRacks = new ArrayList<>();
+        dto.shuttleBays = new ArrayList<>();
+        if (hideSecrets)
+            return dto;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRack))
+                continue;
+            DroneRack rack = (DroneRack) w;
+            DroneRackDto rd = new DroneRackDto();
+            rd.name = rack.getName();
+            rd.functional = rack.isFunctional();
+            rd.canFire = rack.canFire();
+            rd.drones = new ArrayList<>();
+            for (Drone d : rack.getAmmo()) {
+                DroneInRackDto dd = new DroneInRackDto();
+                dd.droneType = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+                dd.warheadDamage = d.getWarheadDamage();
+                dd.speed = d.getSpeed();
+                dd.endurance = d.getEndurance();
+                rd.drones.add(dd);
+            }
+            rd.reloadCount = rack.getNumberOfReloads();
+            rd.reloadingThisTurn = rack.isReloadingThisTurn();
+            rd.reloadDeckCrewCost = rack.getReloads().isEmpty() ? 0
+                    : DroneRack.reloadCost(rack.getReloads().get(0));
+            // Build flat pool: count available drones by type across all reload sets
+            Map<String, ReloadPoolEntryDto> poolMap = new LinkedHashMap<>();
+            for (List<Drone> set : rack.getReloads()) {
+                for (Drone d : set) {
+                    String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+                    ReloadPoolEntryDto entry = poolMap.computeIfAbsent(type, t -> {
+                        ReloadPoolEntryDto e = new ReloadPoolEntryDto();
+                        e.droneType = t;
+                        e.rackSize = d.getRackSize();
+                        e.count = 0;
+                        return e;
+                    });
+                    entry.count++;
+                }
+            }
+            rd.reloadPool = new ArrayList<>(poolMap.values());
+            dto.droneRacks.add(rd);
+        }
+
+        dto.shuttleBays = new ArrayList<>();
+        List<ShuttleBay> bays = ship.getShuttles().getBays();
+        for (int i = 0; i < bays.size(); i++) {
+            ShuttleBay bay = bays.get(i);
+            ShuttleBayDto bd = new ShuttleBayDto();
+            bd.bayIndex = i;
+            bd.canLaunch = bay.canLaunch(game.getAbsoluteImpulse());
+            bd.launchTubeCount = bay.getLaunchTubeCount();
+            bd.availableTubes = bay.getAvailableTubeCount(game.getAbsoluteImpulse());
+            bd.totalSpaces = bay.getTotalSpaces();
+            bd.destroyedSpaces = bay.getDestroyedSpaces();
+            bd.emptySpaces = bay.getEmptySpaceCount();
+            bd.shuttles = new ArrayList<>();
+            bd.spaces = new ArrayList<>();
+            List<com.sfb.systemgroups.ShuttleSpace> baySpaces = bay.getSpaces();
+            for (int j = 0; j < baySpaces.size(); j++) {
+                com.sfb.systemgroups.ShuttleSpace space = baySpaces.get(j);
+                ShuttleSpaceDto spaceDto = new ShuttleSpaceDto();
+                spaceDto.spaceIndex = j;
+                spaceDto.destroyed = space.isDestroyed();
+                spaceDto.empty = space.isEmpty();
+                com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
+                if (s != null) {
+                    ShuttleInBayDto sd = new ShuttleInBayDto();
+                    sd.name = s.getName();
+                    sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
+                    sd.maxSpeed = s.getMaxSpeed();
+                    sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
+                    if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+                        com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
+                        sd.armed = ss.isArmed();
+                        sd.armingTurnsComplete = ss.getArmingTurnsComplete();
+                        sd.warheadDamage = ss.getWarheadDamage();
+                    } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
+                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
+                        sd.wwChargeCount = admin.getWwChargeCount();
+                        sd.wwReady = admin.isWwReady();
+                    } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+                        com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
+                        sd.payload = sp.getPayload().stream()
+                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                                .collect(java.util.stream.Collectors.toList());
+                        sd.pendingPayload = sp.getPendingPayload().stream()
+                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                                .collect(java.util.stream.Collectors.toList());
+                        sd.maxDroneSpaces = sp.getMaxDroneSpaces();
+                        sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+                    }
+                    spaceDto.armed = s.isArmed();
+                    spaceDto.shuttle = sd;
+                    bd.shuttles.add(sd);
+                }
+                bd.spaces.add(spaceDto);
+            }
+            dto.shuttleBays.add(bd);
+        }
+
+        return dto;
+    }
+
+    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle) {
+        ShuttleDto dto = new ShuttleDto();
+        dto.name = shuttle.getName();
+        dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
+        dto.facing = shuttle.getFacing();
+        dto.speed = shuttle.getSpeed();
+        dto.maxSpeed = shuttle.getMaxSpeed();
+        dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        dto.parentShipName = shuttle.getParentShipName();
+        dto.crippled = shuttle.isCrippled();
+        if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
+            com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
+            dto.weapons = buildWeaponDtos(shuttle.getWeapons());
+            dto.hetUsed = fighter.isTacticalManeuverUsed();
+        }
+        dto.beingRecovered = shuttle.isBeingRecovered();
+        dto.landingPhase = shuttle.getLandingPhase().name();
+        dto.landedHexSide = shuttle.getLandedHexSide();
+        dto.holdCrew = shuttle.getHold().getCrew();
+        dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
+        dto.personnelCapacity = shuttle.getPersonnelCapacity();
+        return dto;
+    }
+
+    private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup) {
+        List<WeaponDto> list = new ArrayList<>();
+        for (com.sfb.weapons.Weapon w : wGroup.fetchAllWeapons()) {
+            WeaponDto wd = new WeaponDto();
+            wd.name = w.getName();
+            wd.designator = w.getDesignator();
+            wd.lastImpulseFired = w.getLastImpulseFired();
+            wd.functional = w.isFunctional();
+            wd.arcLabel = w.getArcLabel();
+            wd.arcMask = w.getArcs();
+            wd.readyToFire = w.isFunctional() && w.canFire();
+            wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
+            wd.shotsThisTurn = w.getShotsThisTurn();
+            wd.minImpulseGap = w.getMinImpulseGap();
+            if (w instanceof com.sfb.weapons.FighterFusion) {
+                com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
+                wd.chargesRemaining = ff.getChargesRemaining();
+                wd.canFireDouble = ff.canFireDouble();
+            }
+            if (w instanceof com.sfb.weapons.ADD) {
+                com.sfb.weapons.ADD add = (com.sfb.weapons.ADD) w;
+                wd.addShots = add.getShots();
+                wd.addReloads = add.getReloadsAvailable();
+                wd.addCapacity = add.getCapacity();
+            }
+            list.add(wd);
+        }
+        return list;
+    }
+
+    private static SuicideShuttleDto fromSuicideShuttle(com.sfb.objects.shuttles.SuicideShuttle ss) {
+        SuicideShuttleDto dto = new SuicideShuttleDto();
+        dto.name = ss.getName();
+        dto.location = ss.getLocation() != null ? ss.getLocation().toString() : null;
+        dto.facing = ss.getFacing();
+        dto.speed = ss.getSpeed();
+        dto.warheadDamage = ss.getWarheadDamage();
+        dto.armingTurnsComplete = ss.getArmingTurnsComplete();
+        dto.controllerFaction = controllerFaction(ss.getController());
+        dto.controllerName = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
+        dto.targetName = ss.getTarget() != null ? ss.getTarget().getName() : null;
+        dto.isIdentified = ss.isIdentified();
+        return dto;
+    }
+
+    private static ScatterPackDto fromScatterPack(com.sfb.objects.shuttles.ScatterPack pack) {
+        ScatterPackDto dto = new ScatterPackDto();
+        dto.name = pack.getName();
+        dto.location = pack.getLocation() != null ? pack.getLocation().toString() : null;
+        dto.facing = pack.getFacing();
+        dto.speed = pack.getSpeed();
+        dto.payload = pack.getPayload().stream()
+                .map(d -> d.getDroneType().name())
+                .collect(java.util.stream.Collectors.toList());
+        dto.released = pack.isReleased();
+        dto.controllerFaction = controllerFaction(pack.getController());
+        dto.controllerName = pack.getController() != null ? ((com.sfb.objects.Unit) pack.getController()).getName()
+                : null;
+        dto.targetName = pack.getTarget() != null ? pack.getTarget().getName() : null;
+        dto.isIdentified = pack.isIdentified();
+        return dto;
+    }
+
+    private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
+        DroneDto dto = new DroneDto();
+        dto.name = drone.getName();
+        dto.location = drone.getLocation() != null ? drone.getLocation().toString() : null;
+        dto.facing = drone.getFacing();
+        dto.speed = drone.getSpeed();
+        if (hideSecrets) {
+            // Type, warhead, and endurance are unknown until identified (labs)
+            dto.droneType = "?";
+            dto.warheadDamage = 0;
+            dto.hull = drone.getHull();
+            dto.maxHull = drone.getHull();
+            dto.damageTaken = 0;
+        } else {
+            dto.droneType = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
+            dto.warheadDamage = drone.getWarheadDamage();
+            dto.hull = drone.getHull();
+            dto.maxHull = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+            dto.damageTaken = dto.maxHull - drone.getHull();
+        }
+        dto.targetName = drone.getTarget() != null ? drone.getTarget().getName() : null;
+        dto.controllerFaction = controllerFaction(drone.getController());
+        dto.controllerName = drone.getController() != null ? drone.getController().getName() : null;
+        dto.launcherName = drone.getLauncherName();
+        dto.endurance = hideSecrets ? 0 : drone.getEndurance();
+        dto.launchImpulse = drone.getLaunchImpulse();
+        dto.isIdentified = drone.isIdentified();
+        return dto;
+    }
+
+    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean hideSecrets) {
+        PlasmaTorpedoDto dto = new PlasmaTorpedoDto();
+        dto.name = torp.getName();
+        dto.location = torp.getLocation() != null ? torp.getLocation().toString() : null;
+        dto.facing = torp.getFacing();
+        dto.speed = torp.getSpeed();
+        dto.currentStrength = torp.getCurrentStrength();
+        dto.controllerFaction = controllerFaction(torp.getController());
+        dto.controllerName = torp.getController() != null ? torp.getController().getName() : null;
+        if (hideSecrets) {
+            // Type, pseudo status, and target stay unknown until identified —
+            // a pseudo must be indistinguishable from a real torpedo (FP1.4)
+            dto.plasmaType = "?";
+            dto.pseudo = false;
+            dto.targetName = null;
+        } else {
+            dto.plasmaType = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
+            dto.pseudo = torp.isPseudoPlasma();
+            dto.targetName = torp.getTarget() != null ? torp.getTarget().getName() : null;
+        }
+        dto.distanceTraveled = torp.getDistanceTraveled();
+        dto.damageTaken = torp.getDamageTaken();
+        dto.launchImpulse = torp.getLaunchImpulse();
+        dto.isIdentified = torp.isIdentified();
+        return dto;
+    }
+
+    private static WildWeaselDto fromWildWeasel(com.sfb.objects.shuttles.WildWeaselShuttle ww) {
+        WildWeaselDto dto = new WildWeaselDto();
+        dto.name = ww.getName();
+        dto.location = ww.getLocation() != null ? ww.getLocation().toString() : null;
+        dto.facing = ww.getFacing();
+        dto.speed = ww.getSpeed();
+        dto.parentShipName = ww.getParentShipName();
+        dto.parentPlayer = ww.getOwner() != null ? ww.getOwner().getName() : null;
+        dto.exploding = ww.isExploding();
+        dto.postExplosion = ww.isPostExplosion();
+        return dto;
+    }
+
+    private static TerrainDto fromTerrain(Terrain t) {
+        TerrainDto dto = new TerrainDto();
+        dto.name = t.getName();
+        dto.location = t.getLocation() != null ? t.getLocation().toString() : null;
+        dto.terrainType = t.getTerrainType().name();
+        dto.radius = t.getRadius();
+        dto.tokenArt = t.getTokenArt();
+        if (!t.getRingBands().isEmpty())
+            dto.rings = t.getRingBands().toArray(new int[0][]);
+        return dto;
+    }
+
+    private static ObjectiveDto fromObjective(com.sfb.objects.Objective o) {
+        ObjectiveDto dto = new ObjectiveDto();
+        dto.name = o.getName();
+        // Effective location: the carrier's hex when carried, else its own
+        com.sfb.properties.Location loc = o.getEffectiveLocation();
+        dto.location = loc != null ? loc.toString() : null;
+        dto.carrierName = o.getCarrier() != null ? o.getCarrier().getName() : null;
+        dto.retrieval = o.getAllowedRetrieval().stream().map(Enum::name)
+                .collect(java.util.stream.Collectors.toList());
+        dto.secured = o.isSecured();
+        dto.tractoredBy = o.getTractoringUnit() != null ? o.getTractoringUnit().getName() : null;
+        dto.beingRecovered = o.isBeingRecovered();
+        dto.side = o.getSide();
+        com.sfb.Player owner = o.getCurrentOwner();
+        dto.ownerTeam = owner != null ? owner.getTeamName() : null;
+        return dto;
+    }
+
+    private static MineDto fromMine(SpaceMine mine) {
+        MineDto dto = new MineDto();
+        dto.name = mine.getName();
+        dto.location = mine.getLocation() != null ? mine.getLocation().toString() : null;
+        dto.active = mine.isActive();
+        dto.revealed = mine.isRevealed();
+        return dto;
+    }
+
+    private static String controllerFaction(Unit controller) {
+        if (controller instanceof Ship) {
+            com.sfb.properties.Faction f = ((Ship) controller).getFaction();
+            return f != null ? f.name() : null;
+        }
+        return null;
+    }
+}

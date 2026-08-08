@@ -37,7 +37,7 @@
     "damageControl": [4, 4, 2, 2, 2, 0],
     "sensor": [6, 6, 5, 3, 2, 0],
     "scanner": [0, 0, 1, 2, 4, 9],
-    "excess": 4
+    "excess": 6
   },
 
   "auxiliary": {

@@ -1,0 +1,69 @@
+{
+  "faction": "Federation",
+  "hull": "L-Q",
+  "name": "Peekaboo",
+  "serviceYear": 130,
+  "bpv": 81,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 2,
+  "bonusHets": 0,
+  
+  "shields": [20, 20, 20, 20, 20, 20],
+  
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 20,
+    "armor": 7
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "apr": 5,
+    "awr": 5,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 0, 2, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "probes": 0,
+    "slow": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 8,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+    { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "B", "arcs": ["FA"] }
+
+  ]
+}

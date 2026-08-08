@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "tokenArt": "romulan/kr.png",
 
   "shields": [30, 22, 15, 13, 15, 22],
   
@@ -44,9 +45,7 @@
     "tractors": 3,
     "labs": 4,
     "probes": 1,
-    "cloakCost": 20,
-    "tBombs": 1,
-    "dummyTBombs": 1
+    "cloakCost": 20
   },
 
   "shuttleBays": [

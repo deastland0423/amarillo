@@ -1,0 +1,64 @@
+{
+  "faction": "Romulan",
+  "hull": "WB+",
+  "name": "RIS Avian Fury",
+  "serviceYear": 140,
+  "bpv": 60,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "tokenArt": "romulan/wb.png",
+
+  "shields": [25, 25, 25, 25, 25, 25],
+  
+  "hullBoxes": {
+    "chull": 6,
+    "armor": 5
+  },
+  
+  "power": {
+    "impulse": 8,
+    "apr": 3,
+    "battery": 6
+  },
+  
+  "control": {
+    "bridge": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 4, 2, 0],
+    "scanner": [0, 0, 0, 3, 6, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "probes": 1,
+    "cloakCost": 6,
+    "nuclearSpaceMines": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 20,
+    "boardingParties": 5,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] }
+  ]
+}

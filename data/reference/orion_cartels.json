@@ -1,0 +1,17 @@
+{
+  "source": "Orion cartel territories (G15.44) — cartel Home Territory + Operating Zone, provided by user 2026-08-01.",
+  "note": "A cartel has UNLIMITED access to option weapons produced in its Home empire; up to 20% of the fleet's option mounts may draw from Operating-Zone empires; up to 10% from any other (Outside) empire. Empire names are canonical: Federation, Klingon, Kzinti, Lyran, LDR, Hydran, Romulan, Gorn, ISC, WYN. NOTE: 'Dragon' is listed with Operating Zone = Federation (same as its Home) — flagged for confirmation; as written it simply has no operating zone beyond its home.",
+  "cartels": [
+    { "name": "Cluster",      "home": "WYN",        "operatingZone": ["Kzinti", "Lyran", "Klingon"] },
+    { "name": "Daven",        "home": "Klingon",    "operatingZone": ["Hydran", "Lyran", "Kzinti", "Federation", "LDR"] },
+    { "name": "Hamilcar",     "home": "Klingon",    "operatingZone": ["Hydran", "Federation"] },
+    { "name": "Lion's Heart", "home": "Federation", "operatingZone": ["Kzinti"] },
+    { "name": "Pharoh",       "home": "Federation", "operatingZone": ["Klingon", "Romulan"] },
+    { "name": "Dragon",       "home": "Federation", "operatingZone": ["Federation"] },
+    { "name": "Penzance",     "home": "Federation", "operatingZone": ["Romulan"] },
+    { "name": "Stardust",     "home": "Gorn",       "operatingZone": ["Federation", "Romulan"] },
+    { "name": "Omega",        "home": "Gorn",       "operatingZone": ["ISC"] },
+    { "name": "Kublai",       "home": "ISC",        "operatingZone": ["Gorn", "Romulan"] },
+    { "name": "Cirentus-Ta",  "home": "Romulan",    "operatingZone": ["ISC"] }
+  ]
+}

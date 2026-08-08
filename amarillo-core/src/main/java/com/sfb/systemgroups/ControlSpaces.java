@@ -1,0 +1,277 @@
+package com.sfb.systemgroups;
+
+import java.util.Map;
+
+import com.sfb.objects.Unit;
+
+/**
+ * The control spaces of a ship.
+ * 
+ * @author Daniel Eastland
+ *
+ */
+public class ControlSpaces implements Systems {
+	private int bridge;
+	private int flag;
+	private int emer;
+	private int auxcon;
+	private int security;
+	
+	private int availableBridge;
+	private int availableFlag;
+	private int availableEmer;
+	private int availableAuxcon;
+	private int availableSecurity;
+
+	// Captured flags — separate from damaged. A captured room is still
+	// "undestroyed" but controlled by the enemy (D7.36, D7.50).
+	private int capturedBridge;
+	private int capturedFlag;
+	private int capturedEmer;
+	private int capturedAuxcon;
+	private int capturedSecurity;
+	
+	private Unit owningUnit = null;
+	
+	public ControlSpaces() {
+		
+	}
+	
+	public ControlSpaces(Unit owner) {
+		this.owningUnit = owner;
+	}
+	
+	// Given a map of <String, Integer> set the initial values for all control boxes.
+	// Acceptable keys for the map are: bridge, flag, emer, auxcon, security
+	@Override
+	public void init(Map<String, Object> values) {
+		// If map has matching value, get it. Otherwise set to 0.
+		availableBridge   = bridge   = values.get("bridge")   == null ? 0 : (Integer)values.get("bridge");
+		availableFlag     = flag     = values.get("flag")     == null ? 0 : (Integer)values.get("flag");
+		availableEmer     = emer     = values.get("emer")     == null ? 0 : (Integer)values.get("emer");
+		availableAuxcon   = auxcon   = values.get("auxcon")   == null ? 0 : (Integer)values.get("auxcon");
+		availableSecurity = security = values.get("security") == null ? 0 : (Integer)values.get("security");
+	}
+	
+	////// MAX (original) VALUE CALLS /////////
+	public int getBridge()   { return bridge; }
+	public int getFlag()     { return flag; }
+	public int getEmer()     { return emer; }
+	public int getAuxcon()   { return auxcon; }
+	public int getSecurity() { return security; }
+
+	////// CURRENT VALUE CALLS /////////
+	public int getAvailableBridge() {
+		return this.availableBridge;
+	}
+
+	public int getAvailableFlag() {
+		return this.availableFlag;
+	}
+
+	public int getAvailableEmer() {
+		return this.availableEmer;
+	}
+
+	public int getAvailableAuxcon() {
+		return this.availableAuxcon;
+	}
+
+	public int getAvailableSecurity() {
+		return this.availableSecurity;
+	}
+	
+	////// SETTERS (for client-side sync from server state) //////
+	public void setAvailableBridge(int v)  { availableBridge  = Math.max(0, Math.min(v, bridge)); }
+	public void setAvailableEmer(int v)    { availableEmer    = Math.max(0, Math.min(v, emer)); }
+	public void setAvailableAuxcon(int v)  { availableAuxcon  = Math.max(0, Math.min(v, auxcon)); }
+
+	////// DAMAGE CALLS ///////
+	public boolean damageBridge() {
+		if (availableBridge == 0) {
+			return false;
+		}
+		
+		availableBridge--;
+		return true;
+	}
+	
+	public boolean damageFlag() {
+		if (availableFlag == 0) {
+			return false;
+		}
+		
+		availableFlag--;
+		return true;
+	}
+	
+	public boolean damageEmer() {
+		if (availableEmer == 0) {
+			return false;
+		}
+		
+		availableEmer--;
+		return true;
+	}
+	
+	public boolean damageAuxcon() {
+		if (availableAuxcon == 0) {
+			return false;
+		}
+		
+		availableAuxcon--;
+		return true;
+	}
+	
+	public boolean damageSecurity() {
+		if (availableSecurity == 0) {
+			return false;
+		}
+		
+		availableSecurity--;
+		return true;
+	}
+	
+	///// REPAIR CALLS /////
+	public boolean repairBridge(int amount) {
+		if (availableBridge + amount > bridge) {
+			return false;
+		}
+		
+		availableBridge += amount;
+		return true;
+	}
+	
+	public boolean repairFlag(int amount) {
+		if (availableFlag + amount > flag) {
+			return false;
+		}
+		
+		availableFlag += amount;
+		return true;
+	}
+	
+	public boolean repairEmer(int amount) {
+		if (availableEmer + amount > emer) {
+			return false;
+		}
+		
+		availableEmer += amount;
+		return true;
+	}
+	
+	public boolean repairAuxcon(int amount) {
+		if (availableAuxcon + amount > auxcon) {
+			return false;
+		}
+		
+		availableAuxcon += amount;
+		return true;
+	}
+	
+	public boolean repairSecurity(int amount) {
+		if (availableSecurity + amount > security) {
+			return false;
+		}
+		
+		availableSecurity += amount;
+		return true;
+	}
+	
+	/**
+	 * If a ship is out of undamaged control spaces, it becomes uncontrolled.
+	 * @return True if no control spaces are undamaged, false otherwise.
+	 */
+	public boolean uncontrolled() {
+		return availableBridge + availableFlag + availableEmer + availableAuxcon == 0;
+	}
+
+	// --- Capture (D7.36, D7.50) ---
+
+	/**
+	 * Attempt to capture one box of the given room type.
+	 * A room can only be captured if it has undestroyed, uncaptured boxes.
+	 * Returns true if a box was captured, false if none available.
+	 */
+	public boolean captureRoom(RoomType type) {
+		switch (type) {
+			case BRIDGE:
+				if (availableBridge - capturedBridge <= 0) return false;
+				capturedBridge++;
+				return true;
+			case FLAG:
+				if (availableFlag - capturedFlag <= 0) return false;
+				capturedFlag++;
+				return true;
+			case EMER:
+				if (availableEmer - capturedEmer <= 0) return false;
+				capturedEmer++;
+				return true;
+			case AUXCON:
+				if (availableAuxcon - capturedAuxcon <= 0) return false;
+				capturedAuxcon++;
+				return true;
+			case SECURITY:
+				if (availableSecurity - capturedSecurity <= 0) return false;
+				capturedSecurity++;
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Returns true when every undestroyed control room has been captured —
+	 * the ship capture condition (D7.50).
+	 */
+	public boolean allControlRoomsCaptured() {
+		return uncapturedRooms() == 0;
+	}
+
+	/**
+	 * Number of undestroyed, uncaptured control room boxes (excluding security,
+	 * which has no offensive potential per D7.364).
+	 */
+	public int uncapturedRooms() {
+		int uncaptured = (availableBridge - capturedBridge)
+				+ (availableFlag    - capturedFlag)
+				+ (availableEmer    - capturedEmer)
+				+ (availableAuxcon  - capturedAuxcon);
+		return Math.max(0, uncaptured);
+	}
+
+	/** Casualty-point cost to capture one room box of the given type (D7.43). */
+	public static int captureCost(RoomType type) {
+		return type == RoomType.SECURITY ? 6 : 4;
+	}
+
+	/** Captured box counts — exposed so boarding combat can read them. */
+	public int getCapturedBridge()   { return capturedBridge; }
+	public int getCapturedFlag()     { return capturedFlag; }
+	public int getCapturedEmer()     { return capturedEmer; }
+	public int getCapturedAuxcon()   { return capturedAuxcon; }
+	public int getCapturedSecurity() { return capturedSecurity; }
+
+	/** Room types that can be captured. Ordered cheapest-first for auto-assignment. */
+	public enum RoomType { EMER, AUXCON, FLAG, BRIDGE, SECURITY }
+
+	@Override
+	public int fetchOriginalTotalBoxes() {
+		return bridge + flag + emer + auxcon + security;
+	}
+
+	@Override
+	public int fetchRemainingTotalBoxes() {
+		return availableBridge + availableFlag + availableEmer + availableAuxcon + availableSecurity;
+	}
+
+	@Override
+	public void cleanUp() {
+		// Control room damage and capture state persists across turns — nothing to reset here.
+	}
+
+	@Override
+	public Unit fetchOwningUnit() {
+		return this.owningUnit;
+	}
+}

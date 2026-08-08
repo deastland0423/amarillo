@@ -1,0 +1,72 @@
+{
+  "id": "TRAINING",
+  "name": "Standard Training Engagement",
+  "year": 175,
+  "description": "A standard Federation vs Klingon training scenario. Two ships per side, closing from opposite ends of the map.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "United Federation of Planets",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "CA+",
+          "shipName": "USS Enterprise",
+          "faction": "Federation",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "FFG",
+          "shipName": "USS Reliant",
+          "faction": "Federation",
+          "startHex": "1601",
+          "startHeading": "D",
+          "startSpeed": 20,
+          "weaponStatus": 2
+        }
+      ]
+    },
+    {
+      "name": "Klingon Empire",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D7Bu",
+          "shipName": "IKV Vengeance",
+          "startHex": "1212",
+          "faction": "Klingon",
+          "startHeading": "A",
+          "startSpeed": 16,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "F5",
+          "shipName": "IKV Swift",
+          "startHex": "1612",
+          "faction": "Klingon",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 2
+        }
+      ]
+    }
+  ],
+  "terrain": [
+    { "type": "PLANET", "name": "Donatu V", "hex": "1406" },
+    { "type": "ASTEROID", "hex": "1105" },
+    { "type": "ASTEROID", "hex": "1005" },
+    { "type": "ASTEROID", "hex": "0906" },
+    { "type": "ASTEROID", "hex": "0907" },
+    { "type": "ASTEROID", "hex": "1006" },
+    { "type": "ASTEROID", "hex": "0905" },
+    { "type": "ASTEROID", "hex": "0805" },
+    { "type": "ASTEROID", "hex": "0904" },
+    { "type": "ASTEROID", "hex": "0806" }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

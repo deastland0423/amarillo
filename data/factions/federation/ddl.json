@@ -9,6 +9,7 @@
   "moveCost": 0.5,
   "breakdown": 3,
   "bonusHets": 1,
+  "tokenArt": "federation/dd.png",
   
   "shields": [20, 18, 16, 16, 16, 18],
   
@@ -26,7 +27,7 @@
     "bridge": 2,
     "emergency": 1,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {

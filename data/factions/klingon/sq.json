@@ -1,0 +1,67 @@
+{
+  "faction": "Klingon",
+  "hull": "S-Q",
+  "name": "Patient Hunter",
+  "serviceYear": 130,
+  "bpv": 41,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 1,
+  "bonusHets": 0,
+  
+  "shields": [10, 10, 10, 10, 10, 10],
+  
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 10,
+    "armor": 3
+  },
+  
+  "power": {
+    "leftWarp": 2,
+    "rightWarp": 2,
+    "impulse": 1,
+    "apr": 4,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "security": 2,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 0],
+    "sensor": [6, 4, 0],
+    "scanner": [0, 0, 9],
+    "excess": 2
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "probes": 0,
+    "maxAccel": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 5,
+    "minCrew": 2
+  },
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]}
+  ]
+}

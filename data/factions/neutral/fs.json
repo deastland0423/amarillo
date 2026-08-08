@@ -1,0 +1,62 @@
+{
+  "faction": "Neutral",
+  "hull": "F-S",
+  "name": "Weeping Somnambulist",
+  "serviceYear": 120,
+  "bpv": 12,
+  "epv": 26,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 1,
+  "bonusHets": 0,
+  
+  "shields": [5, 5, 5, 5, 5, 5],
+  
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 25
+  },
+  
+  "power": {
+    "leftWarp": 2,
+    "rightWarp": 2,
+    "impulse": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 0],
+    "sensor": [6, 0],
+    "scanner": [0, 9],
+    "excess": 2
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 0,
+    "probes": 0,
+    "maxAccel": 3
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 1,
+    "boardingParties": 0,
+    "minCrew": 1
+  },
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] }
+
+  ]
+}
