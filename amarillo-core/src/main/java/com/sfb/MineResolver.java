@@ -300,6 +300,8 @@ class MineResolver {
                     log.add("    " + ship.getName() + " shield #" + shieldNum
                             + " hit for " + mineDamage
                             + (result.getBleed() > 0 ? "  bleed " + result.getBleed() : ""));
+                    // G13.552: a cloaked ship in a mine blast is exposed to lock-on.
+                    log.addAll(game.flashcubeLockOn(ship));
                 } else {
                     String dmgLog = game.applyDamageToUnit(mineDamage, unit, 0);
                     log.add("    " + dmgLog);

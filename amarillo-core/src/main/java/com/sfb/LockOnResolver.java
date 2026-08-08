@@ -121,6 +121,48 @@ class LockOnResolver {
         }
     }
 
+    /**
+     * "Flashcube" (G13.401/.552/.57): a fully cloaked ship that suffers ESG or mine
+     * damage is momentarily exposed. In the same impulse's Lock-On Stage (6B3), every
+     * enemy with line of sight and active fire control that does NOT already hold a
+     * lock-on may gain one — the D6.11 acquisition (automatic at sensor 6, else a roll)
+     * — and must immediately pass the G13.331 retention roll to keep it. A unit that
+     * already had a lock-on keeps it with no new roll (G13.401/.402). The lock-on then
+     * persists until the next retention roll like any other cloaked-ship lock-on.
+     */
+    List<String> resolveFlashcube(Ship cloaked) {
+        List<String> log = new ArrayList<>();
+        if (!isFullyCloaked(cloaked)) {
+            return log; // only a fully cloaked ship is exposed by the flash
+        }
+        DiceRoller dice = new DiceRoller();
+        for (Ship ship : ships) {
+            if (ship == cloaked || !ship.isActiveFireControl() || ship.hasLockOn(cloaked)) {
+                continue;
+            }
+            if (game.losBlocked(ship.getLocation(), cloaked.getLocation())) {
+                continue; // no lock-on through a planet (P2.322)
+            }
+            int sensor = ship.getSpecialFunctions().getSensor();
+            if (sensor < 6 && dice.rollOneDie() > sensor) {
+                log.add(ship.getName() + " cannot acquire the exposed " + cloaked.getName()
+                        + " — sensors too degraded (D6.11)");
+                continue;
+            }
+            int p = retentionProbability(ship, cloaked);
+            int roll = dice.rollOneDie();
+            if (roll <= p) {
+                ship.addLockOn(cloaked);
+                log.add(ship.getName() + " locks onto the exposed " + cloaked.getName()
+                        + " (flashcube, G13.401; retain roll " + roll + " ≤ " + p + ")");
+            } else {
+                log.add(ship.getName() + " fails to hold a lock-on to the exposed "
+                        + cloaked.getName() + " (roll " + roll + " > " + p + ", G13.331)");
+            }
+        }
+        return log;
+    }
+
     private void rollLockOn(Ship ship, Unit target, int sensorRating, DiceRoller dice) {
         if (sensorRating >= 6) {
             ship.addLockOn(target);

@@ -450,6 +450,15 @@ public class Game {
         return lockOnResolver.reacquisitionProbability(attacker, cloaked);
     }
 
+    /**
+     * "Flashcube" (G13.401/.552/.57): a fully cloaked ship damaged by an ESG or mine is
+     * momentarily exposed — enemies may gain and immediately roll to retain a lock-on.
+     * No-ops if the ship is not fully cloaked. Called from the damage sites.
+     */
+    List<String> flashcubeLockOn(Ship cloaked) {
+        return lockOnResolver.resolveFlashcube(cloaked);
+    }
+
     /** True when either unit holds the other in a tractor beam (G7.412). */
     boolean tractorLinkBetween(Ship a, com.sfb.objects.Unit b) {
         return tractorResolver.linkExistsBetween(a, b);

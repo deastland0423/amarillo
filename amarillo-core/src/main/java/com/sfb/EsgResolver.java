@@ -476,6 +476,8 @@ class EsgResolver {
             game.markShieldDamage(target, shieldNum, dmg);
             log.add("  " + esgShip.getName() + "'s ESG field struck " + target.getName()
                     + " (shield #" + shieldNum + ", " + dmg + " points, G23.51)");
+            // G23.62/G13.57: ESG damage exposes a cloaked ship to lock-on this impulse.
+            log.addAll(game.flashcubeLockOn(target));
 
         } else if (unit instanceof Drone) {
             Drone drone = (Drone) unit;
