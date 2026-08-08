@@ -1,9 +1,9 @@
 {
   "faction": "Lyran",
-  "hull": "CA",
-  "name": "Azure",
-  "serviceYear": 120,
-  "bpv": 131,
+  "hull": "CA+p",
+  "name": "Conciliator's Claw",
+  "serviceYear": 168,
+  "bpv": 139,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -13,7 +13,7 @@
   "note": "This is the workhorse of the Lyran Alliance.",
   "tokenArt": "lyran/ca.png",
   
-  "shields": [33, 22, 18, 17, 18, 22],
+  "shields": [33, 22, 22, 22, 22, 22],
   
   "hullBoxes": {
     "fhull": 8,
@@ -47,7 +47,8 @@
     "transporters": 4,
     "tractors": 4,
     "labs": 4,
-    "probes": 1
+    "probes": 1,
+    "derfacs": true
   },
 
   "shuttleBays": [
@@ -68,10 +69,10 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
-    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["RS"] },
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
