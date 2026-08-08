@@ -259,6 +259,14 @@ class EsgResolver {
                 continue;
             }
 
+            // G23.651/.6514 (also step 3): asteroids and ring material grind the field —
+            // 2 points per asteroid hex, 1 per ring hex it overlaps. Unlike mines this is
+            // NOT carried over to the ship if the field collapses (G23.6511).
+            grindTerrain(ship, esg, r, shipNow, impulse, log);
+            if (!esg.isActive()) {
+                continue; // ground down by the asteroid field / ring
+            }
+
             // G23.61 (priority step 4, ahead of units): the field detonates active mines
             // it sweeps over, spending strength and possibly collapsing before it reaches
             // any units.
@@ -310,6 +318,41 @@ class EsgResolver {
 
         for (Map.Entry<Unit, Integer> e : combined.entrySet()) {
             applyCombinedDamage(ship, e.getKey(), e.getValue(), log);
+        }
+    }
+
+    /**
+     * G23.651/.6514: asteroids and ring material on the field's ring grind it — 2 points
+     * per asteroid hex and 1 per ring hex, regardless of speed. The damage is absorbed by
+     * the field only; it is never carried over to the generating ship (G23.6511).
+     */
+    private void grindTerrain(Ship ship, ESG esg, int r, Location shipNow, int impulse, List<String> log) {
+        if (shipNow == null) {
+            return;
+        }
+        int damage = 0;
+        for (int x = shipNow.getX() - r; x <= shipNow.getX() + r; x++) {
+            for (int y = shipNow.getY() - r; y <= shipNow.getY() + r; y++) {
+                Location h = new Location(x, y);
+                if (MapUtils.getRange(shipNow, h) != r) {
+                    continue;
+                }
+                if (game.isAsteroidHex(h)) {
+                    damage += 2; // G23.651
+                } else if (game.isRingHex(h)) {
+                    damage += 1; // G23.6514
+                }
+            }
+        }
+        if (damage <= 0) {
+            return;
+        }
+        int absorbed = Math.min(damage, esg.getStrength());
+        esg.absorbDamage(absorbed);
+        log.add("  " + ship.getName() + "'s ESG field grinds through terrain (" + absorbed
+                + (esg.isActive() ? " absorbed" : " — collapsed") + ", G23.651)");
+        if (!esg.isActive()) {
+            esg.recordDrop(impulse);
         }
     }
 
