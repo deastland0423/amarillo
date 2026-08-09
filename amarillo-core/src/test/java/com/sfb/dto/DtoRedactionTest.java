@@ -209,6 +209,38 @@ public class DtoRedactionTest {
     }
 
     @Test
+    public void activeEsgField_strengthIsPublic_butStoredEnergyIsSecret() {
+        // G23.46: an active field's size and strength are known to every player. The
+        // generator's stored/allocated energy stays the owner's secret (G23.311).
+        com.sfb.weapons.ESG esg = new com.sfb.weapons.ESG();
+        esg.setDesignator("A");
+        esg.setHasCapacitor(true);
+        fed.getWeapons().addWeapon(esg);
+        esg.setStoredEnergy(7);
+        esg.activate(2, 0); // releases 5 → strength chart[2][5] = 17; capacitor keeps 2
+        assertEquals(17, esg.getStrength());
+        assertEquals(2, esg.getStoredEnergy());
+
+        GameStateDto.WeaponDto enemy = esgOf((GameStateDto.ShipDto)
+                find(new GameStateDto(game, "Klingons"), "USS Enterprise"));
+        assertTrue(enemy.esgActive);
+        assertEquals("strength is public (G23.46)", 17, enemy.esgStrength);
+        assertEquals("radius is public (G23.46)", 2, enemy.esgRadius);
+        assertEquals("stored energy stays secret (G23.311)", 0, enemy.esgStoredEnergy);
+
+        GameStateDto.WeaponDto owner = esgOf((GameStateDto.ShipDto)
+                find(new GameStateDto(game, "Federation"), "USS Enterprise"));
+        assertEquals("owner sees its own stored energy", 2, owner.esgStoredEnergy);
+        assertEquals(17, owner.esgStrength);
+    }
+
+    private GameStateDto.WeaponDto esgOf(GameStateDto.ShipDto ship) {
+        for (GameStateDto.WeaponDto w : ship.weapons)
+            if (w.esg) return w;
+        return null;
+    }
+
+    @Test
     public void omniscientView_seesEverything() {
         klingonSuicideShuttle();
 

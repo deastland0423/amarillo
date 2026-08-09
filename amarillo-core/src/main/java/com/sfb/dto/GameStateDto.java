@@ -996,16 +996,20 @@ public class GameStateDto {
                 wd.esgActive = esg.isActive();
                 wd.esgAnnounced = esg.isAnnounced();
                 wd.esgReleaseIn = esg.announceCountdown(game.getAbsoluteImpulse());
-                // Public info: an active field's radius is visible to all (the ring is on
-                // the map); a pending announcement reveals only that a field is coming
-                // (G23.311). Stored energy and field strength are always the owner's secret.
-                wd.esgRadius = esg.isActive() ? esg.getRadius() : -1;
+                // G23.46: once a field is ACTIVE its size AND strength are known to every
+                // player. Secret to opponents are only the generator's stored/allocated
+                // energy and a *pending* announcement's radius (G23.311).
+                if (esg.isActive()) {
+                    wd.esgRadius = esg.getRadius();
+                    wd.esgStrength = esg.getStrength(); // public (G23.46)
+                } else {
+                    wd.esgRadius = -1;
+                    wd.esgStrength = 0;
+                }
                 if (hideSecrets) {
                     wd.esgStoredEnergy = 0;
-                    wd.esgStrength = 0;
                 } else {
                     wd.esgStoredEnergy = esg.getStoredEnergy();
-                    wd.esgStrength = esg.getStrength();
                     if (esg.isAnnounced()) {
                         wd.esgRadius = esg.getAnnouncedRadius(); // owner sees where it will form
                     }
