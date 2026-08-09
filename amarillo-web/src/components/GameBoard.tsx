@@ -2806,6 +2806,14 @@ export default function GameBoard({ session, onLeave }: Props) {
   const phase      = gameState?.phase ?? '';
   const myShips    = new Set(gameState?.myShips ?? []);
   const movableNow = gameState?.movableNow ?? [];
+  // A movable unit is "mine" if it's one of my ships, or a fighter/shuttle whose parent
+  // ship is mine (myShips lists only ships, but fighters must move too).
+  const isMyMovable = (name: string): boolean => {
+    if (myShips.has(name)) return true;
+    const o = (gameState?.mapObjects ?? []).find(m => m.name === name) as
+      { parentShipName?: string | null } | undefined;
+    return !!(o && o.parentShipName && myShips.has(o.parentShipName));
+  };
   const isMovementPhase        = phase === 'Movement';
   const isFirePhase            = phase === 'Direct Fire';
   const isReinforcementPhase   = phase === 'Reinforcement';
@@ -2819,8 +2827,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  const myMovablePending       = movableNow.filter(n => myShips.has(n));
-  const opponentMovablePending = movableNow.filter(n => !myShips.has(n));
+  const myMovablePending       = movableNow.filter(isMyMovable);
+  const opponentMovablePending = movableNow.filter(n => !isMyMovable(n));
 
   // Snap to my next ship when movableNow changes during movement phase
   const prevMovableKeyRef = useRef('');
@@ -2829,11 +2837,12 @@ export default function GameBoard({ session, onLeave }: Props) {
     const key  = list.join(',');
     if (key === prevMovableKeyRef.current) return;
     prevMovableKeyRef.current = key;
-    const mine = list.find(name => (gameState?.myShips ?? []).includes(name));
+    const mine = list.find(isMyMovable);
     if (mine) {
       setSnapTo({ name: mine });
-      const shipObj = (gameState?.mapObjects ?? []).find(o => o.name === mine && o.type === 'SHIP');
-      if (shipObj) setSelected(shipObj);
+      // Select whatever must move — ship OR fighter/shuttle — so move orders are ready.
+      const obj = (gameState?.mapObjects ?? []).find(o => o.name === mine);
+      if (obj) setSelected(obj);
     }
   }, [gameState?.movableNow]);
 
