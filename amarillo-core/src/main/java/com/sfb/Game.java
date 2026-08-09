@@ -894,6 +894,8 @@ public class Game {
         allShips.addAll(destroyedShips);
 
         java.util.List<ShipVpRow> rows = new java.util.ArrayList<>();
+        // S2.20 step B: each side's Commander's Option spend is awarded to the enemy.
+        java.util.Map<String, Double> coiByTeam = new java.util.LinkedHashMap<>();
 
         for (Ship ship : allShips) {
             // Captured ships now belong to the captor (D7.50) — attribute the row
@@ -901,6 +903,7 @@ public class Game {
             String teamName = ship.isCaptured() && ship.getCapturedFromTeam() != null
                     ? ship.getCapturedFromTeam()
                     : ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
+            coiByTeam.merge(teamName, ship.getCoiSpend(), Double::sum); // the buyer's side
 
             // GABPV: base BPV (already includes y175 refit) + fighter BPV
             int fighterBpv = 0;
@@ -936,6 +939,17 @@ public class Game {
             for (String scorer : allTeams) {
                 if (!scorer.equals(row.teamName()))
                     vpByTeam.merge(scorer, row.vpScored(), Integer::sum);
+            }
+        }
+
+        // S2.20 step B: award each side's COI spend to every other side (paid to the enemy).
+        for (java.util.Map.Entry<String, Double> e : coiByTeam.entrySet()) {
+            int coi = VictoryCalculator.round(e.getValue());
+            if (coi <= 0)
+                continue;
+            for (String scorer : allTeams) {
+                if (!scorer.equals(e.getKey()))
+                    vpByTeam.merge(scorer, coi, Integer::sum);
             }
         }
 

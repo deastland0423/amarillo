@@ -465,6 +465,11 @@ public class ScenarioLoader {
                 }
             }
         }
+
+        // Record the COI spend so the enemy is awarded these points at scenario end
+        // (S2.20 step B). Option-mount weapon costs are excluded — they ride the ship's
+        // GABPV and are already scored under step C.
+        ship.setCoiSpend(spent);
     }
 
     /**

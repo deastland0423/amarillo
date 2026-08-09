@@ -117,6 +117,28 @@ public class VictoryScoreboardTest {
     }
 
     @Test
+    public void commanderOptionSpend_isAwardedToTheEnemy() {
+        // S2.20 step B: what you buy in the COI, you hand to the enemy as points.
+        fed.setCoiSpend(10);    // Fed bought 10 BPV of Commander's Options
+        klingon.setCoiSpend(3); // Klingon bought 3
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        // Both ships intact → no step-C points; only the COI transfer scores.
+        assertEquals("Klingons receive the Fed's COI spend",
+                10, teamScore(board, "Klingons").vpScored());
+        assertEquals("Federation receive the Klingon's COI spend",
+                3, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
+    public void coiSpend_roundsPerS224() {
+        klingon.setCoiSpend(4.5); // rounds up to 5 (S2.24)
+        Game.Scoreboard board = game.calculateVictoryPoints();
+        assertEquals(5, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
     public void crippledDisengagedShip_scoresAsCrippled() {
         // Highest-applicable: crippled (50%) beats disengaged (25%) — the old
         // inline Game code checked disengaged first and under-scored this case

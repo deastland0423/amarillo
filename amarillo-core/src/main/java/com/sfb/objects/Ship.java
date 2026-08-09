@@ -168,6 +168,7 @@ public class Ship extends Unit implements DroneController {
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
+	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
 
@@ -676,6 +677,14 @@ public class Ship extends Unit implements DroneController {
 	public int getEconomicBpv() {
 		return this.economicPointValue;
 	}
+
+	/**
+	 * Victory points this ship spent on Commander's Option Items (S2.20 step B / S3.2) —
+	 * extra boarding parties, commandos, T-bombs, etc. Awarded to the enemy in scoring.
+	 * Set by {@code ScenarioLoader.applyCoi}.
+	 */
+	public double getCoiSpend()          { return this.coiSpend; }
+	public void   setCoiSpend(double vp) { this.coiSpend = vp; }
 
 	public int getArmor() {
 		return this.armor;
