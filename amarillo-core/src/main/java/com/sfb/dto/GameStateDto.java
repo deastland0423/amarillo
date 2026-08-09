@@ -518,6 +518,7 @@ public class GameStateDto {
         public int gabpv;
         public String status; // "INTACT" | "DAMAGED" | "CRIPPLED" | "DISENGAGED" | "DESTROYED" | "CAPTURED"
         public int vpScored; // VPs scored against this ship by the enemy
+        public int coiSpend; // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
     }
 
     public static class TeamScoreDto {
@@ -525,6 +526,7 @@ public class GameStateDto {
         public int vpScored;
         public int vpAgainst;
         public String levelOfVictory;
+        public int coiForfeited; // total COI this side handed to the enemy (S2.20 B)
     }
 
     /**
@@ -585,6 +587,7 @@ public class GameStateDto {
                 r.gabpv = row.gabpv();
                 r.status = row.status();
                 r.vpScored = row.vpScored();
+                r.coiSpend = row.coiSpend();
                 dto.ships.add(r);
             }
             for (Game.TeamScore ts : sb.teams()) {
@@ -593,6 +596,7 @@ public class GameStateDto {
                 t.vpScored = ts.vpScored();
                 t.vpAgainst = ts.vpAgainst();
                 t.levelOfVictory = ts.levelOfVictory();
+                t.coiForfeited = ts.coiForfeited();
                 dto.teams.add(t);
             }
             // Objective control (no scoring yet — just who holds what)

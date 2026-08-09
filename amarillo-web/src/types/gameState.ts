@@ -345,6 +345,7 @@ export interface ShipVpRow {
   gabpv:     number;
   status:    'INTACT' | 'DAMAGED' | 'CRIPPLED' | 'DISENGAGED' | 'DESTROYED' | 'CAPTURED';
   vpScored:  number;
+  coiSpend:  number;  // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
 }
 
 export interface TeamScore {
@@ -352,6 +353,7 @@ export interface TeamScore {
   vpScored:       number;
   vpAgainst:      number;
   levelOfVictory: string;
+  coiForfeited:   number; // total COI this side handed to the enemy (S2.20 B)
 }
 
 export interface ObjectiveStanding {

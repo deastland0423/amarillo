@@ -129,6 +129,12 @@ public class VictoryScoreboardTest {
                 10, teamScore(board, "Klingons").vpScored());
         assertEquals("Federation receive the Klingon's COI spend",
                 3, teamScore(board, "Federation").vpScored());
+        // ...and the scoreboard itemizes it so players can see it.
+        assertEquals("Fed team's forfeited COI is shown", 10, teamScore(board, "Federation").coiForfeited());
+        assertEquals("Klingon team's forfeited COI is shown", 3, teamScore(board, "Klingons").coiForfeited());
+        Game.ShipVpRow fedRow = board.rows().stream()
+                .filter(r -> r.shipName().equals("USS Enterprise")).findFirst().orElseThrow();
+        assertEquals("per-ship COI spend is shown", 10, fedRow.coiSpend());
     }
 
     @Test

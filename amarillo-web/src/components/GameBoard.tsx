@@ -4143,6 +4143,12 @@ export default function GameBoard({ session, onLeave }: Props) {
                         {team.vpScored} VP — {team.levelOfVictory}
                       </span>
                     </div>
+                    {/* Commander's Options handed to the enemy (S2.20 B) */}
+                    {team.coiForfeited > 0 && (
+                      <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: '0.5rem' }}>
+                        Commander's Options: {team.coiForfeited} VP given to the enemy (S2.20 B)
+                      </div>
+                    )}
                     {/* Ship rows */}
                     {ships.map(s => (
                       <div key={s.shipName} style={{
@@ -4150,7 +4156,14 @@ export default function GameBoard({ session, onLeave }: Props) {
                         fontSize: '0.85rem', padding: '3px 0',
                         borderTop: '1px solid #21262d',
                       }}>
-                        <span style={{ color: '#e6edf3' }}>{s.shipName}</span>
+                        <span style={{ color: '#e6edf3' }}>
+                          {s.shipName}
+                          {s.coiSpend > 0 && (
+                            <span style={{ color: '#d29922', fontSize: '0.72rem', marginLeft: '0.5rem' }}>
+                              +{s.coiSpend} COI
+                            </span>
+                          )}
+                        </span>
                         <span>
                           <span style={{ color: STATUS_COLOR[s.status] ?? '#8b949e', marginRight: '0.75rem' }}>
                             {s.status}

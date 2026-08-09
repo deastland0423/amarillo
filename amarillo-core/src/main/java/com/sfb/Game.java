@@ -877,11 +877,14 @@ public class Game {
     public record ShipVpRow(
             String shipName, String teamName, int gabpv,
             String status, // "DESTROYED" | "CAPTURED" | "DISENGAGED" | "CRIPPLED" | "DAMAGED" | "INTACT"
-            int vpScored // points scored AGAINST this ship by the enemy
+            int vpScored, // points scored AGAINST this ship by the enemy
+            int coiSpend  // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
     ) {
     }
 
-    public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory) {
+    public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory,
+                            int coiForfeited // total COI this side handed to the enemy (S2.20 B)
+    ) {
     }
 
     public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
@@ -924,7 +927,8 @@ public class Game {
             String status = VictoryCalculator.status(ship).name();
             int vpScored = VictoryCalculator.pointsFor(ship, gabpv);
 
-            rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored));
+            rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored,
+                    VictoryCalculator.round(ship.getCoiSpend())));
         }
 
         // Sum VPs per team: a team scores the VPs from ships belonging to OTHER teams
@@ -960,7 +964,8 @@ public class Game {
                     .filter(t -> !t.equals(team))
                     .mapToInt(vpByTeam::get).sum();
             teams.add(new TeamScore(team, myScore, theirScore,
-                    VictoryCalculator.victoryLevel(myScore, theirScore).getLabel()));
+                    VictoryCalculator.victoryLevel(myScore, theirScore).getLabel(),
+                    VictoryCalculator.round(coiByTeam.getOrDefault(team, 0.0))));
         }
 
         return new Scoreboard(rows, teams);
