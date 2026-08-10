@@ -78,6 +78,12 @@ public class Game {
     private int mapCols = 42; // map width in hexes
     private int mapRows = 32; // map height in hexes
     private int maxTurns = 0; // 0 = no turn limit
+    // Victory scoring method (S2.20 STANDARD = A+B+C, S2.201 MODIFIED = B+C). Defaults to
+    // MODIFIED so a game not built from a scenario applies no step-A handicap.
+    private String victoryConditionsType = "MODIFIED";
+    // Sides that had a unit disengage (or surrender) by end of Turn 2 — they forfeit the
+    // step-A handicap (S2.20 A).
+    private final java.util.Set<String> fledByTurn2 = new java.util.HashSet<>();
     private Map<String, Set<String>> destructionEdgesByTeam = new HashMap<>(); // teamName → destruction edges
     private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions
                                                                                     // (A–F) for accel disengage
@@ -210,6 +216,9 @@ public class Game {
         mapCols = scenario.mapCols > 0 ? scenario.mapCols : 42;
         mapRows = scenario.mapRows > 0 ? scenario.mapRows : 32;
         maxTurns = scenario.maxTurns >= 0 ? scenario.maxTurns : 0;
+        victoryConditionsType = scenario.victoryConditions != null && scenario.victoryConditions.type != null
+                ? scenario.victoryConditions.type : "STANDARD"; // SFB default is Standard (S2.20)
+        fledByTurn2.clear();
         destructionEdgesByTeam.clear();
         destructionDirectionsByTeam.clear();
         if (scenario.sides != null) {
@@ -815,6 +824,22 @@ public class Game {
         return currentPhase;
     }
 
+    /** Victory scoring method for this game: "STANDARD" (S2.20) or "MODIFIED" (S2.201). */
+    public String getVictoryConditionsType() { return victoryConditionsType; }
+
+    public void setVictoryConditionsType(String type) {
+        this.victoryConditionsType = type != null ? type : "MODIFIED";
+    }
+
+    /**
+     * Record that {@code team} had a unit disengage or surrender by end of Turn 2 — it
+     * forfeits the step-A handicap (S2.20 A). Called from the disengagement path.
+     */
+    public void noteFledByTurn2(String team) {
+        if (team != null)
+            fledByTurn2.add(team);
+    }
+
     public int getCurrentTurn() {
         return (clock.getImpulse() - 1) / 32 + 1;
     }
@@ -899,6 +924,8 @@ public class Game {
         java.util.List<ShipVpRow> rows = new java.util.ArrayList<>();
         // S2.20 step B: each side's Commander's Option spend is awarded to the enemy.
         java.util.Map<String, Double> coiByTeam = new java.util.LinkedHashMap<>();
+        // S2.20 step A: each side's total ship Combat BPV (for the lower-force handicap).
+        java.util.Map<String, Integer> combatBpvByTeam = new java.util.LinkedHashMap<>();
 
         for (Ship ship : allShips) {
             // Captured ships now belong to the captor (D7.50) — attribute the row
@@ -907,6 +934,7 @@ public class Game {
                     ? ship.getCapturedFromTeam()
                     : ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
             coiByTeam.merge(teamName, ship.getCoiSpend(), Double::sum); // the buyer's side
+            combatBpvByTeam.merge(teamName, ship.getBattlePointValue(), Integer::sum); // step-A force total
 
             // GABPV: base BPV (already includes y175 refit) + fighter BPV
             int fighterBpv = 0;
@@ -968,6 +996,22 @@ public class Game {
                 continue; // free/unclaimed — no one scores it
             allTeams.add(owner.getTeamName());
             vpByTeam.merge(owner.getTeamName(), o.getPoints(), Integer::sum);
+        }
+
+        // S2.20 step A (STANDARD only, two sides): the side with the lower total ship
+        // Combat BPV scores the difference — but only if none of its units disengaged or
+        // surrendered by the end of Turn 2. Modified Victory Conditions (S2.201) skip this.
+        if ("STANDARD".equalsIgnoreCase(victoryConditionsType) && combatBpvByTeam.size() == 2) {
+            java.util.Iterator<java.util.Map.Entry<String, Integer>> it = combatBpvByTeam.entrySet().iterator();
+            java.util.Map.Entry<String, Integer> a = it.next();
+            java.util.Map.Entry<String, Integer> b = it.next();
+            java.util.Map.Entry<String, Integer> lower = a.getValue() <= b.getValue() ? a : b;
+            java.util.Map.Entry<String, Integer> higher = lower == a ? b : a;
+            int diff = higher.getValue() - lower.getValue();
+            if (diff > 0 && !fledByTurn2.contains(lower.getKey())) {
+                allTeams.add(lower.getKey());
+                vpByTeam.merge(lower.getKey(), diff, Integer::sum);
+            }
         }
 
         java.util.List<TeamScore> teams = new java.util.ArrayList<>();

@@ -165,6 +165,44 @@ public class VictoryScoreboardTest {
     }
 
     @Test
+    public void standardStepA_lowerBpvSideScoresTheDifference() {
+        // S2.20 A: the smaller force gets the Combat-BPV difference (STANDARD only).
+        game.setVictoryConditionsType("STANDARD");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("weaker side gets the 30-point handicap", 30,
+                teamScore(board, "Federation").vpScored());
+        assertEquals(0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
+    public void modifiedConditions_haveNoStepAHandicap() {
+        game.setVictoryConditionsType("MODIFIED");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("Modified (S2.201) drops step A", 0, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
+    public void stepA_isForfeitedIfTheWeakerSideFledByTurnTwo() {
+        game.setVictoryConditionsType("STANDARD");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+        game.noteFledByTurn2("Federation"); // a Fed unit disengaged by end of Turn 2
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("fleeing by Turn 2 forfeits the handicap (S2.20 A)",
+                0, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
     public void coiSpend_roundsPerS224() {
         klingon.setCoiSpend(4.5); // rounds up to 5 (S2.24)
         Game.Scoreboard board = game.calculateVictoryPoints();

@@ -99,9 +99,16 @@ class DisengagementResolver {
         // Safe exit — any carried objectives are secured to this player (permanent)
         List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
+        noteFledIfEarly(ship);
         ship.setLocation(null);
         String msg = ship.getName() + " has disengaged by acceleration (C7.1)";
         return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
+    }
+
+    /** S2.20 A: a unit that disengages by end of Turn 2 forfeits its side's handicap. */
+    private void noteFledIfEarly(Ship ship) {
+        if (game.getCurrentTurn() <= 2 && ship.getOwner() != null)
+            game.noteFledByTurn2(ship.getOwner().getTeamName());
     }
 
     // -------------------------------------------------------------------------
@@ -140,6 +147,7 @@ class DisengagementResolver {
             return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
         List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
+        noteFledIfEarly(ship);
         ship.setLocation(null);
         String msg = ship.getName() + " has disengaged by separation (C7.2)";
         return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
