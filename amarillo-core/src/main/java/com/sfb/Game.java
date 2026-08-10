@@ -957,6 +957,19 @@ public class Game {
             }
         }
 
+        // Generic objective scoring: the side controlling an objective at scenario end
+        // scores its point value. (Scenarios with special/conditional scoring are handled
+        // per-scenario and are not covered here.)
+        for (com.sfb.objects.Objective o : objectives) {
+            if (o.getPoints() <= 0)
+                continue;
+            Player owner = o.getCurrentOwner();
+            if (owner == null || owner.getTeamName() == null)
+                continue; // free/unclaimed — no one scores it
+            allTeams.add(owner.getTeamName());
+            vpByTeam.merge(owner.getTeamName(), o.getPoints(), Integer::sum);
+        }
+
         java.util.List<TeamScore> teams = new java.util.ArrayList<>();
         for (String team : allTeams) {
             int myScore = vpByTeam.get(team);

@@ -4174,7 +4174,7 @@ export default function GameBoard({ session, onLeave }: Props) {
                         </span>
                       </div>
                     ))}
-                    {/* Objectives held by this team (no points yet — just control) */}
+                    {/* Objectives held by this team — the controller scores their point value */}
                     {(() => {
                       const held = gameState.scoreboard!.objectives.filter(o => o.ownerTeam === team.teamName);
                       if (held.length === 0) return null;
@@ -4188,7 +4188,14 @@ export default function GameBoard({ session, onLeave }: Props) {
                               display: 'flex', justifyContent: 'space-between',
                               fontSize: '0.85rem', padding: '3px 0', borderTop: '1px solid #21262d',
                             }}>
-                              <span style={{ color: '#e0b34a' }}>{o.name}</span>
+                              <span style={{ color: '#e0b34a' }}>
+                                {o.name}
+                                {o.points > 0 && (
+                                  <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: '0.5rem' }}>
+                                    +{o.points} vp
+                                  </span>
+                                )}
+                              </span>
                               <span style={{ color: o.state === 'SECURED' ? '#3fb950' : '#f0c040', fontWeight: 600 }}>
                                 {o.state === 'SECURED' ? 'secured' : 'carried'}
                               </span>

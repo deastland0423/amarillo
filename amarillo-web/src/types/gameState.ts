@@ -360,6 +360,7 @@ export interface ObjectiveStanding {
   name:      string;
   ownerTeam: string | null;                    // null = free / unclaimed
   state:     'SECURED' | 'CARRIED' | 'FREE';
+  points:    number;                           // VP its controller scores at scenario end
 }
 
 export interface Scoreboard {

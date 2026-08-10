@@ -27,6 +27,7 @@ public class Objective extends Marker implements Tractorable {
     // (1..6, A..F) it occupies. 0 = not tied to a planet face (a normal drifting
     // object). Retrieval then requires that side to be visible from the ship.
     private int side;
+    private int points;                   // VP to the controlling side at scenario end (S2, generic objective scoring)
 
     // While free, an objective can be caught in a tractor beam and drawn aboard
     // via the friendly-shuttle rotation system (J1.621 / SH35.452). These track
@@ -57,6 +58,10 @@ public class Objective extends Marker implements Tractorable {
     public void setCarrier(Ship carrier) { this.carrier = carrier; }
 
     /** Planet hex side (1..6) this party occupies, or 0 if not on a planet face. */
+    public int getPoints() { return points; }
+
+    public void setPoints(int points) { this.points = points; }
+
     public int getSide() { return side; }
 
     public void setSide(int side) { this.side = side; }

@@ -530,14 +530,15 @@ public class GameStateDto {
     }
 
     /**
-     * One objective's current control, for the scoreboard. No points are scored
-     * yet (per-scenario victory scoring is deferred) — this is a plain ownership
-     * listing so each side can see who holds what.
+     * One objective's current control and its point value. The controlling side
+     * scores {@code points} at scenario end (generic objective scoring); scenarios
+     * with special/conditional scoring are handled separately.
      */
     public static class ObjectiveStandingDto {
         public String name;
         public String ownerTeam;   // controlling team, or null if free/unclaimed
         public String state;       // "SECURED" | "CARRIED" | "FREE"
+        public int    points;      // VP its controller scores at scenario end (0 = none)
     }
 
     public static class ScoreboardDto {
@@ -599,13 +600,14 @@ public class GameStateDto {
                 t.coiForfeited = ts.coiForfeited();
                 dto.teams.add(t);
             }
-            // Objective control (no scoring yet — just who holds what)
+            // Objective control + point value (the controller scores `points` at end)
             for (com.sfb.objects.Objective o : game.getObjectives()) {
                 ObjectiveStandingDto os = new ObjectiveStandingDto();
                 os.name = o.getName();
                 com.sfb.Player owner = o.getCurrentOwner();
                 os.ownerTeam = owner != null ? owner.getTeamName() : null;
                 os.state = o.isSecured() ? "SECURED" : o.isCarried() ? "CARRIED" : "FREE";
+                os.points = o.getPoints();
                 dto.objectives.add(os);
             }
             this.scoreboard = dto;

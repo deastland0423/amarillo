@@ -138,6 +138,33 @@ public class VictoryScoreboardTest {
     }
 
     @Test
+    public void controlledObjective_scoresItsValueForTheController() {
+        com.sfb.objects.Objective o = new com.sfb.objects.Objective("Cargo Pod", 15, 15);
+        o.setPoints(30);
+        o.setCarrier(fed); // Fed carries it → Fed is the current controller
+        game.getObjectives().add(o);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("the controller scores the objective's value",
+                30, teamScore(board, "Federation").vpScored());
+        assertEquals("the enemy scores nothing from it",
+                0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
+    public void freeObjective_scoresForNobody() {
+        com.sfb.objects.Objective o = new com.sfb.objects.Objective("Cargo Pod", 15, 15);
+        o.setPoints(30); // valuable, but uncontrolled at scenario end
+        game.getObjectives().add(o);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals(0, teamScore(board, "Federation").vpScored());
+        assertEquals(0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
     public void coiSpend_roundsPerS224() {
         klingon.setCoiSpend(4.5); // rounds up to 5 (S2.24)
         Game.Scoreboard board = game.calculateVictoryPoints();

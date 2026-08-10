@@ -150,6 +150,7 @@ public class ScenarioLoader {
                     setup.name != null ? setup.name : "Objective-" + setup.hex, loc.getX(), loc.getY());
             obj.setSurvivesCarrierDestruction(setup.survivesDestruction);
             obj.setSide(setup.side);
+            obj.setPoints(setup.points);
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default
