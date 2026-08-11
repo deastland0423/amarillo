@@ -222,6 +222,15 @@ public abstract class Weapon {
 	}
 
 	/**
+	 * G24.1342: firing most weapons blinds one of the scout's powered channels (G24.13).
+	 * The exceptions (G24.1341) — phaser-3, ADD, and rack-launched drones / suicide /
+	 * scatter shuttles — override this to false.
+	 */
+	public boolean blindsScoutChannels() {
+		return true;
+	}
+
+	/**
 	 * Register that this weapon fired on the current impulse and turn.
 	 */
 	protected void registerFire() {

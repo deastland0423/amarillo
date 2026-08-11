@@ -394,6 +394,10 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
+		// Scout function channels (G24.14) — 1 energy powers a channel for the turn.
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
+			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
+
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
 			transporters.bankEnergy(energyAllocated.getTransporters());
@@ -1231,6 +1235,43 @@ public class Ship extends Unit implements DroneController {
 	/// WEAPONS ///
 	public Weapons getWeapons() {
 		return this.weapons;
+	}
+
+	// --- Scout function channels (G24.0) ---
+
+	/** All scout function channels (special sensors) on this ship. */
+	public List<com.sfb.weapons.ScoutChannel> getScoutChannels() {
+		List<com.sfb.weapons.ScoutChannel> result = new java.util.ArrayList<>();
+		for (Weapon w : weapons.fetchAllWeapons())
+			if (w instanceof com.sfb.weapons.ScoutChannel)
+				result.add((com.sfb.weapons.ScoutChannel) w);
+		return result;
+	}
+
+	/**
+	 * Blind one powered channel because a weapon fired (G24.13/.131): an unblinded
+	 * powered channel if one exists, otherwise extend the powered channel recovering
+	 * first. Bases never blind their own channels (G24.135). Returns the channel blinded,
+	 * or null if there was none to blind.
+	 */
+	public com.sfb.weapons.ScoutChannel blindOneScoutChannel(int currentImpulse) {
+		if (isBase)
+			return null; // G24.135
+		com.sfb.weapons.ScoutChannel target = null;
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
+			if (!c.isFunctional() || !c.isPowered())
+				continue;
+			if (!c.isBlinded(currentImpulse)) {
+				c.blind(currentImpulse); // fresh blind of an unblinded channel
+				return c;
+			}
+			// track the one recovering first, in case all powered channels are blinded
+			if (target == null || c.getBlindedUntilImpulse() < target.getBlindedUntilImpulse())
+				target = c;
+		}
+		if (target != null)
+			target.blind(currentImpulse); // all blinded → extend the earliest-recovering (G24.131)
+		return target;
 	}
 
 	/// SHUTTLES ///

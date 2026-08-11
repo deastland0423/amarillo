@@ -42,6 +42,9 @@ public class Energy {
 
 	// ESG generators (G23.21): points allocated this turn, keyed by ESG designator.
 	private java.util.Map<String, Integer> esgEnergy = new java.util.LinkedHashMap<>();
+
+	// Scout function channels powered this turn (G24.14): designators, 1 energy each.
+	private java.util.List<String> poweredChannels = new java.util.ArrayList<>();
 	
 	// Probes
 	private int probes;
@@ -192,6 +195,15 @@ public class Energy {
 
 	public void setEsgEnergy(String designator, int points) {
 		esgEnergy.put(designator, points);
+	}
+
+	/** Scout channels powered this turn (designators, 1 energy each, G24.14). */
+	public java.util.List<String> getPoweredChannels() {
+		return poweredChannels;
+	}
+
+	public void setPoweredChannels(java.util.List<String> designators) {
+		this.poweredChannels = designators != null ? designators : new java.util.ArrayList<>();
 	}
 
 	public int getProbes() {

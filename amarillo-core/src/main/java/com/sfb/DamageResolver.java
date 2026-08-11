@@ -634,6 +634,18 @@ class DamageResolver {
                     .addAll(uimFiredDisruptors);
         }
 
+        // G24.13: each blinding weapon the scout fires blinds one of its powered channels.
+        if (attackerShip != null && !attackerShip.getScoutChannels().isEmpty()) {
+            for (Weapon w : selected) {
+                if (w.isFunctional() && w.blindsScoutChannels()) {
+                    com.sfb.weapons.ScoutChannel blinded = attackerShip.blindOneScoutChannel(currentImpulse);
+                    if (blinded != null)
+                        log.append("  scout channel blinded by weapons fire until impulse ")
+                                .append(blinded.getBlindedUntilImpulse()).append(" (G24.13)\n");
+                }
+            }
+        }
+
         if (target instanceof Ship) {
             // Queue the volley — damage applied after defenders spend reserve power.
             // (When Base is implemented add: || target instanceof Base)

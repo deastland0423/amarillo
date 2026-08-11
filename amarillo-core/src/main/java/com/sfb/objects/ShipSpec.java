@@ -172,6 +172,8 @@ public class ShipSpec {
         public String addType;
         /** For ADD: number of shots */
         public int shots;
+        /** For ScoutChannel: DAC hit location of the weapon it replaced (G24.17), e.g. "torp", "phaser". */
+        public String dacHitLocation;
     }
 
     // -------------------------------------------------------------------------

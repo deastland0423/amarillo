@@ -115,6 +115,10 @@ public class GameStateDto {
         public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
         public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
         // ESG generator (G23.0)
+        // Scout function channel (G24.0)
+        public boolean scoutChannel;   // true if this "weapon" is a scout channel / special sensor
+        public boolean channelPowered; // powered this turn (G24.14)
+        public boolean channelBlinded; // blinded by weapons fire this impulse (G24.13)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -993,6 +997,12 @@ public class GameStateDto {
             }
             if (w instanceof com.sfb.weapons.Fusion) {
                 wd.cooldown = ((com.sfb.weapons.Fusion) w).isOnCooldown();
+            }
+            if (w instanceof com.sfb.weapons.ScoutChannel) {
+                com.sfb.weapons.ScoutChannel c = (com.sfb.weapons.ScoutChannel) w;
+                wd.scoutChannel = true;
+                wd.channelPowered = c.isPowered();
+                wd.channelBlinded = c.isBlinded(game.getAbsoluteImpulse());
             }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
