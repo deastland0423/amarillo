@@ -288,7 +288,7 @@ class SeekerControl {
             // G13.3343: no outside ECCM, but built-in ECCM (D6.393) counts —
             // EW adjustment = signed chart of (cloaked ECM − built-in ECCM)
             int ew = LockOnResolver.signedNetEcmShift(
-                    cloaked.getEcmAllocated() - s.getBuiltInEccm());
+                    cloaked.getEcmAllocated() + cloaked.getLentEcm() - s.getBuiltInEccm());
             int p = 6
                     - ew
                     - LockOnResolver.rangeFactor(MapUtils.getRange((Unit) s, cloaked))

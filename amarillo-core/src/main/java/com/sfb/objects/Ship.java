@@ -727,6 +727,21 @@ public class Ship extends Unit implements DroneController {
 		return ewCircuits.getEccm();
 	}
 
+	// --- EW lent to this ship by scouts this impulse (G24.21). Recomputed by Game. ---
+	private int lentEcm;
+	private int lentEccm;
+
+	/** ECM lent to this ship by operational scout channels (added to its effective ECM). */
+	public int getLentEcm()  { return lentEcm; }
+	public int getLentEccm() { return lentEccm; }
+
+	public void clearLentEw() { lentEcm = 0; lentEccm = 0; }
+
+	public void addLentEw(int ecm, int eccm) {
+		lentEcm  += Math.max(0, ecm);
+		lentEccm += Math.max(0, eccm);
+	}
+
 	/** Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only. */
 	public void setEccmAllocated(int eccm) {
 		ewCircuits.force(ewCircuits.getEcm(), eccm, specialFunctions.getSensor());

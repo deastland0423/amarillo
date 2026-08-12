@@ -522,7 +522,7 @@ class SeekerMover {
         int targetEcm = terrainEcm;
         if (target instanceof Ship) {
             Ship tship = (Ship) target;
-            targetEcm += tship.getEcmAllocated() + tship.getWwEcmBonus() + tship.getStealthEcm();
+            targetEcm += tship.getEcmAllocated() + tship.getLentEcm() + tship.getWwEcmBonus() + tship.getStealthEcm();
         }
         int controllerEccm = 0;
         Unit controller = seeker.getController();
@@ -530,7 +530,7 @@ class SeekerMover {
             Ship cship = (Ship) controller;
             // D19.12: ECCM cannot be *used* under PFC, even if energy was spent on it
             if (cship.isActiveFireControl())
-                controllerEccm = cship.getEccmAllocated();
+                controllerEccm = cship.getEccmAllocated() + cship.getLentEccm();
         }
         int netEcm = Math.max(0, targetEcm - controllerEccm - seeker.getBuiltInEccm());
         return (int) Math.floor(Math.sqrt(netEcm));

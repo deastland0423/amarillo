@@ -398,7 +398,7 @@ class DamageResolver {
         int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), planet.getLocation());
         int groundClutter = 2; // P2.52 ground-clutter ECM
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), planet.getLocation());
-        int eccm = attacker.getEccmAllocated();
+        int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
         int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, groundClutter + terrainEcm - eccm)));
         int adjustedRange = range + attacker.getScanner();
 
@@ -526,12 +526,12 @@ class DamageResolver {
         // P3.33: asteroid/ring hexes on the line of fire add natural ECM to the
         // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
+        int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() + targetShip.getLentEcm() : 0;
         int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
         int targetEcm = allocatedEcm + stealthEcm + terrainEcm;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
-                ? attackerShip.getEccmAllocated()
+                ? attackerShip.getEccmAllocated() + attackerShip.getLentEccm()
                 : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = (int) Math.floor(Math.sqrt(netEcm));

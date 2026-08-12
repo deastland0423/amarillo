@@ -18,8 +18,16 @@ public class ScoutChannel extends Weapon {
     /** Impulses a firing blinds a channel (G24.13). */
     public static final int BLIND_DURATION = 32;
 
+    /** Most EW (ECM+ECCM combined) one channel can lend to a unit (G24.2112). */
+    public static final int MAX_LEND = 6;
+
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
+
+    // EW lending (G24.21): this channel carries EW the scout generated to one recipient.
+    private String lendTarget; // recipient ship name, or null if not lending
+    private int lentEcm;        // ECM points carried this turn
+    private int lentEccm;       // ECCM points carried this turn
 
     public ScoutChannel() {
         setType("ScoutChannel");
@@ -70,4 +78,26 @@ public class ScoutChannel extends Weapon {
     public boolean isOperational(int currentImpulse) {
         return isFunctional() && powered && !isBlinded(currentImpulse);
     }
+
+    // --- EW lending (G24.21) ---
+
+    /**
+     * Assign this channel to lend {@code ecm}/{@code eccm} EW to {@code target} (G24.21).
+     * A channel carries at most {@link #MAX_LEND} EW total (G24.2112).
+     */
+    public void setLend(String target, int ecm, int eccm) {
+        this.lendTarget = target;
+        this.lentEcm  = Math.max(0, ecm);
+        this.lentEccm = Math.max(0, eccm);
+    }
+
+    public void clearLend() {
+        lendTarget = null;
+        lentEcm = 0;
+        lentEccm = 0;
+    }
+
+    public String getLendTarget() { return lendTarget; }
+    public int getLentEcm()       { return lentEcm; }
+    public int getLentEccm()      { return lentEccm; }
 }

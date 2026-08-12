@@ -255,8 +255,8 @@ class LockOnResolver {
      * retention bonus.
      */
     private static int ewAdjustment(Ship attacker, Ship cloaked) {
-        int eccm = attacker.isActiveFireControl() ? attacker.getEccmAllocated() : 0;
-        return signedNetEcmShift(cloaked.getEcmAllocated() - eccm);
+        int eccm = attacker.isActiveFireControl() ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
+        return signedNetEcmShift(cloaked.getEcmAllocated() + cloaked.getLentEcm() - eccm);
     }
 
     /**

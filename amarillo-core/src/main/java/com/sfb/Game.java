@@ -418,6 +418,7 @@ public class Game {
         movedThisImpulse.clear();
         prevLocations.clear();
         movedShuttlesThisImpulse.clear();
+        resolveChannelLends(); // G24.21: apply scout EW lends for the turn's first impulse
         // The Initial Activity Phase only hosts tractor rotations (G7.7); skip the
         // empty phase (and its all-players Ready round-trip) when nothing is held.
         currentPhase = tractorResolver.anyTractorLinksExist()
@@ -493,6 +494,8 @@ public class Game {
         // P3.33: asteroid/ring hexes between actor and target add natural ECM
         // along the line of fire.
         int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+        // Tractor/transporter EW (D6.372) — lent EW handling here is governed by
+        // D6.373/D6.3146; left out until those rules are confirmed (G24.21 deferral).
         int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
 
         if (target instanceof com.sfb.objects.Objective) {
@@ -732,6 +735,7 @@ public class Game {
                     movedThisImpulse.clear();
                     prevLocations.clear();
                     movedShuttlesThisImpulse.clear();
+                    resolveChannelLends(); // G24.21: re-apply scout EW lends (reflects blinding)
 
                     // TAC earn on Speed-4 schedule: impulses 2, 8, 16, 24 (C5.231)
                     int localImp = clock.getLocalImpulse();
@@ -838,6 +842,35 @@ public class Game {
     public void noteFledByTurn2(String team) {
         if (team != null)
             fledByTurn2.add(team);
+    }
+
+    /**
+     * Recompute EW lent between ships via scout channels (G24.21). A channel lends its EW
+     * only while operational (powered, unblinded, undamaged — G24.13/.14), and lending to
+     * another unit requires the scout to hold a lock-on to it (G24.218). Self-protection
+     * (G24.28) needs no lock-on but cannot lend ECCM to oneself (G24.283).
+     */
+    public void resolveChannelLends() {
+        int impulse = clock.getImpulse();
+        for (Ship s : ships)
+            s.clearLentEw();
+        for (Ship scout : ships) {
+            for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels()) {
+                if (c.getLendTarget() == null || !c.isOperational(impulse))
+                    continue;
+                if (c.getLentEcm() == 0 && c.getLentEccm() == 0)
+                    continue;
+                Ship recipient = null;
+                for (Ship s : ships)
+                    if (s.getName().equals(c.getLendTarget())) { recipient = s; break; }
+                if (recipient == null)
+                    continue;
+                if (recipient == scout)
+                    recipient.addLentEw(c.getLentEcm(), 0);           // G24.283: no ECCM to self
+                else if (scout.hasLockOn(recipient))
+                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm()); // G24.218: needs lock-on
+            }
+        }
     }
 
     public int getCurrentTurn() {
