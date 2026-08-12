@@ -49,7 +49,7 @@ interface ShipAlloc {
   capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
   esgEnergy:            Record<string, number>;   // ESG designator → energy this turn (G23.21)
   poweredChannels:      string[];                 // scout channel designators to power (1 energy each, G24.14)
-  channelEwPoints:      Record<string, number>;   // scout channel designator → extra EW points to lend (G24.211)
+  scoutEwPoints:        number;                    // ship-level pool of EW the scout generates to lend (G24.211)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
@@ -105,7 +105,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
                        : 0,   // default to a full top-off; player can dial it down
     esgEnergy:       {},
     poweredChannels: [],
-    channelEwPoints: {},
+    scoutEwPoints:   0,
     energizeCaps:    false,
     weaponArming:    arming,
     droneReloads:        {},
@@ -179,8 +179,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
-  // scout channels: 1 energy to power each, plus any EW points committed for lending (G24.14/.211)
-  const channels = alloc.poweredChannels.reduce((sum, k) => sum + 1 + (alloc.channelEwPoints[k] ?? 0), 0);
+  // scout channels: 1 energy per powered channel (G24.14) + the ship's EW-lending pool (G24.211)
+  const channels = alloc.poweredChannels.length + alloc.scoutEwPoints;
   const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg + channels;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
@@ -465,7 +465,7 @@ export default function EnergyAllocationDialog({
           capacitorCharge:       a.capCharge,
           esgEnergy:             Object.keys(a.esgEnergy).length > 0 ? a.esgEnergy : undefined,
           poweredChannels:       a.poweredChannels.length > 0 ? a.poweredChannels : undefined,
-          channelEwPoints:       Object.keys(a.channelEwPoints).length > 0 ? a.channelEwPoints : undefined,
+          scoutEwPoints:         a.scoutEwPoints > 0 ? a.scoutEwPoints : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
@@ -858,49 +858,41 @@ export default function EnergyAllocationDialog({
               const key  = w.designator ?? w.name;
               const on   = alloc.poweredChannels.includes(key);
               const dead = !w.functional;
-              const ew   = alloc.channelEwPoints[key] ?? 0;
               return (
-                <div key={w.name} className="ea-het-row"
+                <label key={w.name} className="ea-het-row"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: dead ? 0.5 : 1 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      disabled={dead}
-                      onChange={ev => setAlloc(a => {
-                        const next = { ...a.channelEwPoints };
-                        if (!ev.target.checked) delete next[key]; // powering off drops its EW pool
-                        return {
-                          ...a,
-                          poweredChannels: ev.target.checked
-                            ? [...a.poweredChannels, key]
-                            : a.poweredChannels.filter(k => k !== key),
-                          channelEwPoints: next,
-                        };
-                      })}
-                    />
-                    <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy)'}</span>
-                  </label>
-                  {on && !dead && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                      <span style={{ fontSize: '0.85em', opacity: 0.8 }}>+EW</span>
-                      <select
-                        value={ew}
-                        onChange={ev => {
-                          const v = Number(ev.target.value);
-                          setAlloc(a => ({
-                            ...a,
-                            channelEwPoints: { ...a.channelEwPoints, [key]: v },
-                          }));
-                        }}
-                      >
-                        {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </label>
-                  )}
-                </div>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={dead}
+                    onChange={ev => setAlloc(a => ({
+                      ...a,
+                      poweredChannels: ev.target.checked
+                        ? [...a.poweredChannels, key]
+                        : a.poweredChannels.filter(k => k !== key),
+                    }))}
+                  />
+                  <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy)'}</span>
+                </label>
               );
             })}
+            {/* Ship-level EW pool the scout generates to lend (G24.211): 1 energy per point,
+                drawn through any channel during the turn — you aim it from the sidebar. */}
+            <label className="ea-het-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <span style={{ opacity: 0.85 }}>EW points to generate (lending pool):</span>
+              <input
+                type="number"
+                min={0}
+                max={18}
+                value={alloc.scoutEwPoints}
+                style={{ width: 52 }}
+                onChange={ev => {
+                  const v = Math.max(0, Math.min(18, Number(ev.target.value) || 0));
+                  setAlloc(a => ({ ...a, scoutEwPoints: v }));
+                }}
+              />
+              <span style={{ fontSize: '0.8em', opacity: 0.65 }}>1 energy each (G24.211)</span>
+            </label>
           </div>
         )}
 

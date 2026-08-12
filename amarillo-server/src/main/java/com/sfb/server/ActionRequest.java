@@ -39,7 +39,11 @@ public class ActionRequest {
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
-    private Map<String, Integer> channelEwPoints;       // scout channel designator → extra EW points (G24.211)
+    private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
+    private String              channelDesignator;      // LEND_EW: which scout channel to aim (G24.21)
+    private String              lendTarget;             // LEND_EW: unit name to lend EW to (self allowed, G24.28)
+    private int                 lendEcm;                // LEND_EW: ECM points to lend via the channel
+    private int                 lendEccm;               // LEND_EW: ECCM points to lend via the channel
     private String              esgDesignator;          // ANNOUNCE_ESG/CANCEL_ESG/DEACTIVATE_ESG: which ESG
     private int                 esgRadius;              // ANNOUNCE_ESG: field radius 0–3 (G23.41)
     private int                 esgReleaseAmount;       // ANNOUNCE_ESG: capacitor release 1–5 (G23.242); 0 = all
@@ -122,8 +126,16 @@ public class ActionRequest {
     public void    setEsgEnergy(Map<String, Integer> m)    { this.esgEnergy = m; }
     public java.util.List<String> getPoweredChannels()     { return poweredChannels; }
     public void    setPoweredChannels(java.util.List<String> c) { this.poweredChannels = c; }
-    public Map<String, Integer> getChannelEwPoints()       { return channelEwPoints; }
-    public void    setChannelEwPoints(Map<String, Integer> m) { this.channelEwPoints = m; }
+    public int     getScoutEwPoints()                      { return scoutEwPoints; }
+    public void    setScoutEwPoints(int p)                 { this.scoutEwPoints = p; }
+    public String  getChannelDesignator()                  { return channelDesignator; }
+    public void    setChannelDesignator(String d)          { this.channelDesignator = d; }
+    public String  getLendTarget()                         { return lendTarget; }
+    public void    setLendTarget(String t)                 { this.lendTarget = t; }
+    public int     getLendEcm()                            { return lendEcm; }
+    public void    setLendEcm(int e)                       { this.lendEcm = e; }
+    public int     getLendEccm()                           { return lendEccm; }
+    public void    setLendEccm(int e)                      { this.lendEccm = e; }
     public String  getEsgDesignator()                      { return esgDesignator; }
     public void    setEsgDesignator(String d)              { this.esgDesignator = d; }
     public int     getEsgRadius()                          { return esgRadius; }

@@ -37,7 +37,9 @@ export interface WeaponState {
   scoutChannel?:          boolean;  // scout function channel / special sensor (G24.0)
   channelPowered?:        boolean;  // powered this turn (G24.14)
   channelBlinded?:        boolean;  // blinded by weapons fire (G24.13)
-  channelEw?:             number;   // EW points committed to this channel at EA (G24.211)
+  channelLendTarget?:     string;   // unit this channel is lending EW to, or null (G24.21)
+  channelLentEcm?:        number;   // ECM points this channel is lending (G24.21)
+  channelLentEccm?:       number;   // ECCM points this channel is lending (G24.21)
   esg?:                   boolean;  // ESG generator (G23.0)
   esgHasCapacitor?:       boolean;  // G23.24 capacitor: holds up to 7, releases a chosen 1–5
   esgStoredEnergy?:       number;   // energy held (0–maxStorage)
@@ -200,6 +202,8 @@ export interface ShipObject extends MapObjectBase {
   sensorRating:     number;
   ecmAllocated:     number;
   eccmAllocated:    number;
+  scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
+  scoutEwLent?:     number;   // of the pool, how many are currently lent out (G24.2111)
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;

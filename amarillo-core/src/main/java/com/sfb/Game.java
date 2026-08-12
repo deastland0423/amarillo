@@ -873,6 +873,83 @@ public class Game {
         }
     }
 
+    /**
+     * Aim one scout channel's EW lend for the turn (G24.21). The channel lends any split of
+     * ECM/ECCM totalling no more than its allocated pool (G24.211) to a single friendly unit
+     * it holds a lock-on to (G24.218), or to itself (ECM only, G24.283). The split can be
+     * changed during the turn; a 0/0 request clears the assignment. Re-resolves immediately.
+     */
+    public ActionResult assignChannelLend(Ship scout, String channelDesignator,
+                                          String targetName, int ecm, int eccm) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+
+        int wantEcm = Math.max(0, ecm);
+        int wantEccm = Math.max(0, eccm);
+
+        // Clearing the lend (0/0) needs no target.
+        if (wantEcm + wantEccm == 0) {
+            channel.clearLend();
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
+        }
+
+        Ship target = null;
+        for (Ship s : ships)
+            if (s.getName().equals(targetName)) {
+                target = s;
+                break;
+            }
+        if (target == null)
+            return ActionResult.fail("No unit named '" + targetName + "'");
+
+        boolean self = target == scout;
+        if (self)
+            wantEccm = 0; // G24.283: a scout cannot lend ECCM to itself
+        // Lending positive EW to an enemy is offensive EW (G24.219) — deferred.
+        if (!self && scout.getOwner() != null && target.getOwner() != null && !isSameTeam(scout, target))
+            return ActionResult.fail("A scout can only lend EW to a friendly unit or itself"
+                    + " (offensive EW G24.219 not yet supported)");
+
+        int req = wantEcm + wantEccm;
+        if (req == 0) { // e.g. an ECCM-only lend to self — nothing left to lend
+            channel.clearLend();
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
+        }
+        // A single channel lends at most 6 EW, ECM+ECCM combined (G24.2112).
+        if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " EW points (G24.2112)");
+        // Total lends across all channels can't exceed the scout's generated pool (G24.2111):
+        // each EW point is used by only one unit. Exclude this channel's current draw.
+        int otherLent = scout.getScoutEwLent() - channel.getLentTotal();
+        if (otherLent + req > scout.getScoutEwPool())
+            return ActionResult.fail("Scout generated only " + scout.getScoutEwPool()
+                    + " EW points; " + otherLent + " already lent (G24.2111)");
+
+        channel.setLend(targetName, wantEcm, wantEccm);
+        resolveChannelLends();
+
+        if (!self && !scout.hasLockOn(target))
+            return ActionResult.ok("Channel " + channelDesignator + " assigned to " + targetName
+                    + " — inactive until you lock on (G24.218)");
+        return ActionResult.ok("Channel " + channelDesignator + " lending " + wantEcm + " ECM / "
+                + (self ? 0 : wantEccm) + " ECCM to " + targetName);
+    }
+
     public int getCurrentTurn() {
         return (clock.getImpulse() - 1) / 32 + 1;
     }

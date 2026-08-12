@@ -45,8 +45,9 @@ public class Energy {
 
 	// Scout function channels powered this turn (G24.14): designators, 1 energy each.
 	private java.util.List<String> poweredChannels = new java.util.ArrayList<>();
-	// Additional EW committed to each channel at EA (G24.211): designator → extra points (0..6).
-	private java.util.Map<String, Integer> channelEwPoints = new java.util.HashMap<>();
+	// EW points the scout generates this turn for lending (G24.211/.31): a ship-level pool,
+	// 1 energy per point, drawn through channels during the turn — not tied to a channel at EA.
+	private int scoutEwPoints = 0;
 	
 	// Probes
 	private int probes;
@@ -208,13 +209,13 @@ public class Energy {
 		this.poweredChannels = designators != null ? designators : new java.util.ArrayList<>();
 	}
 
-	/** Additional EW committed to each channel at EA (G24.211): designator → extra points. */
-	public java.util.Map<String, Integer> getChannelEwPoints() {
-		return channelEwPoints;
+	/** EW points the scout generates this turn for lending (ship-level pool, G24.211/.31). */
+	public int getScoutEwPoints() {
+		return scoutEwPoints;
 	}
 
-	public void setChannelEwPoints(java.util.Map<String, Integer> points) {
-		this.channelEwPoints = points != null ? points : new java.util.HashMap<>();
+	public void setScoutEwPoints(int points) {
+		this.scoutEwPoints = Math.max(0, points);
 	}
 
 	public int getProbes() {

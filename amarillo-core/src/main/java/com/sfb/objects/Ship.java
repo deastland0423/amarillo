@@ -394,14 +394,14 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
-		// Scout function channels (G24.14) — 1 energy powers a channel; extra points (G24.211)
-		// become the EW pool it can lend. An unpowered channel holds no pool.
+		// Scout function channels (G24.14) — 1 energy powers a channel. The EW the scout can
+		// lend (G24.211) is a ship-level pool generated at EA (1 energy/point), not tied to any
+		// one channel; last turn's lend assignments clear so they can't spend this turn's pool.
 		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
-			boolean on = energyAllocated.getPoweredChannels().contains(c.getDesignator());
-			c.setPowered(on);
-			Integer ew = energyAllocated.getChannelEwPoints().get(c.getDesignator());
-			c.setAllocatedEw(on && ew != null ? ew : 0);
+			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
+			c.clearLend();
 		}
+		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
@@ -745,6 +745,23 @@ public class Ship extends Unit implements DroneController {
 	public void addLentEw(int ecm, int eccm) {
 		lentEcm  += Math.max(0, ecm);
 		lentEccm += Math.max(0, eccm);
+	}
+
+	// --- Scout EW lending pool (G24.211): points this scout generated at EA to lend out. ---
+	private int scoutEwPool;
+
+	/** EW points this scout generated this turn for lending (ship-level pool, G24.211/.31). */
+	public int getScoutEwPool() { return scoutEwPool; }
+
+	public void setScoutEwPool(int points) { this.scoutEwPool = Math.max(0, points); }
+
+	/** EW points currently drawn from the pool across all this scout's channels (G24.2111). */
+	public int getScoutEwLent() {
+		int total = 0;
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
+			if (c.getLendTarget() != null)
+				total += c.getLentTotal();
+		return total;
 	}
 
 	/** Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only. */

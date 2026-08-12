@@ -2007,10 +2007,18 @@ function ShipSidebar({
                 )}
               </div>
 
-              {/* Scout channels (G24.0) — powered / blinded / destroyed state */}
+              {/* Scout channels (G24.0) — powered / blinded / destroyed state, the ship's EW
+                  lending pool (G24.211), and what each channel is currently lending (G24.21). */}
               {(ship.weapons ?? []).some(w => w.scoutChannel) && (
                 <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
-                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>Scout Channels (G24.0)</div>
+                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>
+                    Scout Channels (G24.0)
+                    {(ship.scoutEwPool ?? 0) > 0 && (
+                      <span style={{ color: '#8b949e', fontWeight: 400 }}>
+                        {' '}— EW pool {ship.scoutEwLent ?? 0}/{ship.scoutEwPool}
+                      </span>
+                    )}
+                  </div>
                   {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
                     const state = !w.functional ? 'destroyed'
                                 : w.channelBlinded ? 'blinded'
@@ -2020,12 +2028,17 @@ function ShipSidebar({
                                 : state === 'blinded'   ? '#f0c040'
                                 : state === 'powered'   ? '#3fb950'
                                 : '#8b949e';
+                    const ecmLent  = w.channelLentEcm ?? 0;
+                    const eccmLent = w.channelLentEccm ?? 0;
                     return (
                       <div key={w.name} style={{ marginBottom: 2 }}>
                         <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
                         <span style={{ color }}>{state}</span>
-                        {state === 'powered' && (w.channelEw ?? 0) > 0 && (
-                          <span style={{ color: '#58c8ff' }}> · {w.channelEw} EW</span>
+                        {(ecmLent + eccmLent) > 0 && w.channelLendTarget && (
+                          <span style={{ color: '#58c8ff' }}>
+                            {' → '}{w.channelLendTarget} ({ecmLent} ECM
+                            {eccmLent > 0 ? `/${eccmLent} ECCM` : ''})
+                          </span>
                         )}
                       </div>
                     );

@@ -117,9 +117,11 @@ public class GameStateDto {
         // ESG generator (G23.0)
         // Scout function channel (G24.0)
         public boolean scoutChannel;   // true if this "weapon" is a scout channel / special sensor
-        public boolean channelPowered; // powered this turn (G24.14)
-        public boolean channelBlinded; // blinded by weapons fire this impulse (G24.13)
-        public int     channelEw;      // EW points committed to this channel at EA (G24.211)
+        public boolean channelPowered;   // powered this turn (G24.14)
+        public boolean channelBlinded;   // blinded by weapons fire this impulse (G24.13)
+        public String  channelLendTarget; // unit this channel is lending EW to, or null (G24.21)
+        public int     channelLentEcm;    // ECM points this channel is lending (G24.21)
+        public int     channelLentEccm;   // ECCM points this channel is lending (G24.21)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -227,6 +229,8 @@ public class GameStateDto {
         public int sensorRating;
         public int ecmAllocated;
         public int eccmAllocated;
+        public int scoutEwPool;   // EW points this scout generated to lend this turn (G24.211)
+        public int scoutEwLent;   // of the pool, how many are currently lent out (G24.2111)
         public List<WeaponDto> weapons;
         public List<DroneRackDto> droneRacks;
         public List<ShuttleBayDto> shuttleBays;
@@ -856,6 +860,8 @@ public class GameStateDto {
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
         dto.eccmAllocated = ship.getEccmAllocated();
+        dto.scoutEwPool = ship.getScoutEwPool();
+        dto.scoutEwLent = ship.getScoutEwLent();
         dto.tBombs = ship.getTBombs();
         dto.dummyTBombs = ship.getDummyTBombs();
         dto.nuclearSpaceMines = ship.getNuclearSpaceMines();
@@ -1004,7 +1010,9 @@ public class GameStateDto {
                 wd.scoutChannel = true;
                 wd.channelPowered = c.isPowered();
                 wd.channelBlinded = c.isBlinded(game.getAbsoluteImpulse());
-                wd.channelEw = c.getAllocatedEw();
+                wd.channelLendTarget = c.getLendTarget();
+                wd.channelLentEcm = c.getLentEcm();
+                wd.channelLentEccm = c.getLentEccm();
             }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;

@@ -116,6 +116,62 @@ public class EwLendingTest {
     }
 
     @Test
+    public void assignChannelLend_appliesAnyEcmEccmSplitWithinTheCapAndLockOn() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.setScoutEwPool(6);
+        scout.addLockOn(friend);
+
+        Game.ActionResult r = game.assignChannelLend(scout, "1", "Friend", 4, 2); // 4+2 = 6 (cap)
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals(4, friend.getLentEcm());
+        assertEquals(2, friend.getLentEccm());
+    }
+
+    @Test
+    public void assignChannelLend_rejectsMoreThanSixOnOneChannel() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.setScoutEwPool(12);
+        scout.addLockOn(friend);
+
+        Game.ActionResult r = game.assignChannelLend(scout, "1", "Friend", 5, 3); // 8 > 6 (G24.2112)
+        assertFalse("a channel lends at most 6", r.isSuccess());
+        assertEquals("nothing applied", 0, friend.getLentEcm());
+    }
+
+    @Test
+    public void assignChannelLend_rejectsMoreThanTheGeneratedPool() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.setScoutEwPool(3); // only generated 3 EW
+        scout.addLockOn(friend);
+
+        Game.ActionResult r = game.assignChannelLend(scout, "1", "Friend", 5, 0); // 5 > pool 3 (G24.2111)
+        assertFalse("can't lend more than the scout generated", r.isSuccess());
+        assertEquals(0, friend.getLentEcm());
+    }
+
+    @Test
+    public void assignChannelLend_selfDropsEccm_andZeroClears() {
+        Game game = new Game();
+        Ship scout = scoutWithChannel(game, "Scout", 10, 10);
+        scout.setScoutEwPool(6);
+
+        Game.ActionResult r = game.assignChannelLend(scout, "1", "Scout", 4, 3); // self (G24.28)
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals("self ECM applies", 4, scout.getLentEcm());
+        assertEquals("no ECCM to self (G24.283)", 0, scout.getLentEccm());
+
+        game.assignChannelLend(scout, "1", "Scout", 0, 0); // clear
+        assertEquals("0/0 clears the lend", 0, scout.getLentEcm());
+        assertNull(scout.getScoutChannels().get(0).getLendTarget());
+    }
+
+    @Test
     public void lentEwCountsInTractorTransporterAttempts() {
         // Lent EW is part of a ship's total EW (D6.373), so it factors into the D6.34
         // tractor/transporter shift (D6.372) — both the actor's and the target's.

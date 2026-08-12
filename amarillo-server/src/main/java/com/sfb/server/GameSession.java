@@ -685,13 +685,11 @@ public class GameSession {
                 }
 
                 // Scout function channels (G24.14) — power the requested channels (1 energy each),
-                // plus any EW points committed to each channel for lending (G24.211).
+                // plus the ship-level pool of EW points the scout generates for lending (G24.211).
                 if (request.getPoweredChannels() != null) {
                     e.setPoweredChannels(request.getPoweredChannels());
                 }
-                if (request.getChannelEwPoints() != null) {
-                    e.setChannelEwPoints(request.getChannelEwPoints());
-                }
+                e.setScoutEwPoints(request.getScoutEwPoints());
 
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();
@@ -1583,6 +1581,18 @@ public class GameSession {
                     return ActionResult.fail("Ship not found: " + request.getShipName());
                 ActionResult r = game.announceEsg(ship, request.getEsgDesignator(),
                         request.getEsgRadius(), request.getEsgReleaseAmount());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "LEND_EW": {
+                // Aim one scout channel's EW lend for the turn (G24.21); 0/0 clears it.
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignChannelLend(scout, request.getChannelDesignator(),
+                        request.getLendTarget(), request.getLendEcm(), request.getLendEccm());
                 if (r.isSuccess())
                     appendCombatLog(r.getMessage());
                 return r;
