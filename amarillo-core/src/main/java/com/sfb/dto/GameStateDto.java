@@ -119,6 +119,7 @@ public class GameStateDto {
         public boolean scoutChannel;   // true if this "weapon" is a scout channel / special sensor
         public boolean channelPowered; // powered this turn (G24.14)
         public boolean channelBlinded; // blinded by weapons fire this impulse (G24.13)
+        public int     channelEw;      // EW points committed to this channel at EA (G24.211)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -1003,6 +1004,7 @@ public class GameStateDto {
                 wd.scoutChannel = true;
                 wd.channelPowered = c.isPowered();
                 wd.channelBlinded = c.isBlinded(game.getAbsoluteImpulse());
+                wd.channelEw = c.getAllocatedEw();
             }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;

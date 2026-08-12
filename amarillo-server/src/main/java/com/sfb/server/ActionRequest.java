@@ -39,6 +39,7 @@ public class ActionRequest {
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
+    private Map<String, Integer> channelEwPoints;       // scout channel designator → extra EW points (G24.211)
     private String              esgDesignator;          // ANNOUNCE_ESG/CANCEL_ESG/DEACTIVATE_ESG: which ESG
     private int                 esgRadius;              // ANNOUNCE_ESG: field radius 0–3 (G23.41)
     private int                 esgReleaseAmount;       // ANNOUNCE_ESG: capacitor release 1–5 (G23.242); 0 = all
@@ -121,6 +122,8 @@ public class ActionRequest {
     public void    setEsgEnergy(Map<String, Integer> m)    { this.esgEnergy = m; }
     public java.util.List<String> getPoweredChannels()     { return poweredChannels; }
     public void    setPoweredChannels(java.util.List<String> c) { this.poweredChannels = c; }
+    public Map<String, Integer> getChannelEwPoints()       { return channelEwPoints; }
+    public void    setChannelEwPoints(Map<String, Integer> m) { this.channelEwPoints = m; }
     public String  getEsgDesignator()                      { return esgDesignator; }
     public void    setEsgDesignator(String d)              { this.esgDesignator = d; }
     public int     getEsgRadius()                          { return esgRadius; }

@@ -124,6 +124,43 @@ public class ScoutChannelTest {
     }
 
     @Test
+    public void energyAllocation_powersChannelsAndSetsTheirEwPool() {
+        Ship ship = scoutWith(2);
+        ship.getScoutChannels().forEach(c -> c.setPowered(false)); // start clean
+
+        com.sfb.systemgroups.Energy alloc = new com.sfb.systemgroups.Energy();
+        alloc.setPoweredChannels(java.util.Arrays.asList("1", "2"));
+        java.util.Map<String, Integer> ew = new java.util.HashMap<>();
+        ew.put("1", 5);   // channel 1 gets 5 EW to lend (G24.211)
+        ew.put("2", 9);   // over the cap → clamped to 6 (G24.2112)
+        alloc.setChannelEwPoints(ew);
+        ship.allocateEnergy(alloc);
+        ship.startTurn(); // applies the allocation (powers channels, sets pools)
+
+        ScoutChannel c1 = ship.getScoutChannels().get(0);
+        ScoutChannel c2 = ship.getScoutChannels().get(1);
+        assertTrue("channel 1 powered", c1.isPowered());
+        assertEquals("channel 1 pool = 5", 5, c1.getAllocatedEw());
+        assertEquals("channel 2 pool clamped to MAX_LEND", ScoutChannel.MAX_LEND, c2.getAllocatedEw());
+    }
+
+    @Test
+    public void unpoweredChannel_holdsNoEwPool() {
+        Ship ship = scoutWith(1);
+        com.sfb.systemgroups.Energy alloc = new com.sfb.systemgroups.Energy();
+        // channel "1" not in poweredChannels, but EW points are present anyway
+        java.util.Map<String, Integer> ew = new java.util.HashMap<>();
+        ew.put("1", 4);
+        alloc.setChannelEwPoints(ew);
+        ship.allocateEnergy(alloc);
+        ship.startTurn(); // applies the allocation
+
+        ScoutChannel c = ship.getScoutChannels().get(0);
+        assertFalse("not powered → not operating", c.isPowered());
+        assertEquals("an unpowered channel carries no pool", 0, c.getAllocatedEw());
+    }
+
+    @Test
     public void dacHitOnTheReplacedLocation_destroysTheChannel() {
         Ship ship = scoutWith(1);
         ScoutChannel c = ship.getScoutChannels().get(0);

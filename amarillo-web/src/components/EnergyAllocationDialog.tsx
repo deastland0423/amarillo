@@ -49,6 +49,7 @@ interface ShipAlloc {
   capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
   esgEnergy:            Record<string, number>;   // ESG designator → energy this turn (G23.21)
   poweredChannels:      string[];                 // scout channel designators to power (1 energy each, G24.14)
+  channelEwPoints:      Record<string, number>;   // scout channel designator → extra EW points to lend (G24.211)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
@@ -104,6 +105,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
                        : 0,   // default to a full top-off; player can dial it down
     esgEnergy:       {},
     poweredChannels: [],
+    channelEwPoints: {},
     energizeCaps:    false,
     weaponArming:    arming,
     droneReloads:        {},
@@ -177,7 +179,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
-  const channels = alloc.poweredChannels.length; // scout channels powered, 1 energy each (G24.14)
+  // scout channels: 1 energy to power each, plus any EW points committed for lending (G24.14/.211)
+  const channels = alloc.poweredChannels.reduce((sum, k) => sum + 1 + (alloc.channelEwPoints[k] ?? 0), 0);
   const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg + channels;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
@@ -462,6 +465,7 @@ export default function EnergyAllocationDialog({
           capacitorCharge:       a.capCharge,
           esgEnergy:             Object.keys(a.esgEnergy).length > 0 ? a.esgEnergy : undefined,
           poweredChannels:       a.poweredChannels.length > 0 ? a.poweredChannels : undefined,
+          channelEwPoints:       Object.keys(a.channelEwPoints).length > 0 ? a.channelEwPoints : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
@@ -854,22 +858,47 @@ export default function EnergyAllocationDialog({
               const key  = w.designator ?? w.name;
               const on   = alloc.poweredChannels.includes(key);
               const dead = !w.functional;
+              const ew   = alloc.channelEwPoints[key] ?? 0;
               return (
-                <label key={w.name} className="ea-het-row"
+                <div key={w.name} className="ea-het-row"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: dead ? 0.5 : 1 }}>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={dead}
-                    onChange={ev => setAlloc(a => ({
-                      ...a,
-                      poweredChannels: ev.target.checked
-                        ? [...a.poweredChannels, key]
-                        : a.poweredChannels.filter(k => k !== key),
-                    }))}
-                  />
-                  <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy to power)'}</span>
-                </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={dead}
+                      onChange={ev => setAlloc(a => {
+                        const next = { ...a.channelEwPoints };
+                        if (!ev.target.checked) delete next[key]; // powering off drops its EW pool
+                        return {
+                          ...a,
+                          poweredChannels: ev.target.checked
+                            ? [...a.poweredChannels, key]
+                            : a.poweredChannels.filter(k => k !== key),
+                          channelEwPoints: next,
+                        };
+                      })}
+                    />
+                    <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy)'}</span>
+                  </label>
+                  {on && !dead && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                      <span style={{ fontSize: '0.85em', opacity: 0.8 }}>+EW</span>
+                      <select
+                        value={ew}
+                        onChange={ev => {
+                          const v = Number(ev.target.value);
+                          setAlloc(a => ({
+                            ...a,
+                            channelEwPoints: { ...a.channelEwPoints, [key]: v },
+                          }));
+                        }}
+                      >
+                        {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </label>
+                  )}
+                </div>
               );
             })}
           </div>

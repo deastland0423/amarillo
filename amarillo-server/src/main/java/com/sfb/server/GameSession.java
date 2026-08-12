@@ -684,9 +684,13 @@ public class GameSession {
                     }
                 }
 
-                // Scout function channels (G24.14) — power the requested channels (1 energy each)
+                // Scout function channels (G24.14) — power the requested channels (1 energy each),
+                // plus any EW points committed to each channel for lending (G24.211).
                 if (request.getPoweredChannels() != null) {
                     e.setPoweredChannels(request.getPoweredChannels());
+                }
+                if (request.getChannelEwPoints() != null) {
+                    e.setChannelEwPoints(request.getChannelEwPoints());
                 }
 
                 // Heavy weapon arming

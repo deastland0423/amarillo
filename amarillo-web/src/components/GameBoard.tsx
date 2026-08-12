@@ -2024,6 +2024,9 @@ function ShipSidebar({
                       <div key={w.name} style={{ marginBottom: 2 }}>
                         <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
                         <span style={{ color }}>{state}</span>
+                        {state === 'powered' && (w.channelEw ?? 0) > 0 && (
+                          <span style={{ color: '#58c8ff' }}> · {w.channelEw} EW</span>
+                        )}
                       </div>
                     );
                   })}

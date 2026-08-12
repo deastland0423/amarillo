@@ -23,6 +23,7 @@ public class ScoutChannel extends Weapon {
 
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
+    private int allocatedEw = 0;          // EW points committed to this channel at EA (0..MAX_LEND, G24.211)
 
     // EW lending (G24.21): this channel carries EW the scout generated to one recipient.
     private String lendTarget; // recipient ship name, or null if not lending
@@ -54,6 +55,18 @@ public class ScoutChannel extends Weapon {
 
     public void setPowered(boolean powered) {
         this.powered = powered;
+    }
+
+    // --- EW pool (G24.211) ---
+
+    /** EW points committed to this channel at Energy Allocation, available to lend (0..MAX_LEND). */
+    public int getAllocatedEw() {
+        return allocatedEw;
+    }
+
+    /** Commit {@code points} of EW to this channel (clamped to 0..{@link #MAX_LEND}, G24.2112). */
+    public void setAllocatedEw(int points) {
+        this.allocatedEw = Math.max(0, Math.min(MAX_LEND, points));
     }
 
     // --- Blinding (G24.13) ---

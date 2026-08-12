@@ -394,9 +394,14 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
-		// Scout function channels (G24.14) — 1 energy powers a channel for the turn.
-		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
-			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
+		// Scout function channels (G24.14) — 1 energy powers a channel; extra points (G24.211)
+		// become the EW pool it can lend. An unpowered channel holds no pool.
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
+			boolean on = energyAllocated.getPoweredChannels().contains(c.getDesignator());
+			c.setPowered(on);
+			Integer ew = energyAllocated.getChannelEwPoints().get(c.getDesignator());
+			c.setAllocatedEw(on && ew != null ? ew : 0);
+		}
 
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
