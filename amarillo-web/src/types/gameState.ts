@@ -34,6 +34,9 @@ export interface WeaponState {
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
   cooldown?:              boolean;  // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
+  scoutChannel?:          boolean;  // scout function channel / special sensor (G24.0)
+  channelPowered?:        boolean;  // powered this turn (G24.14)
+  channelBlinded?:        boolean;  // blinded by weapons fire (G24.13)
   esg?:                   boolean;  // ESG generator (G23.0)
   esgHasCapacitor?:       boolean;  // G23.24 capacitor: holds up to 7, releases a chosen 1–5
   esgStoredEnergy?:       number;   // energy held (0–maxStorage)

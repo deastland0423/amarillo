@@ -2007,6 +2007,29 @@ function ShipSidebar({
                 )}
               </div>
 
+              {/* Scout channels (G24.0) — powered / blinded / destroyed state */}
+              {(ship.weapons ?? []).some(w => w.scoutChannel) && (
+                <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
+                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>Scout Channels (G24.0)</div>
+                  {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+                    const state = !w.functional ? 'destroyed'
+                                : w.channelBlinded ? 'blinded'
+                                : w.channelPowered ? 'powered'
+                                : 'off';
+                    const color = state === 'destroyed' ? '#f85149'
+                                : state === 'blinded'   ? '#f0c040'
+                                : state === 'powered'   ? '#3fb950'
+                                : '#8b949e';
+                    return (
+                      <div key={w.name} style={{ marginBottom: 2 }}>
+                        <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
+                        <span style={{ color }}>{state}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* ESG generators (G23.0) — announce / countdown / drop (Activity phase).
                   A release is announced 4 impulses ahead (G23.31); the radius stays
                   the owner's secret until the field forms (G23.311). */}

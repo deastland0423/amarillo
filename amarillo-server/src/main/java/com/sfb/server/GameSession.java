@@ -684,6 +684,11 @@ public class GameSession {
                     }
                 }
 
+                // Scout function channels (G24.14) — power the requested channels (1 energy each)
+                if (request.getPoweredChannels() != null) {
+                    e.setPoweredChannels(request.getPoweredChannels());
+                }
+
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();
                 for (Weapon w : ship.getWeapons().fetchAllWeapons()) {

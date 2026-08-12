@@ -48,6 +48,7 @@ interface ShipAlloc {
   specificReinf:        number[];     // [0..5] energy per shield
   capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
   esgEnergy:            Record<string, number>;   // ESG designator → energy this turn (G23.21)
+  poweredChannels:      string[];                 // scout channel designators to power (1 energy each, G24.14)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
@@ -102,6 +103,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
                        ? Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0))
                        : 0,   // default to a full top-off; player can dial it down
     esgEnergy:       {},
+    poweredChannels: [],
     energizeCaps:    false,
     weaponArming:    arming,
     droneReloads:        {},
@@ -175,7 +177,8 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg;
+  const channels = alloc.poweredChannels.length; // scout channels powered, 1 energy each (G24.14)
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg + channels;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -458,6 +461,7 @@ export default function EnergyAllocationDialog({
           shieldMode:            a.shieldMode,
           capacitorCharge:       a.capCharge,
           esgEnergy:             Object.keys(a.esgEnergy).length > 0 ? a.esgEnergy : undefined,
+          poweredChannels:       a.poweredChannels.length > 0 ? a.poweredChannels : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
           transUses:             a.transUses,
@@ -837,6 +841,35 @@ export default function EnergyAllocationDialog({
                       + (w.esgActive ? ` · field up (r${w.esgRadius}, str ${w.esgStrength})` : '')}
                   />
                 </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ---- Scout Channels (G24.14) ---- */}
+        {(ship.weapons ?? []).some(w => w.scoutChannel) && (
+          <div className="ea-section">
+            <div className="ea-section-title" style={{ color: '#58c8ff' }}>Scout Channels</div>
+            {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+              const key  = w.designator ?? w.name;
+              const on   = alloc.poweredChannels.includes(key);
+              const dead = !w.functional;
+              return (
+                <label key={w.name} className="ea-het-row"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: dead ? 0.5 : 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={dead}
+                    onChange={ev => setAlloc(a => ({
+                      ...a,
+                      poweredChannels: ev.target.checked
+                        ? [...a.poweredChannels, key]
+                        : a.poweredChannels.filter(k => k !== key),
+                    }))}
+                  />
+                  <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy to power)'}</span>
+                </label>
               );
             })}
           </div>
