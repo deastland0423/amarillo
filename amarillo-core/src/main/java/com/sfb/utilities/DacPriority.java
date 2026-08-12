@@ -17,6 +17,11 @@ public final class DacPriority {
 
     private DacPriority() {}
 
+    /** A scout channel that replaced a weapon of the given DAC location (G24.17). */
+    private static boolean isScoutChannelFor(Weapon w, String location) {
+        return w instanceof com.sfb.weapons.ScoutChannel && location.equals(w.getDacHitLocaiton());
+    }
+
     // -------------------------------------------------------------------------
     // Phaser category (D4.3221)
     // -------------------------------------------------------------------------
@@ -26,6 +31,8 @@ public final class DacPriority {
      * Priority 0 reserved for "special sensors that replaced phasers" (no type yet).
      */
     public static int phaserPriority(Weapon w) {
+        if (isScoutChannelFor(w, "phaser"))
+            return 0; // special sensors take required hits first (G24.17)
         switch (w.getType()) {
             case "StasisFieldGenerator":     return  1;
             case "PhBank":                   return  2;
@@ -68,6 +75,8 @@ public final class DacPriority {
      * plasma-R from plasma-G until PlasmaLauncher stores size; "Plasma" falls to MAX_VALUE.
      */
     public static int torpPriority(Weapon w) {
+        if (isScoutChannelFor(w, "torp"))
+            return 0; // special sensors take required hits first (G24.17)
         switch (w.getType()) {
             case "Jammer":                    return  1;
             case "FocusedEnergyBeam":         return  2;
@@ -153,6 +162,8 @@ public final class DacPriority {
      * DroneRack priority is resolved via getRackType() since getType() always returns "Drone".
      */
     public static int dronePriority(Weapon w) {
+        if (isScoutChannelFor(w, "drone"))
+            return 0; // special sensors take required hits first (G24.17)
         if (w instanceof DroneRack) {
             DroneRack rack = (DroneRack) w;
             if (rack.getRackType() != null) {

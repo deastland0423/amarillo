@@ -1582,7 +1582,13 @@ public class Ship extends Unit implements DroneController {
 	private java.util.List<String> getDacChoiceOptions(String system, Ship attacker) {
 		switch (system) {
 			case "phaser": {
-				List<Weapon> candidates = bearingFunctionalPhasers(attacker);
+				List<Weapon> candidates = new java.util.ArrayList<>(bearingFunctionalPhasers(attacker));
+				// Special sensors that replaced phasers are hit on phaser hits (G24.17), in any
+				// direction (360° arc, G24.15).
+				for (Weapon w : weapons.fetchAllWeapons())
+					if (w instanceof com.sfb.weapons.ScoutChannel
+							&& "phaser".equals(w.getDacHitLocaiton()) && w.isFunctional())
+						candidates.add(w);
 				// D4.3221 rule of 3: if this is the 3rd hit in a group and no best-type taken yet,
 				// restrict to best-available type only.
 				if (phaserDacGroupPos == 2 && !phaserDacBestTaken && !candidates.isEmpty()) {
