@@ -494,9 +494,9 @@ public class Game {
         // P3.33: asteroid/ring hexes between actor and target add natural ECM
         // along the line of fire.
         int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
-        // Tractor/transporter EW (D6.372) — lent EW handling here is governed by
-        // D6.373/D6.3146; left out until those rules are confirmed (G24.21 deferral).
-        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
+        // Lent EW is always part of a ship's total EW (D6.373/D6.3146), so both sides'
+        // lent points count in a tractor/transporter attempt (D6.372).
+        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
 
         if (target instanceof com.sfb.objects.Objective) {
             // SH35.452: a probe canister has no EW of its own, but tractoring it
@@ -511,7 +511,7 @@ public class Game {
             return 0;
         if (tractorLinkBetween(actor, tship))
             return 0;
-        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus()
+        int targetEcm = tship.getEcmAllocated() + tship.getLentEcm() + tship.getWwEcmBonus()
                 + tship.getStealthEcm() + terrainEcm;
         return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
     }

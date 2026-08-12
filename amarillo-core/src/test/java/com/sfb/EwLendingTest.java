@@ -114,4 +114,24 @@ public class EwLendingTest {
 
         assertEquals("lent ECM feeds the EW shift", baseline - 2, withLend);
     }
+
+    @Test
+    public void lentEwCountsInTractorTransporterAttempts() {
+        // Lent EW is part of a ship's total EW (D6.373), so it factors into the D6.34
+        // tractor/transporter shift (D6.372) — both the actor's and the target's.
+        Game game = new Game();
+        Ship actor  = plainShip(game, "Grabber", 10, 10);
+        Ship target = plainShip(game, "Prey", 10, 12); // range 2, enemy
+        actor.setActiveFireControl(true);
+        Player a = new Player(); a.setTeamName("A"); actor.setOwner(a);
+        Player b = new Player(); b.setTeamName("B"); target.setOwner(b);
+
+        assertEquals("no EW → no shift", 0, game.d637Shift(actor, target));
+
+        target.addLentEw(4, 0); // the prey is protected by 4 lent ECM
+        assertEquals("lent ECM raises the tractor/transporter shift", 2, game.d637Shift(actor, target));
+
+        actor.addLentEw(0, 4);  // the grabber gets 4 lent ECCM back
+        assertEquals("lent ECCM cancels it", 0, game.d637Shift(actor, target));
+    }
 }
