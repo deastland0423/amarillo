@@ -70,6 +70,30 @@ public class BreakDroneLockOnTest {
     }
 
     @Test
+    public void breakingASeekingShuttle_makesItInert_notRemoved() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        com.sfb.objects.shuttles.AdminShuttle base = new com.sfb.objects.shuttles.AdminShuttle();
+        base.setName("Kamikaze");
+        com.sfb.objects.shuttles.SuicideShuttle shuttle =
+                new com.sfb.objects.shuttles.SuicideShuttle(base);
+        shuttle.setLocation(new Location(10, 12)); // range 2
+        shuttle.setSpeed(6);
+        game.getSeekers().add(shuttle);
+        game.getActiveShuttles().add(shuttle);
+        scout.addLockOn(shuttle);
+
+        Game.ActionResult r = game.breakDroneLockOn(scout, "1", "Kamikaze", 3);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("shuttle goes inert, not removed (G24.223)", r.getMessage().contains("inert"));
+        assertFalse("no longer seeking", game.getSeekers().contains(shuttle));
+        assertTrue("stays on the map as a shuttle", game.getActiveShuttles().contains(shuttle));
+        assertEquals("dropped to speed 0, holds its hex", 0, shuttle.getSpeed());
+        assertNull("guidance cleared", shuttle.getTarget());
+    }
+
+    @Test
     public void requiresActiveFireControl() {
         Game game = new Game();
         Ship scout = scout(game);

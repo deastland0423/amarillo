@@ -1006,18 +1006,19 @@ public class Game {
             }
         if (seeker == null)
             return ActionResult.fail("No seeker named '" + droneName + "'");
-        if (!(seeker instanceof Drone))
-            return ActionResult.fail("Only drones can have a lock-on broken this way"
-                    + " (seeking shuttles going inert are not yet supported)");
-        Drone drone = (Drone) seeker;
-        if (drone.isWarpSeeker())
+        // The function works on drones AND seeking shuttles (G24.22 / FD1.8); plasma torpedoes
+        // and warp-seekers that have locked on are immune (G24.225).
+        if (seeker instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("Plasma torpedoes are immune to this (G24.225)");
+        if (seeker.isWarpSeeker())
             return ActionResult.fail("Warp-seeking drones that have locked on are immune (G24.225)");
-        Unit controller = drone.getController();
+        Unit unit = (Unit) seeker;
+        Unit controller = seeker.getController();
         if (controller instanceof Ship && isSameTeam(scout, (Ship) controller))
-            return ActionResult.fail(droneName + " is a friendly drone");
-        if (!scout.hasLockOn(drone))
+            return ActionResult.fail(droneName + " is a friendly seeker");
+        if (!scout.hasLockOn(unit))
             return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
-        int range = getRange(scout, drone);
+        int range = getRange(scout, unit);
         if (range > 15)
             return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max 15, G24.222)");
 
@@ -1032,13 +1033,36 @@ public class Game {
         channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON); // commits it (G24.12)
         channel.recordBreakAttempt(droneName, impulse);
         int left = com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS - channel.getBreakAttempts();
-        if (roll <= 3) { // G24.223
-            removeSeekerFromPlay(drone);
+        if (roll <= 3) { // G24.223: 1–3 breaks the lock-on
+            if (seeker instanceof com.sfb.objects.shuttles.Shuttle) {
+                makeSeekerShuttleInert((com.sfb.objects.shuttles.Shuttle) seeker); // FD1.72
+                return ActionResult.ok("Channel " + channelDesignator + " broke " + droneName
+                        + "'s lock-on (die " + roll + ") — it went inert (speed 0, holds its hex) (G24.223)");
+            }
+            removeSeekerFromPlay(seeker);
             return ActionResult.ok("Channel " + channelDesignator + " broke " + droneName
                     + "'s lock-on (die " + roll + ") — it lost tracking and is removed (G24.223)");
         }
         return ActionResult.ok("Channel " + channelDesignator + " failed to break " + droneName
                 + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
+    }
+
+    /**
+     * A seeking shuttle whose lock-on is broken goes inert (G24.223 / FD1.72): it stops
+     * seeking, drops its guidance and control, falls to speed 0, and holds its hex — just
+     * like a shuttle after a scatter-pack launch. It stays on the map (not removed).
+     */
+    void makeSeekerShuttleInert(com.sfb.objects.shuttles.Shuttle shuttle) {
+        seekers.remove(shuttle);
+        if (shuttle instanceof Seeker) {
+            Seeker sk = (Seeker) shuttle;
+            if (sk.getController() instanceof com.sfb.objects.DroneController)
+                ((com.sfb.objects.DroneController) sk.getController()).releaseControl(sk);
+            sk.setTarget(null);
+            sk.setController(null);   // control cannot be regained (G24.224)
+            sk.setSelfGuiding(false);
+        }
+        shuttle.setSpeed(0);          // remains in its hex, inert
     }
 
     public int getCurrentTurn() {
