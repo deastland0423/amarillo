@@ -16,7 +16,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 
     private Unit   target;
     private Unit   controller;
-    private boolean identified = false;
+    // identify()/isIdentified() inherited from Shuttle (single source of truth, G24.25).
 
     // Arming state
     private int     armingTurnsComplete = 0;     // 0–3; armed when == 3
@@ -85,6 +85,5 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     @Override public int getWarheadDamage()               { return totalEnergy * 2; }
     @Override public void setWarheadDamage(int dmg)       {}
     @Override public int impact()                         { return getWarheadDamage(); }
-    @Override public void identify()                      { identified = true; }
-    @Override public boolean isIdentified()               { return identified; }
+    // identify()/isIdentified() inherited from Shuttle
 }

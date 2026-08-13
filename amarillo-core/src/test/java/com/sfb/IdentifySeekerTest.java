@@ -185,6 +185,60 @@ public class IdentifySeekerTest {
         assertTrue(r.getMessage(), r.getMessage().contains("identifying"));
     }
 
+    private com.sfb.objects.shuttles.AdminShuttle enemyShuttle(Game game, String name, int x, int y) {
+        com.sfb.objects.shuttles.AdminShuttle sh = new com.sfb.objects.shuttles.AdminShuttle();
+        sh.setName(name);
+        sh.setLocation(new Location(x, y));
+        game.getActiveShuttles().add(sh);
+        return sh;
+    }
+
+    @Test
+    public void identifyingAPlainShuttle_revealsItIsNotASeeker() {
+        // A plain (non-seeker) shuttle looks like a lurking seeker until identified (G24.25);
+        // the attempt must be allowed, and success reveals it is harmless.
+        Game game = new Game();
+        Ship scout = scout(game, 2);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = enemyShuttle(game, "Courier", 10, 12);
+        scout.addLockOn(shuttle);
+
+        Game.ActionResult r = game.identifySeeker(scout, "1", "Courier", 3);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage().contains("not a seeking weapon"));
+        assertTrue("the shuttle is now identified", shuttle.isIdentified());
+    }
+
+    @Test
+    public void failedIdentifyOfAPlainShuttle_revealsNothing() {
+        Game game = new Game();
+        Ship scout = scout(game, 2);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = enemyShuttle(game, "Courier", 10, 12);
+        scout.addLockOn(shuttle);
+
+        Game.ActionResult r = game.identifySeeker(scout, "1", "Courier", 4); // fail
+
+        assertTrue(r.isSuccess());
+        assertTrue(r.getMessage().contains("failed"));
+        assertFalse("still unknown — the bluff holds", shuttle.isIdentified());
+    }
+
+    @Test
+    public void friendlyShuttle_isRejected() {
+        Game game = new Game();
+        Ship scout = scout(game, 2);
+        Player teamA = new Player();
+        teamA.setTeamName("A");
+        scout.setOwner(teamA);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = enemyShuttle(game, "Courier", 10, 12);
+        shuttle.setOwner(teamA);
+        scout.addLockOn(shuttle);
+
+        Game.ActionResult r = game.identifySeeker(scout, "1", "Courier", 3);
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("friendly"));
+    }
+
     @Test
     public void identifyingASeekingShuttle_marksIt_withoutRemovingOrInerting() {
         Game game = new Game();

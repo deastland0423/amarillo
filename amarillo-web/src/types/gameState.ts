@@ -264,7 +264,7 @@ export interface ShuttleObject extends MapObjectBase {
   holdCrew?:          number;        // crew units in the hold
   holdSpacesUsed?:    number;        // personnel spaces occupied
   personnelCapacity?: number;        // personnel-space capacity
-  isIdentified?:     boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
+  isIdentified?:     boolean;        // any shuttle: confirmed by an enemy scout (G24.25)
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
   targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only

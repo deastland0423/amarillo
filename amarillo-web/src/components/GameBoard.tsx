@@ -3186,10 +3186,13 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
     }
     if (aim && liveShip && obj) {
-      // Break (G24.22) or identify (G24.25) the clicked seeker with the armed channel.
-      // Eligibility (lock-on, range, enemy, immunity, lab) is validated server-side.
-      const seekerTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA']);
-      if (seekerTypes.has(obj.type)) {
+      // Break (G24.22) or identify (G24.25) the clicked target with the armed channel.
+      // Identify also works on any shuttle (a plain one looks like a lurking seeker until
+      // revealed); breaking is seekers only. Eligibility is validated server-side.
+      const breakTypes    = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
+      const identifyTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA', 'SHUTTLE']);
+      const eligible = aim.mode === 'break' ? breakTypes : identifyTypes;
+      if (eligible.has(obj.type)) {
         if (aim.mode === 'break') handleBreakLockOn(aim.channel, obj.name);
         else handleIdentifySeeker(aim.channel, obj.name);
         return;

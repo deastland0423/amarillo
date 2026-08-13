@@ -23,7 +23,7 @@ public class ScatterPack extends Shuttle implements Seeker {
 
     private Unit        target;
     private Unit        controller;
-    private boolean     identified   = false;
+    // identify()/isIdentified() inherited from Shuttle (single source of truth, G24.25).
     private int         launchImpulse = -1;
     private boolean     released      = false; // true after drones have deployed
 
@@ -136,8 +136,7 @@ public class ScatterPack extends Shuttle implements Seeker {
     @Override public int getWarheadDamage()               { return 0; } // no direct damage
     @Override public void setWarheadDamage(int dmg)       {}
     @Override public int impact()                         { return 0; }
-    @Override public void identify()                      { identified = true; }
-    @Override public boolean isIdentified()               { return identified; }
+    // identify()/isIdentified() inherited from Shuttle
 
     @Override public boolean isArmed()                    { return true; } // D12.121
 }

@@ -24,6 +24,14 @@ public abstract class Shuttle extends Unit {
 	private boolean crippled = false;
 	private int chaffPacks = 0;
 	private int ewPods = 0; // Number of EW pods carried by the shuttle
+	// True once an enemy scout has identified this shuttle (G24.25). Every shuttle can be
+	// identified — a plain shuttle looks just like a disguised seeker until then. Seeking
+	// shuttles satisfy the Seeker interface's identify()/isIdentified() through these.
+	private boolean identified = false;
+
+	public void identify() { this.identified = true; }
+
+	public boolean isIdentified() { return this.identified; }
 
 	public int getEwPods() {
 		return ewPods;

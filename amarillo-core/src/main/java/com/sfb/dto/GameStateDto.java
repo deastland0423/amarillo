@@ -366,6 +366,7 @@ public class GameStateDto {
         public int holdCrew;            // crew units currently in the hold
         public int holdSpacesUsed;      // personnel spaces occupied
         public int personnelCapacity;   // personnel-space capacity of the hold
+        public boolean isIdentified;    // true once an enemy scout confirmed it (as non-seeker) (G24.25)
     }
 
     // -------------------------------------------------------------------------
@@ -1207,6 +1208,7 @@ public class GameStateDto {
         dto.holdCrew = shuttle.getHold().getCrew();
         dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
+        dto.isIdentified = shuttle.isIdentified();
         return dto;
     }
 

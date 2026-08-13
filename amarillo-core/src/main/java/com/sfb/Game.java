@@ -1125,23 +1125,42 @@ public class Game {
                         + scout.getLabs().getAvailableLab() + " lab(s), " + labsInUse + " already identifying");
         }
 
+        // Identification works on any seeker OR any shuttle (G24.25) — an unidentified enemy
+        // shuttle looks just like a lurking seeker, so the attempt must be allowed either way
+        // (and failure reveals nothing, preserving the bluff).
         Seeker seeker = null;
         for (Seeker s : seekers)
             if (((Unit) s).getName().equals(seekerName)) {
                 seeker = s;
                 break;
             }
+        com.sfb.objects.shuttles.Shuttle plainShuttle = null;
         if (seeker == null)
-            return ActionResult.fail("No seeker named '" + seekerName + "'");
-        if (seeker.isIdentified())
+            for (com.sfb.objects.shuttles.Shuttle sh : activeShuttles)
+                if (sh.getName().equals(seekerName)) {
+                    plainShuttle = sh;
+                    break;
+                }
+        if (seeker == null && plainShuttle == null)
+            return ActionResult.fail("No seeker or shuttle named '" + seekerName + "'");
+
+        Unit target = seeker != null ? (Unit) seeker : plainShuttle;
+        boolean alreadyKnown = seeker != null ? seeker.isIdentified() : plainShuttle.isIdentified();
+        if (alreadyKnown)
             return ActionResult.fail(seekerName + " is already identified");
-        Unit unit = (Unit) seeker;
-        Unit controller = seeker.getController();
-        if (controller instanceof Ship && isSameTeam(scout, (Ship) controller))
-            return ActionResult.fail(seekerName + " is a friendly seeker");
-        if (!scout.hasLockOn(unit))
+
+        boolean friendly;
+        if (seeker != null) {
+            Unit controller = seeker.getController();
+            friendly = controller instanceof Ship && isSameTeam(scout, (Ship) controller);
+        } else {
+            friendly = sameOwnerTeam(scout, plainShuttle);
+        }
+        if (friendly)
+            return ActionResult.fail(seekerName + " is friendly");
+        if (!scout.hasLockOn(target))
             return ActionResult.fail(scout.getName() + " has no lock-on to " + seekerName + " (G24.161)");
-        int range = getRange(scout, unit);
+        int range = getRange(scout, target);
         if (range > 15)
             return ActionResult.fail(seekerName + " is out of range (" + range + " hexes; max 15, G24.252)");
 
@@ -1153,12 +1172,24 @@ public class Game {
         channel.recordIdentifyAttempt();
         int left = com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS - channel.getIdentifyAttempts();
         if (roll <= 3) { // G24.252: less than four identifies it
-            seeker.identify();
+            if (seeker != null) {
+                seeker.identify();
+                return ActionResult.ok("Channel " + channelDesignator + " identified " + seekerName
+                        + " (die " + roll + ") — the owner reveals its details (G4.2)");
+            }
+            plainShuttle.identify();
             return ActionResult.ok("Channel " + channelDesignator + " identified " + seekerName
-                    + " (die " + roll + ") — the owner reveals its details (G4.2)");
+                    + " (die " + roll + ") — it is not a seeking weapon");
         }
         return ActionResult.ok("Channel " + channelDesignator + " failed to identify " + seekerName
                 + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
+    }
+
+    /** True if {@code u}'s owner is on the same team as {@code scout} (owner-based, for shuttles). */
+    private boolean sameOwnerTeam(Ship scout, Unit u) {
+        Player a = scout.getOwner();
+        Player b = u.getOwner();
+        return a != null && b != null && a.getTeamName() != null && a.getTeamName().equals(b.getTeamName());
     }
 
     public int getCurrentTurn() {
