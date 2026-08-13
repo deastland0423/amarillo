@@ -874,6 +874,22 @@ public class Game {
     }
 
     /**
+     * One function per channel per turn (G24.12): returns a rejection message if this channel
+     * is already committed to a function other than {@code wanted}, else null.
+     */
+    private String functionConflict(com.sfb.weapons.ScoutChannel c,
+                                    com.sfb.weapons.ScoutChannel.Function wanted) {
+        com.sfb.weapons.ScoutChannel.Function f = c.getTurnFunction();
+        if (f == com.sfb.weapons.ScoutChannel.Function.NONE || f == wanted)
+            return null;
+        String busy = f == com.sfb.weapons.ScoutChannel.Function.LEND_EW ? "lending EW"
+                : f == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON ? "breaking drone lock-ons"
+                : "identifying seekers";
+        return "Channel " + c.getDesignator() + " is " + busy
+                + " this turn — a channel performs one function per turn (G24.12)";
+    }
+
+    /**
      * Aim one scout channel's EW lend for the turn (G24.21). The channel lends any split of
      * ECM/ECCM totalling no more than its allocated pool (G24.211) to a single friendly unit
      * it holds a lock-on to (G24.218), or to itself (ECM only, G24.283). The split can be
@@ -929,11 +945,9 @@ public class Game {
             resolveChannelLends();
             return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
         }
-        // One function per channel per turn (G24.12): a channel already breaking drone
-        // lock-ons can't be repurposed to lend EW.
-        if (channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON)
-            return ActionResult.fail("Channel " + channelDesignator
-                    + " is breaking drone lock-ons this turn and can't also lend EW (G24.12)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.LEND_EW);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
         // A single channel lends at most 6 EW, ECM+ECCM combined (G24.2112).
         if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
             return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
@@ -991,10 +1005,9 @@ public class Game {
         int impulse = clock.getImpulse();
         if (!channel.isOperational(impulse))
             return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
-        // One function per channel per turn (G24.12): a lending channel can't also break.
-        if (channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.LEND_EW)
-            return ActionResult.fail("Channel " + channelDesignator
-                    + " is lending EW this turn and can't also break lock-ons (G24.12)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
         if (!scout.isActiveFireControl())
             return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
 
@@ -1063,6 +1076,89 @@ public class Game {
             sk.setSelfGuiding(false);
         }
         shuttle.setSpeed(0);          // remains in its hex, inert
+    }
+
+    /**
+     * Attempt to identify an enemy seeker (drone, plasma, or seeking shuttle) with a scout
+     * channel and a lab box (G24.25). Needs active fire control and a lock-on to the seeker
+     * (G24.161), the seeker within 15 hexes (G24.252), an operational channel not doing another
+     * function (G24.12), and a free lab (one per identifying channel, G24.251). A channel gets
+     * four attempts per turn on any target(s), any impulse(s) (G24.252). Rolls 1d6 (not affected
+     * by EW); on 1–3 the seeker is identified — the owner reveals its details (G4.2).
+     */
+    public ActionResult identifySeeker(Ship scout, String channelDesignator, String seekerName) {
+        return identifySeeker(scout, channelDesignator, seekerName,
+                new com.sfb.utilities.DiceRoller().rollOneDie());
+    }
+
+    /** Package-private seam: identification with a supplied die (G24.252), for tests. */
+    ActionResult identifySeeker(Ship scout, String channelDesignator, String seekerName, int roll) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.IDENTIFY);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+
+        // A lab box is assigned per identifying channel (G24.251); count labs already in use.
+        boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY;
+        if (!alreadyIdentifying) {
+            int labsInUse = 0;
+            for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+                if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY)
+                    labsInUse++;
+            if (labsInUse + 1 > scout.getLabs().getAvailableLab())
+                return ActionResult.fail("No lab available for this channel (G24.251): "
+                        + scout.getLabs().getAvailableLab() + " lab(s), " + labsInUse + " already identifying");
+        }
+
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(seekerName)) {
+                seeker = s;
+                break;
+            }
+        if (seeker == null)
+            return ActionResult.fail("No seeker named '" + seekerName + "'");
+        if (seeker.isIdentified())
+            return ActionResult.fail(seekerName + " is already identified");
+        Unit unit = (Unit) seeker;
+        Unit controller = seeker.getController();
+        if (controller instanceof Ship && isSameTeam(scout, (Ship) controller))
+            return ActionResult.fail(seekerName + " is a friendly seeker");
+        if (!scout.hasLockOn(unit))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + seekerName + " (G24.161)");
+        int range = getRange(scout, unit);
+        if (range > 15)
+            return ActionResult.fail(seekerName + " is out of range (" + range + " hexes; max 15, G24.252)");
+
+        if (channel.getIdentifyAttempts() >= com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS)
+            return ActionResult.fail("Channel " + channelDesignator + " has used all "
+                    + com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS + " identify attempts this turn (G24.251)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY); // commits it + its lab (G24.12/.251)
+        channel.recordIdentifyAttempt();
+        int left = com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS - channel.getIdentifyAttempts();
+        if (roll <= 3) { // G24.252: less than four identifies it
+            seeker.identify();
+            return ActionResult.ok("Channel " + channelDesignator + " identified " + seekerName
+                    + " (die " + roll + ") — the owner reveals its details (G4.2)");
+        }
+        return ActionResult.ok("Channel " + channelDesignator + " failed to identify " + seekerName
+                + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
     }
 
     public int getCurrentTurn() {

@@ -24,8 +24,11 @@ public class ScoutChannel extends Weapon {
     /** Attempts one channel gets to break drone lock-ons per turn (G24.221). */
     public static final int MAX_BREAK_ATTEMPTS = 3;
 
+    /** Attempts one channel + lab gets to identify seekers per turn (G24.251). */
+    public static final int MAX_IDENTIFY_ATTEMPTS = 4;
+
     /** The single scout function a channel performs this turn (G24.12) — one per turn. */
-    public enum Function { NONE, LEND_EW, BREAK_LOCKON }
+    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY }
 
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
@@ -42,6 +45,9 @@ public class ScoutChannel extends Weapon {
     private int breakAttempts;                                    // attempts spent this turn (G24.221)
     private final java.util.Map<String, Integer> lastBreakImpulse // drone name → last impulse attempted
             = new java.util.HashMap<>();
+
+    // Identifying seekers (G24.25): up to 4 attempts/turn, any target(s), any impulse(s).
+    private int identifyAttempts;                                 // attempts spent this turn (G24.251)
 
     public ScoutChannel() {
         setType("ScoutChannel");
@@ -142,11 +148,20 @@ public class ScoutChannel extends Weapon {
         lastBreakImpulse.put(droneName, impulse);
     }
 
-    /** Clear all per-turn state (function, lend, break attempts) at Energy Allocation. */
+    // --- Identifying seekers (G24.25) ---
+
+    /** Attempts spent identifying seekers this turn (G24.251). */
+    public int getIdentifyAttempts() { return identifyAttempts; }
+
+    /** Record one identification attempt (G24.251); no per-target/per-impulse limit (G24.252). */
+    public void recordIdentifyAttempt() { identifyAttempts++; }
+
+    /** Clear all per-turn state (function, lend, break/identify attempts) at Energy Allocation. */
     public void resetForTurn() {
         clearLend();
         turnFunction = Function.NONE;
         breakAttempts = 0;
         lastBreakImpulse.clear();
+        identifyAttempts = 0;
     }
 }

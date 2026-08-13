@@ -194,4 +194,43 @@ class GameSessionScoutTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage().contains("lock-on"), r.getMessage());
     }
+
+    // -------------------------------------------------------------------------
+    // IDENTIFY_SEEKER — identifying an enemy seeker with a channel + lab (G24.25)
+    // -------------------------------------------------------------------------
+
+    private ActionRequest identify(String channel, String seeker) {
+        ActionRequest req = new ActionRequest();
+        req.setType("IDENTIFY_SEEKER");
+        req.setShipName("USS De Gama");
+        req.setPlayerToken(HOST);
+        req.setChannelDesignator(channel);
+        req.setTargetName(seeker);
+        return req;
+    }
+
+    @Test
+    void identifySeeker_withValidSetup_resolvesTheAttempt() {
+        allocateBoth(0);
+        scout.setActiveFireControl(true);
+        scout.getLabs().init(java.util.Map.of("lab", 2));
+        com.sfb.objects.Drone drone = addEnemyDrone("Drone-1", 11, 10);
+        scout.addLockOn(drone);
+
+        ActionResult r = session.executeAction(identify("1", "Drone-1"));
+        assertTrue(r.isSuccess(), r.getMessage()); // resolved (identified or failed)
+    }
+
+    @Test
+    void identifySeeker_withoutALab_isRefused() {
+        allocateBoth(0);
+        scout.setActiveFireControl(true);
+        scout.getLabs().init(java.util.Map.of("lab", 0)); // no labs
+        com.sfb.objects.Drone drone = addEnemyDrone("Drone-1", 11, 10);
+        scout.addLockOn(drone);
+
+        ActionResult r = session.executeAction(identify("1", "Drone-1"));
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("lab"), r.getMessage());
+    }
 }

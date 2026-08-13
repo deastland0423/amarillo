@@ -1497,11 +1497,11 @@ interface SidebarProps {
   // Scout EW lending (G24.21): friendly units this scout can lend to, and the action.
   friendlyShipNames: string[];
   onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
-  // Break drone lock-ons (G24.22): which channel is armed to target a seeker, arm/cancel, errors.
-  breakChannel:    string | null;
-  breakError:      string | null;
-  onArmBreak:      (channelDesignator: string) => void;
-  onCancelBreak:   () => void;
+  // Seeker targeting — break (G24.22) / identify (G24.25): which channel is armed + mode.
+  aim:             { channel: string; mode: 'break' | 'identify' } | null;
+  aimError:        string | null;
+  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify') => void;
+  onCancelAim:     () => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1610,7 +1610,7 @@ function ShipSidebar({
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
-  friendlyShipNames, onLendEw, breakChannel, breakError, onArmBreak, onCancelBreak,
+  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2053,7 +2053,9 @@ function ShipSidebar({
                     // This turn's committed function (G24.12) gates which controls show.
                     const fn = w.channelFunction ?? 'NONE';
                     const breakAttempts = w.channelBreakAttempts ?? 0;
-                    const armed = breakChannel === desig;
+                    const identifyAttempts = w.channelIdentifyAttempts ?? 0;
+                    const armedBreak    = aim?.channel === desig && aim.mode === 'break';
+                    const armedIdentify = aim?.channel === desig && aim.mode === 'identify';
                     // Draft edits the channel's absolute lend; it seeds from what the channel
                     // already lends so re-apportioning is natural.
                     const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
@@ -2125,26 +2127,43 @@ function ShipSidebar({
                             {fn === 'BREAK_LOCKON' && (
                               <span style={{ color: '#f0a0a0' }}>breaking lock-ons — {breakAttempts}/3 used</span>
                             )}
-                            {breakAttempts < 3 && (armed ? (
+                            {breakAttempts < 3 && (armedBreak ? (
                               <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#f0a0a0', color: '#f0a0a0' }}
-                                onClick={onCancelBreak} title="Stop targeting">cancel</button>
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
                             ) : (
                               <button className="action-strip-btn" style={{ padding: '0 6px' }}
-                                onClick={() => onArmBreak(desig)}
+                                onClick={() => onArmSeeker(desig, 'break')}
                                 title="Break a seeker's lock-on (G24.22): then click an enemy drone/shuttle you have a lock-on to, within 15 hexes">
                                 {fn === 'BREAK_LOCKON' ? 'break…' : 'break lock-on…'}</button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Identify controls — G24.25. Needs a channel + lab; counter once committed. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'IDENTIFY') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'IDENTIFY' && (
+                              <span style={{ color: '#9ad' }}>identifying — {identifyAttempts}/4 used</span>
+                            )}
+                            {identifyAttempts < 4 && (armedIdentify ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#9ad', color: '#9ad' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'identify')}
+                                title="Identify a seeker (G24.25): needs a lab; then click an enemy seeker you have a lock-on to, within 15 hexes">
+                                {fn === 'IDENTIFY' ? 'identify…' : 'identify…'}</button>
                             ))}
                           </div>
                         )}
                       </div>
                     );
                   })}
-                  {breakChannel && (
-                    <div style={{ marginTop: 2, color: '#f0a0a0', fontStyle: 'italic' }}>
-                      Click an enemy drone/shuttle to break channel {breakChannel}'s lock-on…
+                  {aim && (
+                    <div style={{ marginTop: 2, color: aim.mode === 'break' ? '#f0a0a0' : '#9ad', fontStyle: 'italic' }}>
+                      Click an enemy seeker to {aim.mode === 'break' ? 'break' : 'identify'} — channel {aim.channel}…
                     </div>
                   )}
-                  {breakError && <div style={{ marginTop: 2, color: '#f85149' }}>{breakError}</div>}
+                  {aimError && <div style={{ marginTop: 2, color: '#f85149' }}>{aimError}</div>}
                 </div>
               )}
 
@@ -2935,9 +2954,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
   const [crewError,   setCrewError]   = useState<string | null>(null);
-  // Break-lock-on targeting (G24.22): the scout channel designator being aimed, or null.
-  const [breakChannel, setBreakChannel] = useState<string | null>(null);
-  const [breakError,   setBreakError]   = useState<string | null>(null);
+  // Scout channel seeker-targeting (G24.22 break / G24.25 identify): which channel is armed
+  // and for which function, or null.
+  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' } | null>(null);
+  const [aimError, setAimError] = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [showScore, setShowScore]           = useState(false);
   const [eaDismissed, setEaDismissed]       = useState(false);
@@ -3084,8 +3104,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     ? (gameState?.mapObjects.find(o => o.name === selectedShip.name && o.type === 'SHIP') as ShipObject | undefined) ?? selectedShip
     : null;
 
-  // Disarm break-lock-on targeting when the selected ship changes (mode belongs to one scout).
-  useEffect(() => { setBreakChannel(null); setBreakError(null); }, [liveShip?.name]);
+  // Disarm seeker-targeting when the selected ship changes (mode belongs to one scout).
+  useEffect(() => { setAim(null); setAimError(null); }, [liveShip?.name]);
 
   const selectedShuttle = selected?.type === 'SHUTTLE' ? (selected as ShuttleObject) : null;
   const liveShuttle = selectedShuttle
@@ -3165,12 +3185,13 @@ export default function GameBoard({ session, onLeave }: Props) {
         }
       }
     }
-    if (breakChannel && liveShip && obj) {
-      // Break a seeker's lock-on with the armed scout channel (G24.22). Eligibility
-      // (lock-on, range, enemy, immunity) is validated server-side; surface failures.
-      const seekerTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
+    if (aim && liveShip && obj) {
+      // Break (G24.22) or identify (G24.25) the clicked seeker with the armed channel.
+      // Eligibility (lock-on, range, enemy, immunity, lab) is validated server-side.
+      const seekerTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA']);
       if (seekerTypes.has(obj.type)) {
-        handleBreakLockOn(breakChannel, obj.name);
+        if (aim.mode === 'break') handleBreakLockOn(aim.channel, obj.name);
+        else handleIdentifySeeker(aim.channel, obj.name);
         return;
       }
     }
@@ -4062,7 +4083,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   // further attempts (3/turn) until the player cancels.
   async function handleBreakLockOn(channelDesignator: string, seekerName: string) {
     if (!liveShip) return;
-    setBreakError(null);
+    setAimError(null);
     try {
       const res = await gameApi.submitAction(session.gameId, session.playerToken, {
         type:              'BREAK_LOCKON',
@@ -4070,10 +4091,29 @@ export default function GameBoard({ session, onLeave }: Props) {
         channelDesignator,
         targetName:        seekerName,
       });
-      if (!res.success) setBreakError(res.message);
+      if (!res.success) setAimError(res.message);
       else addLog(res.message, 'combat');
     } catch (e: unknown) {
-      setBreakError(e instanceof Error ? e.message : 'Break lock-on failed');
+      setAimError(e instanceof Error ? e.message : 'Break lock-on failed');
+    }
+  }
+
+  // Attempt to identify a seeker with a scout channel + lab (G24.25); stays armed for
+  // further attempts (4/turn) until the player cancels.
+  async function handleIdentifySeeker(channelDesignator: string, seekerName: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'IDENTIFY_SEEKER',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        seekerName,
+      });
+      if (!res.success) setAimError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Identify failed');
     }
   }
 
@@ -4582,10 +4622,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             onDeactivateEsg={handleDeactivateEsg}
             friendlyShipNames={gameState?.myShips ?? []}
             onLendEw={handleLendEw}
-            breakChannel={breakChannel}
-            breakError={breakError}
-            onArmBreak={(d) => { setBreakChannel(d); setBreakError(null); }}
-            onCancelBreak={() => { setBreakChannel(null); setBreakError(null); }}
+            aim={aim}
+            aimError={aimError}
+            onArmSeeker={(d, mode) => { setAim({ channel: d, mode }); setAimError(null); }}
+            onCancelAim={() => { setAim(null); setAimError(null); }}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}

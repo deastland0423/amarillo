@@ -1610,6 +1610,18 @@ public class GameSession {
                 return r;
             }
 
+            case "IDENTIFY_SEEKER": {
+                // Attempt to identify an enemy seeker with a scout channel + lab (G24.25).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.identifySeeker(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CANCEL_ESG": {
                 // Publicly cancel a pending ESG announcement before it forms (G23.33).
                 Ship ship = findShip(request.getShipName());
