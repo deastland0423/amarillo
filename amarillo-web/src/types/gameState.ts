@@ -40,6 +40,8 @@ export interface WeaponState {
   channelLendTarget?:     string;   // unit this channel is lending EW to, or null (G24.21)
   channelLentEcm?:        number;   // ECM points this channel is lending (G24.21)
   channelLentEccm?:       number;   // ECCM points this channel is lending (G24.21)
+  channelFunction?:       string;   // committed function this turn: NONE/LEND_EW/BREAK_LOCKON (G24.12)
+  channelBreakAttempts?:  number;   // break-lock-on attempts spent this turn (G24.221)
   esg?:                   boolean;  // ESG generator (G23.0)
   esgHasCapacitor?:       boolean;  // G23.24 capacitor: holds up to 7, releases a chosen 1–5
   esgStoredEnergy?:       number;   // energy held (0–maxStorage)

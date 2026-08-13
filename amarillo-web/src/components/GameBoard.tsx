@@ -1497,6 +1497,11 @@ interface SidebarProps {
   // Scout EW lending (G24.21): friendly units this scout can lend to, and the action.
   friendlyShipNames: string[];
   onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
+  // Break drone lock-ons (G24.22): which channel is armed to target a seeker, arm/cancel, errors.
+  breakChannel:    string | null;
+  breakError:      string | null;
+  onArmBreak:      (channelDesignator: string) => void;
+  onCancelBreak:   () => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1605,7 +1610,7 @@ function ShipSidebar({
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
-  friendlyShipNames, onLendEw,
+  friendlyShipNames, onLendEw, breakChannel, breakError, onArmBreak, onCancelBreak,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2045,6 +2050,10 @@ function ShipSidebar({
                     const ecmLent  = w.channelLentEcm ?? 0;
                     const eccmLent = w.channelLentEccm ?? 0;
                     const desig    = w.designator ?? w.name;
+                    // This turn's committed function (G24.12) gates which controls show.
+                    const fn = w.channelFunction ?? 'NONE';
+                    const breakAttempts = w.channelBreakAttempts ?? 0;
+                    const armed = breakChannel === desig;
                     // Draft edits the channel's absolute lend; it seeds from what the channel
                     // already lends so re-apportioning is natural.
                     const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
@@ -2076,7 +2085,8 @@ function ShipSidebar({
                             )}
                           </span>
                         )}
-                        {isMine && state === 'powered' && (
+                        {/* Lending controls — a channel not committed to breaking (G24.12) */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'LEND_EW') && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
                             <select value={draft.target} style={{ fontSize: '0.72rem', maxWidth: 110 }}
                               onChange={ev => setDraft({ target: ev.target.value })}
@@ -2109,9 +2119,32 @@ function ShipSidebar({
                                 : `Lend ${draft.ecm} ECM${isSelf ? '' : `/${draftEccm} ECCM`} (draws ${draw} from the pool) — needs a lock-on for a friendly target (G24.218)`}>lend</button>
                           </div>
                         )}
+                        {/* Break-lock-on controls — G24.22. Counter shows once committed. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'BREAK_LOCKON') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'BREAK_LOCKON' && (
+                              <span style={{ color: '#f0a0a0' }}>breaking lock-ons — {breakAttempts}/3 used</span>
+                            )}
+                            {breakAttempts < 3 && (armed ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#f0a0a0', color: '#f0a0a0' }}
+                                onClick={onCancelBreak} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmBreak(desig)}
+                                title="Break a seeker's lock-on (G24.22): then click an enemy drone/shuttle you have a lock-on to, within 15 hexes">
+                                {fn === 'BREAK_LOCKON' ? 'break…' : 'break lock-on…'}</button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                  {breakChannel && (
+                    <div style={{ marginTop: 2, color: '#f0a0a0', fontStyle: 'italic' }}>
+                      Click an enemy drone/shuttle to break channel {breakChannel}'s lock-on…
+                    </div>
+                  )}
+                  {breakError && <div style={{ marginTop: 2, color: '#f85149' }}>{breakError}</div>}
                 </div>
               )}
 
@@ -2902,6 +2935,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
   const [crewError,   setCrewError]   = useState<string | null>(null);
+  // Break-lock-on targeting (G24.22): the scout channel designator being aimed, or null.
+  const [breakChannel, setBreakChannel] = useState<string | null>(null);
+  const [breakError,   setBreakError]   = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [showScore, setShowScore]           = useState(false);
   const [eaDismissed, setEaDismissed]       = useState(false);
@@ -3048,6 +3084,9 @@ export default function GameBoard({ session, onLeave }: Props) {
     ? (gameState?.mapObjects.find(o => o.name === selectedShip.name && o.type === 'SHIP') as ShipObject | undefined) ?? selectedShip
     : null;
 
+  // Disarm break-lock-on targeting when the selected ship changes (mode belongs to one scout).
+  useEffect(() => { setBreakChannel(null); setBreakError(null); }, [liveShip?.name]);
+
   const selectedShuttle = selected?.type === 'SHUTTLE' ? (selected as ShuttleObject) : null;
   const liveShuttle = selectedShuttle
     ? (gameState?.mapObjects.find(o => o.name === selectedShuttle.name && o.type === 'SHUTTLE') as ShuttleObject | undefined) ?? selectedShuttle
@@ -3124,6 +3163,15 @@ export default function GameBoard({ session, onLeave }: Props) {
           setTractorMode(false);
           return;
         }
+      }
+    }
+    if (breakChannel && liveShip && obj) {
+      // Break a seeker's lock-on with the armed scout channel (G24.22). Eligibility
+      // (lock-on, range, enemy, immunity) is validated server-side; surface failures.
+      const seekerTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
+      if (seekerTypes.has(obj.type)) {
+        handleBreakLockOn(breakChannel, obj.name);
+        return;
       }
     }
     if (beamObjectMode && liveShip && obj?.type === 'OBJECTIVE') {
@@ -4010,6 +4058,25 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Attempt to break a seeker's lock-on with a scout channel (G24.22); stays armed for
+  // further attempts (3/turn) until the player cancels.
+  async function handleBreakLockOn(channelDesignator: string, seekerName: string) {
+    if (!liveShip) return;
+    setBreakError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'BREAK_LOCKON',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        seekerName,
+      });
+      if (!res.success) setBreakError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setBreakError(e instanceof Error ? e.message : 'Break lock-on failed');
+    }
+  }
+
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
     setActionError(null);
@@ -4515,6 +4582,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             onDeactivateEsg={handleDeactivateEsg}
             friendlyShipNames={gameState?.myShips ?? []}
             onLendEw={handleLendEw}
+            breakChannel={breakChannel}
+            breakError={breakError}
+            onArmBreak={(d) => { setBreakChannel(d); setBreakError(null); }}
+            onCancelBreak={() => { setBreakChannel(null); setBreakError(null); }}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}

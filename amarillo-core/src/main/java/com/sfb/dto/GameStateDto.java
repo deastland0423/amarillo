@@ -122,6 +122,8 @@ public class GameStateDto {
         public String  channelLendTarget; // unit this channel is lending EW to, or null (G24.21)
         public int     channelLentEcm;    // ECM points this channel is lending (G24.21)
         public int     channelLentEccm;   // ECCM points this channel is lending (G24.21)
+        public String  channelFunction;   // this turn's committed function: NONE/LEND_EW/BREAK_LOCKON (G24.12)
+        public int     channelBreakAttempts; // break-lock-on attempts spent this turn (G24.221)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -1015,6 +1017,8 @@ public class GameStateDto {
                 wd.channelLendTarget = c.getLendTarget();
                 wd.channelLentEcm = c.getLentEcm();
                 wd.channelLentEccm = c.getLentEccm();
+                wd.channelFunction = c.getTurnFunction().name();
+                wd.channelBreakAttempts = c.getBreakAttempts();
             }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
