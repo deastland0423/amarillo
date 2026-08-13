@@ -229,8 +229,9 @@ public class GameStateDto {
         public int sensorRating;
         public int ecmAllocated;
         public int eccmAllocated;
-        public int scoutEwPool;   // EW points this scout generated to lend this turn (G24.211)
-        public int scoutEwLent;   // of the pool, how many are currently lent out (G24.2111)
+        public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
+        public int scoutEwLent;      // of the pool, how many are currently lent out (G24.2111)
+        public int scoutEwRemaining; // still available to commit; dropped points are lost (G24.2122)
         public List<WeaponDto> weapons;
         public List<DroneRackDto> droneRacks;
         public List<ShuttleBayDto> shuttleBays;
@@ -862,6 +863,7 @@ public class GameStateDto {
         dto.eccmAllocated = ship.getEccmAllocated();
         dto.scoutEwPool = ship.getScoutEwPool();
         dto.scoutEwLent = ship.getScoutEwLent();
+        dto.scoutEwRemaining = ship.getScoutEwRemaining();
         dto.tBombs = ship.getTBombs();
         dto.dummyTBombs = ship.getDummyTBombs();
         dto.nuclearSpaceMines = ship.getNuclearSpaceMines();

@@ -402,6 +402,7 @@ public class Ship extends Unit implements DroneController {
 			c.clearLend();
 		}
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
+		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
 
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
@@ -748,12 +749,26 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	// --- Scout EW lending pool (G24.211): points this scout generated at EA to lend out. ---
-	private int scoutEwPool;
+	private int scoutEwPool;      // total generated this turn
+	private int scoutEwRemaining; // still available to commit; dropped points don't return (G24.2122)
 
 	/** EW points this scout generated this turn for lending (ship-level pool, G24.211/.31). */
 	public int getScoutEwPool() { return scoutEwPool; }
 
-	public void setScoutEwPool(int points) { this.scoutEwPool = Math.max(0, points); }
+	public void setScoutEwPool(int points) {
+		this.scoutEwPool = Math.max(0, points);
+		this.scoutEwRemaining = this.scoutEwPool; // a freshly generated pool is fully available (G24.2113)
+	}
+
+	/** Pool still available to commit; dropped/re-apportioned points are lost, not refunded (G24.2122). */
+	public int getScoutEwRemaining() { return scoutEwRemaining; }
+
+	public void setScoutEwRemaining(int points) { this.scoutEwRemaining = Math.max(0, points); }
+
+	/** Draw {@code points} from the remaining pool when a lend is increased (G24.2122). */
+	public void spendScoutEw(int points) {
+		this.scoutEwRemaining = Math.max(0, scoutEwRemaining - Math.max(0, points));
+	}
 
 	/** EW points currently drawn from the pool across all this scout's channels (G24.2111). */
 	public int getScoutEwLent() {

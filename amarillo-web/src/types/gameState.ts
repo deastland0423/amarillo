@@ -204,6 +204,7 @@ export interface ShipObject extends MapObjectBase {
   eccmAllocated:    number;
   scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
   scoutEwLent?:     number;   // of the pool, how many are currently lent out (G24.2111)
+  scoutEwRemaining?: number;  // still available to commit; dropped points are lost (G24.2122)
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;

@@ -2019,11 +2019,19 @@ function ShipSidebar({
                 <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
                   <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>
                     Scout Channels (G24.0)
-                    {(ship.scoutEwPool ?? 0) > 0 && (
-                      <span style={{ color: '#8b949e', fontWeight: 400 }}>
-                        {' '}— EW pool {ship.scoutEwLent ?? 0}/{ship.scoutEwPool}
-                      </span>
-                    )}
+                    {(ship.scoutEwPool ?? 0) > 0 && (() => {
+                      const pool = ship.scoutEwPool ?? 0;
+                      const lent = ship.scoutEwLent ?? 0;
+                      const free = ship.scoutEwRemaining ?? 0;
+                      const lost = Math.max(0, pool - lent - free);
+                      return (
+                        <span style={{ color: '#8b949e', fontWeight: 400 }}>
+                          {' — EW '}{lent} lent, {free} free
+                          {lost > 0 && <span style={{ color: '#c98' }}>, {lost} lost</span>}
+                          {' (of '}{pool}{')'}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
                     const state = !w.functional ? 'destroyed'
@@ -2037,13 +2045,20 @@ function ShipSidebar({
                     const ecmLent  = w.channelLentEcm ?? 0;
                     const eccmLent = w.channelLentEccm ?? 0;
                     const desig    = w.designator ?? w.name;
-                    const draft    = lendDraft[desig] ?? { target: ship.name, ecm: 0, eccm: 0 };
+                    // Draft edits the channel's absolute lend; it seeds from what the channel
+                    // already lends so re-apportioning is natural.
+                    const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
                     const isSelf   = draft.target === ship.name;
-                    const draftTotal = draft.ecm + (isSelf ? 0 : draft.eccm);
-                    // pool the scout can still commit through this channel: what's unlent
-                    // elsewhere, capped at 6 per channel (G24.2112 / G24.2111).
-                    const poolFree = Math.max(0, (ship.scoutEwPool ?? 0) - (ship.scoutEwLent ?? 0) + ecmLent + eccmLent);
-                    const perChanRoom = Math.min(6, poolFree);
+                    const draftEccm  = isSelf ? 0 : draft.eccm;
+                    const draftTotal = draft.ecm + draftEccm;
+                    // Fresh points this change draws from the remaining pool (G24.2122): only
+                    // increases cost; retargeting draws the whole new lend fresh (G24.2123).
+                    const sameTarget = draft.target === (w.channelLendTarget ?? '');
+                    const draw = sameTarget
+                      ? Math.max(0, draft.ecm - ecmLent) + Math.max(0, draftEccm - eccmLent)
+                      : draftTotal;
+                    const remaining = ship.scoutEwRemaining ?? 0;
+                    const canAfford = draw <= remaining;
                     const setDraft = (patch: Partial<typeof draft>) =>
                       setLendDraft(m => ({ ...m, [desig]: { ...draft, ...patch } }));
                     return (
@@ -2076,7 +2091,7 @@ function ShipSidebar({
                               onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
                             <span style={{ color: '#3fb950', minWidth: 8, textAlign: 'center' }}>{draft.ecm}</span>
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={draftTotal >= perChanRoom}
+                              disabled={draftTotal >= 6}
                               onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
                             <span style={{ color: '#8b949e', opacity: isSelf ? 0.4 : 1 }}>C</span>
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
@@ -2084,12 +2099,14 @@ function ShipSidebar({
                               onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
                             <span style={{ color: '#f0c040', minWidth: 8, textAlign: 'center', opacity: isSelf ? 0.4 : 1 }}>{isSelf ? 0 : draft.eccm}</span>
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={isSelf || draftTotal >= perChanRoom}
+                              disabled={isSelf || draftTotal >= 6}
                               onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
                             <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 2 }}
-                              disabled={draftTotal <= 0}
+                              disabled={draftTotal <= 0 || !canAfford}
                               onClick={() => onLendEw(desig, draft.target, draft.ecm, isSelf ? 0 : draft.eccm)}
-                              title="Lend this EW through the channel (G24.21) — needs a lock-on to a friendly target (G24.218)">lend</button>
+                              title={!canAfford
+                                ? `Needs ${draw} fresh EW but only ${remaining} left — dropped points are lost (G24.2122)`
+                                : `Lend ${draft.ecm} ECM${isSelf ? '' : `/${draftEccm} ECCM`} (draws ${draw} from the pool) — needs a lock-on for a friendly target (G24.218)`}>lend</button>
                           </div>
                         )}
                       </div>

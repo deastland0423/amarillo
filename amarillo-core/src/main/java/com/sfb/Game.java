@@ -925,7 +925,7 @@ public class Game {
 
         int req = wantEcm + wantEccm;
         if (req == 0) { // e.g. an ECCM-only lend to self — nothing left to lend
-            channel.clearLend();
+            channel.clearLend(); // the channel's points are dropped and lost (G24.2122)
             resolveChannelLends();
             return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
         }
@@ -933,14 +933,21 @@ public class Game {
         if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
             return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
                     + " EW points (G24.2112)");
-        // Total lends across all channels can't exceed the scout's generated pool (G24.2111):
-        // each EW point is used by only one unit. Exclude this channel's current draw.
-        int otherLent = scout.getScoutEwLent() - channel.getLentTotal();
-        if (otherLent + req > scout.getScoutEwPool())
-            return ActionResult.fail("Scout generated only " + scout.getScoutEwPool()
-                    + " EW points; " + otherLent + " already lent (G24.2111)");
+        // Points drawn from the remaining pool (G24.2122): only increases cost. If the channel
+        // keeps the same target, reducing one kind of EW just drops those points (lost, no
+        // refund); if it is retargeted, its old points are all dropped and the new lend is
+        // drawn fresh (a scout cannot shift lent EW from one unit to another, G24.2123).
+        boolean sameTarget = targetName.equals(channel.getLendTarget());
+        int draw = sameTarget
+                ? Math.max(0, wantEcm - channel.getLentEcm()) + Math.max(0, wantEccm - channel.getLentEccm())
+                : wantEcm + wantEccm;
+        if (draw > scout.getScoutEwRemaining())
+            return ActionResult.fail("Scout has only " + scout.getScoutEwRemaining()
+                    + " EW points left; this needs " + draw
+                    + " (dropped points are lost, G24.2122)");
 
         channel.setLend(targetName, wantEcm, wantEccm);
+        scout.spendScoutEw(draw);
         resolveChannelLends();
 
         if (!self && !scout.hasLockOn(target))
