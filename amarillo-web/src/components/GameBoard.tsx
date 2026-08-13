@@ -1494,6 +1494,9 @@ interface SidebarProps {
   onAnnounceEsg:   (designator: string, radius: number, amount?: number) => void;
   onCancelEsg:     (designator: string) => void;
   onDeactivateEsg: (designator: string) => void;
+  // Scout EW lending (G24.21): friendly units this scout can lend to, and the action.
+  friendlyShipNames: string[];
+  onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1602,6 +1605,7 @@ function ShipSidebar({
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
+  friendlyShipNames, onLendEw,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -1628,6 +1632,8 @@ function ShipSidebar({
   const [tacMode,   setTacMode]   = useState(false);
   // Capacitor ESGs choose how much to release (1–5, G23.242); keyed by designator.
   const [esgReleaseAmt, setEsgReleaseAmt] = useState<Record<string, number>>({});
+  // In-progress scout EW lend per channel (G24.21): designator → {target, ecm, eccm}.
+  const [lendDraft, setLendDraft] = useState<Record<string, { target: string; ecm: number; eccm: number }>>({});
 
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
@@ -2030,15 +2036,61 @@ function ShipSidebar({
                                 : '#8b949e';
                     const ecmLent  = w.channelLentEcm ?? 0;
                     const eccmLent = w.channelLentEccm ?? 0;
+                    const desig    = w.designator ?? w.name;
+                    const draft    = lendDraft[desig] ?? { target: ship.name, ecm: 0, eccm: 0 };
+                    const isSelf   = draft.target === ship.name;
+                    const draftTotal = draft.ecm + (isSelf ? 0 : draft.eccm);
+                    // pool the scout can still commit through this channel: what's unlent
+                    // elsewhere, capped at 6 per channel (G24.2112 / G24.2111).
+                    const poolFree = Math.max(0, (ship.scoutEwPool ?? 0) - (ship.scoutEwLent ?? 0) + ecmLent + eccmLent);
+                    const perChanRoom = Math.min(6, poolFree);
+                    const setDraft = (patch: Partial<typeof draft>) =>
+                      setLendDraft(m => ({ ...m, [desig]: { ...draft, ...patch } }));
                     return (
-                      <div key={w.name} style={{ marginBottom: 2 }}>
+                      <div key={w.name} style={{ marginBottom: 3 }}>
                         <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
                         <span style={{ color }}>{state}</span>
                         {(ecmLent + eccmLent) > 0 && w.channelLendTarget && (
                           <span style={{ color: '#58c8ff' }}>
                             {' → '}{w.channelLendTarget} ({ecmLent} ECM
                             {eccmLent > 0 ? `/${eccmLent} ECCM` : ''})
+                            {isMine && (
+                              <button className="action-strip-btn" style={{ padding: '0 5px', marginLeft: 4 }}
+                                onClick={() => onLendEw(desig, w.channelLendTarget!, 0, 0)}
+                                title="Stop lending through this channel (frees the points, G24.2122)">clear</button>
+                            )}
                           </span>
+                        )}
+                        {isMine && state === 'powered' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+                            <select value={draft.target} style={{ fontSize: '0.72rem', maxWidth: 110 }}
+                              onChange={ev => setDraft({ target: ev.target.value })}
+                              title="Unit to lend EW to (self allowed — ECM only, G24.283)">
+                              {friendlyShipNames.map(n => (
+                                <option key={n} value={n}>{n === ship.name ? `self (${n})` : n}</option>
+                              ))}
+                            </select>
+                            <span style={{ color: '#8b949e' }}>E</span>
+                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                              disabled={draft.ecm <= 0}
+                              onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
+                            <span style={{ color: '#3fb950', minWidth: 8, textAlign: 'center' }}>{draft.ecm}</span>
+                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                              disabled={draftTotal >= perChanRoom}
+                              onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
+                            <span style={{ color: '#8b949e', opacity: isSelf ? 0.4 : 1 }}>C</span>
+                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                              disabled={isSelf || draft.eccm <= 0}
+                              onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
+                            <span style={{ color: '#f0c040', minWidth: 8, textAlign: 'center', opacity: isSelf ? 0.4 : 1 }}>{isSelf ? 0 : draft.eccm}</span>
+                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                              disabled={isSelf || draftTotal >= perChanRoom}
+                              onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
+                            <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 2 }}
+                              disabled={draftTotal <= 0}
+                              onClick={() => onLendEw(desig, draft.target, draft.ecm, isSelf ? 0 : draft.eccm)}
+                              title="Lend this EW through the channel (G24.21) — needs a lock-on to a friendly target (G24.218)">lend</button>
+                          </div>
                         )}
                       </div>
                     );
@@ -3921,6 +3973,26 @@ export default function GameBoard({ session, onLeave }: Props) {
   const handleCancelEsg     = (designator: string) => sendEsgAction('CANCEL_ESG', designator);
   const handleDeactivateEsg = (designator: string) => sendEsgAction('DEACTIVATE_ESG', designator);
 
+  // Aim one scout channel's EW lend for the turn (G24.21); 0/0 clears it.
+  async function handleLendEw(channelDesignator: string, targetName: string, ecm: number, eccm: number) {
+    if (!liveShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'LEND_EW',
+        shipName:          liveShip.name,
+        channelDesignator,
+        lendTarget:        targetName,
+        lendEcm:           ecm,
+        lendEccm:          eccm,
+      });
+      if (!res.success) setActionError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Lend EW failed');
+    }
+  }
+
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
     setActionError(null);
@@ -4424,6 +4496,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onAnnounceEsg={handleAnnounceEsg}
             onCancelEsg={handleCancelEsg}
             onDeactivateEsg={handleDeactivateEsg}
+            friendlyShipNames={gameState?.myShips ?? []}
+            onLendEw={handleLendEw}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}
