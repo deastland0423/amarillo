@@ -21,13 +21,27 @@ public class ScoutChannel extends Weapon {
     /** Most EW (ECM+ECCM combined) one channel can lend to a unit (G24.2112). */
     public static final int MAX_LEND = 6;
 
+    /** Attempts one channel gets to break drone lock-ons per turn (G24.221). */
+    public static final int MAX_BREAK_ATTEMPTS = 3;
+
+    /** The single scout function a channel performs this turn (G24.12) — one per turn. */
+    public enum Function { NONE, LEND_EW, BREAK_LOCKON }
+
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
+
+    // A channel performs one function per turn (G24.12); once set it is committed for the turn.
+    private Function turnFunction = Function.NONE;
 
     // EW lending (G24.21): this channel carries EW the scout generated to one recipient.
     private String lendTarget; // recipient ship name, or null if not lending
     private int lentEcm;        // ECM points carried this turn
     private int lentEccm;       // ECCM points carried this turn
+
+    // Breaking drone lock-ons (G24.22): up to 3 attempts/turn, at most one per drone per impulse.
+    private int breakAttempts;                                    // attempts spent this turn (G24.221)
+    private final java.util.Map<String, Integer> lastBreakImpulse // drone name → last impulse attempted
+            = new java.util.HashMap<>();
 
     public ScoutChannel() {
         setType("ScoutChannel");
@@ -105,4 +119,34 @@ public class ScoutChannel extends Weapon {
     public String getLendTarget() { return lendTarget; }
     public int getLentEcm()       { return lentEcm; }
     public int getLentEccm()      { return lentEccm; }
+
+    // --- Function assignment (G24.12): one function per channel per turn ---
+
+    public Function getTurnFunction() { return turnFunction; }
+
+    public void setTurnFunction(Function f) { this.turnFunction = f; }
+
+    // --- Breaking drone lock-ons (G24.22) ---
+
+    /** Attempts spent breaking drone lock-ons this turn (G24.221). */
+    public int getBreakAttempts() { return breakAttempts; }
+
+    /** The impulse this channel last attempted the named drone, or -1 if never (G24.221). */
+    public int lastBreakImpulseFor(String droneName) {
+        return lastBreakImpulse.getOrDefault(droneName, -1);
+    }
+
+    /** Record one break attempt against {@code droneName} at {@code impulse} (G24.221). */
+    public void recordBreakAttempt(String droneName, int impulse) {
+        breakAttempts++;
+        lastBreakImpulse.put(droneName, impulse);
+    }
+
+    /** Clear all per-turn state (function, lend, break attempts) at Energy Allocation. */
+    public void resetForTurn() {
+        clearLend();
+        turnFunction = Function.NONE;
+        breakAttempts = 0;
+        lastBreakImpulse.clear();
+    }
 }

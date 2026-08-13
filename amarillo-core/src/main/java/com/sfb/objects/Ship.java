@@ -399,7 +399,7 @@ public class Ship extends Unit implements DroneController {
 		// one channel; last turn's lend assignments clear so they can't spend this turn's pool.
 		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
 			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
-			c.clearLend();
+			c.resetForTurn(); // clears last turn's lend + function + break attempts (G24.12)
 		}
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)

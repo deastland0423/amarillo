@@ -150,4 +150,48 @@ class GameSessionScoutTest {
         assertTrue(session.executeAction(lend("1", "USS De Gama", 0, 0)).isSuccess());
         assertEquals(0, scout.getLentEcm(), "0/0 clears the lend");
     }
+
+    // -------------------------------------------------------------------------
+    // BREAK_LOCKON — breaking an enemy drone's lock-on (G24.22)
+    // -------------------------------------------------------------------------
+
+    private com.sfb.objects.Drone addEnemyDrone(String name, int x, int y) {
+        com.sfb.objects.Drone d = new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI);
+        d.setName(name);
+        d.setLocation(new Location(x, y));
+        game.getSeekers().add(d);
+        return d;
+    }
+
+    private ActionRequest breakLockOn(String channel, String drone) {
+        ActionRequest req = new ActionRequest();
+        req.setType("BREAK_LOCKON");
+        req.setShipName("USS De Gama");
+        req.setPlayerToken(HOST);
+        req.setChannelDesignator(channel);
+        req.setTargetName(drone);
+        return req;
+    }
+
+    @Test
+    void breakLockOn_withValidSetup_resolvesTheAttempt() {
+        allocateBoth(0); // channels powered; no lending pool needed here
+        scout.setActiveFireControl(true);
+        com.sfb.objects.Drone drone = addEnemyDrone("Drone-1", 11, 10);
+        scout.addLockOn(drone);
+
+        ActionResult r = session.executeAction(breakLockOn("1", "Drone-1"));
+        assertTrue(r.isSuccess(), r.getMessage()); // the attempt resolved (broke or failed)
+    }
+
+    @Test
+    void breakLockOn_withoutLockOn_isRefused() {
+        allocateBoth(0);
+        scout.setActiveFireControl(true);
+        addEnemyDrone("Drone-1", 11, 10); // no lock-on to it
+
+        ActionResult r = session.executeAction(breakLockOn("1", "Drone-1"));
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("lock-on"), r.getMessage());
+    }
 }

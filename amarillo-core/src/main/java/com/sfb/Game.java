@@ -929,6 +929,11 @@ public class Game {
             resolveChannelLends();
             return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
         }
+        // One function per channel per turn (G24.12): a channel already breaking drone
+        // lock-ons can't be repurposed to lend EW.
+        if (channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON)
+            return ActionResult.fail("Channel " + channelDesignator
+                    + " is breaking drone lock-ons this turn and can't also lend EW (G24.12)");
         // A single channel lends at most 6 EW, ECM+ECCM combined (G24.2112).
         if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
             return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
@@ -946,6 +951,7 @@ public class Game {
                     + " EW points left; this needs " + draw
                     + " (dropped points are lost, G24.2122)");
 
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.LEND_EW); // commits the channel (G24.12)
         channel.setLend(targetName, wantEcm, wantEccm);
         scout.spendScoutEw(draw);
         resolveChannelLends();
@@ -955,6 +961,84 @@ public class Game {
                     + " — inactive until you lock on (G24.218)");
         return ActionResult.ok("Channel " + channelDesignator + " lending " + wantEcm + " ECM / "
                 + (self ? 0 : wantEccm) + " ECCM to " + targetName);
+    }
+
+    /**
+     * Attempt to break an enemy drone's lock-on with a scout channel (G24.22). Requires
+     * active fire control and a lock-on to the drone (G24.161), the drone within 15 hexes
+     * (G24.222), and an operational channel not already used for another function this turn
+     * (G24.12). A channel gets three attempts per turn and at most one per drone per impulse
+     * (G24.221). Rolls 1d6; on 1–3 the drone loses tracking and is removed from play (G24.223).
+     */
+    public ActionResult breakDroneLockOn(Ship scout, String channelDesignator, String droneName) {
+        return breakDroneLockOn(scout, channelDesignator, droneName,
+                new com.sfb.utilities.DiceRoller().rollOneDie());
+    }
+
+    /** Package-private seam: the break resolution with a supplied die (G24.223), for tests. */
+    ActionResult breakDroneLockOn(Ship scout, String channelDesignator, String droneName, int roll) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        // One function per channel per turn (G24.12): a lending channel can't also break.
+        if (channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.LEND_EW)
+            return ActionResult.fail("Channel " + channelDesignator
+                    + " is lending EW this turn and can't also break lock-ons (G24.12)");
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(droneName)) {
+                seeker = s;
+                break;
+            }
+        if (seeker == null)
+            return ActionResult.fail("No seeker named '" + droneName + "'");
+        if (!(seeker instanceof Drone))
+            return ActionResult.fail("Only drones can have a lock-on broken this way"
+                    + " (seeking shuttles going inert are not yet supported)");
+        Drone drone = (Drone) seeker;
+        if (drone.isWarpSeeker())
+            return ActionResult.fail("Warp-seeking drones that have locked on are immune (G24.225)");
+        Unit controller = drone.getController();
+        if (controller instanceof Ship && isSameTeam(scout, (Ship) controller))
+            return ActionResult.fail(droneName + " is a friendly drone");
+        if (!scout.hasLockOn(drone))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
+        int range = getRange(scout, drone);
+        if (range > 15)
+            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max 15, G24.222)");
+
+        // Attempt budget (G24.221): three per turn, at most one per drone per impulse.
+        if (channel.getBreakAttempts() >= com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS)
+            return ActionResult.fail("Channel " + channelDesignator + " has used all "
+                    + com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS + " attempts this turn (G24.221)");
+        if (channel.lastBreakImpulseFor(droneName) == impulse)
+            return ActionResult.fail("Channel " + channelDesignator + " already tried " + droneName
+                    + " this impulse (G24.221)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON); // commits it (G24.12)
+        channel.recordBreakAttempt(droneName, impulse);
+        int left = com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS - channel.getBreakAttempts();
+        if (roll <= 3) { // G24.223
+            removeSeekerFromPlay(drone);
+            return ActionResult.ok("Channel " + channelDesignator + " broke " + droneName
+                    + "'s lock-on (die " + roll + ") — it lost tracking and is removed (G24.223)");
+        }
+        return ActionResult.ok("Channel " + channelDesignator + " failed to break " + droneName
+                + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
     }
 
     public int getCurrentTurn() {

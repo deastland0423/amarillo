@@ -1598,6 +1598,18 @@ public class GameSession {
                 return r;
             }
 
+            case "BREAK_LOCKON": {
+                // Attempt to break an enemy drone's lock-on with a scout channel (G24.22).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.breakDroneLockOn(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CANCEL_ESG": {
                 // Publicly cancel a pending ESG announcement before it forms (G23.33).
                 Ship ship = findShip(request.getShipName());
