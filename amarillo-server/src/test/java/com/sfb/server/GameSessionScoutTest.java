@@ -119,6 +119,7 @@ class GameSessionScoutTest {
     @Test
     void lendEw_toFriendlyWithLockOn_appliesBothKinds() {
         allocateBoth(6);
+        scout.setActiveFireControl(true); // lending to others needs active FC (G24.161)
         scout.addLockOn(friend); // G24.218
         ActionResult r = session.executeAction(lend("1", "USS Friend", 3, 2));
         assertTrue(r.isSuccess(), r.getMessage());

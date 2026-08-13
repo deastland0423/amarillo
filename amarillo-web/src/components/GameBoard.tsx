@@ -2078,8 +2078,9 @@ function ShipSidebar({
                         <span style={{ color }}>{state}</span>
                         {(ecmLent + eccmLent) > 0 && w.channelLendTarget && (
                           <span style={{ color: '#58c8ff' }}>
-                            {' → '}{w.channelLendTarget} ({ecmLent} ECM
-                            {eccmLent > 0 ? `/${eccmLent} ECCM` : ''})
+                            {w.channelLendTarget === ship.name
+                              ? ` — self-protection (${ecmLent} ECM)`         /* G24.28 */
+                              : ` → ${w.channelLendTarget} (${ecmLent} ECM${eccmLent > 0 ? `/${eccmLent} ECCM` : ''})`}
                             {isMine && (
                               <button className="action-strip-btn" style={{ padding: '0 5px', marginLeft: 4 }}
                                 onClick={() => onLendEw(desig, w.channelLendTarget!, 0, 0)}

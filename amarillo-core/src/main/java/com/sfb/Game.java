@@ -866,9 +866,9 @@ public class Game {
                 if (recipient == null)
                     continue;
                 if (recipient == scout)
-                    recipient.addLentEw(c.getLentEcm(), 0);           // G24.283: no ECCM to self
-                else if (scout.hasLockOn(recipient))
-                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm()); // G24.218: needs lock-on
+                    recipient.addLentEw(c.getLentEcm(), 0);           // G24.28/.283: self, ECM only, no FC/lock-on
+                else if (scout.isActiveFireControl() && scout.hasLockOn(recipient))
+                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm()); // G24.161: active FC + lock-on
             }
         }
     }
@@ -948,6 +948,12 @@ public class Game {
         String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.LEND_EW);
         if (conflict != null)
             return ActionResult.fail(conflict);
+        // G24.282: only ONE channel may self-protect (lend EW to the scout itself).
+        if (self)
+            for (com.sfb.weapons.ScoutChannel other : scout.getScoutChannels())
+                if (other != channel && scout.getName().equals(other.getLendTarget()))
+                    return ActionResult.fail("Only one channel may self-protect (G24.282) — channel "
+                            + other.getDesignator() + " already is");
         // A single channel lends at most 6 EW, ECM+ECCM combined (G24.2112).
         if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
             return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
@@ -970,11 +976,14 @@ public class Game {
         scout.spendScoutEw(draw);
         resolveChannelLends();
 
-        if (!self && !scout.hasLockOn(target))
+        // Lending to another unit needs active fire control + a lock-on (G24.161); until both
+        // hold the assignment is parked (it applies automatically once they do). Self-protection
+        // needs neither (G24.28).
+        if (!self && (!scout.isActiveFireControl() || !scout.hasLockOn(target)))
             return ActionResult.ok("Channel " + channelDesignator + " assigned to " + targetName
-                    + " — inactive until you lock on (G24.218)");
-        return ActionResult.ok("Channel " + channelDesignator + " lending " + wantEcm + " ECM / "
-                + (self ? 0 : wantEccm) + " ECCM to " + targetName);
+                    + " — inactive until you have active fire control and a lock-on (G24.161)");
+        return ActionResult.ok("Channel " + channelDesignator + (self ? " self-protecting with " : " lending ")
+                + wantEcm + " ECM" + (self ? "" : " / " + wantEccm + " ECCM to " + targetName));
     }
 
     /**

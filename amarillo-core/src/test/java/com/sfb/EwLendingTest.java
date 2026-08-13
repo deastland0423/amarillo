@@ -21,6 +21,7 @@ public class EwLendingTest {
         ship.init(FederationShips.getFedCa());
         ship.setName(name);
         ship.setLocation(new Location(x, y));
+        ship.setActiveFireControl(true); // lending to others needs active FC (G24.161)
         ScoutChannel c = new ScoutChannel();
         c.setDesignator("1");
         c.setDacHitLocaiton("torp");
@@ -169,6 +170,43 @@ public class EwLendingTest {
         game.assignChannelLend(scout, "1", "Scout", 0, 0); // clear
         assertEquals("0/0 clears the lend", 0, scout.getLentEcm());
         assertNull(scout.getScoutChannels().get(0).getLendTarget());
+    }
+
+    @Test
+    public void onlyOneChannelMaySelfProtect() {
+        // G24.282: a scout can self-protect with only one channel.
+        Game game = new Game();
+        Ship scout = scoutWithChannel(game, "Scout", 10, 10); // channel "1"
+        ScoutChannel c2 = new ScoutChannel();
+        c2.setDesignator("2");
+        c2.setDacHitLocaiton("torp");
+        c2.setPowered(true);
+        scout.getWeapons().addWeapon(c2);
+        scout.setScoutEwPool(12);
+
+        assertTrue(game.assignChannelLend(scout, "1", "Scout", 4, 0).isSuccess());
+        Game.ActionResult r = game.assignChannelLend(scout, "2", "Scout", 3, 0);
+        assertFalse("a second self-protection channel is refused (G24.282)", r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("self-protect"));
+    }
+
+    @Test
+    public void goingPassiveFcSuspendsALendToAnotherShip() {
+        // Lending EW to another unit needs active fire control + a lock-on (G24.161). Going
+        // passive drops both (D6.62), so the lend suspends (G24.333). Self-protection (G24.28)
+        // would continue — it needs neither.
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10); // active FC
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.setScoutEwPool(6);
+        scout.addLockOn(friend);
+
+        assertTrue(game.assignChannelLend(scout, "1", "Friend", 4, 0).isSuccess());
+        assertEquals("lends with active FC + lock-on", 4, friend.getLentEcm());
+
+        scout.setActiveFireControl(false); // passive → drops FC and the lock-on (D6.62)
+        game.resolveChannelLends();
+        assertEquals("lend suspends without active FC (G24.161/.333)", 0, friend.getLentEcm());
     }
 
     @Test
