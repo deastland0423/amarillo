@@ -172,6 +172,30 @@ public class EwLendingTest {
     }
 
     @Test
+    public void poolIsSharedAcrossChannels_secondChannelCannotOverdrawIt() {
+        // Two channels draw from ONE ship pool (G24.2111): after channel 1 takes 4 of 6,
+        // channel 2 can only lend the 2 that remain — and two channels can pile EW onto
+        // the same unit (G24.2112, up to D6.3144's per-unit limit).
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10); // channel "1"
+        ScoutChannel c2 = new ScoutChannel();
+        c2.setDesignator("2");
+        c2.setDacHitLocaiton("torp");
+        c2.setPowered(true);
+        scout.getWeapons().addWeapon(c2);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.setScoutEwPool(6);
+        scout.addLockOn(friend);
+
+        assertTrue(game.assignChannelLend(scout, "1", "Friend", 4, 0).isSuccess()); // 2 left
+        assertFalse("channel 2 can't overdraw the shared pool",
+                game.assignChannelLend(scout, "2", "Friend", 4, 0).isSuccess());
+        assertTrue(game.assignChannelLend(scout, "2", "Friend", 2, 0).isSuccess()); // fits
+        assertEquals("both channels stack onto the friend: 4 + 2", 6, friend.getLentEcm());
+        assertEquals("pool fully spent", 0, scout.getScoutEwRemaining());
+    }
+
+    @Test
     public void reapportioning_dropsTheOldPointsAndSpendsFreshOnes() {
         // 3 ECM/3 ECCM → 6 ECM/0 ECCM: the 3 ECCM are lost, and 3 fresh ECM are drawn
         // from the pool (G24.2122). Net: 9 points consumed for a channel showing 6 ECM.
