@@ -1498,10 +1498,11 @@ interface SidebarProps {
   friendlyShipNames: string[];
   onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
   // Seeker targeting — break (G24.22) / identify (G24.25): which channel is armed + mode.
-  aim:             { channel: string; mode: 'break' | 'identify' } | null;
+  aim:             { channel: string; mode: 'break' | 'identify' | 'offensive' } | null;
   aimError:        string | null;
-  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify') => void;
+  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify' | 'offensive') => void;
   onCancelAim:     () => void;
+  onOffensiveEw:   (channelDesignator: string, enemyName: string, points: number) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1610,7 +1611,7 @@ function ShipSidebar({
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
-  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim,
+  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2054,8 +2055,10 @@ function ShipSidebar({
                     const fn = w.channelFunction ?? 'NONE';
                     const breakAttempts = w.channelBreakAttempts ?? 0;
                     const identifyAttempts = w.channelIdentifyAttempts ?? 0;
-                    const armedBreak    = aim?.channel === desig && aim.mode === 'break';
-                    const armedIdentify = aim?.channel === desig && aim.mode === 'identify';
+                    const oewPoints = fn === 'OFFENSIVE_EW' ? (w.channelLentEcm ?? 0) : 0;
+                    const armedBreak     = aim?.channel === desig && aim.mode === 'break';
+                    const armedIdentify  = aim?.channel === desig && aim.mode === 'identify';
+                    const armedOffensive = aim?.channel === desig && aim.mode === 'offensive';
                     // Draft edits the channel's absolute lend; it seeds from what the channel
                     // already lends so re-apportioning is natural.
                     const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
@@ -2076,7 +2079,7 @@ function ShipSidebar({
                       <div key={w.name} style={{ marginBottom: 3 }}>
                         <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
                         <span style={{ color }}>{state}</span>
-                        {(ecmLent + eccmLent) > 0 && w.channelLendTarget && (
+                        {fn !== 'OFFENSIVE_EW' && (ecmLent + eccmLent) > 0 && w.channelLendTarget && (
                           <span style={{ color: '#58c8ff' }}>
                             {w.channelLendTarget === ship.name
                               ? ` — self-protection (${ecmLent} ECM)`         /* G24.28 */
@@ -2156,12 +2159,44 @@ function ShipSidebar({
                             ))}
                           </div>
                         )}
+                        {/* Offensive-EW controls — G24.219. Once committed, jam one enemy; adjust the amount. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'OFFENSIVE_EW') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            {fn === 'OFFENSIVE_EW' ? (
+                              <>
+                                <span style={{ color: '#e08a8a' }}>jamming {w.channelLendTarget} —</span>
+                                <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                  disabled={oewPoints <= 1}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, oewPoints - 1)}>−</button>
+                                <span style={{ color: '#e08a8a', minWidth: 8, textAlign: 'center' }}>{oewPoints}</span>
+                                <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                  disabled={oewPoints >= 6 || (ship.scoutEwRemaining ?? 0) < 1}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, oewPoints + 1)}>+</button>
+                                <span style={{ color: '#8b949e' }}>O-EW</span>
+                                <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 2 }}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, 0)}
+                                  title="Stop jamming (frees the channel; dropped points are lost, G24.2122)">clear</button>
+                              </>
+                            ) : armedOffensive ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#e08a8a', color: '#e08a8a' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'offensive')}
+                                title="Offensive EW (G24.219): jam an enemy's fire control — click an enemy ship you have a lock-on to, within 15 hexes">
+                                offensive EW…</button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                   {aim && (
-                    <div style={{ marginTop: 2, color: aim.mode === 'break' ? '#f0a0a0' : '#9ad', fontStyle: 'italic' }}>
-                      Click an enemy seeker to {aim.mode === 'break' ? 'break' : 'identify'} — channel {aim.channel}…
+                    <div style={{ marginTop: 2, fontStyle: 'italic',
+                      color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a' : '#9ad' }}>
+                      {aim.mode === 'offensive'
+                        ? `Click an enemy ship to jam — channel ${aim.channel}…`
+                        : `Click an enemy seeker to ${aim.mode === 'break' ? 'break' : 'identify'} — channel ${aim.channel}…`}
                     </div>
                   )}
                   {aimError && <div style={{ marginTop: 2, color: '#f85149' }}>{aimError}</div>}
@@ -2957,7 +2992,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewError,   setCrewError]   = useState<string | null>(null);
   // Scout channel seeker-targeting (G24.22 break / G24.25 identify): which channel is armed
   // and for which function, or null.
-  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' } | null>(null);
+  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' | 'offensive' } | null>(null);
   const [aimError, setAimError] = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [showScore, setShowScore]           = useState(false);
@@ -3187,9 +3222,17 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
     }
     if (aim && liveShip && obj) {
-      // Break (G24.22) or identify (G24.25) the clicked target with the armed channel.
-      // Identify also works on any shuttle (a plain one looks like a lurking seeker until
-      // revealed); breaking is seekers only. Eligibility is validated server-side.
+      // Break (G24.22) / identify (G24.25) / offensive EW (G24.219) on the clicked target.
+      // Offensive EW jams an enemy ship (starts at 1 point, then adjust); identify also works
+      // on any shuttle; breaking is seekers only. Eligibility is validated server-side.
+      if (aim.mode === 'offensive') {
+        if (obj.type === 'SHIP' && !myShips.has(obj.name)) {
+          handleOffensiveEw(aim.channel, obj.name, 1); // commit at 1, then adjust with the stepper
+          setAim(null);
+          return;
+        }
+        return;
+      }
       const breakTypes    = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
       const identifyTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA', 'SHUTTLE']);
       const eligible = aim.mode === 'break' ? breakTypes : identifyTypes;
@@ -4121,6 +4164,25 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Commit/adjust offensive EW on an enemy with a scout channel (G24.219); 0 clears it.
+  async function handleOffensiveEw(channelDesignator: string, enemyName: string, points: number) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'OFFENSIVE_EW',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        enemyName,
+        lendEcm:           points,
+      });
+      if (!res.success) setAimError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Offensive EW failed');
+    }
+  }
+
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
     setActionError(null);
@@ -4630,6 +4692,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             aimError={aimError}
             onArmSeeker={(d, mode) => { setAim({ channel: d, mode }); setAimError(null); }}
             onCancelAim={() => { setAim(null); setAimError(null); }}
+            onOffensiveEw={handleOffensiveEw}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}
