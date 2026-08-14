@@ -1622,6 +1622,19 @@ public class GameSession {
                 return r;
             }
 
+            case "OFFENSIVE_EW": {
+                // Commit a scout channel to offensive EW against an enemy (G24.219); reuses
+                // lendEcm as the point count. 0 clears it.
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignOffensiveEw(scout, request.getChannelDesignator(),
+                        request.getTargetName(), request.getLendEcm());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CANCEL_ESG": {
                 // Publicly cancel a pending ESG announcement before it forms (G23.33).
                 Ship ship = findShip(request.getShipName());

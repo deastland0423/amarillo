@@ -234,4 +234,52 @@ class GameSessionScoutTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage().contains("lab"), r.getMessage());
     }
+
+    // -------------------------------------------------------------------------
+    // OFFENSIVE_EW — jamming an enemy's fire control (G24.219)
+    // -------------------------------------------------------------------------
+
+    private Ship addEnemyShip(String name, int x, int y) {
+        Ship e = new Ship();
+        e.init(com.sfb.samples.KlingonShips.getD7());
+        e.setName(name);
+        e.setLocation(new Location(x, y));
+        game.getShips().add(e);
+        return e;
+    }
+
+    private ActionRequest offensiveEw(String channel, String enemy, int points) {
+        ActionRequest req = new ActionRequest();
+        req.setType("OFFENSIVE_EW");
+        req.setShipName("USS De Gama");
+        req.setPlayerToken(HOST);
+        req.setChannelDesignator(channel);
+        req.setTargetName(enemy);
+        req.setLendEcm(points);
+        return req;
+    }
+
+    @Test
+    void offensiveEw_withValidSetup_jamsTheEnemy() {
+        allocateBoth(6);
+        scout.setActiveFireControl(true);
+        Ship foe = addEnemyShip("Bandit", 11, 10);
+        scout.addLockOn(foe);
+
+        ActionResult r = session.executeAction(offensiveEw("1", "Bandit", 4));
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertEquals(4, foe.getOffensiveEw());
+    }
+
+    @Test
+    void offensiveEw_overSix_isRefused() {
+        allocateBoth(6);
+        scout.setActiveFireControl(true);
+        Ship foe = addEnemyShip("Bandit", 11, 10);
+        scout.addLockOn(foe);
+
+        ActionResult r = session.executeAction(offensiveEw("1", "Bandit", 7));
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("at most 6"), r.getMessage());
+    }
 }

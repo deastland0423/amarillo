@@ -852,8 +852,10 @@ public class Game {
      */
     public void resolveChannelLends() {
         int impulse = clock.getImpulse();
-        for (Ship s : ships)
+        for (Ship s : ships) {
             s.clearLentEw();
+            s.clearOffensiveEw();
+        }
         for (Ship scout : ships) {
             for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels()) {
                 if (c.getLendTarget() == null || !c.isOperational(impulse))
@@ -865,10 +867,15 @@ public class Game {
                     if (s.getName().equals(c.getLendTarget())) { recipient = s; break; }
                 if (recipient == null)
                     continue;
-                if (recipient == scout)
-                    recipient.addLentEw(c.getLentEcm(), 0);           // G24.28/.283: self, ECM only, no FC/lock-on
-                else if (scout.isActiveFireControl() && scout.hasLockOn(recipient))
+                if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW) {
+                    // O-EW jams an enemy's fire (G24.219); needs active FC + a lock-on (G24.2191).
+                    if (scout.isActiveFireControl() && scout.hasLockOn(recipient))
+                        recipient.addOffensiveEw(c.getLentEcm());       // ECM only, capped 6 (D6.3145)
+                } else if (recipient == scout) {
+                    recipient.addLentEw(c.getLentEcm(), 0);             // G24.28/.283: self, ECM only, no FC/lock-on
+                } else if (scout.isActiveFireControl() && scout.hasLockOn(recipient)) {
                     recipient.addLentEw(c.getLentEcm(), c.getLentEccm()); // G24.161: active FC + lock-on
+                }
             }
         }
     }
@@ -884,6 +891,7 @@ public class Game {
             return null;
         String busy = f == com.sfb.weapons.ScoutChannel.Function.LEND_EW ? "lending EW"
                 : f == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON ? "breaking drone lock-ons"
+                : f == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW ? "jamming an enemy (offensive EW)"
                 : "identifying seekers";
         return "Channel " + c.getDesignator() + " is " + busy
                 + " this turn — a channel performs one function per turn (G24.12)";
@@ -984,6 +992,88 @@ public class Game {
                     + " — inactive until you have active fire control and a lock-on (G24.161)");
         return ActionResult.ok("Channel " + channelDesignator + (self ? " self-protecting with " : " lending ")
                 + wantEcm + " ECM" + (self ? "" : " / " + wantEccm + " ECCM to " + targetName));
+    }
+
+    /**
+     * Commit one scout channel to offensive EW (O-EW) against an enemy unit for the turn
+     * (G24.219). O-EW jams the target's fire control — it adds to the effective ECM of
+     * everything the target shoots at, and the target counters with its own ECCM. Needs the
+     * enemy within 15 hexes with a lock-on (G24.2191); it must be a ship/base/PF, not a seeker
+     * or shuttle (G24.2192). ECM only (G24.2195). At most 6 through one channel, 6 total per
+     * scout (G24.219), and 6 on the enemy from all sources (D6.3145). Drawn from the EW pool;
+     * the amount can be raised during the turn (dropped points are lost, G24.2122). 0 clears it.
+     */
+    public ActionResult assignOffensiveEw(Ship scout, String channelDesignator, String enemyName, int points) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+
+        int want = Math.max(0, points);
+        if (want == 0) { // clearing drops the channel's O-EW — lost, not refunded (G24.2122)
+            channel.clearLend();
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " offensive EW cleared");
+        }
+        if (want > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " O-EW points (G24.2112)");
+
+        Ship target = null;
+        for (Ship s : ships)
+            if (s.getName().equals(enemyName)) {
+                target = s;
+                break;
+            }
+        if (target == null) // seekers/shuttles aren't ships → excluded (G24.2192)
+            return ActionResult.fail("No enemy ship/base/PF named '" + enemyName + "'");
+        if (target == scout)
+            return ActionResult.fail("A scout cannot jam itself");
+        if (isSameTeam(scout, target))
+            return ActionResult.fail(enemyName + " is friendly — offensive EW is enemy-only (G24.219)");
+        int range = getRange(scout, target);
+        if (range > 15)
+            return ActionResult.fail(enemyName + " is out of range (" + range + " hexes; max 15, G24.2191)");
+
+        // G24.219: a scout may lend at most 6 O-EW total across all its channels.
+        int otherOEW = 0;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c != channel && c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW)
+                otherOEW += c.getLentEcm();
+        if (otherOEW + want > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A scout can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " O-EW total (G24.219); " + otherOEW + " already committed");
+
+        // Pool draw (G24.2122): only increases cost; retarget drops the old jamming and draws fresh.
+        boolean sameTarget = enemyName.equals(channel.getLendTarget());
+        int draw = sameTarget ? Math.max(0, want - channel.getLentEcm()) : want;
+        if (draw > scout.getScoutEwRemaining())
+            return ActionResult.fail("Scout has only " + scout.getScoutEwRemaining()
+                    + " EW points left; this needs " + draw + " (dropped points are lost, G24.2122)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW);
+        channel.setLend(enemyName, want, 0); // ECM only (G24.2195)
+        scout.spendScoutEw(draw);
+        resolveChannelLends();
+
+        if (!scout.isActiveFireControl() || !scout.hasLockOn(target))
+            return ActionResult.ok("Channel " + channelDesignator + " assigned to jam " + enemyName
+                    + " — inactive until you have active fire control and a lock-on (G24.2191)");
+        return ActionResult.ok("Channel " + channelDesignator + " jamming " + enemyName
+                + " with " + want + " offensive EW (G24.219)");
     }
 
     /**
@@ -1873,6 +1963,20 @@ public class Game {
      */
     public int getRange(Unit attacker, Unit target) {
         return MapUtils.getRange(attacker, target);
+    }
+
+    /**
+     * Net direct-fire ECM shift a {@code target} imposes on {@code attacker}'s fire (D6.34):
+     * floor(sqrt(target ECM − attacker ECCM)), including offensive EW jamming the attacker
+     * (G24.219). Mirrors the fire math in DamageResolver; usable for fire previews.
+     */
+    public int fireEcmShift(Ship attacker, Ship target) {
+        int targetEcm = target.getEcmAllocated() + target.getLentEcm() + target.getStealthEcm()
+                + terrainEcmAlongLine(attacker.getLocation(), target.getLocation())
+                + attacker.getOffensiveEw();
+        int attackerEccm = attacker.isActiveFireControl()
+                ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
+        return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - attackerEccm)));
     }
 
     // -------------------------------------------------------------------------

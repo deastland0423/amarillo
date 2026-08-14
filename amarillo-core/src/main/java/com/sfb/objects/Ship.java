@@ -748,6 +748,20 @@ public class Ship extends Unit implements DroneController {
 		lentEccm += Math.max(0, eccm);
 	}
 
+	// --- Offensive EW jamming this ship (G24.219): degrades ITS fire (adds to its targets'
+	//     effective ECM). Capped at 6 from all sources (D6.3145). Recomputed by Game. ---
+	private int offensiveEw;
+
+	/** Offensive EW (O-EW) jamming this ship's fire control (G24.219); added to its targets' ECM. */
+	public int getOffensiveEw() { return offensiveEw; }
+
+	public void clearOffensiveEw() { offensiveEw = 0; }
+
+	/** Add O-EW jamming, clamped to the 6-point all-sources maximum (D6.3145). */
+	public void addOffensiveEw(int points) {
+		offensiveEw = Math.min(6, offensiveEw + Math.max(0, points));
+	}
+
 	// --- Scout EW lending pool (G24.211): points this scout generated at EA to lend out. ---
 	private int scoutEwPool;      // total generated this turn
 	private int scoutEwRemaining; // still available to commit; dropped points don't return (G24.2122)

@@ -529,7 +529,10 @@ class DamageResolver {
         int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() + targetShip.getLentEcm() : 0;
         int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
-        int targetEcm = allocatedEcm + stealthEcm + terrainEcm;
+        // Offensive EW jamming the attacker (G24.219) degrades its fire — it counts as ECM for
+        // every target it shoots at, on top of the target's own EW.
+        int offensiveEw = attackerShip != null ? attackerShip.getOffensiveEw() : 0;
+        int targetEcm = allocatedEcm + stealthEcm + terrainEcm + offensiveEw;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
                 ? attackerShip.getEccmAllocated() + attackerShip.getLentEccm()
                 : 0;
