@@ -54,6 +54,7 @@ public class Game {
         DIRECT_FIRE("Direct Fire"),
         REINFORCEMENT("Reinforcement"),
         DAC_CHOICE("DAC Choice"),
+        BLIND_CHOICE("Blind Choice"),
         CONTROL_OVERFLOW("Control Overflow"),
         END_OF_IMPULSE("End of Impulse");
 
@@ -147,8 +148,12 @@ public class Game {
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase blindChoiceReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase controlOverflowReturnPhase = ImpulsePhase.ACTIVITY;
     private final List<PendingDacChoice> pendingDacChoices = new ArrayList<>();
+    // A scout that fired blinding weapons picks which of its powered channels are blinded
+    // (G24.13/.131) — one pending choice per blind, resolved after any defender DAC choice.
+    private final List<PendingBlindChoice> pendingBlindChoices = new ArrayList<>();
     private final List<PendingControlOverflow> pendingControlOverflows = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
@@ -665,8 +670,7 @@ public class Game {
                     lastInternalDamageLog = new ArrayList<>();
                     damageResolver.resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                        currentPhase = ImpulsePhase.ACTIVITY;
+                    settleDamagePhase(ImpulsePhase.ACTIVITY);
                 }
                 break;
             case ACTIVITY:
@@ -683,8 +687,7 @@ public class Game {
                     lastInternalDamageLog = new ArrayList<>();
                     damageResolver.resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                        currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                    settleDamagePhase(ImpulsePhase.END_OF_IMPULSE);
                 }
                 break;
             case REINFORCEMENT:
@@ -693,12 +696,14 @@ public class Game {
                 lastInternalDamageLog = new ArrayList<>();
                 damageResolver.resolveInternalDamage();
                 log.addAll(lastInternalDamageLog);
-                if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                    currentPhase = reinforcementReturnPhase;
+                settleDamagePhase(reinforcementReturnPhase);
                 break;
             case DAC_CHOICE:
                 // DAC_CHOICE is exited via submitDacChoice(), not ADVANCE_PHASE.
                 return ActionResult.fail("A DAC system choice is pending — submit your selection first");
+            case BLIND_CHOICE:
+                // BLIND_CHOICE is exited via submitBlindChoice(), not ADVANCE_PHASE.
+                return ActionResult.fail("A scout channel blind choice is pending — submit your selection first");
             case CONTROL_OVERFLOW:
                 // CONTROL_OVERFLOW is exited via submitControlOverflowChoice(), not
                 // ADVANCE_PHASE.
@@ -2153,14 +2158,91 @@ public class Game {
         // without adding new choices (it only changes phase when it *adds* a choice or
         // sets CONTROL_OVERFLOW). So the right exit test is: still in DAC_CHOICE AND
         // no choices remain → transition back to the phase that triggered the damage.
-        if (currentPhase == ImpulsePhase.DAC_CHOICE && pendingDacChoices.isEmpty())
-            currentPhase = dacChoiceReturnPhase;
+        if (currentPhase == ImpulsePhase.DAC_CHOICE && pendingDacChoices.isEmpty()) {
+            if (!pendingBlindChoices.isEmpty()) {
+                blindChoiceReturnPhase = dacChoiceReturnPhase; // blinds resolve after the DAC choices
+                currentPhase = ImpulsePhase.BLIND_CHOICE;
+            } else {
+                currentPhase = dacChoiceReturnPhase;
+            }
+        }
 
         return ActionResult.ok(String.join("; ", lastInternalDamageLog));
     }
 
     public List<PendingDacChoice> getPendingDacChoices() {
         return Collections.unmodifiableList(pendingDacChoices);
+    }
+
+    public List<PendingBlindChoice> getPendingBlindChoices() {
+        return Collections.unmodifiableList(pendingBlindChoices);
+    }
+
+    /**
+     * A scout that fired {@code count} blinding weapons (G24.13) blinds that many of its
+     * powered channels. Bases never blind their own channels (G24.135). With 0–1 powered
+     * channels there is no choice, so it resolves silently; with 2+ the firing player picks
+     * which take the blinds (G24.131) via submitBlindChoice(). Called during fire; the
+     * BLIND_CHOICE phase is entered once the shot settles (after any defender DAC choice).
+     */
+    void queueScoutBlinds(Ship scout, int count) {
+        if (scout == null || count <= 0 || scout.isBase())
+            return;
+        List<String> powered = new ArrayList<>();
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c.isFunctional() && c.isPowered())
+                powered.add(c.getDesignator());
+        if (powered.isEmpty())
+            return;
+        if (powered.size() == 1) {
+            for (int i = 0; i < count; i++)
+                scout.blindOneScoutChannel(clock.getImpulse()); // only powered channel; no choice
+            return;
+        }
+        for (int i = 0; i < count; i++)
+            pendingBlindChoices.add(new PendingBlindChoice(scout, new ArrayList<>(powered)));
+    }
+
+    /**
+     * Move to BLIND_CHOICE if a scout owes blind selections and no DAC choice is still pending,
+     * else to {@code intended}. Called at every damage-settling point so blinds resolve after
+     * the defender's DAC choices from the same shot.
+     */
+    void settleDamagePhase(ImpulsePhase intended) {
+        if (currentPhase == ImpulsePhase.DAC_CHOICE)
+            return; // a DAC choice is still pending — blinds wait their turn
+        if (!pendingBlindChoices.isEmpty()) {
+            blindChoiceReturnPhase = intended;
+            currentPhase = ImpulsePhase.BLIND_CHOICE;
+        } else {
+            currentPhase = intended;
+        }
+    }
+
+    /**
+     * Firing player submits which powered channel takes the next blind (G24.131). Blinds the
+     * chosen channel and, when no blinds remain, resumes the interrupted phase.
+     */
+    public ActionResult submitBlindChoice(String channelDesignator) {
+        if (currentPhase != ImpulsePhase.BLIND_CHOICE || pendingBlindChoices.isEmpty())
+            return ActionResult.fail("No blind choice is pending");
+        PendingBlindChoice pending = pendingBlindChoices.get(0);
+        if (!pending.options.contains(channelDesignator))
+            return ActionResult.fail("Invalid channel: " + channelDesignator + ". Valid: " + pending.options);
+        com.sfb.weapons.ScoutChannel chosen = null;
+        for (com.sfb.weapons.ScoutChannel c : pending.scout.getScoutChannels())
+            if (channelDesignator.equals(c.getDesignator())) { chosen = c; break; }
+        if (chosen == null)
+            return ActionResult.fail("Channel not found: " + channelDesignator);
+
+        chosen.blind(clock.getImpulse()); // fresh blind, or extend if already blinded (G24.131)
+        pendingBlindChoices.remove(0);
+        String msg = pending.scoutName + " channel " + channelDesignator
+                + " blinded until impulse " + chosen.getBlindedUntilImpulse() + " (G24.13)";
+        if (pendingBlindChoices.isEmpty())
+            currentPhase = blindChoiceReturnPhase;
+        resolveChannelLends(); // a newly blinded channel stops lending immediately
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -3112,6 +3194,24 @@ public class Game {
 
         PendingControlOverflow(Ship ship) {
             this.ship = ship;
+        }
+    }
+
+    /**
+     * One scout channel to be blinded by the scout's own weapons fire (G24.13). The firing
+     * player chooses which of its powered channels takes it (G24.131) — the options list is
+     * every powered channel (including ones already spent or blinded, which can be sacrificed
+     * to protect a more useful one). Resolved via submitBlindChoice().
+     */
+    public static class PendingBlindChoice {
+        public final String scoutName;
+        public final java.util.List<String> options; // powered channel designators
+        final Ship scout;
+
+        PendingBlindChoice(Ship scout, java.util.List<String> options) {
+            this.scout = scout;
+            this.scoutName = scout.getName();
+            this.options = options;
         }
     }
 

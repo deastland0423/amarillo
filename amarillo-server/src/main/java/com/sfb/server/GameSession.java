@@ -1097,6 +1097,17 @@ public class GameSession {
                 return r;
             }
 
+            case "SUBMIT_BLIND_CHOICE": {
+                // Firing player picks which powered scout channel takes a blind (G24.131).
+                String channel = request.getChannelDesignator();
+                if (channel == null || channel.isBlank())
+                    return ActionResult.fail("No channel chosen");
+                ActionResult r = game.submitBlindChoice(channel);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "SUBMIT_CONTROL_OVERFLOW": {
                 String seekerName = request.getTargetName();
                 String toShipName = request.getShipName(); // null/blank = release

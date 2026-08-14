@@ -481,6 +481,7 @@ public class GameStateDto {
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
     public List<PendingDacChoiceDto> pendingDacChoices = new ArrayList<>();
+    public List<PendingBlindChoiceDto> pendingBlindChoices = new ArrayList<>();
     public List<PendingControlOverflowDto> pendingControlOverflows = new ArrayList<>();
     public PendingTractorAuctionDto pendingTractorAuction = null;
 
@@ -507,6 +508,24 @@ public class GameStateDto {
         public String dacType; // "phaser" | "drone" | "torp" | "weapon" | "warp"
         public int roll;
         public List<String> options; // weapon names or warp engine ids
+    }
+
+    /** One pending scout-channel blind the firing player must assign (G24.13/.131). */
+    public static class PendingBlindChoiceDto {
+        public String scoutName;
+        public List<BlindChannelOptionDto> channels = new ArrayList<>();
+
+        /** A powered channel the player may sacrifice, with its current role so they can decide. */
+        public static class BlindChannelOptionDto {
+            public String designator;
+            public String function;       // NONE / LEND_EW / BREAK_LOCKON / IDENTIFY / OFFENSIVE_EW
+            public String target;         // lend / O-EW target, or null
+            public int    lentEcm;
+            public int    lentEccm;
+            public int    breakAttempts;    // of 3 (G24.221)
+            public int    identifyAttempts; // of 4 (G24.251)
+            public boolean blinded;         // already blinded (still a valid, expendable target)
+        }
     }
 
     public static class PendingControlOverflowDto {
@@ -743,6 +762,33 @@ public class GameStateDto {
             d.roll = dc.roll;
             d.options = new ArrayList<>(dc.options);
             pendingDacChoices.add(d);
+        }
+
+        // Only surface the first pending blind choice (they resolve one at a time); include each
+        // powered channel's role so the player can pick which is most expendable (G24.131).
+        for (Game.PendingBlindChoice bc : game.getPendingBlindChoices()) {
+            com.sfb.objects.Ship s = game.getShips().stream()
+                    .filter(sh -> sh.getName().equals(bc.scoutName)).findFirst().orElse(null);
+            if (s == null) break;
+            PendingBlindChoiceDto d = new PendingBlindChoiceDto();
+            d.scoutName = bc.scoutName;
+            for (String designator : bc.options) {
+                com.sfb.weapons.ScoutChannel c = s.getScoutChannels().stream()
+                        .filter(ch -> designator.equals(ch.getDesignator())).findFirst().orElse(null);
+                if (c == null) continue;
+                PendingBlindChoiceDto.BlindChannelOptionDto o = new PendingBlindChoiceDto.BlindChannelOptionDto();
+                o.designator = designator;
+                o.function = c.getTurnFunction().name();
+                o.target = c.getLendTarget();
+                o.lentEcm = c.getLentEcm();
+                o.lentEccm = c.getLentEccm();
+                o.breakAttempts = c.getBreakAttempts();
+                o.identifyAttempts = c.getIdentifyAttempts();
+                o.blinded = c.isBlinded(game.getAbsoluteImpulse());
+                d.channels.add(o);
+            }
+            pendingBlindChoices.add(d);
+            break; // one at a time
         }
 
         for (Game.PendingControlOverflow ov : game.getPendingControlOverflows()) {

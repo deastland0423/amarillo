@@ -637,15 +637,18 @@ class DamageResolver {
                     .addAll(uimFiredDisruptors);
         }
 
-        // G24.13: each blinding weapon the scout fires blinds one of its powered channels.
+        // G24.13: each blinding weapon the scout fires blinds one of its powered channels. The
+        // firing player chooses which (G24.131) — queue the blinds; they resolve once the shot
+        // settles. With 0–1 powered channels queueScoutBlinds resolves it silently.
         if (attackerShip != null && !attackerShip.getScoutChannels().isEmpty()) {
-            for (Weapon w : selected) {
-                if (w.isFunctional() && w.blindsScoutChannels()) {
-                    com.sfb.weapons.ScoutChannel blinded = attackerShip.blindOneScoutChannel(currentImpulse);
-                    if (blinded != null)
-                        log.append("  scout channel blinded by weapons fire until impulse ")
-                                .append(blinded.getBlindedUntilImpulse()).append(" (G24.13)\n");
-                }
+            int blinders = 0;
+            for (Weapon w : selected)
+                if (w.isFunctional() && w.blindsScoutChannels())
+                    blinders++;
+            if (blinders > 0) {
+                game.queueScoutBlinds(attackerShip, blinders);
+                log.append("  ").append(blinders).append(" blinding weapon(s) fired — ")
+                        .append(blinders).append(" scout channel(s) to be blinded (G24.13)\n");
             }
         }
 
