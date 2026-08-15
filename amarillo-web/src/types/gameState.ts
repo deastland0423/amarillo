@@ -408,6 +408,7 @@ export interface GameState {
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];
+  pendingBlindChoices:     PendingBlindChoice[];
   pendingControlOverflows: PendingControlOverflow[];
   pendingTractorAuction:   PendingTractorAuction | null;
 }
@@ -436,6 +437,22 @@ export interface PendingDacChoice {
   roll:           number;
   options:        string[]; // weapon names, "lwarp"/"cwarp"/"rwarp", or "bay:N:space:N"
   bayIndex:       number;   // shuttle chain reactions: >=0 = scoped bay; -1 = any bay
+}
+
+export interface PendingBlindChoice {
+  scoutName: string;
+  channels:  BlindChannelOption[];
+}
+
+export interface BlindChannelOption {
+  designator:       string;
+  function:         string;  // NONE / LEND_EW / BREAK_LOCKON / IDENTIFY / OFFENSIVE_EW
+  target:           string | null;
+  lentEcm:          number;
+  lentEccm:         number;
+  breakAttempts:    number;
+  identifyAttempts: number;
+  blinded:          boolean;
 }
 
 export interface SeekerChoice {

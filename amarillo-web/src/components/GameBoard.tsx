@@ -8,6 +8,7 @@ import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
 import { DacChoiceDialog } from './DacChoiceDialog';
+import { BlindChoiceDialog } from './BlindChoiceDialog';
 import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
 import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
@@ -5133,6 +5134,25 @@ export default function GameBoard({ session, onLeave }: Props) {
               });
             } catch (e: unknown) {
               setActionError(e instanceof Error ? e.message : 'DAC choice failed');
+            }
+          }}
+        />
+      )}
+
+      {/* Scout channel blind choice (G24.13) — shown to the firing player only */}
+      {(gameState?.pendingBlindChoices?.length ?? 0) > 0
+        && (myShips.size === 0 || myShips.has(gameState!.pendingBlindChoices[0].scoutName)) && (
+        <BlindChoiceDialog
+          choice={gameState!.pendingBlindChoices[0]}
+          onSubmit={async (designator: string) => {
+            setActionError(null);
+            try {
+              await gameApi.submitAction(session.gameId, session.playerToken, {
+                type: 'SUBMIT_BLIND_CHOICE',
+                channelDesignator: designator,
+              });
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'Blind choice failed');
             }
           }}
         />
