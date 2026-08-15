@@ -335,6 +335,10 @@ class LaunchCoordinator {
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
 
+        // G24.1342: launching a plasma torpedo blinds one of the launcher's scout channels.
+        game.queueScoutBlinds(launcher, 1);
+        game.enterBlindChoiceIfPending();
+
         String msg = launcher.getName() + " launched plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName();
         if (!lockLog.isEmpty())
@@ -368,6 +372,10 @@ class LaunchCoordinator {
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
+
+        // G24.1342: a pseudo launch blinds too — the disguise requires the same signature.
+        game.queueScoutBlinds(launcher, 1);
+        game.enterBlindChoiceIfPending();
 
         String msg = launcher.getName() + " launched pseudo plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";

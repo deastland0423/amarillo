@@ -2241,6 +2241,19 @@ public class Game {
     }
 
     /**
+     * Enter BLIND_CHOICE if a scout owes blind selections and we aren't already resolving choices.
+     * Used by paths that blind outside the damage-settling flow — e.g. launching plasma (G24.1342),
+     * which happens in the Activity phase. Resumes the current phase when the blinds are assigned.
+     */
+    void enterBlindChoiceIfPending() {
+        if (currentPhase != ImpulsePhase.BLIND_CHOICE && currentPhase != ImpulsePhase.DAC_CHOICE
+                && !pendingBlindChoices.isEmpty()) {
+            blindChoiceReturnPhase = currentPhase;
+            currentPhase = ImpulsePhase.BLIND_CHOICE;
+        }
+    }
+
+    /**
      * Firing player submits which powered channel takes the next blind (G24.131). Blinds the
      * chosen channel and, when no blinds remain, resumes the interrupted phase.
      */

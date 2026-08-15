@@ -139,6 +139,28 @@ public class BlindChoiceTest {
     }
 
     @Test
+    public void enterBlindChoiceIfPending_promptsForABlindQueuedOutsideCombat() {
+        // Models the plasma-launch path (G24.1342): a blind is queued during the Activity phase,
+        // outside the damage-settling flow, so the launcher enters BLIND_CHOICE directly.
+        Game game = new Game();
+        Ship scout = scoutWith(game, 2);
+        game.queueScoutBlinds(scout, 1); // launch queued 1 blind, 2 unblinded → a choice
+        game.enterBlindChoiceIfPending();
+        assertEquals(Game.ImpulsePhase.BLIND_CHOICE, game.getCurrentPhase());
+        assertTrue(game.submitBlindChoice("1").isSuccess());
+    }
+
+    @Test
+    public void enterBlindChoiceIfPending_noPromptWhenForcedOrNothingPending() {
+        Game game = new Game();
+        Ship scout = scoutWith(game, 1); // one channel → the launch blind auto-resolves
+        game.queueScoutBlinds(scout, 1);
+        game.enterBlindChoiceIfPending();
+        assertNotEquals(Game.ImpulsePhase.BLIND_CHOICE, game.getCurrentPhase());
+        assertTrue(scout.getScoutChannels().get(0).isBlinded(0));
+    }
+
+    @Test
     public void aChannelNotAmongTheUnblindedOptions_isRejected() {
         Game game = new Game();
         Ship scout = scoutWith(game, 2);
