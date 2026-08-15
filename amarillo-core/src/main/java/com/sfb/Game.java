@@ -2178,29 +2178,50 @@ public class Game {
         return Collections.unmodifiableList(pendingBlindChoices);
     }
 
+    /** Powered, functional, currently-unblinded channels — the only ones a blind may pick (G24.131). */
+    public List<com.sfb.weapons.ScoutChannel> unblindedPoweredChannels(Ship scout) {
+        int imp = clock.getImpulse();
+        List<com.sfb.weapons.ScoutChannel> result = new ArrayList<>();
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c.isFunctional() && c.isPowered() && !c.isBlinded(imp))
+                result.add(c);
+        return result;
+    }
+
     /**
-     * A scout that fired {@code count} blinding weapons (G24.13) blinds that many of its
-     * powered channels. Bases never blind their own channels (G24.135). With 0–1 powered
-     * channels there is no choice, so it resolves silently; with 2+ the firing player picks
-     * which take the blinds (G24.131) via submitBlindChoice(). Called during fire; the
-     * BLIND_CHOICE phase is entered once the shot settles (after any defender DAC choice).
+     * Apply the blinds that need no choice (G24.131) and return how many still require one. A
+     * blind is a real choice only when fewer are owed than there are unblinded channels (you're
+     * picking a subset). Otherwise it's forced: blind unblinded channels; once all powered
+     * channels are blinded, extend the earliest-recovering once and the surplus has no effect.
+     */
+    private int autoResolveForcedBlinds(Ship scout, int count) {
+        while (count > 0) {
+            List<com.sfb.weapons.ScoutChannel> unblinded = unblindedPoweredChannels(scout);
+            if (count < unblinded.size())
+                return count; // choosing which of the unblinded to sacrifice — a real choice
+            if (unblinded.isEmpty()) {
+                scout.blindOneScoutChannel(clock.getImpulse()); // all blinded → extend earliest once
+                return 0;                                       // further surplus has no effect
+            }
+            scout.blindOneScoutChannel(clock.getImpulse()); // forced: blind an unblinded channel
+            count--;
+        }
+        return 0;
+    }
+
+    /**
+     * A scout that fired {@code count} blinding weapons (G24.13) blinds that many of its powered
+     * channels. Bases never blind their own channels (G24.135). Forced blinds resolve silently;
+     * only when the player must pick a subset of unblinded channels (G24.131) is a choice queued,
+     * resolved via submitBlindChoice(). Called during fire; BLIND_CHOICE is entered once the shot
+     * settles (after any defender DAC choice).
      */
     void queueScoutBlinds(Ship scout, int count) {
         if (scout == null || count <= 0 || scout.isBase())
             return;
-        List<String> powered = new ArrayList<>();
-        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
-            if (c.isFunctional() && c.isPowered())
-                powered.add(c.getDesignator());
-        if (powered.isEmpty())
-            return;
-        if (powered.size() == 1) {
-            for (int i = 0; i < count; i++)
-                scout.blindOneScoutChannel(clock.getImpulse()); // only powered channel; no choice
-            return;
-        }
-        for (int i = 0; i < count; i++)
-            pendingBlindChoices.add(new PendingBlindChoice(scout, new ArrayList<>(powered)));
+        int remaining = autoResolveForcedBlinds(scout, count);
+        if (remaining > 0)
+            pendingBlindChoices.add(new PendingBlindChoice(scout, remaining));
     }
 
     /**
@@ -2227,20 +2248,24 @@ public class Game {
         if (currentPhase != ImpulsePhase.BLIND_CHOICE || pendingBlindChoices.isEmpty())
             return ActionResult.fail("No blind choice is pending");
         PendingBlindChoice pending = pendingBlindChoices.get(0);
-        if (!pending.options.contains(channelDesignator))
-            return ActionResult.fail("Invalid channel: " + channelDesignator + ". Valid: " + pending.options);
+        // The pick must be a currently-unblinded powered channel (G24.131) — you can't double-blind.
         com.sfb.weapons.ScoutChannel chosen = null;
-        for (com.sfb.weapons.ScoutChannel c : pending.scout.getScoutChannels())
+        for (com.sfb.weapons.ScoutChannel c : unblindedPoweredChannels(pending.scout))
             if (channelDesignator.equals(c.getDesignator())) { chosen = c; break; }
         if (chosen == null)
-            return ActionResult.fail("Channel not found: " + channelDesignator);
+            return ActionResult.fail("Channel " + channelDesignator
+                    + " is not an unblinded powered channel");
 
-        chosen.blind(clock.getImpulse()); // fresh blind, or extend if already blinded (G24.131)
-        pendingBlindChoices.remove(0);
+        chosen.blind(clock.getImpulse());
         String msg = pending.scoutName + " channel " + channelDesignator
                 + " blinded until impulse " + chosen.getBlindedUntilImpulse() + " (G24.13)";
-        if (pendingBlindChoices.isEmpty())
-            currentPhase = blindChoiceReturnPhase;
+        // The player's pick used one blind; auto-resolve any that are now forced.
+        pending.remaining = autoResolveForcedBlinds(pending.scout, pending.remaining - 1);
+        if (pending.remaining <= 0) {
+            pendingBlindChoices.remove(0);
+            if (pendingBlindChoices.isEmpty())
+                currentPhase = blindChoiceReturnPhase;
+        }
         resolveChannelLends(); // a newly blinded channel stops lending immediately
         return ActionResult.ok(msg);
     }
@@ -3205,13 +3230,13 @@ public class Game {
      */
     public static class PendingBlindChoice {
         public final String scoutName;
-        public final java.util.List<String> options; // powered channel designators
         final Ship scout;
+        int remaining; // blinds still to assign
 
-        PendingBlindChoice(Ship scout, java.util.List<String> options) {
+        PendingBlindChoice(Ship scout, int remaining) {
             this.scout = scout;
             this.scoutName = scout.getName();
-            this.options = options;
+            this.remaining = remaining;
         }
     }
 

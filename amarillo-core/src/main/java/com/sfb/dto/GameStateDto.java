@@ -764,27 +764,25 @@ public class GameStateDto {
             pendingDacChoices.add(d);
         }
 
-        // Only surface the first pending blind choice (they resolve one at a time); include each
-        // powered channel's role so the player can pick which is most expendable (G24.131).
+        // Surface the first pending blind choice (they resolve one at a time). The options are the
+        // scout's currently-unblinded powered channels — you can't double-blind (G24.131) — each
+        // with its role so the player can pick which is most expendable.
         for (Game.PendingBlindChoice bc : game.getPendingBlindChoices()) {
             com.sfb.objects.Ship s = game.getShips().stream()
                     .filter(sh -> sh.getName().equals(bc.scoutName)).findFirst().orElse(null);
             if (s == null) break;
             PendingBlindChoiceDto d = new PendingBlindChoiceDto();
             d.scoutName = bc.scoutName;
-            for (String designator : bc.options) {
-                com.sfb.weapons.ScoutChannel c = s.getScoutChannels().stream()
-                        .filter(ch -> designator.equals(ch.getDesignator())).findFirst().orElse(null);
-                if (c == null) continue;
+            for (com.sfb.weapons.ScoutChannel c : game.unblindedPoweredChannels(s)) {
                 PendingBlindChoiceDto.BlindChannelOptionDto o = new PendingBlindChoiceDto.BlindChannelOptionDto();
-                o.designator = designator;
+                o.designator = c.getDesignator();
                 o.function = c.getTurnFunction().name();
                 o.target = c.getLendTarget();
                 o.lentEcm = c.getLentEcm();
                 o.lentEccm = c.getLentEccm();
                 o.breakAttempts = c.getBreakAttempts();
                 o.identifyAttempts = c.getIdentifyAttempts();
-                o.blinded = c.isBlinded(game.getAbsoluteImpulse());
+                o.blinded = false; // options are unblinded by definition
                 d.channels.add(o);
             }
             pendingBlindChoices.add(d);
