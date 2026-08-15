@@ -401,6 +401,7 @@ public class Ship extends Unit implements DroneController {
 			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
 			c.resetForTurn(); // clears last turn's lend + function + break attempts (G24.12)
 		}
+		refreshScoutControlBonus(0); // functions reset above, so any G24.24 bonus clears too
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
 
@@ -1312,6 +1313,22 @@ public class Ship extends Unit implements DroneController {
 			if (w instanceof com.sfb.weapons.ScoutChannel)
 				result.add((com.sfb.weapons.ScoutChannel) w);
 		return result;
+	}
+
+	/**
+	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational channel
+	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
+	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
+	 */
+	public void refreshScoutControlBonus(int currentImpulse) {
+		boolean active = false;
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
+			if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS
+					&& c.isOperational(currentImpulse)) {
+				active = true;
+				break;
+			}
+		specialFunctions.setScoutControlBonus(active ? com.sfb.weapons.ScoutChannel.CONTROL_SEEKERS_BONUS : 0);
 	}
 
 	/**

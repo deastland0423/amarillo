@@ -1504,6 +1504,7 @@ interface SidebarProps {
   onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify' | 'offensive') => void;
   onCancelAim:     () => void;
   onOffensiveEw:   (channelDesignator: string, enemyName: string, points: number) => void;
+  onControlSeekers: (channelDesignator: string) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1612,7 +1613,7 @@ function ShipSidebar({
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
-  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw,
+  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw, onControlSeekers,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
@@ -2186,6 +2187,19 @@ function ShipSidebar({
                                 onClick={() => onArmSeeker(desig, 'offensive')}
                                 title="Offensive EW (G24.219): jam an enemy's fire control — click an enemy ship you have a lock-on to, within 15 hexes">
                                 offensive EW…</button>
+                            )}
+                          </div>
+                        )}
+                        {/* Control-seekers controls — G24.24. Commits the channel for +6 capacity. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'CONTROL_SEEKERS') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'CONTROL_SEEKERS' ? (
+                              <span style={{ color: '#7fd1c0' }}>controlling seekers — +6 capacity</span>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onControlSeekers(desig)}
+                                title="Control seekers (G24.24): +6 to this ship's seeker-control capacity for the turn (one channel per scout)">
+                                control seekers (+6)</button>
                             )}
                           </div>
                         )}
@@ -4184,6 +4198,23 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Commit a scout channel to controlling seekers — +6 control capacity (G24.24). No target.
+  async function handleControlSeekers(channelDesignator: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'CONTROL_SEEKERS',
+        shipName:          liveShip.name,
+        channelDesignator,
+      });
+      if (!res.success) setAimError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Control seekers failed');
+    }
+  }
+
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
     setActionError(null);
@@ -4694,6 +4725,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onArmSeeker={(d, mode) => { setAim({ channel: d, mode }); setAimError(null); }}
             onCancelAim={() => { setAim(null); setAimError(null); }}
             onOffensiveEw={handleOffensiveEw}
+            onControlSeekers={handleControlSeekers}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}

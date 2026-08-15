@@ -897,6 +897,7 @@ public class Game {
         String busy = f == com.sfb.weapons.ScoutChannel.Function.LEND_EW ? "lending EW"
                 : f == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON ? "breaking drone lock-ons"
                 : f == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW ? "jamming an enemy (offensive EW)"
+                : f == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS ? "controlling seekers"
                 : "identifying seekers";
         return "Channel " + c.getDesignator() + " is " + busy
                 + " this turn — a channel performs one function per turn (G24.12)";
@@ -1079,6 +1080,42 @@ public class Game {
                     + " — inactive until you have active fire control and a lock-on (G24.2191)");
         return ActionResult.ok("Channel " + channelDesignator + " jamming " + enemyName
                 + " with " + want + " offensive EW (G24.219)");
+    }
+
+    /**
+     * Commit a scout channel to controlling seekers (G24.24): while assigned and operational it
+     * adds +6 to the scout's seeker-control capacity. Only one channel per scout may do this
+     * (G24.24), and it is one function per turn (G24.241). Committing raises capacity, so it
+     * never triggers overflow; losing it (blinding, G24.242) is handled where blinds resolve.
+     */
+    public ActionResult assignControlSeekers(Ship scout, String channelDesignator) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        // G24.24: only one channel per scout may control seekers.
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c != channel && c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS)
+                return ActionResult.fail("Channel " + c.getDesignator()
+                        + " is already controlling seekers — only one channel per scout (G24.24)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS);
+        scout.refreshScoutControlBonus(clock.getImpulse());
+        return ActionResult.ok("Channel " + channelDesignator + " controlling seekers — +"
+                + com.sfb.weapons.ScoutChannel.CONTROL_SEEKERS_BONUS + " seeker-control capacity (G24.24)");
     }
 
     /**
@@ -2220,6 +2257,7 @@ public class Game {
         if (scout == null || count <= 0 || scout.isBase())
             return;
         int remaining = autoResolveForcedBlinds(scout, count);
+        scout.refreshScoutControlBonus(clock.getImpulse()); // a control channel just blinded drops +6 (G24.242)
         if (remaining > 0)
             pendingBlindChoices.add(new PendingBlindChoice(scout, remaining));
     }
@@ -2237,6 +2275,7 @@ public class Game {
             currentPhase = ImpulsePhase.BLIND_CHOICE;
         } else {
             currentPhase = intended;
+            checkControlOverflow(); // a control channel blinded during fire → shed excess (G24.242)
         }
     }
 
@@ -2250,6 +2289,8 @@ public class Game {
                 && !pendingBlindChoices.isEmpty()) {
             blindChoiceReturnPhase = currentPhase;
             currentPhase = ImpulsePhase.BLIND_CHOICE;
+        } else if (pendingBlindChoices.isEmpty()) {
+            checkControlOverflow(); // an auto-resolved blind may have dropped a control channel's +6
         }
     }
 
@@ -2274,10 +2315,13 @@ public class Game {
                 + " blinded until impulse " + chosen.getBlindedUntilImpulse() + " (G24.13)";
         // The player's pick used one blind; auto-resolve any that are now forced.
         pending.remaining = autoResolveForcedBlinds(pending.scout, pending.remaining - 1);
+        pending.scout.refreshScoutControlBonus(clock.getImpulse()); // a blinded control channel drops +6 (G24.242)
         if (pending.remaining <= 0) {
             pendingBlindChoices.remove(0);
-            if (pendingBlindChoices.isEmpty())
+            if (pendingBlindChoices.isEmpty()) {
                 currentPhase = blindChoiceReturnPhase;
+                checkControlOverflow(); // G24.242: shed any seekers now over the normal rating
+            }
         }
         resolveChannelLends(); // a newly blinded channel stops lending immediately
         return ActionResult.ok(msg);

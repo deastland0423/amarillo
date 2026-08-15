@@ -27,8 +27,11 @@ public class ScoutChannel extends Weapon {
     /** Attempts one channel + lab gets to identify seekers per turn (G24.251). */
     public static final int MAX_IDENTIFY_ATTEMPTS = 4;
 
+    /** Extra seeker-control capacity one channel grants (G24.24). */
+    public static final int CONTROL_SEEKERS_BONUS = 6;
+
     /** The single scout function a channel performs this turn (G24.12) — one per turn. */
-    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY, OFFENSIVE_EW }
+    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY, OFFENSIVE_EW, CONTROL_SEEKERS }
 
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear

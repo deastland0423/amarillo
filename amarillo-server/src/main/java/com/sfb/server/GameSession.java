@@ -1646,6 +1646,17 @@ public class GameSession {
                 return r;
             }
 
+            case "CONTROL_SEEKERS": {
+                // Commit a scout channel to controlling seekers (+6 capacity, G24.24).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignControlSeekers(scout, request.getChannelDesignator());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CANCEL_ESG": {
                 // Publicly cancel a pending ESG announcement before it forms (G23.33).
                 Ship ship = findShip(request.getShipName());
