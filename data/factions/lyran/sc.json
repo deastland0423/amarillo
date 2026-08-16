@@ -1,0 +1,76 @@
+{
+  "faction": "Lyran",
+  "hull": "SC",
+  "name": "Bloodhound",
+  "serviceYear": 120,
+  "bpv": 60,
+  "epv": 100,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "commandRating": 4,
+  "tokenArt": "lyran/sc.png",
+  
+  "shields": [22, 16, 12, 12, 12, 16],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 5
+  },
+  
+  "power": {
+    "leftWarp": 8,
+    "rightWarp": 8,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 6, 4, 2, 0],
+    "scanner": [0, 0, 1, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 26,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
+    { "type": "ESG", "designator": "1"}
+  ]
+}

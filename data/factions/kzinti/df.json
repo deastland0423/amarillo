@@ -9,6 +9,7 @@
   "moveCost": 0.3333333333,
   "breakdown": 5,
   "bonusHets": 1,
+  "tokenArt": "kzinti/df.png",
   
   "shields": [15, 12, 10, 9, 10, 12],
   

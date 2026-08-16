@@ -1,0 +1,73 @@
+{
+  "faction": "Lyran",
+  "hull": "FF",
+  "name": "Bloodspiller",
+  "serviceYear": 120,
+  "bpv": 63,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.33333333,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "commandRating": 3,
+  "tokenArt": "lyran/ff.png",
+  
+  "shields": [16, 12, 9, 9, 9, 12],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 4
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 1
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 4, 2, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 3
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 2,
+    "labs": 1,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 18,
+    "boardingParties": 4,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
+    { "type": "ESG", "designator": "1"}
+  ]
+}

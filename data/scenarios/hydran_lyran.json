@@ -1,0 +1,63 @@
+{
+  "id": "HYDRAN_LYRAN",
+  "name": "Gas and Ice",
+  "year": 175,
+  "description": "A Lyran cruiser and a Hydran ranger face off in the neutral zone.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "Hydran Kingdom",
+      "faction": "Hydran",
+      "ships": [
+        {
+          "hull": "RN",
+          "shipName": "HMS Tenacity",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 3
+        }
+      ]
+    },
+    {
+      "name": "Lyran Alliance",
+      "faction": "Lyran",
+      "ships": [
+        {
+          "hull": "CA",
+          "shipName": "Azure Dawn",
+          "startHex": "1212",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 3        }
+      ]
+    }
+  ],
+  "terrain": [
+    { 
+      "type": "GAS_GIANT", 
+      "hex": "2116", 
+      "radius": 4, 
+      "name": "Proxima IV", 
+      "rings": [
+        {"inner": 7, "outer": 8}, 
+        {"inner": 10, "outer": 12}
+        ] 
+      }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  },
+  "shuttleRules": {
+    "warpBoosterPacks": false,
+    "megapacks": false,
+    "mrsShuttles": true,
+    "pfs": false
+  },
+  "commanderOptions": {
+    "budgetPercent": 10,
+    "maxDroneSpeed": 20,
+    "allowTBombs": true,
+    "allowCommandos": true
+  }
+}

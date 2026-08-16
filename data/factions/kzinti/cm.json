@@ -10,6 +10,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "note": "War cruiser.",
+  "tokenArt": "kzinti/cm.png",
   
   "shields": [30, 24, 24, 24, 24, 24],
   

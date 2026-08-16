@@ -1,6 +1,6 @@
 {
   "faction": "Hydran",
-  "hull": "HN",
+  "hull": "CU",
   "name": "HMS Hullcrusher",
   "serviceYear": 158,
   "bpv": 61,
@@ -9,6 +9,7 @@
   "moveCost": 0.3333333333,
   "breakdown": 6,
   "bonusHets": 1,
+  "tokenArt": "hydran/cu.png",
   
   "shields": [17, 12, 10, 11, 10, 12],
   
