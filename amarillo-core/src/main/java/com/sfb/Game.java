@@ -661,9 +661,6 @@ public class Game {
                 // Impulse counter and per-impulse state were already advanced in
                 // beginImpulses(); this is purely the phase transition.
                 currentPhase = ImpulsePhase.MOVEMENT;
-                // A function suspended during the impulse (cloak, Wild Weasel, a blinded
-                // channel) may have dropped a scout's +6 control capacity (G24.242).
-                checkControlOverflow();
                 break;
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
@@ -820,6 +817,9 @@ public class Game {
                     }
                 }
                 currentPhase = ImpulsePhase.MOVEMENT;
+                // A function suspended during the impulse (cloak, Wild Weasel, a blinded
+                // channel) may have dropped a scout's +6 control capacity (G24.242).
+                checkControlOverflow();
                 break;
         }
         // Secondary effects of units leaving play (chasers losing tracking)
