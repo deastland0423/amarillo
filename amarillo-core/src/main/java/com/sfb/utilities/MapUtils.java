@@ -63,6 +63,7 @@ public class MapUtils {
 
 		Location sourceLocation = source.getLocation();
 		Location targetLocation = target.getLocation();
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 
 		// If target directly 'above' the source, arc is 1
 		// If directly 'below' the source, arc is 7
@@ -156,6 +157,7 @@ public class MapUtils {
 	 * so planet-face logic can use it.
 	 */
 	public static int getAbsoluteShieldFacing(Location sourceLocation, Location targetLocation) {
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 		// If in the same hex, special conditions exist.
 		if (targetLocation.equals(sourceLocation)) {
 			return 0;
@@ -613,6 +615,7 @@ public class MapUtils {
 	public static int getGeometricBearing(Marker source, Marker target) {
 		Location src = source.getLocation();
 		Location tgt = target.getLocation();
+		if (src == null || tgt == null) return 0;  // off the map (C7.1)
 		if (src.equals(tgt)) return 0;
 
 		double sqrt3 = Math.sqrt(3);
@@ -631,6 +634,7 @@ public class MapUtils {
 
 		Location sourceLocation = source.getLocation();
 		Location targetLocation = target.getLocation();
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 
 		// If the two locations are exactly the same, we can't determint the direction.
 		if (sourceLocation.equals(targetLocation)) {

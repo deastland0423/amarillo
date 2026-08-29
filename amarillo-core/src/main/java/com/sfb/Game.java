@@ -1882,6 +1882,20 @@ public class Game {
      * go to removalLog, drained by the next advancePhase(). Wild Weasels never
      * pass through here — their chasers follow J3.21x explosion rules instead.
      */
+    /**
+     * Sever everything still pointing at a ship that has left the map (C7.1). A disengaged
+     * ship keeps its entry in the game for scoring, but it has no hex any more: nothing can
+     * hold a lock-on to it, it holds none of its own, and a seeker flying at it loses its
+     * target. Removal from play does the same work (see {@link #removeSeekerFromPlay}); a
+     * ship that leaves under its own power needs it just as much.
+     */
+    void releaseTiesToDeparted(Ship gone, String reason) {
+        for (Ship s : ships)
+            s.removeLockOn(gone);
+        gone.clearLockOns();
+        clearChasersOf(gone, reason);
+    }
+
     void clearChasersOf(Unit gone, String reason) {
         List<Seeker> chasing = new ArrayList<>();
         for (Seeker sk : seekers)

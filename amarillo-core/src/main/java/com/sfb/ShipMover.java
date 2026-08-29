@@ -194,6 +194,7 @@ class ShipMover {
             List<String> secured = game.secureObjectivesFor(ship);
             ship.setDisengaged(true);
             ship.setLocation(null);
+            game.releaseTiesToDeparted(ship, "target left the map");
             movedThisImpulse.add(ship);
             String msg = ship.getName() + " has disengaged (exited the map)";
             return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
@@ -229,6 +230,7 @@ class ShipMover {
                 if (sNext == null) {
                     s.setDisengaged(true);
                     s.setLocation(null);
+                    game.releaseTiesToDeparted(s, "target dragged off the map");
                     log.append("\n").append(s.getName()).append(" dragged off map — disengaged");
                 } else {
                     s.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());

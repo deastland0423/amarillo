@@ -101,6 +101,7 @@ class DisengagementResolver {
         ship.setDisengaged(true);
         noteFledIfEarly(ship);
         ship.setLocation(null);
+        game.releaseTiesToDeparted(ship, "target disengaged");
         String msg = ship.getName() + " has disengaged by acceleration (C7.1)";
         return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
     }
@@ -149,6 +150,7 @@ class DisengagementResolver {
         ship.setDisengaged(true);
         noteFledIfEarly(ship);
         ship.setLocation(null);
+        game.releaseTiesToDeparted(ship, "target disengaged");
         String msg = ship.getName() + " has disengaged by separation (C7.2)";
         return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
     }
