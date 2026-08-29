@@ -483,7 +483,16 @@ public class GameStateDto {
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
     public List<PendingDacChoiceDto> pendingDacChoices = new ArrayList<>();
     public List<PendingBlindChoiceDto> pendingBlindChoices = new ArrayList<>();
+    public List<PendingAttractChoiceDto> pendingAttractChoices = new ArrayList<>();
     public List<PendingControlOverflowDto> pendingControlOverflows = new ArrayList<>();
+
+    /** A scout is trying to attract an unidentified shuttle; its owner must answer (G24.235). */
+    public static class PendingAttractChoiceDto {
+        public String shuttleName;
+        public String scoutName;
+        public String channelDesignator;
+        public String ownerShipName;  // the ship that launched it — who gets asked
+    }
     public PendingTractorAuctionDto pendingTractorAuction = null;
 
     public static class PendingTractorAuctionDto {
@@ -787,6 +796,20 @@ public class GameStateDto {
                 d.channels.add(o);
             }
             pendingBlindChoices.add(d);
+            break; // one at a time
+        }
+
+        // G24.235: only the shuttle's owner is asked, and the answer is theirs to lie about.
+        for (Game.PendingAttractChoice ac : game.getPendingAttractChoices()) {
+            PendingAttractChoiceDto d = new PendingAttractChoiceDto();
+            d.shuttleName = ac.shuttleName;
+            d.scoutName = ac.scoutName;
+            d.channelDesignator = ac.channelDesignator;
+            d.ownerShipName = game.getActiveShuttles().stream()
+                    .filter(sh -> sh.getName().equals(ac.shuttleName))
+                    .map(com.sfb.objects.shuttles.Shuttle::getParentShipName)
+                    .findFirst().orElse(null);
+            pendingAttractChoices.add(d);
             break; // one at a time
         }
 

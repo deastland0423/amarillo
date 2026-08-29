@@ -69,6 +69,7 @@ public class Game {
         REINFORCEMENT("Reinforcement"),
         DAC_CHOICE("DAC Choice"),
         BLIND_CHOICE("Blind Choice"),
+        ATTRACT_CHOICE("Attraction Choice"),
         CONTROL_OVERFLOW("Control Overflow"),
         END_OF_IMPULSE("End of Impulse");
 
@@ -168,6 +169,10 @@ public class Game {
     // A scout that fired blinding weapons picks which of its powered channels are blinded
     // (G24.13/.131) — one pending choice per blind, resolved after any defender DAC choice.
     private final List<PendingBlindChoice> pendingBlindChoices = new ArrayList<>();
+
+    // G24.235: a scout has tried to attract an unidentified shuttle and its owner must answer.
+    private final List<PendingAttractChoice> pendingAttractChoices = new ArrayList<>();
+    private ImpulsePhase attractChoiceReturnPhase = ImpulsePhase.ACTIVITY;
     private final List<PendingControlOverflow> pendingControlOverflows = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
@@ -1359,13 +1364,21 @@ public class Game {
                     + SCOUT_FUNCTION_RANGE + ", G24.23)");
 
         if (seeker == null) {
-            // Not a seeking weapon: nothing answers the channel, and the attempt shows the
-            // shuttle for what it is (G24.235). The channel is spent on it all the same.
+            // G24.235: the attempt is only worth making against a shuttle nobody has identified
+            // yet — once it is known to be no seeking weapon there is nothing to attract.
+            if (plainShuttle.isIdentified())
+                return ActionResult.fail(droneName + " is not a seeking weapon (G24.235)");
+            // The channel is spent either way; what the scout learns is up to the shuttle's
+            // owner, who may answer honestly or bluff.
             channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);
             channel.recordAttraction(droneName);
-            plainShuttle.identify();
-            return ActionResult.ok("Channel " + channelDesignator + " drew nothing from " + droneName
-                    + " - it is not a seeking weapon (G24.235)");
+            pendingAttractChoices.add(new PendingAttractChoice(plainShuttle, scout, channelDesignator));
+            if (currentPhase != ImpulsePhase.ATTRACT_CHOICE) {
+                attractChoiceReturnPhase = currentPhase;
+                currentPhase = ImpulsePhase.ATTRACT_CHOICE;
+            }
+            return ActionResult.ok("Channel " + channelDesignator + " reaches out to " + droneName
+                    + " — waiting for its owner to answer (G24.235)");
         }
 
         if (unit.isTractored())
@@ -1830,6 +1843,11 @@ public class Game {
     /** Voluntarily transfer control of a seeker to an allied ship (FD1.7). */
     public ActionResult transferSeekerControl(String seekerName, String toShipName) {
         return seekerControl.transferSeekerControl(seekerName, toShipName);
+    }
+
+    /** Voluntarily give up control of a seeker (F3.4) — see {@link SeekerControl}. */
+    public ActionResult releaseSeekerControl(String seekerName, String byShipName) {
+        return seekerControl.releaseSeekerControl(seekerName, byShipName);
     }
 
     /**
@@ -3477,6 +3495,56 @@ public class Game {
      * every powered channel (including ones already spent or blinded, which can be sacrificed
      * to protect a more useful one). Resolved via submitBlindChoice().
      */
+    /**
+     * A scout has tried to attract a shuttle that has not been identified as a seeking weapon,
+     * and the shuttle's owner must say whether it is attracted (G24.235). Answering "no" admits
+     * it is manned or ballistic; answering "yes" is a bluff a plain shuttle is allowed to make,
+     * at the price of having to behave like a seeking weapon afterwards.
+     */
+    public static class PendingAttractChoice {
+        public final String shuttleName;
+        public final String scoutName;
+        public final String channelDesignator;
+        final com.sfb.objects.shuttles.Shuttle shuttle;
+        final Ship scout;
+
+        PendingAttractChoice(com.sfb.objects.shuttles.Shuttle shuttle, Ship scout, String channel) {
+            this.shuttle = shuttle;
+            this.scout = scout;
+            this.shuttleName = shuttle.getName();
+            this.scoutName = scout.getName();
+            this.channelDesignator = channel;
+        }
+    }
+
+    public List<PendingAttractChoice> getPendingAttractChoices() {
+        return Collections.unmodifiableList(pendingAttractChoices);
+    }
+
+    /**
+     * The shuttle's owner answers a scout's attraction attempt (G24.235). {@code attracted}
+     * false reveals it as no seeking weapon; true keeps the disguise up — the shuttle is not
+     * identified, the scout's player is told the attraction took, and the shuttle carries the
+     * obligation to fly at the scout as a seeking weapon would (enforcement of that movement
+     * is not modelled — the claim is recorded and shown to its owner).
+     */
+    public ActionResult submitAttractChoice(boolean attracted) {
+        if (currentPhase != ImpulsePhase.ATTRACT_CHOICE || pendingAttractChoices.isEmpty())
+            return ActionResult.fail("No attraction choice is pending");
+        PendingAttractChoice pending = pendingAttractChoices.remove(0);
+        if (pendingAttractChoices.isEmpty())
+            currentPhase = attractChoiceReturnPhase;
+
+        if (!attracted) {
+            pending.shuttle.identify();  // it answers as what it is: manned, or ballistic
+            return ActionResult.ok("Channel " + pending.channelDesignator + " drew nothing from "
+                    + pending.shuttleName + " — it is not a seeking weapon (G24.235)");
+        }
+        pending.shuttle.setClaimedAttractedTo(pending.scoutName);
+        return ActionResult.ok("Channel " + pending.channelDesignator + " attracted "
+                + pending.shuttleName + " — it now tracks " + pending.scoutName + " (G24.23)");
+    }
+
     public static class PendingBlindChoice {
         public final String scoutName;
         final Ship scout;

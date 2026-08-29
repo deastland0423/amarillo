@@ -41,6 +41,10 @@ public class ActionRequest {
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
     private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
     private String              channelDesignator;      // LEND_EW: which scout channel to aim (G24.21)
+    // SUBMIT_ATTRACT_CHOICE: true = the shuttle answers as a seeking weapon (possibly a bluff),
+    // false = it admits to being manned or ballistic (G24.235). Boxed so a client that omits
+    // it is rejected rather than silently revealing the shuttle.
+    private Boolean             attracted;
     private String              lendTarget;             // LEND_EW: unit name to lend EW to (self allowed, G24.28)
     private int                 lendEcm;                // LEND_EW: ECM points to lend via the channel
     private int                 lendEccm;               // LEND_EW: ECCM points to lend via the channel
@@ -130,6 +134,8 @@ public class ActionRequest {
     public void    setScoutEwPoints(int p)                 { this.scoutEwPoints = p; }
     public String  getChannelDesignator()                  { return channelDesignator; }
     public void    setChannelDesignator(String d)          { this.channelDesignator = d; }
+    public Boolean getAttracted()                          { return attracted; }
+    public void    setAttracted(Boolean a)                 { this.attracted = a; }
     public String  getLendTarget()                         { return lendTarget; }
     public void    setLendTarget(String t)                 { this.lendTarget = t; }
     public int     getLendEcm()                            { return lendEcm; }

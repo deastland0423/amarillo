@@ -65,6 +65,52 @@ class SeekerControl {
         return null;
     }
 
+    /**
+     * Voluntarily give up control of a seeker (F3.4). A drone that has its own lock-on keeps
+     * flying at its target; one that was relying on the controlling ship loses guidance, and a
+     * seeking shuttle goes inert in its hex (FD1.72) rather than vanishing.
+     * <p>
+     * This is the answer to a scout that has attracted one of your drones (G24.23): rather than
+     * watch it chase the scout, cut it loose — unless it has an ATG lock-on of its own, in which
+     * case releasing it changes nothing and it keeps coming.
+     */
+    ActionResult releaseSeekerControl(String seekerName, String byShipName) {
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (s instanceof Unit && ((Unit) s).getName().equalsIgnoreCase(seekerName)) {
+                seeker = s;
+                break;
+            }
+        if (seeker == null)
+            return ActionResult.fail("Seeker not found: " + seekerName);
+
+        Ship ship = null;
+        for (Ship s : ships)
+            if (s.getName().equalsIgnoreCase(byShipName)) {
+                ship = s;
+                break;
+            }
+        if (ship == null)
+            return ActionResult.fail("Ship not found: " + byShipName);
+        if (seeker.getController() != ship)
+            return ActionResult.fail(ship.getName() + " does not control " + seekerName);
+
+        String name = ((Unit) seeker).getName();
+        ship.releaseControl(seeker);
+        seeker.setController(null);
+
+        if (seeker instanceof Drone && ((Drone) seeker).isSelfGuiding())
+            // Its own ATG lock-on carries it on; releasing control changes nothing (G24.23).
+            return ActionResult.ok(name + " released — it has its own lock-on and keeps tracking "
+                    + (seeker.getTarget() != null ? seeker.getTarget().getName() : "its target"));
+        if (seeker instanceof com.sfb.objects.shuttles.Shuttle) {
+            game.makeSeekerShuttleInert((com.sfb.objects.shuttles.Shuttle) seeker); // FD1.72
+            return ActionResult.ok(name + " released — it went inert (speed 0, holds its hex)");
+        }
+        game.removeSeekerFromPlay(seeker);
+        return ActionResult.ok(name + " released — it lost guidance and went inert (F3.4)");
+    }
+
     ActionResult transferSeekerControl(String seekerName, String toShipName) {
         Seeker seeker = null;
         for (Seeker s : seekers) {

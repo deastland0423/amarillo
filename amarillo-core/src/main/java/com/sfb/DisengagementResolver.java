@@ -116,10 +116,13 @@ class DisengagementResolver {
     // C7.2 — Disengagement by separation
     // -------------------------------------------------------------------------
 
+    /** Hexes a ship must put between itself and every enemy to break contact (C7.2). */
+    static final int SEPARATION_RANGE = 50;
+
     /**
      * Check whether the given ship currently qualifies for disengagement by
      * separation (C7.2):
-     * no enemy ship within 50 hexes, and no in-flight seekers targeting it.
+     * no enemy ship within {@link #SEPARATION_RANGE} hexes, and no in-flight seekers targeting it.
      */
     boolean canDisengageBySeparation(Ship ship) {
         if (ship.getLocation() == null || ship.isDisengaged())
@@ -129,7 +132,7 @@ class DisengagementResolver {
                 continue;
             if (other.getLocation() == null)
                 continue;
-            if (MapUtils.getRange(ship, other) <= 50)
+            if (MapUtils.getRange(ship, other) <= SEPARATION_RANGE)
                 return false;
         }
         for (Seeker s : seekers) {

@@ -410,6 +410,7 @@ export interface GameState {
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];
   pendingBlindChoices:     PendingBlindChoice[];
+  pendingAttractChoices:   PendingAttractChoice[];
   pendingControlOverflows: PendingControlOverflow[];
   pendingTractorAuction:   PendingTractorAuction | null;
 }
@@ -438,6 +439,14 @@ export interface PendingDacChoice {
   roll:           number;
   options:        string[]; // weapon names, "lwarp"/"cwarp"/"rwarp", or "bay:N:space:N"
   bayIndex:       number;   // shuttle chain reactions: >=0 = scoped bay; -1 = any bay
+}
+
+/** A scout is attracting an unidentified shuttle; its owner answers, honestly or not (G24.235). */
+export interface PendingAttractChoice {
+  shuttleName:       string;
+  scoutName:         string;
+  channelDesignator: string;
+  ownerShipName:     string | null;
 }
 
 export interface PendingBlindChoice {

@@ -9,6 +9,7 @@ import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
 import { DacChoiceDialog } from './DacChoiceDialog';
 import { BlindChoiceDialog } from './BlindChoiceDialog';
+import { AttractChoiceDialog } from './AttractChoiceDialog';
 import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
 import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
@@ -3556,6 +3557,35 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Answer an enemy scout's attraction attempt on an unidentified shuttle (G24.235).
+  async function handleAttractChoice(attracted: boolean) {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'SUBMIT_ATTRACT_CHOICE', attracted,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Attraction answer failed');
+    }
+  }
+
+  // Cut a seeker loose (F3.4). A drone with its own lock-on keeps coming; one relying on
+  // this ship loses guidance — the answer to an enemy scout attracting it (G24.23).
+  async function handleReleaseDrone(droneName: string, fromShipName: string) {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'RELEASE_DRONE_CONTROL', shipName: fromShipName, targetName: droneName,
+      });
+      if (!res.success) setActionError(res.message);
+      else if (res.message) addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Drone release failed');
+    }
+  }
+
   async function handleTransferDrone(droneName: string, toShipName: string) {
     setActionError(null);
     try {
@@ -4938,6 +4968,22 @@ export default function GameBoard({ session, onLeave }: Props) {
                         </button>
                       ))
                   }
+                  {controllerName && (
+                    <button
+                      onClick={() => handleReleaseDrone(seekerName, controllerName)}
+                      title="Give up control (F3.4): a drone with its own lock-on keeps tracking, one relying on this ship goes inert — the answer to an enemy scout attracting it (G24.23)"
+                      style={{
+                        display: 'block', width: '100%', marginTop: 8,
+                        background: '#21262d', border: '1px solid #30363d',
+                        color: '#f0a0a0', borderRadius: 6, padding: '6px 12px',
+                        fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#f0a0a0')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = '#30363d')}
+                    >
+                      Release control
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -5223,6 +5269,15 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       {/* Scout channel blind choice (G24.13) — shown to the firing player only */}
+      {(gameState?.pendingAttractChoices?.length ?? 0) > 0
+        && (myShips.size === 0
+            || myShips.has(gameState!.pendingAttractChoices[0].ownerShipName ?? '')) && (
+        <AttractChoiceDialog
+          choice={gameState!.pendingAttractChoices[0]}
+          onSubmit={handleAttractChoice}
+        />
+      )}
+
       {(gameState?.pendingBlindChoices?.length ?? 0) > 0
         && (myShips.size === 0 || myShips.has(gameState!.pendingBlindChoices[0].scoutName)) && (
         <BlindChoiceDialog

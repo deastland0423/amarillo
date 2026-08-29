@@ -1124,6 +1124,25 @@ public class GameSession {
                 return r;
             }
 
+            case "SUBMIT_ATTRACT_CHOICE": {
+                // The shuttle's owner answers a scout's attraction attempt (G24.235).
+                if (request.getAttracted() == null)
+                    return ActionResult.fail("attracted must be true or false");
+                ActionResult r = game.submitAttractChoice(request.getAttracted());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "RELEASE_DRONE_CONTROL": {
+                // Voluntarily cut a seeker loose (F3.4) — the answer to a scout that has
+                // attracted one of your drones (G24.23).
+                ActionResult r = game.releaseSeekerControl(request.getTargetName(), request.getShipName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "TRANSFER_DRONE_CONTROL": {
                 String droneName = request.getTargetName();
                 String toShipName = request.getShipName();

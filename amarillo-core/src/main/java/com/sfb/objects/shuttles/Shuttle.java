@@ -33,6 +33,15 @@ public abstract class Shuttle extends Unit {
 
 	public boolean isIdentified() { return this.identified; }
 
+	// G24.235: a shuttle that has not been identified may answer a scout's attraction as if it
+	// were a seeking weapon, to fool the scout's owner. Holds the scout's name while the bluff
+	// stands; the shuttle is obliged to fly at that scout for as long as it keeps it up.
+	private String claimedAttractedTo;
+
+	public String getClaimedAttractedTo() { return this.claimedAttractedTo; }
+
+	public void setClaimedAttractedTo(String scoutName) { this.claimedAttractedTo = scoutName; }
+
 	public int getEwPods() {
 		return ewPods;
 	}

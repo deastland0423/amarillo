@@ -295,11 +295,11 @@ public class AttractDronesTest {
     }
 
     /**
-     * G24.235: an unidentified enemy shuttle may be tried — a plain one simply does not answer,
-     * which is itself the answer. The channel is spent on it either way.
+     * G24.235: an unidentified enemy shuttle may be tried, and the answer belongs to its owner.
+     * The attempt spends the channel and stops play until they answer.
      */
     @Test
-    public void aPlainShuttleDoesNotRespond_andIsRevealed() {
+    public void attractingAnUnidentifiedShuttle_asksItsOwner() {
         Game game = new Game();
         Ship scout = scout(game);
         com.sfb.objects.shuttles.AdminShuttle shuttle = new com.sfb.objects.shuttles.AdminShuttle();
@@ -311,10 +311,77 @@ public class AttractDronesTest {
         Game.ActionResult r = game.attractDrone(scout, "1", "Bluff");
 
         assertTrue(r.getMessage(), r.isSuccess());
-        assertTrue(r.getMessage(), r.getMessage().contains("not a seeking weapon"));
-        assertTrue("revealed as no threat (G24.235)", shuttle.isIdentified());
-        assertEquals("the channel is still spent (G24.231)",
+        assertTrue(r.getMessage(), r.getMessage().contains("waiting for its owner"));
+        assertEquals(Game.ImpulsePhase.ATTRACT_CHOICE, game.getCurrentPhase());
+        assertEquals(1, game.getPendingAttractChoices().size());
+        assertEquals("Bluff", game.getPendingAttractChoices().get(0).shuttleName);
+        assertFalse("nothing is revealed until the owner answers", shuttle.isIdentified());
+        assertEquals("the channel is spent either way (G24.231)",
                 ScoutChannel.Function.ATTRACT_DRONES, channelOf(scout, "1").getTurnFunction());
+    }
+
+    /** Answering honestly gives the game away: it is manned or ballistic (G24.235). */
+    @Test
+    public void answeringNotAttracted_revealsTheShuttle() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = new com.sfb.objects.shuttles.AdminShuttle();
+        shuttle.setName("Bluff");
+        shuttle.setLocation(new Location(10, 12));
+        game.getActiveShuttles().add(shuttle);
+        scout.addLockOn(shuttle);
+        Game.ImpulsePhase before = game.getCurrentPhase();
+        assertTrue(game.attractDrone(scout, "1", "Bluff").isSuccess());
+
+        Game.ActionResult r = game.submitAttractChoice(false);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("not a seeking weapon"));
+        assertTrue("revealed as no threat", shuttle.isIdentified());
+        assertNull(shuttle.getClaimedAttractedTo());
+        assertEquals("play resumes where it was interrupted", before, game.getCurrentPhase());
+    }
+
+    /** The bluff (G24.235): a manned shuttle may answer as a seeking weapon would. */
+    @Test
+    public void answeringAttracted_keepsTheDisguise() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = new com.sfb.objects.shuttles.AdminShuttle();
+        shuttle.setName("Bluff");
+        shuttle.setLocation(new Location(10, 12));
+        game.getActiveShuttles().add(shuttle);
+        scout.addLockOn(shuttle);
+        assertTrue(game.attractDrone(scout, "1", "Bluff").isSuccess());
+
+        Game.ActionResult r = game.submitAttractChoice(true);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("attracted Bluff"));
+        assertFalse("the disguise holds — still unidentified", shuttle.isIdentified());
+        assertEquals("and it owes the scout a seeking weapon's behaviour",
+                "Scout", shuttle.getClaimedAttractedTo());
+        assertTrue(game.getPendingAttractChoices().isEmpty());
+    }
+
+    /** Once it is known to be no seeking weapon there is nothing left to attract (G24.235). */
+    @Test
+    public void refusesAnAlreadyIdentifiedShuttle() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        com.sfb.objects.shuttles.AdminShuttle shuttle = new com.sfb.objects.shuttles.AdminShuttle();
+        shuttle.setName("Known");
+        shuttle.setLocation(new Location(10, 12));
+        shuttle.identify();
+        game.getActiveShuttles().add(shuttle);
+        scout.addLockOn(shuttle);
+
+        Game.ActionResult r = game.attractDrone(scout, "1", "Known");
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("not a seeking weapon"));
+        assertEquals("no channel spent on a known dud",
+                ScoutChannel.Function.NONE, channelOf(scout, "1").getTurnFunction());
     }
 
     /** The per-turn commitment clears at the next Energy Allocation. */
@@ -351,4 +418,62 @@ public class AttractDronesTest {
         assertTrue(r.getMessage(), r.getMessage().contains("friendly"));
     }
 
+    // -------------------------------------------------------------------------
+    // The answer to an attraction: cut the drone loose (F3.4, G24.23)
+    // -------------------------------------------------------------------------
+
+    /** G24.23: the controlling ship can release an attracted drone, and it goes inert. */
+    @Test
+    public void releasingAnAttractedDrone_endsIt() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Ship enemy = enemyShip(game, "Kzin", 12, 10);
+        Drone drone = enemyDrone(game, "Drone-1", 10, 12, enemy, null);
+        enemy.acquireControl(drone);
+        scout.addLockOn(drone);
+        assertTrue(game.attractDrone(scout, "1", "Drone-1").isSuccess());
+        assertSame(scout, drone.getTarget());
+
+        Game.ActionResult r = game.releaseSeekerControl("Drone-1", "Kzin");
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("lost guidance"));
+        assertFalse("it is gone rather than chasing the scout", game.getSeekers().contains(drone));
+    }
+
+    /** G24.23: unless it had its own ATG lock-on, in which case releasing changes nothing. */
+    @Test
+    public void releasingASelfGuidingDrone_leavesItTracking() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Ship enemy = enemyShip(game, "Kzin", 12, 10);
+        Drone drone = enemyDrone(game, "Drone-1", 10, 12, enemy, null);
+        drone.setSelfGuiding(true);          // achieved its own lock-on
+        enemy.acquireControl(drone);
+        scout.addLockOn(drone);
+        assertTrue(game.attractDrone(scout, "1", "Drone-1").isSuccess());
+
+        Game.ActionResult r = game.releaseSeekerControl("Drone-1", "Kzin");
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("keeps tracking"));
+        assertTrue("still in play", game.getSeekers().contains(drone));
+        assertSame("still coming for the scout", scout, drone.getTarget());
+    }
+
+    /** Only the ship actually controlling the seeker can let it go (F3.4). */
+    @Test
+    public void onlyTheControllerMayRelease() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Ship enemy = enemyShip(game, "Kzin", 12, 10);
+        Drone drone = enemyDrone(game, "Drone-1", 10, 12, enemy, null);
+        enemy.acquireControl(drone);
+
+        Game.ActionResult r = game.releaseSeekerControl("Drone-1", "Scout");
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("does not control"));
+        assertTrue(game.getSeekers().contains(drone));
+    }
 }
