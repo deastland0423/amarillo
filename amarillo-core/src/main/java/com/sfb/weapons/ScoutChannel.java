@@ -31,7 +31,8 @@ public class ScoutChannel extends Weapon {
     public static final int CONTROL_SEEKERS_BONUS = 6;
 
     /** The single scout function a channel performs this turn (G24.12) — one per turn. */
-    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY, OFFENSIVE_EW, CONTROL_SEEKERS }
+    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY, OFFENSIVE_EW, CONTROL_SEEKERS,
+                           ATTRACT_DRONES }
 
     private boolean powered = false;
     private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
@@ -51,6 +52,9 @@ public class ScoutChannel extends Weapon {
 
     // Identifying seekers (G24.25): up to 4 attempts/turn, any target(s), any impulse(s).
     private int identifyAttempts;                                 // attempts spent this turn (G24.251)
+
+    // Attracting drones (G24.23): one drone per channel per turn (G24.231).
+    private String attractedDrone;                                // the drone drawn onto the scout, or null
 
     public ScoutChannel() {
         setType("ScoutChannel");
@@ -159,6 +163,19 @@ public class ScoutChannel extends Weapon {
     /** Record one identification attempt (G24.251); no per-target/per-impulse limit (G24.252). */
     public void recordIdentifyAttempt() { identifyAttempts++; }
 
+    // --- Attracting drones (G24.23) ---
+
+    /** The drone this channel drew onto the scout this turn, or null (G24.231). */
+    public String getAttractedDrone() { return attractedDrone; }
+
+    /**
+     * Record that this channel attracted {@code droneName} (G24.231). One channel attracts
+     * one drone per turn; drawing a second takes another channel or another turn. The
+     * attraction itself is permanent — blinding, destroying or shutting down the channel
+     * does not send the drone back to its former target (G24.232).
+     */
+    public void recordAttraction(String droneName) { attractedDrone = droneName; }
+
     /** Clear all per-turn state (function, lend, break/identify attempts) at Energy Allocation. */
     public void resetForTurn() {
         clearLend();
@@ -166,5 +183,6 @@ public class ScoutChannel extends Weapon {
         breakAttempts = 0;
         lastBreakImpulse.clear();
         identifyAttempts = 0;
+        attractedDrone = null;
     }
 }

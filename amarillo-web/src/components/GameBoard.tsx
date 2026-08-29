@@ -1499,9 +1499,9 @@ interface SidebarProps {
   friendlyShipNames: string[];
   onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
   // Seeker targeting — break (G24.22) / identify (G24.25): which channel is armed + mode.
-  aim:             { channel: string; mode: 'break' | 'identify' | 'offensive' } | null;
+  aim:             { channel: string; mode: 'break' | 'identify' | 'offensive' | 'attract' } | null;
   aimError:        string | null;
-  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify' | 'offensive') => void;
+  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify' | 'offensive' | 'attract') => void;
   onCancelAim:     () => void;
   onOffensiveEw:   (channelDesignator: string, enemyName: string, points: number) => void;
   onControlSeekers: (channelDesignator: string) => void;
@@ -2061,6 +2061,8 @@ function ShipSidebar({
                     const armedBreak     = aim?.channel === desig && aim.mode === 'break';
                     const armedIdentify  = aim?.channel === desig && aim.mode === 'identify';
                     const armedOffensive = aim?.channel === desig && aim.mode === 'offensive';
+                    const armedAttract   = aim?.channel === desig && aim.mode === 'attract';
+                    const attracted      = w.channelAttractedDrone ?? null;
                     // Draft edits the channel's absolute lend; it seeds from what the channel
                     // already lends so re-apportioning is natural.
                     const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
@@ -2190,6 +2192,23 @@ function ShipSidebar({
                             )}
                           </div>
                         )}
+                        {/* Attract-drone controls — G24.23. One drone per channel per turn (G24.231);
+                            the drone keeps tracking this ship even if the channel is later lost (G24.232). */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'ATTRACT_DRONES') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'ATTRACT_DRONES' ? (
+                              <span style={{ color: '#c9a0f0' }}>attracted {attracted} — it tracks this ship</span>
+                            ) : armedAttract ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#c9a0f0', color: '#c9a0f0' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'attract')}
+                                title="Attract a drone (G24.23): it retargets onto this ship — click an enemy drone or seeking shuttle you have a lock-on to, within 15 hexes and 35 of its controller">
+                                attract drone…</button>
+                            )}
+                          </div>
+                        )}
                         {/* Control-seekers controls — G24.24. Commits the channel for +6 capacity. */}
                         {isMine && state === 'powered' && (fn === 'NONE' || fn === 'CONTROL_SEEKERS') && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
@@ -2208,9 +2227,12 @@ function ShipSidebar({
                   })}
                   {aim && (
                     <div style={{ marginTop: 2, fontStyle: 'italic',
-                      color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a' : '#9ad' }}>
+                      color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a'
+                           : aim.mode === 'attract' ? '#c9a0f0' : '#9ad' }}>
                       {aim.mode === 'offensive'
                         ? `Click an enemy ship to jam — channel ${aim.channel}…`
+                        : aim.mode === 'attract'
+                        ? `Click an enemy drone to attract onto this ship — channel ${aim.channel}…`
                         : `Click an enemy seeker to ${aim.mode === 'break' ? 'break' : 'identify'} — channel ${aim.channel}…`}
                     </div>
                   )}
@@ -3007,7 +3029,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewError,   setCrewError]   = useState<string | null>(null);
   // Scout channel seeker-targeting (G24.22 break / G24.25 identify): which channel is armed
   // and for which function, or null.
-  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' | 'offensive' } | null>(null);
+  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' | 'offensive' | 'attract' } | null>(null);
   const [aimError, setAimError] = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [showScore, setShowScore]           = useState(false);
@@ -3250,10 +3272,18 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
       const breakTypes    = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
       const identifyTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA', 'SHUTTLE']);
-      const eligible = aim.mode === 'break' ? breakTypes : identifyTypes;
+      // Attraction takes drones and seeking shuttles (FD1.8); a plain shuttle may be clicked
+      // too and simply gives itself away by not answering (G24.235). Plasma ignores it (G24.233).
+      const attractTypes  = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'SHUTTLE']);
+      const eligible = aim.mode === 'break'   ? breakTypes
+                     : aim.mode === 'attract' ? attractTypes
+                     : identifyTypes;
       if (eligible.has(obj.type)) {
         if (aim.mode === 'break') handleBreakLockOn(aim.channel, obj.name);
-        else handleIdentifySeeker(aim.channel, obj.name);
+        else if (aim.mode === 'attract') {
+          handleAttractDrone(aim.channel, obj.name);
+          setAim(null);            // one drone per channel per turn (G24.231) — disarm after it
+        } else handleIdentifySeeker(aim.channel, obj.name);
         return;
       }
     }
@@ -4195,6 +4225,25 @@ export default function GameBoard({ session, onLeave }: Props) {
       else addLog(res.message, 'combat');
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Offensive EW failed');
+    }
+  }
+
+  // Draw an enemy drone onto this ship with a scout channel (G24.23). One drone per channel
+  // per turn (G24.231), so the aim disarms as soon as the attempt resolves.
+  async function handleAttractDrone(channelDesignator: string, droneName: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'ATTRACT_DRONE',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        droneName,
+      });
+      if (!res.success) setAimError(res.message);
+      else addLog(res.message, 'combat');
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Attract drone failed');
     }
   }
 

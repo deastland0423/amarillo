@@ -50,6 +50,13 @@ public class Game {
     static final int SCOUT_FUNCTION_RANGE = 15;
 
     /**
+     * Range at which a drone still answers the unit controlling it (F3.42). A scout must be
+     * within it of that unit to draw one of its drones away (G24.234); the rule applies at
+     * the moment of the transfer only.
+     */
+    static final int DRONE_CONTROL_RANGE = 35;
+
+    /**
      * The four segments of each impulse, in order.
      * Actions are gated by the current phase: movement keys only work in MOVEMENT,
      * the fire dialog only opens in DIRECT_FIRE, etc.
@@ -919,6 +926,7 @@ public class Game {
                 : f == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON ? "breaking drone lock-ons"
                 : f == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW ? "jamming an enemy (offensive EW)"
                 : f == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS ? "controlling seekers"
+                : f == com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES ? "attracting a drone"
                 : "identifying seekers";
         return "Channel " + c.getDesignator() + " is " + busy
                 + " this turn — a channel performs one function per turn (G24.12)";
@@ -1246,6 +1254,127 @@ public class Game {
             sk.setSelfGuiding(false);
         }
         shuttle.setSpeed(0);          // remains in its hex, inert
+    }
+
+    /**
+     * Draw an enemy drone onto the scout with a scout channel (G24.23). The channel broadcasts
+     * a signature the drone finds more attractive than its current target, and the drone simply
+     * takes the scout as its new target - there is no die roll, the attraction always works.
+     * One channel attracts one drone and is committed to that function for the turn (G24.12,
+     * G24.231): a second drone takes a second channel or a later turn.
+     * <p>
+     * Needs active fire control and a lock-on to the drone (G24.161), the drone within fifteen
+     * hexes, and the scout within {@link #DRONE_CONTROL_RANGE} hexes of the unit controlling it
+     * at the moment of transfer (G24.234). The retarget is permanent: blinding, destroying, or
+     * shutting the channel down afterwards does not send the drone back to its former target
+     * (G24.232). Control of the drone stays with its owner, who keeps guiding it - now at the
+     * scout - so it is released like any other drone if that controller loses its lock-on
+     * (D6.122).
+     * <p>
+     * Plasma torpedoes, plasma-D included, ignore the attraction (G24.233); the rule exempts
+     * ballistic drones (F4.0) and dogfight drones that won their own lock-on (FD5.131) too, and
+     * neither is modelled here. Seeking shuttles are attracted just like drones (FD1.8), so an
+     * unidentified enemy shuttle may be tried and gives itself away by not responding (G24.235).
+     * A drone held in a tractor cannot be drawn off (G7.943).
+     */
+    public ActionResult attractDrone(Ship scout, String channelDesignator, String droneName) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+        // G24.231: one drone per channel per turn.
+        if (channel.getAttractedDrone() != null)
+            return ActionResult.fail("Channel " + channelDesignator + " already attracted "
+                    + channel.getAttractedDrone() + " this turn (G24.231)");
+
+        // A seeking shuttle is attracted like a drone (FD1.8), and an unidentified enemy shuttle
+        // looks exactly like one - so a plain shuttle must be a legal thing to try (G24.235).
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(droneName)) {
+                seeker = s;
+                break;
+            }
+        com.sfb.objects.shuttles.Shuttle plainShuttle = null;
+        if (seeker == null)
+            for (com.sfb.objects.shuttles.Shuttle sh : activeShuttles)
+                if (sh.getName().equals(droneName)) {
+                    plainShuttle = sh;
+                    break;
+                }
+        if (seeker == null && plainShuttle == null)
+            return ActionResult.fail("No seeker or shuttle named '" + droneName + "'");
+        if (seeker instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("Plasma torpedoes ignore the attraction (G24.233)");
+
+        Unit unit = seeker != null ? (Unit) seeker : plainShuttle;
+        boolean friendly;
+        if (seeker != null) {
+            Unit controller = seeker.getController();
+            friendly = controller instanceof Ship && isSameTeam(scout, (Ship) controller);
+        } else {
+            friendly = sameOwnerTeam(scout, plainShuttle);
+        }
+        if (friendly)
+            return ActionResult.fail(droneName + " is friendly");
+        if (!scout.hasLockOn(unit))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
+        int range = getRange(scout, unit);
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.23)");
+
+        if (seeker == null) {
+            // Not a seeking weapon: nothing answers the channel, and the attempt shows the
+            // shuttle for what it is (G24.235). The channel is spent on it all the same.
+            channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);
+            channel.recordAttraction(droneName);
+            plainShuttle.identify();
+            return ActionResult.ok("Channel " + channelDesignator + " drew nothing from " + droneName
+                    + " - it is not a seeking weapon (G24.235)");
+        }
+
+        if (unit.isTractored())
+            return ActionResult.fail(droneName + " is held in a tractor and cannot be drawn off (G7.943)");
+        if (seeker.getTarget() == scout)
+            return ActionResult.fail(droneName + " is already tracking " + scout.getName());
+
+        // G24.234: the transfer needs the scout within the drone's control range of whoever is
+        // guiding it. A drone with no controller left has nothing to be drawn away from.
+        Unit controller = seeker.getController();
+        if (controller != null && controller.getLocation() != null) {
+            int controlRange = getRange(scout, controller);
+            if (controlRange > DRONE_CONTROL_RANGE)
+                return ActionResult.fail(scout.getName() + " is " + controlRange + " hexes from "
+                        + controller.getName() + ", which controls " + droneName + " (max "
+                        + DRONE_CONTROL_RANGE + ", G24.234)");
+        }
+
+        Unit former = seeker.getTarget();
+        seeker.setTarget(scout);                                                       // G24.23
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);  // commits it (G24.12)
+        channel.recordAttraction(droneName);
+        return ActionResult.ok("Channel " + channelDesignator + " attracted " + droneName
+                + (former != null ? " away from " + former.getName() : "")
+                + " - it now tracks " + scout.getName() + " (G24.23)");
     }
 
     /**

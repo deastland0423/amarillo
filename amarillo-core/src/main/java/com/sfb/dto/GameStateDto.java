@@ -125,6 +125,7 @@ public class GameStateDto {
         public String  channelFunction;   // this turn's committed function: NONE/LEND_EW/BREAK_LOCKON/IDENTIFY (G24.12)
         public int     channelBreakAttempts;    // break-lock-on attempts spent this turn (G24.221)
         public int     channelIdentifyAttempts; // identify attempts spent this turn (G24.251)
+        public String  channelAttractedDrone;   // drone this channel drew onto the scout (G24.231)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -1066,6 +1067,7 @@ public class GameStateDto {
                 wd.channelFunction = c.getTurnFunction().name();
                 wd.channelBreakAttempts = c.getBreakAttempts();
                 wd.channelIdentifyAttempts = c.getIdentifyAttempts();
+                wd.channelAttractedDrone = c.getAttractedDrone();
             }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;

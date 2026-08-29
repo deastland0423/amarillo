@@ -282,4 +282,48 @@ class GameSessionScoutTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage().contains("at most 6"), r.getMessage());
     }
+
+    // -------------------------------------------------------------------------
+    // ATTRACT_DRONE -- drawing an enemy drone onto the scout (G24.23)
+    // -------------------------------------------------------------------------
+
+    private ActionRequest attract(String channel, String drone) {
+        ActionRequest req = new ActionRequest();
+        req.setType("ATTRACT_DRONE");
+        req.setShipName("USS De Gama");
+        req.setPlayerToken(HOST);
+        req.setChannelDesignator(channel);
+        req.setTargetName(drone);
+        return req;
+    }
+
+    @Test
+    void attractDrone_withValidSetup_retargetsTheDrone() {
+        allocateBoth(0); // channels powered; attraction needs no pool
+        scout.setActiveFireControl(true);
+        com.sfb.objects.Drone drone = addEnemyDrone("Drone-1", 11, 10);
+        drone.setTarget(friend);
+        scout.addLockOn(drone);
+
+        ActionResult r = session.executeAction(attract("1", "Drone-1"));
+
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertSame(scout, drone.getTarget(), "the drone now tracks the scout (G24.23)");
+    }
+
+    @Test
+    void attractDrone_secondDroneOnTheSameChannel_isRefused() {
+        allocateBoth(0);
+        scout.setActiveFireControl(true);
+        com.sfb.objects.Drone first = addEnemyDrone("Drone-1", 11, 10);
+        com.sfb.objects.Drone second = addEnemyDrone("Drone-2", 11, 11);
+        scout.addLockOn(first);
+        scout.addLockOn(second);
+        assertTrue(session.executeAction(attract("1", "Drone-1")).isSuccess());
+
+        ActionResult r = session.executeAction(attract("1", "Drone-2"));
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("already attracted"), r.getMessage());
+    }
 }

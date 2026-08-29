@@ -1651,6 +1651,18 @@ public class GameSession {
                 return r;
             }
 
+            case "ATTRACT_DRONE": {
+                // Draw an enemy drone onto the scout with a scout channel (G24.23).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.attractDrone(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CONTROL_SEEKERS": {
                 // Commit a scout channel to controlling seekers (+6 capacity, G24.24).
                 Ship scout = findShip(request.getShipName());
