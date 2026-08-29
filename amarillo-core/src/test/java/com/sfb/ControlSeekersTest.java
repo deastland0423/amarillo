@@ -124,4 +124,60 @@ public class ControlSeekersTest {
 
         assertEquals(Game.ImpulsePhase.CONTROL_OVERFLOW, game.getCurrentPhase());
     }
+
+    /** G24.16/G24.242: cloaking suspends the function, so the +6 goes away with it. */
+    @Test
+    public void cloakingAfterCommitting_dropsTheSixCapacity() {
+        Game game = new Game();
+        Ship scout = new Ship();
+        scout.init(com.sfb.samples.RomulanShips.getRomKr()); // has a cloaking device
+        scout.setName("Scout");
+        scout.setLocation(new Location(10, 10));
+        ScoutChannel c = new ScoutChannel();
+        c.setDesignator("1");
+        c.setDacHitLocaiton("torp");
+        c.setPowered(true);
+        scout.getWeapons().addWeapon(c);
+        game.getShips().add(scout);
+
+        int base = scout.getControlCapacity();
+        assertTrue(game.assignControlSeekers(scout, "1").isSuccess());
+        assertEquals(base + 6, scout.getControlCapacity());
+
+        scout.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+        game.resolveChannelLends();   // the per-impulse refresh (G24.333)
+
+        assertEquals("cloaked → the channel is suspended (G24.16)", base, scout.getControlCapacity());
+
+        scout.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.INACTIVE);
+        game.resolveChannelLends();
+
+        assertEquals("and comes back when the cloak drops (G24.333)", base + 6, scout.getControlCapacity());
+    }
+
+    /** G24.16: committing while cloaked is refused outright, not silently worth nothing. */
+    @Test
+    public void committingWhileCloaked_isRefused() {
+        Game game = new Game();
+        Ship scout = new Ship();
+        scout.init(com.sfb.samples.RomulanShips.getRomKr());
+        scout.setName("Scout");
+        scout.setLocation(new Location(10, 10));
+        ScoutChannel c = new ScoutChannel();
+        c.setDesignator("1");
+        c.setDacHitLocaiton("torp");
+        c.setPowered(true);
+        scout.getWeapons().addWeapon(c);
+        game.getShips().add(scout);
+        scout.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+
+        Game.ActionResult r = game.assignControlSeekers(scout, "1");
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("cloaked"));
+    }
+
 }

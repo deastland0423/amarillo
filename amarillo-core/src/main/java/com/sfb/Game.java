@@ -661,6 +661,9 @@ public class Game {
                 // Impulse counter and per-impulse state were already advanced in
                 // beginImpulses(); this is purely the phase transition.
                 currentPhase = ImpulsePhase.MOVEMENT;
+                // A function suspended during the impulse (cloak, Wild Weasel, a blinded
+                // channel) may have dropped a scout's +6 control capacity (G24.242).
+                checkControlOverflow();
                 break;
             case MOVEMENT:
                 lastSeekerLog = moveSeekers();
@@ -881,6 +884,10 @@ public class Game {
             s.clearOffensiveEw();
         }
         for (Ship scout : ships) {
+            // G24.24's +6 is suspended and restored by the same conditions as the other
+            // functions (G24.16/.333), so it is recomputed here rather than only when a
+            // channel is blinded.
+            scout.refreshScoutControlBonus(impulse);
             for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels()) {
                 if (c.getLendTarget() == null || !c.isOperational(impulse))
                     continue;
@@ -892,6 +899,10 @@ public class Game {
                 if (recipient == null)
                     continue;
                 boolean self = recipient == scout;
+                // A disengaged ship keeps its entry but leaves the map (C7.1) — it is no
+                // longer a unit any channel can reach (G24.2181).
+                if (!self && (recipient.getLocation() == null || scout.getLocation() == null))
+                    continue;
                 // G24.16: a cloak or an operating Wild Weasel suspends the channel's function
                 // while it lasts; self-protection survives a cloak (G24.28).
                 if (scout.scoutChannelBlockReason(self) != null)
@@ -1145,6 +1156,10 @@ public class Game {
                 return ActionResult.fail("Channel " + c.getDesignator()
                         + " is already controlling seekers — only one channel per scout (G24.24)");
 
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+
         channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS);
         scout.refreshScoutControlBonus(clock.getImpulse());
         return ActionResult.ok("Channel " + channelDesignator + " controlling seekers — +"
@@ -1326,12 +1341,13 @@ public class Game {
             return ActionResult.fail("Plasma torpedoes ignore the attraction (G24.233)");
 
         Unit unit = seeker != null ? (Unit) seeker : plainShuttle;
+        // An orphaned drone has no controlling ship to read a team from, so fall back to
+        // whose it is — there is no sense in drawing your own side's drone onto yourself.
         boolean friendly;
-        if (seeker != null) {
-            Unit controller = seeker.getController();
-            friendly = controller instanceof Ship && isSameTeam(scout, (Ship) controller);
+        if (seeker != null && seeker.getController() instanceof Ship) {
+            friendly = isSameTeam(scout, (Ship) seeker.getController());
         } else {
-            friendly = sameOwnerTeam(scout, plainShuttle);
+            friendly = sameOwnerTeam(scout, unit);
         }
         if (friendly)
             return ActionResult.fail(droneName + " is friendly");

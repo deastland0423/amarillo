@@ -1324,11 +1324,6 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational channel
-	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
-	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
-	 */
-	/**
 	 * Why this ship cannot use its scout channels at the moment (G24.16), or null if it can.
 	 * A cloaked scout is barred from every function except self-protection (G13.515, G24.28) —
 	 * pass true when checking that one; an operating Wild Weasel bars all of them (J3.403).
@@ -1346,6 +1341,11 @@ public class Ship extends Unit implements DroneController {
 		return null;
 	}
 
+	/**
+	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational channel
+	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
+	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
+	 */
 	public void refreshScoutControlBonus(int currentImpulse) {
 		boolean active = false;
 		if (scoutChannelBlockReason(false) != null) {   // G24.16: suspended while cloaked or under a WW

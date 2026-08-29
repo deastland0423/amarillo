@@ -332,4 +332,23 @@ public class AttractDronesTest {
         assertEquals(ScoutChannel.Function.NONE, channelOf(scout, "1").getTurnFunction());
         assertNull(channelOf(scout, "1").getAttractedDrone());
     }
+
+    /** An orphaned drone has no controlling ship, but it is still its owner's drone. */
+    @Test
+    public void refusesAFriendlyDroneWithNoController() {
+        Game game = new Game();
+        Ship scout = scout(game);
+        Player teamA = new Player();
+        teamA.setTeamName("A");
+        scout.setOwner(teamA);
+        Drone drone = enemyDrone(game, "Drone-1", 10, 12, null, null); // controller released
+        drone.setOwner(teamA);
+        scout.addLockOn(drone);
+
+        Game.ActionResult r = game.attractDrone(scout, "1", "Drone-1");
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("friendly"));
+    }
+
 }

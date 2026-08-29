@@ -47,43 +47,13 @@ public class MapUtils {
 		                                     : xDiff + (targetLocation.getY() - bottomY);
 	}
 
+	/**
+	 * Range between two units. A unit with no hex — a ship that has disengaged keeps its
+	 * entry but loses its location (C7.1) — is unreachable rather than an error, so every
+	 * range test against it simply fails.
+	 */
 	public static int getRange(Marker source, Marker target) {
-
-		Location sourceLocation = source.getLocation();
-		Location targetLocation = target.getLocation();
-
-		// Horizontal offsets
-		int xDiff = Math.abs(targetLocation.getX() - sourceLocation.getX());
-
-		// The top and bottom Y coordinate where the range
-		// is simply the difference in X coordinates.
-		int topY = 0;
-		int bottomY = 0;
-
-		// If directly above or below the source, the
-		// range to the target is simply the difference in Y coordinates.
-		if (sourceLocation.getX() == targetLocation.getX()) {
-			return Math.abs(sourceLocation.getY() - targetLocation.getY());
-		}
-
-		// If in the 3/5 or 9/11 zone then the range
-		// is simply the xDiff
-		topY = getTopArcHex(sourceLocation, targetLocation).getY();
-		bottomY = getBottomArcHex(sourceLocation, targetLocation).getY();
-
-		// if the target falls in the side-span, it's range is just the xdiff
-		if (targetLocation.getY() >= topY && targetLocation.getY() <= bottomY) {
-			return xDiff;
-		} else {
-			// if the target is above the side span, the distance is the xdiff
-			// plus the yDiff from the spinal line.
-			if (targetLocation.getY() < topY) {
-				return xDiff + (topY - targetLocation.getY());
-			} else {
-				return xDiff + (targetLocation.getY() - bottomY);
-			}
-		}
-
+		return getRange(source.getLocation(), target.getLocation());
 	}
 
 	// Return 1 of 12 numbers. These numbers are the 6 arcs AND

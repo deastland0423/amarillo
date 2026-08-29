@@ -397,4 +397,31 @@ public class EwLendingTest {
         actor.addLentEw(0, 4);  // the grabber gets 4 lent ECCM back
         assertEquals("lent ECCM cancels it", 0, game.d637Shift(actor, target));
     }
+
+    /**
+     * A ship that disengages keeps its entry in the game but loses its hex (C7.1). The lend
+     * must simply stop, not blow up the impulse advance, and must resume for nobody.
+     */
+    @Test
+    public void recipientThatDisengages_dropsTheLend_withoutCrashing() {
+        Game game = new Game();
+        Ship scout = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = new Ship();
+        friend.init(com.sfb.samples.FederationShips.getFedCa());
+        friend.setName("Friend");
+        friend.setLocation(new Location(12, 10));
+        game.getShips().add(friend);
+        scout.addLockOn(friend);
+        channelOf(scout).setLend("Friend", 4, 0);
+
+        game.resolveChannelLends();
+        assertEquals("baseline lend", 4, friend.getLentEcm());
+
+        friend.setDisengaged(true);
+        friend.setLocation(null);   // C7.1: off the map, still in the ships list
+        game.resolveChannelLends();
+
+        assertEquals("an off-map recipient receives nothing (G24.2181)", 0, friend.getLentEcm());
+    }
+
 }

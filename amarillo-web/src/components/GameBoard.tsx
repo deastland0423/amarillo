@@ -5021,7 +5021,9 @@ export default function GameBoard({ session, onLeave }: Props) {
           {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
             const ew = declarationEw[liveShip.name]
                 ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
-            const sensor = liveShip.sensorRating ?? 0;
+            // Six points generated at most, whatever the sensor track allows (D6.310) —
+            // the same cap the allocation dialog and EwCircuits apply.
+            const sensor = Math.min(liveShip.sensorRating ?? 0, 6);
             const added = Math.max(0, ew.ecm - (liveShip.ecmAllocated ?? 0))
                         + Math.max(0, ew.eccm - (liveShip.eccmAllocated ?? 0));
             const step = (field: 'ecm' | 'eccm', delta: number) => {
