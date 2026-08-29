@@ -43,6 +43,13 @@ import com.sfb.weapons.Weapon;
 public class Game {
 
     /**
+     * Range in hexes at which a scout channel can act on or support another unit — lending EW
+     * (G24.2181), offensive EW (G24.2191), breaking a lock-on (G24.222), and identifying a
+     * seeker (G24.252) all share the same fifteen-hex limit.
+     */
+    static final int SCOUT_FUNCTION_RANGE = 15;
+
+    /**
      * The four segments of each impulse, in order.
      * Actions are gated by the current phase: movement keys only work in MOVEMENT,
      * the fire dialog only opens in DIRECT_FIRE, etc.
@@ -852,8 +859,13 @@ public class Game {
     /**
      * Recompute EW lent between ships via scout channels (G24.21). A channel lends its EW
      * only while operational (powered, unblinded, undamaged — G24.13/.14), and lending to
-     * another unit requires the scout to hold a lock-on to it (G24.218). Self-protection
-     * (G24.28) needs no lock-on but cannot lend ECCM to oneself (G24.283).
+     * another unit requires the scout to hold a lock-on to it (G24.218) and that unit to be
+     * within fifteen hexes (G24.2181). Self-protection (G24.28) needs neither, but cannot
+     * lend ECCM to oneself (G24.283).
+     * <p>
+     * Recomputed every impulse, so a function whose conditions lapse — the recipient leaves
+     * range, the lock-on drops, fire control goes passive, a cloak or Wild Weasel comes up —
+     * suspends itself and resumes when they are restored (G24.333, G24.2121).
      */
     public void resolveChannelLends() {
         int impulse = clock.getImpulse();
@@ -872,14 +884,23 @@ public class Game {
                     if (s.getName().equals(c.getLendTarget())) { recipient = s; break; }
                 if (recipient == null)
                     continue;
+                boolean self = recipient == scout;
+                // G24.16: a cloak or an operating Wild Weasel suspends the channel's function
+                // while it lasts; self-protection survives a cloak (G24.28).
+                if (scout.scoutChannelBlockReason(self) != null)
+                    continue;
                 if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW) {
-                    // O-EW jams an enemy's fire (G24.219); needs active FC + a lock-on (G24.2191).
-                    if (scout.isActiveFireControl() && scout.hasLockOn(recipient))
+                    // O-EW jams an enemy's fire (G24.219): active FC, a lock-on, and the enemy
+                    // within fifteen hexes (G24.2191).
+                    if (scout.isActiveFireControl() && scout.hasLockOn(recipient)
+                            && getRange(scout, recipient) <= SCOUT_FUNCTION_RANGE)
                         recipient.addOffensiveEw(c.getLentEcm());       // ECM only, capped 6 (D6.3145)
-                } else if (recipient == scout) {
+                } else if (self) {
                     recipient.addLentEw(c.getLentEcm(), 0);             // G24.28/.283: self, ECM only, no FC/lock-on
-                } else if (scout.isActiveFireControl() && scout.hasLockOn(recipient)) {
-                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm()); // G24.161: active FC + lock-on
+                } else if (scout.isActiveFireControl() && scout.hasLockOn(recipient)
+                        && getRange(scout, recipient) <= SCOUT_FUNCTION_RANGE) {
+                    // G24.161: active FC + lock-on; G24.2181: recipient within fifteen hexes.
+                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm());
                 }
             }
         }
@@ -990,12 +1011,15 @@ public class Game {
         scout.spendScoutEw(draw);
         resolveChannelLends();
 
-        // Lending to another unit needs active fire control + a lock-on (G24.161); until both
-        // hold the assignment is parked (it applies automatically once they do). Self-protection
-        // needs neither (G24.28).
-        if (!self && (!scout.isActiveFireControl() || !scout.hasLockOn(target)))
+        // Lending to another unit needs active fire control and a lock-on (G24.161) with the
+        // recipient within fifteen hexes (G24.2181); until all three hold the assignment is
+        // parked and applies on its own once they do (G24.2121). Self-protection needs none
+        // of them (G24.28).
+        if (!self && (!scout.isActiveFireControl() || !scout.hasLockOn(target)
+                || getRange(scout, target) > SCOUT_FUNCTION_RANGE))
             return ActionResult.ok("Channel " + channelDesignator + " assigned to " + targetName
-                    + " — inactive until you have active fire control and a lock-on (G24.161)");
+                    + " — inactive until you have active fire control, a lock-on, and "
+                    + targetName + " within " + SCOUT_FUNCTION_RANGE + " hexes (G24.161/.2181)");
         return ActionResult.ok("Channel " + channelDesignator + (self ? " self-protecting with " : " lending ")
                 + wantEcm + " ECM" + (self ? "" : " / " + wantEccm + " ECCM to " + targetName));
     }
@@ -1051,8 +1075,9 @@ public class Game {
         if (isSameTeam(scout, target))
             return ActionResult.fail(enemyName + " is friendly — offensive EW is enemy-only (G24.219)");
         int range = getRange(scout, target);
-        if (range > 15)
-            return ActionResult.fail(enemyName + " is out of range (" + range + " hexes; max 15, G24.2191)");
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(enemyName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.2191)");
 
         // G24.219: a scout may lend at most 6 O-EW total across all its channels.
         int otherOEW = 0;
@@ -1151,6 +1176,9 @@ public class Game {
             return ActionResult.fail(conflict);
         if (!scout.isActiveFireControl())
             return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
 
         Seeker seeker = null;
         for (Seeker s : seekers)
@@ -1173,8 +1201,9 @@ public class Game {
         if (!scout.hasLockOn(unit))
             return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
         int range = getRange(scout, unit);
-        if (range > 15)
-            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max 15, G24.222)");
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.222)");
 
         // Attempt budget (G24.221): three per turn, at most one per drone per impulse.
         if (channel.getBreakAttempts() >= com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS)
@@ -1253,6 +1282,9 @@ public class Game {
             return ActionResult.fail(conflict);
         if (!scout.isActiveFireControl())
             return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
 
         // A lab box is assigned per identifying channel (G24.251); count labs already in use.
         boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY;
@@ -1302,8 +1334,9 @@ public class Game {
         if (!scout.hasLockOn(target))
             return ActionResult.fail(scout.getName() + " has no lock-on to " + seekerName + " (G24.161)");
         int range = getRange(scout, target);
-        if (range > 15)
-            return ActionResult.fail(seekerName + " is out of range (" + range + " hexes; max 15, G24.252)");
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(seekerName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.252)");
 
         if (channel.getIdentifyAttempts() >= com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS)
             return ActionResult.fail("Channel " + channelDesignator + " has used all "

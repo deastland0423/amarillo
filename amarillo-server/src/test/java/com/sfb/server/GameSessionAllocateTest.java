@@ -108,7 +108,7 @@ class GameSessionAllocateTest {
     }
 
     @Test
-    void ecmPlusEccm_overSensorRating_isRefused() {
+    void ecmPlusEccm_overGenerationLimit_isRefused() {
         ActionRequest req = allocate("USS Enterprise");
         req.setEcm(4);
         req.setEccm(4);
@@ -116,7 +116,19 @@ class GameSessionAllocateTest {
         ActionResult result = session.executeAction(req);
 
         assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("sensor rating"), result.getMessage());
+        assertTrue(result.getMessage().contains("generation limit"), result.getMessage());
+    }
+
+    /** D6.310 caps generated EW at six even when the sensor track would allow more circuits. */
+    @Test
+    void ecmPlusEccm_atSixPointLimit_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setEcm(4);
+        req.setEccm(2);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
     }
 
     @Test

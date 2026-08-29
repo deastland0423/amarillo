@@ -29,6 +29,14 @@ public class EwCircuits {
 
     static final int SWITCH_LOCKOUT_IMPULSES = 8;
 
+    /**
+     * Most EW a ship may generate for its own use, ECM and ECCM combined (D6.310), regardless
+     * of how many circuits its sensor rating provides. A scout's lending pool is generated
+     * separately and is not bound by this (G24.31); a scout reaches twelve points of self-use
+     * only by adding six ECM of self-protection jamming through a channel (G24.311, G24.28).
+     */
+    public static final int MAX_GENERATED = 6;
+
     private static class Circuit {
         Mode mode = null;                              // null = never assigned
         // Initialized so canFlip() is true from impulse 0 without overflow
@@ -82,6 +90,12 @@ public class EwCircuits {
      * unlocks. Null on success.
      */
     public String allocate(int ecm, int eccm, int impulse, int sensorRating) {
+        if (ecm < 0 || eccm < 0)
+            return "EW values cannot be negative";
+        int limit = generationLimit(sensorRating);
+        if (ecm + eccm > limit) // checked up front so the message names the real cause
+            return "ECM + ECCM (" + (ecm + eccm) + ") exceeds the " + limit
+                    + "-point generation limit (D6.310/D6.312)";
         ensureSize(sensorRating);
         List<Circuit> snapshot = snapshot();
         for (Circuit c : circuits) {         // fresh turn — nothing powered yet
@@ -109,8 +123,10 @@ public class EwCircuits {
     public String adjust(int newEcm, int newEccm, int impulse, int sensorRating) {
         if (newEcm < 0 || newEccm < 0)
             return "EW values cannot be negative";
-        if (newEcm + newEccm > sensorRating)
-            return "ECM + ECCM (" + (newEcm + newEccm) + ") exceeds sensor rating (" + sensorRating + ")";
+        int limit = generationLimit(sensorRating);
+        if (newEcm + newEccm > limit)
+            return "ECM + ECCM (" + (newEcm + newEccm) + ") exceeds the " + limit
+                    + "-point generation limit (D6.310/D6.312)";
         ensureSize(sensorRating);
 
         // Attempt for real; roll back on failure — the feasibility check can
@@ -236,8 +252,15 @@ public class EwCircuits {
         return impulse - c.lastSwitchImpulse >= SWITCH_LOCKOUT_IMPULSES;
     }
 
+    /** Circuits a ship can actually power: one per point of sensor rating (D6.312), never
+     *  more than the six points it may generate in total (D6.310). */
     private int usable(int sensorRating) {
-        return Math.min(circuits.size(), sensorRating);
+        return Math.min(Math.min(circuits.size(), sensorRating), MAX_GENERATED);
+    }
+
+    /** The generation limit in force for this sensor rating (D6.310 / D6.312). */
+    public static int generationLimit(int sensorRating) {
+        return Math.min(Math.max(0, sensorRating), MAX_GENERATED);
     }
 
     private void ensureSize(int sensorRating) {

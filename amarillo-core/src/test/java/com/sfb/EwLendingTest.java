@@ -44,6 +44,94 @@ public class EwLendingTest {
         return ship;
     }
 
+    /** G24.2181: a recipient more than fifteen hexes away gets nothing until it closes. */
+    @Test
+    public void friendBeyondFifteenHexes_getsNoLend_untilItClosesBack() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 31, 10); // 21 hexes off
+        channelOf(scout).setLend("Friend", 5, 0);
+        scout.addLockOn(friend);
+
+        game.resolveChannelLends();
+        assertEquals("out of range → no lend (G24.2181)", 0, friend.getLentEcm());
+
+        // Suspension is not cancellation: closing back inside fifteen hexes resumes it (G24.333).
+        friend.setLocation(new Location(12, 10));
+        game.resolveChannelLends();
+        assertEquals("back in range → lend resumes (G24.333)", 5, friend.getLentEcm());
+    }
+
+    /** D6.3144 (cited by G24.216): a unit receives at most six ECM from lending, however
+     *  many channels aim at it — one channel is capped at six on its own (G24.2112). */
+    @Test
+    public void twoChannelsLendingEcm_recipientCapsAtSix() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        ScoutChannel second = new ScoutChannel();
+        second.setDesignator("2");
+        second.setDacHitLocaiton("torp");
+        second.setPowered(true);
+        scout.getWeapons().addWeapon(second);
+        scout.addLockOn(friend);
+
+        channelOf(scout).setLend("Friend", 6, 0);
+        second.setLend("Friend", 6, 0);
+        game.resolveChannelLends();
+
+        assertEquals("12 ECM lent but only 6 received (D6.3144)", 6, friend.getLentEcm());
+    }
+
+    /** G24.16/G13.515: a cloaked scout may not lend to others, but self-protection
+     *  (G24.28) is explicitly exempt. */
+    @Test
+    public void cloakedScout_cannotLendToOthers_butStillSelfProtects() {
+        Game game = new Game();
+        Ship scout = new Ship();
+        scout.init(com.sfb.samples.RomulanShips.getRomKr()); // has a cloaking device
+        scout.setName("Scout");
+        scout.setLocation(new Location(10, 10));
+        scout.setActiveFireControl(true);
+        ScoutChannel toFriend = new ScoutChannel();
+        toFriend.setDesignator("1");
+        toFriend.setDacHitLocaiton("torp");
+        toFriend.setPowered(true);
+        ScoutChannel toSelf = new ScoutChannel();
+        toSelf.setDesignator("2");
+        toSelf.setDacHitLocaiton("torp");
+        toSelf.setPowered(true);
+        scout.getWeapons().addWeapon(toFriend);
+        scout.getWeapons().addWeapon(toSelf);
+        game.getShips().add(scout);
+        Ship friend = plainShip(game, "Friend", 11, 10);
+        scout.addLockOn(friend);
+        toFriend.setLend("Friend", 5, 0);
+        toSelf.setLend("Scout", 4, 0);
+
+        scout.getCloakingDevice().setState(
+                com.sfb.systemgroups.CloakingDevice.CloakState.FULLY_CLOAKED);
+        game.resolveChannelLends();
+
+        assertEquals("cloaked → no lending to others (G24.16)", 0, friend.getLentEcm());
+        assertEquals("self-protection survives the cloak (G24.28)", 4, scout.getLentEcm());
+    }
+
+    /** G24.16/J3.403: an operating Wild Weasel bars every channel, self-protection included. */
+    @Test
+    public void operatingWildWeasel_blocksEvenSelfProtection() {
+        Game game = new Game();
+        Ship scout = scoutWithChannel(game, "Scout", 10, 10);
+        channelOf(scout).setLend("Scout", 4, 0);
+
+        game.resolveChannelLends();
+        assertEquals("baseline self-protection", 4, scout.getLentEcm());
+
+        scout.setActiveWildWeasel(new com.sfb.objects.shuttles.WildWeaselShuttle(scout));
+        game.resolveChannelLends();
+        assertEquals("WW blocks all channel use (G24.16)", 0, scout.getLentEcm());
+    }
+
     @Test
     public void channelLendsEcmToAFriend_withLockOn() {
         Game game = new Game();

@@ -1015,10 +1015,15 @@ public class GameSession {
                 // allocation may be rejected if it needs a still-locked switch.
                 int ecmReq = Math.max(0, request.getEcm());
                 int eccmReq = Math.max(0, request.getEccm());
-                int sensorRating = ship.getSpecialFunctions().getSensor();
-                if (ecmReq + eccmReq > sensorRating)
+                // One circuit per point of sensor rating (D6.312), and never more than six
+                // points generated in total (D6.310) — a scout's lending pool is generated
+                // separately and is not bound by this (G24.31).
+                int ewLimit = com.sfb.systemgroups.EwCircuits.generationLimit(
+                        ship.getSpecialFunctions().getSensor());
+                if (ecmReq + eccmReq > ewLimit)
                     return ActionResult.fail(
-                            "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds sensor rating (" + sensorRating + ")");
+                            "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds the " + ewLimit
+                                    + "-point generation limit (D6.310/D6.312)");
                 String ewErr = ship.allocateEw(ecmReq, eccmReq, game.getAbsoluteImpulse() + 1);
                 if (ewErr != null)
                     return ActionResult.fail(ewErr);

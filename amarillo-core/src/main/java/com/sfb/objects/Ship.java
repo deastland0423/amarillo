@@ -744,10 +744,18 @@ public class Ship extends Unit implements DroneController {
 
 	public void clearLentEw() { lentEcm = 0; lentEccm = 0; }
 
+	/**
+	 * Add EW lent by an operational scout channel, clamped to the six points of each kind
+	 * a unit may receive from lending (D6.3144, cited by G24.216). One channel lends at most
+	 * six combined (G24.2112), so reaching both caps takes at least two channels.
+	 */
 	public void addLentEw(int ecm, int eccm) {
-		lentEcm  += Math.max(0, ecm);
-		lentEccm += Math.max(0, eccm);
+		lentEcm  = Math.min(MAX_LENT_RECEIVED, lentEcm  + Math.max(0, ecm));
+		lentEccm = Math.min(MAX_LENT_RECEIVED, lentEccm + Math.max(0, eccm));
 	}
+
+	/** Most ECM — and, separately, most ECCM — a unit may receive from lending (D6.3144). */
+	public static final int MAX_LENT_RECEIVED = 6;
 
 	// --- Offensive EW jamming this ship (G24.219): degrades ITS fire (adds to its targets'
 	//     effective ECM). Capped at 6 from all sources (D6.3145). Recomputed by Game. ---
@@ -1320,8 +1328,30 @@ public class Ship extends Unit implements DroneController {
 	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
 	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
 	 */
+	/**
+	 * Why this ship cannot use its scout channels at the moment (G24.16), or null if it can.
+	 * A cloaked scout is barred from every function except self-protection (G13.515, G24.28) —
+	 * pass true when checking that one; an operating Wild Weasel bars all of them (J3.403).
+	 * The channel stays powered throughout: only the function is suspended, and it resumes
+	 * on its own once the condition clears (G24.162, G24.333).
+	 * <p>
+	 * G24.16 also bars channel use during Erratic Maneuvers (C10.52), which this engine does
+	 * not model yet — add the clause here when EM arrives.
+	 */
+	public String scoutChannelBlockReason(boolean selfProtection) {
+		if (!selfProtection && cloak != null && cloak.isRestrictingActions())
+			return getName() + " is cloaked — only self-protection may use a channel (G24.16, G13.515)";
+		if (activeWildWeasel != null && !activeWildWeasel.isPostExplosion())
+			return getName() + " has an operating Wild Weasel — scout channels are unusable (G24.16, J3.403)";
+		return null;
+	}
+
 	public void refreshScoutControlBonus(int currentImpulse) {
 		boolean active = false;
+		if (scoutChannelBlockReason(false) != null) {   // G24.16: suspended while cloaked or under a WW
+			specialFunctions.setScoutControlBonus(0);
+			return;
+		}
 		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
 			if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS
 					&& c.isOperational(currentImpulse)) {

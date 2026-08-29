@@ -402,6 +402,9 @@ export default function EnergyAllocationDialog({
 
   const heavy    = (ship.weapons ?? []).filter(w => w.isHeavy && w.functional);
   const hasTrans = (ship.availableTransporters ?? 0) > 0;
+  // One circuit per point of sensor rating (D6.312), capped at the six points a ship may
+  // generate in total (D6.310). A scout's lending pool is separate and not bound by this (G24.31).
+  const ewLimit  = Math.min(ship.sensorRating ?? 0, 6);
   const hasCloak = (ship.cloakCost ?? 0) > 0;
   const batMax   = ship.availableBattery ?? 0;
   const batCharge = ship.batteryCharge ?? 0;
@@ -727,11 +730,11 @@ export default function EnergyAllocationDialog({
         {/* ---- Electronic Warfare ---- */}
         {(ship.sensorRating ?? 0) > 0 && (
           <div className="ea-section">
-            <Collapsible title={`ELECTRONIC WARFARE  (sensor ${ship.sensorRating ?? 0}, used ${alloc.ecm + alloc.eccm})`} color="#a78bfa">
-              <Stepper value={alloc.ecm}  min={0} max={(ship.sensorRating ?? 0) - alloc.eccm}
+            <Collapsible title={`ELECTRONIC WARFARE  (max ${ewLimit}, used ${alloc.ecm + alloc.eccm})`} color="#a78bfa">
+              <Stepper value={alloc.ecm}  min={0} max={ewLimit - alloc.eccm}
                 onChange={v => setAlloc(a => ({ ...a, ecm: v }))}
                 label="ECM (hide)" />
-              <Stepper value={alloc.eccm} min={0} max={(ship.sensorRating ?? 0) - alloc.ecm}
+              <Stepper value={alloc.eccm} min={0} max={ewLimit - alloc.ecm}
                 onChange={v => setAlloc(a => ({ ...a, eccm: v }))}
                 label="ECCM (seek)" />
             </Collapsible>
