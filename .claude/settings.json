@@ -190,7 +190,8 @@
       "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn -q -pl amarillo-core test -Dtest=OffensiveEwTest)",
       "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn -q -pl amarillo-core test -Dtest=ScoutChannelTest,ScoutChannelDacTest)",
       "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn -q -pl amarillo-core test -Dtest=BlindChoiceTest)",
-      "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn -q -pl amarillo-core test -Dtest=ControlSeekersTest)"
+      "Bash(MAVEN_OPTS=\"-Djavax.net.ssl.trustStoreType=Windows-ROOT\" mvn -q -pl amarillo-core test -Dtest=ControlSeekersTest)",
+      "Bash(mvn -q clean install)"
     ],
     "additionalDirectories": [
       "\\tmp"
