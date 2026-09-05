@@ -155,7 +155,11 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
     if      (choice === 'HOLD' || choice === 'HOLD_PROX' || choice === 'HOLD_STD') arm += w.holdCost;
     else if (choice === 'STANDARD' || choice === 'FINISH') arm += w.armingCost;
     else if (choice === 'PROX')                        arm += w.armed ? w.holdCost : w.armingCost;
-    else if (choice === 'OVERLOAD')                    arm += w.armingTurn > 0 ? w.armingCost : w.armingCost * 2;
+    // Overload costs the overload rate whatever the weapon is doing now. armingCost is
+    // type-aware (Photon.energyToArm: 2 standard, 4 overload), so double it only when the
+    // weapon is not ALREADY in overload mode — a mid-arm STANDARD photon at WS-2 still owes
+    // the full 4. Keyed on armingType, not armingTurn, to match GameSession's ALLOCATE.
+    else if (choice === 'OVERLOAD')                    arm += w.armingType === 'OVERLOAD' ? w.armingCost : w.armingCost * 2;
     else if (choice === 'SUICIDE')                     arm += 7;
     else if (choice === 'UPGRADE_OVL')                 arm += 3;
     else if (choice === 'UPGRADE_SUICIDE')             arm += 6;
