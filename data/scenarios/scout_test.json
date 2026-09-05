@@ -1,0 +1,56 @@
+{
+  "id": "SCOUT_TEST",
+  "name": "Sensor Trials",
+  "year": 175,
+  "description": "A test bed for scout functions (G24.0). Each side fields a scout and a drone-armed consort, starting ten hexes apart — inside the fifteen-hex range every channel function needs. The Federation SC has eight channels to spend on lending EW, breaking lock-ons, identifying seekers, offensive EW, controlling seekers and attracting drones; the Klingon D6S has four to answer with. Both consorts carry drone racks so there are seekers in the air to work on, and every ship carries admin shuttles for the unidentified-shuttle bluff (G24.235).",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "Federation Survey Group",
+      "faction": "Federation",
+      "ships": [
+        {
+          "hull": "SC",
+          "shipName": "USS De Gama",
+          "startHex": "1216",
+          "startHeading": "C",
+          "startSpeed": 8,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "CA+",
+          "shipName": "USS Constitution",
+          "startHex": "1218",
+          "startHeading": "C",
+          "startSpeed": 8,
+          "weaponStatus": 2
+        }
+      ]
+    },
+    {
+      "name": "Klingon Reconnaissance Flight",
+      "faction": "Klingon",
+      "ships": [
+        {
+          "hull": "D6S",
+          "shipName": "IKS Peekaboo",
+          "startHex": "2216",
+          "startHeading": "F",
+          "startSpeed": 8,
+          "weaponStatus": 2
+        },
+        {
+          "hull": "D6",
+          "shipName": "IKS Barbarous",
+          "startHex": "2218",
+          "startHeading": "F",
+          "startSpeed": 8,
+          "weaponStatus": 2
+        }
+      ]
+    }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  }
+}

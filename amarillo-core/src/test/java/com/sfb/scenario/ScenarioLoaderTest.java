@@ -404,4 +404,49 @@ public class ScenarioLoaderTest {
     private static void assumeTrue(String msg, boolean condition) {
         org.junit.Assume.assumeTrue(msg, condition);
     }
+
+    /**
+     * The scout test bed (SCOUT_TEST): every ship must actually resolve, because
+     * ScenarioLoader skips an unknown hull with a log line rather than failing, and a
+     * silently missing scout would make the scenario useless for what it is for.
+     */
+    @Test
+    public void loadScoutTestScenario_bothScoutsAndConsortsPresent() throws Exception {
+        File scenarioFile = new File("../data/scenarios/scout_test.json");
+        assumeTrue("scout_test.json must exist", scenarioFile.exists());
+        ShipLibrary.loadAllSpecs("../data/factions");
+        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+
+        ScenarioSpec spec = ScenarioSpec.fromJson(scenarioFile);
+        List<List<Ship>> sideShips = ScenarioLoader.loadShips(spec);
+
+        assertEquals(2, sideShips.size());
+        assertEquals("both Federation ships resolved", 2, sideShips.get(0).size());
+        assertEquals("both Klingon ships resolved", 2, sideShips.get(1).size());
+
+        Ship deGama = sideShips.get(0).get(0);
+        assertEquals("USS De Gama", deGama.getName());
+        assertEquals("the Federation scout brings its channels (G24.11)",
+                8, deGama.getScoutChannels().size());
+
+        Ship peekaboo = sideShips.get(1).get(0);
+        assertEquals("IKS Peekaboo", peekaboo.getName());
+        assertEquals("the Klingon scout brings its channels",
+                4, peekaboo.getScoutChannels().size());
+
+        // Seekers to work on: both consorts carry racks, and the scouts are in range of them.
+        assertTrue("Federation consort has drone racks", hasDroneRack(sideShips.get(0).get(1)));
+        assertTrue("Klingon consort has drone racks", hasDroneRack(sideShips.get(1).get(1)));
+
+        int range = com.sfb.utilities.MapUtils.getRange(deGama, peekaboo);
+        assertTrue("scouts start inside the fifteen-hex function range (G24.2181), was " + range,
+                range <= 15);
+    }
+
+    private boolean hasDroneRack(Ship ship) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack)
+                return true;
+        return false;
+    }
 }
