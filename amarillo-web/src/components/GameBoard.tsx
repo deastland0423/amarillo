@@ -2118,40 +2118,56 @@ function ShipSidebar({
                         )}
                         {/* Lending controls — a channel not committed to breaking (G24.12) */}
                         {isMine && state === 'powered' && (fn === 'NONE' || fn === 'LEND_EW') && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
-                            <select value={draft.target} style={{ fontSize: '0.72rem', maxWidth: 110 }}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 3 }}>
+                            {/* One control per line: with the steppers wrapped onto a shared row it
+                                was never clear which − and + belonged to which figure. */}
+                            <select value={draft.target} style={{ fontSize: '0.72rem', width: '100%' }}
                               onChange={ev => setDraft({ target: ev.target.value })}
                               title="Unit to lend EW to (self allowed — ECM only, G24.283)">
                               {friendlyShipNames.map(n => (
                                 <option key={n} value={n}>{n === ship.name ? `self (${n})` : n}</option>
                               ))}
                             </select>
-                            <span style={{ color: '#8b949e' }}
-                                  title="ECM — jamming lent to the recipient, making it harder to hit (D6.3)">ECM</span>
-                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={draft.ecm <= 0}
-                              onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
-                            <span style={{ color: '#3fb950', minWidth: 8, textAlign: 'center' }}>{draft.ecm}</span>
-                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={draftTotal >= 6}
-                              onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
-                            <span style={{ color: '#8b949e', opacity: isSelf ? 0.4 : 1 }}
-                                  title={isSelf
-                                    ? 'A scout cannot lend ECCM to itself (G24.283) — self-protection is ECM only'
-                                    : 'ECCM — lent to the recipient to see through enemy jamming (D6.3)'}>ECCM</span>
-                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={isSelf || draft.eccm <= 0}
-                              onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
-                            <span style={{ color: '#f0c040', minWidth: 8, textAlign: 'center', opacity: isSelf ? 0.4 : 1 }}>{isSelf ? 0 : draft.eccm}</span>
-                            <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                              disabled={isSelf || draftTotal >= 6}
-                              onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
-                            <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 2 }}
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ color: '#8b949e', width: 34 }}
+                                    title="ECM — jamming lent to the recipient, making it harder to hit (D6.3)">ECM</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={draft.ecm <= 0}
+                                onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
+                              <span style={{ color: '#3fb950', minWidth: 12, textAlign: 'center' }}>{draft.ecm}</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={draftTotal >= 6}
+                                onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isSelf ? 0.45 : 1 }}>
+                              <span style={{ color: '#8b949e', width: 34 }}
+                                    title={isSelf
+                                      ? 'A scout cannot lend ECCM to itself (G24.283) — self-protection is ECM only'
+                                      : 'ECCM — lent to the recipient to see through enemy jamming (D6.3)'}>ECCM</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={isSelf || draft.eccm <= 0}
+                                onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
+                              <span style={{ color: '#f0c040', minWidth: 12, textAlign: 'center' }}>{isSelf ? 0 : draft.eccm}</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={isSelf || draftTotal >= 6}
+                                onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
+                              {isSelf && (
+                                <span style={{ color: '#8b949e', fontSize: '0.68rem', fontStyle: 'italic' }}>
+                                  self-protection is ECM only
+                                </span>
+                              )}
+                            </div>
+
+                            <button className="action-strip-btn" style={{ padding: '0 6px', alignSelf: 'flex-start' }}
                               disabled={draftTotal <= 0 || !canAfford}
                               onClick={() => onLendEw(desig, draft.target, draft.ecm, isSelf ? 0 : draft.eccm)}
                               title={!canAfford
                                 ? `Needs ${draw} fresh EW but only ${remaining} left — dropped points are lost (G24.2122)`
-                                : `Lend ${draft.ecm} ECM${isSelf ? '' : `/${draftEccm} ECCM`} (draws ${draw} from the pool) — needs a lock-on for a friendly target (G24.218)`}>lend</button>
+                                : `Lend ${draft.ecm} ECM${isSelf ? '' : `/${draftEccm} ECCM`} (draws ${draw} from the pool) — needs a lock-on for a friendly target (G24.218)`}>
+                              {isSelf ? `self-protect with ${draft.ecm}` : `lend ${draft.ecm}/${draftEccm}`}
+                            </button>
                           </div>
                         )}
                         {/* Break-lock-on controls — G24.22. Counter shows once committed. */}
