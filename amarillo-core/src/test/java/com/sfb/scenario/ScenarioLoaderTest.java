@@ -476,4 +476,120 @@ public class ScenarioLoaderTest {
         }
         assumeTrue("FedCA must carry photons", sawPhoton);
     }
+
+    // -------------------------------------------------------------------------
+    // S4.32 — free photon overload energy at WS-III
+    // -------------------------------------------------------------------------
+
+    /** A scenario spec naming one ship at the given weapon status. */
+    private ScenarioSpec specFor(String shipName, int weaponStatus) {
+        ScenarioSpec spec = new ScenarioSpec();
+        ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
+        ScenarioSpec.ShipSetup setup = new ScenarioSpec.ShipSetup();
+        setup.shipName = shipName;
+        setup.weaponStatus = weaponStatus;
+        side.ships = java.util.List.of(setup);
+        spec.sides = java.util.List.of(side);
+        return spec;
+    }
+
+    private com.sfb.weapons.Photon tube(Ship ship, String designator) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.Photon && designator.equals(w.getDesignator()))
+                return (com.sfb.weapons.Photon) w;
+        throw new IllegalStateException("no photon " + designator);
+    }
+
+    private Ship federationCruiserAt(int weaponStatus) {
+        Ship ship = new Ship();
+        ship.init(FederationShips.getFedCa());
+        ship.setName("USS Enterprise");
+        ScenarioLoader.applyWeaponStatus(ship, weaponStatus);
+        return ship;
+    }
+
+    /**
+     * S4.32: the pool may be concentrated. A four-tube cruiser has eight free points, enough
+     * for two tubes at a full 100% overload while the other two stay standard.
+     */
+    @Test
+    public void freeOverload_canBeConcentratedOnSomeTubes() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.photonOverload.put("A", 4.0);
+        loadout.photonOverload.put("B", 4.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        assertEquals("full overload", 8.0, tube(ship, "A").getArmingEnergy(), 0.001);
+        assertEquals(16, (int) (tube(ship, "A").getArmingEnergy() * 2));
+        assertEquals(8.0, tube(ship, "B").getArmingEnergy(), 0.001);
+        assertEquals("untouched tubes stay standard", 4.0, tube(ship, "C").getArmingEnergy(), 0.001);
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, tube(ship, "C").getArmingType());
+        assertEquals(com.sfb.properties.WeaponArmingType.OVERLOAD, tube(ship, "A").getArmingType());
+    }
+
+    /** Spreading it evenly is the other extreme: every tube half-overloaded, 12 damage each. */
+    @Test
+    public void freeOverload_canBeSpreadEvenly() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            loadout.photonOverload.put(d, 2.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        for (String d : java.util.List.of("A", "B", "C", "D")) {
+            assertEquals(6.0, tube(ship, d).getArmingEnergy(), 0.001);
+            assertEquals("12 damage each", 12, (int) (tube(ship, d).getArmingEnergy() * 2));
+        }
+    }
+
+    /** S4.32: the pool is two points per tube and no more — asking for more is trimmed. */
+    @Test
+    public void freeOverload_isCappedAtTwoPointsPerTube() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            loadout.photonOverload.put(d, 4.0);   // 16 asked for, 8 available
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        double total = 0;
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            total += tube(ship, d).getArmingEnergy();
+        assertEquals("four tubes of standard arming plus the eight-point pool",
+                4 * 4.0 + 8.0, total, 0.001);
+    }
+
+    /** S4.32: prior-turn arming at WS-II carries no overload energy at all. */
+    @Test
+    public void freeOverload_isIgnoredBelowWeaponStatusThree() {
+        Ship ship = federationCruiserAt(2);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.photonOverload.put("A", 4.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 2));
+
+        com.sfb.weapons.Photon a = tube(ship, "A");
+        assertEquals("still just its first arming turn", 2.0, a.getArmingEnergy(), 0.001);
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, a.getArmingType());
+    }
+
+    /**
+     * S4.32 again, by the other door: the WS-2 arming-mode override used to commit a photon to
+     * overload with only four points in the tube, which E4.414 leaves unfirable.
+     */
+    @Test
+    public void weaponStatusTwo_overrideCannotStartAPhotonOverloaded() {
+        Ship ship = federationCruiserAt(2);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.weaponArmingModes.put("A", com.sfb.properties.WeaponArmingType.OVERLOAD);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 2));
+
+        com.sfb.weapons.Photon a = tube(ship, "A");
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, a.getArmingType());
+        assertTrue("and it is a torpedo that can actually be fired", a.isFirableOverload());
+    }
 }

@@ -178,6 +178,7 @@ export interface CoiSubmission {
     extraTBombs?:          number;
     droneRackLoadouts?:    Record<string, string[]>;
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
+    photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
     specialShuttlePrep?:   CoiShuttlePrepEntry[];
     optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
     cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)

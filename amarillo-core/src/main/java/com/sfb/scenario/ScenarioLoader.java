@@ -414,20 +414,27 @@ public class ScenarioLoader {
 
                 HeavyWeapon hw = (HeavyWeapon) w;
                 if (!hw.isArmed()) {
-                    // WS-2 partially-armed photon: store the correct first-turn energy
-                    // so the overload damage is correct when it fires after turn-1 arming.
-                    if (w instanceof com.sfb.weapons.Photon && hw.getArmingTurn() > 0) {
-                        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) w;
-                        switch (mode) {
-                            case OVERLOAD: p.setOverload(); break;
-                            case SPECIAL:  p.setSpecial();  break;
-                            default: break;
-                        }
-                        p.setArmingEnergy((double) p.energyToArm() * (p.totalArmingTurns() - 1));
+                    // S4.32: the arming turns a ship gets for free before the scenario cannot
+                    // include overload energy. A partly armed photon may still be fused for
+                    // proximity, which costs nothing (E4.31).
+                    if (w instanceof com.sfb.weapons.Photon && hw.getArmingTurn() > 0
+                            && mode == com.sfb.properties.WeaponArmingType.SPECIAL) {
+                        ((com.sfb.weapons.Photon) w).setSpecial();
+                    } else if (mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
+                        System.err.println("COI: weapon " + w.getName()
+                                + " cannot start overloaded — prior-turn arming carries no"
+                                + " overload energy (S4.32)");
                     } else {
                         System.err.println("COI: weapon " + w.getName()
                                 + " is not armed — arming mode override skipped");
                     }
+                    continue;
+                }
+                // Photons take their overload from the S4.32 pool below, not from a mode flag.
+                if (w instanceof com.sfb.weapons.Photon
+                        && mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
+                    System.err.println("COI: photon " + w.getName()
+                            + " — set its free overload energy in photonOverload (S4.32)");
                     continue;
                 }
 
@@ -447,6 +454,57 @@ public class ScenarioLoader {
                 if (w instanceof com.sfb.weapons.Photon) {
                     ((com.sfb.weapons.Photon) w).setArmingEnergy(
                         (double) hw.energyToArm() * hw.totalArmingTurns());
+                }
+            }
+        }
+
+        // --- Free photon overload energy at WS-III (S4.32) ---
+        // Two points per tube, poolable across the ship's tubes: a Federation CA with four
+        // photons has eight points, enough to take two tubes to a full 100% overload and
+        // leave two standard, or to give every tube half an overload. The energy can only
+        // overload, never arm, and taking any commits that tube (E4.414) — which caps it at
+        // range 8 and doubles its holding cost (E4.413).
+        if (!loadout.photonOverload.isEmpty()) {
+            int ws = spec.sides.stream()
+                    .flatMap(side -> side.ships.stream())
+                    .filter(ss -> ship.getName().equals(ss.shipName))
+                    .mapToInt(ss -> ss.weaponStatus)
+                    .findFirst().orElse(0);
+            List<com.sfb.weapons.Photon> tubes = new ArrayList<>();
+            for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+                if (w instanceof com.sfb.weapons.Photon)
+                    tubes.add((com.sfb.weapons.Photon) w);
+
+            if (ws < 3) {
+                System.err.println("COI: free photon overload energy is a WS-3 allowance only"
+                        + " — ignored for " + ship.getName() + " at WS-" + ws + " (S4.32)");
+            } else if (tubes.isEmpty()) {
+                System.err.println("COI: " + ship.getName() + " has no photon tubes — free"
+                        + " overload energy ignored (S4.32)");
+            } else {
+                double pool = CoiLoadout.FREE_OVERLOAD_PER_TUBE * tubes.size();
+                double spentPool = 0;
+                for (com.sfb.weapons.Photon p : tubes) {
+                    Double want = loadout.photonOverload.get(p.getDesignator());
+                    if (want == null || want <= 0)
+                        continue;
+                    double amount = Math.floor(want * 2) / 2.0;          // half points (E4.414)
+                    if (amount > com.sfb.weapons.Photon.MAX_OVERLOAD) {  // 100% and no more (E4.41)
+                        System.err.println("COI: photon " + p.getDesignator() + " capped at "
+                                + com.sfb.weapons.Photon.MAX_OVERLOAD + " overload points (E4.41)");
+                        amount = com.sfb.weapons.Photon.MAX_OVERLOAD;
+                    }
+                    if (spentPool + amount > pool) {
+                        amount = pool - spentPool;
+                        System.err.println("COI: " + ship.getName() + " has only " + pool
+                                + " free overload points — photon " + p.getDesignator()
+                                + " reduced to " + amount + " (S4.32)");
+                    }
+                    if (amount <= 0)
+                        continue;
+                    p.setOverload();
+                    p.setArmingEnergy(p.getArmingEnergy() + amount);
+                    spentPool += amount;
                 }
             }
         }

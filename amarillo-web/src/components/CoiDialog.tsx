@@ -74,6 +74,7 @@ interface ShipCoi {
   extraCommandoSquads:  number;
   extraTBombs:          number;
   weaponArmingModes:    Record<string, ArmMode>;
+  photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
   optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
@@ -86,6 +87,7 @@ function defaultShipCoi(): ShipCoi {
     extraCommandoSquads:  0,
     extraTBombs:          0,
     weaponArmingModes:    {},
+    photonOverload:       {},
     droneRackLoadouts:    {},
     shuttlePrep:          {},
     optionMounts:         {},
@@ -150,6 +152,10 @@ function ShipCoiPanel({
   const cost     = coiCost(coi);
   const overBudget = cost > ship.coiBudget;
   const hasWs3Heavy = ship.weaponStatus === 3 && ship.heavyWeapons.length > 0;
+  // S4.32: two free overload points per photon tube, poolable across the ship's tubes.
+  const photonTubes      = ship.heavyWeapons.filter(w => w.type === 'Photon');
+  const freeOverloadPool = photonTubes.length * 2;
+  const freeOverloadUsed = Object.values(coi.photonOverload ?? {}).reduce((a, b) => a + b, 0);
   const hasSpecialShuttles = (ship.convertibleShuttles?.length ?? 0) > 0 && ship.maxPreparedShuttles > 0;
 
   const CONVERSION_LABELS: Record<string, string> = {
@@ -191,6 +197,10 @@ function ShipCoiPanel({
       const defaultType = shInfo?.types[0] ?? 'suicide';
       onChange({ ...coi, shuttlePrep: { ...coi.shuttlePrep, [shuttleName]: { type: defaultType, energyPerTurn: 3, drones: [] } } });
     }
+  }
+
+  function setPhotonOverload(designator: string, points: number) {
+    onChange({ ...coi, photonOverload: { ...coi.photonOverload, [designator]: points } });
   }
 
   function setShuttleType(shuttleName: string, type: string) {
@@ -359,23 +369,53 @@ function ShipCoiPanel({
       {hasWs3Heavy && (
         <div className="coi-section">
           <div className="coi-section-title">Weapon Arming (WS-III — weapons start fully armed)</div>
+          {photonTubes.length > 0 && (
+            <div className="coi-note">
+              Free overload energy (S4.32): {freeOverloadUsed} of {freeOverloadPool} allocated
+              {freeOverloadUsed < freeOverloadPool && ` — ${freeOverloadPool - freeOverloadUsed} left`}
+              . Two points per tube, spread as you like; a tube that takes any is committed to
+              being an overload — maximum range 8, and 2 energy a turn to hold instead of 1.
+            </div>
+          )}
           {ship.heavyWeapons.map(w => {
             const mode = coi.weaponArmingModes[w.designator] ?? 'STANDARD';
+            const isPhoton = w.type === 'Photon';
+            const ovl = coi.photonOverload?.[w.designator] ?? 0;
+            const canAdd = freeOverloadUsed < freeOverloadPool && ovl < 4 && mode !== 'SPECIAL';
             return (
               <div key={w.designator} className="coi-row">
                 <label className="coi-label">{w.type} {w.designator}</label>
                 <div className="coi-arm-options">
                   {(w.isPlasma
                     ? [['STANDARD', 'Armed'], ['ROLLING', 'Rolling']] as [ArmMode, string][]
+                    : isPhoton
+                    ? [['STANDARD', 'Standard'], ['SPECIAL', 'Proximity']] as [ArmMode, string][]
                     : [['STANDARD', 'Standard'], ['SPECIAL', 'Proximity'], ['OVERLOAD', 'Overload']] as [ArmMode, string][]
                   ).map(([m, label]) => (
                     <label key={m} className="coi-arm-option">
                       <input type="radio" name={`${ship.shipName}-${w.designator}`}
                         value={m} checked={mode === m}
-                        onChange={() => setArmMode(w.designator, m)} />
+                        onChange={() => {
+                          setArmMode(w.designator, m);
+                          if (m === 'SPECIAL' && ovl > 0) setPhotonOverload(w.designator, 0);
+                        }} />
                       {label}
                     </label>
                   ))}
+                  {isPhoton && (
+                    <span className="coi-arm-option" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <button type="button" disabled={ovl <= 0}
+                        onClick={() => setPhotonOverload(w.designator, Math.max(0, ovl - 1))}>−</button>
+                      <span style={{ minWidth: 62, textAlign: 'center' }}>
+                        {ovl > 0 ? `+${ovl} ovld` : 'no ovld'}
+                      </span>
+                      <button type="button" disabled={!canAdd}
+                        onClick={() => setPhotonOverload(w.designator, ovl + 1)}>+</button>
+                      <span style={{ opacity: 0.7 }}>
+                        {mode === 'SPECIAL' ? '4 damage' : `${(4 + ovl) > 4 ? (4 + ovl) * 2 : 8} damage`}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -560,6 +600,8 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         droneRackLoadouts:    rackLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
                               ? coi.weaponArmingModes : undefined,
+        photonOverload:       Object.values(coi.photonOverload ?? {}).some(v => v > 0)
+                              ? coi.photonOverload : undefined,
         specialShuttlePrep:   shuttlePrep.length > 0 ? shuttlePrep : undefined,
         optionMounts:         Object.keys(coi.optionMounts).length > 0
                               ? coi.optionMounts : undefined,
