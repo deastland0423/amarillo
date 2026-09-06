@@ -721,7 +721,15 @@ public class GameSession {
                                     + (int) perTurnMax + " points in a turn — two standard plus four"
                                     + " of overload (E4.41)");
                         e.getArmingEnergy().put(w, amount);
-                        e.getArmingType().put(w, amount > com.sfb.weapons.Photon.STANDARD_PER_TURN
+                        // A proximity fuse is recorded with the arming, costs nothing, and
+                        // cannot be combined with overload energy (E4.31/E4.34).
+                        boolean prox = "PROX".equalsIgnoreCase(choice)
+                                && amount == com.sfb.weapons.Photon.STANDARD_PER_TURN;
+                        if ("PROX".equalsIgnoreCase(choice) && !prox)
+                            return ActionResult.fail(w.getName()
+                                    + ": a proximity torpedo cannot be overloaded (E4.34)");
+                        e.getArmingType().put(w, prox ? WeaponArmingType.SPECIAL
+                                : amount > com.sfb.weapons.Photon.STANDARD_PER_TURN
                                 ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD);
                         continue;
                     }

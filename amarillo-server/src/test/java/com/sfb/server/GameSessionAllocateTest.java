@@ -311,4 +311,29 @@ class GameSessionAllocateTest {
 
         assertTrue(result.isSuccess(), result.getMessage());
     }
+
+    /** E4.31: a proximity fuse rides along with the arming and costs nothing. */
+    @Test
+    void photonDial_twoPointsWithProximity_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 2.0));
+        req.setWeaponArming(java.util.Map.of(photonName(), "PROX"));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** E4.34: proximity and overload cannot be combined. */
+    @Test
+    void photonDial_proximityWithOverloadEnergy_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 4.0));
+        req.setWeaponArming(java.util.Map.of(photonName(), "PROX"));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("proximity"), result.getMessage());
+    }
 }
