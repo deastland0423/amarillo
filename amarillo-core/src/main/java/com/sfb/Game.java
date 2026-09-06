@@ -3423,6 +3423,8 @@ public class Game {
         public final int envelopingHellboreDamage;
         public final boolean addHit;
         public final boolean fusionSuicideFired;
+        public final int feedbackDamage;  // E4.43 overload feedback owed to the FIRING ship
+        public final int feedbackShield;  // which of its shields faces the target
         public final String attackerLog; // per-weapon roll results visible to attacker
         public final PlasmaTorpedo envelopingTorp; // non-null only for EPT seeker hits
 
@@ -3430,6 +3432,17 @@ public class Game {
                 int shieldNumber, int totalDamage, int envelopingHellboreDamage,
                 boolean addHit, boolean fusionSuicideFired, String attackerLog,
                 PlasmaTorpedo envelopingTorp) {
+            this(attackerName, attackerShip, target, shieldNumber, totalDamage,
+                    envelopingHellboreDamage, addHit, fusionSuicideFired, attackerLog,
+                    envelopingTorp, 0, 1);
+        }
+
+        public PendingVolley(String attackerName, Ship attackerShip, Unit target,
+                int shieldNumber, int totalDamage, int envelopingHellboreDamage,
+                boolean addHit, boolean fusionSuicideFired, String attackerLog,
+                PlasmaTorpedo envelopingTorp, int feedbackDamage, int feedbackShield) {
+            this.feedbackDamage = feedbackDamage;
+            this.feedbackShield = feedbackShield;
             this.attackerName = attackerName;
             this.attackerShip = attackerShip;
             this.target = target;

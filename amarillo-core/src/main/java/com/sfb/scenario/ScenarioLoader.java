@@ -638,6 +638,14 @@ public class ScenarioLoader {
                                 && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
                         HeavyWeapon hw = (HeavyWeapon) w;
                         hw.setArmingTurn(hw.totalArmingTurns() - 1);
+                        // A completed arming turn means its energy is in the tube (E4.21), and
+                        // for photons that stored energy is what the warhead is made of. The
+                        // pre-game turns are plain standard charges: nothing in S4.12 lets a
+                        // ship start with overload energy already committed (E4.411).
+                        if (w instanceof com.sfb.weapons.Photon) {
+                            ((com.sfb.weapons.Photon) w).setArmingEnergy(
+                                com.sfb.weapons.Photon.STANDARD_PER_TURN * (hw.totalArmingTurns() - 1));
+                        }
                     }
                 }
                 // WS-3: all heavy weapons start fully armed (S4.13).

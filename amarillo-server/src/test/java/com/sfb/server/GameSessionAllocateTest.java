@@ -254,4 +254,50 @@ class GameSessionAllocateTest {
         assertTrue(result.isSuccess(), result.getMessage());
         assertTrue(orion.getPowerSystems().isAnyEngineDoubled());
     }
+
+    // -------------------------------------------------------------------------
+    // Photon arming dial (E4.21/E4.411) — energy, not a mode
+    // -------------------------------------------------------------------------
+
+    /** The name of the Federation ship's first photon tube. */
+    private String photonName() {
+        for (com.sfb.weapons.Weapon w : fed.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.Photon)
+                return w.getName();
+        throw new IllegalStateException("FedCA has no photon");
+    }
+
+    @Test
+    void photonDial_sixPoints_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 6.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** E4.21: the two-point standard charge is mandatory; less buys no arming turn. */
+    @Test
+    void photonDial_underTwoPoints_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 1.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("two points"), result.getMessage());
+    }
+
+    /** E4.41: two standard plus four of overload is the most a turn can take. */
+    @Test
+    void photonDial_overSixPoints_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 7.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("at most"), result.getMessage());
+    }
 }

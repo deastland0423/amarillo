@@ -29,6 +29,13 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 	private final static int[] proximityHitChart = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 			3, 3, 3, 3, 3, 3, 3, 3 };
 
+	/** Warp energy that must be paid into the tube on each of the two arming turns (E4.21). */
+	public static final double STANDARD_PER_TURN = 2.0;
+	/** Overload energy a torpedo can take on top of that, i.e. 100% overload (E4.41/E4.411). */
+	public static final double MAX_OVERLOAD = 4.0;
+	/** Least total energy a torpedo carrying overload energy can be fired with (E4.414). */
+	public static final double MIN_OVERLOAD_TOTAL = 4.5;
+
 	private WeaponArmingType armingType = WeaponArmingType.STANDARD; // By default, photons are armed normally.
 	private int armingTurn = 0; // Number of turns the weapon has been arming.
 	private double armingEnergy = 0; // Amount of total energy stored in the weapon.
@@ -60,6 +67,11 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		if (!isArmed()) {
 			throw new WeaponUnarmedException("Weapon is unarmed.");
 		}
+
+		// E4.414: a torpedo carrying overload energy is an overload for all purposes, and one
+		// holding less than 4.5 points cannot be fired at all until more energy goes in.
+		if (!isFirableOverload())
+			return -1;
 
 		// If the weapon is out of range, it can't fire.
 		if (range > getMaxRange() || range < getMinRange()) {
@@ -110,6 +122,11 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 			throws WeaponUnarmedException, TargetOutOfRangeException, CapacitorException {
 		if (!isArmed())
 			throw new WeaponUnarmedException("Weapon is unarmed.");
+
+		// E4.414: a torpedo carrying overload energy is an overload for all purposes, and one
+		// holding less than 4.5 points cannot be fired at all until more energy goes in.
+		if (!isFirableOverload())
+			return -1;
 		if (realRange > getMaxRange() || realRange < getMinRange())
 			throw new TargetOutOfRangeException("Target not in weapon range.");
 
@@ -203,84 +220,79 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		return result;
 	}
 
+	/**
+	 * Arm the tube for one turn (E4.21). Two points of warp energy are mandatory and anything
+	 * beyond them is overload energy, which irrevocably commits the torpedo to being an
+	 * overload (E4.411, E4.414). A turn therefore accepts at most six points: the mandatory
+	 * two plus the four that take it to 100% overload (E4.41). Energy is recorded in
+	 * half-point steps, anything short of the next half point counting as the lower level
+	 * (E4.414). A torpedo already sitting armed in the tube can still be given overload
+	 * energy (E4.411); its holding cost is charged separately and never counts (E4.412).
+	 *
+	 * @param energy warp energy allocated to this tube this turn
+	 * @return true if the energy was accepted
+	 */
+	public boolean armWithEnergy(double energy) {
+		double paid = Math.floor(energy * 2) / 2.0;   // half-point steps, rounded down (E4.414)
+		if (paid <= 0)
+			return false;
+
+		if (isArmed()) {
+			// Overloading a torpedo that is already loaded (E4.411).
+			if (armingType == WeaponArmingType.SPECIAL)
+				return false;                          // proximity cannot be overloaded (E4.34)
+			double room = MAX_OVERLOAD - overloadEnergy();
+			double add  = Math.min(paid, room);
+			if (add <= 0)
+				return false;
+			setOverload();
+			armingEnergy += add;
+			return true;
+		}
+
+		if (paid < STANDARD_PER_TURN)
+			return false;                              // the two-point charge is mandatory (E4.21)
+		if (armingType == WeaponArmingType.SPECIAL && paid > STANDARD_PER_TURN)
+			return false;                              // proximity cannot be overloaded (E4.34)
+
+		double overload = Math.min(paid - STANDARD_PER_TURN, MAX_OVERLOAD - overloadEnergy());
+		if (overload > 0)
+			setOverload();                             // any overload energy commits it (E4.414)
+		armingEnergy += STANDARD_PER_TURN + overload;
+		armingTurn++;
+		if (armingTurn >= 2)
+			armed = true;
+		return true;
+	}
+
+	/** Overload energy in the tube: whatever exceeds the mandatory two per arming turn (E4.411). */
+	public double overloadEnergy() {
+		return Math.max(0, armingEnergy - STANDARD_PER_TURN * armingTurn);
+	}
+
+	/**
+	 * Damage an overloaded torpedo scores on its own ship's facing shield when fired at a true
+	 * range of zero or one (E4.43, E4.431), read off the E4.413 table by total energy. It is
+	 * not subtracted from the warhead (E4.432). Zero for standard and proximity torpedoes,
+	 * which cannot be fired that close at all (E4.14).
+	 */
+	public int feedbackDamage() {
+		if (armingType != WeaponArmingType.OVERLOAD || armingEnergy < MIN_OVERLOAD_TOTAL)
+			return 0;
+		if (armingEnergy <= 5.0) return 1;
+		if (armingEnergy <= 6.0) return 2;
+		if (armingEnergy <= 7.0) return 3;
+		return 4;
+	}
+
+	/** True once the tube holds enough to be fired as the overload it is committed to (E4.414). */
+	public boolean isFirableOverload() {
+		return armingType != WeaponArmingType.OVERLOAD || armingEnergy >= MIN_OVERLOAD_TOTAL;
+	}
+
 	@Override
 	public boolean arm(int energy) {
-		boolean okayToArm = false;
-
-		// If the photon is already armed then
-		// no more arming can be done. Exit with false.
-
-		// If the photon is already armed, more energy
-		// could change its arming state.
-		if (isArmed()) {
-			switch (armingType) {
-				case STANDARD:
-					setOverload();
-					if (armingEnergy + energy <= 8) {
-						armingEnergy += energy;
-						return true;
-					}
-					break;
-				case OVERLOAD:
-					if (armingEnergy + energy <= 8) {
-						armingEnergy += energy;
-						return true;
-					}
-					break;
-				case SPECIAL:
-					return false;
-				default:
-					break;
-			}
-
-		}
-
-		// Check what the arming type is for the weapon.
-		// Apply the energy and increment the arming turn if it matches the profile.
-		switch (armingType) {
-			// Standard photons (2 energy per turn)
-			case STANDARD:
-				if (energy == 2) {
-					armingEnergy += energy;
-					armingTurn++;
-					okayToArm = true;
-				} else {
-					okayToArm = false;
-				}
-				break;
-			// Overloaded photons (from 2 to 4 energy per turn)
-			case OVERLOAD:
-				if (energy >= 2 && energy <= 4) {
-					armingEnergy += energy;
-					armingTurn++;
-					okayToArm = true;
-				} else {
-					okayToArm = false;
-				}
-				break;
-			// Proximity photons (2 energy per turn)
-			case SPECIAL:
-				if (energy == 2) {
-					armingEnergy += energy;
-					armingTurn++;
-					okayToArm = true;
-				} else {
-					okayToArm = false;
-				}
-				break;
-			default:
-				break;
-		}
-
-		// If everything worked out and this is the second turn
-		// of arming, mark the weapon as armed.
-		if (okayToArm && armingTurn == 2) {
-			armed = true;
-		}
-
-		// Return success/failure of the attempted arming.
-		return okayToArm;
-
+		return armWithEnergy(energy);
 	}
 
 	@Override
@@ -476,7 +488,9 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 				case SPECIAL:  setSpecial();  break;
 				default:       /* already STANDARD from reset() */ break;
 			}
-			arm(energySupplied);
+			// The allocated amount decides the strength: two points arms it as a standard
+			// torpedo, anything more is overload energy (E4.21/E4.411).
+			armWithEnergy(Math.abs(energy));
 		}
 
 	}

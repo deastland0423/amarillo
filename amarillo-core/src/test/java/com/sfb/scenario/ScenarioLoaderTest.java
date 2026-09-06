@@ -449,4 +449,31 @@ public class ScenarioLoaderTest {
                 return true;
         return false;
     }
+
+    /**
+     * S4.12 / E4.21: a photon at weapon status II has completed one arming turn, which means
+     * two points of warp energy are sitting in the tube. The warhead is made of that stored
+     * energy (E4.413), so recording the turn without the energy halves every overload built
+     * on top of it.
+     */
+    @Test
+    public void weaponStatusTwo_photonHoldsItsFirstTurnOfEnergy() {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+        Ship ship = new Ship();
+        ship.init(FederationShips.getFedCa());
+
+        ScenarioLoader.applyWeaponStatus(ship, 2);
+
+        boolean sawPhoton = false;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.Photon)) continue;
+            sawPhoton = true;
+            com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) w;
+            assertEquals("one arming turn complete", 1, p.getArmingTurn());
+            assertEquals("and its two points in the tube", 2.0, p.getArmingEnergy(), 0.001);
+            assertFalse("not yet armed", p.isArmed());
+        }
+        assumeTrue("FedCA must carry photons", sawPhoton);
+    }
 }

@@ -697,9 +697,37 @@ public class GameSession {
                     if (!(w instanceof HeavyWeapon))
                         continue;
                     String choice = arming != null ? arming.get(w.getName()) : null;
+                    HeavyWeapon hw = (HeavyWeapon) w;
+
+                    // A photon still in its arming cycle is dialled by energy, not by a mode
+                    // (E4.21/E4.411): two points arms it as a standard torpedo, every point
+                    // above that is overload energy, and six is a 100% overload. The client
+                    // sends the amount; core records what actually lands in the tube.
+                    Map<String, Double> dial = request.getPhotonArming();
+                    Double dialled = dial != null ? dial.get(w.getName()) : null;
+                    if (dialled != null && w instanceof com.sfb.weapons.Photon && !hw.isArmed()) {
+                        double amount = dialled;
+                        if (amount <= 0) {
+                            e.getArmingEnergy().put(w, 0.0);   // discharge / don't arm
+                            continue;
+                        }
+                        if (amount < com.sfb.weapons.Photon.STANDARD_PER_TURN)
+                            return ActionResult.fail(w.getName() + ": a photon needs two points of warp"
+                                    + " energy to continue arming (E4.21)");
+                        double perTurnMax = com.sfb.weapons.Photon.STANDARD_PER_TURN
+                                + com.sfb.weapons.Photon.MAX_OVERLOAD;
+                        if (amount > perTurnMax)
+                            return ActionResult.fail(w.getName() + ": a photon takes at most "
+                                    + (int) perTurnMax + " points in a turn — two standard plus four"
+                                    + " of overload (E4.41)");
+                        e.getArmingEnergy().put(w, amount);
+                        e.getArmingType().put(w, amount > com.sfb.weapons.Photon.STANDARD_PER_TURN
+                                ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD);
+                        continue;
+                    }
+
                     if (choice == null)
                         choice = "STANDARD";
-                    HeavyWeapon hw = (HeavyWeapon) w;
                     switch (choice.toUpperCase()) {
                         case "HOLD":
                             e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());

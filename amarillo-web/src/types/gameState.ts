@@ -30,6 +30,8 @@ export interface WeaponState {
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)
   armingCost:        number;
+  photonTube?:       boolean;  // dialled by energy rather than by mode (E4.21/E4.411)
+  armingEnergy?:     number;   // warp energy already in the tube (E4.413)
   holdCost:          number;   // energy to hold per turn; 0 = hold not supported
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)

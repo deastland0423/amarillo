@@ -52,6 +52,7 @@ interface ShipAlloc {
   scoutEwPoints:        number;                    // ship-level pool of EW the scout generates to lend (G24.211)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
+  photonArming:         Record<string, number>;   // warp energy dialled into each photon tube
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
   scatterPackLoading:   Record<string, Record<string, number>>;  // shuttleName → {droneType → count}
   suicideArming:        Record<string, number>;   // shuttleName → energy (1–3); 0 = not arming
@@ -108,6 +109,11 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     scoutEwPoints:   0,
     energizeCaps:    false,
     weaponArming:    arming,
+    photonArming:    Object.fromEntries(
+      (ship.weapons ?? [])
+        .filter(w => w.photonTube && w.functional && !w.armed)
+        .map(w => [w.name, 2]),
+    ),
     droneReloads:        {},
     scatterPackLoading:  {},
     suicideArming:       {},
@@ -151,6 +157,11 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   let arm = 0;
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
+    // A photon still arming is dialled by energy (E4.21/E4.411) — it costs what was dialled.
+    if (w.photonTube && !w.armed && alloc.photonArming[w.name] != null) {
+      arm += alloc.photonArming[w.name];
+      continue;
+    }
     const choice = alloc.weaponArming[w.name] ?? 'SKIP';
     if      (choice === 'HOLD' || choice === 'HOLD_PROX' || choice === 'HOLD_STD') arm += w.holdCost;
     else if (choice === 'STANDARD' || choice === 'FINISH') arm += w.armingCost;
@@ -444,6 +455,10 @@ export default function EnergyAllocationDialog({
     return spSpaces > (s.availableDeckCrews ?? 2);
   });
 
+  function setPhotonArming(name: string, energy: number) {
+    setAlloc(a => ({ ...a, photonArming: { ...a.photonArming, [name]: energy } }));
+  }
+
   function setArming(name: string, choice: ArmChoice) {
     setAlloc(a => ({ ...a, weaponArming: { ...a.weaponArming, [name]: choice } }));
   }
@@ -475,6 +490,7 @@ export default function EnergyAllocationDialog({
           scoutEwPoints:         a.scoutEwPoints > 0 ? a.scoutEwPoints : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
+          photonArming:          Object.keys(a.photonArming).length > 0 ? a.photonArming : undefined,
           transUses:             a.transUses,
           cloakPaid:             a.cloakPaid,
           doubleLwarp:           a.doubleLwarp,
@@ -966,6 +982,10 @@ export default function EnergyAllocationDialog({
                             <ArmOption name={w.name} value="SKIP"     label="Discharge"                  current={choice} color="#8b949e" onChange={setArming} />
                           </>
                         )
+                      ) : w.photonTube ? (
+                        /* Photons are dialled by energy, not by mode (E4.21/E4.411) */
+                        <PhotonDial w={w} paid={alloc.photonArming[w.name] ?? 2}
+                          onChange={e => setPhotonArming(w.name, e)} />
                       ) : (
                         /* Non-plasma unarmed */
                         <>
@@ -1302,6 +1322,49 @@ export default function EnergyAllocationDialog({
 
 // ---- Arm option radio button ----
 
+
+/**
+ * A photon tube's arming dial (E4.21/E4.411). Two points of warp energy are mandatory and arm it
+ * as a standard torpedo; every point above that is overload energy, to a maximum of four, so a
+ * turn takes 2 to 6. The readout shows what the tube will hold and what that makes it, because
+ * the choice is really "how hard do I want this to hit" — and what it costs beyond the energy.
+ */
+function PhotonDial({ w, paid, onChange }: {
+  w: WeaponState; paid: number; onChange: (energy: number) => void;
+}) {
+  const inTube        = w.armingEnergy ?? 0;
+  const armingTurn    = w.armingTurn ?? 0;
+  const overloadSoFar = Math.max(0, inTube - 2 * armingTurn);
+  const overloadNow   = Math.min(Math.max(0, paid - 2), 4 - overloadSoFar);
+  const total         = inTube + 2 + overloadNow;
+  const willBeArmed   = armingTurn + 1 >= 2;
+  const overloaded    = total > 4;
+  const warhead       = overloaded ? total * 2 : 8;
+  const feedback      = !overloaded ? 0 : total <= 5 ? 1 : total <= 6 ? 2 : total <= 7 ? 3 : 4;
+  const maxThisTurn   = 2 + Math.max(0, 4 - overloadSoFar);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <span style={{ color: '#8b949e' }}>Arm</span>
+      <button className="action-strip-btn" style={{ padding: '0 6px' }}
+        disabled={paid <= 2}
+        onClick={() => onChange(Math.max(2, paid - 1))}>−</button>
+      <span style={{ color: overloaded ? '#ffa050' : '#56d364', minWidth: 10, textAlign: 'center' }}>
+        {paid}
+      </span>
+      <button className="action-strip-btn" style={{ padding: '0 6px' }}
+        disabled={paid >= maxThisTurn}
+        onClick={() => onChange(Math.min(maxThisTurn, paid + 1))}>+</button>
+      <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>
+        {willBeArmed
+          ? <>→ {total} in tube, <strong style={{ color: overloaded ? '#ffa050' : '#56d364' }}>
+              {warhead} damage
+            </strong>{overloaded && <> · max range 8 · feedback {feedback} at range 0–1</>}</>
+          : <>→ {total} in tube, needs another arming turn</>}
+      </span>
+    </div>
+  );
+}
 function ArmOption({ name, value, label, current, color, onChange }: {
   name: string; value: ArmChoice; label: string; current: ArmChoice;
   color: string; onChange: (n: string, c: ArmChoice) => void;

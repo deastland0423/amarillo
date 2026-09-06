@@ -110,6 +110,8 @@ public class GameStateDto {
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
         public int armingCost; // energy to arm (standard, unarmed)
+        public boolean photonTube;   // photon: dialled by energy, not by mode (E4.21/E4.411)
+        public double armingEnergy;  // photon: warp energy already in the tube (E4.413)
         public int holdCost; // energy to hold per turn; 0 = hold not supported
         public boolean canOverload; // weapon supports OVERLOAD mode
         public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
@@ -1069,6 +1071,10 @@ public class GameStateDto {
                 wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
                 wd.isHeavy = true;
                 wd.armingCost = hw.energyToArm();
+                if (hw instanceof com.sfb.weapons.Photon) {
+                    wd.photonTube = true;
+                    wd.armingEnergy = ((com.sfb.weapons.Photon) hw).getArmingEnergy();
+                }
                 wd.holdCost = hw.holdEnergyCost();
                 wd.canOverload = hw.supportsOverload();
                 wd.canSuicide = hw.supportsSuicide();

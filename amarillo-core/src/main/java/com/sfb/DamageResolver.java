@@ -73,6 +73,19 @@ class DamageResolver {
      * Size 2: attacker is on the seam between two adjacent shields — caller must
      * ask the player which shield to use.
      */
+    /**
+     * E4.43: an overloaded photon fired at a true range of zero or one blasts back down its own
+     * ionised trail, scoring damage on the FIRING ship's facing shield (E4.431). The feedback is
+     * not subtracted from the warhead (E4.432) and no other ship is affected (E4.433).
+     */
+    private void applyOverloadFeedback(Game.PendingVolley pv, StringBuilder out) {
+        if (pv.feedbackDamage <= 0 || pv.attackerShip == null)
+            return;
+        out.append("  Overload feedback (E4.43): ")
+           .append(applyDamageToUnit(pv.feedbackDamage, pv.attackerShip, pv.feedbackShield))
+           .append("\n");
+    }
+
     java.util.List<Integer> getShieldCandidates(Marker attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         if (shieldFacing % 2 != 0) {
@@ -510,6 +523,7 @@ class DamageResolver {
         int envelopingHellboreDamage = 0;
         boolean addHit = false;
         boolean fusionSuicideFired = false;
+        int feedbackDamage = 0;   // E4.43: what this ship's own overloads owe it
 
         Ship attackerShip = attacker instanceof Ship ? (Ship) attacker : null;
         com.sfb.systemgroups.DERFACS derfacs = attackerShip != null ? attackerShip.getDerfacs() : null;
@@ -602,6 +616,11 @@ class DamageResolver {
                             .append("\n");
                     dmg = scaled;
                 }
+                // E4.43: an overloaded photon that HITS at a true range of zero or one feeds
+                // back onto the firing ship. A miss does no feedback damage (E4.431).
+                if (dmg > 0 && range <= 1 && w instanceof com.sfb.weapons.Photon)
+                    feedbackDamage += ((com.sfb.weapons.Photon) w).feedbackDamage();
+
                 String rollStr = w.getLastRoll() > 0 ? "  (die " + w.getLastRoll() + ")" : "";
                 if (dmg == ADD.HIT) {
                     addHit = true;
@@ -660,13 +679,22 @@ class DamageResolver {
             pendingVolleys.add(new PendingVolley(
                     attacker.getName(), attackerShip, target,
                     shieldNumber, totalDamage, envelopingHellboreDamage,
-                    addHit, fusionSuicideFired, log.toString(), null));
+                    addHit, fusionSuicideFired, log.toString(), null,
+                    feedbackDamage,
+                    feedbackDamage > 0 && attackerShip != null
+                            ? getShieldNumber(target, attackerShip) : 1));
         } else {
             // Non-ship targets (seekers, shuttles) have no shields — apply immediately.
             if (fusionSuicideFired && attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
                 log.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(attackerShip.getName()).append("\n");
+            }
+            if (feedbackDamage > 0 && attackerShip != null) {
+                log.append("  Overload feedback (E4.43): ")
+                   .append(applyDamageToUnit(feedbackDamage, attackerShip,
+                           getShieldNumber(target, attackerShip)))
+                   .append("\n");
             }
             if (addHit) {
                 String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
@@ -732,6 +760,7 @@ class DamageResolver {
                     pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                             .append(pv.attackerShip.getName()).append("\n");
                 }
+                applyOverloadFeedback(pv, pvLog);
                 if (pv.addHit) {
                     pvLog.append("  ADD result: ")
                             .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
@@ -764,6 +793,7 @@ class DamageResolver {
                 g.pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(pv.attackerShip.getName()).append("\n");
             }
+            applyOverloadFeedback(pv, g.pvLog);
             if (pv.addHit) {
                 g.pvLog.append("  ADD result: ")
                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
@@ -803,6 +833,7 @@ class DamageResolver {
                 pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(pv.attackerShip.getName()).append("\n");
             }
+            applyOverloadFeedback(pv, pvLog);
             if (pv.addHit) {
                 pvLog.append("  ADD result: ")
                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
