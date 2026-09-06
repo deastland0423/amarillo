@@ -80,13 +80,15 @@ public class MapUtilsTest {
 
     @Test
     public void testBearingEast() {
-        // Even xDiff, same y → bearing 4
-        assertEquals(4, MapUtils.getBearing(at(5, 5), at(7, 5)));
+        // Due east is the vertex between directions 5 and 9 — bearing 7, not the 4 of the
+        // twelve-point shield scheme.
+        assertEquals(7, MapUtils.getBearing(at(5, 5), at(7, 5)));
     }
 
     @Test
     public void testBearingWest() {
-        assertEquals(10, MapUtils.getBearing(at(7, 5), at(5, 5)));
+        // Due west is the vertex between directions 17 and 21.
+        assertEquals(19, MapUtils.getBearing(at(7, 5), at(5, 5)));
     }
 
     @Test

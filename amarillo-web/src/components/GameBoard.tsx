@@ -261,7 +261,9 @@ function hexGetBearing(srcCol: number, srcRow: number, tgtCol: number, tgtRow: n
   const xOffset = tgtCol - srcCol;
   if (xOffset === 0) return tgtRow < srcRow ? 1 : 13;
   const absX = Math.abs(xOffset);
-  if (absX % 2 === 0 && srcRow === tgtRow) return xOffset < 0 ? 10 : 4;
+  // Due west / due east land on the vertex between two directions: 19 between 17 and 21,
+  // 7 between 5 and 9. (4 and 10 belong to the twelve-point shield scheme, not here.)
+  if (absX % 2 === 0 && srcRow === tgtRow) return xOffset < 0 ? 19 : 7;
 
   const srcEven = srcCol % 2 === 0;
   const above   = srcEven ? tgtRow <= srcRow : tgtRow < srcRow;

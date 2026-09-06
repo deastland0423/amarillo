@@ -659,13 +659,17 @@ public class MapUtils {
 			}
 		}
 
-		// Determine if the target is EXACTLY ON the 10/4 line
+		// Due east or due west: an even column offset on the same row lands exactly on the
+		// vertex between two hex directions. In the 24-point bearing scheme the six directions
+		// are 1, 5, 9, 13, 17 and 21, so due east is the vertex between 5 and 9 (= 7) and due
+		// west the vertex between 17 and 21 (= 19). (4 and 10 are the equivalents in the
+		// twelve-point SHIELD scheme — a different space; see getAbsoluteShieldFacing.)
 		boolean evenOffset = (Math.abs(sourceLocation.getX() - targetLocation.getX()) % 2 == 0);
 		if (evenOffset && sourceLocation.getY() == targetLocation.getY()) {
 			if (targetLocation.getX() < sourceLocation.getX()) {
-				return 10;
+				return 19;
 			} else {
-				return 4;
+				return 7;
 			}
 		}
 
