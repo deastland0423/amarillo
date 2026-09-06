@@ -385,6 +385,11 @@ button.secondary:hover:not(:disabled) {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #30363d;
   background: #0d1117;
+  /* A ship with eight scout channels can make this strip taller than the window. Cap it and
+     let it scroll, so it can never push the panel below it (launch, fire, boarding) off the
+     bottom of the screen. */
+  max-height: 55vh;
+  overflow-y: auto;
 }
 
 .action-btn-row {

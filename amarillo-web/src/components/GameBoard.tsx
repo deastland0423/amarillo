@@ -1644,6 +1644,9 @@ function ShipSidebar({
   // Capacitor ESGs choose how much to release (1–5, G23.242); keyed by designator.
   const [esgReleaseAmt, setEsgReleaseAmt] = useState<Record<string, number>>({});
   // In-progress scout EW lend per channel (G24.21): designator → {target, ecm, eccm}.
+  // The scout panel is the tallest thing in the strip — start it closed so it never buries
+  // the launch/fire panels below it, and let the header summarise it while shut.
+  const [scoutPanelOpen, setScoutPanelOpen] = useState(false);
   const [lendDraft, setLendDraft] = useState<Record<string, { target: string; ecm: number; eccm: number }>>({});
 
   const color = factionColor(ship.faction);
@@ -2028,8 +2031,26 @@ function ShipSidebar({
                   lending pool (G24.211), and what each channel is currently lending (G24.21). */}
               {(ship.weapons ?? []).some(w => w.scoutChannel) && (
                 <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
-                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>
-                    Scout Channels (G24.0)
+                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2,
+                                cursor: 'pointer', userSelect: 'none' }}
+                       onClick={() => setScoutPanelOpen(o => !o)}
+                       title={scoutPanelOpen ? 'Collapse scout channels' : 'Expand scout channels'}>
+                    {scoutPanelOpen ? '▾' : '▸'} Scout Channels (G24.0)
+                    {!scoutPanelOpen && (() => {
+                      // Closed, the header carries the state worth glancing at: how many
+                      // channels there are, how many are live, and whether any are dark.
+                      const chans   = (ship.weapons ?? []).filter(w => w.scoutChannel);
+                      const powered = chans.filter(w => w.channelPowered && w.functional).length;
+                      const blinded = chans.filter(w => w.channelBlinded).length;
+                      const busy    = chans.filter(w => (w.channelFunction ?? 'NONE') !== 'NONE').length;
+                      return (
+                        <span style={{ color: '#8b949e', fontWeight: 400 }}>
+                          {' '}— {powered}/{chans.length} powered
+                          {busy > 0 && `, ${busy} assigned`}
+                          {blinded > 0 && `, ${blinded} blinded`}
+                        </span>
+                      );
+                    })()}
                     {(ship.scoutEwPool ?? 0) > 0 && (() => {
                       const pool = ship.scoutEwPool ?? 0;
                       const lent = ship.scoutEwLent ?? 0;
@@ -2044,7 +2065,7 @@ function ShipSidebar({
                       );
                     })()}
                   </div>
-                  {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+                  {scoutPanelOpen && (ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
                     const state = !w.functional ? 'destroyed'
                                 : w.channelBlinded ? 'blinded'
                                 : w.channelPowered ? 'powered'
