@@ -190,4 +190,32 @@ public class PhotonArmingTest {
         assertEquals(8.0, p.getArmingEnergy(), 0.001);
         assertEquals(WeaponArmingType.OVERLOAD, p.getArmingType());
     }
+
+    /**
+     * E4.21/E1.24: allocating nothing is a choice, not a smaller payment — the tube is
+     * discharged and the arming cycle starts over. The energy already in it is lost.
+     */
+    @Test
+    public void allocatingNothing_dischargesTheTube() {
+        Photon p = atWeaponStatusTwo();
+
+        p.applyAllocationEnergy(0.0, WeaponArmingType.STANDARD);
+
+        assertEquals("arming starts again", 0, p.getArmingTurn());
+        assertEquals("and the stored energy is gone", 0.0, p.getArmingEnergy(), 0.001);
+        assertFalse(p.isArmed());
+    }
+
+    /** A tube that has been discharged can begin arming again from scratch. */
+    @Test
+    public void aDischargedTube_canStartOver() {
+        Photon p = atWeaponStatusTwo();
+        p.applyAllocationEnergy(0.0, WeaponArmingType.STANDARD);
+
+        assertTrue(p.armWithEnergy(2));
+        assertTrue(p.armWithEnergy(2));
+
+        assertTrue(p.isArmed());
+        assertEquals(4.0, p.getArmingEnergy(), 0.001);
+    }
 }

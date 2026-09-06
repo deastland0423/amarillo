@@ -300,4 +300,15 @@ class GameSessionAllocateTest {
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("at most"), result.getMessage());
     }
+
+    /** Zero is "do not arm" and must be accepted — it discharges the tube (E4.21/E1.24). */
+    @Test
+    void photonDial_zero_isAcceptedAsDischarge() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 0.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
 }

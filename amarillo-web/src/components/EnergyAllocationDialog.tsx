@@ -1342,21 +1342,31 @@ function PhotonDial({ w, paid, onChange }: {
   const warhead       = overloaded ? total * 2 : 8;
   const feedback      = !overloaded ? 0 : total <= 5 ? 1 : total <= 6 ? 2 : total <= 7 ? 3 : 4;
   const maxThisTurn   = 2 + Math.max(0, 4 - overloadSoFar);
+  // Zero is a real choice, not a smaller payment: allocate nothing and the tube is discharged
+  // and starts over (E4.21/E1.24). One point is never legal — the two are mandatory (E4.21) —
+  // so the dial steps 0 ↔ 2.
+  const arming = paid > 0;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <span style={{ color: '#8b949e' }}>Arm</span>
       <button className="action-strip-btn" style={{ padding: '0 6px' }}
-        disabled={paid <= 2}
-        onClick={() => onChange(Math.max(2, paid - 1))}>−</button>
-      <span style={{ color: overloaded ? '#ffa050' : '#56d364', minWidth: 10, textAlign: 'center' }}>
-        {paid}
+        disabled={paid <= 0}
+        onClick={() => onChange(paid <= 2 ? 0 : paid - 1)}>−</button>
+      <span style={{ color: !arming ? '#8b949e' : overloaded ? '#ffa050' : '#56d364',
+                     minWidth: 10, textAlign: 'center' }}>
+        {arming ? paid : '—'}
       </span>
       <button className="action-strip-btn" style={{ padding: '0 6px' }}
         disabled={paid >= maxThisTurn}
-        onClick={() => onChange(Math.min(maxThisTurn, paid + 1))}>+</button>
+        onClick={() => onChange(paid < 2 ? 2 : Math.min(maxThisTurn, paid + 1))}>+</button>
       <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>
-        {willBeArmed
+        {!arming
+          ? (inTube > 0
+              ? <>not arming — <strong style={{ color: '#f0a0a0' }}>discharges</strong>, losing the
+                  {' '}{inTube} point{inTube === 1 ? '' : 's'} in the tube (E4.21)</>
+              : <>not arming</>)
+          : willBeArmed
           ? <>→ {total} in tube, <strong style={{ color: overloaded ? '#ffa050' : '#56d364' }}>
               {warhead} damage
             </strong>{overloaded && <> · max range 8 · feedback {feedback} at range 0–1</>}</>
