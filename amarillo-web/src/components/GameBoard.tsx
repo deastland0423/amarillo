@@ -3587,7 +3587,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         type: 'SUBMIT_ATTRACT_CHOICE', attracted,
       });
       if (!res.success) setActionError(res.message);
-      else if (res.message) addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Attraction answer failed');
     }
@@ -3602,7 +3603,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         type: 'RELEASE_DRONE_CONTROL', shipName: fromShipName, targetName: droneName,
       });
       if (!res.success) setActionError(res.message);
-      else if (res.message) addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Drone release failed');
     }
@@ -3615,7 +3617,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         type: 'TRANSFER_DRONE_CONTROL', shipName: toShipName, targetName: droneName,
       });
       if (!res.success) setActionError(res.message);
-      else if (res.message) addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Drone transfer failed');
     }
@@ -4071,7 +4074,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'BEGIN_RECOVERY', shipName: liveShip.name, action: shuttleName,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   /** Probe canisters currently held in a tractor beam (recovery candidates). */
@@ -4084,7 +4088,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'RECOVER_OBJECTIVE', shipName: liveShip.name, objectiveName,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   /** Free, transporter-retrievable canisters within transporter range (5) of the acting ship. */
@@ -4105,7 +4110,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'PICKUP_OBJECTIVE', shipName: liveShip.name, objectiveName, retrievalMethod: 'TRANSPORTER',
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
     setBeamObjectMode(false);
   }
 
@@ -4129,7 +4135,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'LOAD_PERSONNEL', shipName: liveShuttle.name,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   async function handleUnloadPersonnel() {
@@ -4138,7 +4145,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'UNLOAD_PERSONNEL', shipName: liveShuttle.name,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   function handleHexClick(col: number, row: number) {
@@ -4193,7 +4201,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         ...(releaseAmount !== undefined ? { esgReleaseAmount: releaseAmount } : {}),
       });
       if (!res.success) setActionError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'ESG action failed');
     }
@@ -4217,7 +4226,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         lendEccm:          eccm,
       });
       if (!res.success) setActionError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Lend EW failed');
     }
@@ -4236,7 +4246,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         targetName:        seekerName,
       });
       if (!res.success) setAimError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Break lock-on failed');
     }
@@ -4255,7 +4266,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         targetName:        seekerName,
       });
       if (!res.success) setAimError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Identify failed');
     }
@@ -4274,7 +4286,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         lendEcm:           points,
       });
       if (!res.success) setAimError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Offensive EW failed');
     }
@@ -4293,7 +4306,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         targetName:        droneName,
       });
       if (!res.success) setAimError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Attract drone failed');
     }
@@ -4310,7 +4324,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         channelDesignator,
       });
       if (!res.success) setAimError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setAimError(e instanceof Error ? e.message : 'Control seekers failed');
     }
