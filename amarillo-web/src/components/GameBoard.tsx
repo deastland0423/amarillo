@@ -2126,7 +2126,8 @@ function ShipSidebar({
                                 <option key={n} value={n}>{n === ship.name ? `self (${n})` : n}</option>
                               ))}
                             </select>
-                            <span style={{ color: '#8b949e' }}>E</span>
+                            <span style={{ color: '#8b949e' }}
+                                  title="ECM — jamming lent to the recipient, making it harder to hit (D6.3)">ECM</span>
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
                               disabled={draft.ecm <= 0}
                               onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
@@ -2134,7 +2135,10 @@ function ShipSidebar({
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
                               disabled={draftTotal >= 6}
                               onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
-                            <span style={{ color: '#8b949e', opacity: isSelf ? 0.4 : 1 }}>C</span>
+                            <span style={{ color: '#8b949e', opacity: isSelf ? 0.4 : 1 }}
+                                  title={isSelf
+                                    ? 'A scout cannot lend ECCM to itself (G24.283) — self-protection is ECM only'
+                                    : 'ECCM — lent to the recipient to see through enemy jamming (D6.3)'}>ECCM</span>
                             <button className="action-strip-btn" style={{ padding: '0 5px' }}
                               disabled={isSelf || draft.eccm <= 0}
                               onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
