@@ -235,6 +235,11 @@ public class GameStateDto {
         public int sensorRating;
         public int ecmAllocated;
         public int eccmAllocated;
+        // EW lending is announced as it happens and is never secret (G24.211 note, G24.2115),
+        // so these are sent for every ship, not just the viewer's own.
+        public int lentEcm;          // ECM received from friendly scouts (D6.3144)
+        public int lentEccm;         // ECCM received from friendly scouts (D6.3144)
+        public int offensiveEw;      // enemy jamming imposed on this ship's own fire (G24.219)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
         public int scoutEwLent;      // of the pool, how many are currently lent out (G24.2111)
         public int scoutEwRemaining; // still available to commit; dropped points are lost (G24.2122)
@@ -935,6 +940,9 @@ public class GameStateDto {
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
         dto.eccmAllocated = ship.getEccmAllocated();
+        dto.lentEcm = ship.getLentEcm();
+        dto.lentEccm = ship.getLentEccm();
+        dto.offensiveEw = ship.getOffensiveEw();
         dto.scoutEwPool = ship.getScoutEwPool();
         dto.scoutEwLent = ship.getScoutEwLent();
         dto.scoutEwRemaining = ship.getScoutEwRemaining();

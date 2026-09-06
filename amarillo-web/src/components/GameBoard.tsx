@@ -2830,6 +2830,23 @@ function ShipSidebar({
             }
           />
         )}
+        {/* EW is announced as it is allocated and lending is explicitly public (G24.211 note,
+            G24.2115), so this shows for enemy ships too. */}
+        {((ship.sensorRating ?? 0) > 0 || (ship.lentEcm ?? 0) > 0 || (ship.lentEccm ?? 0) > 0) && (
+          <StatRow
+            label="EW"
+            value={(() => {
+              const ecm  = (ship.ecmAllocated ?? 0) + (ship.lentEcm ?? 0);
+              const eccm = (ship.eccmAllocated ?? 0) + (ship.lentEccm ?? 0);
+              const lent = (ship.lentEcm ?? 0) + (ship.lentEccm ?? 0);
+              const jam  = ship.offensiveEw ?? 0;
+              const parts = [`${ecm} ECM`, `${eccm} ECCM`];
+              if (lent > 0) parts.push(`${lent} lent in`);
+              if (jam > 0)  parts.push(`jammed ${jam}`);
+              return parts.join(' · ');
+            })()}
+          />
+        )}
         {(ship.cloakCost ?? 0) > 0 && (
           <StatRow
             label="Cloak"

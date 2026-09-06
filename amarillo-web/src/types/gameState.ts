@@ -208,6 +208,10 @@ export interface ShipObject extends MapObjectBase {
   sensorRating:     number;
   ecmAllocated:     number;
   eccmAllocated:    number;
+  activeFireControl?: boolean; // false = passive fire control (D19.0)
+  lentEcm?:          number;   // ECM received from a friendly scout (D6.3144)
+  lentEccm?:         number;   // ECCM received from a friendly scout (D6.3144)
+  offensiveEw?:      number;   // enemy jamming on this ship's fire (G24.219)
   scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
   scoutEwLent?:     number;   // of the pool, how many are currently lent out (G24.2111)
   scoutEwRemaining?: number;  // still available to commit; dropped points are lost (G24.2122)

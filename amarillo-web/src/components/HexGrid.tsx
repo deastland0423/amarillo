@@ -734,13 +734,28 @@ function shuttlesAt(objects: MapObject[], col: number, row: number) {
 }
 
 function shipTooltipLines(ship: ShipObject): string[] {
-  return [
+  const lines = [
     `Faction:  ${ship.faction}`,
     `Name:     ${ship.name}`,
     `Hull:     ${ship.hull}`,
     `Facing:   ${facingLabel(ship.facing)}`,
     `Speed:    ${ship.speed}`,
   ];
+  // EW is announced as it is allocated, and lending is explicitly public (G24.211 note,
+  // G24.2115) — so it belongs on the hover for enemy ships too, where it is the figure that
+  // decides which target is worth shooting at.
+  const ecm  = (ship.ecmAllocated  ?? 0) + (ship.lentEcm  ?? 0);
+  const eccm = (ship.eccmAllocated ?? 0) + (ship.lentEccm ?? 0);
+  const lent = (ship.lentEcm ?? 0) + (ship.lentEccm ?? 0);
+  const jam  = ship.offensiveEw ?? 0;
+  if (ecm > 0 || eccm > 0 || jam > 0) {
+    let ew = `EW:       ${ecm} ECM / ${eccm} ECCM`;
+    if (lent > 0) ew += ` (${lent} lent in)`;
+    if (jam > 0)  ew += ` · jammed ${jam}`;
+    lines.push(ew);
+  }
+  if (!ship.activeFireControl) lines.push(`FC:       passive`);
+  return lines;
 }
 
 function shuttleTooltipLines(
