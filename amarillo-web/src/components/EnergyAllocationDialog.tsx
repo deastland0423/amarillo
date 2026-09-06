@@ -985,7 +985,15 @@ export default function EnergyAllocationDialog({
                       ) : w.photonTube ? (
                         /* Photons are dialled by energy, not by mode (E4.21/E4.411) */
                         <PhotonDial w={w} paid={alloc.photonArming[w.name] ?? 2}
-                          onChange={e => setPhotonArming(w.name, e)} />
+                          prox={choice === 'PROX'}
+                          onChange={e => {
+                            setPhotonArming(w.name, e);
+                            if (e !== 2 && choice === 'PROX') setArming(w.name, 'STANDARD');
+                          }}
+                          onProx={p => {
+                            setArming(w.name, p ? 'PROX' : 'STANDARD');
+                            if (p) setPhotonArming(w.name, 2);
+                          }} />
                       ) : (
                         /* Non-plasma unarmed */
                         <>
@@ -1329,8 +1337,9 @@ export default function EnergyAllocationDialog({
  * turn takes 2 to 6. The readout shows what the tube will hold and what that makes it, because
  * the choice is really "how hard do I want this to hit" — and what it costs beyond the energy.
  */
-function PhotonDial({ w, paid, onChange }: {
-  w: WeaponState; paid: number; onChange: (energy: number) => void;
+function PhotonDial({ w, paid, prox, onChange, onProx }: {
+  w: WeaponState; paid: number; prox: boolean;
+  onChange: (energy: number) => void; onProx: (prox: boolean) => void;
 }) {
   const inTube        = w.armingEnergy ?? 0;
   const armingTurn    = w.armingTurn ?? 0;
@@ -1346,6 +1355,9 @@ function PhotonDial({ w, paid, onChange }: {
   // and starts over (E4.21/E1.24). One point is never legal — the two are mandatory (E4.21) —
   // so the dial steps 0 ↔ 2.
   const arming = paid > 0;
+  // E4.31: the fuse is recorded when the second turn's arming is, so it is a choice only on
+  // the turn that completes the torpedo — and never together with overload energy (E4.34).
+  const canFuse = (w.canProximity ?? false) && willBeArmed && overloadSoFar === 0;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -1360,8 +1372,18 @@ function PhotonDial({ w, paid, onChange }: {
       <button className="action-strip-btn" style={{ padding: '0 6px' }}
         disabled={paid >= maxThisTurn}
         onClick={() => onChange(paid < 2 ? 2 : Math.min(maxThisTurn, paid + 1))}>+</button>
+      {canFuse && (
+        <label className="ea-radio-label" style={{ color: '#a0d0ff', marginLeft: 4 }}
+          title="Proximity fuse (E4.31): free, recorded with this arming turn. Warhead 4, and it misses entirely inside range 9 (E4.32/E4.33). Cannot be overloaded (E4.34).">
+          <input type="checkbox" checked={prox} disabled={paid !== 2}
+            onChange={e => onProx(e.target.checked)} />
+          Prox
+        </label>
+      )}
       <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>
-        {!arming
+        {prox && arming
+          ? <>→ proximity: <strong style={{ color: '#a0d0ff' }}>4 damage</strong> · minimum range 9</>
+          : !arming
           ? (inTube > 0
               ? <>not arming — <strong style={{ color: '#f0a0a0' }}>discharges</strong>, losing the
                   {' '}{inTube} point{inTube === 1 ? '' : 's'} in the tube (E4.21)</>
