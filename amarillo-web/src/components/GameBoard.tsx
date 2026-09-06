@@ -1969,6 +1969,21 @@ function ShipSidebar({
                     ID
                   </button>
                 )}
+                {(ship.weapons ?? []).some(w => w.scoutChannel) && (() => {
+                  const chans   = (ship.weapons ?? []).filter(w => w.scoutChannel);
+                  const powered = chans.filter(w => w.channelPowered && w.functional).length;
+                  const busy    = chans.filter(w => (w.channelFunction ?? 'NONE') !== 'NONE').length;
+                  return (
+                    <button
+                      className={`action-strip-btn${scoutPanelOpen ? ' active' : ''}`}
+                      onClick={() => setScoutPanelOpen(o => !o)}
+                      title={`Scout function channels (G24.0) — ${powered} of ${chans.length} powered`
+                             + (busy > 0 ? `, ${busy} assigned this turn` : '')}
+                    >
+                      Channels
+                    </button>
+                  );
+                })()}
                 {(ship.cloakCost ?? 0) > 0 && (
                   <>
                     {(ship.cloakState === 'INACTIVE' || ship.cloakState === 'NONE' || !ship.cloakState) && (
@@ -2029,28 +2044,10 @@ function ShipSidebar({
 
               {/* Scout channels (G24.0) — powered / blinded / destroyed state, the ship's EW
                   lending pool (G24.211), and what each channel is currently lending (G24.21). */}
-              {(ship.weapons ?? []).some(w => w.scoutChannel) && (
+              {scoutPanelOpen && (ship.weapons ?? []).some(w => w.scoutChannel) && (
                 <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
-                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2,
-                                cursor: 'pointer', userSelect: 'none' }}
-                       onClick={() => setScoutPanelOpen(o => !o)}
-                       title={scoutPanelOpen ? 'Collapse scout channels' : 'Expand scout channels'}>
-                    {scoutPanelOpen ? '▾' : '▸'} Scout Channels (G24.0)
-                    {!scoutPanelOpen && (() => {
-                      // Closed, the header carries the state worth glancing at: how many
-                      // channels there are, how many are live, and whether any are dark.
-                      const chans   = (ship.weapons ?? []).filter(w => w.scoutChannel);
-                      const powered = chans.filter(w => w.channelPowered && w.functional).length;
-                      const blinded = chans.filter(w => w.channelBlinded).length;
-                      const busy    = chans.filter(w => (w.channelFunction ?? 'NONE') !== 'NONE').length;
-                      return (
-                        <span style={{ color: '#8b949e', fontWeight: 400 }}>
-                          {' '}— {powered}/{chans.length} powered
-                          {busy > 0 && `, ${busy} assigned`}
-                          {blinded > 0 && `, ${blinded} blinded`}
-                        </span>
-                      );
-                    })()}
+                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>
+                    Scout Channels (G24.0)
                     {(ship.scoutEwPool ?? 0) > 0 && (() => {
                       const pool = ship.scoutEwPool ?? 0;
                       const lent = ship.scoutEwLent ?? 0;
@@ -2065,7 +2062,7 @@ function ShipSidebar({
                       );
                     })()}
                   </div>
-                  {scoutPanelOpen && (ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+                  {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
                     const state = !w.functional ? 'destroyed'
                                 : w.channelBlinded ? 'blinded'
                                 : w.channelPowered ? 'powered'
@@ -2249,20 +2246,22 @@ function ShipSidebar({
                       </div>
                     );
                   })}
-                  {aim && (
-                    <div style={{ marginTop: 2, fontStyle: 'italic',
-                      color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a'
-                           : aim.mode === 'attract' ? '#c9a0f0' : '#9ad' }}>
-                      {aim.mode === 'offensive'
-                        ? `Click an enemy ship to jam — channel ${aim.channel}…`
-                        : aim.mode === 'attract'
-                        ? `Click an enemy drone to attract onto this ship — channel ${aim.channel}…`
-                        : `Click an enemy seeker to ${aim.mode === 'break' ? 'break' : 'identify'} — channel ${aim.channel}…`}
-                    </div>
-                  )}
-                  {aimError && <div style={{ marginTop: 2, color: '#f85149' }}>{aimError}</div>}
                 </div>
               )}
+
+              {/* A map-click can be armed with the panel shut, so the prompt lives outside it. */}
+              {aim && (
+                <div style={{ marginTop: 2, fontStyle: 'italic', fontSize: '0.75rem',
+                  color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a'
+                       : aim.mode === 'attract' ? '#c9a0f0' : '#9ad' }}>
+                  {aim.mode === 'offensive'
+                    ? `Click an enemy ship to jam — channel ${aim.channel}…`
+                    : aim.mode === 'attract'
+                    ? `Click an enemy drone to attract onto this ship — channel ${aim.channel}…`
+                    : `Click an enemy seeker to ${aim.mode === 'break' ? 'break' : 'identify'} — channel ${aim.channel}…`}
+                </div>
+              )}
+              {aimError && <div style={{ marginTop: 2, fontSize: '0.75rem', color: '#f85149' }}>{aimError}</div>}
 
               {/* ESG generators (G23.0) — announce / countdown / drop (Activity phase).
                   A release is announced 4 impulses ahead (G23.31); the radius stays
