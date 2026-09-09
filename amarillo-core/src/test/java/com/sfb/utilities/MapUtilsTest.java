@@ -329,4 +329,23 @@ public class MapUtilsTest {
         Location result = MapUtils.getAdjacentHex(new Location(5, 5), 3);
         assertEquals(null, result);
     }
+
+    /**
+     * The two getBearing overloads used to be separate implementations that disagreed on four
+     * of the six hex directions, and the Location one fed planet bombardment's arc checks. The
+     * algorithm now lives on Locations and the Marker form delegates; this pins them together.
+     */
+    @Test
+    public void bothBearingOverloadsAgree() {
+        Location src = new Location(20, 16);
+        for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+            Location p = src;
+            for (int i = 0; i < 3; i++)
+                p = MapUtils.getAdjacentHex(p, dir, 42, 32);
+            int viaMarkers   = MapUtils.getBearing(at(src.getX(), src.getY()), at(p.getX(), p.getY()));
+            int viaLocations = MapUtils.getBearing(src, p);
+            assertEquals("direction " + dir, viaMarkers, viaLocations);
+            assertEquals("a hex direction reads as itself", dir, viaLocations);
+        }
+    }
 }
