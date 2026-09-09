@@ -237,6 +237,9 @@ public class GameStateDto {
         public int eccmAllocated;
         // EW lending is announced as it happens and is never secret (G24.211 note, G24.2115),
         // so these are sent for every ship, not just the viewer's own.
+        // What this turn's allocation quietly cost — a photon tube left unfunded is discharged
+        // (E4.21/E4.22). Allocation is secret, so this is sent only to the ship's own player.
+        public List<String> allocationNotes = new ArrayList<>();
         public int lentEcm;          // ECM received from friendly scouts (D6.3144)
         public int lentEccm;         // ECCM received from friendly scouts (D6.3144)
         public int offensiveEw;      // enemy jamming imposed on this ship's own fire (G24.219)
@@ -940,6 +943,8 @@ public class GameStateDto {
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
         dto.eccmAllocated = ship.getEccmAllocated();
+        if (!hideSecrets)
+            dto.allocationNotes = new ArrayList<>(ship.getAllocationNotes());
         dto.lentEcm = ship.getLentEcm();
         dto.lentEccm = ship.getLentEccm();
         dto.offensiveEw = ship.getOffensiveEw();

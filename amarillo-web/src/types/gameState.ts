@@ -208,6 +208,7 @@ export interface ShipObject extends MapObjectBase {
   sensorRating:     number;
   ecmAllocated:     number;
   eccmAllocated:    number;
+  allocationNotes?:  string[]; // what this turn's allocation cost — own ships only
   activeFireControl?: boolean; // false = passive fire control (D19.0)
   lentEcm?:          number;   // ECM received from a friendly scout (D6.3144)
   lentEccm?:         number;   // ECCM received from a friendly scout (D6.3144)

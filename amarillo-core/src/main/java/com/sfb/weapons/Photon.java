@@ -265,6 +265,26 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		return true;
 	}
 
+	/**
+	 * Nothing was allocated to this tube this turn. Arming must run on two consecutive turns
+	 * (E4.21), and a torpedo that has completed arming must be paid a point every turn to stay
+	 * in the tube (E4.22) — so either way the tube is discharged (E1.24) and, if it was part
+	 * way through, arming has to begin again. A partially armed photon cannot simply wait: it
+	 * cannot be held at all (E4.22). An empty tube is untouched.
+	 *
+	 * @return a description of what was lost, or null if there was nothing in the tube
+	 */
+	public String lapseArming() {
+		if (armingTurn == 0 && !armed && armingEnergy == 0)
+			return null;
+		String what = armed
+				? "loaded torpedo discharged — no holding energy allocated (E4.22)"
+				: "arming discharged after " + armingTurn + " turn" + (armingTurn == 1 ? "" : "s")
+						+ " — arming must begin again (E4.21)";
+		reset();
+		return what;
+	}
+
 	/** Overload energy in the tube: whatever exceeds the mandatory two per arming turn (E4.411). */
 	public double overloadEnergy() {
 		return Math.max(0, armingEnergy - STANDARD_PER_TURN * armingTurn);

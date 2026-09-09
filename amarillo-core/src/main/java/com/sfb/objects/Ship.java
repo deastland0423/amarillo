@@ -270,6 +270,17 @@ public class Ship extends Unit implements DroneController {
 	 * @param allocation Object that will contain all instructions for
 	 *                   allocation of the ship's energy for the turn.
 	 */
+	/**
+	 * What the last energy allocation quietly cost this ship — currently photon tubes that
+	 * lapsed for want of energy (E4.21/E4.22). Read once by the allocating player: energy
+	 * allocation is secret, so these never go to the shared combat log.
+	 */
+	private final List<String> allocationNotes = new ArrayList<>();
+
+	public List<String> getAllocationNotes() {
+		return java.util.Collections.unmodifiableList(allocationNotes);
+	}
+
 	public void allocateEnergy(Energy allocation) {
 		this.energyAllocated = allocation;
 		// Orion engine doubling (G15.2): boost this turn's power budget; the box
@@ -296,6 +307,7 @@ public class Ship extends Unit implements DroneController {
 
 	@Override
 	public void startTurn() {
+		allocationNotes.clear();
 		// Warp movement: each moveCost energy = 1 speed (max 30)
 		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost
 		// (max +1, giving speed 31)
@@ -419,6 +431,12 @@ public class Ship extends Unit implements DroneController {
 				if (armEnergy != null) {
 					((HeavyWeapon) weapon).applyAllocationEnergy(armEnergy,
 							energyAllocated.getArmingType().get(weapon));
+				} else if (weapon instanceof com.sfb.weapons.Photon) {
+					// Allocating nothing to a photon tube is a decision with a consequence
+					// (E4.21/E4.22) — see Photon.lapseArming.
+					String lapsed = ((com.sfb.weapons.Photon) weapon).lapseArming();
+					if (lapsed != null)
+						allocationNotes.add(weapon.getName() + ": " + lapsed);
 				}
 			}
 			// For drone racks, apply any assigned reload

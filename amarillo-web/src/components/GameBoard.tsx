@@ -3097,6 +3097,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [log, setLog] = useState<{ stamp: string; text: string; kind: 'combat' | 'phase' | 'error' | 'info' }[]>([]);
   const [pendingCombat, setPendingCombat]   = useState<{ stamp: string; text: string }[]>([]);
   const prevPhaseRef      = useRef<string>('');
+  const lastAllocationNoteRef = useRef<string>('');
   const lastCombatLogRef  = useRef<string>(''); // dedup: skip if same batch arrives twice
   const logEndRef     = useRef<HTMLDivElement>(null);
 
@@ -3179,6 +3180,23 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // A photon tube left unfunded is discharged (E4.21/E4.22). The server tells only this
+  // player's own ships, since allocation is secret — surface it once per turn.
+  useEffect(() => {
+    if (!gameState) return;
+    const notes: string[] = [];
+    for (const o of gameState.mapObjects ?? []) {
+      if (o.type !== 'SHIP') continue;
+      for (const n of (o as ShipObject).allocationNotes ?? []) notes.push(`${o.name} — ${n}`);
+    }
+    if (notes.length === 0) return;
+    const key = `${gameState.turn}:${notes.join(' ')}`;
+    if (key === lastAllocationNoteRef.current) return;
+    lastAllocationNoteRef.current = key;
+    for (const n of notes) addLog(n, 'combat');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.turn, gameState?.mapObjects]);
 
   // Buffer incoming server-side combat log entries during Direct Fire; add directly otherwise
   useEffect(() => {
