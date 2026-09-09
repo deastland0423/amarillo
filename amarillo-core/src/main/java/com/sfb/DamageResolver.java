@@ -419,8 +419,13 @@ class DamageResolver {
         int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
 
         char sideLetter = (char) ('A' + targetSide - 1);
+        // The bearing decides which weapons bear, and is the figure to check against the map
+        // when this looks wrong — the side letter only echoes what the player aimed at.
         StringBuilder log = new StringBuilder(attacker.getName())
-                .append(" bombards side ").append(sideLetter).append(" of the planet:\n");
+                .append(" bombards side ").append(sideLetter).append(" of the planet")
+                .append(" (bearing ").append(trueBearing)
+                .append(", ").append(relBearing).append(" relative to facing ")
+                .append(attacker.getFacing()).append("):\n");
         int dealt = 0;
         for (Weapon w : selected) {
             if (!(w instanceof com.sfb.weapons.DirectFire)) {
