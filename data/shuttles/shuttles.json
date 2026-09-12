@@ -19,9 +19,9 @@
   ],
 
   "shuttles": [
-    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6 },
-    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8 },
-    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12 },
+    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6, "crippled": 4 },
+    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 },
+    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 },
 
     { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8 },
     { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10 },
