@@ -111,6 +111,84 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Validate a fleet against the patrol-scenario construction rules (S8.0)
+    // -------------------------------------------------------------------------
+
+    /** A proposed battle force, named by hull so the client never has to build ships. */
+    public static class FleetValidationRequest {
+        public String faction;      // empire buying the fleet
+        public int year;            // scenario date (S8.13)
+        public int budget;          // points agreed for this side (S8.11)
+        public String flagship;     // hull of the ship leading it (S8.21)
+        public List<String> hulls = new ArrayList<>();  // every ship, flagship included
+    }
+
+    /**
+     * Check a fleet without committing to it. The rules live in amarillo-core so that a limit
+     * is enforced wherever a fleet arrives from, not only where a form happens to check it;
+     * this endpoint exists so the builder can show the whole picture as it is assembled.
+     */
+    @PostMapping("/fleets/validate")
+    public ResponseEntity<Map<String, Object>> validateFleet(@RequestBody FleetValidationRequest req) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+
+        List<com.sfb.objects.Ship> ships = new ArrayList<>();
+        List<String> unknown = new ArrayList<>();
+        Map<String, Integer> seen = new java.util.HashMap<>();
+        String flagshipName = null;
+
+        for (String hull : req.hulls) {
+            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(req.faction, hull);
+            if (spec == null) {
+                unknown.add(hull);
+                continue;
+            }
+            com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+            // Several ships of one hull are normal; name them apart so violations can point at
+            // the offender rather than at an ambiguous hull code.
+            int n = seen.merge(hull, 1, Integer::sum);
+            ship.setName(n == 1 ? hull : hull + " #" + n);
+            ships.add(ship);
+            if (flagshipName == null && hull.equalsIgnoreCase(req.flagship))
+                flagshipName = ship.getName();
+        }
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        if (!unknown.isEmpty()) {
+            body.put("legal", false);
+            body.put("unknownHulls", unknown);
+            body.put("violations", List.of(Map.of(
+                    "rule", "",
+                    "severity", "ERROR",
+                    "message", "No such hull for " + req.faction + ": " + String.join(", ", unknown),
+                    "shipName", "")));
+            return ResponseEntity.ok(body);
+        }
+
+        com.sfb.scenario.FleetValidator.Fleet fleet =
+                new com.sfb.scenario.FleetValidator.Fleet(ships, flagshipName, req.budget, req.year);
+        List<com.sfb.scenario.FleetValidator.Violation> violations =
+                com.sfb.scenario.FleetValidator.validate(fleet);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (com.sfb.scenario.FleetValidator.Violation v : violations) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("rule", v.rule);
+            row.put("severity", v.severity.name());
+            row.put("message", v.message);
+            row.put("shipName", v.shipName == null ? "" : v.shipName);
+            rows.add(row);
+        }
+
+        body.put("legal", com.sfb.scenario.FleetValidator.isLegal(violations));
+        body.put("cost", com.sfb.scenario.FleetValidator.fleetCost(ships));
+        body.put("budget", req.budget);
+        body.put("shipCount", ships.size());
+        body.put("violations", rows);
+        return ResponseEntity.ok(body);
+    }
+
+    // -------------------------------------------------------------------------
     // List scenarios
     // -------------------------------------------------------------------------
 
