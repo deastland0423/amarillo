@@ -9,6 +9,7 @@
   "moveCost": 0.333333333,
   "breakdown": 6,
   "bonusHets": 2,
+  "commandRating": 3,
   "nimble": true,
   "stealthBonus": 2,
   "tokenArt": "orion/lr.png",

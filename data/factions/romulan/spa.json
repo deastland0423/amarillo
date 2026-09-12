@@ -9,6 +9,7 @@
   "moveCost": 0.6666666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 6,
   "tokenArt": "romulan/spa.png",
 
   "shields": [30, 24, 20, 20, 20, 24],

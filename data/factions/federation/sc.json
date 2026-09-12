@@ -10,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 3,
   "bonusHets": 1,
+  "commandRating": 5,
   "tokenArt": "federation/sc.png",
 
   "shields": [20, 18, 16, 16, 16, 18],

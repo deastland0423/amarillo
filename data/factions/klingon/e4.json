@@ -9,6 +9,8 @@
   "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 3,
+  "tokenArt": "klingon/e4.png",
   
   "shields": [21, 12, 7, 5, 7, 12],
   

@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 9,
   "tokenArt": "romulan/ke.png",
 
   "shields": [30, 30, 30, 30, 30, 30],

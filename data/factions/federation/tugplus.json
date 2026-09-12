@@ -10,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "note": "This represents a TUG with one single-weight cargo module. The rules for cHull hits and cargo hits are not currently implemented.",
   
   "shields": [20, 20, 20, 20, 20, 20],

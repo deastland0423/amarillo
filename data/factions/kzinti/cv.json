@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 9,
   
   "shields": [34, 24, 24, 24, 24, 24],
   

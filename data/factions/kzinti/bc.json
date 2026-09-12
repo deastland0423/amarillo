@@ -9,6 +9,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "tokenArt": "kzinti/bc.png",
   
   "shields": [30, 28, 22, 22, 22, 28],
