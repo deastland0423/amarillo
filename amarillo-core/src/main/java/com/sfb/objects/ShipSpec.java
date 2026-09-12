@@ -46,7 +46,7 @@ public class ShipSpec {
      * fighter limit (S8.321); hybrids' do not (S8.322). Not inferable from bay contents —
      * plenty of ships carry a few fighters without being carriers.
      */
-    public boolean trueCarrier;
+    public boolean isTrueCarrier;
 
     public int[] shields;
 
@@ -227,8 +227,8 @@ public class ShipSpec {
             m.put("isleader", true);
         if (isEscort)
             m.put("isescort", true);
-        if (trueCarrier)
-            m.put("truecarrier", true);
+        if (isTrueCarrier)
+            m.put("istruecarrier", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
         if (canDoubleEngines != null)

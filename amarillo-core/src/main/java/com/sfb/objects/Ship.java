@@ -215,7 +215,7 @@ public class Ship extends Unit implements DroneController {
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 		leader      = Boolean.TRUE.equals(values.get("isleader"));
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
-		trueCarrier = Boolean.TRUE.equals(values.get("truecarrier"));
+		trueCarrier = Boolean.TRUE.equals(values.get("istruecarrier"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];

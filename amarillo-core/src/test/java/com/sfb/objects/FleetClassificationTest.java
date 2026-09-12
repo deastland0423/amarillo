@@ -23,12 +23,12 @@ public class FleetClassificationTest {
         ShipSpec spec = minimalSpec();
         spec.isLeader = true;
         spec.isEscort = true;
-        spec.trueCarrier = true;
+        spec.isTrueCarrier = true;
 
         Map<String, Object> values = spec.toInitMap();
         assertEquals("spec must put the key Ship reads", Boolean.TRUE, values.get("isleader"));
         assertEquals(Boolean.TRUE, values.get("isescort"));
-        assertEquals(Boolean.TRUE, values.get("truecarrier"));
+        assertEquals(Boolean.TRUE, values.get("istruecarrier"));
     }
 
     /** Absent means false — the overwhelmingly common case, and the default for every hull. */
@@ -46,7 +46,7 @@ public class FleetClassificationTest {
     public void setFlagsReadBackFromTheShip() {
         Map<String, Object> values = new HashMap<>();
         values.put("isleader", true);
-        values.put("truecarrier", true);
+        values.put("istruecarrier", true);
 
         Ship ship = new Ship();
         ship.init(values);
@@ -65,12 +65,12 @@ public class FleetClassificationTest {
         ShipSpec spec = minimalSpec();
         spec.isLeader = true;
         spec.isEscort = true;
-        spec.trueCarrier = true;
+        spec.isTrueCarrier = true;
         Map<String, Object> values = spec.toInitMap();
 
         assertTrue("data/factions JSON uses \"isLeader\"", values.containsKey("isleader"));
         assertTrue("data/factions JSON uses \"isEscort\"", values.containsKey("isescort"));
-        assertTrue("data/factions JSON uses \"trueCarrier\"", values.containsKey("truecarrier"));
+        assertTrue("data/factions JSON uses \"isTrueCarrier\"", values.containsKey("istruecarrier"));
     }
 
     /** Carrying fighters does not make a ship a true carrier — the flag is a separate fact. */
