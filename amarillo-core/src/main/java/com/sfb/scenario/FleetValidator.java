@@ -115,12 +115,16 @@ public final class FleetValidator {
 
     /**
      * What a ship costs to buy: its combat BPV plus the fighters in its bays, which are also
-     * bought at combat value (S8.11). A scout is the exception — flying alongside non-scouts it
-     * costs its economic BPV instead, and only a fleet of nothing but scouts pays the combat
-     * value (G24.35, cited by S8.11).
+     * bought at combat value (S8.11).
+     * <p>
+     * Scouts are the exception (G24.35, cited by S8.11). Their chart entry reads A/B, where A
+     * is "the economic value (what it costs to build)" and B the combat value — so a scout is
+     * bought at its economic BPV whatever else is in the fleet. What the company changes is the
+     * VICTORY value: alone it is scored at its combat BPV (G24.351), while alongside non-scouts
+     * the combat value is ignored and the economic one serves for both (G24.352).
      */
-    public static int costOf(Ship ship, boolean fleetHasNonScouts) {
-        int hull = isScout(ship) && fleetHasNonScouts ? ship.getEconomicBpv() : ship.getBpv();
+    public static int costOf(Ship ship) {
+        int hull = isScout(ship) ? ship.getEconomicBpv() : ship.getBpv();
         return hull + carriedFighterBpv(ship);
     }
 
@@ -133,10 +137,9 @@ public final class FleetValidator {
         return total;
     }
 
-    /** The whole force's cost, with the scout rule applied across it. */
+    /** What the whole force costs to buy. */
     public static int fleetCost(List<Ship> ships) {
-        boolean hasNonScouts = ships.stream().anyMatch(s -> !isScout(s));
-        return ships.stream().mapToInt(s -> costOf(s, hasNonScouts)).sum();
+        return ships.stream().mapToInt(FleetValidator::costOf).sum();
     }
 
     private static void checkBudget(Fleet fleet, List<Violation> out) {

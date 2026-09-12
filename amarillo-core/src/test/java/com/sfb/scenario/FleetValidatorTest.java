@@ -126,9 +126,13 @@ public class FleetValidatorTest {
         assertTrue(vs.toString(), vs.stream().anyMatch(v -> v.message.contains("100 over")));
     }
 
-    /** G24.35 via S8.11: a scout among non-scouts costs its economic value, not its combat one. */
+    /**
+     * G24.35 via S8.11: a scout's chart entry is economic/combat, and the economic value is
+     * "what it costs to build" — so it is bought at that price whatever else is in the fleet.
+     * The company it keeps changes its VICTORY value (G24.351/G24.352), not its price.
+     */
     @Test
-    public void aScoutAlongsideNonScoutsCostsItsEconomicValue() {
+    public void aScoutIsAlwaysBoughtAtItsEconomicValue() {
         Map<String, Object> v = new HashMap<>();
         v.put("faction", Faction.Federation);
         v.put("turnmode", com.sfb.properties.TurnMode.D);
@@ -145,8 +149,9 @@ public class FleetValidatorTest {
         scout.getWeapons().addWeapon(c);
 
         assertTrue(FleetValidator.isScout(scout));
-        assertEquals("alone it pays combat value", 100, FleetValidator.costOf(scout, false));
-        assertEquals("in company it pays economic value", 120, FleetValidator.costOf(scout, true));
+        assertEquals("bought at its economic value", 120, FleetValidator.costOf(scout));
+        assertEquals("even as the only ship in the force",
+                120, FleetValidator.fleetCost(List.of(scout)));
 
         Ship consort = ship("Consort", 100, 4, 5);
         assertEquals("fleet total uses the economic value",
