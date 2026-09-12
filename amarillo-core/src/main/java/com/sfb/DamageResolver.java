@@ -359,11 +359,10 @@ class DamageResolver {
     }
 
     private void appendCrippleCheck(com.sfb.objects.shuttles.Shuttle shuttle, StringBuilder log) {
-        if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
-            com.sfb.objects.shuttles.Fighter f = (com.sfb.objects.shuttles.Fighter) shuttle;
-            if (f.shouldCripple())
-                log.append("\n  ").append(f.applyCripplingEffects());
-        }
+        // Crippling is a shuttle property, not a fighter one (J1.33) — a type with no threshold
+        // reports false and is simply destroyed when its hull runs out.
+        if (shuttle.shouldCripple())
+            log.append("\n  ").append(shuttle.applyCripplingEffects());
     }
 
     // -------------------------------------------------------------------------

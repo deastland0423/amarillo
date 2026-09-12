@@ -16,7 +16,6 @@ import com.sfb.weapons.Weapon;
 public abstract class Fighter extends Shuttle {
 
     /** Damage points needed to cripple this fighter (J1.33). */
-    private int crippledHull;
     private int bpv;
 
     private int ecm = 2;
@@ -45,25 +44,12 @@ public abstract class Fighter extends Shuttle {
         this.eccm = eccm;
     }
 
-    public int getCrippledHull() {
-        return crippledHull;
-    }
-
-    public void setCrippledHull(int crippledHull) {
-        this.crippledHull = crippledHull;
-    }
-
     public int getBpv() {
         return bpv;
     }
 
     public void setBpv(int bpv) {
         this.bpv = bpv;
-    }
-
-    /** True if this fighter has taken enough damage to be crippled (J1.33). */
-    public boolean shouldCripple() {
-        return !isCrippled() && (getHull() - getCurrentHull()) >= crippledHull;
     }
 
     /**

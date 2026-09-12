@@ -22,6 +22,7 @@ public abstract class Shuttle extends Unit {
 	private int currentSpeed; // The speed the shuttle is currently travelling
 	private int currentHull; // The number of undamaged hull remaining.
 	private boolean crippled = false;
+	private int crippledHull = 0;   // damage that cripples it; 0 = no crippled state (J1.33)
 	private int chaffPacks = 0;
 	private int ewPods = 0; // Number of EW pods carried by the shuttle
 	// True once an enemy scout has identified this shuttle (G24.25). Every shuttle can be
@@ -252,6 +253,24 @@ public abstract class Shuttle extends Unit {
 
 	public boolean isCrippled() {
 		return crippled;
+	}
+
+	/**
+	 * Damage at which this shuttle is crippled rather than merely hurt (J1.33). Zero means it
+	 * has no crippled state and is destroyed outright — so a type that has never been given a
+	 * threshold is not crippled the instant it takes its first point.
+	 */
+	public int getCrippledHull() {
+		return crippledHull;
+	}
+
+	public void setCrippledHull(int crippledHull) {
+		this.crippledHull = crippledHull;
+	}
+
+	/** True once enough damage has accumulated to cripple this shuttle (J1.33). */
+	public boolean shouldCripple() {
+		return crippledHull > 0 && !crippled && (getHull() - getCurrentHull()) >= crippledHull;
 	}
 
 	public int getChaffPacks() {

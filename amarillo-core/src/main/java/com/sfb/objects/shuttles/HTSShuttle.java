@@ -8,6 +8,7 @@ public class HTSShuttle extends Shuttle {
 
     public HTSShuttle() {
         setHull(12);
+        setCrippledHull(8);
         setMaxSpeed(6);
         setPersonnelCapacity(2); // one crew unit OR two boarding parties (J2.211)
         setCargoCapacity(50); // base cargo spaces (G25.131; scaffolded, not yet enforced)

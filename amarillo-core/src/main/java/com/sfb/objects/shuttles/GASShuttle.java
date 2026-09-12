@@ -23,6 +23,7 @@ public class GASShuttle extends Shuttle {
 
     public GASShuttle() {
         setHull(8);
+        setCrippledHull(6);
         setMaxSpeed(6);
         setPersonnelCapacity(2); // one crew unit OR two boarding parties (J2.211)
         setCargoCapacity(15); // base cargo spaces (G25.131; scaffolded, not yet enforced)
