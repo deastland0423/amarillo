@@ -478,9 +478,16 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 
 		// If the weapon is armed, apply any mode switch then hold.
 		if (isArmed()) {
+			// The fuse goes in or comes out only here, in the Energy Allocation Phase, and costs
+			// nothing either way (E4.31/E4.34).
 			if (type == WeaponArmingType.SPECIAL && armingType != WeaponArmingType.SPECIAL)
 				setSpecial();
 			else if (type == WeaponArmingType.STANDARD && armingType != WeaponArmingType.STANDARD)
+				setStandard();
+			else if (type == WeaponArmingType.OVERLOAD && armingType == WeaponArmingType.SPECIAL)
+				// E4.34: a proximity torpedo cannot be overloaded, but the fuse can be pulled in
+				// this same phase and the overload energy added after it. The reverse is barred —
+				// setSpecial refuses an overload, because it cannot be un-overloaded.
 				setStandard();
 			try {
 				// Everything above the holding cost overloads it in the tube (E4.411/E4.412).

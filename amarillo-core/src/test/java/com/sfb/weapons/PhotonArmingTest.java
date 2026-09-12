@@ -312,4 +312,52 @@ public class PhotonArmingTest {
         assertEquals(WeaponArmingType.SPECIAL, p.getArmingType());
         assertEquals("still just its arming energy", 4.0, p.getArmingEnergy(), 0.001);
     }
+
+    private Photon loadedProximity() {
+        Photon p = fresh();
+        p.setSpecial();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+        return p;
+    }
+
+    /**
+     * E4.34: the fuse can be pulled during the Energy Allocation Phase and the overload energy
+     * added in that same phase — the one route from a proximity torpedo to an overloaded one.
+     */
+    @Test
+    public void pullingTheFuseAndOverloadingInTheSamePhase_works() {
+        Photon p = loadedProximity();
+
+        p.applyAllocationEnergy(4.0, WeaponArmingType.OVERLOAD);
+
+        assertEquals(WeaponArmingType.OVERLOAD, p.getArmingType());
+        assertEquals("hold 1, three of overload", 7.0, p.getArmingEnergy(), 0.001);
+        assertEquals(14, (int) (p.getArmingEnergy() * 2));
+    }
+
+    /** E4.31/E4.34: the changeover both ways is free, and only happens in Energy Allocation. */
+    @Test
+    public void theFuseGoesInAndOutForNothing() {
+        Photon p = loadedProximity();
+
+        p.applyAllocationEnergy(1.0, WeaponArmingType.STANDARD);
+        assertEquals(WeaponArmingType.STANDARD, p.getArmingType());
+        assertEquals("holding cost only", 4.0, p.getArmingEnergy(), 0.001);
+
+        p.applyAllocationEnergy(1.0, WeaponArmingType.SPECIAL);
+        assertEquals(WeaponArmingType.SPECIAL, p.getArmingType());
+        assertEquals(4.0, p.getArmingEnergy(), 0.001);
+    }
+
+    /** E4.34: there is no way back — an overloaded torpedo can never take a proximity fuse. */
+    @Test
+    public void anOverloadedTorpedoCannotBeFused() {
+        Photon p = fresh();
+        p.armWithEnergy(2);
+        p.armWithEnergy(4);              // committed as an overload
+
+        assertFalse(p.setSpecial());
+        assertEquals(WeaponArmingType.OVERLOAD, p.getArmingType());
+    }
 }
