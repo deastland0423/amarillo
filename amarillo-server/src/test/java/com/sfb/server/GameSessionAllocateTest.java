@@ -336,4 +336,55 @@ class GameSessionAllocateTest {
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("proximity"), result.getMessage());
     }
+
+    /** E4.412: a loaded tube is dialled hold-plus-overload, so five is legal on a standard one. */
+    @Test
+    void photonDial_loadedTube_acceptsHoldPlusOverload() {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);          // loaded, standard: holds for 1
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 5.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** Below the holding cost is not an allocation it can accept (E4.22). */
+    @Test
+    void photonDial_loadedTube_belowTheHold_isRefused() throws Exception {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+        p.holdAndOverload(3);        // now an overload, holding costs 2
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 1.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("holding"), result.getMessage());
+    }
+
+    /** E4.41: hold plus the overload it can still take, and no more. */
+    @Test
+    void photonDial_loadedTube_overTheRemainingAllowance_isRefused() {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 6.0));   // 1 hold + 5 of overload
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("at most"), result.getMessage());
+    }
 }

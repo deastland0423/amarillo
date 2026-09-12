@@ -218,4 +218,98 @@ public class PhotonArmingTest {
         assertTrue(p.isArmed());
         assertEquals(4.0, p.getArmingEnergy(), 0.001);
     }
+
+    // -------------------------------------------------------------------------
+    // E4.412 — overloading a torpedo that is already in the tube
+    // -------------------------------------------------------------------------
+
+    private Photon loaded() {
+        Photon p = fresh();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+        return p;
+    }
+
+    /** Hold cost alone keeps it exactly as it is (E4.22). */
+    @Test
+    public void payingOnlyTheHold_leavesAStandardTorpedo() throws Exception {
+        Photon p = loaded();
+
+        assertTrue(p.holdAndOverload(1));
+
+        assertEquals(4.0, p.getArmingEnergy(), 0.001);
+        assertEquals(WeaponArmingType.STANDARD, p.getArmingType());
+    }
+
+    /** E4.412: the hold is paid first, and only what is left over overloads it. */
+    @Test
+    public void everythingAboveTheHoldOverloadsItInTheTube() throws Exception {
+        Photon p = loaded();
+
+        assertTrue(p.holdAndOverload(4));   // 1 to hold, 3 of overload
+
+        assertEquals(7.0, p.getArmingEnergy(), 0.001);
+        assertEquals("holding energy never counts toward the overload (E4.412)",
+                3.0, p.overloadEnergy(), 0.001);
+        assertEquals(14, (int) (p.getArmingEnergy() * 2));
+        assertEquals(WeaponArmingType.OVERLOAD, p.getArmingType());
+    }
+
+    /** The whole dial a loaded standard torpedo offers: hold, or hold plus up to four. */
+    @Test
+    public void loadedTubeDialRunsFromEightToSixteenDamage() throws Exception {
+        int[][] payToDamage = { {1, 8}, {2, 10}, {3, 12}, {4, 14}, {5, 16} };
+        for (int[] row : payToDamage) {
+            Photon p = loaded();
+            assertTrue("paying " + row[0], p.holdAndOverload(row[0]));
+            assertEquals("paying " + row[0], row[1], (int) (p.getArmingEnergy() * 2));
+        }
+    }
+
+    /** E4.41: it cannot be pushed past 100%, however the overload was accumulated. */
+    @Test
+    public void aLoadedTubeCannotBeOverloadedPastFullStrength() throws Exception {
+        Photon p = loaded();
+        p.holdAndOverload(5);               // already a full 8-point overload
+        assertEquals(8.0, p.getArmingEnergy(), 0.001);
+
+        p.holdAndOverload(5);               // 2 to hold now, and no room for the rest
+
+        assertEquals(8.0, p.getArmingEnergy(), 0.001);
+    }
+
+    /** E4.413: once overloaded it costs two a turn to hold, not one. */
+    @Test
+    public void anOverloadedTorpedoCostsMoreToHold() throws Exception {
+        Photon p = loaded();
+        assertEquals(1, p.holdEnergyCost());
+
+        p.holdAndOverload(3);               // commit it
+
+        assertEquals(2, p.holdEnergyCost());
+    }
+
+    /** Less than the holding cost does not hold it — the caller discharges it (E4.22). */
+    @Test
+    public void payingLessThanTheHold_doesNotHoldIt() throws Exception {
+        Photon p = loaded();
+        p.holdAndOverload(3);               // an overload, so holding now costs 2
+
+        assertFalse(p.holdAndOverload(1));
+    }
+
+    /** E4.34: a proximity torpedo can be held but never overloaded. */
+    @Test
+    public void aProximityTorpedoInTheTubeTakesNoOverload() throws Exception {
+        Photon p = fresh();
+        p.setSpecial();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+        assertTrue(p.isArmed());
+
+        assertTrue(p.holdAndOverload(4));
+
+        assertEquals(WeaponArmingType.SPECIAL, p.getArmingType());
+        assertEquals("still just its arming energy", 4.0, p.getArmingEnergy(), 0.001);
+    }
 }

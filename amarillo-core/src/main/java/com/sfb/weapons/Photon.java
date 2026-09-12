@@ -170,54 +170,42 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 		return armed;
 	}
 
-	// Right now I only support integer values of photon overloading in this method.
-	// Later I will implement 1/4 point increments of overloading.
+	/**
+	 * Pay for a torpedo already loaded in the tube and, with anything above the holding cost,
+	 * overload it where it sits (E4.411/E4.412). The holding energy itself never counts toward
+	 * the overload (E4.412), the overload is still capped at four points however it was
+	 * accumulated (E4.41), and the amount is recorded in half-points (E4.414). Holding an
+	 * overloaded torpedo costs two rather than one thereafter (E4.413), so committing early
+	 * is paid for every turn it waits.
+	 *
+	 * @param energy everything allocated to this tube this turn, holding cost included
+	 * @return true if at least the holding cost was paid; false leaves it to be discharged
+	 */
+	public boolean holdAndOverload(double energy) throws WeaponUnarmedException {
+		if (!isArmed())
+			throw new WeaponUnarmedException("Weapon is not armed.");
+		double paid = Math.floor(energy * 2) / 2.0;      // half-point steps (E4.414)
+		double holdCost = holdEnergyCost();
+		if (paid < holdCost)
+			return false;
+		if (armingType == WeaponArmingType.SPECIAL) {
+			// A proximity-fused torpedo can be held, but never overloaded (E4.34).
+			held = true;
+			return true;
+		}
+		double extra = Math.min(paid - holdCost, MAX_OVERLOAD - overloadEnergy());
+		if (extra > 0) {
+			setOverload();                               // any overload energy commits it (E4.414)
+			armingEnergy += extra;
+		}
+		held = true;
+		return true;
+	}
+
+	/** Whole-point form of {@link #holdAndOverload(double)}. */
 	@Override
 	public boolean hold(int energy) throws WeaponUnarmedException {
-		boolean result = false;
-
-		if (!isArmed()) {
-			throw new WeaponUnarmedException("Weapon is not armed.");
-		}
-
-		switch (armingType) {
-			case STANDARD:
-				// For 1 energy, the standard photon is held.
-				if (energy == 1) {
-					result = true;
-					// For more than 1 energy, the photon is held for 1 and then overloaded
-					// With whatever excess energy remains.
-				} else if (energy > 1) {
-					int excessArmingEnergy = energy - 1;
-					setOverload();
-					armingEnergy += excessArmingEnergy;
-					energy = 0; // In case 'case OVERLOAD' executes next.
-					result = true;
-				}
-				break;
-			case OVERLOAD:
-				if (energy == 2) {
-					result = true;
-					// If excess energy is put into holding, add
-					// it to the total overload torp energy.
-					// This allows gradual arming of overloaded photons.
-				} else if (energy > 2) {
-					int excessArmingEnergy = energy - 2;
-					armingEnergy += excessArmingEnergy;
-					result = true;
-				}
-				break;
-			case SPECIAL:
-				if (energy == 1) {
-					result = true;
-				}
-				break;
-			default:
-				break;
-		}
-
-		held = result;
-		return result;
+		return holdAndOverload(energy);
 	}
 
 	/**
@@ -495,7 +483,8 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 			else if (type == WeaponArmingType.STANDARD && armingType != WeaponArmingType.STANDARD)
 				setStandard();
 			try {
-				hold(energySupplied);
+				// Everything above the holding cost overloads it in the tube (E4.411/E4.412).
+				holdAndOverload(Math.abs(energy));
 			} catch (WeaponUnarmedException e) {
 				// We check for armed before calling hold(), so
 				// this should never be caught.

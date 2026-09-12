@@ -705,6 +705,37 @@ public class GameSession {
                     // sends the amount; core records what actually lands in the tube.
                     Map<String, Double> dial = request.getPhotonArming();
                     Double dialled = dial != null ? dial.get(w.getName()) : null;
+
+                    // A loaded torpedo is dialled too (E4.411/E4.412): the holding cost keeps it
+                    // in the tube, and anything above that overloads it where it sits. Holding
+                    // energy never counts toward the overload, and an overloaded torpedo costs
+                    // two a turn to hold thereafter rather than one (E4.413).
+                    if (dialled != null && w instanceof com.sfb.weapons.Photon && hw.isArmed()) {
+                        double amount = dialled;
+                        double holdCost = hw.holdEnergyCost();
+                        if (amount <= 0) {
+                            e.getArmingEnergy().put(w, 0.0);   // discharge it (E4.22)
+                            continue;
+                        }
+                        if (amount < holdCost)
+                            return ActionResult.fail(w.getName() + ": holding a loaded torpedo costs "
+                                    + (int) holdCost + " (E4.22/E4.413)");
+                        double room = com.sfb.weapons.Photon.MAX_OVERLOAD
+                                - ((com.sfb.weapons.Photon) w).overloadEnergy();
+                        if (amount > holdCost + room)
+                            return ActionResult.fail(w.getName() + ": at most " + (int) (holdCost + room)
+                                    + " — the hold plus the " + (int) room
+                                    + " of overload it can still take (E4.41)");
+                        if ("PROX".equalsIgnoreCase(choice) && amount > holdCost)
+                            return ActionResult.fail(w.getName()
+                                    + ": a proximity torpedo cannot be overloaded (E4.34)");
+                        e.getArmingEnergy().put(w, amount);
+                        e.getArmingType().put(w, "PROX".equalsIgnoreCase(choice)
+                                ? WeaponArmingType.SPECIAL
+                                : amount > holdCost ? WeaponArmingType.OVERLOAD : hw.getArmingType());
+                        continue;
+                    }
+
                     if (dialled != null && w instanceof com.sfb.weapons.Photon && !hw.isArmed()) {
                         double amount = dialled;
                         if (amount <= 0) {

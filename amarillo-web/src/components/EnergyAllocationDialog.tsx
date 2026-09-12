@@ -111,8 +111,10 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     weaponArming:    arming,
     photonArming:    Object.fromEntries(
       (ship.weapons ?? [])
-        .filter(w => w.photonTube && w.functional && !w.armed)
-        .map(w => [w.name, 2]),
+        .filter(w => w.photonTube && w.functional)
+        // An arming tube starts at its mandatory two (E4.21); a loaded one at the cost of
+        // keeping it, which it owes every turn until it fires (E4.22).
+        .map(w => [w.name, w.armed ? (w.holdCost || 1) : 2]),
     ),
     droneReloads:        {},
     scatterPackLoading:  {},
@@ -157,8 +159,9 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   let arm = 0;
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
-    // A photon still arming is dialled by energy (E4.21/E4.411) — it costs what was dialled.
-    if (w.photonTube && !w.armed && alloc.photonArming[w.name] != null) {
+    // A photon is dialled by energy whether it is arming (E4.21/E4.411) or already loaded
+    // (E4.412, hold plus whatever overloads it) — either way it costs what was dialled.
+    if (w.photonTube && alloc.photonArming[w.name] != null) {
       arm += alloc.photonArming[w.name];
       continue;
     }
@@ -943,6 +946,19 @@ export default function EnergyAllocationDialog({
                           )}
                           <ArmOption name={w.name} value="SKIP"    label="Discharge"                     current={choice} color="#8b949e" onChange={setArming} />
                         </>
+                      ) : w.photonTube && w.armed ? (
+                        /* A loaded torpedo: hold it, and overload it in the tube if you like
+                           (E4.411/E4.412) */
+                        <PhotonDial w={w} paid={alloc.photonArming[w.name] ?? (w.holdCost || 1)}
+                          prox={choice === 'PROX'}
+                          onChange={e => {
+                            setPhotonArming(w.name, e);
+                            if (e !== (w.holdCost || 1) && choice === 'PROX') setArming(w.name, 'STANDARD');
+                          }}
+                          onProx={p => {
+                            setArming(w.name, p ? 'PROX' : 'STANDARD');
+                            if (p) setPhotonArming(w.name, w.holdCost || 1);
+                          }} />
                       ) : w.armed && w.holdCost > 0 ? (
                         <>
                           {/* Pay-to-hold weapons (Photon, Fusion): hold in current mode, optional switch/upgrade, or discharge */}
@@ -1344,13 +1360,17 @@ function PhotonDial({ w, paid, prox, onChange, onProx }: {
   const inTube        = w.armingEnergy ?? 0;
   const armingTurn    = w.armingTurn ?? 0;
   const overloadSoFar = Math.max(0, inTube - 2 * armingTurn);
-  const overloadNow   = Math.min(Math.max(0, paid - 2), 4 - overloadSoFar);
-  const total         = inTube + 2 + overloadNow;
-  const willBeArmed   = armingTurn + 1 >= 2;
+  // A loaded tube is paid its holding cost and overloaded with the rest (E4.412); an arming
+  // one owes the mandatory two and overloads with the rest (E4.411).
+  const loaded        = w.armed ?? false;
+  const floorCost     = loaded ? (w.holdCost || 1) : 2;
+  const overloadNow   = Math.min(Math.max(0, paid - floorCost), 4 - overloadSoFar);
+  const total         = inTube + (loaded ? 0 : 2) + overloadNow;
+  const willBeArmed   = loaded || armingTurn + 1 >= 2;
   const overloaded    = total > 4;
   const warhead       = overloaded ? total * 2 : 8;
   const feedback      = !overloaded ? 0 : total <= 5 ? 1 : total <= 6 ? 2 : total <= 7 ? 3 : 4;
-  const maxThisTurn   = 2 + Math.max(0, 4 - overloadSoFar);
+  const maxThisTurn   = floorCost + Math.max(0, 4 - overloadSoFar);
   // Zero is a real choice, not a smaller payment: allocate nothing and the tube is discharged
   // and starts over (E4.21/E1.24). One point is never legal — the two are mandatory (E4.21) —
   // so the dial steps 0 ↔ 2.
@@ -1364,18 +1384,18 @@ function PhotonDial({ w, paid, prox, onChange, onProx }: {
       <span style={{ color: '#8b949e' }}>Arm</span>
       <button className="action-strip-btn" style={{ padding: '0 6px' }}
         disabled={paid <= 0}
-        onClick={() => onChange(paid <= 2 ? 0 : paid - 1)}>−</button>
+        onClick={() => onChange(paid <= floorCost ? 0 : paid - 1)}>−</button>
       <span style={{ color: !arming ? '#8b949e' : overloaded ? '#ffa050' : '#56d364',
                      minWidth: 10, textAlign: 'center' }}>
         {arming ? paid : '—'}
       </span>
       <button className="action-strip-btn" style={{ padding: '0 6px' }}
         disabled={paid >= maxThisTurn}
-        onClick={() => onChange(paid < 2 ? 2 : Math.min(maxThisTurn, paid + 1))}>+</button>
+        onClick={() => onChange(paid < floorCost ? floorCost : Math.min(maxThisTurn, paid + 1))}>+</button>
       {canFuse && (
         <label className="ea-radio-label" style={{ color: '#a0d0ff', marginLeft: 4 }}
           title="Proximity fuse (E4.31): free, recorded with this arming turn. Warhead 4, and it misses entirely inside range 9 (E4.32/E4.33). Cannot be overloaded (E4.34).">
-          <input type="checkbox" checked={prox} disabled={paid !== 2}
+          <input type="checkbox" checked={prox} disabled={paid !== floorCost}
             onChange={e => onProx(e.target.checked)} />
           Prox
         </label>
@@ -1383,6 +1403,10 @@ function PhotonDial({ w, paid, prox, onChange, onProx }: {
       <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>
         {prox && arming
           ? <>→ proximity: <strong style={{ color: '#a0d0ff' }}>4 damage</strong> · minimum range 9</>
+          : arming && loaded
+          ? <>hold {floorCost}{overloadNow > 0 ? ` + ${overloadNow} overload` : ''} → {total} in tube,
+              {' '}<strong style={{ color: overloaded ? '#ffa050' : '#56d364' }}>{warhead} damage</strong>
+              {overloaded && <> · max range 8 · feedback {feedback} at range 0–1</>}</>
           : !arming
           ? (inTube > 0
               ? <>not arming — <strong style={{ color: '#f0a0a0' }}>discharges</strong>, losing the
