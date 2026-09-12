@@ -1,0 +1,34 @@
+{
+  "note": [
+    "Catalogue of every shuttle and fighter type, for pre-game use: fleet building, force",
+    "legality by year, and pickers. The live objects are Java classes in com.sfb.objects.shuttles;",
+    "this file is what the game consults BEFORE a shuttle exists.",
+    "",
+    "type      the key used by a ship's shuttleBays list and by the ShuttleBay factory",
+    "kind      fighter = bought with BPV, added to the carrier's cost",
+    "          shuttle = carried at no cost",
+    "",
+    "Suicide shuttles, scatter-packs and wild weasels are deliberately NOT here. They are roles",
+    "an admin shuttle takes on, not types anyone buys or stocks; CoiLoadout prices those",
+    "conversions in Commander's Option points at setup.",
+    "factions  which factions may field it; [\"any\"] = all of them",
+    "year      first year of service; 0 = always available",
+    "bpv       purchase cost; absent for anything not bought with BPV",
+    "",
+    "BPV here must match what the Java class constructs — ShuttleCatalogTest pins the two."
+  ],
+
+  "shuttles": [
+    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6 },
+    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8 },
+    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12 },
+
+    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8 },
+    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10 },
+    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10 },
+
+    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6 },
+    { "type": "haas",       "name": "Heavy Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8 },
+    { "type": "haas_e",     "name": "Heavy Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10 }
+  ]
+}
