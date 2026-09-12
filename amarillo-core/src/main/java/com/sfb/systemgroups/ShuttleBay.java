@@ -278,7 +278,15 @@ public class ShuttleBay {
                 s = new Haas_E();
                 break;
             case "admin":
+                s = new AdminShuttle();
+                break;
             default:
+                // An unknown key used to fall through to an admin shuttle, so a typo or a
+                // fighter whose case was never added launched as a shuttle and nobody noticed.
+                // Say so, loudly, and still return something rather than killing the load.
+                System.err.println("ShuttleBay: unknown shuttle type '" + type
+                        + "' — no case in buildShuttle; falling back to an admin shuttle."
+                        + " Add the case when adding a new type.");
                 s = new AdminShuttle();
                 break;
         }
