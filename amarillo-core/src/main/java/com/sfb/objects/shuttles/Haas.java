@@ -12,8 +12,8 @@ import java.util.Set;
 
 /**
  * Kzinti Advanced Attack Shuttle (J4.43).
- * Year Y163. Speed 24. Hull 4, crippled at 2. BPV 20.
- * Weapons: 1× Ph-1 (FA), 2× DroneRail (one standard drone each).
+ * Year Y173. Speed 15. Hull 11, crippled at 8. BPV 8.
+ * Weapons: 1× Ph-3 (FA), 2× DroneRail (one standard drone each).
  * Built-in 2 ECM + 2 ECCM. Controls its own drones only (capacity 2).
  * Must have lock-on to target in FA arc to launch drones (J4.431).
  */

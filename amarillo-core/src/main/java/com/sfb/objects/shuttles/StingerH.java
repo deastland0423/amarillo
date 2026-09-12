@@ -9,7 +9,7 @@ import com.sfb.weapons.PhaserG;
 
 /**
  * Hydran Stinger-H fighter (R9.F4 / J4.834).
- * Speed 15. BPV 12. Hull 10, crippled at 7 damage.
+ * Year available: Y170. Speed 15. BPV 10. Hull 10, crippled at 7 damage.
  * Weapons: 1× Ph-G (FA), 1× FighterHellbore (FULL, range 0–10).
  * The hellbore fires once; the fighter must return to its carrier to reload.
  * When crippled: speed → 8, Ph-G reduced to Ph-3, hellbore ceases to operate.
@@ -22,7 +22,7 @@ public class StingerH extends Fighter {
         setCurrentSpeed(15);
         setHull(10);
         setCrippledHull(7);
-        setBpv(12);
+        setBpv(10);
 
         PhaserG ph = new PhaserG();
         ph.setDesignator("1");
