@@ -168,6 +168,10 @@ public class Ship extends Unit implements DroneController {
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
+	// Fleet-building classifications (S8.0). Used when a force is assembled, not in play.
+	private boolean leader = false;      // leader variant (S8.36)
+	private boolean escort = false;      // carrier escort (S8.311)
+	private boolean trueCarrier = false; // true carrier rather than a hybrid (S8.321/S8.322)
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
@@ -209,6 +213,9 @@ public class Ship extends Unit implements DroneController {
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
+		leader      = Boolean.TRUE.equals(values.get("isleader"));
+		escort      = Boolean.TRUE.equals(values.get("isescort"));
+		trueCarrier = Boolean.TRUE.equals(values.get("truecarrier"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -705,6 +712,28 @@ public class Ship extends Unit implements DroneController {
 
 	public int getEconomicBpv() {
 		return this.economicPointValue;
+	}
+
+	/**
+	 * Leader variant — CWL, DWL, DDL, CC and the like (S8.36). A second leader of a given type
+	 * needs two combat variants of the same hull to accompany it (S8.361), and no leader may be
+	 * included unless all larger leaders have their supporting ships (S8.362).
+	 */
+	public boolean isLeader() {
+		return leader;
+	}
+
+	/** Carrier escort: illegal in a battle force except as part of a carrier group (S8.311). */
+	public boolean isEscort() {
+		return escort;
+	}
+
+	/**
+	 * True carrier rather than a hybrid. Its fighters count against the battle force's fighter
+	 * limit (S8.321); a hybrid's do not (S8.322). Carrying fighters does not make a ship one.
+	 */
+	public boolean isTrueCarrier() {
+		return trueCarrier;
 	}
 
 	/**

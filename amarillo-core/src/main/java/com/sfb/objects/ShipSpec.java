@@ -36,6 +36,18 @@ public class ShipSpec {
     public int stealthBonus; // Orion Stealth Bonus in ECM points (G15.8), 0 if none
     public Boolean canDoubleEngines; // G15.28: null/absent = capable (default); set false for freighters & the one non-doubling warship
 
+    // --- Fleet-building classifications (S8.0 patrol scenarios). All default false. ---
+    /** Leader variant (CWL, DWL, DDL, CC…): restricted by S8.36/S8.361 when fleet building. */
+    public boolean isLeader;
+    /** Carrier escort: cannot be fielded except as part of a carrier group (S8.311). */
+    public boolean isEscort;
+    /**
+     * A true carrier rather than a hybrid. Its fighters count against the battle force's
+     * fighter limit (S8.321); hybrids' do not (S8.322). Not inferable from bay contents —
+     * plenty of ships carry a few fighters without being carriers.
+     */
+    public boolean trueCarrier;
+
     public int[] shields;
 
     // --- Nested specs ---
@@ -211,6 +223,12 @@ public class ShipSpec {
         m.put("bonushets", bonusHets);
         if (nimble)
             m.put("nimble", true);
+        if (isLeader)
+            m.put("isleader", true);
+        if (isEscort)
+            m.put("isescort", true);
+        if (trueCarrier)
+            m.put("truecarrier", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
         if (canDoubleEngines != null)
