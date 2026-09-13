@@ -31,12 +31,12 @@ public final class ShipLineCatalog {
     public static final class Entry {
         public final String code;   // as written in a ship file's "line", e.g. "CA"
         public final String name;   // display name, e.g. "Heavy Cruiser"
-        public final double moveCost;  // the line's published movement cost; 0 if unset
+        public final List<Double> moveCosts;  // costs ships of this line may pay; may be empty
 
-        Entry(String code, String name, double moveCost) {
+        Entry(String code, String name, List<Double> moveCosts) {
             this.code = code;
             this.name = name;
-            this.moveCost = moveCost;
+            this.moveCosts = List.copyOf(moveCosts);
         }
 
         @Override
@@ -57,8 +57,10 @@ public final class ShipLineCatalog {
         JsonNode root = mapper.readTree(file);
         registry.clear();
         for (JsonNode n : root.path("lines")) {
-            Entry e = new Entry(n.path("code").asText(), n.path("name").asText(),
-                    n.path("moveCost").asDouble(0));
+            List<Double> costs = new ArrayList<>();
+            for (JsonNode c : n.path("moveCosts"))
+                costs.add(c.asDouble());
+            Entry e = new Entry(n.path("code").asText(), n.path("name").asText(), costs);
             registry.put(e.code.toLowerCase(), e);
         }
         loaded = true;
@@ -90,15 +92,24 @@ public final class ShipLineCatalog {
     }
 
     /**
-     * The movement cost ships of this line pay, or 0 when the catalogue does not publish one.
+     * The movement costs ships of this line may pay; empty when the catalogue publishes none.
      * <p>
      * A cost does not identify a line on its own — BCH and CA both pay 1, CL and CW both pay
-     * two thirds — but it cross-checks one, which is what
-     * {@code ShipLineCatalogTest} uses it for.
+     * two thirds — but it cross-checks one, which is what {@code ShipLineCatalogTest} uses it
+     * for. More than one is legitimate: the older Federation light cruisers pay 3/4 where the
+     * newer ones pay 2/3, and both are CL.
      */
-    public static double moveCostOf(String code) {
+    public static List<Double> moveCostsOf(String code) {
         Entry e = get(code);
-        return e == null ? 0 : e.moveCost;
+        return e == null ? List.of() : e.moveCosts;
+    }
+
+    /** True if {@code cost} is one this line permits, within rounding. */
+    public static boolean permitsMoveCost(String code, double cost) {
+        for (double c : moveCostsOf(code))
+            if (Math.abs(c - cost) < 0.001)
+                return true;
+        return false;
     }
 
     public static List<Entry> all() {

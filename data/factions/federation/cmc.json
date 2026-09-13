@@ -8,7 +8,7 @@
   "epv": 100,
   "turnMode": "C",
   "sizeClass": 3,
-  "moveCost": 0.6666667,
+  "moveCost": 0.75,
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 6,

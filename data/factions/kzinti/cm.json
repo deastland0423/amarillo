@@ -17,7 +17,7 @@
   "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
-    "fhull": 35,
+    "fhull": 3,
     "ahull": 6
   },
   
@@ -64,7 +64,7 @@
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["RF", "LS"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "LS"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LF", "RS"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },

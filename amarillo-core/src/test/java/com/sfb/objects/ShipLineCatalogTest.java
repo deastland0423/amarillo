@@ -79,10 +79,14 @@ public class ShipLineCatalogTest {
     }
 
     /**
-     * Movement cost follows from the line, so the two must agree. Neither field derives the
-     * other — BCH and CA both pay 1, CL and CW both pay two thirds — but a ship whose cost
-     * disagrees with its line has one of them wrong, which is how twelve ships were found
-     * carrying a heavy cruiser's cost while claiming to be dreadnoughts and light cruisers.
+     * Movement cost has to be one the line permits. Neither field derives the other — BCH and
+     * CA both pay 1, CL and CW both pay two thirds — but a ship paying a cost outside its
+     * line's bracket has one of them wrong, which is how twelve ships were found carrying a
+     * heavy cruiser's cost while claiming to be dreadnoughts and light cruisers.
+     * <p>
+     * A line may permit several: the older Federation light cruisers pay 3/4 where the newer
+     * ones pay 2/3, and both are CL. What it must not do is permit a cost from another
+     * bracket, which is what keeps the check worth running.
      */
     @Test
     public void everyShipsMoveCostAgreesWithItsLine() throws Exception {
@@ -95,13 +99,12 @@ public class ShipLineCatalogTest {
                 String line = root.path("line").asText(null);
                 if (line == null || line.isBlank())
                     continue;
-                double expected = ShipLineCatalog.moveCostOf(line);
-                if (expected == 0)
+                if (ShipLineCatalog.moveCostsOf(line).isEmpty())
                     continue;   // catalogue publishes no cost for this line
                 double actual = root.path("moveCost").asDouble(0);
-                if (Math.abs(actual - expected) >= 0.001)
+                if (!ShipLineCatalog.permitsMoveCost(line, actual))
                     wrong.add(faction.getName() + "/" + f.getName() + " is " + line
-                            + " (cost " + expected + ") but pays " + actual);
+                            + " (pays " + ShipLineCatalog.moveCostsOf(line) + ") but pays " + actual);
             }
         }
 
