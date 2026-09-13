@@ -10,6 +10,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
+  "isLeader": true,
   "tokenArt": "kzinti/cc.png",
   
   "shields": [30, 28, 22, 22, 22, 28],
