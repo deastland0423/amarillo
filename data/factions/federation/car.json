@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CAR",
+  "line": "CA",
   "name": "USS Intrepid",
   "serviceYear": 160,
   "bpv": 129,

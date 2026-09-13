@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "DD",
+  "line": "DD",
   "name": "GCS Jaws",
   "serviceYear": 120,
   "bpv": 68,

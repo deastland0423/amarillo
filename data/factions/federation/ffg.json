@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "FFG",
+  "line": "FF",
   "name": "USS Burke",
   "serviceYear": 160,
   "bpv": 75,

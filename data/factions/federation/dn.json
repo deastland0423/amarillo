@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DN",
+  "line": "DN",
   "name": "USS Federation",
   "serviceYear": 148,
   "bpv": 180,

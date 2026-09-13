@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DN+",
+  "line": "DN",
   "name": "USS Concordant",
   "serviceYear": 172,
   "bpv": 207,

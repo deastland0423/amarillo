@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "DDF",
+  "line": "DD",
   "name": "GCS Fang",
   "serviceYear": 175,
   "bpv": 91,

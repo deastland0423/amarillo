@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Ship lines for fleet construction. A line groups the variants that serve together, so the",
+    "leader rules (S8.36) can ask whether two ships are of a kind. It is not the SSD Type line:",
+    "a Federation CC's type is CC and its line is CA, because the CA line is what it leads.",
+    "Adding a line needs no Java change - add it here, then use it in a ship file."
+  ],
+  "lines": [
+    { "code": "DN",  "name": "Dreadnought" },
+    { "code": "BB",  "name": "Battleship" },
+    { "code": "CA",  "name": "Heavy Cruiser" },
+    { "code": "CL",  "name": "Light Cruiser" },
+    { "code": "CW",  "name": "War Cruiser" },
+    { "code": "DD",  "name": "Destroyer" },
+    { "code": "DW",  "name": "War Destroyer" },
+    { "code": "FF",  "name": "Frigate" },
+    { "code": "FW",  "name": "War Frigate" },
+    { "code": "PC",  "name": "Patrol Cruiser" },
+    { "code": "TUG", "name": "Tug" },
+    { "code": "FRT", "name": "Freighter" }
+  ]
+}

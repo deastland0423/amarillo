@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "CA+p",
+  "line": "CA",
   "name": "Conciliator's Claw",
   "serviceYear": 168,
   "bpv": 139,

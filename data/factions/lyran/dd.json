@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "DD",
+  "line": "DD",
   "name": "Bloodguard",
   "serviceYear": 120,
   "bpv": 79,

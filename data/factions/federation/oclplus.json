@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "OCL+",
+  "line": "CL",
   "name": "USS Texas",
   "serviceYear": 168,
   "bpv": 111,

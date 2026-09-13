@@ -164,6 +164,7 @@ public class Ship extends Unit implements DroneController {
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
 	private String shipType = null; // The SSD's "Type" line (i.e. "CA", "FFG", "D7K", etc.)
+	private String line = null;     // The family it serves in (S8.36), i.e. "CA" for a D7C
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
@@ -209,6 +210,7 @@ public class Ship extends Unit implements DroneController {
 		// Explicit Ship values
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
 		shipType = values.get("type") == null ? null : (String) values.get("type");
+		line     = values.get("line") == null ? null : (String) values.get("line");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
@@ -676,6 +678,19 @@ public class Ship extends Unit implements DroneController {
 
 	public String getType() {
 		return this.shipType;
+	}
+
+	/**
+	 * The family this ship serves in, e.g. "CA" for a D7C — what the leader rules compare,
+	 * since a leader needs consorts of its own kind rather than of its own exact type.
+	 * Null until the ship's file is classified.
+	 */
+	public String getLine() {
+		return this.line;
+	}
+
+	public void setLine(String line) {
+		this.line = line;
 	}
 
 	public String getTokenArt() {

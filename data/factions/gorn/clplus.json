@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "CL+",
+  "line": "CL",
   "name": "GCS Dragonfire",
   "serviceYear": 170,
   "bpv": 108,

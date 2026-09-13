@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DDM",
+  "line": "DD",
   "name": "USS Saladin",
   "serviceYear": 130,
   "bpv": 88,

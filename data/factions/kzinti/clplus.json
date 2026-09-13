@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CL+",
+  "line": "CL",
   "name": "KHS Spectyr",
   "serviceYear": 166,
   "bpv": 96,

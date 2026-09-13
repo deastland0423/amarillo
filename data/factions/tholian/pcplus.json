@@ -1,6 +1,7 @@
 {
   "faction": "Tholian",
   "type": "PC+",
+  "line": "PC",
   "name": "TDFS Safeguard",
   "serviceYear": 98,
   "bpv": 65,

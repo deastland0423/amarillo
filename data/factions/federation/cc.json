@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CC",
+  "line": "CA",
   "name": "USS Kongo",
   "serviceYear": 130,
   "bpv": 125,

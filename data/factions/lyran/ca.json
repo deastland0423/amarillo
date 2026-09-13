@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "CA",
+  "line": "CA",
   "name": "Azure",
   "serviceYear": 120,
   "bpv": 131,

@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "FF",
+  "line": "FF",
   "name": "#175",
   "serviceYear": 122,
   "bpv": 62,

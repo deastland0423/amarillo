@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CC+",
+  "line": "CA",
   "name": "USS Lexington",
   "serviceYear": 165,
   "bpv": 135,

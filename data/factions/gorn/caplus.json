@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "CA+",
+  "line": "CA",
   "name": "GCS Serpenticon",
   "serviceYear": 170,
   "bpv": 146,

@@ -22,6 +22,11 @@ public class ShipSpec {
     public String faction;
     /** The SSD's "Type" line: this exact variant, e.g. "CA+", "D7C". Identity, not family. */
     public String type;
+    /**
+     * The family this variant serves in, e.g. "CA" for a D7C. Catalogued in
+     * data/shiplines/shiplines.json; what the leader rules (S8.36) compare.
+     */
+    public String line;
     public String name;
     public String tokenArt;  // optional path to a PNG token image, e.g. "federation/constitution.png"
     public int serviceYear;
@@ -216,6 +221,8 @@ public class ShipSpec {
 
         m.put("faction", Faction.valueOf(faction));
         m.put("type", type);
+        if (line != null && !line.isBlank())
+            m.put("line", line);
         m.put("name", name);
         if (tokenArt != null) m.put("tokenart", tokenArt);
         m.put("serviceyear", serviceYear);
