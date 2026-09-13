@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "FF",
+  "type": "FF",
   "name": "USS Churchill",
   "serviceYear": 127,
   "bpv": 71,

@@ -26,7 +26,7 @@ public class LyranCaTest {
         Ship ca = ShipLibrary.createShip(spec);
 
         assertEquals(Faction.Lyran, ca.getFaction());
-        assertEquals("CA", ca.getHullType());
+        assertEquals("CA", ca.getType());
         assertEquals(3, ca.getSizeClass());
 
         long esgs = ca.getWeapons().fetchAllWeapons().stream().filter(w -> w instanceof ESG).count();

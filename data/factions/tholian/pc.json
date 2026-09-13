@@ -1,6 +1,6 @@
 {
   "faction": "Tholian",
-  "hull": "PC",
+  "type": "PC",
   "name": "TDFS Avoidance",
   "serviceYear": 83,
   "bpv": 59,

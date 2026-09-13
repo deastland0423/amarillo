@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "FF+",
+  "type": "FF+",
   "name": "#68",
   "serviceYear": 166,
   "bpv": 71,

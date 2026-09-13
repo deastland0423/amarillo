@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "S-Q",
+  "type": "S-Q",
   "name": "Hide and Seek",
   "serviceYear": 130,
   "bpv": 40,

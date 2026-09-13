@@ -56,10 +56,10 @@ public class ScenarioLoader {
     }
 
     private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup, int year) {
-        ShipSpec shipSpec = ShipLibrary.get(faction, setup.hull);
+        ShipSpec shipSpec = ShipLibrary.get(faction, setup.type);
         if (shipSpec == null) {
             System.err.println("ScenarioLoader: no spec found for "
-                    + faction + "/" + setup.hull + " — ship skipped");
+                    + faction + "/" + setup.type + " — ship skipped");
             return null;
         }
         Ship ship = ShipLibrary.createShip(shipSpec);

@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "C7",
+  "type": "C7",
   "name": "IKS War",
   "serviceYear": 177,
   "bpv": 180,

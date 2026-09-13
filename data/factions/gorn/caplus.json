@@ -1,6 +1,6 @@
 {
   "faction": "Gorn",
-  "hull": "CA+",
+  "type": "CA+",
   "name": "GCS Serpenticon",
   "serviceYear": 170,
   "bpv": 146,

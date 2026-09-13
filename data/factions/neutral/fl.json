@@ -1,6 +1,6 @@
 {
   "faction": "Neutral",
-  "hull": "F-L",
+  "type": "F-L",
   "name": "Red Dwarf",
   "serviceYear": 120,
   "bpv": 18,

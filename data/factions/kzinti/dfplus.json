@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "DF+",
+  "type": "DF+",
   "name": "KHS #420",
   "serviceYear": 134,
   "bpv": 75,

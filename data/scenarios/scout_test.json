@@ -10,7 +10,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "hull": "SC",
+          "type": "SC",
           "shipName": "USS De Gama",
           "startHex": "1216",
           "startHeading": "C",
@@ -18,7 +18,7 @@
           "weaponStatus": 2
         },
         {
-          "hull": "CA+",
+          "type": "CA+",
           "shipName": "USS Constitution",
           "startHex": "1218",
           "startHeading": "C",
@@ -32,7 +32,7 @@
       "faction": "Klingon",
       "ships": [
         {
-          "hull": "D6S",
+          "type": "D6S",
           "shipName": "IKS Peekaboo",
           "startHex": "2216",
           "startHeading": "F",
@@ -40,7 +40,7 @@
           "weaponStatus": 2
         },
         {
-          "hull": "D6",
+          "type": "D6",
           "shipName": "IKS Barbarous",
           "startHex": "2218",
           "startHeading": "F",

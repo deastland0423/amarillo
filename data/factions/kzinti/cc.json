@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "CC",
+  "type": "CC",
   "name": "KHS White Dwarf",
   "serviceYear": 147,
   "bpv": 135,

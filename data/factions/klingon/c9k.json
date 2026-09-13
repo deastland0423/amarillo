@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "C9K",
+  "type": "C9K",
   "name": "IKS Carnivorous",
   "serviceYear": 175,
   "bpv": 215,

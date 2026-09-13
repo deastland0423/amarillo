@@ -59,7 +59,7 @@ export interface PlayerListing {
 }
 
 export interface ScenarioShip {
-  hull:         string;
+  type:         string;
   shipName:     string;
   startHex:     string;
   startHeading: string;

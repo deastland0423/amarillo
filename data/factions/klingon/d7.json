@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D7",
+  "type": "D7",
   "name": "IKS Klodode",
   "serviceYear": 135,
   "bpv": 121,

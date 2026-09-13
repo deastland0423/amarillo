@@ -130,7 +130,7 @@ public class ScenarioLoaderTest {
         assertEquals("Federation", spec.sides.get(0).faction);
         assertEquals(2, spec.sides.get(0).ships.size());
         ScenarioSpec.ShipSetup enterprise = spec.sides.get(0).ships.get(0);
-        assertEquals("CA+", enterprise.hull);
+        assertEquals("CA+", enterprise.type);
         assertEquals("USS Enterprise", enterprise.shipName);
         assertEquals("1201", enterprise.startHex);
         assertEquals("D", enterprise.startHeading);

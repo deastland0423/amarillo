@@ -1,6 +1,6 @@
 {
   "faction": "Romulan",
-  "hull": "KE",
+  "type": "KE",
   "name": "RIS Audax",
   "serviceYear": 169,
   "bpv": 140,

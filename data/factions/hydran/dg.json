@@ -1,6 +1,6 @@
 {
   "faction": "Hydran",
-  "hull": "DG",
+  "type": "DG",
   "name": "HMS Majestic",
   "serviceYear": 158,
   "bpv": 130,

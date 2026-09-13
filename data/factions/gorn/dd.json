@@ -1,6 +1,6 @@
 {
   "faction": "Gorn",
-  "hull": "DD",
+  "type": "DD",
   "name": "GCS Jaws",
   "serviceYear": 120,
   "bpv": 68,

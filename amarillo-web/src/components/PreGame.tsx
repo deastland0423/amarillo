@@ -367,15 +367,15 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                 <table className="scenario-ship-table">
                   <thead>
                     <tr>
-                      <th>Ship</th><th>Hull</th><th>Hex</th>
+                      <th>Ship</th><th>Type</th><th>Hex</th>
                       <th>Hdg</th><th>Spd</th><th>WS</th><th>Refits</th>
                     </tr>
                   </thead>
                   <tbody>
                     {side.ships.map(ship => (
-                      <tr key={ship.shipName || ship.hull}>
+                      <tr key={ship.shipName || ship.type}>
                         <td>{ship.shipName}</td>
-                        <td>{ship.hull}</td>
+                        <td>{ship.type}</td>
                         <td>{ship.startHex}</td>
                         <td>{ship.startHeading}</td>
                         <td>{ship.startSpeed === 16 ? 'Max' : ship.startSpeed}</td>

@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D6",
+  "type": "D6",
   "name": "IKS Barbarous",
   "serviceYear": 122,
   "bpv": 113,

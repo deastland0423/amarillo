@@ -20,7 +20,7 @@ import java.util.Map;
  * Map objects form a hierarchy that mirrors the core object model:
  *
  * MapObjectDto (type, name, location) ← mirrors Marker
- * ShipDto (hull, faction, shields, cloak)
+ * ShipDto (shipType, faction, shields, cloak)
  * ShuttleDto (parentShip, speed, facing)
  * DroneDto (droneType, warhead, target, faction)
  * PlasmaTorpedoDto (currentStrength, controllerFaction)
@@ -218,7 +218,8 @@ public class GameStateDto {
     }
 
     public static class ShipDto extends MapObjectDto {
-        public String hull;
+        /** The SSD Type line, e.g. "CA+". Named shipType because Jackson owns "type" here. */
+        public String shipType;
         public String faction;
         public int facing;
         public int speed;
@@ -911,7 +912,7 @@ public class GameStateDto {
         dto.facing = ship.getFacing();
         dto.speed = ship.getSpeed();
         dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
-        dto.hull = ship.getHullType();
+        dto.shipType = ship.getType();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
         dto.shields = new ArrayList<>();

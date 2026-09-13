@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "DNa",
+  "type": "DNa",
   "name": "USS Unity",
   "serviceYear": 148,
   "bpv": 180,

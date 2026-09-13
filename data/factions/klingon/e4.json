@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "E4",
+  "type": "E4",
   "name": "IKS Adamant",
   "serviceYear": 121,
   "bpv": 55,

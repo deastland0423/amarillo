@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "DD+",
+  "type": "DD+",
   "name": "USS Saladin",
   "serviceYear": 171,
   "bpv": 100,

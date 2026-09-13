@@ -1,6 +1,6 @@
 {
   "faction": "Hydran",
-  "hull": "DG+",
+  "type": "DG+",
   "name": "HMS Glorious",
   "serviceYear": 170,
   "bpv": 148,

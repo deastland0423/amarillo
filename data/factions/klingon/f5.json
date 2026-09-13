@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "F5",
+  "type": "F5",
   "name": "IKS Fury",
   "serviceYear": 135,
   "bpv": 71,

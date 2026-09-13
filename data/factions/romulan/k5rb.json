@@ -1,6 +1,6 @@
 {
   "faction": "Romulan",
-  "hull": "K5RB",
+  "type": "K5RB",
   "name": "RIS Centaurii",
   "serviceYear": 170,
   "bpv": 64,

@@ -1,6 +1,6 @@
 {
   "faction": "Hydran",
-  "hull": "KN+",
+  "type": "KN+",
   "name": "HMS Invulnerable",
   "serviceYear": 172,
   "bpv": 90,

@@ -1,6 +1,6 @@
 {
   "faction": "Orion",
-  "hull": "LR",
+  "type": "LR",
   "name": "Lady Luck",
   "serviceYear": 129,
   "bpv": 68,

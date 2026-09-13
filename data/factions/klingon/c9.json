@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "C9",
+  "type": "C9",
   "name": "IKS Victory",
   "serviceYear": 167,
   "bpv": 205,

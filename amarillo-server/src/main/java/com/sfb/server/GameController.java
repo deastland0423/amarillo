@@ -114,13 +114,13 @@ public class GameController {
     // Validate a fleet against the patrol-scenario construction rules (S8.0)
     // -------------------------------------------------------------------------
 
-    /** A proposed battle force, named by hull so the client never has to build ships. */
+    /** A proposed battle force, named by type so the client never has to build ships. */
     public static class FleetValidationRequest {
         public String faction;      // empire buying the fleet
         public int year;            // scenario date (S8.13)
         public int budget;          // points agreed for this side (S8.11)
         public String flagship;     // hull of the ship leading it (S8.21)
-        public List<String> hulls = new ArrayList<>();  // every ship, flagship included
+        public List<String> types = new ArrayList<>();  // every ship, flagship included
     }
 
     /**
@@ -137,30 +137,30 @@ public class GameController {
         Map<String, Integer> seen = new java.util.HashMap<>();
         String flagshipName = null;
 
-        for (String hull : req.hulls) {
-            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(req.faction, hull);
+        for (String type : req.types) {
+            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(req.faction, type);
             if (spec == null) {
-                unknown.add(hull);
+                unknown.add(type);
                 continue;
             }
             com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-            // Several ships of one hull are normal; name them apart so violations can point at
-            // the offender rather than at an ambiguous hull code.
-            int n = seen.merge(hull, 1, Integer::sum);
-            ship.setName(n == 1 ? hull : hull + " #" + n);
+            // Several ships of one type are normal; name them apart so violations can point at
+            // the offender rather than at an ambiguous type code.
+            int n = seen.merge(type, 1, Integer::sum);
+            ship.setName(n == 1 ? type : type + " #" + n);
             ships.add(ship);
-            if (flagshipName == null && hull.equalsIgnoreCase(req.flagship))
+            if (flagshipName == null && type.equalsIgnoreCase(req.flagship))
                 flagshipName = ship.getName();
         }
 
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         if (!unknown.isEmpty()) {
             body.put("legal", false);
-            body.put("unknownHulls", unknown);
+            body.put("unknownTypes", unknown);
             body.put("violations", List.of(Map.of(
                     "rule", "",
                     "severity", "ERROR",
-                    "message", "No such hull for " + req.faction + ": " + String.join(", ", unknown),
+                    "message", "No such type for " + req.faction + ": " + String.join(", ", unknown),
                     "shipName", "")));
             return ResponseEntity.ok(body);
         }
@@ -240,7 +240,7 @@ public class GameController {
                             if (side.ships != null) {
                                 for (ScenarioSpec.ShipSetup ship : side.ships) {
                                     Map<String, Object> sh = new java.util.LinkedHashMap<>();
-                                    sh.put("hull", ship.hull != null ? ship.hull : "");
+                                    sh.put("type", ship.type != null ? ship.type : "");
                                     sh.put("shipName", ship.shipName != null ? ship.shipName : "");
                                     sh.put("startHex", ship.startHex != null ? ship.startHex : "");
                                     sh.put("startHeading", ship.startHeading != null ? ship.startHeading : "");

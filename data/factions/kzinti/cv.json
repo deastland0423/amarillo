@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "CV",
+  "type": "CV",
   "name": "KHS Sabre",
   "serviceYear": 166,
   "bpv": 147,

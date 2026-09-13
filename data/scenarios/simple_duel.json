@@ -10,7 +10,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "hull": "CA+",
+          "type": "CA+",
           "shipName": "USS Enterprise",
           "startHex": "0101",
           "startHeading": "C",
@@ -24,7 +24,7 @@
       "faction": "Klingon",
       "ships": [
         {
-          "hull": "D7Bu",
+          "type": "D7Bu",
           "shipName": "IKV Vengeance",
           "startHex": "3030",
           "startHeading": "F",

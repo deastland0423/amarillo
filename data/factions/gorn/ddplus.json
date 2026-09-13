@@ -1,6 +1,6 @@
 {
   "faction": "Gorn",
-  "hull": "DD+",
+  "type": "DD+",
   "name": "GCS Talon",
   "serviceYear": 170,
   "bpv": 74,

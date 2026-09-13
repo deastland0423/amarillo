@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "CL+",
+  "type": "CL+",
   "name": "KHS Spectyr",
   "serviceYear": 166,
   "bpv": 96,

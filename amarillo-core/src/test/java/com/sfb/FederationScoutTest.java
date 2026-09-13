@@ -26,7 +26,7 @@ public class FederationScoutTest {
         Ship sc = ShipLibrary.createShip(spec);
 
         assertEquals(Faction.Federation, sc.getFaction());
-        assertEquals("SC", sc.getHullType());
+        assertEquals("SC", sc.getType());
 
         var channels = sc.getScoutChannels();
         assertEquals("eight scout channels (G24.11)", 8, channels.size());

@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "TUG+",
+  "type": "TUG+",
   "name": "USS Al Rashid",
   "serviceYear": 165,
   "bpv": 68,

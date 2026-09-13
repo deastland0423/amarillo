@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "CVS",
+  "type": "CVS",
   "name": "KHS Scimitar",
   "serviceYear": 170,
   "bpv": 169,

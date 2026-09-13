@@ -1,6 +1,6 @@
 {
   "faction": "Lyran",
-  "hull": "DD",
+  "type": "DD",
   "name": "Bloodguard",
   "serviceYear": 120,
   "bpv": 79,

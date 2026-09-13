@@ -1,6 +1,6 @@
 {
   "faction": "Lyran",
-  "hull": "FF",
+  "type": "FF",
   "name": "Bloodspiller",
   "serviceYear": 120,
   "bpv": 63,

@@ -133,8 +133,8 @@ interface MapObjectBase {
 }
 
 export interface ShipObject extends MapObjectBase {
-  type:    'SHIP';
-  hull:    string;
+  type:     'SHIP';    // map-object discriminator, not the ship's SSD type
+  shipType: string;    // the SSD Type line, e.g. "CA+"
   faction: string;
   facing:  number;
   speed:   number;

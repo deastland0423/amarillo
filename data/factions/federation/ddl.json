@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "DDL",
+  "type": "DDL",
   "name": "USS Ghengis Khan",
   "serviceYear": 166,
   "bpv": 94,

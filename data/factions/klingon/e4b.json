@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "E4B",
+  "type": "E4B",
   "name": "IKS Guardian",
   "serviceYear": 165,
   "bpv": 59,

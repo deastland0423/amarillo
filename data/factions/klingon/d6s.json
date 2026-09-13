@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D6S",
+  "type": "D6S",
   "name": "IKS Peekaboo",
   "serviceYear": 160,
   "bpv": 100,

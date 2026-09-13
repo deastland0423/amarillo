@@ -1,6 +1,6 @@
 {
   "faction": "Hydran",
-  "hull": "LN+",
+  "type": "LN+",
   "name": "HMS Thought",
   "serviceYear": 134,
   "bpv": 77,

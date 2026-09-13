@@ -1,6 +1,6 @@
 {
   "faction": "Romulan",
-  "hull": "SPA",
+  "type": "SPA",
   "name": "RIS Adversary",
   "serviceYear": 168,
   "bpv": 125,

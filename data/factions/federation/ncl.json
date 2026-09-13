@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "NCL",
+  "type": "NCL",
   "name": "USS Kearsarge",
   "serviceYear": 170,
   "bpv": 116,

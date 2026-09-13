@@ -2809,7 +2809,7 @@ function ShipSidebar({
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Base Data</div>
-        <StatRow label="Hull"     value={ship.hull} />
+        <StatRow label="Type"     value={ship.shipType} />
         <StatRow label="Faction"  value={ship.faction} />
         <StatRow label="Location" value={locationLabel(ship.location)} />
         <StatRow label="Facing"   value={facingLabel(ship.facing)} />

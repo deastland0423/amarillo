@@ -20,7 +20,8 @@ public class ShipSpec {
 
     // --- Top-level fields ---
     public String faction;
-    public String hull;
+    /** The SSD's "Type" line: this exact variant, e.g. "CA+", "D7C". Identity, not family. */
+    public String type;
     public String name;
     public String tokenArt;  // optional path to a PNG token image, e.g. "federation/constitution.png"
     public int serviceYear;
@@ -214,7 +215,7 @@ public class ShipSpec {
         Map<String, Object> m = new HashMap<>();
 
         m.put("faction", Faction.valueOf(faction));
-        m.put("hull", hull);
+        m.put("type", type);
         m.put("name", name);
         if (tokenArt != null) m.put("tokenart", tokenArt);
         m.put("serviceyear", serviceYear);

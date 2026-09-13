@@ -1,6 +1,6 @@
 {
   "faction": "Gorn",
-  "hull": "BC",
+  "type": "BC",
   "name": "GCS Reptilicon",
   "serviceYear": 175,
   "bpv": 160,

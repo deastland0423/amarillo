@@ -10,7 +10,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "hull": "CA+",
+          "type": "CA+",
           "shipName": "USS Enterprise",
           "startHex": "1205",
           "startHeading": "D",
@@ -24,7 +24,7 @@
       "faction": "Romulan",
       "ships": [
         {
-          "hull": "KRB",
+          "type": "KRB",
           "shipName": "RIS Praetor",
           "startHex": "2109",
           "startHeading": "F",

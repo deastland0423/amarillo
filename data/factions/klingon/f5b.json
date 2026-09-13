@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "F5B",
+  "type": "F5B",
   "name": "IKS Ardent",
   "serviceYear": 165,
   "bpv": 76,

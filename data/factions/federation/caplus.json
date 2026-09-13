@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "CA+",
+  "type": "CA+",
   "name": "USS Constitution",
   "serviceYear": 165,
   "bpv": 139,

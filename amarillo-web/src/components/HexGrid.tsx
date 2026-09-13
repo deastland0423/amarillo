@@ -737,7 +737,7 @@ function shipTooltipLines(ship: ShipObject): string[] {
   const lines = [
     `Faction:  ${ship.faction}`,
     `Name:     ${ship.name}`,
-    `Hull:     ${ship.hull}`,
+    `Type:     ${ship.shipType}`,
     `Facing:   ${facingLabel(ship.facing)}`,
     `Speed:    ${ship.speed}`,
   ];

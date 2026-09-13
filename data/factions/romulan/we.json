@@ -1,6 +1,6 @@
 {
   "faction": "Romulan",
-  "hull": "WE",
+  "type": "WE",
   "name": "RIS Senator",
   "serviceYear": 162,
   "bpv": 100,

@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D7Bu",
+  "type": "D7Bu",
   "name": "IKS Courageous",
   "serviceYear": 165,
   "bpv": 133,

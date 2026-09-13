@@ -10,7 +10,7 @@
       "faction": "Hydran",
       "ships": [
         {
-          "hull": "RN",
+          "type": "RN",
           "shipName": "HMS Tenacity",
           "startHex": "1201",
           "startHeading": "D",
@@ -24,7 +24,7 @@
       "faction": "Lyran",
       "ships": [
         {
-          "hull": "CA",
+          "type": "CA",
           "shipName": "Azure Dawn",
           "startHex": "1212",
           "startHeading": "A",

@@ -8,7 +8,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * The fleet validation endpoint's own logic: resolving hulls through ShipLibrary, naming
+ * The fleet validation endpoint's own logic: resolving types through ShipLibrary, naming
  * duplicates apart, and reporting what the core validator found. The rules themselves are
  * pinned by FleetValidatorTest in core — this is the wire layer around them.
  */
@@ -25,13 +25,13 @@ class FleetValidationEndpointTest {
         com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
     }
 
-    private GameController.FleetValidationRequest request(String flagship, String... hulls) {
+    private GameController.FleetValidationRequest request(String flagship, String... types) {
         GameController.FleetValidationRequest r = new GameController.FleetValidationRequest();
         r.faction = "Federation";
         r.year = 175;
         r.budget = 500;
         r.flagship = flagship;
-        r.hulls = List.of(hulls);
+        r.types = List.of(types);
         return r;
     }
 
@@ -51,11 +51,11 @@ class FleetValidationEndpointTest {
     }
 
     @Test
-    void anUnknownHullIsReportedRatherThanIgnored() {
-        Map<String, Object> body = validate(request("CC", "CC", "NOT-A-HULL"));
+    void anUnknownTypeIsReportedRatherThanIgnored() {
+        Map<String, Object> body = validate(request("CC", "CC", "NOT-A-TYPE"));
 
         assertEquals(Boolean.FALSE, body.get("legal"));
-        assertTrue(body.get("unknownHulls").toString().contains("NOT-A-HULL"), body.toString());
+        assertTrue(body.get("unknownTypes").toString().contains("NOT-A-TYPE"), body.toString());
     }
 
     @Test

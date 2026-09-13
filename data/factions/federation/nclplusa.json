@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "NCL+a",
+  "type": "NCL+a",
   "name": "USS Strasbourg",
   "serviceYear": 173,
   "bpv": 124,

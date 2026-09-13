@@ -1,6 +1,6 @@
 {
   "faction": "Lyran",
-  "hull": "CL",
+  "type": "CL",
   "name": "Blood of Heroes",
   "serviceYear": 120,
   "bpv": 92,

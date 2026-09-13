@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D7C",
+  "type": "D7C",
   "name": "IKS Doomslayer",
   "serviceYear": 143,
   "bpv": 136,

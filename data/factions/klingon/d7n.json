@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D7N",
+  "type": "D7N",
   "name": "IKS Dictator",
   "serviceYear": 137,
   "bpv": 119,

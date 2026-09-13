@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D7Ku",
+  "type": "D7Ku",
   "name": "IKS Antagonist",
   "serviceYear": 175,
   "bpv": 136,

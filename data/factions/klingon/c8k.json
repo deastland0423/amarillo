@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "C8B",
+  "type": "C8B",
   "name": "IKS Admiral Kang",
   "serviceYear": 168,
   "bpv": 226,

@@ -163,7 +163,7 @@ public class Ship extends Unit implements DroneController {
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
-	private String hullType = null; // Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
+	private String shipType = null; // The SSD's "Type" line (i.e. "CA", "FFG", "D7K", etc.)
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
@@ -208,7 +208,7 @@ public class Ship extends Unit implements DroneController {
 
 		// Explicit Ship values
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
-		hullType = values.get("hull") == null ? null : (String) values.get("hull");
+		shipType = values.get("type") == null ? null : (String) values.get("type");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
@@ -671,11 +671,11 @@ public class Ship extends Unit implements DroneController {
 
 	/// BASIC SHIP DATA ///
 	public void setType(String type) {
-		this.hullType = type;
+		this.shipType = type;
 	}
 
 	public String getType() {
-		return this.hullType;
+		return this.shipType;
 	}
 
 	public String getTokenArt() {
@@ -1101,11 +1101,6 @@ public class Ship extends Unit implements DroneController {
 	public void endOfTurn() {
 		shields.cleanUp();
 
-	}
-
-	/// IDENTITY ///
-	public String getHullType() {
-		return this.hullType;
 	}
 
 	public boolean isBase() { return isBase; }

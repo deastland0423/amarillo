@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "S-Q",
+  "type": "S-Q",
   "name": "Patient Hunter",
   "serviceYear": 130,
   "bpv": 41,

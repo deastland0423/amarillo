@@ -1,6 +1,6 @@
 {
   "faction": "Romulan",
-  "hull": "SKA",
+  "type": "SKA",
   "name": "RIS Arrow",
   "serviceYear": 168,
   "bpv": 102,

@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "hull": "BC",
+  "type": "BC",
   "name": "KHS Comet",
   "serviceYear": 160,
   "bpv": 135,

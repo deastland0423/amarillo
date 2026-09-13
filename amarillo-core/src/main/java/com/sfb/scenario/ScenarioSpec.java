@@ -23,7 +23,7 @@ import java.util.List;
  *       "faction": "Federation",
  *       "ships": [
  *         {
- *           "hull": "CC",
+ *           "type": "CC",
  *           "shipName": "Kongo",
  *           "startHex": "0515",
  *           "startHeading": "C",
@@ -125,7 +125,7 @@ public class ScenarioSpec {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShipSetup {
         public String       faction;        // overrides side faction for this ship (e.g. "Lyran" on a Klingon side)
-        public String       hull;           // e.g. "CC", "DD+"
+        public String       type;           // the SSD Type line, e.g. "CC", "DD+"
         public String       shipName;       // scenario-specific name, e.g. "Kongo"
         public String       startHex;       // SFB CCRR notation, e.g. "0515"
         public String       startHeading;   // "A"–"F"

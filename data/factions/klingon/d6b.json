@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "hull": "D6B",
+  "type": "D6B",
   "name": "IKS Carnage",
   "serviceYear": 165,
   "bpv": 123,

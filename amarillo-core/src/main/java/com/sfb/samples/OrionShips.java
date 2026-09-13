@@ -23,7 +23,7 @@ public class OrionShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Orion);
-        s.put("hull", "LR");
+        s.put("type", "LR");
         s.put("name", "Lady Luck");
         s.put("serviceyear", 129);
         s.put("bpv", 68);

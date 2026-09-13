@@ -1,6 +1,6 @@
 {
   "faction": "Gorn",
-  "hull": "CLF",
+  "type": "CLF",
   "name": "GCS First Strike",
   "serviceYear": 175,
   "bpv": 122,

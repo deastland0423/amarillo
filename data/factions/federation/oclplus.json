@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "OCL+",
+  "type": "OCL+",
   "name": "USS Texas",
   "serviceYear": 168,
   "bpv": 111,

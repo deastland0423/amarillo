@@ -1,6 +1,6 @@
 {
   "faction": "Federation",
-  "hull": "CMC",
+  "type": "CMC",
   "name": "USS Nightingale",
   "serviceYear": 125,
   "bpv": 80,
