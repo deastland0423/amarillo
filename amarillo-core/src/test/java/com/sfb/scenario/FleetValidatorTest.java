@@ -296,4 +296,59 @@ public class FleetValidatorTest {
         assertFalse("one of each is fine", broken.contains("S8.33"));
         assertFalse(broken.contains("S8.333"));
     }
+
+    // ---- S8.331 the company a size class 2 ship keeps ----
+
+    /** An allied hull, for fleets drawn from more than one empire. */
+    private Ship allied(String name, int sizeClass) {
+        Map<String, Object> v = new HashMap<>();
+        v.put("faction", Faction.Klingon);
+        v.put("turnmode", com.sfb.properties.TurnMode.D);
+        v.put("bpv", 80);
+        v.put("sizeclass", sizeClass);
+        v.put("serviceyear", 100);
+        Ship s = new Ship();
+        s.init(v);
+        s.setName(name);
+        return s;
+    }
+
+    @Test
+    public void aSizeClassTwoShipNeedsThreeOtherShips() {
+        Fleet fleet = new Fleet(List.of(ship("DN", 200, 2, 9), ship("A", 80, 4, 0),
+                ship("B", 80, 4, 0)), "DN", 900, 175);
+
+        List<Violation> vs = FleetValidator.validate(fleet);
+        assertTrue(rulesBroken(vs).contains("S8.331"));
+        assertTrue(vs.toString(), vs.stream().anyMatch(v -> "DN".equals(v.shipName)));
+    }
+
+    @Test
+    public void twoOfThoseShipsMustFlyTheSameFlag() {
+        Fleet fleet = new Fleet(List.of(ship("DN", 200, 2, 9), ship("A", 80, 4, 0),
+                allied("K1", 4), allied("K2", 4)), "DN", 900, 175);
+
+        List<Violation> vs = FleetValidator.validate(fleet);
+        assertTrue(rulesBroken(vs).contains("S8.331"));
+        assertTrue(vs.toString(), vs.stream().anyMatch(v -> v.message.contains("Federation")));
+    }
+
+    @Test
+    public void aProperlyAccompaniedSizeClassTwoShipIsLegal() {
+        Fleet fleet = new Fleet(List.of(ship("DN", 200, 2, 9), ship("A", 80, 4, 0),
+                ship("B", 80, 4, 0), allied("K1", 4)), "DN", 900, 175);
+
+        List<Violation> vs = FleetValidator.validate(fleet);
+        assertFalse(vs.toString(), rulesBroken(vs).contains("S8.331"));
+        assertTrue("three other ships, two of them Federation", FleetValidator.isLegal(vs));
+    }
+
+    /** Nothing to check when the fleet's heaviest hull is a cruiser. */
+    @Test
+    public void aFleetWithNoHeavyShipIsUnaffected() {
+        Fleet fleet = new Fleet(List.of(ship("Flagship", 120, 3, 3), ship("A", 80, 4, 0)),
+                "Flagship", 500, 175);
+
+        assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("S8.331"));
+    }
 }

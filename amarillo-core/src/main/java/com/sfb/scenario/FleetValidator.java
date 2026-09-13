@@ -97,6 +97,7 @@ public final class FleetValidator {
         checkFlagshipAndCommandLimit(fleet, out);
         checkBudget(fleet, out);
         checkHeavyShips(fleet, out);
+        checkHeavyShipCompany(fleet, out);
         checkBattlecruisers(fleet, out);
         checkServiceYear(fleet, out);
         checkCarrierGroups(fleet, out);
@@ -204,6 +205,38 @@ public final class FleetValidator {
             out.add(new Violation("S8.33", Severity.ERROR,
                     "No more than one size class 2 ship in a fleet; this has "
                             + heavies.size() + " (" + String.join(", ", heavies) + ")", null));
+    }
+
+    /**
+     * A size class 2 ship does not go out alone: "most size class 2 ships never appear with less
+     * than three other ships, two of them from the same empire" (S8.331).
+     * <p>
+     * The "most" is S8.334, which lets DNLs and light battleships like the Klingon B9 raid on
+     * their own. Nothing in the data is one yet, and when one arrives it wants a flag of its
+     * own - probably isFast, since a DNL is a fast dreadnought - because size class alone cannot
+     * tell a raider from a dreadnought.
+     */
+    private static void checkHeavyShipCompany(Fleet fleet, List<Violation> out) {
+        for (Ship heavy : fleet.ships) {
+            if (heavy.getSizeClass() != 2)
+                continue;
+            int others = fleet.ships.size() - 1;
+            long sameEmpire = fleet.ships.stream()
+                    .filter(s -> s != heavy)
+                    .filter(s -> s.getFaction() == heavy.getFaction())
+                    .count();
+
+            if (others < 3)
+                out.add(new Violation("S8.331", Severity.ERROR,
+                        heavy.getName() + " is a size class 2 ship and does not sail with fewer"
+                                + " than three other ships; this fleet has " + others,
+                        heavy.getName()));
+            else if (sameEmpire < 2)
+                out.add(new Violation("S8.331", Severity.ERROR,
+                        heavy.getName() + " needs two of its consorts to fly its own flag; only "
+                                + sameEmpire + " of this fleet " + (sameEmpire == 1 ? "is" : "are")
+                                + " " + heavy.getFaction(), heavy.getName()));
+        }
     }
 
     /**
