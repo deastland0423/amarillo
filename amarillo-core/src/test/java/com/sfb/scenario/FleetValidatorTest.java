@@ -158,6 +158,80 @@ public class FleetValidatorTest {
                 220, FleetValidator.fleetCost(List.of(scout, consort)));
     }
 
+    // ---- S8.12 / S3.2 Commander's Options ----
+
+    /**
+     * S8.11 and S8.12 both describe purchases and neither grants a separate pool, so option
+     * points come out of the agreed total. A fleet that spends every point on hulls has
+     * nothing left for extra drones.
+     */
+    @Test
+    public void commanderOptionsComeOutOfTheFleetBudget() {
+        Ship flag = ship("Flagship", 200, 3, 4);
+        Ship consort = ship("Consort", 200, 4, 0);
+
+        Fleet exact = new Fleet(List.of(flag, consort), "Flagship", 400, 175);
+        assertTrue("400 points of hulls fits a 400 point budget",
+                FleetValidator.isLegal(FleetValidator.validate(exact)));
+
+        flag.setCoiSpend(10);
+        List<Violation> vs = FleetValidator.validate(exact);
+        assertTrue("the same fleet with options bought is over",
+                rulesBroken(vs).contains("S8.11"));
+        assertTrue(vs.toString(), vs.stream().anyMatch(v -> v.message.contains("Commander's Options")));
+    }
+
+    @Test
+    public void theFleetCostIncludesWhatWasSpentOnOptions() {
+        Ship flag = ship("Flagship", 100, 3, 4);
+        flag.setCoiSpend(12.5);
+
+        assertEquals(100, FleetValidator.fleetCost(List.of(flag)));
+        assertEquals(112.5, FleetValidator.totalCost(List.of(flag)), 0.001);
+    }
+
+    /** S3.2: a ship's own option spending is capped at a share of its combat BPV. */
+    @Test
+    public void aShipCannotOverspendItsOwnOptionAllowance() {
+        Ship flag = ship("Flagship", 100, 3, 4);
+        assertEquals("20 percent of 100", 20.0, FleetValidator.coiAllowance(flag), 0.001);
+
+        flag.setCoiSpend(20);
+        Fleet atTheLimit = new Fleet(List.of(flag), "Flagship", 900, 175);
+        assertFalse(rulesBroken(FleetValidator.validate(atTheLimit)).contains("S3.2"));
+
+        flag.setCoiSpend(20.5);
+        List<Violation> vs = FleetValidator.validate(new Fleet(List.of(flag), "Flagship", 900, 175));
+        assertTrue(rulesBroken(vs).contains("S3.2"));
+        assertTrue(vs.toString(), vs.stream().anyMatch(v -> "Flagship".equals(v.shipName)));
+    }
+
+    /**
+     * The allowance is a share of combat BPV even for a scout, whose economic value is what it
+     * costs to build rather than what it brings to the fight.
+     */
+    @Test
+    public void aScoutsOptionAllowanceUsesItsCombatValue() {
+        Map<String, Object> v = new HashMap<>();
+        v.put("faction", Faction.Federation);
+        v.put("turnmode", com.sfb.properties.TurnMode.D);
+        v.put("bpv", 100);
+        v.put("epv", 120);
+        v.put("sizeclass", 4);
+        v.put("serviceyear", 100);
+        Ship scout = new Ship();
+        scout.init(v);
+        scout.setName("Scout");
+        com.sfb.weapons.ScoutChannel c = new com.sfb.weapons.ScoutChannel();
+        c.setDesignator("1");
+        c.setDacHitLocaiton("torp");
+        scout.getWeapons().addWeapon(c);
+
+        assertEquals("bought at 120", 120, FleetValidator.costOf(scout));
+        assertEquals("but options are 20 percent of the 100 it fights at",
+                20.0, FleetValidator.coiAllowance(scout), 0.001);
+    }
+
     // ---- S8.33 heavy ships ----
 
     @Test

@@ -32,6 +32,9 @@ public final class FleetValidator {
     /** Consorts a leader must have before another leader may join it (S8.36). */
     private static final int CONSORTS_PER_LEADER = 2;
 
+    /** Share of a ship's combat BPV it may spend on Commander's Option items (S3.2). */
+    private static final int COI_PERCENT = 20;
+
     /** Ships per player that keeps a game moving; a guideline, not a limit (S8.17). */
     private static final int SHIPS_PER_PLAYER_GUIDELINE = 3;
 
@@ -99,6 +102,7 @@ public final class FleetValidator {
         }
         checkFlagshipAndCommandLimit(fleet, out);
         checkBudget(fleet, out);
+        checkCommanderOptions(fleet, out);
         checkHeavyShips(fleet, out);
         checkHeavyShipCompany(fleet, out);
         checkBattlecruisers(fleet, out);
@@ -134,6 +138,26 @@ public final class FleetValidator {
         return hull + carriedFighterBpv(ship);
     }
 
+    /**
+     * The most a ship may spend on Commander's Option items: a share of its combat BPV
+     * (S3.2). Computed on combat BPV even for a scout, whose economic value is what it costs
+     * to build rather than what it brings to the fight.
+     */
+    public static double coiAllowance(Ship ship) {
+        return CoiLoadout.budget(ship.getBpv(), COI_PERCENT);
+    }
+
+    /**
+     * Everything a fleet spends: hulls, the fighters they carry, and Commander's Options.
+     * <p>
+     * S8.11 and S8.12 both describe purchases and neither grants a separate pool, so option
+     * points come out of the agreed total rather than on top of it. A fleet that spends every
+     * point on hulls has nothing left for extra drones.
+     */
+    public static double totalCost(List<Ship> ships) {
+        return fleetCost(ships) + ships.stream().mapToDouble(Ship::getCoiSpend).sum();
+    }
+
     /** BPV of the fighters sitting in a ship's bays; they are bought with it (S8.11). */
     public static int carriedFighterBpv(Ship ship) {
         int total = 0;
@@ -149,11 +173,36 @@ public final class FleetValidator {
     }
 
     private static void checkBudget(Fleet fleet, List<Violation> out) {
-        int spent = fleetCost(fleet.ships);
-        if (fleet.budget > 0 && spent > fleet.budget)
+        double spent = totalCost(fleet.ships);
+        if (fleet.budget > 0 && spent > fleet.budget) {
+            double coi = spent - fleetCost(fleet.ships);
+            String options = coi > 0 ? " (" + trim(coi) + " of it on Commander's Options)" : "";
             out.add(new Violation("S8.11", Severity.ERROR,
-                    "Fleet costs " + spent + " points, " + (spent - fleet.budget)
+                    "Fleet costs " + trim(spent) + " points" + options + ", " + trim(spent - fleet.budget)
                             + " over the agreed " + fleet.budget, null));
+        }
+    }
+
+    /**
+     * No ship may spend more than its share on Commander's Options (S3.2). Enforced here as
+     * well as when a loadout is applied, because a fleet can arrive from anywhere and a limit
+     * checked only where it is spent is a limit that travels badly.
+     */
+    private static void checkCommanderOptions(Fleet fleet, List<Violation> out) {
+        for (Ship ship : fleet.ships) {
+            double allowance = coiAllowance(ship);
+            if (ship.getCoiSpend() > allowance)
+                out.add(new Violation("S3.2", Severity.ERROR,
+                        ship.getName() + " spends " + trim(ship.getCoiSpend())
+                                + " on Commander's Options, over the " + trim(allowance)
+                                + " allowed by its " + ship.getBpv() + "-point value",
+                        ship.getName()));
+        }
+    }
+
+    /** Whole numbers read as whole numbers; halves and quarters keep their fraction. */
+    private static String trim(double d) {
+        return d == Math.rint(d) ? String.valueOf((long) d) : String.valueOf(d);
     }
 
     // -------------------------------------------------------------------------
