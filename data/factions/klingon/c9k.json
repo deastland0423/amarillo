@@ -7,7 +7,7 @@
   "bpv": 215,
   "turnMode": "D",
   "sizeClass": 2,
-  "moveCost": 1.0,
+  "moveCost": 1.5,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 10,

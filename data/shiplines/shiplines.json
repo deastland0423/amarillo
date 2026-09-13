@@ -3,21 +3,24 @@
     "Ship lines for fleet construction. A line groups the variants that serve together, so the",
     "leader rules (S8.36) can ask whether two ships are of a kind. It is not the SSD Type line:",
     "a Federation CC's type is CC and its line is CA, because the CA line is what it leads.",
-    "Adding a line needs no Java change - add it here, then use it in a ship file."
+    "Adding a line needs no Java change - add it here, then use it in a ship file.",
+    "moveCost is the line's published movement cost. It does not identify a line on its own -",
+    "BCH and CA share 1.0, CL and CW share 0.6666667 - but it cross-checks one: a ship whose",
+    "cost disagrees with its line has one of the two fields wrong. ShipLineCatalogTest enforces it."
   ],
   "lines": [
-    { "code": "DN",  "name": "Dreadnought" },
-    { "code": "BB",  "name": "Battleship" },
-    { "code": "BCH", "name": "Heavy Battlecruiser" },
-    { "code": "CA",  "name": "Heavy Cruiser" },
-    { "code": "CL",  "name": "Light Cruiser" },
-    { "code": "CW",  "name": "War Cruiser" },
-    { "code": "DD",  "name": "Destroyer" },
-    { "code": "DW",  "name": "War Destroyer" },
-    { "code": "FF",  "name": "Frigate" },
-    { "code": "FW",  "name": "War Frigate" },
-    { "code": "TUG", "name": "Tug" },
-    { "code": "F-L", "name": "Large Freighter" },
-    { "code": "F-S", "name": "Small Freighter" }
+    { "code": "DN",  "name": "Dreadnought", "moveCost": 1.5 },
+    { "code": "BB",  "name": "Battleship", "moveCost": 2.0 },
+    { "code": "BCH", "name": "Heavy Battlecruiser", "moveCost": 1.0 },
+    { "code": "CA",  "name": "Heavy Cruiser", "moveCost": 1.0 },
+    { "code": "CL",  "name": "Light Cruiser", "moveCost": 0.6666667 },
+    { "code": "CW",  "name": "War Cruiser", "moveCost": 0.6666667 },
+    { "code": "DD",  "name": "Destroyer", "moveCost": 0.5 },
+    { "code": "DW",  "name": "War Destroyer", "moveCost": 0.5 },
+    { "code": "FF",  "name": "Frigate", "moveCost": 0.3333333 },
+    { "code": "FW",  "name": "War Frigate", "moveCost": 0.3333333 },
+    { "code": "TUG", "name": "Tug", "moveCost": 1.0 },
+    { "code": "F-L", "name": "Large Freighter", "moveCost": 0.5 },
+    { "code": "F-S", "name": "Small Freighter", "moveCost": 0.3333333 }
   ]
 }

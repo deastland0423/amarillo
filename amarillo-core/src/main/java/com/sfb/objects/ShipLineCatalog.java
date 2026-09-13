@@ -31,10 +31,12 @@ public final class ShipLineCatalog {
     public static final class Entry {
         public final String code;   // as written in a ship file's "line", e.g. "CA"
         public final String name;   // display name, e.g. "Heavy Cruiser"
+        public final double moveCost;  // the line's published movement cost; 0 if unset
 
-        Entry(String code, String name) {
+        Entry(String code, String name, double moveCost) {
             this.code = code;
             this.name = name;
+            this.moveCost = moveCost;
         }
 
         @Override
@@ -55,7 +57,8 @@ public final class ShipLineCatalog {
         JsonNode root = mapper.readTree(file);
         registry.clear();
         for (JsonNode n : root.path("lines")) {
-            Entry e = new Entry(n.path("code").asText(), n.path("name").asText());
+            Entry e = new Entry(n.path("code").asText(), n.path("name").asText(),
+                    n.path("moveCost").asDouble(0));
             registry.put(e.code.toLowerCase(), e);
         }
         loaded = true;
@@ -84,6 +87,18 @@ public final class ShipLineCatalog {
     public static String nameOf(String code) {
         Entry e = get(code);
         return e == null ? code : e.name;
+    }
+
+    /**
+     * The movement cost ships of this line pay, or 0 when the catalogue does not publish one.
+     * <p>
+     * A cost does not identify a line on its own — BCH and CA both pay 1, CL and CW both pay
+     * two thirds — but it cross-checks one, which is what
+     * {@code ShipLineCatalogTest} uses it for.
+     */
+    public static double moveCostOf(String code) {
+        Entry e = get(code);
+        return e == null ? 0 : e.moveCost;
     }
 
     public static List<Entry> all() {

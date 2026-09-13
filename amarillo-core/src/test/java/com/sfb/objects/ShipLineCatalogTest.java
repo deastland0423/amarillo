@@ -78,6 +78,38 @@ public class ShipLineCatalogTest {
                 unknown.isEmpty());
     }
 
+    /**
+     * Movement cost follows from the line, so the two must agree. Neither field derives the
+     * other — BCH and CA both pay 1, CL and CW both pay two thirds — but a ship whose cost
+     * disagrees with its line has one of them wrong, which is how twelve ships were found
+     * carrying a heavy cruiser's cost while claiming to be dreadnoughts and light cruisers.
+     */
+    @Test
+    public void everyShipsMoveCostAgreesWithItsLine() throws Exception {
+        assumeTrue("data/factions must exist", FACTIONS.isDirectory());
+
+        List<String> wrong = new ArrayList<>();
+        for (File faction : FACTIONS.listFiles(File::isDirectory)) {
+            for (File f : faction.listFiles(n -> n.getName().endsWith(".json"))) {
+                JsonNode root = new ObjectMapper().readTree(f);
+                String line = root.path("line").asText(null);
+                if (line == null || line.isBlank())
+                    continue;
+                double expected = ShipLineCatalog.moveCostOf(line);
+                if (expected == 0)
+                    continue;   // catalogue publishes no cost for this line
+                double actual = root.path("moveCost").asDouble(0);
+                if (Math.abs(actual - expected) >= 0.001)
+                    wrong.add(faction.getName() + "/" + f.getName() + " is " + line
+                            + " (cost " + expected + ") but pays " + actual);
+            }
+        }
+
+        String indent = System.lineSeparator() + "  ";
+        assertTrue("move cost disagrees with line:" + indent + String.join(indent, wrong),
+                wrong.isEmpty());
+    }
+
     /** A ship's line travels from its file through the spec into the built ship. */
     @Test
     public void theLineSurvivesTheTripFromFileToShip() {
