@@ -29,6 +29,9 @@ public final class FleetValidator {
     /** A carrier may always take one escort beyond the minimum (S8.315). */
     private static final int EXTRA_ESCORT_ALLOWED = 1;
 
+    /** Consorts a leader must have before another leader may join it (S8.36). */
+    private static final int CONSORTS_PER_LEADER = 2;
+
     /** Ships per player that keeps a game moving; a guideline, not a limit (S8.17). */
     private static final int SHIPS_PER_PLAYER_GUIDELINE = 3;
 
@@ -101,6 +104,7 @@ public final class FleetValidator {
         checkBattlecruisers(fleet, out);
         checkServiceYear(fleet, out);
         checkCarrierGroups(fleet, out);
+        checkLeaders(fleet, out);
         checkShipCountGuideline(fleet, out);
         out.sort((a, b) -> Boolean.compare(b.isError(), a.isError()));
         return out;
@@ -270,6 +274,85 @@ public final class FleetValidator {
             out.add(new Violation("S8.17", Severity.ADVISORY,
                     "More than " + SHIPS_PER_PLAYER_GUIDELINE + " ships per player slows a game down"
                             + " — this fleet has " + fleet.ships.size(), null));
+    }
+
+    // -------------------------------------------------------------------------
+    // Leader variants (S8.36)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Leader variants need ships to lead. One may be taken freely; every other must show two
+     * non-leader consorts of its own line (S8.36). The flagship leads the force by definition
+     * and is exempt (S8.363).
+     * <p>
+     * Line, not size class: a D7C leads the CA line — the D6 and D7 — and a Klingon fleet with
+     * a D7C and an F5C satisfies the rule through two different pools, the F5 destroyers being
+     * no use to the D7C whatever their size class. Consorts are claimed exclusively, so two CA
+     * leaders need four CAs between them, and they must fly the same flag as the leader they
+     * serve, on the same reasoning as S8.331.
+     * <p>
+     * Which leader rides free is not fixed, so this asks whether any choice works rather than
+     * fixing on the order the fleet happened to arrive in.
+     */
+    private static void checkLeaders(Fleet fleet, List<Violation> out) {
+        List<Ship> leaders = fleet.ships.stream()
+                .filter(Ship::isLeader)
+                .filter(s -> s != fleet.flagship())
+                .toList();
+        if (leaders.size() <= 1)
+            return;   // one leader is always allowed; the flagship never counts
+
+        for (Ship free : leaders) {
+            List<Ship> needing = leaders.stream().filter(s -> s != free).toList();
+            if (consortShortfalls(needing, fleet).isEmpty())
+                return;
+        }
+
+        // Report the least-bad arrangement, so the builder sees the smallest fix.
+        List<String> best = null;
+        for (Ship free : leaders) {
+            List<Ship> needing = leaders.stream().filter(s -> s != free).toList();
+            List<String> shortfalls = consortShortfalls(needing, fleet);
+            if (best == null || shortfalls.size() < best.size())
+                best = shortfalls;
+        }
+
+        List<String> names = leaders.stream().map(Ship::getName).toList();
+        out.add(new Violation("S8.36", Severity.ERROR,
+                "Only one leader variant may be taken without consorts; this fleet has "
+                        + leaders.size() + " (" + String.join(", ", names) + ") and "
+                        + String.join("; ", best), null));
+    }
+
+    /**
+     * What each leader's line is short by, empty when they can all be served at once. Leaders
+     * of one line draw on one pool, so the demand is counted per line rather than per ship.
+     */
+    private static List<String> consortShortfalls(List<Ship> leaders, Fleet fleet) {
+        Map<String, Integer> demand = new LinkedHashMap<>();
+        for (Ship leader : leaders) {
+            if (leader.getLine() == null)
+                continue;   // unclassified: nothing to check it against
+            demand.merge(consortPool(leader), CONSORTS_PER_LEADER, Integer::sum);
+        }
+
+        List<String> shortfalls = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : demand.entrySet()) {
+            long available = fleet.ships.stream()
+                    .filter(s -> !s.isLeader())
+                    .filter(s -> s.getLine() != null)
+                    .filter(s -> consortPool(s).equals(e.getKey()))
+                    .count();
+            if (available < e.getValue())
+                shortfalls.add("the " + e.getKey().replace("|", " ") + " line has " + available
+                        + " of the " + e.getValue() + " needed");
+        }
+        return shortfalls;
+    }
+
+    /** Consorts serve their own empire and their own line, so both key the pool. */
+    private static String consortPool(Ship ship) {
+        return ship.getFaction() + "|" + ship.getLine();
     }
 
     // -------------------------------------------------------------------------

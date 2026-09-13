@@ -263,6 +263,96 @@ public class FleetValidatorTest {
         assertFalse("last is not", vs.get(vs.size() - 1).isError());
     }
 
+    // ---- S8.36 leader variants ----
+
+    private Ship lineShip(String name, String line, int sizeClass, boolean leader) {
+        Map<String, Object> v = new HashMap<>();
+        v.put("faction", Faction.Klingon);
+        v.put("turnmode", com.sfb.properties.TurnMode.D);
+        v.put("bpv", 100);
+        v.put("sizeclass", sizeClass);
+        v.put("serviceyear", 100);
+        v.put("commandrating", 9);
+        v.put("line", line);
+        if (leader)
+            v.put("isleader", true);
+        Ship s = new Ship();
+        s.init(v);
+        s.setName(name);
+        return s;
+    }
+
+    @Test
+    public void oneLeaderNeedsNoConsorts() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+                lineShip("D7C", "CA", 3, true)), "Flag", 900, 175);
+
+        assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    @Test
+    public void aSecondLeaderNeedsTheFirstToHaveTwoConsorts() {
+        // Flagship is a war cruiser, so it is no use as a CA consort.
+        Fleet tooFew = new Fleet(List.of(lineShip("Flag", "CW", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("D7L", "CA", 3, true),
+                lineShip("D7", "CA", 3, false)), "Flag", 900, 175);
+        assertTrue("one CA consort cannot serve the leader that has to pay",
+                rulesBroken(FleetValidator.validate(tooFew)).contains("S8.36"));
+
+        Fleet enough = new Fleet(List.of(lineShip("Flag", "CW", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("D7L", "CA", 3, true),
+                lineShip("D7", "CA", 3, false), lineShip("D6", "CA", 3, false)), "Flag", 900, 175);
+        assertFalse(FleetValidator.validate(enough).toString(),
+                rulesBroken(FleetValidator.validate(enough)).contains("S8.36"));
+    }
+
+    /**
+     * The whole point of keying on line rather than size class: every ship here is size class
+     * 3, so the old "two consorts of the same size class" reading would pass this fleet. The
+     * CA leaders have no CA to lead, and war cruisers are no substitute.
+     */
+    @Test
+    public void consortsMustBeOfTheLeadersOwnLineNotMerelyItsSizeClass() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CW", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("D7L", "CA", 3, true),
+                lineShip("D5", "CW", 3, false), lineShip("D5B", "CW", 3, false)), "Flag", 900, 175);
+
+        assertTrue("three size class 3 consorts, none of them CA",
+                rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    /** Two leaders on different lines, each with its own pool, is fine. */
+    @Test
+    public void leadersOfDifferentLinesDrawOnDifferentPools() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("F5C", "DD", 4, true),
+                lineShip("D7", "CA", 3, false), lineShip("D6", "CA", 3, false)), "Flag", 900, 175);
+
+        // The F5C rides free; the D7C has its two CAs.
+        assertFalse(FleetValidator.validate(fleet).toString(),
+                rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    /** S8.363: the flagship leads by definition and never counts against the allowance. */
+    @Test
+    public void theFlagshipIsExempt() {
+        Fleet fleet = new Fleet(List.of(lineShip("D7C", "CA", 3, true),
+                lineShip("D7L", "CA", 3, true)), "D7C", 900, 175);
+
+        assertFalse("the flagship does not count, so D7L is the one free leader",
+                rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    /** A leader cannot be its own consort, nor serve another leader. */
+    @Test
+    public void leadersDoNotCountAsConsorts() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("D7L", "CA", 3, true),
+                lineShip("D7L2", "CA", 3, true)), "Flag", 900, 175);
+
+        assertTrue(rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
     // ---- S8.333 heavy battlecruisers ----
 
     private Ship bch(String name) {

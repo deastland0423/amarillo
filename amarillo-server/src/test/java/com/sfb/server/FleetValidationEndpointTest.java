@@ -41,6 +41,48 @@ class FleetValidationEndpointTest {
         new GameController(null, null).validateFleet(r).getBody();
     }
 
+    /** A Klingon request, for the leader rules their two leader lines exercise. */
+    private GameController.FleetValidationRequest klingon(String flagship, String... types) {
+        GameController.FleetValidationRequest r = request(flagship, types);
+        r.faction = "Klingon";
+        r.budget = 900;
+        r.year = 180;
+        return r;
+    }
+
+    /**
+     * S8.36 against real hulls. The D7C leads the CA line and the F5C the DD line, so one of
+     * them rides free and the other must find two non-leader consorts of its own line — from
+     * the D6/D7 cruisers or the F5 destroyers, never from each other's pool.
+     */
+    @Test
+    void twoLeadersAreLegalWhenOneOfThemHasItsConsorts() {
+        Map<String, Object> body = validate(klingon("D6", "D6", "D7C", "F5C", "D7", "D7B"));
+
+        assertEquals(Boolean.TRUE, body.get("legal"), body.toString());
+    }
+
+    @Test
+    void twoLeadersWithNoConsortsAtAllAreRefused() {
+        Map<String, Object> body = validate(klingon("D6", "D6", "D7C", "F5C"));
+
+        assertEquals(Boolean.FALSE, body.get("legal"), body.toString());
+        assertTrue(body.toString().contains("S8.36"), body.toString());
+    }
+
+    /**
+     * Destroyers cannot stand in for a cruiser leader's consorts. Both leaders here are of the
+     * CA line, so only one can ride free and the other has nothing to lead — three F5s
+     * notwithstanding.
+     */
+    @Test
+    void theWrongLineCannotServeALeader() {
+        Map<String, Object> body = validate(klingon("F5", "F5", "D7C", "D7L", "F5B", "F5K"));
+
+        assertEquals(Boolean.FALSE, body.get("legal"), body.toString());
+        assertTrue(body.toString().contains("S8.36"), body.toString());
+    }
+
     /** A Kzinti request, for the carrier group rules that only their hulls exercise. */
     private GameController.FleetValidationRequest kzinti(String flagship, String... types) {
         GameController.FleetValidationRequest r = request(flagship, types);
