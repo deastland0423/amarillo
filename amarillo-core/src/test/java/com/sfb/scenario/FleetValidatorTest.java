@@ -265,6 +265,11 @@ public class FleetValidatorTest {
 
     // ---- S8.36 leader variants ----
 
+    /** Movement cost per line, as data/shiplines/shiplines.json publishes it. */
+    private static final Map<String, Double> LINE_COST = Map.of(
+            "DN", 1.5, "CA", 1.0, "CL", 0.6666667, "CW", 0.6666667,
+            "DD", 0.5, "FF", 0.3333333);
+
     private Ship lineShip(String name, String line, int sizeClass, boolean leader) {
         Map<String, Object> v = new HashMap<>();
         v.put("faction", Faction.Klingon);
@@ -274,6 +279,9 @@ public class FleetValidatorTest {
         v.put("serviceyear", 100);
         v.put("commandrating", 9);
         v.put("line", line);
+        // S8.362 ranks leaders by size, and movement cost is what separates a D7C from a D5L
+        // when both are size class 3 — so a leader test without it proves nothing.
+        v.put("movecost", LINE_COST.get(line));
         if (leader)
             v.put("isleader", true);
         Ship s = new Ship();
@@ -321,16 +329,67 @@ public class FleetValidatorTest {
                 rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
     }
 
-    /** Two leaders on different lines, each with its own pool, is fine. */
+    /**
+     * S8.362: the smaller leader rides free and the larger must be supported — not whichever
+     * way round makes the fleet legal. Two F5s serve the F5C perfectly well, but it is the D7C
+     * that has to be accompanied, and no CA is present.
+     */
     @Test
-    public void leadersOfDifferentLinesDrawOnDifferentPools() {
-        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+    public void theLargerLeaderIsTheOneThatMustBeSupported() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CW", 3, false),
+                lineShip("D7C", "CA", 3, true), lineShip("F5C", "DD", 4, true),
+                lineShip("F5", "DD", 4, false), lineShip("F5B", "DD", 4, false)), "Flag", 900, 175);
+
+        assertTrue("the F5C rides free; the D7C needs CAs it does not have",
+                rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    /** The same fleet with the consorts on the right line: the D7C is served, the F5C is free. */
+    @Test
+    public void theSmallestLeaderRidesFree() {
+        Fleet fleet = new Fleet(List.of(lineShip("Flag", "CW", 3, false),
                 lineShip("D7C", "CA", 3, true), lineShip("F5C", "DD", 4, true),
                 lineShip("D7", "CA", 3, false), lineShip("D6", "CA", 3, false)), "Flag", 900, 175);
 
-        // The F5C rides free; the D7C has its two CAs.
         assertFalse(FleetValidator.validate(fleet).toString(),
                 rulesBroken(FleetValidator.validate(fleet)).contains("S8.36"));
+    }
+
+    /**
+     * S8.361, with the rulebook's own arithmetic: "you may have one D5L if you wish, but if you
+     * want two of them, there must be two other D5s in the fleet". Two, not four — only the
+     * earlier leader must be accompanied.
+     */
+    @Test
+    public void twoLeadersOfOneLineNeedTwoConsortsBetweenThem() {
+        Fleet two = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+                lineShip("D5L", "CW", 3, true), lineShip("D5L2", "CW", 3, true),
+                lineShip("D5", "CW", 3, false), lineShip("D5B", "CW", 3, false)), "Flag", 900, 175);
+        assertFalse(FleetValidator.validate(two).toString(),
+                rulesBroken(FleetValidator.validate(two)).contains("S8.36"));
+
+        Fleet one = new Fleet(List.of(lineShip("Flag", "CA", 3, false),
+                lineShip("D5L", "CW", 3, true), lineShip("D5L2", "CW", 3, true),
+                lineShip("D5", "CW", 3, false)), "Flag", 900, 175);
+        assertTrue("one D5 cannot support the D5L that has to pay",
+                rulesBroken(FleetValidator.validate(one)).contains("S8.36"));
+    }
+
+    /** Three of a line claim their consorts exclusively: two must be supported, so four D5s. */
+    @Test
+    public void threeLeadersOfOneLineNeedFourConsorts() {
+        List<Ship> ships = new ArrayList<>();
+        ships.add(lineShip("Flag", "CA", 3, false));
+        ships.add(lineShip("D5L", "CW", 3, true));
+        ships.add(lineShip("D5L2", "CW", 3, true));
+        ships.add(lineShip("D5L3", "CW", 3, true));
+        for (int i = 1; i <= 3; i++)
+            ships.add(lineShip("D5#" + i, "CW", 3, false));
+        assertTrue("three D5s is one short",
+                rulesBroken(FleetValidator.validate(new Fleet(ships, "Flag", 1500, 175))).contains("S8.36"));
+
+        ships.add(lineShip("D5#4", "CW", 3, false));
+        assertFalse(rulesBroken(FleetValidator.validate(new Fleet(ships, "Flag", 1500, 175))).contains("S8.36"));
     }
 
     /** S8.363: the flagship leads by definition and never counts against the allowance. */

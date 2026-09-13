@@ -281,18 +281,23 @@ public final class FleetValidator {
     // -------------------------------------------------------------------------
 
     /**
-     * Leader variants need ships to lead. One may be taken freely; every other must show two
-     * non-leader consorts of its own line (S8.36). The flagship leads the force by definition
-     * and is exempt (S8.363).
+     * Leader variants need ships to lead (S8.36). Which one may go without is not a choice:
+     * "no leader ship can be included unless all larger leaders have their supporting ships"
+     * (S8.362), so the smallest leader rides free and every larger one must show two non-leader
+     * consorts of its own line. Among leaders of one line, all but one must be supported
+     * (S8.361) — two D5Ls need two D5s between them, not four.
      * <p>
-     * Line, not size class: a D7C leads the CA line — the D6 and D7 — and a Klingon fleet with
-     * a D7C and an F5C satisfies the rule through two different pools, the F5 destroyers being
-     * no use to the D7C whatever their size class. Consorts are claimed exclusively, so two CA
-     * leaders need four CAs between them, and they must fly the same flag as the leader they
-     * serve, on the same reasoning as S8.331.
+     * The flagship leads the force by definition and is exempt (S8.363).
      * <p>
-     * Which leader rides free is not fixed, so this asks whether any choice works rather than
-     * fixing on the order the fleet happened to arrive in.
+     * Consorts are of the leader's own line, which the rule calls the same basic hull type and
+     * illustrates with the pair we have: a D7C is accompanied by "two other D7/D6 combat ships"
+     * — both CA — while a D5L needs D5s. They must fly the leader's own flag, on the same
+     * reasoning as S8.331, and are claimed exclusively, so three D5Ls need four D5s.
+     * <p>
+     * Size is read from movement cost, which is what separates a D7C from a D5L when both are
+     * size class 3. Equal cost is equal size, which suits S8.361's note that CLs and CWs mix
+     * freely. Not yet modelled: S8.361 also holds heavy war cruisers apart from war cruisers,
+     * and heavy destroyers from destroyers, which would need lines of their own.
      */
     private static void checkLeaders(Fleet fleet, List<Violation> out) {
         List<Ship> leaders = fleet.ships.stream()
@@ -302,38 +307,23 @@ public final class FleetValidator {
         if (leaders.size() <= 1)
             return;   // one leader is always allowed; the flagship never counts
 
-        for (Ship free : leaders) {
-            List<Ship> needing = leaders.stream().filter(s -> s != free).toList();
-            if (consortShortfalls(needing, fleet).isEmpty())
-                return;
-        }
+        double smallest = leaders.stream()
+                .mapToDouble(s -> s.getPerformanceData().getMovementCost())
+                .min().orElse(0);
 
-        // Report the least-bad arrangement, so the builder sees the smallest fix.
-        List<String> best = null;
-        for (Ship free : leaders) {
-            List<Ship> needing = leaders.stream().filter(s -> s != free).toList();
-            List<String> shortfalls = consortShortfalls(needing, fleet);
-            if (best == null || shortfalls.size() < best.size())
-                best = shortfalls;
-        }
+        // Group by line: every line carries one movement cost, so a group is one size.
+        Map<String, List<Ship>> byLine = new LinkedHashMap<>();
+        for (Ship leader : leaders)
+            byLine.computeIfAbsent(consortPool(leader), k -> new ArrayList<>()).add(leader);
 
-        List<String> names = leaders.stream().map(Ship::getName).toList();
-        out.add(new Violation("S8.36", Severity.ERROR,
-                "Only one leader variant may be taken without consorts; this fleet has "
-                        + leaders.size() + " (" + String.join(", ", names) + ") and "
-                        + String.join("; ", best), null));
-    }
-
-    /**
-     * What each leader's line is short by, empty when they can all be served at once. Leaders
-     * of one line draw on one pool, so the demand is counted per line rather than per ship.
-     */
-    private static List<String> consortShortfalls(List<Ship> leaders, Fleet fleet) {
         Map<String, Integer> demand = new LinkedHashMap<>();
-        for (Ship leader : leaders) {
-            if (leader.getLine() == null)
-                continue;   // unclassified: nothing to check it against
-            demand.merge(consortPool(leader), CONSORTS_PER_LEADER, Integer::sum);
+        for (Map.Entry<String, List<Ship>> group : byLine.entrySet()) {
+            double cost = group.getValue().get(0).getPerformanceData().getMovementCost();
+            // Larger than the smallest leader: every one of them must be supported (S8.362).
+            // The smallest: all but one (S8.361).
+            int needing = cost > smallest ? group.getValue().size() : group.getValue().size() - 1;
+            if (needing > 0)
+                demand.put(group.getKey(), needing * CONSORTS_PER_LEADER);
         }
 
         List<String> shortfalls = new ArrayList<>();
@@ -347,7 +337,14 @@ public final class FleetValidator {
                 shortfalls.add("the " + e.getKey().replace("|", " ") + " line has " + available
                         + " of the " + e.getValue() + " needed");
         }
-        return shortfalls;
+
+        if (!shortfalls.isEmpty()) {
+            List<String> names = leaders.stream().map(Ship::getName).toList();
+            out.add(new Violation("S8.36", Severity.ERROR,
+                    "Every leader but the smallest needs two non-leader consorts of its own line;"
+                            + " this fleet has " + leaders.size() + " (" + String.join(", ", names)
+                            + ") and " + String.join("; ", shortfalls), null));
+        }
     }
 
     /** Consorts serve their own empire and their own line, so both key the pool. */
@@ -427,6 +424,6 @@ public final class FleetValidator {
 
     /** A ship is a scout if it carries scout channels (G24.0), whatever its hull code says. */
     public static boolean isScout(Ship ship) {
-        return !ship.getScoutChannels().isEmpty();
+        return ship.isScout();
     }
 }
