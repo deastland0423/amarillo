@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "K5RB",
+  "line": "DD",
   "name": "RIS Centaurii",
   "serviceYear": 170,
   "bpv": 64,

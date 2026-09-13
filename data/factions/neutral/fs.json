@@ -1,6 +1,7 @@
 {
   "faction": "Neutral",
   "type": "F-S",
+  "line": "F-S",
   "name": "Weeping Somnambulist",
   "serviceYear": 120,
   "bpv": 12,

@@ -8,6 +8,7 @@
   "lines": [
     { "code": "DN",  "name": "Dreadnought" },
     { "code": "BB",  "name": "Battleship" },
+    { "code": "BCH", "name": "Heavy Battlecruiser" },
     { "code": "CA",  "name": "Heavy Cruiser" },
     { "code": "CL",  "name": "Light Cruiser" },
     { "code": "CW",  "name": "War Cruiser" },
@@ -15,8 +16,8 @@
     { "code": "DW",  "name": "War Destroyer" },
     { "code": "FF",  "name": "Frigate" },
     { "code": "FW",  "name": "War Frigate" },
-    { "code": "PC",  "name": "Patrol Cruiser" },
     { "code": "TUG", "name": "Tug" },
-    { "code": "FRT", "name": "Freighter" }
+    { "code": "F-L", "name": "Large Freighter" },
+    { "code": "F-S", "name": "Small Freighter" }
   ]
 }

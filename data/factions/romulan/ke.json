@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "KE",
+  "line": "CA",
   "name": "RIS Audax",
   "serviceYear": 169,
   "bpv": 140,

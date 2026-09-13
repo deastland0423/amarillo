@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C8",
+  "line": "DN",
   "name": "IKS Admiral Kang",
   "serviceYear": 167,
   "bpv": 211,

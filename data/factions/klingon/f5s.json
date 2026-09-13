@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "F5S",
+  "line": "DD",
   "name": "IKS I See You",
   "serviceYear": 138,
   "bpv": 60,

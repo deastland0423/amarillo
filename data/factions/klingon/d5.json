@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D5",
+  "line": "CW",
   "name": "IKS Klodode",
   "serviceYear": 168,
   "bpv": 110,

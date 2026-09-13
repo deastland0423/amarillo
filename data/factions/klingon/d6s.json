@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D6S",
+  "line": "CA",
   "name": "IKS Peekaboo",
   "serviceYear": 160,
   "bpv": 100,

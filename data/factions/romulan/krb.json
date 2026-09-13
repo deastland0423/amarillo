@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "KRB",
+  "line": "CA",
   "name": "RIS Talon",
   "serviceYear": 170,
   "bpv": 132,

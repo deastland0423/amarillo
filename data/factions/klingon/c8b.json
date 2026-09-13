@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C8B",
+  "line": "DN",
   "name": "IKS Terror",
   "serviceYear": 168,
   "bpv": 218,

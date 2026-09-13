@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "WB+",
+  "line": "CA",
   "name": "RIS Avian Fury",
   "serviceYear": 140,
   "bpv": 60,

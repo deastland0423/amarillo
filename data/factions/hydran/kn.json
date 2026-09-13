@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "KN",
+  "line": "DD",
   "name": "HMS Inevitable",
   "serviceYear": 158,
   "bpv": 80,

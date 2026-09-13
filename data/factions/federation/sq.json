@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "S-Q",
+  "line": "F-S",
   "name": "Hide and Seek",
   "serviceYear": 130,
   "bpv": 40,

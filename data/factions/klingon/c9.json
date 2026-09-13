@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C9",
+  "line": "DN",
   "name": "IKS Victory",
   "serviceYear": 167,
   "bpv": 205,

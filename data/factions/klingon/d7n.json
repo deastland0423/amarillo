@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D7N",
+  "line": "CA",
   "name": "IKS Dictator",
   "serviceYear": 137,
   "bpv": 119,

@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CVS",
+  "line": "BCH",
   "name": "KHS Scimitar",
   "serviceYear": 170,
   "bpv": 169,
@@ -10,6 +11,8 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
+  "isBCH": true,
+  "isTrueCarrier": true,
   
   "shields": [34, 24, 24, 24, 24, 24],
   

@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "E4B",
+  "line": "FF",
   "name": "IKS Guardian",
   "serviceYear": 165,
   "bpv": 59,

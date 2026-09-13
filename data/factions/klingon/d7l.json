@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D7L",
+  "line": "CA",
   "name": "IKS Doomslayer",
   "serviceYear": 143,
   "bpv": 138,

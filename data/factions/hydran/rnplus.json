@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "RN+",
+  "line": "CA",
   "name": "HMS Bravery",
   "serviceYear": 170,
   "bpv": 111,

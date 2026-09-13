@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "BC",
+  "line": "CA",
   "name": "GCS Reptilicon",
   "serviceYear": 175,
   "bpv": 160,

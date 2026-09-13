@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "WER",
+  "line": "CA",
   "name": "RIS Senator",
   "serviceYear": 172,
   "bpv": 103,

@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D6K",
+  "line": "CA",
   "name": "IKS Carnage",
   "serviceYear": 165,
   "bpv": 126,

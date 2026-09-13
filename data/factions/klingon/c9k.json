@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C9K",
+  "line": "DN",
   "name": "IKS Carnivorous",
   "serviceYear": 175,
   "bpv": 215,

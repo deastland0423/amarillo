@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CM",
+  "line": "CW",
   "name": "KHS Frenzy",
   "serviceYear": 170,
   "bpv": 110,

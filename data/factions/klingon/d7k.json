@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D7K",
+  "line": "CA",
   "name": "IKS Antagonist",
   "serviceYear": 175,
   "bpv": 131,

@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "RN",
+  "line": "CA",
   "name": "HMS Loyalty",
   "serviceYear": 134,
   "bpv": 93,

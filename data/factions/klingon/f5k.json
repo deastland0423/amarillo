@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "F5K",
+  "line": "DD",
   "name": "IKS Blood Chariot",
   "serviceYear": 175,
   "bpv": 78,

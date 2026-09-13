@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "E4",
+  "line": "FF",
   "name": "IKS Adamant",
   "serviceYear": 121,
   "bpv": 55,

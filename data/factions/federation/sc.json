@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "SC",
+  "line": "DD",
   "name": "USS De Gama",
   "serviceYear": 130,
   "bpv": 100,

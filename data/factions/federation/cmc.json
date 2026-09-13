@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CMC",
+  "line": "CL",
   "name": "USS Nightingale",
   "serviceYear": 125,
   "bpv": 80,

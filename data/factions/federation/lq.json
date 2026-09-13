@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "L-Q",
+  "line": "F-L",
   "name": "Peekaboo",
   "serviceYear": 130,
   "bpv": 81,

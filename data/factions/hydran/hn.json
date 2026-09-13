@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "HN",
+  "line": "FF",
   "name": "HMS Faithful",
   "serviceYear": 134,
   "bpv": 48,

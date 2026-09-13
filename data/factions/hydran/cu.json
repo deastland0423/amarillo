@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "CU",
+  "line": "FF",
   "name": "HMS Hullcrusher",
   "serviceYear": 158,
   "bpv": 61,

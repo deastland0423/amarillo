@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "SC",
+  "line": "DD",
   "name": "Bloodhound",
   "serviceYear": 120,
   "bpv": 60,

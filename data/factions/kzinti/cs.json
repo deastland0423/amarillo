@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CS",
+  "line": "CA",
   "name": "KHS Quasar",
   "serviceYear": 125,
   "bpv": 116,

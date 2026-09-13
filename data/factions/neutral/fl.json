@@ -1,6 +1,7 @@
 {
   "faction": "Neutral",
   "type": "F-L",
+  "line": "F-L",
   "name": "Red Dwarf",
   "serviceYear": 120,
   "bpv": 18,

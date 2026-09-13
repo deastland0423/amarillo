@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "L-Q",
+  "line": "F-L",
   "name": "Ambush Predator",
   "serviceYear": 130,
   "bpv": 83,

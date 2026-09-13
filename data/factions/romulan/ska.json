@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "SKA",
+  "line": "DD",
   "name": "RIS Arrow",
   "serviceYear": 168,
   "bpv": 102,

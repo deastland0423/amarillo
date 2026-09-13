@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C9B",
+  "line": "DN",
   "name": "IKS Atrocity",
   "serviceYear": 168,
   "bpv": 211,

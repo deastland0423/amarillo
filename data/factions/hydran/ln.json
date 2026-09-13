@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "LN",
+  "line": "DD",
   "name": "HMS Thought",
   "serviceYear": 134,
   "bpv": 67,
