@@ -316,6 +316,22 @@ public class Ship extends Unit implements DroneController {
 		powerSystems.resolveDoublingBoxLoss(getSizeClass());
 	}
 
+	/**
+	 * Hexes bought by {@code warpEnergy} at this ship's movement cost.
+	 * <p>
+	 * Movement costs are thirds and quarters, so neither the cost nor the energy paid for a
+	 * whole number of hexes survives as an exact double. Truncating the raw quotient then
+	 * charges for a hex it does not deliver: a war cruiser paying for speed 7 lands on
+	 * 6.999999… and flies at 6. The tolerance is far below the smallest real fraction of a
+	 * hex anyone can buy, so a ship short of a full hex still rounds down.
+	 */
+	private int hexesBought(double warpEnergy) {
+		double cost = performanceData.getMovementCost();
+		if (cost <= 0)
+			return 0;
+		return (int) (warpEnergy / cost + 1e-6);
+	}
+
 	@Override
 	public void startTurn() {
 		allocationNotes.clear();
@@ -324,7 +340,7 @@ public class Ship extends Unit implements DroneController {
 		// (max +1, giving speed 31)
 		// Warp movement is capped at 30 (G15.26 for Orion doubling; 31 total with
 		// the +1 impulse box below). HET/EM energy is not movement (not capped).
-		int warpSpeed = Math.min(30, (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost()));
+		int warpSpeed = Math.min(30, hexesBought(energyAllocated.getWarpMovement()));
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
 		int requestedSpeed = Math.min(warpSpeed + impulseSpeed, 31);
 		setSpeed(Math.min(requestedSpeed, getMaxAccelerationSpeed()));
