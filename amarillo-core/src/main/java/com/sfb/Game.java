@@ -1599,6 +1599,27 @@ public class Game {
     public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
     }
 
+    /**
+     * The BPV a ship is scored against. Combat BPV for almost everything, but a scout's chart
+     * entry is economic/combat, and G24.352 says that once it is with other ships on its side
+     * "the reduced combat BPV is ignored and the economic BPV is used for both purposes" —
+     * purchase and victory alike. Two scouts count as a scout and a non-scout, so any company
+     * at all is enough.
+     * <p>
+     * A scout truly alone keeps the stated values (G24.351). Not modelled: police flagships,
+     * which are always combat (G24.354), and scenarios that forbid scout systems outright,
+     * where scouts revert to combat BPV (G24.355).
+     */
+    private int victoryBpvBasis(Ship ship, String teamName) {
+        if (!ship.isScout())
+            return ship.getBattlePointValue();
+        boolean hasCompany = ships.stream()
+                .filter(s -> s != ship)
+                .anyMatch(s -> s.getOwner() != null
+                        && teamName.equals(s.getOwner().getTeamName()));
+        return hasCompany ? ship.getEconomicBpv() : ship.getBattlePointValue();
+    }
+
     public Scoreboard calculateVictoryPoints() {
         // Gather all ships (active + destroyed; disengaged/captured still in ships
         // list)
@@ -1633,7 +1654,7 @@ public class Game {
                     fighterBpv += f.getBpv();
                 }
             }
-            int gabpv = ship.getBattlePointValue() + fighterBpv;
+            int gabpv = victoryBpvBasis(ship, teamName) + fighterBpv;
 
             // Scoring math lives in VictoryCalculator (S2.21 order, S2.24 rounding)
             String status = VictoryCalculator.status(ship).name();

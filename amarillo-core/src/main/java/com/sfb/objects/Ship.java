@@ -705,6 +705,15 @@ public class Ship extends Unit implements DroneController {
 		return this.line;
 	}
 
+	/**
+	 * A scout is a ship with special sensor channels (G24.0). The chart marks them with a
+	 * diamond (S8.35); the channels are what the rules actually key on, and what both the
+	 * purchase price (G24.35) and the victory value (G24.352) depend on.
+	 */
+	public boolean isScout() {
+		return !getScoutChannels().isEmpty();
+	}
+
 	public void setLine(String line) {
 		this.line = line;
 	}
