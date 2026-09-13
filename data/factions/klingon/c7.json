@@ -1,0 +1,88 @@
+{
+  "faction": "Klingon",
+  "hull": "C7",
+  "name": "IKS War",
+  "serviceYear": 177,
+  "bpv": 180,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "isBCH": true,
+  "tokenArt": "klingon/c7.png",
+  
+  "shields": [36, 30, 24, 24, 24, 30],
+  
+  "hullBoxes": {
+    "fhull": 6,
+    "ahull": 10
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 2,
+    "impulse": 8,
+    "apr": 4,
+    "battery": 7
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 2,
+    "auxCon": 2,
+    "security": 4,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [6, 4, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 1, 2, 3, 5, 9],
+    "excess": 7
+  },
+
+  "auxiliary": {
+    "transporters": 6,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 55,
+    "boardingParties": 20,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["L", "LR"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FH", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FH", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FH", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FH", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12", "shots": 12 }
+
+  ]
+}

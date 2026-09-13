@@ -246,6 +246,7 @@ public class GameStateDto {
         public boolean leader;       // leader variant (S8.36)
         public boolean escort;       // carrier escort, needs a carrier group (S8.311)
         public boolean trueCarrier;  // fighters count against the force's limit (S8.321)
+        public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
         public int scoutEwLent;      // of the pool, how many are currently lent out (G24.2111)
         public int scoutEwRemaining; // still available to commit; dropped points are lost (G24.2122)
@@ -951,6 +952,7 @@ public class GameStateDto {
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
         dto.trueCarrier = ship.isTrueCarrier();
+        dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
         dto.lentEccm = ship.getLentEccm();
         dto.offensiveEw = ship.getOffensiveEw();

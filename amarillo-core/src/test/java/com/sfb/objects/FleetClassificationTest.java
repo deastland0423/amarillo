@@ -24,11 +24,13 @@ public class FleetClassificationTest {
         spec.isLeader = true;
         spec.isEscort = true;
         spec.isTrueCarrier = true;
+        spec.isBCH = true;
 
         Map<String, Object> values = spec.toInitMap();
         assertEquals("spec must put the key Ship reads", Boolean.TRUE, values.get("isleader"));
         assertEquals(Boolean.TRUE, values.get("isescort"));
         assertEquals(Boolean.TRUE, values.get("istruecarrier"));
+        assertEquals(Boolean.TRUE, values.get("isbch"));
     }
 
     /** Absent means false — the overwhelmingly common case, and the default for every hull. */
@@ -40,6 +42,7 @@ public class FleetClassificationTest {
         assertFalse(ship.isLeader());
         assertFalse(ship.isEscort());
         assertFalse(ship.isTrueCarrier());
+        assertFalse(ship.isBCH());
     }
 
     @Test
@@ -66,11 +69,13 @@ public class FleetClassificationTest {
         spec.isLeader = true;
         spec.isEscort = true;
         spec.isTrueCarrier = true;
+        spec.isBCH = true;
         Map<String, Object> values = spec.toInitMap();
 
         assertTrue("data/factions JSON uses \"isLeader\"", values.containsKey("isleader"));
         assertTrue("data/factions JSON uses \"isEscort\"", values.containsKey("isescort"));
         assertTrue("data/factions JSON uses \"isTrueCarrier\"", values.containsKey("istruecarrier"));
+        assertTrue("data/factions JSON uses \"isBCH\"", values.containsKey("isbch"));
     }
 
     /** Carrying fighters does not make a ship a true carrier — the flag is a separate fact. */

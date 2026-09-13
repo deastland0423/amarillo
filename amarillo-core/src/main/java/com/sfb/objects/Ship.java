@@ -172,6 +172,7 @@ public class Ship extends Unit implements DroneController {
 	private boolean leader = false;      // leader variant (S8.36)
 	private boolean escort = false;      // carrier escort (S8.311)
 	private boolean trueCarrier = false; // true carrier rather than a hybrid (S8.321/S8.322)
+	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
@@ -216,6 +217,7 @@ public class Ship extends Unit implements DroneController {
 		leader      = Boolean.TRUE.equals(values.get("isleader"));
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
 		trueCarrier = Boolean.TRUE.equals(values.get("istruecarrier"));
+		bch         = Boolean.TRUE.equals(values.get("isbch"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -734,6 +736,14 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean isTrueCarrier() {
 		return trueCarrier;
+	}
+
+	/**
+	 * Heavy battlecruiser. A fleet may include only one (S8.333), but unlike the size class 2
+	 * ship it needs no squadron of followers, and it may be taken in addition to that ship.
+	 */
+	public boolean isBCH() {
+		return bch;
 	}
 
 	/**

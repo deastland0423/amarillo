@@ -97,6 +97,7 @@ public final class FleetValidator {
         checkFlagshipAndCommandLimit(fleet, out);
         checkBudget(fleet, out);
         checkHeavyShips(fleet, out);
+        checkBattlecruisers(fleet, out);
         checkServiceYear(fleet, out);
         checkCarrierGroups(fleet, out);
         checkShipCountGuideline(fleet, out);
@@ -203,6 +204,22 @@ public final class FleetValidator {
             out.add(new Violation("S8.33", Severity.ERROR,
                     "No more than one size class 2 ship in a fleet; this has "
                             + heavies.size() + " (" + String.join(", ", heavies) + ")", null));
+    }
+
+    /**
+     * One heavy battlecruiser to a fleet (S8.333). It differs from the size class 2 limit in two
+     * ways: a BCH needs no squadron of followers, and it may be taken in addition to the one
+     * size class 2 ship rather than instead of it.
+     */
+    private static void checkBattlecruisers(Fleet fleet, List<Violation> out) {
+        List<String> bchs = fleet.ships.stream()
+                .filter(Ship::isBCH)
+                .map(Ship::getName)
+                .toList();
+        if (bchs.size() > 1)
+            out.add(new Violation("S8.333", Severity.ERROR,
+                    "No more than one BCH in a fleet; this has " + bchs.size()
+                            + " (" + String.join(", ", bchs) + ")", null));
     }
 
     private static void checkServiceYear(Fleet fleet, List<Violation> out) {

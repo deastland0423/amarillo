@@ -47,6 +47,12 @@ public class ShipSpec {
      * plenty of ships carry a few fighters without being carriers.
      */
     public boolean isTrueCarrier;
+    /**
+     * Heavy battlecruiser. No more than one may be in a battle force, though it needs no
+     * squadron of followers and may be there alongside the one allowed size class 2 ship
+     * (S8.333).
+     */
+    public boolean isBCH;
 
     public int[] shields;
 
@@ -229,6 +235,8 @@ public class ShipSpec {
             m.put("isescort", true);
         if (isTrueCarrier)
             m.put("istruecarrier", true);
+        if (isBCH)
+            m.put("isbch", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
         if (canDoubleEngines != null)

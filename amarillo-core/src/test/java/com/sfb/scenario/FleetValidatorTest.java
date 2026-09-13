@@ -262,4 +262,38 @@ public class FleetValidatorTest {
         assertTrue("first is an error", vs.get(0).isError());
         assertFalse("last is not", vs.get(vs.size() - 1).isError());
     }
+
+    // ---- S8.333 heavy battlecruisers ----
+
+    private Ship bch(String name) {
+        Map<String, Object> v = new HashMap<>();
+        v.put("faction", Faction.Klingon);
+        v.put("turnmode", com.sfb.properties.TurnMode.D);
+        v.put("bpv", 180);
+        v.put("sizeclass", 3);
+        v.put("serviceyear", 177);
+        v.put("commandrating", 10);
+        v.put("isbch", true);
+        Ship s = new Ship();
+        s.init(v);
+        s.setName(name);
+        return s;
+    }
+
+    @Test
+    public void onlyOneBattlecruiserIsAllowed() {
+        Fleet fleet = new Fleet(List.of(bch("C7"), bch("C7 #2")), "C7", 900, 180);
+
+        assertTrue(rulesBroken(FleetValidator.validate(fleet)).contains("S8.333"));
+    }
+
+    /** S8.333: a BCH may be taken alongside the one size class 2 ship, not instead of it. */
+    @Test
+    public void aBattlecruiserMayAccompanyTheSizeClassTwoShip() {
+        Fleet fleet = new Fleet(List.of(ship("DN", 200, 2, 9), bch("C7")), "DN", 900, 180);
+
+        List<String> broken = rulesBroken(FleetValidator.validate(fleet));
+        assertFalse("one of each is fine", broken.contains("S8.33"));
+        assertFalse(broken.contains("S8.333"));
+    }
 }
