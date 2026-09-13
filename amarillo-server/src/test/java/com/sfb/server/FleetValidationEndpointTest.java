@@ -41,6 +41,44 @@ class FleetValidationEndpointTest {
         new GameController(null, null).validateFleet(r).getBody();
     }
 
+    /** A Kzinti request, for the carrier group rules that only their hulls exercise. */
+    private GameController.FleetValidationRequest kzinti(String flagship, String... types) {
+        GameController.FleetValidationRequest r = request(flagship, types);
+        r.faction = "Kzinti";
+        r.budget = 900;
+        return r;
+    }
+
+    /**
+     * S8.315 against real data: a size class 3 carrier needs two escorts of its own empire,
+     * at least one of them size class 4. Until the Kzinti had an EFF there was no size class 4
+     * escort in the game, so no carrier could legally take the field at all.
+     */
+    @Test
+    void aKzintiCarrierGroupIsLegalWithAMecAndAnEff() {
+        Map<String, Object> body = validate(kzinti("CC", "CC", "CV", "MEC", "EFF"));
+
+        assertEquals(Boolean.TRUE, body.get("legal"), body.toString());
+    }
+
+    @Test
+    void theCarrierNeedsASizeClassFourAmongItsEscorts() {
+        // Two escorts, but both size class 3 — S8.315 wants one of them small.
+        Map<String, Object> body = validate(kzinti("CC", "CC", "CV", "MEC", "MEC"));
+
+        assertEquals(Boolean.FALSE, body.get("legal"), body.toString());
+        assertTrue(body.toString().contains("size class 4"), body.toString());
+    }
+
+    /** S8.311: the escort cannot be bought on its own. */
+    @Test
+    void anEffWithoutACarrierIsRefused() {
+        Map<String, Object> body = validate(kzinti("CC", "CC", "EFF"));
+
+        assertEquals(Boolean.FALSE, body.get("legal"), body.toString());
+        assertTrue(body.toString().contains("without a carrier"), body.toString());
+    }
+
     @Test
     void aLegalFleetComesBackLegalWithItsCost() {
         Map<String, Object> body = validate(request("CC", "CC", "DD"));
