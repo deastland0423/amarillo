@@ -1,19 +1,20 @@
 {
   "faction": "Klingon",
-  "type": "D5",
+  "type": "D5C",
   "line": "CW",
-  "name": "IKS Klodode",
-  "serviceYear": 168,
-  "bpv": 110,
+  "name": "IKS Rabbleslayer",
+  "serviceYear": 169,
+  "bpv": 126,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 6,
+  "commandRating": 7,
+  "isLeader": true,
   "tokenArt": "klingon/d5.png",
   
-  "shields": [30, 26, 26, 26, 26, 26],
+  "shields": [36, 30, 26, 26, 26, 30],
   
   "hullBoxes": {
     "fhull": 3,
@@ -24,7 +25,7 @@
     "leftWarp": 12,
     "rightWarp": 12,
     "impulse": 5,
-    "apr": 2,
+    "apr": 4,
     "battery": 3
   },
   
@@ -51,12 +52,12 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "admin", "admin"] }
   ],
 
   "crewData": {
-    "totalCrew": 40,
-    "boardingParties": 8,
+    "totalCrew": 43,
+    "boardingParties": 10,
     "minCrew": 4
   },
 
@@ -64,17 +65,19 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
     { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L", "RR", "5"] },
-    { "type": "Phaser2", "designator": "4", "arcs": ["RF", "R", "LR", "21"] },
-    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
-    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
-    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["R", "RR"] },
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12", "shots": 12 },
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12", "shots": 12 }
 
