@@ -101,6 +101,7 @@ public final class FleetValidator {
             return out;
         }
         checkFlagshipAndCommandLimit(fleet, out);
+        checkFlagshipNationality(fleet, out);
         checkBudget(fleet, out);
         checkCommanderOptions(fleet, out);
         checkHeavyShips(fleet, out);
@@ -248,6 +249,41 @@ public final class FleetValidator {
     // -------------------------------------------------------------------------
     // Heavy ships (S8.33) and the scenario date (S8.13)
     // -------------------------------------------------------------------------
+
+    /**
+     * In a force drawn from several allied empires, the flagship comes from the one providing
+     * the most ships (S8.61) — counted by hulls, so "a frigate carries the same weight as a
+     * battlecruiser". Where two empires are level, either may provide it (S8.612).
+     * <p>
+     * Not modelled: S8.61 counts ship equivalents too, twelve fighters or six heavy
+     * fighters/PFs/interceptors standing in for a hull, which needs the fighter limits of
+     * S8.32 before it can be counted honestly.
+     */
+    private static void checkFlagshipNationality(Fleet fleet, List<Violation> out) {
+        Ship flagship = fleet.flagship();
+        if (flagship == null)
+            return;   // a missing flagship is S8.21's complaint, not this one
+
+        Map<Object, Integer> byEmpire = new LinkedHashMap<>();
+        for (Ship s : fleet.ships)
+            byEmpire.merge(s.getFaction(), 1, Integer::sum);
+        if (byEmpire.size() < 2)
+            return;   // one empire; nothing to weigh
+
+        int mine = byEmpire.getOrDefault(flagship.getFaction(), 0);
+        int most = byEmpire.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+        if (mine < most) {
+            String leaders = byEmpire.entrySet().stream()
+                    .filter(e -> e.getValue() == most)
+                    .map(e -> String.valueOf(e.getKey()))
+                    .reduce((a, b) -> a + " or " + b).orElse("");
+            out.add(new Violation("S8.61", Severity.ERROR,
+                    flagship.getName() + " cannot lead a mixed force: " + flagship.getFaction()
+                            + " provides " + mine + " of the ships where " + leaders + " provides "
+                            + most + "; the flagship comes from the empire providing the most",
+                    flagship.getName()));
+        }
+    }
 
     private static void checkHeavyShips(Fleet fleet, List<Violation> out) {
         List<String> heavies = fleet.ships.stream()

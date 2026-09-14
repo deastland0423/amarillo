@@ -158,6 +158,69 @@ public class FleetValidatorTest {
                 220, FleetValidator.fleetCost(List.of(scout, consort)));
     }
 
+    // ---- S8.6 mixed allied forces ----
+
+    private Ship ofEmpire(String name, Faction faction, int commandRating) {
+        Map<String, Object> v = new HashMap<>();
+        v.put("faction", faction);
+        v.put("turnmode", com.sfb.properties.TurnMode.D);
+        v.put("bpv", 100);
+        v.put("sizeclass", 4);
+        v.put("serviceyear", 100);
+        if (commandRating > 0)
+            v.put("commandrating", commandRating);
+        Ship s = new Ship();
+        s.init(v);
+        s.setName(name);
+        return s;
+    }
+
+    /** S8.61: the flagship comes from the empire providing the most ships. */
+    @Test
+    public void theFlagshipComesFromTheLargestContingent() {
+        Fleet wrong = new Fleet(List.of(
+                ofEmpire("Lyran lead", Faction.Lyran, 9),
+                ofEmpire("Klingon A", Faction.Klingon, 0),
+                ofEmpire("Klingon B", Faction.Klingon, 0)), "Lyran lead", 900, 175);
+
+        List<Violation> vs = FleetValidator.validate(wrong);
+        assertTrue(rulesBroken(vs).contains("S8.61"));
+        assertTrue(vs.toString(), vs.stream().anyMatch(v -> v.message.contains("Klingon")));
+    }
+
+    @Test
+    public void theLargestContingentMayLead() {
+        Fleet ok = new Fleet(List.of(
+                ofEmpire("Klingon lead", Faction.Klingon, 9),
+                ofEmpire("Klingon B", Faction.Klingon, 0),
+                ofEmpire("Lyran ally", Faction.Lyran, 0)), "Klingon lead", 900, 175);
+
+        assertFalse(FleetValidator.validate(ok).toString(),
+                rulesBroken(FleetValidator.validate(ok)).contains("S8.61"));
+    }
+
+    /** S8.612: level contingents, so either empire may provide the flagship. */
+    @Test
+    public void anEvenSplitMayBeLedByEither() {
+        Fleet fleet = new Fleet(List.of(
+                ofEmpire("Lyran lead", Faction.Lyran, 9),
+                ofEmpire("Lyran B", Faction.Lyran, 0),
+                ofEmpire("Klingon A", Faction.Klingon, 0),
+                ofEmpire("Klingon B", Faction.Klingon, 0)), "Lyran lead", 900, 175);
+
+        assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("S8.61"));
+    }
+
+    /** A single-empire force never has a nationality question to answer. */
+    @Test
+    public void aSingleEmpireForceIsUnaffected() {
+        Fleet fleet = new Fleet(List.of(
+                ofEmpire("Lead", Faction.Klingon, 9),
+                ofEmpire("Other", Faction.Klingon, 0)), "Lead", 900, 175);
+
+        assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("S8.61"));
+    }
+
     // ---- S8.12 / S3.2 Commander's Options ----
 
     /**
