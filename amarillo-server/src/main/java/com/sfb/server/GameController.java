@@ -111,16 +111,96 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // The ship catalogue, for the fleet builder's picker
+    // -------------------------------------------------------------------------
+
+    /**
+     * Every ship in the library, with what a picker needs to display and price it.
+     * <p>
+     * Defaults to the whole library, because a force may be drawn from several allied empires
+     * (S8.6) and the builder switches between them freely — the lot is about 17KB, cheaper
+     * than a round trip per tab. Revisit if the library ever grows by an order of magnitude.
+     * <p>
+     * {@code ?faction=} narrows it, and repeats to name several: {@code ?faction=Klingon&faction=Lyran}.
+     * <p>
+     * Prices come from FleetValidator, not from the JSON, so the shelf price and the price
+     * the validator charges cannot drift apart: a scout shows its economic value and a
+     * carrier shows its fighters.
+     */
+    @GetMapping("/ships")
+    public ResponseEntity<List<Map<String, Object>>> listShips(
+            @RequestParam(name = "faction", required = false) List<String> factions) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        try {
+            if (!com.sfb.objects.ShipLineCatalog.isLoaded())
+                com.sfb.objects.ShipLineCatalog.loadDefault("data");
+        } catch (java.io.IOException e) {
+            // A missing catalogue costs display names, not the listing.
+            System.err.println("Ship lines unavailable: " + e.getMessage());
+        }
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (com.sfb.objects.ShipSpec spec : com.sfb.objects.ShipLibrary.all()) {
+            if (factions != null && !factions.isEmpty()
+                    && factions.stream().noneMatch(f -> f.equalsIgnoreCase(spec.faction)))
+                continue;
+            com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("faction", spec.faction);
+            row.put("type", spec.type);
+            row.put("name", spec.name != null ? spec.name : "");
+            row.put("line", spec.line != null ? spec.line : "");
+            row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
+            row.put("sizeClass", spec.sizeClass);
+            row.put("serviceYear", spec.serviceYear);
+            row.put("commandRating", spec.commandRating);
+            row.put("bpv", spec.bpv);
+            row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
+            row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
+            row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
+            row.put("isScout", ship.isScout());
+            row.put("isLeader", spec.isLeader);
+            row.put("isEscort", spec.isEscort);
+            row.put("isTrueCarrier", spec.isTrueCarrier);
+            row.put("isBCH", spec.isBCH);
+            out.add(row);
+        }
+        out.sort((a, b) -> {
+            int f = String.valueOf(a.get("faction")).compareTo(String.valueOf(b.get("faction")));
+            return f != 0 ? f : String.valueOf(a.get("type")).compareTo(String.valueOf(b.get("type")));
+        });
+        return ResponseEntity.ok(out);
+    }
+
+    // -------------------------------------------------------------------------
     // Validate a fleet against the patrol-scenario construction rules (S8.0)
     // -------------------------------------------------------------------------
 
-    /** A proposed battle force, named by type so the client never has to build ships. */
+    /** One ship in a proposed force. */
+    public static class FleetShipRequest {
+        public String faction;      // empire it comes from; defaults to the force's own
+        public String type;         // SSD type designation, e.g. "D7C"
+        public String name;         // what the player called it; defaults to the ship file's
+        public double coiSpend;     // points spent on Commander's Options (S3.2)
+    }
+
+    /**
+     * A proposed battle force, named by type so the client never has to build ships.
+     * <p>
+     * Ships carry their own empire because a force may be drawn from several allied ones
+     * (S8.6); the force-level faction is only the default for entries that omit it.
+     */
     public static class FleetValidationRequest {
-        public String faction;      // empire buying the fleet
+        /**
+         * The allied empires this force draws on (S8.6), agreed before anyone buys (S8.14).
+         * The first is the default for ships that do not name one, so a single-empire force
+         * is just ["Klingon"].
+         */
+        public List<String> factions = new ArrayList<>();
         public int year;            // scenario date (S8.13)
         public int budget;          // points agreed for this side (S8.11)
-        public String flagship;     // hull of the ship leading it (S8.21)
-        public List<String> types = new ArrayList<>();  // every ship, flagship included
+        public String flagship;     // name (or type) of the ship leading it (S8.21)
+        public List<FleetShipRequest> ships = new ArrayList<>();
     }
 
     /**
@@ -137,19 +217,28 @@ public class GameController {
         Map<String, Integer> seen = new java.util.HashMap<>();
         String flagshipName = null;
 
-        for (String type : req.types) {
-            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(req.faction, type);
+        for (FleetShipRequest entry : req.ships) {
+            String faction = entry.faction != null && !entry.faction.isBlank()
+                    ? entry.faction
+                    : (req.factions.isEmpty() ? null : req.factions.get(0));
+            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, entry.type);
             if (spec == null) {
-                unknown.add(type);
+                unknown.add(faction + " " + entry.type);
                 continue;
             }
             com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+
             // Several ships of one type are normal; name them apart so violations can point at
-            // the offender rather than at an ambiguous type code.
-            int n = seen.merge(type, 1, Integer::sum);
-            ship.setName(n == 1 ? type : type + " #" + n);
+            // the offender rather than at an ambiguous type code. A name the player gave wins.
+            String name = entry.name != null && !entry.name.isBlank() ? entry.name : entry.type;
+            int n = seen.merge(name, 1, Integer::sum);
+            ship.setName(n == 1 ? name : name + " #" + n);
+            ship.setCoiSpend(entry.coiSpend);
             ships.add(ship);
-            if (flagshipName == null && type.equalsIgnoreCase(req.flagship))
+
+            if (flagshipName == null
+                    && (ship.getName().equalsIgnoreCase(req.flagship)
+                        || entry.type.equalsIgnoreCase(req.flagship)))
                 flagshipName = ship.getName();
         }
 
@@ -160,7 +249,7 @@ public class GameController {
             body.put("violations", List.of(Map.of(
                     "rule", "",
                     "severity", "ERROR",
-                    "message", "No such type for " + req.faction + ": " + String.join(", ", unknown),
+                    "message", "No such ship: " + String.join(", ", unknown),
                     "shipName", "")));
             return ResponseEntity.ok(body);
         }
@@ -182,6 +271,7 @@ public class GameController {
 
         body.put("legal", com.sfb.scenario.FleetValidator.isLegal(violations));
         body.put("cost", com.sfb.scenario.FleetValidator.fleetCost(ships));
+        body.put("totalCost", com.sfb.scenario.FleetValidator.totalCost(ships));
         body.put("budget", req.budget);
         body.put("shipCount", ships.size());
         body.put("violations", rows);

@@ -27,12 +27,21 @@ class FleetValidationEndpointTest {
 
     private GameController.FleetValidationRequest request(String flagship, String... types) {
         GameController.FleetValidationRequest r = new GameController.FleetValidationRequest();
-        r.faction = "Federation";
+        r.factions = List.of("Federation");
         r.year = 175;
         r.budget = 500;
         r.flagship = flagship;
-        r.types = List.of(types);
+        for (String t : types)
+            r.ships.add(shipOf(null, t));
         return r;
+    }
+
+    /** One entry; a null faction means "the force's own", which is the common case. */
+    private GameController.FleetShipRequest shipOf(String faction, String type) {
+        GameController.FleetShipRequest e = new GameController.FleetShipRequest();
+        e.faction = faction;
+        e.type = type;
+        return e;
     }
 
     @SuppressWarnings("unchecked")
@@ -44,7 +53,7 @@ class FleetValidationEndpointTest {
     /** A Klingon request, for the leader rules their two leader lines exercise. */
     private GameController.FleetValidationRequest klingon(String flagship, String... types) {
         GameController.FleetValidationRequest r = request(flagship, types);
-        r.faction = "Klingon";
+        r.factions = List.of("Klingon");
         r.budget = 900;
         r.year = 180;
         return r;
@@ -83,10 +92,34 @@ class FleetValidationEndpointTest {
         assertTrue(body.toString().contains("S8.36"), body.toString());
     }
 
+    /**
+     * S8.362's own worked example, in real hulls: "an F5L cannot be included in a fleet with a
+     * D7C and a D5L unless the D7C is accompanied by two other D7/D6 combat ships and the D5L
+     * is accompanied by two combat D5 hulls." Ours uses the F5C, which is the same shape — a
+     * size class 4 leader below both of them, so it is the one that rides free.
+     */
+    @Test
+    void theRulebooksThreeLeaderExampleIsLegalWhenBothLargerOnesAreAccompanied() {
+        Map<String, Object> body = validate(klingon("D6",
+                "D6", "D7C", "D5L", "F5C", "D7", "D5", "D5"));
+
+        assertEquals(Boolean.TRUE, body.get("legal"), body.toString());
+    }
+
+    @Test
+    void theSameExampleFailsWhenTheD5lIsOneConsortShort() {
+        Map<String, Object> body = validate(klingon("D6",
+                "D6", "D7C", "D5L", "F5C", "D7", "D5"));
+
+        assertEquals(Boolean.FALSE, body.get("legal"), body.toString());
+        assertTrue(body.toString().contains("S8.36"), body.toString());
+        assertTrue(body.toString().contains("CW"), "the war cruiser line is the short one: " + body);
+    }
+
     /** A Kzinti request, for the carrier group rules that only their hulls exercise. */
     private GameController.FleetValidationRequest kzinti(String flagship, String... types) {
         GameController.FleetValidationRequest r = request(flagship, types);
-        r.faction = "Kzinti";
+        r.factions = List.of("Kzinti");
         r.budget = 900;
         return r;
     }
