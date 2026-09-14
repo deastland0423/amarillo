@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -176,86 +177,35 @@ public class GameController {
     // Validate a fleet against the patrol-scenario construction rules (S8.0)
     // -------------------------------------------------------------------------
 
-    /** One ship in a proposed force. */
-    public static class FleetShipRequest {
-        public String faction;      // empire it comes from; defaults to the force's own
-        public String type;         // SSD type designation, e.g. "D7C"
-        public String name;         // what the player called it; defaults to the ship file's
-        public double coiSpend;     // points spent on Commander's Options (S3.2)
-    }
-
-    /**
-     * A proposed battle force, named by type so the client never has to build ships.
-     * <p>
-     * Ships carry their own empire because a force may be drawn from several allied ones
-     * (S8.6); the force-level faction is only the default for entries that omit it.
-     */
-    public static class FleetValidationRequest {
-        /**
-         * The allied empires this force draws on (S8.6), agreed before anyone buys (S8.14).
-         * The first is the default for ships that do not name one, so a single-empire force
-         * is just ["Klingon"].
-         */
-        public List<String> factions = new ArrayList<>();
-        public int year;            // scenario date (S8.13)
-        public int budget;          // points agreed for this side (S8.11)
-        public String flagship;     // name (or type) of the ship leading it (S8.21)
-        public List<FleetShipRequest> ships = new ArrayList<>();
-    }
-
     /**
      * Check a fleet without committing to it. The rules live in amarillo-core so that a limit
      * is enforced wherever a fleet arrives from, not only where a form happens to check it;
      * this endpoint exists so the builder can show the whole picture as it is assembled.
      */
     @PostMapping("/fleets/validate")
-    public ResponseEntity<Map<String, Object>> validateFleet(@RequestBody FleetValidationRequest req) {
+    public ResponseEntity<Map<String, Object>> validateFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        return ResponseEntity.ok(judge(spec));
+    }
 
-        List<com.sfb.objects.Ship> ships = new ArrayList<>();
-        List<String> unknown = new ArrayList<>();
-        Map<String, Integer> seen = new java.util.HashMap<>();
-        String flagshipName = null;
-
-        for (FleetShipRequest entry : req.ships) {
-            String faction = entry.faction != null && !entry.faction.isBlank()
-                    ? entry.faction
-                    : (req.factions.isEmpty() ? null : req.factions.get(0));
-            com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, entry.type);
-            if (spec == null) {
-                unknown.add(faction + " " + entry.type);
-                continue;
-            }
-            com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-
-            // Several ships of one type are normal; name them apart so violations can point at
-            // the offender rather than at an ambiguous type code. A name the player gave wins.
-            String name = entry.name != null && !entry.name.isBlank() ? entry.name : entry.type;
-            int n = seen.merge(name, 1, Integer::sum);
-            ship.setName(n == 1 ? name : name + " #" + n);
-            ship.setCoiSpend(entry.coiSpend);
-            ships.add(ship);
-
-            if (flagshipName == null
-                    && (ship.getName().equalsIgnoreCase(req.flagship)
-                        || entry.type.equalsIgnoreCase(req.flagship)))
-                flagshipName = ship.getName();
-        }
+    /** Resolve a fleet, validate it, and describe the result the way every caller wants it. */
+    private Map<String, Object> judge(com.sfb.scenario.FleetSpec spec) {
+        com.sfb.scenario.FleetLoader.Resolution resolved = com.sfb.scenario.FleetLoader.resolve(spec);
 
         Map<String, Object> body = new java.util.LinkedHashMap<>();
-        if (!unknown.isEmpty()) {
+        if (!resolved.isComplete()) {
             body.put("legal", false);
-            body.put("unknownTypes", unknown);
+            body.put("unknownShips", resolved.unknown());
             body.put("violations", List.of(Map.of(
                     "rule", "",
                     "severity", "ERROR",
-                    "message", "No such ship: " + String.join(", ", unknown),
+                    "message", "No such ship: " + String.join(", ", resolved.unknown()),
                     "shipName", "")));
-            return ResponseEntity.ok(body);
+            return body;
         }
 
-        com.sfb.scenario.FleetValidator.Fleet fleet =
-                new com.sfb.scenario.FleetValidator.Fleet(ships, flagshipName, req.budget, req.year);
+        com.sfb.scenario.FleetValidator.Fleet fleet = new com.sfb.scenario.FleetValidator.Fleet(
+                resolved.ships(), resolved.flagshipName(), spec.budget, spec.year);
         List<com.sfb.scenario.FleetValidator.Violation> violations =
                 com.sfb.scenario.FleetValidator.validate(fleet);
 
@@ -270,12 +220,135 @@ public class GameController {
         }
 
         body.put("legal", com.sfb.scenario.FleetValidator.isLegal(violations));
-        body.put("cost", com.sfb.scenario.FleetValidator.fleetCost(ships));
-        body.put("totalCost", com.sfb.scenario.FleetValidator.totalCost(ships));
-        body.put("budget", req.budget);
-        body.put("shipCount", ships.size());
+        body.put("cost", com.sfb.scenario.FleetValidator.fleetCost(resolved.ships()));
+        body.put("totalCost", com.sfb.scenario.FleetValidator.totalCost(resolved.ships()));
+        body.put("budget", spec.budget);
+        body.put("shipCount", resolved.ships().size());
         body.put("violations", rows);
-        return ResponseEntity.ok(body);
+        return body;
+    }
+
+    // -------------------------------------------------------------------------
+    // Saved fleets (data/fleets)
+    // -------------------------------------------------------------------------
+
+    private static final File FLEET_DIR = new File("data/fleets");
+
+    /**
+     * Ids become filenames, so they are kept to a shape that cannot climb out of the
+     * directory. Anything else is refused rather than sanitised, so a caller is told its id
+     * was wrong instead of quietly getting a different one.
+     */
+    private static final java.util.regex.Pattern SAFE_ID =
+            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9_-]{0,63}");
+
+    private static File fleetFile(String id) {
+        return new File(FLEET_DIR, id + ".json");
+    }
+
+    /**
+     * Saved fleets, each revalidated as it is listed.
+     * <p>
+     * Revalidating is the point of the badge: a fleet is only legal against the conditions it
+     * was built under, and the ships it names go on being edited after it is saved. A force
+     * that was legal in March can be illegal in April because a BPV moved.
+     */
+    @GetMapping("/fleets")
+    public ResponseEntity<List<Map<String, Object>>> listFleets() {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        List<Map<String, Object>> out = new ArrayList<>();
+        File[] files = FLEET_DIR.listFiles((d, n) -> n.endsWith(".json"));
+        if (files != null) {
+            for (File f : files) {
+                try {
+                    com.sfb.scenario.FleetSpec spec = com.sfb.scenario.FleetSpec.fromJson(f);
+                    Map<String, Object> judged = judge(spec);
+                    Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    row.put("id", spec.id != null ? spec.id : f.getName().replaceAll("\\.json$", ""));
+                    row.put("name", spec.name != null ? spec.name : "");
+                    row.put("author", spec.author != null ? spec.author : "");
+                    row.put("factions", spec.factions);
+                    row.put("year", spec.year);
+                    row.put("budget", spec.budget);
+                    row.put("shipCount", spec.ships.size());
+                    row.put("updated", spec.updated != null ? spec.updated : "");
+                    row.put("legal", judged.get("legal"));
+                    row.put("totalCost", judged.getOrDefault("totalCost", 0));
+                    out.add(row);
+                } catch (Exception e) {
+                    System.err.println("Unreadable fleet " + f.getName() + ": " + e.getMessage());
+                }
+            }
+        }
+        out.sort((a, b) -> String.valueOf(b.get("updated")).compareTo(String.valueOf(a.get("updated"))));
+        return ResponseEntity.ok(out);
+    }
+
+    /** One saved fleet, with the verdict on it as it stands today. */
+    @GetMapping("/fleets/{id}")
+    public ResponseEntity<Map<String, Object>> getFleet(@PathVariable String id) {
+        if (!SAFE_ID.matcher(id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id"));
+        File f = fleetFile(id);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            com.sfb.scenario.FleetSpec spec = com.sfb.scenario.FleetSpec.fromJson(f);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("fleet", spec);
+            body.put("validation", judge(spec));
+            return ResponseEntity.ok(body);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not read fleet: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Save a fleet, legal or not. A force half assembled is worth keeping — the badge says
+     * what is wrong with it, and the lobby is where an illegal one is refused a battle.
+     */
+    @PostMapping("/fleets")
+    public ResponseEntity<Map<String, Object>> saveFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
+        if (spec.id == null || spec.id.isBlank())
+            spec.id = slug(spec.name);
+        if (!SAFE_ID.matcher(spec.id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "A fleet id must be letters, digits, dashes or underscores"));
+        if (!FLEET_DIR.isDirectory() && !FLEET_DIR.mkdirs())
+            return ResponseEntity.status(500).body(Map.of("error", "Could not create data/fleets"));
+
+        spec.updated = java.time.Instant.now().toString();
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            spec.toJson(fleetFile(spec.id));
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("id", spec.id);
+            body.put("validation", judge(spec));
+            return ResponseEntity.ok(body);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not save fleet: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/fleets/{id}")
+    public ResponseEntity<Map<String, Object>> deleteFleet(@PathVariable String id) {
+        if (!SAFE_ID.matcher(id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id"));
+        File f = fleetFile(id);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+        if (!f.delete())
+            return ResponseEntity.status(500).body(Map.of("error", "Could not delete fleet"));
+        return ResponseEntity.ok(Map.of("deleted", id));
+    }
+
+    /** A filename from a display name: lowercase, words joined by dashes. */
+    private static String slug(String name) {
+        if (name == null)
+            return "";
+        String s = name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
+        return s.length() > 64 ? s.substring(0, 64) : s;
     }
 
     // -------------------------------------------------------------------------

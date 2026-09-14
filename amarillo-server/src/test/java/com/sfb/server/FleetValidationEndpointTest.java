@@ -1,5 +1,6 @@
 package com.sfb.server;
 
+import com.sfb.scenario.FleetSpec;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,35 +26,36 @@ class FleetValidationEndpointTest {
         com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
     }
 
-    private GameController.FleetValidationRequest request(String flagship, String... types) {
-        GameController.FleetValidationRequest r = new GameController.FleetValidationRequest();
-        r.factions = List.of("Federation");
-        r.year = 175;
-        r.budget = 500;
-        r.flagship = flagship;
+    private FleetSpec request(String flagship, String... types) {
+        FleetSpec spec = new FleetSpec();
+        spec.factions = new java.util.ArrayList<>(List.of("Federation"));
+        spec.year = 175;
+        spec.budget = 500;
+        spec.flagship = flagship;
         for (String t : types)
-            r.ships.add(shipOf(null, t));
-        return r;
+            spec.ships.add(shipOf(null, t));
+        return spec;
     }
 
     /** One entry; a null faction means "the force's own", which is the common case. */
-    private GameController.FleetShipRequest shipOf(String faction, String type) {
-        GameController.FleetShipRequest e = new GameController.FleetShipRequest();
+    private FleetSpec.ShipEntry shipOf(String faction, String type) {
+        FleetSpec.ShipEntry e = new FleetSpec.ShipEntry();
         e.faction = faction;
         e.type = type;
+        e.name = type;   // the picker names ships by type until a player renames them
         return e;
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> validate(GameController.FleetValidationRequest r) {
+    private Map<String, Object> validate(FleetSpec spec) {
         return (Map<String, Object>) // the endpoint is stateless: it touches neither the session service nor the broker
-        new GameController(null, null).validateFleet(r).getBody();
+        new GameController(null, null).validateFleet(spec).getBody();
     }
 
     /** A Klingon request, for the leader rules their two leader lines exercise. */
-    private GameController.FleetValidationRequest klingon(String flagship, String... types) {
-        GameController.FleetValidationRequest r = request(flagship, types);
-        r.factions = List.of("Klingon");
+    private FleetSpec klingon(String flagship, String... types) {
+        FleetSpec r = request(flagship, types);
+        r.factions = new java.util.ArrayList<>(List.of("Klingon"));
         r.budget = 900;
         r.year = 180;
         return r;
@@ -117,9 +119,9 @@ class FleetValidationEndpointTest {
     }
 
     /** A Kzinti request, for the carrier group rules that only their hulls exercise. */
-    private GameController.FleetValidationRequest kzinti(String flagship, String... types) {
-        GameController.FleetValidationRequest r = request(flagship, types);
-        r.factions = List.of("Kzinti");
+    private FleetSpec kzinti(String flagship, String... types) {
+        FleetSpec r = request(flagship, types);
+        r.factions = new java.util.ArrayList<>(List.of("Kzinti"));
         r.budget = 900;
         return r;
     }
@@ -168,12 +170,12 @@ class FleetValidationEndpointTest {
         Map<String, Object> body = validate(request("CC", "CC", "NOT-A-TYPE"));
 
         assertEquals(Boolean.FALSE, body.get("legal"));
-        assertTrue(body.get("unknownTypes").toString().contains("NOT-A-TYPE"), body.toString());
+        assertTrue(body.get("unknownShips").toString().contains("NOT-A-TYPE"), body.toString());
     }
 
     @Test
     void overBudgetIsRefusedWithTheRuleNamed() {
-        GameController.FleetValidationRequest r = request("CC", "CC", "CA", "DD");
+        FleetSpec r = request("CC", "CC", "CA", "DD");
         r.budget = 50;
 
         Map<String, Object> body = validate(r);
