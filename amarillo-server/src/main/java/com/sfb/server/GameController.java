@@ -229,6 +229,124 @@ public class GameController {
     }
 
     // -------------------------------------------------------------------------
+    // Starting a battle from saved fleets (S8.0)
+    // -------------------------------------------------------------------------
+
+    /** One side of a fleet battle: whose fleet, and the team flying it. */
+    public static class FleetSideRequest {
+        public String fleetId;
+        public String team;     // defaults to the fleet's own name
+    }
+
+    /**
+     * The conditions the host agrees before anyone chooses a fleet, and the fleets themselves.
+     * Several fleets may share a team, which is how allied players field separate forces.
+     */
+    public static class FleetGameRequest {
+        public List<FleetSideRequest> sides = new ArrayList<>();
+        public int year;
+        public int budget;
+        public int mapCols = 42;
+        public int mapRows = 32;
+        public int weaponStatus = 2;   // S8.134: agreed, or rolled for
+    }
+
+    /**
+     * Build a battle out of saved fleets, in place of naming a scenario file.
+     * <p>
+     * Every fleet is revalidated against the host's conditions rather than the ones it was
+     * saved with: what matters is whether it is legal for THIS battle. A fleet built for a
+     * thousand points is welcome in a nine-hundred point game if it fits, and a fleet whose
+     * ships have been edited since it was saved may no longer fit anywhere.
+     */
+    @PostMapping("/{id}/fleets")
+    public ResponseEntity<Map<String, Object>> loadFleets(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody FleetGameRequest req) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.isHost(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Only the host can choose the fleets"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+            if (req.sides == null || req.sides.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "A battle needs at least one fleet"));
+
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+
+            List<com.sfb.scenario.FleetsToScenario.Entry> entries = new ArrayList<>();
+            List<Map<String, Object>> reports = new ArrayList<>();
+            boolean allLegal = true;
+
+            for (FleetSideRequest side : req.sides) {
+                if (side.fleetId == null || !SAFE_ID.matcher(side.fleetId).matches())
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id: " + side.fleetId));
+                File f = fleetFile(side.fleetId);
+                if (!f.isFile())
+                    return ResponseEntity.badRequest().body(Map.of("error", "No such fleet: " + side.fleetId));
+
+                com.sfb.scenario.FleetSpec fleet;
+                try {
+                    fleet = com.sfb.scenario.FleetSpec.fromJson(f);
+                } catch (IOException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "Could not read fleet " + side.fleetId + ": " + e.getMessage()));
+                }
+
+                // The host's conditions govern, not the ones the fleet remembers.
+                com.sfb.scenario.FleetSpec asPlayed = new com.sfb.scenario.FleetSpec();
+                asPlayed.id = fleet.id;
+                asPlayed.name = fleet.name;
+                asPlayed.author = fleet.author;
+                asPlayed.factions = fleet.factions;
+                asPlayed.flagship = fleet.flagship;
+                asPlayed.ships = fleet.ships;
+                asPlayed.year = req.year > 0 ? req.year : fleet.year;
+                asPlayed.budget = req.budget > 0 ? req.budget : fleet.budget;
+
+                Map<String, Object> verdict = judge(asPlayed);
+                Map<String, Object> report = new java.util.LinkedHashMap<>();
+                report.put("fleetId", side.fleetId);
+                report.put("name", fleet.name != null ? fleet.name : side.fleetId);
+                report.put("legal", verdict.get("legal"));
+                report.put("violations", verdict.get("violations"));
+                reports.add(report);
+                if (!Boolean.TRUE.equals(verdict.get("legal")))
+                    allLegal = false;
+
+                String team = side.team != null && !side.team.isBlank()
+                        ? side.team
+                        : (fleet.name != null && !fleet.name.isBlank() ? fleet.name : side.fleetId);
+                entries.add(new com.sfb.scenario.FleetsToScenario.Entry(asPlayed, team));
+            }
+
+            if (!allLegal) {
+                Map<String, Object> body = new java.util.LinkedHashMap<>();
+                body.put("error", "One or more fleets are not legal for these conditions");
+                body.put("fleets", reports);
+                return ResponseEntity.badRequest().body(body);
+            }
+
+            com.sfb.scenario.FleetsToScenario.Conditions conditions =
+                    new com.sfb.scenario.FleetsToScenario.Conditions(
+                            req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus);
+            session.loadBuiltScenario(
+                    com.sfb.scenario.FleetsToScenario.build(entries, conditions), "fleet-battle");
+
+            broadcastLobby(session);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("message", "Battle assembled from " + entries.size() + " fleets");
+            body.put("fleets", reports);
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    // -------------------------------------------------------------------------
     // Saved fleets (data/fleets)
     // -------------------------------------------------------------------------
 

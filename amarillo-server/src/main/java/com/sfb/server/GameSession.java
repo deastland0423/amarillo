@@ -376,8 +376,22 @@ public class GameSession {
      */
     public void loadScenario(String scenarioId) throws java.io.IOException {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-        loadedSpec = com.sfb.scenario.ScenarioSpec.fromJson(
-                "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+        adopt(com.sfb.scenario.ScenarioSpec.fromJson(
+                "data/scenarios/" + scenarioId.toLowerCase() + ".json"), scenarioId);
+    }
+
+    /**
+     * Take a scenario that was built rather than read — a battle between bought fleets
+     * (S8.0). From here on it is indistinguishable from a hand-authored one, which is the
+     * point: assignment, Commander's Options, victory and the lobby all work from the spec.
+     */
+    public void loadBuiltScenario(com.sfb.scenario.ScenarioSpec spec, String id) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        adopt(spec, id);
+    }
+
+    private void adopt(com.sfb.scenario.ScenarioSpec spec, String scenarioId) {
+        loadedSpec = spec;
         loadedSideShips = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
         loadedScenarioId = scenarioId;
         scenarioLoaded = true;
