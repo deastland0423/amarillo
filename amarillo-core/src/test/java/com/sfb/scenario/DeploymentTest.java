@@ -26,7 +26,7 @@ public class DeploymentTest {
 
     @Test
     public void aShipInsideItsZoneIsFine() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
         List<Placement> placed = List.of(
                 new Placement("Kongo", "0316", "C"),
                 new Placement("Saladin", "0518", "C"));
@@ -36,7 +36,7 @@ public class DeploymentTest {
 
     @Test
     public void aShipOutsideItsZoneIsRefusedAndToldWhy() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
         List<Placement> placed = List.of(new Placement("Kongo", "2016", "C"));
 
         List<String> problems = Deployment.check(placed, zone, COLS, ROWS);
@@ -48,7 +48,7 @@ public class DeploymentTest {
 
     @Test
     public void everyFaultIsReportedNotJustTheFirst() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
         List<Placement> placed = List.of(
                 new Placement("Kongo", "2016", "C"),
                 new Placement("Saladin", "3016", "C"));
@@ -60,7 +60,7 @@ public class DeploymentTest {
     public void aShipMustFaceSomewhere() {
         List<Placement> placed = List.of(new Placement("Kongo", "0316", ""));
 
-        List<String> problems = Deployment.check(placed, DeploymentZone.anywhere(), COLS, ROWS);
+        List<String> problems = Deployment.check(placed, MapRegion.anywhere(), COLS, ROWS);
         assertTrue(problems.toString(), problems.stream().anyMatch(p -> p.contains("facing")));
     }
 
@@ -71,12 +71,12 @@ public class DeploymentTest {
                 new Placement("Kongo", "0316", "C"),
                 new Placement("Saladin", "0316", "C"));
 
-        assertTrue(Deployment.check(placed, DeploymentZone.anywhere(), COLS, ROWS).isEmpty());
+        assertTrue(Deployment.check(placed, MapRegion.anywhere(), COLS, ROWS).isEmpty());
     }
 
     @Test
     public void aFleetIsNotDeployedUntilEveryShipIsDown() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
         List<String> ships = List.of("Kongo", "Saladin");
 
         assertFalse(Deployment.isComplete(ships,
@@ -88,7 +88,7 @@ public class DeploymentTest {
 
     @Test
     public void anIllegalPlacementMeansTheFleetIsNotDeployed() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
 
         assertFalse(Deployment.isComplete(List.of("Kongo"),
                 List.of(new Placement("Kongo", "2016", "C")), zone, COLS, ROWS));
@@ -98,7 +98,7 @@ public class DeploymentTest {
 
     @Test
     public void autoArrangePlacesEveryShipLegally() {
-        DeploymentZone zone = DeploymentZone.band("LEFT", 6);
+        MapRegion zone = MapRegion.band("LEFT", 6);
         List<Placement> placed = Deployment.autoArrange(fleet(6), zone, COLS, ROWS);
 
         assertEquals(6, placed.size());
@@ -110,7 +110,7 @@ public class DeploymentTest {
     @Test
     public void autoArrangeGivesEachShipItsOwnHex() {
         List<Placement> placed = Deployment.autoArrange(
-                fleet(6), DeploymentZone.band("LEFT", 6), COLS, ROWS);
+                fleet(6), MapRegion.band("LEFT", 6), COLS, ROWS);
 
         long distinct = placed.stream().map(Placement::hex).distinct().count();
         assertEquals("no two ships stacked by the tidy layout", placed.size(), distinct);
@@ -118,22 +118,22 @@ public class DeploymentTest {
 
     @Test
     public void autoArrangeFacesTheMiddleOfTheMap() {
-        assertEquals("C", Deployment.autoArrange(fleet(2), DeploymentZone.band("LEFT", 6), COLS, ROWS)
+        assertEquals("C", Deployment.autoArrange(fleet(2), MapRegion.band("LEFT", 6), COLS, ROWS)
                 .get(0).heading());
-        assertEquals("F", Deployment.autoArrange(fleet(2), DeploymentZone.band("RIGHT", 6), COLS, ROWS)
+        assertEquals("F", Deployment.autoArrange(fleet(2), MapRegion.band("RIGHT", 6), COLS, ROWS)
                 .get(0).heading());
     }
 
     @Test
     public void autoArrangeStartsEverythingAtSpeedMax() {
-        for (Placement p : Deployment.autoArrange(fleet(3), DeploymentZone.anywhere(), COLS, ROWS))
+        for (Placement p : Deployment.autoArrange(fleet(3), MapRegion.anywhere(), COLS, ROWS))
             assertEquals(16, p.speed());
     }
 
     /** A zone smaller than the fleet still places everyone, pattern or no pattern. */
     @Test
     public void autoArrangeCopesWithACrampedZone() {
-        DeploymentZone tiny = DeploymentZone.box("0510", "0612");   // 2 columns x 3 rows = 6 hexes
+        MapRegion tiny = MapRegion.box("0510", "0612");   // 2 columns x 3 rows = 6 hexes
         List<Placement> placed = Deployment.autoArrange(fleet(6), tiny, COLS, ROWS);
 
         assertEquals(6, placed.size());
@@ -146,7 +146,7 @@ public class DeploymentTest {
     /** More ships than hexes: place what fits rather than inventing illegal ground. */
     @Test
     public void autoArrangeStopsWhenTheZoneRunsOut() {
-        DeploymentZone oneHex = DeploymentZone.circle("0510", 0);
+        MapRegion oneHex = MapRegion.circle("0510", 0);
         List<Placement> placed = Deployment.autoArrange(fleet(3), oneHex, COLS, ROWS);
 
         assertEquals(1, placed.size());
@@ -155,6 +155,6 @@ public class DeploymentTest {
 
     @Test
     public void autoArrangeOfNothingIsNothing() {
-        assertTrue(Deployment.autoArrange(List.of(), DeploymentZone.anywhere(), COLS, ROWS).isEmpty());
+        assertTrue(Deployment.autoArrange(List.of(), MapRegion.anywhere(), COLS, ROWS).isEmpty());
     }
 }

@@ -97,6 +97,7 @@ public class ScenarioLoader {
      * Each entry in spec.terrain becomes one Terrain hex on the map.
      */
     public static List<Terrain> loadTerrain(ScenarioSpec spec) {
+        expandTerrainPlans(spec);
         List<Terrain> result = new ArrayList<>();
         if (spec.terrain == null) return result;
         for (ScenarioSpec.TerrainSetup setup : spec.terrain) {
@@ -138,6 +139,38 @@ public class ScenarioLoader {
             result.add(t);
         }
         return result;
+    }
+
+    /**
+     * Turn any terrain plans into real hexes, once, writing them into the spec itself.
+     * <p>
+     * Into the spec rather than straight into Terrain objects, because the lobby broadcasts the
+     * spec and the deployment screen has to show a player what they are setting up around — a
+     * field that only existed inside a loaded Game would be invisible until the battle began.
+     * <p>
+     * Ships that already have a starting hex keep it clear: a scenario that places a cruiser at
+     * 1216 should not drop an asteroid on top of it.
+     */
+    public static void expandTerrainPlans(ScenarioSpec spec) {
+        if (spec.terrainPlan == null || spec.terrainPlan.isEmpty())
+            return;
+
+        List<MapRegion> keepClear = new ArrayList<>();
+        if (spec.sides != null)
+            for (ScenarioSpec.SideSpec side : spec.sides)
+                if (side.ships != null)
+                    for (ScenarioSpec.ShipSetup ship : side.ships)
+                        if (ship.startHex != null && !ship.startHex.isBlank())
+                            keepClear.add(MapRegion.circle(ship.startHex, 0));
+
+        List<ScenarioSpec.TerrainSetup> generated = TerrainGenerator.generate(
+                spec.terrainPlan, keepClear, spec.mapCols, spec.mapRows);
+
+        if (spec.terrain == null)
+            spec.terrain = new ArrayList<>();
+        spec.terrain.addAll(generated);
+        // Spent: the hexes are in spec.terrain now, and running again would double them.
+        spec.terrainPlan = null;
     }
 
     public static List<com.sfb.objects.Objective> loadObjectives(ScenarioSpec spec) {

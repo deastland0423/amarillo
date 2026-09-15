@@ -5,19 +5,19 @@ import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
 
 /**
- * The ground a fleet may set up on.
+ * A named piece of the map, described rather than enumerated.
  * <p>
- * Patrol scenarios do not say where forces start — the players agree it, along with the terrain
- * and the map (S8.15, S8.135). A zone is that agreement made checkable: the host draws one per
- * fleet and every ship of that fleet must be inside it.
+ * Two things need to point at an area of the map without listing its hexes: a fleet's
+ * deployment zone, which the players agree along with the terrain and the map (S8.15, S8.135),
+ * and a terrain feature, which needs somewhere to scatter and somewhere to keep clear. Both
+ * want the same four shapes, so both use this.
  * <p>
- * Four shapes cover what anyone has wanted: a circle around a hex, a band along one edge of the
- * map, an arbitrary box, and the whole map for a free-for-all. A band is a box in disguise, but
- * it is the way people describe it — "set up within six hexes of your own edge" — so it is
- * worth being able to say directly.
+ * A circle around a hex, a band along one edge, an arbitrary box, or the whole map. A band is
+ * a box in disguise, but it is how people describe it — "set up within six hexes of your own
+ * edge" — so it is worth being able to say directly.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class DeploymentZone {
+public class MapRegion {
 
     public enum Shape {
         /** Within {@code radius} hexes of {@code hex}. */
@@ -46,28 +46,28 @@ public class DeploymentZone {
     public String from;
     public String to;
 
-    public static DeploymentZone anywhere() {
-        return new DeploymentZone();
+    public static MapRegion anywhere() {
+        return new MapRegion();
     }
 
-    public static DeploymentZone circle(String hex, int radius) {
-        DeploymentZone z = new DeploymentZone();
+    public static MapRegion circle(String hex, int radius) {
+        MapRegion z = new MapRegion();
         z.shape = Shape.CIRCLE;
         z.hex = hex;
         z.radius = radius;
         return z;
     }
 
-    public static DeploymentZone band(String edge, int depth) {
-        DeploymentZone z = new DeploymentZone();
+    public static MapRegion band(String edge, int depth) {
+        MapRegion z = new MapRegion();
         z.shape = Shape.BAND;
         z.edge = edge;
         z.depth = depth;
         return z;
     }
 
-    public static DeploymentZone box(String from, String to) {
-        DeploymentZone z = new DeploymentZone();
+    public static MapRegion box(String from, String to) {
+        MapRegion z = new MapRegion();
         z.shape = Shape.BOX;
         z.from = from;
         z.to = to;

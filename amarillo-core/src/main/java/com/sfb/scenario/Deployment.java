@@ -32,13 +32,13 @@ public final class Deployment {
      * What is wrong with these placements, empty if nothing. Reports every fault rather than
      * the first, so a player fixing a setup sees the whole picture at once.
      */
-    public static List<String> check(List<Placement> placements, DeploymentZone zone,
+    public static List<String> check(List<Placement> placements, MapRegion zone,
                                      int mapCols, int mapRows) {
         List<String> problems = new ArrayList<>();
-        DeploymentZone z = zone != null ? zone : DeploymentZone.anywhere();
+        MapRegion z = zone != null ? zone : MapRegion.anywhere();
 
         for (Placement p : placements) {
-            com.sfb.properties.Location loc = DeploymentZone.parse(p.hex());
+            com.sfb.properties.Location loc = MapRegion.parse(p.hex());
             if (loc == null) {
                 problems.add(p.shipName() + " has no hex to stand on");
                 continue;
@@ -55,7 +55,7 @@ public final class Deployment {
 
     /** True if every ship has been set down somewhere legal. */
     public static boolean isComplete(List<String> shipNames, List<Placement> placements,
-                                     DeploymentZone zone, int mapCols, int mapRows) {
+                                     MapRegion zone, int mapCols, int mapRows) {
         Set<String> placed = new LinkedHashSet<>();
         for (Placement p : placements)
             placed.add(p.shipName());
@@ -68,13 +68,13 @@ public final class Deployment {
      * centre of the map. Somewhere to begin rather than somewhere to end — a player nudges it.
      * Wraps to the next column when a fleet is taller than its zone.
      */
-    public static List<Placement> autoArrange(List<String> shipNames, DeploymentZone zone,
+    public static List<Placement> autoArrange(List<String> shipNames, MapRegion zone,
                                               int mapCols, int mapRows) {
         List<Placement> out = new ArrayList<>();
         if (shipNames.isEmpty())
             return out;
 
-        DeploymentZone z = zone != null ? zone : DeploymentZone.anywhere();
+        MapRegion z = zone != null ? zone : MapRegion.anywhere();
         List<int[]> legal = hexesIn(z, mapCols, mapRows);
         if (legal.isEmpty())
             return out;
@@ -110,7 +110,7 @@ public final class Deployment {
     }
 
     /** Walk down the column for a legal, unused hex; step to the next column at the bottom. */
-    private static int[] nextLegal(DeploymentZone z, int col, int row, int mapCols, int mapRows,
+    private static int[] nextLegal(MapRegion z, int col, int row, int mapCols, int mapRows,
                                    List<Placement> taken) {
         for (int c = col; c <= mapCols; c++) {
             for (int r = (c == col ? row : 1); r <= mapRows; r++)
@@ -135,7 +135,7 @@ public final class Deployment {
         return false;
     }
 
-    private static List<int[]> hexesIn(DeploymentZone z, int mapCols, int mapRows) {
+    private static List<int[]> hexesIn(MapRegion z, int mapCols, int mapRows) {
         List<int[]> out = new ArrayList<>();
         for (int c = 1; c <= mapCols; c++)
             for (int r = 1; r <= mapRows; r++)

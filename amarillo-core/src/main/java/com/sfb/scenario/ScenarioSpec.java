@@ -64,6 +64,13 @@ public class ScenarioSpec {
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;
     public List<TerrainSetup>    terrain;          // optional — asteroid/planet hexes
+    /**
+     * Terrain described rather than listed: "a field in this region, at about this density".
+     * Expanded into {@link #terrain} when the scenario is loaded, so nine hand-written asteroid
+     * hexes can become one plan. Seeds are written back on first use, so a file lays out the
+     * same map every time it is read.
+     */
+    public List<TerrainGenerator.Plan> terrainPlan;
     public List<ObjectiveSetup>  objectives;       // optional — capturable objects (stasis boxes, canisters, cargo)
     public VictoryConditions     victoryConditions;
     public ShuttleRules          shuttleRules    = new ShuttleRules();
