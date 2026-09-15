@@ -10,11 +10,13 @@ export interface LobbyResult {
 
 interface Props {
   onJoined: (result: LobbyResult) => void;
+  /** Named so the builder can stamp who built a fleet. */
+  onBuildFleet: (playerName: string) => void;
 }
 
 type Mode = 'choose' | 'create' | 'join';
 
-export default function Lobby({ onJoined }: Props) {
+export default function Lobby({ onJoined, onBuildFleet }: Props) {
   const [mode, setMode] = useState<Mode>('choose');
   const [name, setName] = useState('');
   const [gameId, setGameId] = useState('');
@@ -71,6 +73,13 @@ export default function Lobby({ onJoined }: Props) {
           <div className="button-row">
             <button onClick={() => { setError(''); setMode('create'); }}>Host a game</button>
             <button onClick={() => { setError(''); setMode('join'); }}>Join a game</button>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => {
+              if (!name.trim()) { setError('Enter your name first.'); return; }
+              setError('');
+              onBuildFleet(name.trim());
+            }}>Build a fleet</button>
           </div>
         </div>
       )}

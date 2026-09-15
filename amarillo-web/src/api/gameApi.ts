@@ -40,6 +40,83 @@ export interface GameStatus {
   }>;
 }
 
+
+// ---------------------------------------------------------------------------
+// Fleet building (S8.0)
+// ---------------------------------------------------------------------------
+
+/** A ship on the shelf. Prices come from the validator, not the JSON, so they cannot drift. */
+export interface CatalogShip {
+  faction:       string;
+  type:          string;   // SSD Type designation, e.g. "D7C"
+  name:          string;
+  line:          string;   // hull family, e.g. "CA"
+  lineName:      string;   // "Heavy Cruiser"
+  sizeClass:     number;
+  serviceYear:   number;
+  commandRating: number;
+  bpv:           number;   // combat BPV
+  fighterBpv:    number;   // fighters it comes with
+  cost:          number;   // what it actually costs (economic for scouts, plus fighters)
+  coiAllowance:  number;   // most it may spend on Commander's Options (S3.2)
+  isScout:       boolean;
+  isLeader:      boolean;
+  isEscort:      boolean;
+  isTrueCarrier: boolean;
+  isBCH:         boolean;
+}
+
+export interface FleetShipEntry {
+  faction?:  string;   // blank means the fleet's first empire
+  type:      string;
+  name?:     string;   // blank means the ship file's own name
+  coiSpend?: number;
+}
+
+/** The saved fleet: what is posted to validate, and what lands in data/fleets. */
+export interface FleetSpec {
+  id?:       string;
+  name:      string;
+  author?:   string;
+  factions:  string[];   // allied empires this force draws on (S8.6)
+  year:      number;
+  budget:    number;
+  flagship?: string;
+  ships:     FleetShipEntry[];
+  updated?:  string;
+}
+
+export interface FleetViolation {
+  rule:     string;                   // e.g. "S8.36"
+  severity: 'ERROR' | 'ADVISORY';
+  message:  string;
+  shipName: string;
+}
+
+export interface FleetValidation {
+  legal:         boolean;
+  cost?:         number;   // hulls and fighters
+  totalCost?:    number;   // and Commander's Options
+  budget?:       number;
+  shipCount?:    number;
+  violations:    FleetViolation[];
+  unknownShips?: string[];
+}
+
+/** A row in the saved-fleet list, revalidated as it was listed. */
+export interface FleetSummary {
+  id:        string;
+  name:      string;
+  author:    string;
+  factions:  string[];
+  year:      number;
+  budget:    number;
+  shipCount: number;
+  updated:   string;
+  legal:     boolean;
+  totalCost: number;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const { headers: extraHeaders, ...restOptions } = options ?? {};
   const res = await fetch(path, {
@@ -206,6 +283,45 @@ export const gameApi = {
 
   getLobbyState(gameId: string): Promise<unknown> {
     return request(`/api/games/${gameId}/lobby`);
+  },
+
+  // --- Fleet building (S8.0) ---
+
+  /**
+   * The ship catalogue. Fetched whole and filtered in the browser: a force may draw on several
+   * allied empires (S8.6) and the builder switches between them freely, and the lot is ~17KB.
+   */
+  listShips(factions?: string[]): Promise<CatalogShip[]> {
+    const query = factions?.length
+      ? '?' + factions.map(f => `faction=${encodeURIComponent(f)}`).join('&')
+      : '';
+    return request(`/api/games/ships${query}`);
+  },
+
+  validateFleet(spec: FleetSpec): Promise<FleetValidation> {
+    return request('/api/games/fleets/validate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    });
+  },
+
+  listFleets(): Promise<FleetSummary[]> {
+    return request('/api/games/fleets');
+  },
+
+  getFleet(id: string): Promise<{ fleet: FleetSpec; validation: FleetValidation }> {
+    return request(`/api/games/fleets/${encodeURIComponent(id)}`);
+  },
+
+  saveFleet(spec: FleetSpec): Promise<{ id: string; validation: FleetValidation }> {
+    return request('/api/games/fleets', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    });
+  },
+
+  deleteFleet(id: string): Promise<{ deleted: string }> {
+    return request(`/api/games/fleets/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   listScenarios(): Promise<ScenarioSummary[]> {
