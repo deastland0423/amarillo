@@ -15,15 +15,13 @@ import static org.junit.Assert.*;
  */
 public class TerrainPlanLoadingTest {
 
-    private ScenarioSpec specWithPlan(double density, long seed) {
+    private ScenarioSpec specWithPlan(long seed) {
         ScenarioSpec spec = new ScenarioSpec();
         spec.mapCols = 42;
         spec.mapRows = 32;
 
         TerrainGenerator.Plan plan = new TerrainGenerator.Plan();
         plan.type = "ASTEROID_FIELD";
-        plan.region = MapRegion.box("1508", "2824");
-        plan.density = density;
         plan.seed = seed;
         spec.terrainPlan = new ArrayList<>(List.of(plan));
         return spec;
@@ -31,7 +29,7 @@ public class TerrainPlanLoadingTest {
 
     @Test
     public void aPlanBecomesHexesInTheSpec() {
-        ScenarioSpec spec = specWithPlan(0.1, 21L);
+        ScenarioSpec spec = specWithPlan(21L);
         assertNull("nothing enumerated yet", spec.terrain);
 
         ScenarioLoader.expandTerrainPlans(spec);
@@ -45,7 +43,7 @@ public class TerrainPlanLoadingTest {
     /** Expanding twice would double the field, so a spent plan is cleared. */
     @Test
     public void expandingTwiceDoesNotDoubleTheField() {
-        ScenarioSpec spec = specWithPlan(0.1, 21L);
+        ScenarioSpec spec = specWithPlan(21L);
 
         ScenarioLoader.expandTerrainPlans(spec);
         int after = spec.terrain.size();
@@ -58,7 +56,7 @@ public class TerrainPlanLoadingTest {
     /** Hand-written terrain and a plan can live together. */
     @Test
     public void generatedHexesJoinTheOnesWrittenByHand() {
-        ScenarioSpec spec = specWithPlan(0.05, 6L);
+        ScenarioSpec spec = specWithPlan(6L);
         ScenarioSpec.TerrainSetup planet = new ScenarioSpec.TerrainSetup();
         planet.type = "PLANET";
         planet.hex = "2016";
@@ -73,10 +71,24 @@ public class TerrainPlanLoadingTest {
                 spec.terrain.stream().anyMatch(t -> "ASTEROID".equals(t.type)));
     }
 
-    /** A scenario that places a cruiser at 1216 must not drop an asteroid on it. */
+    /**
+     * A freely placed body dodges the ships already on the map. The standard asteroid field
+     * does not, and must not: P3.11 fixes where it goes, and a fleet that starts in it is
+     * playing the scenario rather than suffering a bug.
+     */
     @Test
-    public void shipsAlreadyPlacedKeepTheirHexes() {
-        ScenarioSpec spec = specWithPlan(0.9, 33L);   // dense enough to hit everything otherwise
+    public void aPlacedBodyAvoidsShipsAlreadyOnTheMap() {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.mapCols = 42;
+        spec.mapRows = 32;
+
+        TerrainGenerator.Plan planet = new TerrainGenerator.Plan();
+        planet.type = "PLANET";
+        planet.region = MapRegion.box("1914", "2122");   // small, so the ships crowd it
+        planet.count = 3;
+        planet.spacing = 0;
+        planet.seed = 33L;
+        spec.terrainPlan = new ArrayList<>(List.of(planet));
 
         ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
         side.name = "Federation";
@@ -94,13 +106,13 @@ public class TerrainPlanLoadingTest {
 
         List<String> occupied = spec.terrain.stream().map(t -> t.hex).toList();
         for (String shipHex : List.of("2016", "2018", "2020"))
-            assertFalse("terrain landed on a ship at " + shipHex, occupied.contains(shipHex));
-        assertFalse("a field was still generated", spec.terrain.isEmpty());
+            assertFalse("a planet landed on the ship at " + shipHex, occupied.contains(shipHex));
+        assertFalse("planets were still placed", spec.terrain.isEmpty());
     }
 
     @Test
     public void loadingTerrainExpandsPlansOnTheWayThrough() {
-        ScenarioSpec spec = specWithPlan(0.08, 17L);
+        ScenarioSpec spec = specWithPlan(17L);
 
         List<com.sfb.objects.Terrain> terrain = ScenarioLoader.loadTerrain(spec);
 
@@ -119,7 +131,7 @@ public class TerrainPlanLoadingTest {
     /** Every generated hex is on the map, whatever the region asked for. */
     @Test
     public void nothingLandsOffTheMap() {
-        ScenarioSpec spec = specWithPlan(0.3, 77L);
+        ScenarioSpec spec = specWithPlan(77L);
         ScenarioLoader.expandTerrainPlans(spec);
 
         for (ScenarioSpec.TerrainSetup s : spec.terrain) {

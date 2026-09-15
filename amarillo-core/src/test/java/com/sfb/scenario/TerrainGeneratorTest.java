@@ -10,18 +10,20 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 /**
- * Terrain described rather than enumerated. The two properties that matter: the same plan lays
- * out the same map every time, and nothing lands where a fleet has to set up.
+ * Terrain described rather than enumerated.
+ * <p>
+ * The asteroid field follows P3.11: eighteen counters in named hexes, each rolled one hex, with
+ * every hex within two of a counter becoming an asteroid hex (P3.12). The layout is the rule's,
+ * not ours — what has to be true is that the same seed rolls the same field, that every hex is
+ * accounted for by some counter, and that no hex is laid twice.
  */
 public class TerrainGeneratorTest {
 
     private static final int COLS = 42, ROWS = 32;
 
-    private TerrainGenerator.Plan field(MapRegion region, double density, long seed) {
+    private TerrainGenerator.Plan field(long seed) {
         TerrainGenerator.Plan p = new TerrainGenerator.Plan();
         p.type = "ASTEROID_FIELD";
-        p.region = region;
-        p.density = density;
         p.seed = seed;
         return p;
     }
@@ -38,23 +40,17 @@ public class TerrainGeneratorTest {
     // ---- repeatability ----
 
     @Test
-    public void theSameSeedLaysOutTheSameMap() {
-        List<ScenarioSpec.TerrainSetup> a =
-                gen(List.of(field(MapRegion.box("1005", "3028"), 0.1, 42L)), null);
-        List<ScenarioSpec.TerrainSetup> b =
-                gen(List.of(field(MapRegion.box("1005", "3028"), 0.1, 42L)), null);
+    public void theSameSeedRollsTheSameField() {
+        List<String> a = gen(List.of(field(42L)), null).stream().map(s -> s.hex).toList();
+        List<String> b = gen(List.of(field(42L)), null).stream().map(s -> s.hex).toList();
 
-        assertEquals(a.size(), b.size());
-        for (int i = 0; i < a.size(); i++)
-            assertEquals("hex " + i, a.get(i).hex, b.get(i).hex);
+        assertEquals(a, b);
     }
 
     @Test
-    public void adifferentSeedLaysOutADifferentMap() {
-        List<String> a = gen(List.of(field(MapRegion.box("1005", "3028"), 0.1, 1L)), null)
-                .stream().map(s -> s.hex).toList();
-        List<String> b = gen(List.of(field(MapRegion.box("1005", "3028"), 0.1, 2L)), null)
-                .stream().map(s -> s.hex).toList();
+    public void aDifferentSeedRollsADifferentField() {
+        List<String> a = gen(List.of(field(1L)), null).stream().map(s -> s.hex).toList();
+        List<String> b = gen(List.of(field(2L)), null).stream().map(s -> s.hex).toList();
 
         assertNotEquals(a, b);
     }
@@ -62,68 +58,89 @@ public class TerrainGeneratorTest {
     /** A plan with no seed takes one and keeps it, so a scenario file still reads the same. */
     @Test
     public void aPlanWithoutASeedGetsOneAndRemembersIt() {
-        TerrainGenerator.Plan plan = field(MapRegion.box("1005", "2020"), 0.1, 0L);
+        TerrainGenerator.Plan plan = field(0L);
         plan.seed = null;
 
         List<String> first = gen(List.of(plan), null).stream().map(s -> s.hex).toList();
         assertNotNull("the plan kept its seed", plan.seed);
-
-        List<String> again = gen(List.of(plan), null).stream().map(s -> s.hex).toList();
-        assertEquals(first, again);
+        assertEquals(first, gen(List.of(plan), null).stream().map(s -> s.hex).toList());
     }
 
-    // ---- where things land ----
+    // ---- the procedure ----
 
+    /**
+     * P3.12: every asteroid hex is within two of a counter, and every counter is one hex from
+     * where P3.11 names it. Checking both together is what proves the roll happened and that
+     * nothing drifted further than a single hex.
+     */
     @Test
-    public void asteroidsStayInsideTheirRegion() {
-        MapRegion region = MapRegion.box("1005", "2020");
+    public void everyAsteroidHexBelongsToARolledCounter() {
+        List<ScenarioSpec.TerrainSetup> terrain = gen(List.of(field(7L)), null);
+        assertFalse(terrain.isEmpty());
 
-        for (ScenarioSpec.TerrainSetup s : gen(List.of(field(region, 0.2, 7L)), null)) {
-            assertEquals("ASTEROID", s.type);
-            assertTrue(s.hex + " is outside the field's region",
-                    region.contains(at(s), COLS, ROWS));
+        List<Location> starts = new ArrayList<>();
+        for (String hex : TerrainGenerator.COUNTER_HEXES)
+            starts.add(MapRegion.parse(hex));
+
+        for (ScenarioSpec.TerrainSetup s : terrain) {
+            Location hex = at(s);
+            boolean claimed = starts.stream().anyMatch(start ->
+                    // within 2 of a counter that is itself within 1 hex of its named position
+                    MapUtils.getRange(start, hex) <= TerrainGenerator.FIELD_RADIUS + 1);
+            assertTrue(s.hex + " belongs to no counter", claimed);
         }
     }
 
     @Test
-    public void densityDecidesRoughlyHowMany() {
-        MapRegion region = MapRegion.box("1005", "3024");   // 21 x 20 = 420 hexes
-        int count = gen(List.of(field(region, 0.10, 3L)), null).size();
+    public void everyHexIsLaidOnce() {
+        List<String> hexes = gen(List.of(field(9L)), null).stream().map(s -> s.hex).toList();
 
-        assertEquals("about a tenth of 420", 42, count);
+        assertEquals("overlapping counters do not double up (P3.12)",
+                hexes.size(), hexes.stream().distinct().count());
     }
 
     @Test
-    public void everyAsteroidGetsItsOwnHex() {
-        List<String> hexes = gen(List.of(field(MapRegion.anywhere(), 0.15, 9L)), null)
+    public void theFieldIsSubstantialButNotTheWholeMap() {
+        int count = gen(List.of(field(5L)), null).size();
+
+        // Eighteen counters, nineteen hexes each before overlaps and map edges.
+        assertTrue("a real field: " + count, count > 150);
+        assertTrue("not the entire map: " + count, count < COLS * ROWS);
+    }
+
+    @Test
+    public void everyHexIsOnTheMap() {
+        for (ScenarioSpec.TerrainSetup s : gen(List.of(field(3L)), null)) {
+            Location loc = at(s);
+            assertNotNull(s.hex, loc);
+            assertTrue(s.hex, loc.getX() >= 1 && loc.getX() <= COLS);
+            assertTrue(s.hex, loc.getY() >= 1 && loc.getY() <= ROWS);
+        }
+    }
+
+    @Test
+    public void everythingGeneratedIsAnAsteroid() {
+        for (ScenarioSpec.TerrainSetup s : gen(List.of(field(4L)), null)) {
+            assertEquals("ASTEROID", s.type);
+            assertEquals("one hex each, not a footprint", 0, s.radius);
+        }
+    }
+
+    /**
+     * The field goes where P3.11 says, deployment zones or no deployment zones. Setting up in
+     * an asteroid field is a scenario, not a fault — so keep-clear must NOT move it.
+     */
+    @Test
+    public void theStandardFieldIgnoresKeepClearBecauseTheRuleFixesIt() {
+        List<String> free = gen(List.of(field(11L)), null).stream().map(s -> s.hex).toList();
+        List<String> withZones = gen(List.of(field(11L)),
+                List.of(MapRegion.band("LEFT", 6), MapRegion.band("RIGHT", 6)))
                 .stream().map(s -> s.hex).toList();
 
-        assertEquals("no hex used twice", hexes.size(), hexes.stream().distinct().count());
+        assertEquals("the rule's layout is not negotiable", free, withZones);
     }
 
-    // ---- the point of keep-clear ----
-
-    @Test
-    public void nothingIsPlacedWhereAFleetMustSetUp() {
-        List<MapRegion> zones = List.of(MapRegion.band("LEFT", 6), MapRegion.band("RIGHT", 6));
-
-        List<ScenarioSpec.TerrainSetup> terrain =
-                gen(List.of(field(MapRegion.anywhere(), 0.3, 11L)), zones);
-
-        assertFalse("something was generated", terrain.isEmpty());
-        for (ScenarioSpec.TerrainSetup s : terrain)
-            for (MapRegion zone : zones)
-                assertFalse(s.hex + " landed in a deployment zone",
-                        zone.contains(at(s), COLS, ROWS));
-    }
-
-    @Test
-    public void aRegionEntirelyKeptClearProducesNothing() {
-        MapRegion left = MapRegion.band("LEFT", 6);
-        assertTrue(gen(List.of(field(left, 0.5, 5L)), List.of(left)).isEmpty());
-    }
-
-    // ---- solid bodies ----
+    // ---- solid bodies, which are placed rather than fixed ----
 
     @Test
     public void aPlanetIsOneHexInItsRegion() {
@@ -158,7 +175,7 @@ public class TerrainGeneratorTest {
                         MapUtils.getRange(at(out.get(i)), at(out.get(j))) > 5);
     }
 
-    /** A giant's whole body must be clear, not merely its centre hex. */
+    /** A body IS placed freely, so it must respect the zones — unlike the standard field. */
     @Test
     public void aGasGiantFitsItsWholeFootprintInsideItsRegionAndClearOfZones() {
         TerrainGenerator.Plan p = new TerrainGenerator.Plan();
@@ -186,7 +203,7 @@ public class TerrainGeneratorTest {
     }
 
     @Test
-    public void plansAreAppliedInOrderAndDoNotOverlap() {
+    public void aPlanetIsNotBuriedByAFieldLaidAfterIt() {
         TerrainGenerator.Plan planet = new TerrainGenerator.Plan();
         planet.type = "PLANET";
         planet.region = MapRegion.box("1810", "2422");
@@ -194,11 +211,10 @@ public class TerrainGeneratorTest {
 
         List<TerrainGenerator.Plan> plans = new ArrayList<>();
         plans.add(planet);
-        plans.add(field(MapRegion.anywhere(), 0.3, 3L));
+        plans.add(field(3L));
 
         List<String> hexes = gen(plans, null).stream().map(s -> s.hex).toList();
-        assertEquals("the field did not bury the planet",
-                hexes.size(), hexes.stream().distinct().count());
+        assertEquals("nothing shares a hex", hexes.size(), hexes.stream().distinct().count());
     }
 
     @Test
