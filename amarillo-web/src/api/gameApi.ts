@@ -66,6 +66,36 @@ export interface CatalogShip {
   isBCH:         boolean;
 }
 
+/** One side of a battle, as the lobby broadcasts it. */
+export interface LobbySide {
+  name:    string;
+  faction: string;
+  ships: Array<{
+    shipName:     string;
+    type:         string;
+    startHex:     string;
+    startHeading: string;
+    startSpeed:   number;
+    weaponStatus: number;
+    refits:       string[];
+  }>;
+}
+
+/** A fleet chosen into a battle, and the team flying it. */
+export interface FleetSideChoice {
+  fleetId: string;
+  team?:   string;
+}
+
+export interface FleetGameSetup {
+  sides:         FleetSideChoice[];
+  year:          number;
+  budget:        number;
+  mapCols?:      number;
+  mapRows?:      number;
+  weaponStatus?: number;
+}
+
 export interface FleetShipEntry {
   faction?:  string;   // blank means the fleet's first empire
   type:      string;
@@ -303,6 +333,25 @@ export const gameApi = {
       method: 'POST',
       body: JSON.stringify(spec),
     });
+  },
+
+  /** Assemble a battle from saved fleets, in place of naming a scenario file. */
+  loadFleetsIntoGame(
+    gameId: string, hostToken: string, setup: FleetGameSetup,
+  ): Promise<{ message: string; fleets: Array<{ fleetId: string; name: string; legal: boolean }> }> {
+    return request(`/api/games/${gameId}/fleets`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+      body: JSON.stringify(setup),
+    });
+  },
+
+  /**
+   * COI data for the battle this game is sitting down to. Game-scoped rather than by scenario
+   * id, because a battle assembled from fleets is not a file on disk.
+   */
+  getGameCoiData(gameId: string): Promise<CoiSideData[]> {
+    return request(`/api/games/${gameId}/coi-data`);
   },
 
   listFleets(): Promise<FleetSummary[]> {

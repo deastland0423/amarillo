@@ -26,6 +26,39 @@ public class LobbyStateDto {
         }
     }
 
+    /** A side's forces, so every client can see what is being sat down to. */
+    public static class SideDto {
+        public final String        name;
+        public final String        faction;
+        public final List<ShipDto> ships;
+
+        SideDto(String name, String faction, List<ShipDto> ships) {
+            this.name    = name;
+            this.faction = faction;
+            this.ships   = ships;
+        }
+    }
+
+    public static class ShipDto {
+        public final String       shipName;
+        public final String       type;
+        public final String       startHex;
+        public final String       startHeading;
+        public final int          startSpeed;
+        public final int          weaponStatus;
+        public final List<String> refits;
+
+        ShipDto(com.sfb.scenario.ScenarioSpec.ShipSetup setup) {
+            this.shipName     = setup.shipName != null ? setup.shipName : "";
+            this.type         = setup.type != null ? setup.type : "";
+            this.startHex     = setup.startHex != null ? setup.startHex : "";
+            this.startHeading = setup.startHeading != null ? setup.startHeading : "";
+            this.startSpeed   = setup.startSpeed;
+            this.weaponStatus = setup.weaponStatus;
+            this.refits       = setup.refits != null ? setup.refits : List.of();
+        }
+    }
+
     public final String          gameId;
     public final boolean         scenarioLoaded;
     public final String          scenarioId;
@@ -39,6 +72,12 @@ public class LobbyStateDto {
     public final boolean         allCoiReady;
     public final List<PlayerDto> players;
     public final List<String>    unassignedShips;
+    /**
+     * The forces, from the loaded spec itself rather than from the scenario listing. A battle
+     * assembled from saved fleets is not a file on disk, so matching an id against
+     * data/scenarios would show a joiner nothing at all.
+     */
+    public final List<SideDto>   sides;
 
     public LobbyStateDto(GameSession session) {
         this.gameId          = session.getId();
@@ -64,5 +103,13 @@ public class LobbyStateDto {
                 .collect(Collectors.toList());
 
         this.unassignedShips = session.getUnassignedShipNames();
+
+        this.sides = spec == null || spec.sides == null ? List.of() : spec.sides.stream()
+                .map(side -> new SideDto(
+                        side.name != null ? side.name : side.faction,
+                        side.faction,
+                        side.ships == null ? List.<ShipDto>of()
+                                : side.ships.stream().map(ShipDto::new).collect(Collectors.toList())))
+                .collect(Collectors.toList());
     }
 }

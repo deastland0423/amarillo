@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { gameApi } from '../api/gameApi';
+import type { LobbySide } from '../api/gameApi';
 
 export interface LobbyPlayer {
   name: string;
@@ -25,6 +26,10 @@ export interface LobbyState {
   allCoiReady: boolean;
   players: LobbyPlayer[];
   unassignedShips: string[];
+  // The forces themselves, from the loaded spec. A battle assembled from saved
+  // fleets is not a file on disk, so matching an id against the scenario list
+  // would show a joiner nothing at all.
+  sides: LobbySide[];
 }
 
 /**

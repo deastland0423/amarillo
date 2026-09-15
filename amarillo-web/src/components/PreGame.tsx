@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useLobbySocket } from '../hooks/useLobbySocket';
 import { gameApi } from '../api/gameApi';
-import type { PlayerListing, ScenarioSummary, ScenarioSide, CoiSideData, CoiSubmission } from '../api/gameApi';
+import type {
+  PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary,
+} from '../api/gameApi';
 import CoiDialog from './CoiDialog';
 
 interface Props {
@@ -21,6 +23,13 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   // Host-only: scenario list + selection
   const [scenarios,       setScenarios]       = useState<ScenarioSummary[]>([]);
   const [selectedScenario,setSelectedScenario]= useState('');
+  // Host-only: the other way to start a battle — saved fleets instead of a scenario file
+  const [setupMode,       setSetupMode]       = useState<'scenario' | 'fleets'>('scenario');
+  const [fleets,          setFleets]          = useState<FleetSummary[]>([]);
+  const [chosenFleets,    setChosenFleets]    = useState<string[]>([]);
+  const [fleetYear,       setFleetYear]       = useState(180);
+  const [fleetBudget,     setFleetBudget]     = useState(1000);
+  const [fleetWs,         setFleetWs]         = useState(2);
   // Raw COI data for the whole scenario (fetched once per scenario)
   const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
   // Filtered to this player's assigned ships
@@ -43,6 +52,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
       .catch(() => { if (session.isHost) setError('Could not load scenarios.'); });
   }, [session.isHost]);
 
+  // ---- Host: the saved fleets available to field ----
+  useEffect(() => {
+    if (!session.isHost) return;
+    gameApi.listFleets()
+      .then(setFleets)
+      .catch(() => {/* non-fatal: the scenario path still works */});
+  }, [session.isHost]);
+
   // ---- Host: refresh token-bearing player list whenever lobby player count changes ----
   useEffect(() => {
     if (session.isHost) {
@@ -52,13 +69,15 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     }
   }, [session.isHost, session.gameId, session.playerToken, lobby?.players.length]);
 
-  // ---- Fetch raw COI data once when a scenario is loaded ----
+  // ---- Fetch raw COI data once a battle is loaded ----
+  // Asked of the GAME rather than of a scenario id: a battle assembled from saved
+  // fleets has no file to look up, and this route serves both.
   useEffect(() => {
-    if (!lobby?.scenarioLoaded || !lobby.scenarioId) return;
-    gameApi.getCoiData(lobby.scenarioId)
+    if (!lobby?.scenarioLoaded) return;
+    gameApi.getGameCoiData(session.gameId)
       .then(setRawCoiData)
       .catch(() => setError('Could not load COI data.'));
-  }, [lobby?.scenarioLoaded, lobby?.scenarioId]);
+  }, [lobby?.scenarioLoaded, lobby?.scenarioId, session.gameId]);
 
   // ---- Re-filter COI data whenever assignments or raw data change ----
   useEffect(() => {
@@ -84,6 +103,29 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     setCoiData(null);
     setCoiSubmitted(false);
   }, [lobby?.scenarioId]);
+
+  async function handleFleetBattle() {
+    if (chosenFleets.length === 0) { setError('Choose at least one fleet.'); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await gameApi.loadFleetsIntoGame(session.gameId, session.playerToken, {
+        sides: chosenFleets.map(id => ({ fleetId: id })),
+        year: fleetYear,
+        budget: fleetBudget,
+        weaponStatus: fleetWs,
+      });
+      setError('');
+      void res;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not assemble the battle.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleFleet(id: string) {
+    setChosenFleets(cur => cur.includes(id) ? cur.filter(f => f !== id) : [...cur, id]);
+  }
 
   async function handleScenarioLoad(id: string) {
     setSelectedScenario(id);
@@ -214,20 +256,87 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
 
         {/* Host: scenario picker */}
         {session.isHost && (
-          <div className="scenario-picker">
-            <label htmlFor="scenario-select">Scenario</label>
-            <select
-              id="scenario-select"
-              value={selectedScenario}
-              onChange={e => handleScenarioLoad(e.target.value)}
-              disabled={busy}
-            >
-              <option value="">— choose a scenario —</option>
-              {scenarios.map(s => (
-                <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
-              ))}
-            </select>
-          </div>
+          <>
+            {/* Two ways to sit down to a battle: a written scenario, or fleets people built. */}
+            <div className="fb-faction-chips" style={{ marginBottom: 12 }}>
+              <button className={setupMode === 'scenario' ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                      onClick={() => setSetupMode('scenario')}>Scenario</button>
+              <button className={setupMode === 'fleets' ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                      onClick={() => setSetupMode('fleets')}>Saved fleets</button>
+            </div>
+
+            {setupMode === 'scenario' && (
+              <div className="scenario-picker">
+                <label htmlFor="scenario-select">Scenario</label>
+                <select
+                  id="scenario-select"
+                  value={selectedScenario}
+                  onChange={e => handleScenarioLoad(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">— choose a scenario —</option>
+                  {scenarios.map(s => (
+                    <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {setupMode === 'fleets' && (
+              <div className="fleet-setup">
+                {fleets.length === 0 && (
+                  <p className="subtitle">
+                    No saved fleets yet. Build one from the opening menu, then come back.
+                  </p>
+                )}
+
+                {fleets.map(f => (
+                  <label key={f.id} className="fleet-choice">
+                    <input type="checkbox"
+                           checked={chosenFleets.includes(f.id)}
+                           onChange={() => toggleFleet(f.id)} />
+                    <span className="fleet-choice-name">{f.name || f.id}</span>
+                    <span className="fb-hint">
+                      {f.factions.join(' + ')} · Y{f.year} · {f.totalCost}/{f.budget} · {f.shipCount} ships
+                    </span>
+                    <span className={f.legal ? 'fb-legal' : 'fb-illegal'}>
+                      {f.legal ? 'legal' : 'illegal'}
+                    </span>
+                  </label>
+                ))}
+
+                {/* The conditions the battle is fought under. Fleets are rechecked against
+                    these, not against whatever they were saved with. */}
+                <div className="fb-conditions" style={{ marginTop: 12 }}>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Year</span>
+                    <input type="number" value={fleetYear}
+                           onChange={e => setFleetYear(Number(e.target.value) || 0)} />
+                  </label>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Budget</span>
+                    <input type="number" value={fleetBudget}
+                           onChange={e => setFleetBudget(Number(e.target.value) || 0)} />
+                  </label>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Weapon status</span>
+                    <select value={fleetWs} onChange={e => setFleetWs(Number(e.target.value))}>
+                      <option value={0}>WS-0</option>
+                      <option value={1}>WS-1</option>
+                      <option value={2}>WS-2</option>
+                      <option value={3}>WS-3</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="button-row" style={{ marginTop: 12 }}>
+                  <button onClick={handleFleetBattle} disabled={busy || chosenFleets.length === 0}>
+                    {busy ? 'Assembling…' : `Assemble battle (${chosenFleets.length} fleets)`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Non-host: waiting message when no scenario yet */}
@@ -255,32 +364,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           <button className="secondary" style={{ marginTop: 12 }} onClick={onLeave}>Leave game</button>
         )}
       </div>
-
-      {/* Transient fallback from the lobby broadcast, shown until the full
-          scenario catalog has loaded and the rich detail card below resolves
-          (for the brief moment a joiner is still fetching it). */}
-      {lobby?.scenarioLoaded && !activeScenario && (
-        <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
-          <div className="scenario-detail-header">
-            <span className="scenario-detail-id">{lobby.scenarioId}</span>
-            <span className="scenario-detail-name">{lobby.scenarioName ?? lobby.scenarioId}</span>
-            {lobby.scenarioYear > 0 && (
-              <span className="scenario-detail-year">Y{lobby.scenarioYear}</span>
-            )}
-          </div>
-          {lobby.scenarioDescription && (
-            <p className="scenario-detail-desc">{lobby.scenarioDescription}</p>
-          )}
-          {(lobby.scenarioSpecialRules?.length ?? 0) > 0 && (
-            <div className="scenario-section">
-              <div className="scenario-section-title">Special Rules</div>
-              <ul className="scenario-rules-list">
-                {lobby.scenarioSpecialRules.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Host: ship assignment panel (after scenario loaded) */}
       {session.isHost && lobby?.scenarioLoaded && lobby.unassignedShips.length > 0 && (
@@ -336,33 +419,41 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         </div>
       )}
 
-      {/* Scenario detail card */}
-      {activeScenario && (
+      {/* Battle detail card.
+          Identity and forces come from the lobby broadcast, which carries the loaded spec —
+          so this renders for a battle assembled from saved fleets just as it does for one
+          read from data/scenarios. The extras below come from the scenario catalogue and
+          simply do not appear for a built battle, which has no file to describe them. */}
+      {lobby?.scenarioLoaded && (
         <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
           <div className="scenario-detail-header">
-            <span className="scenario-detail-id">{activeScenario.id}</span>
-            <span className="scenario-detail-name">{activeScenario.name}</span>
-            <span className="scenario-detail-year">Y{activeScenario.year}</span>
+            <span className="scenario-detail-id">{lobby.scenarioId}</span>
+            <span className="scenario-detail-name">{lobby.scenarioName ?? lobby.scenarioId}</span>
+            {lobby.scenarioYear > 0 && (
+              <span className="scenario-detail-year">Y{lobby.scenarioYear}</span>
+            )}
           </div>
 
-          {activeScenario.description && (
-            <p className="scenario-detail-desc">{activeScenario.description}</p>
+          {lobby.scenarioDescription && (
+            <p className="scenario-detail-desc">{lobby.scenarioDescription}</p>
           )}
 
-          <div className="scenario-detail-meta">
-            <span>{activeScenario.numPlayers} players</span>
-            <span>Map: {activeScenario.mapType}</span>
-            <span>Victory: {activeScenario.victoryType}</span>
-          </div>
+          {activeScenario && (
+            <div className="scenario-detail-meta">
+              <span>{activeScenario.numPlayers} players</span>
+              <span>Map: {activeScenario.mapType}</span>
+              <span>Victory: {activeScenario.victoryType}</span>
+            </div>
+          )}
 
+          {/* Forces come from the lobby broadcast, which carries the loaded spec itself.
+              A battle assembled from saved fleets is not a file in data/scenarios, so
+              looking it up by id would show nothing. */}
           <div className="scenario-sides">
-            {activeScenario.sides.map((side: ScenarioSide) => (
-              <div key={side.faction} className="scenario-side">
+            {(lobby?.sides ?? []).map((side, i) => (
+              <div key={side.name + i} className="scenario-side">
                 <div className="scenario-side-header">
                   <span className="scenario-side-name">{side.name || side.faction}</span>
-                  {side.reinforcementGroups > 0 && (
-                    <span className="scenario-reinforcement-badge">+reinforcements</span>
-                  )}
                 </div>
                 <table className="scenario-ship-table">
                   <thead>
@@ -389,14 +480,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             ))}
           </div>
 
-          {activeScenario.victoryNotes && (
+          {activeScenario?.victoryNotes && (
             <div className="scenario-section">
               <div className="scenario-section-title">Victory Conditions</div>
               <p className="scenario-section-text">{activeScenario.victoryNotes}</p>
             </div>
           )}
 
-          {(!activeScenario.warpBoosterPacks || !activeScenario.megapacks ||
+          {activeScenario && (!activeScenario.warpBoosterPacks || !activeScenario.megapacks ||
             !activeScenario.mrsShuttles || !activeScenario.pfs) && (
             <div className="scenario-section">
               <div className="scenario-section-title">Shuttle / PF Rules</div>
@@ -409,7 +500,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           )}
 
-          {activeScenario.specialRules.length > 0 && (
+          {(activeScenario?.specialRules.length ?? 0) > 0 && activeScenario && (
             <div className="scenario-section">
               <div className="scenario-section-title">Special Rules</div>
               <ul className="scenario-rules-list">

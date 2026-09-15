@@ -554,14 +554,46 @@ public class GameController {
      * per ship, grouped by side. Used by the pre-game COI dialog.
      * Does not start a game — read-only.
      */
+    /**
+     * Commander's Option data for a scenario file, by id.
+     * <p>
+     * Kept for callers that know a scenario by name. A battle assembled from saved fleets is
+     * not a file, so the game-scoped route below is the one that works for both.
+     */
     @GetMapping("/scenarios/{scenarioId}/coi-data")
-    public ResponseEntity<List<Map<String, Object>>> getCoiData(
-            @PathVariable String scenarioId) {
-
+    public ResponseEntity<List<Map<String, Object>>> getCoiData(@PathVariable String scenarioId) {
         try {
             com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-            ScenarioSpec spec = ScenarioSpec.fromJson(
-                    "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+            return ResponseEntity.ok(coiDataFor(ScenarioSpec.fromJson(
+                    "data/scenarios/" + scenarioId.toLowerCase() + ".json")));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /**
+     * Commander's Option data for the battle this game is actually sitting down to, taken from
+     * the spec the session holds. Works whether that spec was read from disk or assembled from
+     * saved fleets, which the by-id route cannot be.
+     */
+    @GetMapping("/{id}/coi-data")
+    public ResponseEntity<List<Map<String, Object>>> getGameCoiData(@PathVariable String id) {
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        ScenarioSpec spec = session.getLoadedSpec();
+        if (spec == null)
+            return ResponseEntity.badRequest().body(null);
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            return ResponseEntity.ok(coiDataFor(spec));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /** What each side may buy with its option points, ship by ship. */
+    private List<Map<String, Object>> coiDataFor(ScenarioSpec spec) {
             List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
 
             List<Map<String, Object>> result = new ArrayList<>();
@@ -722,10 +754,7 @@ public class GameController {
                 sideMap.put("ships", shipList);
                 result.add(sideMap);
             }
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
-        }
+        return result;
     }
 
     /**

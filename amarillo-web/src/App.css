@@ -1909,3 +1909,20 @@ h3 {
   white-space: nowrap;
 }
 .fb-violation-text { color: #cdd9e5; }
+
+/* Choosing saved fleets into a battle */
+.fleet-setup { display: flex; flex-direction: column; gap: 0.4rem; }
+.fleet-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #0d1117;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.fleet-choice:hover { border-color: #6e7681; }
+.fleet-choice-name { font-weight: 600; }
+.fleet-choice .fb-hint { margin-left: auto; }
