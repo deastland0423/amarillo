@@ -145,6 +145,95 @@ public class FleetsToScenarioTest {
         assertEquals("Lyran", spec.sides.get(1).faction);
     }
 
+    // ---- deployment zones ----
+
+    @Test
+    public void everySideGetsGroundToSetUpOn() {
+        for (ScenarioSpec.SideSpec side : twoSides().sides)
+            assertNotNull(side.name + " has no deployment zone", side.deploymentZone);
+    }
+
+    /** The default zone is a band around the column the fleet would have lined up on. */
+    @Test
+    public void theDefaultZoneContainsTheFleetsOwnStartingLine() {
+        ScenarioSpec spec = twoSides();
+
+        for (ScenarioSpec.SideSpec side : spec.sides)
+            for (ScenarioSpec.ShipSetup ship : side.ships)
+                assertTrue(ship.shipName + " starts outside its own zone at " + ship.startHex,
+                        side.deploymentZone.contains(
+                                col(ship.startHex), row(ship.startHex), spec.mapCols, spec.mapRows));
+    }
+
+    @Test
+    public void opposingDefaultZonesDoNotOverlap() {
+        ScenarioSpec spec = twoSides();
+        MapRegion a = spec.sides.get(0).deploymentZone;
+        MapRegion b = spec.sides.get(1).deploymentZone;
+
+        for (int c = 1; c <= spec.mapCols; c++)
+            for (int r = 1; r <= spec.mapRows; r++)
+                assertFalse("both fleets may use " + c + "," + r,
+                        a.contains(c, r, spec.mapCols, spec.mapRows)
+                        && b.contains(c, r, spec.mapCols, spec.mapRows));
+    }
+
+    @Test
+    public void aHostDrawnZoneIsUsedInsteadOfTheDefault() {
+        MapRegion drawn = MapRegion.band("LEFT", 6);
+        ScenarioSpec spec = FleetsToScenario.build(List.of(
+                new FleetsToScenario.Entry(fleet("A", "Klingon", "D7"), "Klingons", drawn)),
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        assertSame(drawn, spec.sides.get(0).deploymentZone);
+    }
+
+    // ---- terrain ----
+
+    @Test
+    public void aBattleWithNoTerrainChosenHasNone() {
+        assertNull(twoSides().terrain);
+    }
+
+    @Test
+    public void theChosenTerrainIsOnTheMapBeforeAnyoneDeploys() {
+        TerrainGenerator.Plan field = new TerrainGenerator.Plan();
+        field.type = "ASTEROID_FIELD";
+        field.seed = 55L;
+
+        ScenarioSpec spec = FleetsToScenario.build(
+                List.of(new FleetsToScenario.Entry(fleet("A", "Klingon", "D7"), "Klingons")),
+                new FleetsToScenario.Conditions(180, 1000, 42, 32, 2, List.of(field)));
+
+        assertNotNull("the hexes are in the spec, not merely planned", spec.terrain);
+        assertFalse(spec.terrain.isEmpty());
+        assertNull("the plan is spent", spec.terrainPlan);
+    }
+
+    /**
+     * The field goes where P3.11 puts it, deployment zones included. Setting up among asteroids
+     * is ordinary; it is the solid bodies that deployment refuses, when a ship is put down.
+     */
+    @Test
+    public void anAsteroidFieldMayReachIntoADeploymentZone() {
+        TerrainGenerator.Plan field = new TerrainGenerator.Plan();
+        field.type = "ASTEROID_FIELD";
+        field.seed = 55L;
+
+        ScenarioSpec spec = FleetsToScenario.build(List.of(
+                new FleetsToScenario.Entry(fleet("A", "Klingon", "D7", "D6"), "Klingons"),
+                new FleetsToScenario.Entry(fleet("B", "Federation", "CA", "DD"), "Federation")),
+                new FleetsToScenario.Conditions(180, 1000, 42, 32, 2, List.of(field)));
+
+        boolean anyInAZone = spec.terrain.stream().anyMatch(t ->
+                spec.sides.stream().anyMatch(side -> side.deploymentZone.contains(
+                        col(t.hex), row(t.hex), spec.mapCols, spec.mapRows)));
+        assertTrue("a quarter-map field should reach a zone somewhere", anyInAZone);
+
+        // And none of it blocks setup: asteroids are enterable.
+        assertTrue("asteroids are not no-entry", Deployment.noEntryHexes(spec).isEmpty());
+    }
+
     /** A lone fleet has nobody to line up against, and is placed rather than crashing. */
     @Test
     public void oneFleetIsPlacedInTheMiddle() {

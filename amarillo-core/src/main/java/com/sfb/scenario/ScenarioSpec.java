@@ -115,6 +115,15 @@ public class ScenarioSpec {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SideSpec {
         public String            faction;          // e.g. "Federation"
+        /**
+         * Where this side may set up, when the players place their own ships rather than the
+         * scenario fixing every hex. Null means the ships' own startHex values stand.
+         * <p>
+         * On the spec rather than in the session because the lobby broadcasts the spec, so the
+         * deployment screen needs nothing new to learn where a fleet may stand — and a written
+         * scenario can say "within six hexes of your own edge" instead of pinning each ship.
+         */
+        public MapRegion         deploymentZone;
         public String            name;             // display name, e.g. "Orion Pirates"
         public String            cartel;           // Orion cartel (G15.44); null = player picks it at COI
         public List<ShipSetup>   ships;

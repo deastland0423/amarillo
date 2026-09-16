@@ -5,6 +5,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.*;
 
@@ -92,6 +93,79 @@ public class DeploymentTest {
 
         assertFalse(Deployment.isComplete(List.of("Kongo"),
                 List.of(new Placement("Kongo", "2016", "C")), zone, COLS, ROWS));
+    }
+
+    // ---- solid ground ----
+
+    private ScenarioSpec withPlanet(String hex, int radius) {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.mapCols = COLS;
+        spec.mapRows = ROWS;
+        ScenarioSpec.TerrainSetup t = new ScenarioSpec.TerrainSetup();
+        t.type = radius > 0 ? "GAS_GIANT" : "PLANET";
+        t.hex = hex;
+        t.radius = radius;
+        spec.terrain = new ArrayList<>(List.of(t));
+        return spec;
+    }
+
+    @Test
+    public void aPlanetsOwnHexIsNoEntry() {
+        assertEquals(Set.of("2016"), Deployment.noEntryHexes(withPlanet("2016", 0)));
+    }
+
+    @Test
+    public void aGasGiantBlocksItsWholeBody() {
+        Set<String> blocked = Deployment.noEntryHexes(withPlanet("2016", 2));
+
+        assertTrue("the centre", blocked.contains("2016"));
+        assertTrue("a body hex", blocked.contains("2018"));
+        assertFalse("clear of the body", blocked.contains("2022"));
+    }
+
+    /** Asteroids are enterable at a price, so they never block setup. */
+    @Test
+    public void asteroidsAreNotNoEntry() {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.mapCols = COLS;
+        spec.mapRows = ROWS;
+        ScenarioSpec.TerrainSetup rock = new ScenarioSpec.TerrainSetup();
+        rock.type = "ASTEROID";
+        rock.hex = "2016";
+        spec.terrain = new ArrayList<>(List.of(rock));
+
+        assertTrue(Deployment.noEntryHexes(spec).isEmpty());
+    }
+
+    @Test
+    public void aShipCannotBeSetDownInsideAPlanet() {
+        Set<String> blocked = Deployment.noEntryHexes(withPlanet("2016", 1));
+        List<Placement> placed = List.of(new Placement("Kongo", "2016", "C"));
+
+        List<String> problems = Deployment.check(placed, MapRegion.anywhere(), blocked, COLS, ROWS);
+        assertEquals(1, problems.size());
+        assertTrue(problems.get(0), problems.get(0).contains("planet"));
+        assertFalse(Deployment.isComplete(List.of("Kongo"), placed,
+                MapRegion.anywhere(), blocked, COLS, ROWS));
+    }
+
+    @Test
+    public void aShipBesideAPlanetIsFine() {
+        Set<String> blocked = Deployment.noEntryHexes(withPlanet("2016", 1));
+        List<Placement> placed = List.of(new Placement("Kongo", "2020", "C"));
+
+        assertTrue(Deployment.check(placed, MapRegion.anywhere(), blocked, COLS, ROWS).isEmpty());
+    }
+
+    /** A ship outside its zone is told that, not told about a planet it is nowhere near. */
+    @Test
+    public void theZoneComplaintComesFirst() {
+        Set<String> blocked = Deployment.noEntryHexes(withPlanet("2016", 1));
+        List<Placement> placed = List.of(new Placement("Kongo", "3016", "C"));
+
+        List<String> problems = Deployment.check(placed, MapRegion.band("LEFT", 6), blocked, COLS, ROWS);
+        assertEquals(1, problems.size());
+        assertTrue(problems.get(0), problems.get(0).contains("deployment area"));
     }
 
     // ---- the offered layout ----

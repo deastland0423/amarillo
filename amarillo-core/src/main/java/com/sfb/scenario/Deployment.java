@@ -28,14 +28,27 @@ public final class Deployment {
     private Deployment() {
     }
 
+    /** As below, with nothing on the map to run into. */
+    public static List<String> check(List<Placement> placements, MapRegion zone,
+                                     int mapCols, int mapRows) {
+        return check(placements, zone, Set.of(), mapCols, mapRows);
+    }
+
     /**
      * What is wrong with these placements, empty if nothing. Reports every fault rather than
      * the first, so a player fixing a setup sees the whole picture at once.
+     * <p>
+     * Asteroid hexes are not a fault — setting up in a field is ordinary, and a standard field
+     * covers a quarter of the map. What is refused is a solid body: a planet or a gas giant is
+     * no-entry (P2.224), so a ship cannot begin somewhere it could never have moved to.
+     *
+     * @param noEntry hexes no ship may occupy, as CCRR strings — see {@link #noEntryHexes}
      */
     public static List<String> check(List<Placement> placements, MapRegion zone,
-                                     int mapCols, int mapRows) {
+                                     Set<String> noEntry, int mapCols, int mapRows) {
         List<String> problems = new ArrayList<>();
         MapRegion z = zone != null ? zone : MapRegion.anywhere();
+        Set<String> blocked = noEntry != null ? noEntry : Set.of();
 
         for (Placement p : placements) {
             com.sfb.properties.Location loc = MapRegion.parse(p.hex());
@@ -46,6 +59,8 @@ public final class Deployment {
             if (!z.contains(loc, mapCols, mapRows))
                 problems.add(p.shipName() + " is at " + p.hex() + ", outside its deployment area ("
                         + z.describe() + ")");
+            else if (blocked.contains(p.hex()))
+                problems.add(p.shipName() + " cannot stand at " + p.hex() + " — there is a planet there");
             if (p.heading() == null || p.heading().isBlank()
                     || "ABCDEF".indexOf(p.heading().toUpperCase().charAt(0)) < 0)
                 problems.add(p.shipName() + " is not facing anywhere");
@@ -53,14 +68,52 @@ public final class Deployment {
         return problems;
     }
 
+    /**
+     * The hexes a ship may not be placed on: the footprint of every planet and gas giant in the
+     * scenario. Mirrors what Game does with the same terrain when the battle starts, so setup
+     * and play agree about where the solid ground is.
+     * <p>
+     * Asteroids and ring hexes are deliberately absent — both are enterable, at a price.
+     */
+    public static Set<String> noEntryHexes(ScenarioSpec spec) {
+        Set<String> out = new LinkedHashSet<>();
+        if (spec == null || spec.terrain == null)
+            return out;
+
+        for (ScenarioSpec.TerrainSetup t : spec.terrain) {
+            if (t.type == null)
+                continue;
+            String type = t.type.toUpperCase();
+            if (!type.equals("PLANET") && !type.equals("GAS_GIANT"))
+                continue;
+            com.sfb.properties.Location centre = MapRegion.parse(t.hex);
+            if (centre == null)
+                continue;
+            int radius = Math.max(0, t.radius);
+            for (int c = 1; c <= spec.mapCols; c++)
+                for (int r = 1; r <= spec.mapRows; r++) {
+                    com.sfb.properties.Location hex = new com.sfb.properties.Location(c, r);
+                    if (com.sfb.utilities.MapUtils.getRange(centre, hex) <= radius)
+                        out.add(String.format("%02d%02d", c, r));
+                }
+        }
+        return out;
+    }
+
     /** True if every ship has been set down somewhere legal. */
     public static boolean isComplete(List<String> shipNames, List<Placement> placements,
                                      MapRegion zone, int mapCols, int mapRows) {
+        return isComplete(shipNames, placements, zone, Set.of(), mapCols, mapRows);
+    }
+
+    public static boolean isComplete(List<String> shipNames, List<Placement> placements,
+                                     MapRegion zone, Set<String> noEntry,
+                                     int mapCols, int mapRows) {
         Set<String> placed = new LinkedHashSet<>();
         for (Placement p : placements)
             placed.add(p.shipName());
         return placed.containsAll(shipNames)
-                && check(placements, zone, mapCols, mapRows).isEmpty();
+                && check(placements, zone, noEntry, mapCols, mapRows).isEmpty();
     }
 
     /**

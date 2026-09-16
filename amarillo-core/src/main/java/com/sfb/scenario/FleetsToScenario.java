@@ -18,16 +18,34 @@ import java.util.List;
  */
 public final class FleetsToScenario {
 
-    /** One fleet and the team flying it. Several fleets may share a team (allies). */
-    public record Entry(FleetSpec fleet, String team) {
-    }
-
-    /** The conditions the host agreed before anyone chose a fleet (S8.13, S8.135). */
-    public record Conditions(int year, int budget, int mapCols, int mapRows, int weaponStatus) {
-        public static Conditions defaults(int year, int budget) {
-            return new Conditions(year, budget, 42, 32, 2);
+    /**
+     * One fleet, the team flying it, and the ground it sets up on. Several fleets may share a
+     * team (allies). A null zone takes the default: a band around the column this fleet would
+     * have lined up on anyway.
+     */
+    public record Entry(FleetSpec fleet, String team, MapRegion zone) {
+        public Entry(FleetSpec fleet, String team) {
+            this(fleet, team, null);
         }
     }
+
+    /**
+     * The conditions the host agreed before anyone chose a fleet (S8.13, S8.135), including
+     * what the map has on it — terrain is settled before forces are bought (S8.15).
+     */
+    public record Conditions(int year, int budget, int mapCols, int mapRows, int weaponStatus,
+                             List<TerrainGenerator.Plan> terrain) {
+        public Conditions(int year, int budget, int mapCols, int mapRows, int weaponStatus) {
+            this(year, budget, mapCols, mapRows, weaponStatus, List.of());
+        }
+
+        public static Conditions defaults(int year, int budget) {
+            return new Conditions(year, budget, 42, 32, 2, List.of());
+        }
+    }
+
+    /** Columns either side of a fleet's own that it may spread into by default. */
+    private static final int DEFAULT_ZONE_WIDTH = 3;
 
     /** Hexes kept clear of the map edge, so a starting line is not against the wall. */
     private static final int EDGE_MARGIN = 5;
@@ -55,6 +73,16 @@ public final class FleetsToScenario {
         for (int i = 0; i < entries.size(); i++)
             spec.sides.add(sideFor(entries.get(i), i, entries.size(), conditions));
 
+        // Terrain last, and it does not dodge the deployment zones. A standard asteroid field
+        // covers a quarter of the map and setting up in one is ordinary (P3.11); a planet or a
+        // giant is placed where it lands, and a zone is wide enough to stand clear of it.
+        // Deployment refuses the body's own hexes when a ship is put down, which is the check
+        // that actually matters.
+        if (conditions.terrain() != null && !conditions.terrain().isEmpty()) {
+            spec.terrainPlan = new ArrayList<>(conditions.terrain());
+            ScenarioLoader.expandTerrainPlans(spec);
+        }
+
         return spec;
     }
 
@@ -71,6 +99,9 @@ public final class FleetsToScenario {
         String heading = column <= conditions.mapCols() / 2 ? "C" : "F";
         int firstRow = firstRowFor(fleet.ships.size(), conditions.mapRows());
 
+        side.deploymentZone = entry.zone() != null ? entry.zone()
+                : defaultZone(column, conditions.mapCols(), conditions.mapRows());
+
         for (int s = 0; s < fleet.ships.size(); s++) {
             FleetSpec.ShipEntry ship = fleet.ships.get(s);
             ScenarioSpec.ShipSetup setup = new ScenarioSpec.ShipSetup();
@@ -85,6 +116,19 @@ public final class FleetsToScenario {
             side.ships.add(setup);
         }
         return side;
+    }
+
+    /**
+     * The ground a fleet gets when the host does not draw one: a band of columns around the one
+     * it would have lined up on, the full height of the map. Wide enough that a planet landing
+     * in it still leaves somewhere to stand, and it generalises to three and four fleets
+     * without special-casing any of them.
+     */
+    private static MapRegion defaultZone(int column, int mapCols, int mapRows) {
+        int from = Math.max(1, column - DEFAULT_ZONE_WIDTH);
+        int to = Math.min(mapCols, column + DEFAULT_ZONE_WIDTH);
+        return MapRegion.box(String.format("%02d%02d", from, 1),
+                             String.format("%02d%02d", to, mapRows));
     }
 
     /** Fleets spread evenly across the map's width, clear of both edges. */
