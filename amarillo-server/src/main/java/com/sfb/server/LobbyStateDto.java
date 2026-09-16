@@ -16,13 +16,22 @@ public class LobbyStateDto {
         public final boolean      isHost;
         public final List<String> assignedShips;
         public final boolean      coiDone;
+        /**
+         * How far along their setup is — a count, never the hexes. Placements stay secret
+         * until everyone is finished, and this goes to the whole room.
+         */
+        public final int          shipsPlaced;
+        public final boolean      deploymentDone;
 
-        PlayerDto(String name, String teamName, boolean isHost, List<String> ships, boolean coiDone) {
-            this.name          = name;
-            this.teamName      = teamName;
-            this.isHost        = isHost;
-            this.assignedShips = ships;
-            this.coiDone       = coiDone;
+        PlayerDto(String name, String teamName, boolean isHost, List<String> ships, boolean coiDone,
+                  int shipsPlaced, boolean deploymentDone) {
+            this.name           = name;
+            this.teamName       = teamName;
+            this.isHost         = isHost;
+            this.assignedShips  = ships;
+            this.coiDone        = coiDone;
+            this.shipsPlaced    = shipsPlaced;
+            this.deploymentDone = deploymentDone;
         }
     }
 
@@ -122,6 +131,9 @@ public class LobbyStateDto {
     public final List<String>    scenarioSpecialRules;
     public final boolean         started;
     public final boolean         allCoiReady;
+    /** Whether this battle expects players to set their own ships down, and whether they have. */
+    public final boolean         deploymentRequired;
+    public final boolean         allDeploymentReady;
     public final List<PlayerDto> players;
     public final List<String>    unassignedShips;
     /**
@@ -151,6 +163,8 @@ public class LobbyStateDto {
                 ? spec.specialRules : List.of();
         this.started         = session.isStarted();
         this.allCoiReady     = session.allCoiDone();
+        this.deploymentRequired  = session.isDeploymentRequired();
+        this.allDeploymentReady  = session.allDeploymentDone();
 
         this.players = session.getPlayers().entrySet().stream()
                 .map(e -> new PlayerDto(
@@ -158,7 +172,9 @@ public class LobbyStateDto {
                         session.getTeamNameFor(e.getKey()),
                         session.isHost(e.getKey()),
                         session.getAssignedShipsFor(e.getKey()),
-                        session.isCoiDone(e.getKey())
+                        session.isCoiDone(e.getKey()),
+                        session.deploymentFor(e.getKey()).size(),
+                        session.isDeploymentDone(e.getKey())
                 ))
                 .collect(Collectors.toList());
 

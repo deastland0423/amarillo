@@ -133,6 +133,21 @@ public class GameSession {
     private final Set<String> coiDoneTokens = new HashSet<>();
 
     /**
+     * Where each player has set their ships down, by token then ship name. Secret until
+     * everyone is finished: a broadcast carries only how many each player has placed, and a
+     * player fetches their own through an authenticated call.
+     */
+    private final Map<String, Map<String, com.sfb.scenario.Deployment.Placement>> pendingDeployment
+            = new LinkedHashMap<>();
+
+    /**
+     * Who has said they are finished. Reversible until the last player says it, because there
+     * is no advantage in changing your mind about a setup nobody can see, and clicking Done a
+     * moment early should not cost the battle.
+     */
+    private final Set<String> deploymentDoneTokens = new HashSet<>();
+
+    /**
      * shipName → playerToken, recorded before start() so ships can be assigned in
      * the lobby.
      */
@@ -367,6 +382,150 @@ public class GameSession {
     }
 
     // -------------------------------------------------------------------------
+    // Deployment: each player sets their own ships down, in secret
+    // -------------------------------------------------------------------------
+
+    /**
+     * True when this battle expects players to place their own ships — that is, when a side was
+     * given ground to set up on. A hand-written scenario that names every hex does not, and its
+     * players go straight from Commander's Options to the first turn.
+     */
+    public boolean isDeploymentRequired() {
+        if (loadedSpec == null || loadedSpec.sides == null)
+            return false;
+        return loadedSpec.sides.stream().anyMatch(s -> s.deploymentZone != null);
+    }
+
+    /** The side a player belongs to, found through any ship they were given. */
+    private com.sfb.scenario.ScenarioSpec.SideSpec sideFor(String token) {
+        if (loadedSpec == null || loadedSpec.sides == null)
+            return null;
+        List<String> mine = getAssignedShipsFor(token);
+        for (com.sfb.scenario.ScenarioSpec.SideSpec side : loadedSpec.sides) {
+            if (side.ships == null)
+                continue;
+            for (com.sfb.scenario.ScenarioSpec.ShipSetup ship : side.ships)
+                if (mine.contains(ship.shipName))
+                    return side;
+        }
+        return null;
+    }
+
+    /** The ground this player may set up on, or null if they have no ships yet. */
+    public com.sfb.scenario.MapRegion deploymentZoneFor(String token) {
+        com.sfb.scenario.ScenarioSpec.SideSpec side = sideFor(token);
+        return side != null ? side.deploymentZone : null;
+    }
+
+    /** Hexes no ship may be set down on, whoever they belong to. */
+    public java.util.Set<String> noEntryHexes() {
+        return com.sfb.scenario.Deployment.noEntryHexes(loadedSpec);
+    }
+
+    /** This player's own placements — never broadcast, only fetched by the player themselves. */
+    public Map<String, com.sfb.scenario.Deployment.Placement> deploymentFor(String token) {
+        return new LinkedHashMap<>(pendingDeployment.getOrDefault(token, Map.of()));
+    }
+
+    /**
+     * Record where a player has put their ships, replacing whatever they had before.
+     *
+     * @return everything wrong with the setup; empty means it was accepted
+     */
+    public List<String> submitDeployment(String token,
+                                         List<com.sfb.scenario.Deployment.Placement> placements) {
+        List<String> mine = getAssignedShipsFor(token);
+        List<String> problems = new java.util.ArrayList<>();
+
+        for (com.sfb.scenario.Deployment.Placement p : placements)
+            if (!mine.contains(p.shipName()))
+                problems.add(p.shipName() + " is not yours to place");
+        if (!problems.isEmpty())
+            return problems;
+
+        problems.addAll(com.sfb.scenario.Deployment.check(
+                placements, deploymentZoneFor(token), noEntryHexes(),
+                loadedSpec != null ? loadedSpec.mapCols : 42,
+                loadedSpec != null ? loadedSpec.mapRows : 32));
+        if (!problems.isEmpty())
+            return problems;
+
+        Map<String, com.sfb.scenario.Deployment.Placement> byShip = new LinkedHashMap<>();
+        for (com.sfb.scenario.Deployment.Placement p : placements)
+            byShip.put(p.shipName(), p);
+        pendingDeployment.put(token, byShip);
+
+        // A setup that no longer covers every ship cannot still be finished.
+        if (!byShip.keySet().containsAll(mine))
+            deploymentDoneTokens.remove(token);
+        return problems;
+    }
+
+    /** True once every one of this player's ships is somewhere legal. */
+    public boolean isDeploymentComplete(String token) {
+        List<String> mine = getAssignedShipsFor(token);
+        if (mine.isEmpty())
+            return true;   // nothing to place
+        return com.sfb.scenario.Deployment.isComplete(
+                mine, new java.util.ArrayList<>(deploymentFor(token).values()),
+                deploymentZoneFor(token), noEntryHexes(),
+                loadedSpec != null ? loadedSpec.mapCols : 42,
+                loadedSpec != null ? loadedSpec.mapRows : 32);
+    }
+
+    /** Say you are finished, or that you are not after all. */
+    public String setDeploymentDone(String token, boolean done) {
+        if (!done) {
+            deploymentDoneTokens.remove(token);
+            return null;
+        }
+        if (!isDeploymentComplete(token))
+            return "Every ship must be set down somewhere legal first";
+        deploymentDoneTokens.add(token);
+        return null;
+    }
+
+    public boolean isDeploymentDone(String token) {
+        return deploymentDoneTokens.contains(token);
+    }
+
+    public boolean allDeploymentDone() {
+        return !isDeploymentRequired() || deploymentDoneTokens.containsAll(players.keySet());
+    }
+
+    /**
+     * Write the placements into the scenario and rebuild the ships from it.
+     * <p>
+     * Into the spec rather than onto the ships, because the spec is what builds them: startHex,
+     * startHeading and startSpeed are read by ScenarioLoader, and going through it keeps one
+     * path from "where a ship starts" to "where the ship is".
+     */
+    private void applyDeployments() {
+        if (!isDeploymentRequired() || loadedSpec == null || loadedSpec.sides == null)
+            return;
+
+        Map<String, com.sfb.scenario.Deployment.Placement> all = new LinkedHashMap<>();
+        for (Map<String, com.sfb.scenario.Deployment.Placement> byShip : pendingDeployment.values())
+            all.putAll(byShip);
+        if (all.isEmpty())
+            return;
+
+        for (com.sfb.scenario.ScenarioSpec.SideSpec side : loadedSpec.sides) {
+            if (side.ships == null)
+                continue;
+            for (com.sfb.scenario.ScenarioSpec.ShipSetup setup : side.ships) {
+                com.sfb.scenario.Deployment.Placement p = all.get(setup.shipName);
+                if (p == null)
+                    continue;   // never placed: it keeps the starting line it was given
+                setup.startHex = p.hex();
+                setup.startHeading = p.heading();
+                setup.startSpeed = p.speed();
+            }
+        }
+        loadedSideShips = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
+    }
+
+    // -------------------------------------------------------------------------
     // Game lifecycle
     // -------------------------------------------------------------------------
 
@@ -399,6 +558,8 @@ public class GameSession {
         pendingAssignments.clear();
         coiDoneTokens.clear();
         pendingCoi.clear();
+        pendingDeployment.clear();
+        deploymentDoneTokens.clear();
         // Build shipName → team name index from scenario sides
         shipTeamName.clear();
         for (int i = 0; i < loadedSpec.sides.size(); i++) {
@@ -417,6 +578,9 @@ public class GameSession {
     public void start() throws java.io.IOException {
         if (!scenarioLoaded)
             throw new IllegalStateException("Load a scenario before starting");
+
+        // Where the players put their ships, before anything is built from the spec.
+        applyDeployments();
 
         // Flatten ship name → CoiLoadout from all players' submissions
         Map<String, com.sfb.scenario.CoiLoadout> byName = new LinkedHashMap<>();

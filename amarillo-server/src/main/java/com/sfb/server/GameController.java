@@ -105,7 +105,14 @@ public class GameController {
         }
     }
 
+    /**
+     * Tell the room where things stand. The broker is absent when a controller is exercised
+     * directly rather than through Spring, and a missing audience is not a reason to fail the
+     * action that was just taken.
+     */
     private void broadcastLobby(GameSession session) {
+        if (broker == null)
+            return;
         broker.convertAndSend(
                 "/topic/games/" + session.getId() + "/lobby",
                 new LobbyStateDto(session));
@@ -361,6 +368,141 @@ public class GameController {
             body.put("terrain", req.terrain != null ? req.terrain : "OPEN_SPACE");
             body.put("terrainSeed", terrainSeed);   // so a host can lay the same map again
             return ResponseEntity.ok(body);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Deployment: every player sets their own ships down, in secret
+    // -------------------------------------------------------------------------
+
+    /** One ship, set down. */
+    public static class PlacementRequest {
+        public String shipName;
+        public String hex;          // CCRR
+        public String heading;      // "A"-"F"
+        public int    speed = 16;   // 16 = Speed Max
+    }
+
+    /** A whole setup, replacing whatever this player had before. */
+    public static class DeploymentRequest {
+        public List<PlacementRequest> placements = new ArrayList<>();
+    }
+
+    /**
+     * This player's own setup, and the ground they may use.
+     * <p>
+     * Fetched rather than broadcast: placements are secret until everyone is finished, and a
+     * websocket topic goes to the whole room. What the room hears is only how many ships each
+     * player has put down.
+     */
+    @GetMapping("/{id}/deployment")
+    public ResponseEntity<Map<String, Object>> getDeployment(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+
+            com.sfb.scenario.MapRegion zone = session.deploymentZoneFor(token);
+            com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
+            int cols = spec != null ? spec.mapCols : 42;
+            int rows = spec != null ? spec.mapRows : 32;
+
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("required", session.isDeploymentRequired());
+            body.put("ships", session.getAssignedShipsFor(token));
+            body.put("zone", zone == null ? null
+                    : LobbyStateDto.ZoneDto.of(zone, cols, rows));
+            body.put("noEntry", session.noEntryHexes());
+            body.put("complete", session.isDeploymentComplete(token));
+            body.put("done", session.isDeploymentDone(token));
+
+            List<Map<String, Object>> placed = new ArrayList<>();
+            for (com.sfb.scenario.Deployment.Placement p : session.deploymentFor(token).values()) {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("shipName", p.shipName());
+                row.put("hex", p.hex());
+                row.put("heading", p.heading());
+                row.put("speed", p.speed());
+                placed.add(row);
+            }
+            body.put("placements", placed);
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    /** Set this player's ships down. Replaces their whole setup, so partial work is fine. */
+    @PostMapping("/{id}/deployment")
+    public ResponseEntity<Map<String, Object>> submitDeployment(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody DeploymentRequest req) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            List<com.sfb.scenario.Deployment.Placement> placements = new ArrayList<>();
+            for (PlacementRequest p : req.placements)
+                placements.add(new com.sfb.scenario.Deployment.Placement(
+                        p.shipName, p.hex, p.heading, p.speed));
+
+            List<String> problems = session.submitDeployment(token, placements);
+            if (!problems.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "That setup is not legal", "problems", problems));
+
+            broadcastLobby(session);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("placed", placements.size());
+            body.put("complete", session.isDeploymentComplete(token));
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    /**
+     * Say you are finished setting up, or that you are not after all.
+     * <p>
+     * Reversible right up until the last player says it: there is no advantage in changing your
+     * mind about a setup nobody can see, and clicking Done a moment early should not cost the
+     * battle.
+     */
+    @PostMapping("/{id}/deployment/done")
+    public ResponseEntity<Map<String, Object>> setDeploymentDone(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, Object> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            boolean done = !Boolean.FALSE.equals(body.get("done"));
+            String refusal = session.setDeploymentDone(token, done);
+            if (refusal != null)
+                return ResponseEntity.badRequest().body(Map.of("error", refusal));
+
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of(
+                    "done", session.isDeploymentDone(token),
+                    "allDone", session.allDeploymentDone()));
         });
     }
 
@@ -942,6 +1084,9 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
             if (!session.allCoiDone())
                 return ResponseEntity.badRequest().body(Map.of("error", "Waiting for all players to submit COI"));
+            if (!session.allDeploymentDone())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Waiting for all players to finish setting up"));
 
             try {
                 session.start();
