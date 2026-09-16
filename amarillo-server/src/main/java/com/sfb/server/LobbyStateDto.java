@@ -31,11 +31,44 @@ public class LobbyStateDto {
         public final String        name;
         public final String        faction;
         public final List<ShipDto> ships;
+        public final ZoneDto       deploymentZone;
 
-        SideDto(String name, String faction, List<ShipDto> ships) {
-            this.name    = name;
-            this.faction = faction;
-            this.ships   = ships;
+        SideDto(String name, String faction, List<ShipDto> ships, ZoneDto zone) {
+            this.name           = name;
+            this.faction        = faction;
+            this.ships          = ships;
+            this.deploymentZone = zone;
+        }
+    }
+
+    /**
+     * The ground a side may set up on, expanded to hexes.
+     * <p>
+     * Expanded here rather than described and re-derived in the browser: the map already has a
+     * hexRange of its own, and two implementations of "which hexes are in this zone" is how the
+     * tint comes to disagree with the refusal. The whole map is sent as no hexes at all — there
+     * is nothing to mark when the answer is "anywhere".
+     */
+    public static class ZoneDto {
+        public final String       describe;
+        public final List<String> hexes;
+
+        ZoneDto(String describe, List<String> hexes) {
+            this.describe = describe;
+            this.hexes    = hexes;
+        }
+
+        static ZoneDto of(com.sfb.scenario.MapRegion zone, int mapCols, int mapRows) {
+            if (zone == null)
+                return null;
+            List<String> hexes = new java.util.ArrayList<>();
+            if (zone.shape != com.sfb.scenario.MapRegion.Shape.ANYWHERE) {
+                for (int c = 1; c <= mapCols; c++)
+                    for (int r = 1; r <= mapRows; r++)
+                        if (zone.contains(c, r, mapCols, mapRows))
+                            hexes.add(String.format("%02d%02d", c, r));
+            }
+            return new ZoneDto(zone.describe(), hexes);
         }
     }
 
@@ -103,6 +136,8 @@ public class LobbyStateDto {
      * battle has not started yet so there is no game state to read it from.
      */
     public final List<TerrainDto> terrain;
+    public final int             mapCols;
+    public final int             mapRows;
 
     public LobbyStateDto(GameSession session) {
         this.gameId          = session.getId();
@@ -134,11 +169,14 @@ public class LobbyStateDto {
                         side.name != null ? side.name : side.faction,
                         side.faction,
                         side.ships == null ? List.<ShipDto>of()
-                                : side.ships.stream().map(ShipDto::new).collect(Collectors.toList())))
+                                : side.ships.stream().map(ShipDto::new).collect(Collectors.toList()),
+                        ZoneDto.of(side.deploymentZone, spec.mapCols, spec.mapRows)))
                 .collect(Collectors.toList());
 
         this.terrain = spec == null || spec.terrain == null ? List.of() : spec.terrain.stream()
                 .map(TerrainDto::new)
                 .collect(Collectors.toList());
+        this.mapCols = spec != null ? spec.mapCols : 42;
+        this.mapRows = spec != null ? spec.mapRows : 32;
     }
 }

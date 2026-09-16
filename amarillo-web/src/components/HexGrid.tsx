@@ -115,6 +115,24 @@ function tracePath(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   ctx.closePath();
 }
 
+/** Wash a set of hexes in colour, beneath the counters. */
+function drawZones(
+  ctx: CanvasRenderingContext2D,
+  zones: Array<{ hexes: string[]; color: string }>,
+) {
+  for (const zone of zones) {
+    ctx.fillStyle = zone.color;
+    for (const hex of zone.hexes) {
+      const col = Number(hex.slice(0, 2));
+      const row = Number(hex.slice(2, 4));
+      if (!col || !row) continue;
+      const [cx, cy] = hexCenter(col, row);
+      tracePath(ctx, cx, cy);
+      ctx.fill();
+    }
+  }
+}
+
 function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
   const pattern = starfieldImage ? ctx.createPattern(starfieldImage, 'repeat') : null;
   ctx.fillStyle = pattern ?? '#0d1a0d';
@@ -867,9 +885,15 @@ interface Props {
   pickingHex?:      boolean;
   /** When set, the map pans to center on this object's hex. New object every call ensures re-pan even for same name. */
   snapTo?:          { name: string } | null;
+  /**
+   * Ground to tint, drawn under everything else — a fleet's deployment zone. Hexes come from
+   * the server already expanded, so the tint cannot disagree with what a placement is checked
+   * against.
+   */
+  zones?:           Array<{ hexes: string[]; color: string; label?: string }>;
 }
 
-export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
+export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo, zones }: Props) {
   const COLS     = mapColsProp ?? DEFAULT_COLS;
   const ROWS     = mapRowsProp ?? DEFAULT_ROWS;
   const CANVAS_W = canvasWidth(COLS);
@@ -899,6 +923,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     if (!ctx) return;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     drawGrid(ctx, COLS, ROWS);
+    if (zones && zones.length > 0) drawZones(ctx, zones);
     if (mapObjects && mapObjects.length > 0) {
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
         () => setTokenRevision(r => r + 1), COLS, ROWS);
@@ -913,7 +938,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex]);
+  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex, zones]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {

@@ -66,10 +66,17 @@ export interface CatalogShip {
   isBCH:         boolean;
 }
 
+/** The ground a side may set up on, already expanded to hexes by the server. */
+export interface LobbyZone {
+  describe: string;      // "within 6 hexes of the left edge"
+  hexes:    string[];    // CCRR; empty means the whole map, so nothing to mark
+}
+
 /** One side of a battle, as the lobby broadcasts it. */
 export interface LobbySide {
   name:    string;
   faction: string;
+  deploymentZone: LobbyZone | null;
   ships: Array<{
     shipName:     string;
     type:         string;

@@ -33,6 +33,8 @@ export interface LobbyState {
   // What is on the map. A player choosing where to set up must see the asteroids and
   // the gas giant before placing anything, and the battle has not started yet.
   terrain: LobbyTerrain[];
+  mapCols: number;
+  mapRows: number;
 }
 
 /**

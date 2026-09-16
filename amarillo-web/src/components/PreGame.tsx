@@ -6,12 +6,22 @@ import type {
   PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary, TerrainChoice,
 } from '../api/gameApi';
 import CoiDialog from './CoiDialog';
+import HexGrid from './HexGrid';
+import type { MapObject } from '../types/gameState';
 
 interface Props {
   session: LobbyResult;
   onGameStarted: () => void;
   onLeave: () => void;
 }
+
+/** Zone tints, in side order. Translucent so the grid and terrain stay readable beneath. */
+const ZONE_COLORS = [
+  'rgba(88, 166, 255, 0.16)',   // blue
+  'rgba(248, 81, 73, 0.16)',    // red
+  'rgba(86, 211, 100, 0.16)',   // green
+  'rgba(240, 192, 64, 0.16)',   // amber
+];
 
 export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const lobby = useLobbySocket(session.gameId);
@@ -462,6 +472,56 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           {/* Forces come from the lobby broadcast, which carries the loaded spec itself.
               A battle assembled from saved fleets is not a file in data/scenarios, so
               looking it up by id would show nothing. */}
+          {/* The battlefield, before anyone commits to it: the terrain that was rolled and
+              the ground each side may set up on. Both come from the broadcast spec, so this
+              is the same map everyone else is looking at. */}
+          {(() => {
+            if (!lobby) return null;
+            const terrain: MapObject[] = lobby.terrain.map(t => ({
+              type: 'TERRAIN',
+              name: t.name ?? `${t.terrainType}-${t.hex}`,
+              location: `<${Number(t.hex.slice(0, 2))}|${Number(t.hex.slice(2, 4))}>`,
+              terrainType: t.terrainType as 'ASTEROID' | 'PLANET' | 'GAS_GIANT',
+              radius: t.radius,
+              rings: t.rings?.length ? t.rings : undefined,
+            } as MapObject));
+
+            const zones = lobby.sides
+              .map((side, i) => ({
+                hexes: side.deploymentZone?.hexes ?? [],
+                color: ZONE_COLORS[i % ZONE_COLORS.length],
+                label: side.name,
+              }))
+              .filter(z => z.hexes.length > 0);
+
+            if (terrain.length === 0 && zones.length === 0) return null;
+
+            return (
+              <div className="battle-preview">
+                <div className="scenario-section-title">The battlefield</div>
+                <div className="battle-preview-map">
+                  <HexGrid
+                    mapCols={lobby.mapCols}
+                    mapRows={lobby.mapRows}
+                    mapObjects={terrain}
+                    zones={zones}
+                  />
+                </div>
+                {zones.length > 0 && (
+                  <div className="battle-preview-key">
+                    {lobby.sides.map((side, i) => side.deploymentZone && (
+                      <span key={side.name + i} className="battle-preview-key-item">
+                        <span className="battle-preview-swatch"
+                              style={{ background: ZONE_COLORS[i % ZONE_COLORS.length] }} />
+                        {side.name} — {side.deploymentZone.describe}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* What the battle is being fought over, from the broadcast spec. */}
           {(lobby?.terrain?.length ?? 0) > 0 && (
             <div className="scenario-section">

@@ -1926,3 +1926,27 @@ h3 {
 .fleet-choice:hover { border-color: #6e7681; }
 .fleet-choice-name { font-weight: 600; }
 .fleet-choice .fb-hint { margin-left: auto; }
+
+/* The battlefield preview, shown before anyone commits to a battle */
+.battle-preview { margin-top: 1rem; }
+.battle-preview-map {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 420px;
+}
+.battle-preview-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #8b949e;
+}
+.battle-preview-key-item { display: flex; align-items: center; gap: 0.4rem; }
+.battle-preview-swatch {
+  width: 0.9rem; height: 0.9rem;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  display: inline-block;
+}
