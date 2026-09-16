@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { gameApi } from '../api/gameApi';
-import type { LobbySide } from '../api/gameApi';
+import type { LobbySide, LobbyTerrain } from '../api/gameApi';
 
 export interface LobbyPlayer {
   name: string;
@@ -30,6 +30,9 @@ export interface LobbyState {
   // fleets is not a file on disk, so matching an id against the scenario list
   // would show a joiner nothing at all.
   sides: LobbySide[];
+  // What is on the map. A player choosing where to set up must see the asteroids and
+  // the gas giant before placing anything, and the battle has not started yet.
+  terrain: LobbyTerrain[];
 }
 
 /**

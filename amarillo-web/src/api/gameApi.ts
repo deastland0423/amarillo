@@ -81,11 +81,23 @@ export interface LobbySide {
   }>;
 }
 
+/** A piece of terrain as the lobby broadcasts it, before any game state exists. */
+export interface LobbyTerrain {
+  terrainType: string;          // "ASTEROID" | "PLANET" | "GAS_GIANT"
+  hex:         string;          // CCRR
+  name:        string | null;
+  radius:      number;
+  rings:       number[][];      // {inner, outer} hex-distance bands (P2.223)
+}
+
 /** A fleet chosen into a battle, and the team flying it. */
 export interface FleetSideChoice {
   fleetId: string;
   team?:   string;
 }
+
+/** What a host may put on the map. Settled before forces take the field (S8.15). */
+export type TerrainChoice = 'OPEN_SPACE' | 'ASTEROID_FIELD' | 'PLANET' | 'GAS_GIANT';
 
 export interface FleetGameSetup {
   sides:         FleetSideChoice[];
@@ -94,6 +106,9 @@ export interface FleetGameSetup {
   mapCols?:      number;
   mapRows?:      number;
   weaponStatus?: number;
+  terrain?:      TerrainChoice;
+  /** Omit to have the host roll one; it comes back so the same map can be laid again. */
+  terrainSeed?:  number;
 }
 
 export interface FleetShipEntry {
@@ -338,7 +353,12 @@ export const gameApi = {
   /** Assemble a battle from saved fleets, in place of naming a scenario file. */
   loadFleetsIntoGame(
     gameId: string, hostToken: string, setup: FleetGameSetup,
-  ): Promise<{ message: string; fleets: Array<{ fleetId: string; name: string; legal: boolean }> }> {
+  ): Promise<{
+    message: string;
+    fleets: Array<{ fleetId: string; name: string; legal: boolean }>;
+    terrain: string;
+    terrainSeed: number;
+  }> {
     return request(`/api/games/${gameId}/fleets`, {
       method: 'POST',
       headers: { 'X-Player-Token': hostToken },

@@ -3,7 +3,7 @@ import type { LobbyResult } from './Lobby';
 import { useLobbySocket } from '../hooks/useLobbySocket';
 import { gameApi } from '../api/gameApi';
 import type {
-  PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary,
+  PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary, TerrainChoice,
 } from '../api/gameApi';
 import CoiDialog from './CoiDialog';
 
@@ -30,6 +30,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [fleetYear,       setFleetYear]       = useState(180);
   const [fleetBudget,     setFleetBudget]     = useState(1000);
   const [fleetWs,         setFleetWs]         = useState(2);
+  const [fleetTerrain,    setFleetTerrain]    = useState<TerrainChoice>('OPEN_SPACE');
   // Raw COI data for the whole scenario (fetched once per scenario)
   const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
   // Filtered to this player's assigned ships
@@ -113,6 +114,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         year: fleetYear,
         budget: fleetBudget,
         weaponStatus: fleetWs,
+        terrain: fleetTerrain,
       });
       setError('');
       void res;
@@ -327,6 +329,17 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                       <option value={3}>WS-3</option>
                     </select>
                   </label>
+                  {/* S8.15: the terrain is agreed before the forces take the field. */}
+                  <label className="fb-field">
+                    <span>Terrain</span>
+                    <select value={fleetTerrain}
+                            onChange={e => setFleetTerrain(e.target.value as TerrainChoice)}>
+                      <option value="OPEN_SPACE">Open space</option>
+                      <option value="ASTEROID_FIELD">Asteroid field (P3.11)</option>
+                      <option value="PLANET">A planet</option>
+                      <option value="GAS_GIANT">A gas giant — size and rings rolled</option>
+                    </select>
+                  </label>
                 </div>
 
                 <div className="button-row" style={{ marginTop: 12 }}>
@@ -449,6 +462,31 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           {/* Forces come from the lobby broadcast, which carries the loaded spec itself.
               A battle assembled from saved fleets is not a file in data/scenarios, so
               looking it up by id would show nothing. */}
+          {/* What the battle is being fought over, from the broadcast spec. */}
+          {(lobby?.terrain?.length ?? 0) > 0 && (
+            <div className="scenario-section">
+              <div className="scenario-section-title">Terrain</div>
+              <ul className="scenario-rules-list">
+                {(() => {
+                  const t = lobby!.terrain;
+                  const rocks = t.filter(x => x.terrainType === 'ASTEROID').length;
+                  const rows: string[] = [];
+                  if (rocks > 0) rows.push(`Asteroid field — ${rocks} hexes (P3.11)`);
+                  for (const body of t.filter(x => x.terrainType !== 'ASTEROID')) {
+                    const across = body.radius * 2 + 1;
+                    const rings = body.rings?.length
+                      ? `, rings at ${body.rings.map(b => `${b[0]}-${b[1]}`).join(' and ')}`
+                      : '';
+                    rows.push(body.terrainType === 'GAS_GIANT'
+                      ? `Gas giant at ${body.hex} — ${across} hexes across${rings}`
+                      : `Planet at ${body.hex}${body.name ? ` (${body.name})` : ''}`);
+                  }
+                  return rows.map((r, i) => <li key={i}>{r}</li>);
+                })()}
+              </ul>
+            </div>
+          )}
+
           <div className="scenario-sides">
             {(lobby?.sides ?? []).map((side, i) => (
               <div key={side.name + i} className="scenario-side">

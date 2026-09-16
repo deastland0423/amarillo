@@ -39,6 +39,25 @@ public class LobbyStateDto {
         }
     }
 
+    /** A piece of terrain, so a player can see what they are setting up around. */
+    public static class TerrainDto {
+        public final String  terrainType;
+        public final String  hex;
+        public final String  name;
+        public final int     radius;
+        public final int[][] rings;
+
+        TerrainDto(com.sfb.scenario.ScenarioSpec.TerrainSetup t) {
+            this.terrainType = t.type != null ? t.type : "";
+            this.hex         = t.hex != null ? t.hex : "";
+            this.name        = t.name;
+            this.radius      = t.radius;
+            this.rings = t.rings == null ? new int[0][] : t.rings.stream()
+                    .map(b -> new int[] { b.inner, b.outer })
+                    .toArray(int[][]::new);
+        }
+    }
+
     public static class ShipDto {
         public final String       shipName;
         public final String       type;
@@ -78,6 +97,12 @@ public class LobbyStateDto {
      * data/scenarios would show a joiner nothing at all.
      */
     public final List<SideDto>   sides;
+    /**
+     * What is on the map. Broadcast for the same reason the forces are: a player choosing where
+     * to set up has to see the asteroids and the gas giant before they place anything, and the
+     * battle has not started yet so there is no game state to read it from.
+     */
+    public final List<TerrainDto> terrain;
 
     public LobbyStateDto(GameSession session) {
         this.gameId          = session.getId();
@@ -110,6 +135,10 @@ public class LobbyStateDto {
                         side.faction,
                         side.ships == null ? List.<ShipDto>of()
                                 : side.ships.stream().map(ShipDto::new).collect(Collectors.toList())))
+                .collect(Collectors.toList());
+
+        this.terrain = spec == null || spec.terrain == null ? List.of() : spec.terrain.stream()
+                .map(TerrainDto::new)
                 .collect(Collectors.toList());
     }
 }
