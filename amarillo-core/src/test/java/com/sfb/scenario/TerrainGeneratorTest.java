@@ -217,6 +217,117 @@ public class TerrainGeneratorTest {
         assertEquals("nothing shares a hex", hexes.size(), hexes.stream().distinct().count());
     }
 
+    // ---- the host's menu ----
+
+    @Test
+    public void openSpaceIsEmpty() {
+        assertTrue(TerrainGenerator.forChoice("OPEN_SPACE", 1L, COLS, ROWS).isEmpty());
+        assertTrue(gen(TerrainGenerator.forChoice("OPEN_SPACE", 1L, COLS, ROWS), null).isEmpty());
+    }
+
+    @Test
+    public void theAsteroidChoiceLaysTheStandardField() {
+        List<ScenarioSpec.TerrainSetup> t =
+                gen(TerrainGenerator.forChoice("ASTEROID_FIELD", 5L, COLS, ROWS), null);
+
+        assertTrue("a real field: " + t.size(), t.size() > 150);
+        for (ScenarioSpec.TerrainSetup s : t)
+            assertEquals("ASTEROID", s.type);
+    }
+
+    /** A feature belongs in the middle, which is where both hand-written giants sit. */
+    @Test
+    public void aGasGiantGoesInTheMiddleOfTheMap() {
+        for (long seed = 0; seed < 12; seed++) {
+            List<ScenarioSpec.TerrainSetup> t =
+                    gen(TerrainGenerator.forChoice("GAS_GIANT", seed, COLS, ROWS), null);
+            assertEquals("one giant, seed " + seed, 1, t.size());
+            assertEquals("seed " + seed, TerrainGenerator.centreOf(COLS, ROWS), t.get(0).hex);
+            assertEquals("GAS_GIANT", t.get(0).type);
+        }
+    }
+
+    @Test
+    public void aRolledGiantIsOneOfTheFourSizes() {
+        for (long seed = 0; seed < 40; seed++) {
+            int radius = gen(TerrainGenerator.forChoice("GAS_GIANT", seed, COLS, ROWS), null)
+                    .get(0).radius;
+            assertTrue("radius " + radius + " at seed " + seed, radius >= 2 && radius <= 5);
+        }
+    }
+
+    @Test
+    public void theSizeTableSpansTheAtmosphereThreshold() {
+        // P2.222 gives giants of radius 3 or more an atmosphere ring, so the table must
+        // straddle it rather than sitting entirely one side.
+        assertEquals(2, TerrainGenerator.rolledGiantRadius(1));
+        assertEquals(2, TerrainGenerator.rolledGiantRadius(2));
+        assertEquals(3, TerrainGenerator.rolledGiantRadius(3));
+        assertEquals(3, TerrainGenerator.rolledGiantRadius(4));
+        assertEquals(4, TerrainGenerator.rolledGiantRadius(5));
+        assertEquals(5, TerrainGenerator.rolledGiantRadius(6));
+    }
+
+    /**
+     * Rings are an even chance, independent of size — so the very large ringed giant that fills
+     * the map is roughly one game in twelve rather than every other one.
+     */
+    @Test
+    public void ringsAreAnEvenChanceAndIndependentOfSize() {
+        int ringed = 0, bigAndRinged = 0, trials = 400;
+        for (long seed = 0; seed < trials; seed++) {
+            ScenarioSpec.TerrainSetup giant =
+                    gen(TerrainGenerator.forChoice("GAS_GIANT", seed, COLS, ROWS), null).get(0);
+            boolean hasRings = giant.rings != null && !giant.rings.isEmpty();
+            if (hasRings) ringed++;
+            if (hasRings && giant.radius == 5) bigAndRinged++;
+        }
+        assertTrue("about half are ringed, got " + ringed + "/" + trials,
+                ringed > trials * 0.4 && ringed < trials * 0.6);
+        assertTrue("the map-filling giant stays rare, got " + bigAndRinged + "/" + trials,
+                bigAndRinged < trials * 0.15);
+    }
+
+    @Test
+    public void ringsStandOffTheBodyAndDoNotOverlapEachOther() {
+        for (int radius = 2; radius <= 5; radius++) {
+            List<ScenarioSpec.RingBand> bands = TerrainGenerator.ringsFor(radius);
+            assertEquals(2, bands.size());
+            assertTrue("inner band clears the body", bands.get(0).inner > radius);
+            assertTrue("bands are the right way round", bands.get(0).outer >= bands.get(0).inner);
+            assertTrue("bands do not touch", bands.get(1).inner > bands.get(0).outer);
+        }
+    }
+
+    @Test
+    public void thePlanetChoiceIsOneHexInTheMiddle() {
+        List<ScenarioSpec.TerrainSetup> t =
+                gen(TerrainGenerator.forChoice("PLANET", 3L, COLS, ROWS), null);
+
+        assertEquals(1, t.size());
+        assertEquals("PLANET", t.get(0).type);
+        assertEquals(0, t.get(0).radius);
+        assertEquals(TerrainGenerator.centreOf(COLS, ROWS), t.get(0).hex);
+        assertNull("a planet has no rings", t.get(0).rings);
+    }
+
+    @Test
+    public void theSameChoiceAndSeedRollTheSameGiant() {
+        ScenarioSpec.TerrainSetup a =
+                gen(TerrainGenerator.forChoice("GAS_GIANT", 99L, COLS, ROWS), null).get(0);
+        ScenarioSpec.TerrainSetup b =
+                gen(TerrainGenerator.forChoice("GAS_GIANT", 99L, COLS, ROWS), null).get(0);
+
+        assertEquals(a.radius, b.radius);
+        assertEquals(a.rings == null, b.rings == null);
+    }
+
+    @Test
+    public void anUnknownChoiceGivesNothing() {
+        assertTrue(TerrainGenerator.forChoice("NEBULA_OF_DOOM", 1L, COLS, ROWS).isEmpty());
+        assertTrue(TerrainGenerator.forChoice(null, 1L, COLS, ROWS).isEmpty());
+    }
+
     @Test
     public void anUnknownPlanIsSkippedRatherThanFatal() {
         TerrainGenerator.Plan nonsense = new TerrainGenerator.Plan();

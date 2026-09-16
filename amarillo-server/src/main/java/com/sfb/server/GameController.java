@@ -232,10 +232,12 @@ public class GameController {
     // Starting a battle from saved fleets (S8.0)
     // -------------------------------------------------------------------------
 
-    /** One side of a fleet battle: whose fleet, and the team flying it. */
+    /** One side of a fleet battle: whose fleet, the team flying it, and where it sets up. */
     public static class FleetSideRequest {
         public String fleetId;
         public String team;     // defaults to the fleet's own name
+        /** Where this fleet may deploy. Null takes a band around its own starting column. */
+        public com.sfb.scenario.MapRegion zone;
     }
 
     /**
@@ -249,6 +251,14 @@ public class GameController {
         public int mapCols = 42;
         public int mapRows = 32;
         public int weaponStatus = 2;   // S8.134: agreed, or rolled for
+        /**
+         * What is on the map: "OPEN_SPACE", "ASTEROID_FIELD", "PLANET" or "GAS_GIANT".
+         * Settled before forces are bought (S8.15), though saved fleets are bought earlier
+         * still — which is why a player keeps several and brings the one that suits.
+         */
+        public String terrain;
+        /** Rolled once by the host if absent, so every player sees the same map. */
+        public Long terrainSeed;
     }
 
     /**
@@ -322,7 +332,7 @@ public class GameController {
                 String team = side.team != null && !side.team.isBlank()
                         ? side.team
                         : (fleet.name != null && !fleet.name.isBlank() ? fleet.name : side.fleetId);
-                entries.add(new com.sfb.scenario.FleetsToScenario.Entry(asPlayed, team));
+                entries.add(new com.sfb.scenario.FleetsToScenario.Entry(asPlayed, team, side.zone));
             }
 
             if (!allLegal) {
@@ -332,9 +342,15 @@ public class GameController {
                 return ResponseEntity.badRequest().body(body);
             }
 
+            long terrainSeed = req.terrainSeed != null ? req.terrainSeed : new java.util.Random().nextLong();
+            List<com.sfb.scenario.TerrainGenerator.Plan> terrain =
+                    com.sfb.scenario.TerrainGenerator.forChoice(
+                            req.terrain, terrainSeed, req.mapCols, req.mapRows);
+
             com.sfb.scenario.FleetsToScenario.Conditions conditions =
                     new com.sfb.scenario.FleetsToScenario.Conditions(
-                            req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus);
+                            req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus,
+                            terrain);
             session.loadBuiltScenario(
                     com.sfb.scenario.FleetsToScenario.build(entries, conditions), "fleet-battle");
 
@@ -342,6 +358,8 @@ public class GameController {
             Map<String, Object> body = new java.util.LinkedHashMap<>();
             body.put("message", "Battle assembled from " + entries.size() + " fleets");
             body.put("fleets", reports);
+            body.put("terrain", req.terrain != null ? req.terrain : "OPEN_SPACE");
+            body.put("terrainSeed", terrainSeed);   // so a host can lay the same map again
             return ResponseEntity.ok(body);
         });
     }

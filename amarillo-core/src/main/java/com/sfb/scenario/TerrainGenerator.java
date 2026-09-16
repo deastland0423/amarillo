@@ -51,6 +51,105 @@ public final class TerrainGenerator {
         public Long seed;
         /** Optional display name for a planet or giant. */
         public String name;
+        /** PLANET and GAS_GIANT: put it exactly here, instead of anywhere in the region. */
+        public String hex;
+        /** GAS_GIANT: planetary ring bands (P2.223), each a hex-distance range from the body. */
+        public List<ScenarioSpec.RingBand> rings;
+    }
+
+    // -------------------------------------------------------------------------
+    // The menu a host picks from for a pick-up battle
+    // -------------------------------------------------------------------------
+
+    /** What a host may put on the map. */
+    public static final List<String> CHOICES =
+            List.of("OPEN_SPACE", "ASTEROID_FIELD", "PLANET", "GAS_GIANT");
+
+    /**
+     * Turn a menu choice into plans, rolling for whatever the choice leaves open.
+     * <p>
+     * A gas giant is the feature of the map it appears on, so it goes in the middle rather than
+     * wherever a die puts it — both hand-written giants in data/scenarios sit at 2116. What is
+     * rolled is what makes one game differ from the next: how big it is, and whether it has
+     * rings. The two rolls are independent, so the very large ringed giant that fills the map
+     * turns up about one game in twelve rather than every other time.
+     * <p>
+     * Seeded, like everything else here: the host rolls once and every player sees the result.
+     */
+    public static List<Plan> forChoice(String choice, long seed, int mapCols, int mapRows) {
+        if (choice == null)
+            return List.of();
+        Random rng = new Random(seed);
+
+        switch (choice.toUpperCase()) {
+            case "OPEN_SPACE":
+                return List.of();
+
+            case "ASTEROID_FIELD": {
+                Plan p = new Plan();
+                p.type = "ASTEROID_FIELD";
+                p.seed = seed;
+                return List.of(p);
+            }
+
+            case "PLANET": {
+                Plan p = new Plan();
+                p.type = "PLANET";
+                p.seed = seed;
+                p.hex = centreOf(mapCols, mapRows);
+                return List.of(p);
+            }
+
+            case "GAS_GIANT": {
+                Plan p = new Plan();
+                p.type = "GAS_GIANT";
+                p.seed = seed;
+                p.hex = centreOf(mapCols, mapRows);
+                p.radius = rolledGiantRadius(rng.nextInt(6) + 1);
+                // An even chance of rings, so that even the largest giant sometimes leaves the
+                // rest of the map to the players.
+                if (rng.nextInt(2) == 0)
+                    p.rings = ringsFor(p.radius);
+                return List.of(p);
+            }
+
+            default:
+                System.err.println("TerrainGenerator: unknown terrain choice '" + choice + "'");
+                return List.of();
+        }
+    }
+
+    /**
+     * How big a rolled gas giant is. Spans the threshold that matters: P2.222 gives giants of
+     * seven hexes or more across — radius 3 — a no-entry atmosphere ring, so the table runs
+     * from below it to the radius 5 of the largest one already in data/scenarios.
+     */
+    static int rolledGiantRadius(int die) {
+        if (die <= 2) return 2;
+        if (die <= 4) return 3;
+        if (die == 5) return 4;
+        return 5;
+    }
+
+    /**
+     * Two ring bands, standing off the body far enough to be distinct from it and scaled to its
+     * size. For a radius 4 giant this gives 6–7 and 9–11, near enough to the 7–8 and 10–12 of
+     * the hand-written Proxima IV.
+     */
+    static List<ScenarioSpec.RingBand> ringsFor(int radius) {
+        return List.of(band(radius + 2, radius + 3), band(radius + 5, radius + 7));
+    }
+
+    private static ScenarioSpec.RingBand band(int inner, int outer) {
+        ScenarioSpec.RingBand b = new ScenarioSpec.RingBand();
+        b.inner = inner;
+        b.outer = outer;
+        return b;
+    }
+
+    /** The middle of the map, where a feature belongs. */
+    static String centreOf(int mapCols, int mapRows) {
+        return String.format("%02d%02d", Math.max(1, mapCols / 2), Math.max(1, mapRows / 2));
     }
 
     /**
@@ -144,6 +243,18 @@ public final class TerrainGenerator {
     private static void placeBodies(Plan plan, Random rng, List<MapRegion> keepClear,
                                     Set<String> used, List<ScenarioSpec.TerrainSetup> out,
                                     int mapCols, int mapRows, int radius) {
+        // A named hex is where it goes, full stop — a gas giant is the feature of its map and
+        // the host chose the middle of it, not a region to be scattered within.
+        if (plan.hex != null && !plan.hex.isBlank()) {
+            Location fixed = MapRegion.parse(plan.hex);
+            if (fixed != null) {
+                out.add(bodySetup(plan, fixed, radius));
+                for (Location l : within(fixed, radius, mapCols, mapRows))
+                    used.add(key(l));
+            }
+            return;
+        }
+
         for (int i = 0; i < Math.max(0, plan.count); i++) {
             List<Location> candidates = openHexes(plan.region, keepClear, used, mapCols, mapRows);
             // A body needs its whole footprint clear, not just its centre.
@@ -153,7 +264,7 @@ public final class TerrainGenerator {
                 return;
 
             Location centre = candidates.get(rng.nextInt(candidates.size()));
-            out.add(setup(radius > 0 ? "GAS_GIANT" : "PLANET", centre, radius, plan.name));
+            out.add(bodySetup(plan, centre, radius));
 
             // Claim the body and a berth around it, so the next one lands elsewhere.
             for (Location l : within(centre, radius + Math.max(0, plan.spacing), mapCols, mapRows))
@@ -213,6 +324,15 @@ public final class TerrainGenerator {
                     out.add(loc);
             }
         return out;
+    }
+
+    /** A planet or giant, with whatever rings the plan asked for. */
+    private static ScenarioSpec.TerrainSetup bodySetup(Plan plan, Location centre, int radius) {
+        ScenarioSpec.TerrainSetup s = setup(radius > 0 ? "GAS_GIANT" : "PLANET", centre, radius,
+                                            plan.name);
+        if (plan.rings != null && !plan.rings.isEmpty() && radius > 0)
+            s.rings = new ArrayList<>(plan.rings);
+        return s;
     }
 
     private static ScenarioSpec.TerrainSetup setup(String type, Location loc, int radius, String name) {
