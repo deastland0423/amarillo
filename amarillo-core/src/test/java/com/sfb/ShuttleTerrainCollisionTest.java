@@ -208,38 +208,41 @@ public class ShuttleTerrainCollisionTest {
     // ------------------------------------------------- the exceptions to "speed 6 is safe"
 
     /**
-     * C11.33: a poor crew negates the C11.21 nimble die-shift, and a shuttle is flown by a
-     * pilot off its mother ship's roster - so a fighter launched by a poor-crewed ship no
-     * longer gets to subtract 1 from the collision die.
+     * G21.142: "admin shuttle pilots are always treated as good" - so the crew quality of
+     * the ship that launched a shuttle must make no difference to its collision roll. The
+     * crew-quality rules are written about ships; a shuttle does not inherit poor OR
+     * outstanding from its mother.
      * <p>
-     * The dice are {@code Math.random()} with no seam to seed, so this counts outcomes
-     * rather than pinning a roll. The effect size is exact: at speed 12 the asteroid
-     * column is {0,0,0,2,6,10} for die 1..6, so a nimble fighter escapes damage on a raw
-     * 1-4 (4/6) and a poor-crewed one only on a raw 1-3 (3/6). Over {@value #ROLLS} rolls
-     * that is a gap of about 250 against a combined sigma near 27, so the threshold below
-     * sits roughly 4.5 sigma from both "no effect at all" and "the full effect".
+     * Measured the same way as any other rolled mechanic here, but asserting an
+     * equivalence rather than a gap. It still catches the inheritance being reintroduced:
+     * that would cost the shuttle its C11.21 die-shift under a poor crew and open a gap of
+     * about 250, far outside the band below. At speed 20 the asteroid column is
+     * {0,0,3,6,10,15}, so a nimble shuttle escapes damage on a raw 1-3 and one that had
+     * lost the shift only on a raw 1-2 - 750 against 500 over {@value #ROLLS} rolls.
      */
     @Test
-    public void poorCrewedFighter_losesItsNimbleBenefit() {
-        int normalUnscathed = unscathedCrossings(Crew.CrewQuality.NORMAL);
-        int poorUnscathed = unscathedCrossings(Crew.CrewQuality.POOR);
+    public void shuttlePilotsAreAlwaysGood_regardlessOfTheMotherShipsCrew() {
+        int fromNormalCrewedShip = unscathedTows(Crew.CrewQuality.NORMAL);
+        int fromPoorCrewedShip = unscathedTows(Crew.CrewQuality.POOR);
 
-        assertTrue("A poor crew must cost the fighter its nimble die-shift (C11.33): over "
-                        + ROLLS + " crossings a normal crew escaped damage " + normalUnscathed
-                        + " times and a poor crew " + poorUnscathed + " - too close to call, "
-                        + "so the shuttle is not answering for its mother ship's crew",
-                normalUnscathed - poorUnscathed > 120);
+        assertTrue("G21.142: an admin shuttle's pilot is always good, so its mother ship's "
+                        + "crew must not change the roll - but over " + ROLLS + " tows a "
+                        + "shuttle off a normal-crewed ship escaped damage "
+                        + fromNormalCrewedShip + " times against " + fromPoorCrewedShip
+                        + " off a poor-crewed one",
+                Math.abs(fromNormalCrewedShip - fromPoorCrewedShip) < 100);
     }
 
     private static final int ROLLS = 1500;
 
     /**
-     * How many of {@value #ROLLS} crossings of an asteroid hex a fighter launched by a ship
-     * of this crew quality comes through undamaged. A fresh fighter per roll, so no carried
-     * hull damage and no J1.33 crippling (which halves speed, and so would change the
-     * damage bracket underneath the sample) leaks from one roll to the next.
+     * How many of {@value #ROLLS} tows through an asteroid hex an admin shuttle launched by
+     * a ship of this crew quality comes through undamaged. Towed at speed 20, because under
+     * its own power it is capped at 6 and would never take damage at all (P3.2), and a
+     * fresh shuttle per roll so no carried hull damage or J1.33 crippling leaks between
+     * samples.
      */
-    private int unscathedCrossings(Crew.CrewQuality quality) {
+    private int unscathedTows(Crew.CrewQuality quality) {
         Game g = freshGame();
         g.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
         Ship mother = g.getShips().get(0);
@@ -247,16 +250,16 @@ public class ShuttleTerrainCollisionTest {
 
         int unscathed = 0;
         for (int i = 0; i < ROLLS; i++) {
-            Stinger1 f = new Stinger1();
-            f.setName("Alpha " + i);
-            f.setOwner(fedPlayer);
-            f.setLocation(new Location(10, 9)); // standing in the rocks
-            f.setFacing(1);
-            f.setSpeed(12);
-            f.setParentShipName(mother.getName()); // it flies for that ship
-            g.getActiveShuttles().add(f);
+            AdminShuttle s = new AdminShuttle();
+            s.setName("Galileo " + i);
+            s.setOwner(fedPlayer);
+            s.setLocation(new Location(10, 9)); // where a tow would have left it
+            s.setFacing(1);
+            s.setSpeed(6);
+            s.setParentShipName(mother.getName()); // launched by that ship
+            g.getActiveShuttles().add(s);
 
-            if (g.applyTerrainCollision(f).contains("no damage"))
+            if (g.applyTerrainCollision(s, 20).contains("no damage"))
                 unscathed++;
         }
         return unscathed;

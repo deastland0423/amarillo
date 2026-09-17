@@ -3043,23 +3043,26 @@ public class Game {
      */
     /**
      * Whose hands are on the controls, for C11.33 - a poor crew negates the C11.21 nimble
-     * die-shift. A ship answers for its own crew. A shuttle or fighter is flown by a pilot
-     * off its mother ship's roster, so it answers for the ship that launched it; one that
-     * was never launched from anywhere (placed by a scenario, or whose mother is gone)
-     * falls back to NORMAL rather than pretending to be crewless. Seeking weapons have no
-     * crew and are not nimble anyway, so the answer never reaches the table for them.
+     * die-shift. A ship answers for its own crew.
+     * <p>
+     * Nothing else does. The crew-quality rules are written about ships, and G21.142 says
+     * outright that admin shuttle pilots are ALWAYS treated as good - so a shuttle does not
+     * inherit the quality of the ship that launched it, however tempting the reasoning that
+     * its pilot came off that roster. Returning null here means NORMAL at the table, which
+     * is what "always good" amounts to for both the poor and the outstanding case.
+     * <p>
+     * Seeking weapons have no crew and are not nimble anyway, so this never reaches them.
+     * <p>
+     * NOT MODELLED: fighter pilots. G21 rates them separately from both ship crews and
+     * admin shuttle pilots, and that text has not been read into this code - a fighter
+     * currently flies as good, like an admin shuttle. Needs the G21.1xx/G21.2xx rules
+     * before it is worth wiring, along with the G21.128/.228 crew collision shift already
+     * noted as deferred.
      */
     private com.sfb.systemgroups.Crew.CrewQuality crewQualityFor(Unit unit) {
         if (unit instanceof Ship)
             return ((Ship) unit).getCrew() == null ? null
                     : ((Ship) unit).getCrew().getCrewQuality();
-        if (unit instanceof com.sfb.objects.shuttles.Shuttle) {
-            String parent = ((com.sfb.objects.shuttles.Shuttle) unit).getParentShipName();
-            if (parent != null)
-                for (Ship s : ships)
-                    if (parent.equals(s.getName()) && s.getCrew() != null)
-                        return s.getCrew().getCrewQuality();
-        }
         return null;
     }
 
