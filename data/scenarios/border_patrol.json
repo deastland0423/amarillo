@@ -10,7 +10,7 @@
 
   "id": "border_patrol",
   "name": "Border Patrol",
-  "year": 180,
+  "year": 175,
   "numPlayers": 2,
   "description": "Two patrols meet along a disputed frontier. Neither side was looking for a battle, and neither is willing to be the one that turned away.",
   "mapType": "STANDARD",
