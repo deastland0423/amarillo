@@ -3041,6 +3041,28 @@ public class Game {
      * torpedo as phaser strength - and which routes destruction through the central
      * removal paths rather than merely dropping the unit from a list.
      */
+    /**
+     * Whose hands are on the controls, for C11.33 - a poor crew negates the C11.21 nimble
+     * die-shift. A ship answers for its own crew. A shuttle or fighter is flown by a pilot
+     * off its mother ship's roster, so it answers for the ship that launched it; one that
+     * was never launched from anywhere (placed by a scenario, or whose mother is gone)
+     * falls back to NORMAL rather than pretending to be crewless. Seeking weapons have no
+     * crew and are not nimble anyway, so the answer never reaches the table for them.
+     */
+    private com.sfb.systemgroups.Crew.CrewQuality crewQualityFor(Unit unit) {
+        if (unit instanceof Ship)
+            return ((Ship) unit).getCrew() == null ? null
+                    : ((Ship) unit).getCrew().getCrewQuality();
+        if (unit instanceof com.sfb.objects.shuttles.Shuttle) {
+            String parent = ((com.sfb.objects.shuttles.Shuttle) unit).getParentShipName();
+            if (parent != null)
+                for (Ship s : ships)
+                    if (parent.equals(s.getName()) && s.getCrew() != null)
+                        return s.getCrew().getCrewQuality();
+        }
+        return null;
+    }
+
     String applyTerrainCollision(Unit unit) {
         return unit == null ? "" : applyTerrainCollision(unit, unit.getSpeed());
     }
@@ -3059,9 +3081,7 @@ public class Game {
         // C11.21: shuttles and fighters are always nimble; seeking weapons never are.
         boolean nimble = isShip ? ((Ship) unit).isNimble()
                                 : unit instanceof com.sfb.objects.shuttles.Shuttle;
-        com.sfb.systemgroups.Crew.CrewQuality crew = null;
-        if (isShip && ((Ship) unit).getCrew() != null)
-            crew = ((Ship) unit).getCrew().getCrewQuality();
+        com.sfb.systemgroups.Crew.CrewQuality crew = crewQualityFor(unit);
 
         TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew);
         if (hit == null)

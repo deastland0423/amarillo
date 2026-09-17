@@ -8,6 +8,7 @@ import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
 import com.sfb.samples.FederationShips;
+import com.sfb.systemgroups.Crew;
 import com.sfb.systemgroups.Energy;
 import com.sfb.utilities.MapUtils;
 import org.junit.Before;
@@ -202,5 +203,87 @@ public class ShuttleTerrainCollisionTest {
         assertTrue("speed 6 is the harmless bracket (P3.2): " + r.getMessage(),
                 r.getMessage().contains("no damage"));
         assertEquals("no hull lost below speed 7", hullBefore, s.getCurrentHull());
+    }
+
+    // ------------------------------------------------- the exceptions to "speed 6 is safe"
+
+    /**
+     * C11.33: a poor crew negates the C11.21 nimble die-shift, and a shuttle is flown by a
+     * pilot off its mother ship's roster - so a fighter launched by a poor-crewed ship no
+     * longer gets to subtract 1 from the collision die.
+     * <p>
+     * The dice are {@code Math.random()} with no seam to seed, so this counts outcomes
+     * rather than pinning a roll. The effect size is exact: at speed 12 the asteroid
+     * column is {0,0,0,2,6,10} for die 1..6, so a nimble fighter escapes damage on a raw
+     * 1-4 (4/6) and a poor-crewed one only on a raw 1-3 (3/6). Over {@value #ROLLS} rolls
+     * that is a gap of about 250 against a combined sigma near 27, so the threshold below
+     * sits roughly 4.5 sigma from both "no effect at all" and "the full effect".
+     */
+    @Test
+    public void poorCrewedFighter_losesItsNimbleBenefit() {
+        int normalUnscathed = unscathedCrossings(Crew.CrewQuality.NORMAL);
+        int poorUnscathed = unscathedCrossings(Crew.CrewQuality.POOR);
+
+        assertTrue("A poor crew must cost the fighter its nimble die-shift (C11.33): over "
+                        + ROLLS + " crossings a normal crew escaped damage " + normalUnscathed
+                        + " times and a poor crew " + poorUnscathed + " - too close to call, "
+                        + "so the shuttle is not answering for its mother ship's crew",
+                normalUnscathed - poorUnscathed > 120);
+    }
+
+    private static final int ROLLS = 1500;
+
+    /**
+     * How many of {@value #ROLLS} crossings of an asteroid hex a fighter launched by a ship
+     * of this crew quality comes through undamaged. A fresh fighter per roll, so no carried
+     * hull damage and no J1.33 crippling (which halves speed, and so would change the
+     * damage bracket underneath the sample) leaks from one roll to the next.
+     */
+    private int unscathedCrossings(Crew.CrewQuality quality) {
+        Game g = freshGame();
+        g.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
+        Ship mother = g.getShips().get(0);
+        mother.getCrew().setCrewQuality(quality);
+
+        int unscathed = 0;
+        for (int i = 0; i < ROLLS; i++) {
+            Stinger1 f = new Stinger1();
+            f.setName("Alpha " + i);
+            f.setOwner(fedPlayer);
+            f.setLocation(new Location(10, 9)); // standing in the rocks
+            f.setFacing(1);
+            f.setSpeed(12);
+            f.setParentShipName(mother.getName()); // it flies for that ship
+            g.getActiveShuttles().add(f);
+
+            if (g.applyTerrainCollision(f).contains("no damage"))
+                unscathed++;
+        }
+        return unscathed;
+    }
+
+    /**
+     * The other exception: an admin shuttle is capped at speed 6 and so is safe under its
+     * OWN power, but a tractor beam can haul it through a field at the towing ship's speed.
+     * P3.2 brackets by the speed the hex is entered at, which J1.6223 states outright for a
+     * recovery tow - so being towed fast is not the same as being slow.
+     */
+    @Test
+    public void slowShuttleTowedFast_isNoLongerInTheHarmlessBracket() {
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
+        AdminShuttle s = new AdminShuttle();
+        s.setName("Galileo");
+        s.setOwner(fedPlayer);
+        s.setLocation(new Location(10, 9)); // already in the rocks, as a tow would leave it
+        s.setFacing(1);
+        s.setSpeed(6); // its own maximum
+        game.getActiveShuttles().add(s);
+
+        // Rolled as though entering at speed 20, the way a tow would deliver it.
+        String line = game.applyTerrainCollision(s, 20);
+
+        assertTrue("the roll happened: " + line, line.contains("enters asteroid hex"));
+        assertTrue("it is bracketed at the TOW's speed, not its own 6: " + line,
+                line.contains("(speed 20"));
     }
 }
