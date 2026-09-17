@@ -16,6 +16,9 @@ interface Props {
   onLeave: () => void;
 }
 
+/** The year a battle is fought in when nothing says otherwise. */
+const DEFAULT_YEAR = 180;
+
 /** Zone tints, in side order. Translucent so the grid and terrain stay readable beneath. */
 const ZONE_COLORS = [
   'rgba(88, 166, 255, 0.16)',   // blue
@@ -38,7 +41,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [setupMode,       setSetupMode]       = useState<'scenario' | 'fleets'>('scenario');
   const [fleets,          setFleets]          = useState<FleetSummary[]>([]);
   const [chosenFleets,    setChosenFleets]    = useState<string[]>([]);
-  const [fleetYear,       setFleetYear]       = useState(180);
+  const [fleetYear,       setFleetYear]       = useState(DEFAULT_YEAR);
   const [fleetBudget,     setFleetBudget]     = useState(1000);
   const [fleetWs,         setFleetWs]         = useState(2);
   const [fleetTerrain,    setFleetTerrain]    = useState<TerrainChoice>('OPEN_SPACE');
@@ -334,7 +337,16 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                 <label className="fb-field">
                   <span>Situation</span>
                   <select value={situationId}
-                          onChange={e => { setSituationId(e.target.value); setFleetSides({}); }}>
+                          onChange={e => {
+                            const id = e.target.value;
+                            setSituationId(id);
+                            setFleetSides({});
+                            // A situation's own year is the default for the battle, not a
+                            // decoration: refits and what is in service both turn on it, and
+                            // the form would otherwise silently override what the file says.
+                            const picked = situations.find(x => x.id === id);
+                            setFleetYear(picked && picked.year > 0 ? picked.year : DEFAULT_YEAR);
+                          }}>
                     <option value="">A straight fight — open space, standard victory</option>
                     {situations.map(s => (
                       <option key={s.id} value={s.id}>
