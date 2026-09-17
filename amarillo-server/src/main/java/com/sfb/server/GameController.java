@@ -242,8 +242,16 @@ public class GameController {
     /** One side of a fleet battle: whose fleet, the team flying it, and where it sets up. */
     public static class FleetSideRequest {
         public String fleetId;
-        public String team;     // defaults to the fleet's own name
-        /** Where this fleet may deploy. Null takes a band around its own starting column. */
+        /**
+         * The side this fleet flies for. In a written situation this names one of its sides —
+         * "Defender", "Attacker" — and in a plain battle it is just what to call them.
+         */
+        public String team;
+        /**
+         * Where this fleet may deploy, overriding whatever the situation gave that side. The
+         * plain battle uses it; an authored one usually should not, since its ground tends to
+         * be measured from something.
+         */
         public com.sfb.scenario.MapRegion zone;
     }
 
@@ -266,6 +274,12 @@ public class GameController {
         public String terrain;
         /** Rolled once by the host if absent, so every player sees the same map. */
         public Long terrainSeed;
+        /**
+         * A written situation to bring the fleets to — the id of a file in data/scenarios whose
+         * sides are marked bringYourOwn. Omit it for a plain battle, which is the same thing
+         * with nothing specified.
+         */
+        public String scenarioId;
     }
 
     /**
@@ -358,8 +372,36 @@ public class GameController {
                     new com.sfb.scenario.FleetsToScenario.Conditions(
                             req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus,
                             terrain);
+
+            // A written situation if one was named, otherwise a scenario shaped to fit —
+            // which is the same filling either way.
+            com.sfb.scenario.ScenarioSpec template;
+            String situation = "fleet-battle";
+            if (req.scenarioId != null && !req.scenarioId.isBlank()) {
+                if (!SAFE_ID.matcher(req.scenarioId).matches())
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bad scenario id"));
+                try {
+                    template = com.sfb.scenario.ScenarioSpec.fromJson(
+                            "data/scenarios/" + req.scenarioId.toLowerCase() + ".json");
+                } catch (IOException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "No such scenario: " + req.scenarioId));
+                }
+                long waiting = template.sides == null ? 0
+                        : template.sides.stream().filter(s -> s.bringYourOwn).count();
+                if (waiting == 0)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            req.scenarioId + " lists its own ships; it has no place for a fleet"));
+                if (entries.size() > waiting)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            req.scenarioId + " has room for " + waiting + " fleets, not " + entries.size()));
+                situation = req.scenarioId;
+            } else {
+                template = com.sfb.scenario.FleetsToScenario.pickupTemplate(entries, conditions);
+            }
+
             session.loadBuiltScenario(
-                    com.sfb.scenario.FleetsToScenario.build(entries, conditions), "fleet-battle");
+                    com.sfb.scenario.FleetsToScenario.fill(template, entries, conditions), situation);
 
             broadcastLobby(session);
             Map<String, Object> body = new java.util.LinkedHashMap<>();

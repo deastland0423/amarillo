@@ -234,6 +234,158 @@ public class FleetsToScenarioTest {
         assertTrue("asteroids are not no-entry", Deployment.noEntryHexes(spec).isEmpty());
     }
 
+    // ---- an authored situation, with the fleets brought to it ----
+
+    /** "Assault on Nivram": a planet, a defender who sets up around it, an attacker who does not. */
+    private ScenarioSpec nivram() {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.id = "nivram-assault";
+        spec.name = "Assault on Nivram";
+        spec.mapCols = 42;
+        spec.mapRows = 32;
+
+        ScenarioSpec.TerrainSetup planet = new ScenarioSpec.TerrainSetup();
+        planet.type = "PLANET";
+        planet.hex = "2116";
+        planet.name = "Nivram";
+        spec.terrain = new ArrayList<>(List.of(planet));
+
+        ScenarioSpec.SideSpec defender = new ScenarioSpec.SideSpec();
+        defender.name = "Defender";
+        defender.bringYourOwn = true;
+        defender.deploymentZone = MapRegion.circle("2116", 3);
+
+        ScenarioSpec.SideSpec attacker = new ScenarioSpec.SideSpec();
+        attacker.name = "Attacker";
+        attacker.bringYourOwn = true;
+        attacker.deploymentZone = MapRegion.band("LEFT", 6);
+
+        spec.sides = new ArrayList<>(List.of(defender, attacker));
+        spec.victoryConditions = new ScenarioSpec.VictoryConditions();
+        spec.victoryConditions.type = "SPECIAL";
+        spec.victoryConditions.notes = "The defender must keep Nivram.";
+        return spec;
+    }
+
+    @Test
+    public void aBroughtFleetStandsInTheGroundTheScenarioGaveItsSide() {
+        ScenarioSpec spec = FleetsToScenario.fill(nivram(), List.of(
+                new FleetsToScenario.Entry(fleet("Home fleet", "Federation", "CA", "DD"), "Defender"),
+                new FleetsToScenario.Entry(fleet("Raiders", "Klingon", "D7", "D6"), "Attacker")),
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        ScenarioSpec.SideSpec defender = spec.sides.get(0);
+        assertEquals("Defender", defender.name);
+        assertEquals(2, defender.ships.size());
+        for (ScenarioSpec.ShipSetup ship : defender.ships)
+            assertTrue(ship.shipName + " is not within 3 hexes of Nivram: " + ship.startHex,
+                    defender.deploymentZone.contains(
+                            col(ship.startHex), row(ship.startHex), spec.mapCols, spec.mapRows));
+
+        ScenarioSpec.SideSpec attacker = spec.sides.get(1);
+        for (ScenarioSpec.ShipSetup ship : attacker.ships)
+            assertTrue(ship.startHex + " is not in the attacker's band",
+                    attacker.deploymentZone.contains(
+                            col(ship.startHex), row(ship.startHex), spec.mapCols, spec.mapRows));
+    }
+
+    /** Fleets go to the side they name, not the order they arrive in. */
+    @Test
+    public void aFleetGoesToTheSideItNames() {
+        ScenarioSpec spec = FleetsToScenario.fill(nivram(), List.of(
+                new FleetsToScenario.Entry(fleet("Raiders", "Klingon", "D7"), "Attacker"),
+                new FleetsToScenario.Entry(fleet("Home fleet", "Federation", "CA"), "Defender")),
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        assertEquals("Defender", spec.sides.get(0).name);
+        assertEquals("Federation", spec.sides.get(0).faction);
+        assertEquals("Klingon", spec.sides.get(1).faction);
+    }
+
+    /** What the scenario says is its own — the battle does not get to replace it. */
+    @Test
+    public void anAuthoredScenarioKeepsItsTerrainAndItsVictoryConditions() {
+        TerrainGenerator.Plan field = new TerrainGenerator.Plan();
+        field.type = "ASTEROID_FIELD";
+        field.seed = 3L;
+
+        ScenarioSpec spec = FleetsToScenario.fill(nivram(), List.of(
+                new FleetsToScenario.Entry(fleet("A", "Federation", "CA"), "Defender"),
+                new FleetsToScenario.Entry(fleet("B", "Klingon", "D7"), "Attacker")),
+                new FleetsToScenario.Conditions(180, 1000, 42, 32, 2, List.of(field)));
+
+        assertEquals("the host's asteroids did not bury Nivram", 1, spec.terrain.size());
+        assertEquals("PLANET", spec.terrain.get(0).type);
+        assertEquals("SPECIAL", spec.victoryConditions.type);
+        assertEquals("Assault on Nivram", spec.name);
+    }
+
+    /** A scenario that names no terrain leaves the choice to whoever is running the battle. */
+    @Test
+    public void aScenarioWithNoTerrainTakesTheHostsChoice() {
+        ScenarioSpec bare = nivram();
+        bare.terrain = null;
+
+        TerrainGenerator.Plan field = new TerrainGenerator.Plan();
+        field.type = "ASTEROID_FIELD";
+        field.seed = 3L;
+
+        ScenarioSpec spec = FleetsToScenario.fill(bare, List.of(
+                new FleetsToScenario.Entry(fleet("A", "Federation", "CA"), "Defender"),
+                new FleetsToScenario.Entry(fleet("B", "Klingon", "D7"), "Attacker")),
+                new FleetsToScenario.Conditions(180, 1000, 42, 32, 2, List.of(field)));
+
+        assertFalse(spec.terrain.isEmpty());
+        assertEquals("ASTEROID", spec.terrain.get(0).type);
+    }
+
+    /** A side the scenario wrote out itself keeps its own ships. */
+    @Test
+    public void anAuthoredSideIsNotOverwritten() {
+        ScenarioSpec spec = nivram();
+        ScenarioSpec.SideSpec garrison = new ScenarioSpec.SideSpec();
+        garrison.name = "Garrison";
+        garrison.faction = "Federation";
+        garrison.bringYourOwn = false;
+        ScenarioSpec.ShipSetup base = new ScenarioSpec.ShipSetup();
+        base.type = "FF";
+        base.shipName = "USS Watchman";
+        base.startHex = "2016";
+        base.startHeading = "A";
+        base.startSpeed = 0;
+        garrison.ships = new ArrayList<>(List.of(base));
+        spec.sides.add(garrison);
+
+        ScenarioSpec filled = FleetsToScenario.fill(spec, List.of(
+                new FleetsToScenario.Entry(fleet("A", "Federation", "CA"), "Defender"),
+                new FleetsToScenario.Entry(fleet("B", "Klingon", "D7"), "Attacker")),
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        ScenarioSpec.SideSpec kept = filled.sides.get(2);
+        assertEquals(1, kept.ships.size());
+        assertEquals("USS Watchman", kept.ships.get(0).shipName);
+        assertEquals("2016", kept.ships.get(0).startHex);
+    }
+
+    /** The pick-up battle is a scenario too: every side brings its own, and nothing else is said. */
+    @Test
+    public void thePickupBattleIsJustTheLeastSpecifiedScenario() {
+        List<FleetsToScenario.Entry> entries = List.of(
+                new FleetsToScenario.Entry(fleet("A", "Klingon", "D7"), "Klingons"),
+                new FleetsToScenario.Entry(fleet("B", "Federation", "CA"), "Federation"));
+
+        ScenarioSpec template = FleetsToScenario.pickupTemplate(entries,
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        assertEquals(2, template.sides.size());
+        for (ScenarioSpec.SideSpec side : template.sides) {
+            assertTrue(side.name + " should be waiting for a fleet", side.bringYourOwn);
+            assertTrue(side.ships.isEmpty());
+            assertNotNull(side.deploymentZone);
+        }
+        assertNull("nothing on the map until the host says so", template.terrain);
+    }
+
     /** A lone fleet has nobody to line up against, and is placed rather than crashing. */
     @Test
     public void oneFleetIsPlacedInTheMiddle() {

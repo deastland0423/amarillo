@@ -127,6 +127,15 @@ public class ScenarioSpec {
         public String            name;             // display name, e.g. "Orion Pirates"
         public String            cartel;           // Orion cartel (G15.44); null = player picks it at COI
         public List<ShipSetup>   ships;
+        /**
+         * True when this side's ships are brought rather than listed — somebody's saved fleet
+         * stands here. Everything else about the side still applies: its ground, its faction if
+         * the scenario insists on one, whatever the victory conditions say about it.
+         * <p>
+         * This is what lets one scenario format cover both an authored battle and a pick-up
+         * game. A pick-up game is a scenario where every side says this and little else.
+         */
+        public boolean           bringYourOwn;
         public List<Reinforcement> reinforcements; // ships arriving later (optional)
         /** Map edges that are destruction zones for this side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT". */
         public java.util.Set<String> destructionEdges = new java.util.HashSet<>();
