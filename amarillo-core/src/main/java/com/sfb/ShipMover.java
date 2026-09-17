@@ -302,6 +302,11 @@ class ShipMover {
                 held.dragForwardInDirection(moveDir, game.getMapCols(), game.getMapRows());
                 prevLocations.putIfAbsent(held, heldPrev);
                 log.append("; ").append(held.getName()).append(" towed");
+                // Being towed through a field is still entering the hex, and it is
+                // entered at the TOW's speed, not the held unit's own (P3.2, J1.6223).
+                String towHit = game.applyTerrainCollision(held, ship.getSpeed());
+                if (!towHit.isEmpty())
+                    log.append("\n  ").append(towHit);
             }
         }
     }
@@ -599,7 +604,8 @@ class ShipMover {
                 return ActionResult.fail(shuttle.getName() + " moved off the map");
             }
             movedShuttlesThisImpulse.add(shuttle);
-            return ActionResult.ok(shuttle.getName() + " climbed out of the atmosphere into space (P2.4123)");
+            return ActionResult.ok(shuttle.getName() + " climbed out of the atmosphere into space (P2.4123)"
+                    + applyTerrainCollision(shuttle));
         }
 
         if (nextHex != null && game.isPlanetHex(nextHex)) {
@@ -632,7 +638,10 @@ class ShipMover {
             return ActionResult.fail(shuttle.getName() + " moved off the map");
         }
         movedShuttlesThisImpulse.add(shuttle);
-        return ActionResult.ok(shuttle.getName() + " moved forward");
+        // P3.2 / P2.223: a shuttle or fighter entering an asteroid or ring hex rolls
+        // for collision like anything else on the map.
+        return ActionResult.ok(shuttle.getName() + " moved forward"
+                + applyTerrainCollision(shuttle));
     }
 
     public ActionResult turnShuttleLeft(com.sfb.objects.shuttles.Shuttle shuttle) {
@@ -641,7 +650,9 @@ class ShipMover {
         boolean turned = shuttle.turnLeft();
         if (turned)
             movedShuttlesThisImpulse.add(shuttle);
-        return turned ? ActionResult.ok(shuttle.getName() + " turned left")
+        // A turn is a hex of movement, so it can enter terrain (Unit.turnLeft).
+        return turned ? ActionResult.ok(shuttle.getName() + " turned left"
+                        + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot turn left yet (turn mode)");
     }
 
@@ -651,7 +662,9 @@ class ShipMover {
         boolean turned = shuttle.turnRight();
         if (turned)
             movedShuttlesThisImpulse.add(shuttle);
-        return turned ? ActionResult.ok(shuttle.getName() + " turned right")
+        // A turn is a hex of movement, so it can enter terrain (Unit.turnRight).
+        return turned ? ActionResult.ok(shuttle.getName() + " turned right"
+                        + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot turn right yet (turn mode)");
     }
 
@@ -661,7 +674,8 @@ class ShipMover {
         boolean moved = shuttle.sideslipLeft();
         if (moved)
             movedShuttlesThisImpulse.add(shuttle);
-        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped left")
+        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped left"
+                        + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
@@ -671,31 +685,23 @@ class ShipMover {
         boolean moved = shuttle.sideslipRight();
         if (moved)
             movedShuttlesThisImpulse.add(shuttle);
-        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped right")
+        return moved ? ActionResult.ok(shuttle.getName() + " sideslipped right"
+                        + applyTerrainCollision(shuttle))
                 : ActionResult.fail(shuttle.getName() + " cannot sideslip (must move first)");
     }
 
     /**
-     * Roll terrain collision damage for a ship entering an asteroid (P3.2) or
-     * planetary ring (P2.223) hex and apply it to the entry-facing shield.
-     * Returns a newline-prefixed log line, or "" when the hex is neither (so
-     * call sites can append unconditionally). Asteroid takes precedence if a
-     * hex is somehow both.
+     * Terrain collision (P3.2 asteroid / P2.223 ring) for anything that just entered a
+     * hex, formatted for this class's running movement log: newline-prefixed, or "" when
+     * the hex is neither, so call sites can append unconditionally.
+     * <p>
+     * Takes a {@link com.sfb.objects.Unit}, not a Ship. It used to take a Ship, which is
+     * exactly why the shuttle and fighter movement methods below - and everything under
+     * tow - silently had no collision at all: the compiler cannot object to a call that
+     * was never written. {@link Game#applyTerrainCollision} does the roll and the damage.
      */
-    private String applyTerrainCollision(Ship ship) {
-        Game.TerrainHit hit = game.rollTerrainCollision(ship.getLocation(), ship.getSpeed(),
-                ship.isNimble(), ship.getCrew().getCrewQuality());
-        if (hit == null)
-            return "";
-        int entryDir = ship.getEntryDirection();
-        int relBearing = entryDir == 0 ? 1 : MapUtils.getRelativeBearing(entryDir, ship.getFacing());
-        int shieldNum = (relBearing - 1) / 4 + 1;
-        String base = "\n  " + ship.getName() + " enters " + hit.terrainName + " hex"
-                + " (speed " + ship.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "")
-                + ", shield " + shieldNum + ")";
-        if (hit.damage == 0)
-            return base + " — no damage";
-        game.markShieldDamage(ship, shieldNum, hit.damage);
-        return base + " — " + hit.damage + " to shield " + shieldNum;
+    private String applyTerrainCollision(com.sfb.objects.Unit unit) {
+        String line = game.applyTerrainCollision(unit);
+        return line.isEmpty() ? "" : "\n  " + line;
     }
 }

@@ -115,8 +115,7 @@ class SeekerMover {
                 }
 
                 if (game.isAsteroidHex(drone.getLocation()) || game.isRingHex(drone.getLocation())) {
-                    String asteroidResult = applyTerrainCollisionToDrone(drone);
-                    log.add(asteroidResult);
+                    log.add("  " + game.applyTerrainCollision(drone));
                     if (drone.getHull() <= 0) {
                         expired.add(drone);
                         continue;
@@ -281,7 +280,7 @@ class SeekerMover {
                 }
 
                 if (game.isAsteroidHex(torp.getLocation()) || game.isRingHex(torp.getLocation())) {
-                    log.add(applyTerrainCollisionToPlasma(torp));
+                    log.add("  " + game.applyTerrainCollision(torp));
                     if (torp.getCurrentStrength() <= 0) {
                         expired.add(seeker);
                         continue;
@@ -560,11 +559,6 @@ class SeekerMover {
     }
 
     /**
-     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
-     * (P2.223) — and apply it directly to a drone's hull. Returns a log line;
-     * removes the drone from play if hull reaches 0.
-     */
-    /**
      * Non-revealing label for a drone in the shared combat log: its name (owner +
      * sequence), never its type. A drone's type is hidden from the enemy until
      * identified (D17), and the log is broadcast to both players — so naming the
@@ -574,50 +568,4 @@ class SeekerMover {
         return d.getName() != null ? d.getName() : "a drone";
     }
 
-    private String applyTerrainCollisionToDrone(Drone drone) {
-        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
-        Game.TerrainHit hit = game.rollTerrainCollision(drone.getLocation(), drone.getSpeed(),
-                false, null);
-        if (hit == null)
-            return "";
-        String base = "  " + droneLabel(drone) + " enters " + hit.terrainName + " hex"
-                + " (speed " + drone.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
-        if (hit.damage == 0)
-            return base + " — no damage";
-        int remaining = drone.getHull() - hit.damage;
-        drone.setHull(Math.max(0, remaining));
-        if (drone.getHull() <= 0) {
-            seekers.remove(drone);
-            if (drone.getController() instanceof DroneController)
-                ((DroneController) drone.getController()).releaseControl(drone);
-            return base + " — " + hit.damage + " hull damage — destroyed";
-        }
-        return base + " — " + hit.damage + " hull damage — " + drone.getHull() + " remaining";
-    }
-
-    /**
-     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
-     * (P2.223) — and apply it as phaser damage to a plasma torpedo. Each point
-     * reduces strength by 0.5 (same as direct phaser fire). Returns a log line;
-     * removes the torpedo if strength reaches 0.
-     */
-    private String applyTerrainCollisionToPlasma(PlasmaTorpedo torp) {
-        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
-        Game.TerrainHit hit = game.rollTerrainCollision(torp.getLocation(), torp.getSpeed(),
-                false, null);
-        if (hit == null)
-            return "";
-        String base = "  Plasma-" + torp.getPlasmaType() + " enters " + hit.terrainName + " hex"
-                + " (speed " + torp.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
-        if (hit.damage == 0)
-            return base + " — no damage";
-        int before = torp.getCurrentStrength();
-        torp.applyPhaserDamage(hit.damage);
-        int after = torp.getCurrentStrength();
-        if (after <= 0) {
-            seekers.remove(torp);
-            return base + " — " + hit.damage + " phaser pts — destroyed";
-        }
-        return base + " — " + hit.damage + " phaser pts — strength " + before + " → " + after;
-    }
 }

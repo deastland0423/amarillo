@@ -3024,6 +3024,68 @@ public class Game {
         return new TerrainHit(asteroid ? "asteroid" : "ring", rawDie, die != rawDie, damage);
     }
 
+    /**
+     * Roll and apply a terrain collision for ANY unit entering an asteroid (P3.2) or
+     * planetary ring (P2.223) hex. Returns a bare log line, or "" when the hex is neither
+     * (so callers may append unconditionally).
+     * <p>
+     * Everything that enters a hex routes here: ships under power and under tow, shuttles
+     * and fighters, and seeking weapons both flying and dragged. Taking a {@link Unit}
+     * rather than a {@link Ship} is the whole point. Collision used to be wired per unit
+     * family by hand and the helper was typed to Ship, so the compiler never objected to
+     * the families that lacked it - shuttles, fighters and everything under tow crossed a
+     * field untouched. One entry point, and a new mover has one obvious thing to call.
+     * <p>
+     * The damage goes through {@link #applyDamageToUnit}, which already knows a ship takes
+     * it on a shield, a shuttle on its hull (with the J1.33 cripple check), and a plasma
+     * torpedo as phaser strength - and which routes destruction through the central
+     * removal paths rather than merely dropping the unit from a list.
+     */
+    String applyTerrainCollision(Unit unit) {
+        return unit == null ? "" : applyTerrainCollision(unit, unit.getSpeed());
+    }
+
+    /**
+     * As {@link #applyTerrainCollision(Unit)}, but for a unit entering the hex at a speed
+     * that is not its own - a unit under tow is hauled through the rocks at its tow's
+     * speed, which P3.2's damage brackets care about and J1.6223 states outright for a
+     * recovery tow. A drone sitting at speed 0 in a tractor beam is not gently parked.
+     */
+    String applyTerrainCollision(Unit unit, int speed) {
+        if (unit == null || unit.getLocation() == null)
+            return "";
+
+        boolean isShip = unit instanceof Ship;
+        // C11.21: shuttles and fighters are always nimble; seeking weapons never are.
+        boolean nimble = isShip ? ((Ship) unit).isNimble()
+                                : unit instanceof com.sfb.objects.shuttles.Shuttle;
+        com.sfb.systemgroups.Crew.CrewQuality crew = null;
+        if (isShip && ((Ship) unit).getCrew() != null)
+            crew = ((Ship) unit).getCrew().getCrewQuality();
+
+        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew);
+        if (hit == null)
+            return "";
+
+        // The bearing it entered on decides which shield eats it; non-ships have none.
+        int shieldNum = 0;
+        if (isShip) {
+            int entryDir = unit.getEntryDirection();
+            int relBearing = entryDir == 0 ? 1
+                    : MapUtils.getRelativeBearing(entryDir, unit.getFacing());
+            shieldNum = (relBearing - 1) / 4 + 1;
+        }
+
+        String name = unit.getName() != null ? unit.getName() : "a unit";
+        String where = name + " enters " + hit.terrainName + " hex"
+                + " (speed " + speed + ", die " + hit.die
+                + (hit.nimble ? " −1 nimble" : "")
+                + (isShip ? ", shield " + shieldNum : "") + ")";
+        if (hit.damage == 0)
+            return where + " — no damage";
+        return where + " — " + applyDamageToUnit(hit.damage, unit, shieldNum);
+    }
+
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
     }
