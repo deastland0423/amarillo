@@ -168,7 +168,8 @@ public final class FleetsToScenario {
             names.add(ship.name != null && !ship.name.isBlank() ? ship.name : ship.type);
 
         List<Deployment.Placement> laidOut = side.deploymentZone != null
-                ? Deployment.autoArrange(names, side.deploymentZone, spec.mapCols, spec.mapRows)
+                ? Deployment.autoArrange(names, side.deploymentZone,
+                                         Deployment.noEntryHexes(spec), spec.mapCols, spec.mapRows)
                 : List.of();
 
         int column = columnFor(index, Math.max(1, spec.sides.size()), spec.mapCols);

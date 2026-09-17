@@ -204,6 +204,26 @@ public class DeploymentTest {
             assertEquals(16, p.speed());
     }
 
+    /**
+     * A zone drawn around a planet contains the planet, so a tidy column down the middle of one
+     * marches a ship straight into it. Three ships centred on a radius-3 circle did exactly
+     * that, and the count was even the only reason four did not.
+     */
+    @Test
+    public void autoArrangeKeepsClearOfGroundNoShipMayOccupy() {
+        MapRegion around = MapRegion.circle("2116", 3);
+        Set<String> planet = Set.of("2116");
+
+        for (int n = 1; n <= 8; n++) {
+            List<Placement> placed = Deployment.autoArrange(fleet(n), around, planet, COLS, ROWS);
+            assertEquals("all " + n + " placed", n, placed.size());
+            for (Placement p : placed)
+                assertNotEquals(n + " ships: one landed on the planet", "2116", p.hex());
+            assertTrue(Deployment.check(placed, around, planet, COLS, ROWS).toString(),
+                    Deployment.check(placed, around, planet, COLS, ROWS).isEmpty());
+        }
+    }
+
     /** A zone smaller than the fleet still places everyone, pattern or no pattern. */
     @Test
     public void autoArrangeCopesWithACrampedZone() {

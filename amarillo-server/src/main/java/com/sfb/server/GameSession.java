@@ -469,7 +469,7 @@ public class GameSession {
     public List<String> autoArrange(String token) {
         List<com.sfb.scenario.Deployment.Placement> placements =
                 com.sfb.scenario.Deployment.autoArrange(
-                        getAssignedShipsFor(token), deploymentZoneFor(token),
+                        getAssignedShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
                         loadedSpec != null ? loadedSpec.mapCols : 42,
                         loadedSpec != null ? loadedSpec.mapRows : 32);
         return submitDeployment(token, placements);

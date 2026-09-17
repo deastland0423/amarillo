@@ -123,12 +123,24 @@ public final class Deployment {
      */
     public static List<Placement> autoArrange(List<String> shipNames, MapRegion zone,
                                               int mapCols, int mapRows) {
+        return autoArrange(shipNames, zone, Set.of(), mapCols, mapRows);
+    }
+
+    /**
+     * As above, keeping clear of ground no ship may occupy. A zone drawn around a planet
+     * contains the planet, so a tidy column down the middle of one will march a ship straight
+     * into it — which is exactly what happened to the third ship of a defending patrol.
+     */
+    public static List<Placement> autoArrange(List<String> shipNames, MapRegion zone,
+                                              Set<String> noEntry, int mapCols, int mapRows) {
         List<Placement> out = new ArrayList<>();
         if (shipNames.isEmpty())
             return out;
 
         MapRegion z = zone != null ? zone : MapRegion.anywhere();
+        Set<String> blocked = noEntry != null ? noEntry : Set.of();
         List<int[]> legal = hexesIn(z, mapCols, mapRows);
+        legal.removeIf(h -> blocked.contains(hex(h[0], h[1])));
         if (legal.isEmpty())
             return out;
 
@@ -148,7 +160,7 @@ public final class Deployment {
 
         int col = midCol, row = startRow;
         for (String name : shipNames) {
-            int[] spot = nextLegal(z, col, row, mapCols, mapRows, out);
+            int[] spot = nextLegal(z, col, row, mapCols, mapRows, out, blocked);
             if (spot == null) {
                 // Zone too small to keep the pattern; fall back to any free legal hex.
                 spot = anyUnused(legal, out);
@@ -164,10 +176,12 @@ public final class Deployment {
 
     /** Walk down the column for a legal, unused hex; step to the next column at the bottom. */
     private static int[] nextLegal(MapRegion z, int col, int row, int mapCols, int mapRows,
-                                   List<Placement> taken) {
+                                   List<Placement> taken, Set<String> blocked) {
         for (int c = col; c <= mapCols; c++) {
             for (int r = (c == col ? row : 1); r <= mapRows; r++)
-                if (z.contains(c, r, mapCols, mapRows) && !isTaken(taken, c, r))
+                if (z.contains(c, r, mapCols, mapRows)
+                        && !isTaken(taken, c, r)
+                        && !blocked.contains(hex(c, r)))
                     return new int[] { c, r };
         }
         return null;
