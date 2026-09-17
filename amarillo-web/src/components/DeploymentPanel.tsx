@@ -49,8 +49,6 @@ export default function DeploymentPanel({
     return byShip;
   }, [state]);
 
-  const unplaced = (state?.ships ?? []).filter(s => !placed.has(s));
-
   /** Send the whole setup; the server replaces what it had, so moving is just placing again. */
   async function send(next: Placement[]) {
     setBusy(true); setError('');
@@ -157,59 +155,51 @@ export default function DeploymentPanel({
     <div className="card deploy" style={{ width: '100%', maxWidth: 960 }}>
       <div className="deploy-head">
         <h3 style={{ margin: 0 }}>Set up your fleet</h3>
-        <span className="fb-hint">
-          {state.zone?.describe ?? 'anywhere on the map'}
-          {' · '}{placed.size}/{state.ships.length} placed
-        </span>
+        <span className="fb-hint">{placed.size} of {state.ships.length} placed</span>
       </div>
+
+      {/* One line saying what to do now, rather than leaving it to be inferred. */}
+      <p className={selected && !state.done ? 'deploy-say deploy-say-act' : 'deploy-say'}>
+        {state.done
+          ? waitingOn.length > 0
+            ? <>Ready. Waiting for <strong>{waitingOn.join(', ')}</strong> — you can still change your mind.</>
+            : <>Everyone is ready. The battle is about to begin.</>
+          : selected
+            ? <>Click a hex to put <strong>{selected}</strong> down.</>
+            : placed.size < state.ships.length
+              ? <>Pick a ship, then click a hex inside your ground — {state.zone?.describe ?? 'anywhere on the map'}.</>
+              : <>Every ship is down. Turn any of them, or press Done.</>}
+      </p>
 
       {error && <p className="error">{error}</p>}
 
-      {state.done && waitingOn.length > 0 && (
-        <p className="topbar-move-wait">
-          ✓ Ready — waiting for: <strong>{waitingOn.join(', ')}</strong>.
-          You can still change your mind.
-        </p>
-      )}
-      {state.done && waitingOn.length === 0 && (
-        <p className="subtitle" style={{ color: '#56d364' }}>
-          ✓ Everyone is ready — the battle is about to begin.
-        </p>
-      )}
-
       <div className="deploy-body">
         <div className="deploy-tray">
-          <div className="fb-panel-title">To place ({unplaced.length})</div>
-          {unplaced.length === 0 && <p className="fb-hint">All aboard.</p>}
-          {unplaced.map(ship => (
-            <button key={ship}
-                    className={selected === ship ? 'deploy-ship deploy-ship-on' : 'deploy-ship'}
-                    disabled={state.done}
-                    onClick={() => setSelected(ship)}>
-              {ship}
-            </button>
-          ))}
-
-          <div className="fb-panel-title" style={{ marginTop: '0.75rem' }}>
-            Placed ({placed.size})
-          </div>
-          {[...placed.values()].map(p => (
-            <div key={p.shipName} className="deploy-placed">
-              <button className={selected === p.shipName ? 'deploy-ship deploy-ship-on' : 'deploy-ship'}
-                      disabled={state.done}
-                      onClick={() => setSelected(p.shipName)}>
-                {p.shipName}
-                <span className="fb-hint"> {p.hex} · {p.heading}</span>
-              </button>
-              <button className="fb-remove" title="Take back"
-                      disabled={state.done}
-                      onClick={() => takeBack(p.shipName)}>×</button>
-            </div>
-          ))}
+          {/* One list, not two: every ship, with where it stands if it stands anywhere. */}
+          {state.ships.map(ship => {
+            const at = placed.get(ship);
+            return (
+              <div key={ship} className="deploy-placed">
+                <button className={selected === ship ? 'deploy-ship deploy-ship-on' : 'deploy-ship'}
+                        disabled={state.done}
+                        onClick={() => setSelected(ship)}>
+                  <span className="deploy-ship-name">{ship}</span>
+                  <span className="fb-hint">
+                    {at ? `${at.hex} · facing ${at.heading}` : 'not placed'}
+                  </span>
+                </button>
+                {at && (
+                  <button className="fb-remove" title="Take back off the map"
+                          disabled={state.done}
+                          onClick={() => takeBack(ship)}>×</button>
+                )}
+              </div>
+            );
+          })}
 
           {selectedPlacement && !state.done && (
             <div className="deploy-facing">
-              <div className="fb-panel-title">Facing</div>
+              <div className="fb-panel-title">Which way {selected} faces</div>
               <FacingPicker
                 value={HEADINGS[selectedPlacement.heading] ?? 1}
                 onChange={(f: number) => setHeading(selectedPlacement.shipName, f)}
@@ -247,11 +237,6 @@ export default function DeploymentPanel({
         </div>
 
         <div className="deploy-map">
-          {selected && !state.done && (
-            <p className="fb-hint" style={{ margin: '0 0 0.3rem' }}>
-              Click a hex to place <strong>{selected}</strong>.
-            </p>
-          )}
           <HexGrid
             mapCols={mapCols}
             mapRows={mapRows}

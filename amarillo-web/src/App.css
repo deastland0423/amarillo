@@ -1991,3 +1991,13 @@ h3 {
   overflow: hidden;
   max-height: 520px;
 }
+
+/* Deployment: the one line telling you what to do now */
+.deploy-say {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: #8b949e;
+}
+.deploy-say-act { color: #f0c040; }
+.deploy-ship-name { display: block; font-weight: 600; }
+.deploy-ship { line-height: 1.3; }

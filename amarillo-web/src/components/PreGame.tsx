@@ -221,6 +221,25 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         <span className="subtitle">Share this ID with other players</span>
       </div>
 
+      {/* Setting up: every player places their own ships, and nobody sees anyone else's
+          until the last Done lands. */}
+      {lobby?.scenarioLoaded && lobby.deploymentRequired && !lobby.started && (
+        <DeploymentPanel
+          gameId={session.gameId}
+          playerToken={session.playerToken}
+          faction={lobby.sides.find(s =>
+            s.ships.some(sh => myShips.includes(sh.shipName)))?.faction ?? 'Federation'}
+          terrain={lobby.terrain}
+          mapCols={lobby.mapCols}
+          mapRows={lobby.mapRows}
+          revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
+          playersDone={lobby.players.filter(p => p.deploymentDone).length}
+          playerCount={lobby.players.length}
+          waitingOn={lobby.players.filter(p => !p.deploymentDone).map(p => p.name)}
+        />
+      )}
+
+
       {/* Player list with COI status, grouped by team */}
       <div className="card" style={{ width: '100%', maxWidth: 480 }}>
         <h3 style={{ margin: 0 }}>Players</h3>
@@ -416,24 +435,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         </div>
       )}
 
-      {/* Setting up: every player places their own ships, and nobody sees anyone else's
-          until the last Done lands. */}
-      {lobby?.scenarioLoaded && lobby.deploymentRequired && !lobby.started && (
-        <DeploymentPanel
-          gameId={session.gameId}
-          playerToken={session.playerToken}
-          faction={lobby.sides.find(s =>
-            s.ships.some(sh => myShips.includes(sh.shipName)))?.faction ?? 'Federation'}
-          terrain={lobby.terrain}
-          mapCols={lobby.mapCols}
-          mapRows={lobby.mapRows}
-          revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
-          playersDone={lobby.players.filter(p => p.deploymentDone).length}
-          playerCount={lobby.players.length}
-          waitingOn={lobby.players.filter(p => !p.deploymentDone).map(p => p.name)}
-        />
-      )}
-
       {/* COI dialog — appears when this player has ships and hasn't submitted yet */}
       {myShips.length > 0 && !iAmCoiDone && coiData && (
         <CoiDialog
@@ -496,6 +497,10 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
               is the same map everyone else is looking at. */}
           {(() => {
             if (!lobby) return null;
+            // While a player is setting up they have a map of their own, showing this
+            // terrain plus their ground and their ships. Two maps on one page is worse
+            // than either alone.
+            if (lobby.deploymentRequired && !lobby.started) return null;
             const terrain: MapObject[] = lobby.terrain.map(t => ({
               type: 'TERRAIN',
               name: t.name ?? `${t.terrainType}-${t.hex}`,
