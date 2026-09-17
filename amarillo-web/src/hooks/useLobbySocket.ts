@@ -10,6 +10,10 @@ export interface LobbyPlayer {
   isHost: boolean;
   assignedShips: string[];
   coiDone: boolean;
+  // How far along their setup is — a count, never the hexes. Placements stay secret
+  // until everyone is finished, and this goes to the whole room.
+  shipsPlaced: number;
+  deploymentDone: boolean;
 }
 
 export interface LobbyState {
@@ -24,6 +28,9 @@ export interface LobbyState {
   scenarioSpecialRules: string[];
   started: boolean;
   allCoiReady: boolean;
+  // Whether this battle expects players to set their own ships down, and whether they have.
+  deploymentRequired: boolean;
+  allDeploymentReady: boolean;
   players: LobbyPlayer[];
   unassignedShips: string[];
   // The forces themselves, from the loaded spec. A battle assembled from saved

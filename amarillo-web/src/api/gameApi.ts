@@ -97,6 +97,25 @@ export interface LobbyTerrain {
   rings:       number[][];      // {inner, outer} hex-distance bands (P2.223)
 }
 
+/** One ship, set down. Speed 16 is Speed Max. */
+export interface Placement {
+  shipName: string;
+  hex:      string;    // CCRR
+  heading:  string;    // "A"-"F"
+  speed:    number;
+}
+
+/** Everything a player needs to set their own fleet down. */
+export interface DeploymentState {
+  required:   boolean;
+  ships:      string[];          // the ships this player must place
+  zone:       LobbyZone | null;  // the ground they may use
+  noEntry:    string[];          // hexes no ship may occupy — planets and gas giants
+  complete:   boolean;           // every ship somewhere legal
+  done:       boolean;           // this player has said they are finished
+  placements: Placement[];
+}
+
 /** A fleet chosen into a battle, and the team flying it. */
 export interface FleetSideChoice {
   fleetId: string;
@@ -379,6 +398,43 @@ export const gameApi = {
    */
   getGameCoiData(gameId: string): Promise<CoiSideData[]> {
     return request(`/api/games/${gameId}/coi-data`);
+  },
+
+  // --- Deployment ---
+
+  /** Your own setup and the ground you may use. Authenticated: placements are secret. */
+  getDeployment(gameId: string, token: string): Promise<DeploymentState> {
+    return request(`/api/games/${gameId}/deployment`, { headers: { 'X-Player-Token': token } });
+  },
+
+  /** Set your ships down. Replaces your whole setup, so partial work is fine. */
+  submitDeployment(
+    gameId: string, token: string, placements: Placement[],
+  ): Promise<{ placed: number; complete: boolean }> {
+    return request(`/api/games/${gameId}/deployment`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+      body: JSON.stringify({ placements }),
+    });
+  },
+
+  /** Lay them out somewhere legal, as a starting point to adjust. */
+  autoArrangeDeployment(gameId: string, token: string): Promise<{ complete: boolean }> {
+    return request(`/api/games/${gameId}/deployment/auto`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+    });
+  },
+
+  /** Finished, or not after all — reversible until the last player commits. */
+  setDeploymentDone(
+    gameId: string, token: string, done: boolean,
+  ): Promise<{ done: boolean; allDone: boolean }> {
+    return request(`/api/games/${gameId}/deployment/done`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+      body: JSON.stringify({ done }),
+    });
   },
 
   listFleets(): Promise<FleetSummary[]> {

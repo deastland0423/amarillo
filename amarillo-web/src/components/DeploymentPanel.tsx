@@ -1,0 +1,243 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { gameApi } from '../api/gameApi';
+import type { DeploymentState, LobbyTerrain, Placement } from '../api/gameApi';
+import type { MapObject } from '../types/gameState';
+import HexGrid from './HexGrid';
+import { FacingPicker } from './FacingPicker';
+
+interface Props {
+  gameId:      string;
+  playerToken: string;
+  faction:     string;
+  terrain:     LobbyTerrain[];
+  mapCols:     number;
+  mapRows:     number;
+  /** Nudges a refetch when the lobby says something changed. */
+  revision:    number;
+}
+
+/** A–F as the server writes them, and the internal facing each maps to. */
+const HEADINGS: Record<string, number> = { A: 1, B: 5, C: 9, D: 13, E: 17, F: 21 };
+const FACING_TO_LETTER: Record<number, string> = { 1: 'A', 5: 'B', 9: 'C', 13: 'D', 17: 'E', 21: 'F' };
+
+export default function DeploymentPanel({
+  gameId, playerToken, faction, terrain, mapCols, mapRows, revision,
+}: Props) {
+  const [state,    setState]    = useState<DeploymentState | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [error,    setError]    = useState('');
+  const [busy,     setBusy]     = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      setState(await gameApi.getDeployment(gameId, playerToken));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load your setup.');
+    }
+  }, [gameId, playerToken]);
+
+  useEffect(() => { refresh(); }, [refresh, revision]);
+
+  const placed = useMemo(() => {
+    const byShip = new Map<string, Placement>();
+    for (const p of state?.placements ?? []) byShip.set(p.shipName, p);
+    return byShip;
+  }, [state]);
+
+  const unplaced = (state?.ships ?? []).filter(s => !placed.has(s));
+
+  /** Send the whole setup; the server replaces what it had, so moving is just placing again. */
+  async function send(next: Placement[]) {
+    setBusy(true); setError('');
+    try {
+      await gameApi.submitDeployment(gameId, playerToken, next);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That placement was refused.');
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleHexClick(col: number, row: number) {
+    if (!selected || state?.done) return;
+    const hex = `${String(col).padStart(2, '0')}${String(row).padStart(2, '0')}`;
+    const existing = placed.get(selected);
+    // Face the middle of the map by default; the player turns it afterwards if they like.
+    const heading = existing?.heading ?? (col <= mapCols / 2 ? 'C' : 'F');
+
+    const next = [...placed.values()].filter(p => p.shipName !== selected);
+    next.push({ shipName: selected, hex, heading, speed: existing?.speed ?? 16 });
+    send(next);
+  }
+
+  function setHeading(shipName: string, facing: number) {
+    const letter = FACING_TO_LETTER[facing];
+    const current = placed.get(shipName);
+    if (!letter || !current) return;
+    const next = [...placed.values()].map(p =>
+      p.shipName === shipName ? { ...p, heading: letter } : p);
+    send(next);
+  }
+
+  function takeBack(shipName: string) {
+    send([...placed.values()].filter(p => p.shipName !== shipName));
+    if (selected === shipName) setSelected(null);
+  }
+
+  async function autoArrange() {
+    setBusy(true); setError('');
+    try {
+      await gameApi.autoArrangeDeployment(gameId, playerToken);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not lay the fleet out.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleDone() {
+    setBusy(true); setError('');
+    try {
+      await gameApi.setDeploymentDone(gameId, playerToken, !state?.done);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not change that.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ---- the map ----
+
+  const mapObjects: MapObject[] = useMemo(() => {
+    const objects: MapObject[] = terrain.map(t => ({
+      type: 'TERRAIN',
+      name: t.name ?? `${t.terrainType}-${t.hex}`,
+      location: `<${Number(t.hex.slice(0, 2))}|${Number(t.hex.slice(2, 4))}>`,
+      terrainType: t.terrainType as 'ASTEROID' | 'PLANET' | 'GAS_GIANT',
+      radius: t.radius,
+      rings: t.rings?.length ? t.rings : undefined,
+    } as MapObject));
+
+    // Only the fields the map actually draws: it reads name, location, facing and faction,
+    // and guards the rest. A whole ShipObject would be a fiction here — none of it exists
+    // until the battle is built.
+    for (const p of placed.values()) {
+      objects.push({
+        type: 'SHIP',
+        name: p.shipName,
+        location: `<${Number(p.hex.slice(0, 2))}|${Number(p.hex.slice(2, 4))}>`,
+        facing: HEADINGS[p.heading] ?? 1,
+        faction,
+      } as unknown as MapObject);
+    }
+    return objects;
+  }, [terrain, placed, faction]);
+
+  const zones = useMemo(() => {
+    const hexes = state?.zone?.hexes ?? [];
+    return hexes.length > 0
+      ? [{ hexes, color: 'rgba(88, 166, 255, 0.16)', label: 'Your ground' }]
+      : [];
+  }, [state]);
+
+  if (!state?.required) return null;
+
+  const selectedPlacement = selected ? placed.get(selected) : undefined;
+
+  return (
+    <div className="card deploy" style={{ width: '100%', maxWidth: 960 }}>
+      <div className="deploy-head">
+        <h3 style={{ margin: 0 }}>Set up your fleet</h3>
+        <span className="fb-hint">
+          {state.zone?.describe ?? 'anywhere on the map'}
+          {' · '}{placed.size}/{state.ships.length} placed
+        </span>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      {state.done && (
+        <p className="subtitle" style={{ color: '#56d364' }}>
+          ✓ Ready — waiting for the others. You can still change your mind.
+        </p>
+      )}
+
+      <div className="deploy-body">
+        <div className="deploy-tray">
+          <div className="fb-panel-title">To place ({unplaced.length})</div>
+          {unplaced.length === 0 && <p className="fb-hint">All aboard.</p>}
+          {unplaced.map(ship => (
+            <button key={ship}
+                    className={selected === ship ? 'deploy-ship deploy-ship-on' : 'deploy-ship'}
+                    disabled={state.done}
+                    onClick={() => setSelected(ship)}>
+              {ship}
+            </button>
+          ))}
+
+          <div className="fb-panel-title" style={{ marginTop: '0.75rem' }}>
+            Placed ({placed.size})
+          </div>
+          {[...placed.values()].map(p => (
+            <div key={p.shipName} className="deploy-placed">
+              <button className={selected === p.shipName ? 'deploy-ship deploy-ship-on' : 'deploy-ship'}
+                      disabled={state.done}
+                      onClick={() => setSelected(p.shipName)}>
+                {p.shipName}
+                <span className="fb-hint"> {p.hex} · {p.heading}</span>
+              </button>
+              <button className="fb-remove" title="Take back"
+                      disabled={state.done}
+                      onClick={() => takeBack(p.shipName)}>×</button>
+            </div>
+          ))}
+
+          {selectedPlacement && !state.done && (
+            <div className="deploy-facing">
+              <div className="fb-panel-title">Facing</div>
+              <FacingPicker
+                value={HEADINGS[selectedPlacement.heading] ?? 1}
+                onChange={(f: number) => setHeading(selectedPlacement.shipName, f)}
+              />
+            </div>
+          )}
+
+          <div className="button-row" style={{ marginTop: '0.75rem' }}>
+            <button className="fb-btn" disabled={busy || state.done} onClick={autoArrange}>
+              Auto-arrange
+            </button>
+            <button className={state.done ? 'fb-btn' : 'fb-btn fb-btn-primary'}
+                    disabled={busy || (!state.complete && !state.done)}
+                    title={state.complete ? '' : 'Every ship must be set down first'}
+                    onClick={toggleDone}>
+              {state.done ? 'Not yet' : 'Done'}
+            </button>
+          </div>
+        </div>
+
+        <div className="deploy-map">
+          {selected && !state.done && (
+            <p className="fb-hint" style={{ margin: '0 0 0.3rem' }}>
+              Click a hex to place <strong>{selected}</strong>.
+            </p>
+          )}
+          <HexGrid
+            mapCols={mapCols}
+            mapRows={mapRows}
+            mapObjects={mapObjects}
+            myShips={state.ships}
+            selectedName={selected}
+            zones={zones}
+            pickingHex={!!selected && !state.done}
+            onHexClick={handleHexClick}
+            onSelect={obj => { if (obj?.type === 'SHIP' && !state.done) setSelected(obj.name); }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

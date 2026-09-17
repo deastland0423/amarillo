@@ -1950,3 +1950,44 @@ h3 {
   border-radius: 3px;
   display: inline-block;
 }
+
+/* Deployment: setting your own ships down */
+.deploy { max-width: 960px; }
+.deploy-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.deploy-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 860px) { .deploy-body { grid-template-columns: 1fr; } }
+
+.deploy-tray { display: flex; flex-direction: column; gap: 0.25rem; }
+.deploy-ship {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e6edf3;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.deploy-ship:hover:not(:disabled) { border-color: #6e7681; }
+.deploy-ship:disabled { opacity: 0.6; cursor: default; }
+.deploy-ship-on { border-color: #f0c040; background: #21262d; }
+.deploy-placed { display: flex; align-items: center; gap: 0.3rem; }
+.deploy-facing { margin-top: 0.75rem; }
+.deploy-map {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 520px;
+}

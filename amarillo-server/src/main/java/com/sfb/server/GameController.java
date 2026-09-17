@@ -471,6 +471,32 @@ public class GameController {
         });
     }
 
+    /** Lay this player's ships out in their own ground, as a starting point to adjust. */
+    @PostMapping("/{id}/deployment/auto")
+    public ResponseEntity<Map<String, Object>> autoArrange(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            List<String> problems = session.autoArrange(token);
+            if (!problems.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Could not lay the fleet out", "problems", problems));
+
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of("complete", session.isDeploymentComplete(token)));
+        });
+    }
+
     /**
      * Say you are finished setting up, or that you are not after all.
      * <p>

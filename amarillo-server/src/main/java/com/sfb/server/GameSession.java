@@ -461,6 +461,20 @@ public class GameSession {
         return problems;
     }
 
+    /**
+     * Lay this player's ships out for them, somewhere legal in their own ground. Somewhere to
+     * start from rather than somewhere to finish — the core works out the pattern, and the
+     * player moves whatever they do not like.
+     */
+    public List<String> autoArrange(String token) {
+        List<com.sfb.scenario.Deployment.Placement> placements =
+                com.sfb.scenario.Deployment.autoArrange(
+                        getAssignedShipsFor(token), deploymentZoneFor(token),
+                        loadedSpec != null ? loadedSpec.mapCols : 42,
+                        loadedSpec != null ? loadedSpec.mapRows : 32);
+        return submitDeployment(token, placements);
+    }
+
     /** True once every one of this player's ships is somewhere legal. */
     public boolean isDeploymentComplete(String token) {
         List<String> mine = getAssignedShipsFor(token);

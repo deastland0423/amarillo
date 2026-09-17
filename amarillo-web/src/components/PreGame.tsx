@@ -7,6 +7,7 @@ import type {
 } from '../api/gameApi';
 import CoiDialog from './CoiDialog';
 import HexGrid from './HexGrid';
+import DeploymentPanel from './DeploymentPanel';
 import type { MapObject } from '../types/gameState';
 
 interface Props {
@@ -413,6 +414,21 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Setting up: every player places their own ships, and nobody sees anyone else's
+          until the last Done lands. */}
+      {lobby?.scenarioLoaded && lobby.deploymentRequired && !lobby.started && (
+        <DeploymentPanel
+          gameId={session.gameId}
+          playerToken={session.playerToken}
+          faction={lobby.sides.find(s =>
+            s.ships.some(sh => myShips.includes(sh.shipName)))?.faction ?? 'Federation'}
+          terrain={lobby.terrain}
+          mapCols={lobby.mapCols}
+          mapRows={lobby.mapRows}
+          revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
+        />
       )}
 
       {/* COI dialog — appears when this player has ships and hasn't submitted yet */}
