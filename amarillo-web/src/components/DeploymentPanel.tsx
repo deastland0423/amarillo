@@ -14,6 +14,10 @@ interface Props {
   mapRows:     number;
   /** Nudges a refetch when the lobby says something changed. */
   revision:    number;
+  /** Who else is still setting up, so the Done button can say so. */
+  playersDone: number;
+  playerCount: number;
+  waitingOn:   string[];
 }
 
 /** A–F as the server writes them, and the internal facing each maps to. */
@@ -22,6 +26,7 @@ const FACING_TO_LETTER: Record<number, string> = { 1: 'A', 5: 'B', 9: 'C', 13: '
 
 export default function DeploymentPanel({
   gameId, playerToken, faction, terrain, mapCols, mapRows, revision,
+  playersDone, playerCount, waitingOn,
 }: Props) {
   const [state,    setState]    = useState<DeploymentState | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -160,9 +165,15 @@ export default function DeploymentPanel({
 
       {error && <p className="error">{error}</p>}
 
-      {state.done && (
+      {state.done && waitingOn.length > 0 && (
+        <p className="topbar-move-wait">
+          ✓ Ready — waiting for: <strong>{waitingOn.join(', ')}</strong>.
+          You can still change your mind.
+        </p>
+      )}
+      {state.done && waitingOn.length === 0 && (
         <p className="subtitle" style={{ color: '#56d364' }}>
-          ✓ Ready — waiting for the others. You can still change your mind.
+          ✓ Everyone is ready — the battle is about to begin.
         </p>
       )}
 
@@ -210,12 +221,28 @@ export default function DeploymentPanel({
             <button className="fb-btn" disabled={busy || state.done} onClick={autoArrange}>
               Auto-arrange
             </button>
-            <button className={state.done ? 'fb-btn' : 'fb-btn fb-btn-primary'}
-                    disabled={busy || (!state.complete && !state.done)}
-                    title={state.complete ? '' : 'Every ship must be set down first'}
-                    onClick={toggleDone}>
-              {state.done ? 'Not yet' : 'Done'}
-            </button>
+            {(() => {
+              // Same idiom as the turn-phase Ready button: red and pulsing once you are the
+              // only one everyone is waiting for.
+              const isLastHoldout = !state.done && playerCount > 1
+                && playersDone === playerCount - 1;
+              const label = state.done
+                ? 'Not yet'
+                : isLastHoldout
+                  ? `⚠ Done — ${playersDone}/${playerCount} waiting`
+                  : playersDone > 0
+                    ? `Done (${playersDone}/${playerCount})`
+                    : 'Done';
+              return (
+                <button
+                  className={state.done ? 'secondary' : isLastHoldout ? 'btn-last-holdout' : ''}
+                  disabled={busy || (!state.complete && !state.done)}
+                  title={state.complete ? '' : 'Every ship must be set down first'}
+                  onClick={toggleDone}>
+                  {label}
+                </button>
+              );
+            })()}
           </div>
         </div>
 

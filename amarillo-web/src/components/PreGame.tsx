@@ -428,6 +428,9 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           mapCols={lobby.mapCols}
           mapRows={lobby.mapRows}
           revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
+          playersDone={lobby.players.filter(p => p.deploymentDone).length}
+          playerCount={lobby.players.length}
+          waitingOn={lobby.players.filter(p => !p.deploymentDone).map(p => p.name)}
         />
       )}
 
