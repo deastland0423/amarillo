@@ -1106,6 +1106,15 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
             }
 
+            // A situation is not a battle until somebody brings a fleet to it. Loading one
+            // here would start a game with empty sides.
+            com.sfb.scenario.ScenarioSpec loaded = session.getLoadedSpec();
+            if (loaded != null && loaded.sides != null
+                    && loaded.sides.stream().anyMatch(sd -> sd.bringYourOwn))
+                return ResponseEntity.badRequest().body(Map.of("error",
+                        (loaded.name != null ? loaded.name : scenarioId)
+                        + " is a situation — choose it under Saved fleets and bring a force to it"));
+
             broadcastLobby(session);
             return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
         });

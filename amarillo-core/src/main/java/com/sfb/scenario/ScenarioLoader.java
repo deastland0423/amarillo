@@ -43,8 +43,16 @@ public class ScenarioLoader {
      */
     public static List<List<Ship>> loadShips(ScenarioSpec spec) {
         List<List<Ship>> result = new ArrayList<>();
+        if (spec.sides == null)
+            return result;
         for (ScenarioSpec.SideSpec side : spec.sides) {
             List<Ship> ships = new ArrayList<>();
+            // A side may list no ships at all: one marked bringYourOwn is waiting for a fleet,
+            // and has none until somebody hands it one.
+            if (side.ships == null) {
+                result.add(ships);
+                continue;
+            }
             for (ScenarioSpec.ShipSetup setup : side.ships) {
                 String faction = (setup.faction != null && !setup.faction.isBlank()) ? setup.faction : side.faction;
                 Ship ship = buildShip(faction, setup, spec.year);

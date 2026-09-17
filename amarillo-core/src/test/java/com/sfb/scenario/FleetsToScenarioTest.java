@@ -367,6 +367,40 @@ public class FleetsToScenarioTest {
         assertEquals("2016", kept.ships.get(0).startHex);
     }
 
+    /**
+     * A side waiting for a fleet lists no ships at all, and the loader has to cope: a situation
+     * read straight off disk has nulls where the ships will go, and iterating one is how
+     * "Cannot invoke List.iterator() because side.ships is null" happens.
+     */
+    @Test
+    public void aSideWithNoShipsListedCanStillBeLoaded() {
+        ScenarioSpec waiting = nivram();
+        for (ScenarioSpec.SideSpec side : waiting.sides)
+            side.ships = null;   // as Jackson leaves it when the file omits the array
+
+        List<List<com.sfb.objects.Ship>> loaded = ScenarioLoader.loadShips(waiting);
+        assertEquals("a list per side, empty but present", 2, loaded.size());
+        assertTrue(loaded.get(0).isEmpty());
+        assertTrue(loaded.get(1).isEmpty());
+    }
+
+    /** A side nobody brought a fleet for ends up empty, so nothing downstream has to ask. */
+    @Test
+    public void aSideNobodyFilledIsEmptyRatherThanNull() {
+        ScenarioSpec waiting = nivram();
+        for (ScenarioSpec.SideSpec side : waiting.sides)
+            side.ships = null;
+
+        ScenarioSpec spec = FleetsToScenario.fill(waiting, List.of(
+                new FleetsToScenario.Entry(fleet("Only one", "Federation", "CA"), "Defender")),
+                FleetsToScenario.Conditions.defaults(180, 1000));
+
+        assertEquals(1, spec.sides.get(0).ships.size());
+        assertNotNull("the attacker nobody brought", spec.sides.get(1).ships);
+        assertTrue(spec.sides.get(1).ships.isEmpty());
+        assertEquals(2, ScenarioLoader.loadShips(spec).size());
+    }
+
     /** The pick-up battle is a scenario too: every side brings its own, and nothing else is said. */
     @Test
     public void thePickupBattleIsJustTheLeastSpecifiedScenario() {

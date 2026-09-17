@@ -313,7 +313,9 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                   disabled={busy}
                 >
                   <option value="">— choose a scenario —</option>
-                  {scenarios.map(s => (
+                  {/* Only the ones that bring their own ships: a situation has empty sides
+                      until a fleet is brought to it, and belongs under Saved fleets. */}
+                  {scenarios.filter(s => (s.openSides?.length ?? 0) === 0).map(s => (
                     <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
                   ))}
                 </select>

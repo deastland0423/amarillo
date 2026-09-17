@@ -113,8 +113,13 @@ public final class FleetsToScenario {
 
             // By name where the host said one, otherwise in the order they were offered.
             Entry entry = takeFor(unplaced, side.name);
-            if (entry == null)
-                continue;   // a side nobody brought a fleet for: left empty rather than invented
+            if (entry == null) {
+                // Nobody brought a fleet for this side. Empty rather than null, so everything
+                // downstream can iterate it without asking.
+                if (side.ships == null)
+                    side.ships = new ArrayList<>();
+                continue;
+            }
 
             if (entry.zone() != null)
                 side.deploymentZone = entry.zone();
