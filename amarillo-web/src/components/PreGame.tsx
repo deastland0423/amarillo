@@ -42,6 +42,11 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [fleetBudget,     setFleetBudget]     = useState(1000);
   const [fleetWs,         setFleetWs]         = useState(2);
   const [fleetTerrain,    setFleetTerrain]    = useState<TerrainChoice>('OPEN_SPACE');
+  // The situation the fleets are brought to. '' is the plain battle — two sides, open space,
+  // standard victory — which is the same thing with nothing specified.
+  const [situationId,     setSituationId]     = useState('');
+  // Which side each chosen fleet flies for, when the situation names its sides.
+  const [fleetSides,      setFleetSides]      = useState<Record<string, string>>({});
   // Raw COI data for the whole scenario (fetched once per scenario)
   const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
   // Filtered to this player's assigned ships
@@ -121,7 +126,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     setBusy(true); setError('');
     try {
       const res = await gameApi.loadFleetsIntoGame(session.gameId, session.playerToken, {
-        sides: chosenFleets.map(id => ({ fleetId: id })),
+        scenarioId: situationId || undefined,
+        sides: chosenFleets.map(id => ({ fleetId: id, team: fleetSides[id] || undefined })),
         year: fleetYear,
         budget: fleetBudget,
         weaponStatus: fleetWs,
@@ -314,8 +320,38 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
               </div>
             )}
 
-            {setupMode === 'fleets' && (
+            {setupMode === 'fleets' && (() => {
+              const situations = scenarios.filter(s => (s.openSides?.length ?? 0) > 0);
+              const situation  = situations.find(s => s.id === situationId);
+              const openSides  = situation?.openSides ?? [];
+              const tooManyFleets = situation != null && chosenFleets.length > openSides.length;
+
+              return (
               <div className="fleet-setup">
+                {/* What kind of battle. The plain one is a situation with nothing said. */}
+                <label className="fb-field">
+                  <span>Situation</span>
+                  <select value={situationId}
+                          onChange={e => { setSituationId(e.target.value); setFleetSides({}); }}>
+                    <option value="">A straight fight — open space, standard victory</option>
+                    {situations.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.openSides.length} fleets)
+                      </option>
+                    ))}
+                  </select>
+                  {situation?.description && (
+                    <span className="fb-hint">{situation.description}</span>
+                  )}
+                </label>
+
+                {tooManyFleets && (
+                  <p className="error">
+                    {situation!.name} has room for {openSides.length} fleets —
+                    you have chosen {chosenFleets.length}.
+                  </p>
+                )}
+
                 {fleets.length === 0 && (
                   <p className="subtitle">
                     No saved fleets yet. Build one from the opening menu, then come back.
@@ -331,6 +367,17 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                     <span className="fb-hint">
                       {f.factions.join(' + ')} · Y{f.year} · {f.totalCost}/{f.budget} · {f.shipCount} ships
                     </span>
+                    {/* Which side this fleet flies for, where the situation has named sides. */}
+                    {openSides.length > 0 && chosenFleets.includes(f.id) && (
+                      <select value={fleetSides[f.id] ?? ''}
+                              onClick={e => e.preventDefault()}
+                              onChange={e => setFleetSides(m => ({ ...m, [f.id]: e.target.value }))}>
+                        <option value="">— which side? —</option>
+                        {openSides.map(side => (
+                          <option key={side} value={side}>{side}</option>
+                        ))}
+                      </select>
+                    )}
                     <span className={f.legal ? 'fb-legal' : 'fb-illegal'}>
                       {f.legal ? 'legal' : 'illegal'}
                     </span>
@@ -359,26 +406,34 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
                       <option value={3}>WS-3</option>
                     </select>
                   </label>
-                  {/* S8.15: the terrain is agreed before the forces take the field. */}
+                  {/* S8.15: the terrain is agreed before the forces take the field — unless
+                      the situation already decided, in which case its ground may be measured
+                      from what is out there and swapping it would make nonsense of the setup. */}
                   <label className="fb-field">
                     <span>Terrain</span>
                     <select value={fleetTerrain}
+                            disabled={situation?.fixedTerrain ?? false}
                             onChange={e => setFleetTerrain(e.target.value as TerrainChoice)}>
                       <option value="OPEN_SPACE">Open space</option>
                       <option value="ASTEROID_FIELD">Asteroid field (P3.11)</option>
                       <option value="PLANET">A planet</option>
                       <option value="GAS_GIANT">A gas giant — size and rings rolled</option>
                     </select>
+                    {situation?.fixedTerrain && (
+                      <span className="fb-hint">{situation.name} sets its own.</span>
+                    )}
                   </label>
                 </div>
 
                 <div className="button-row" style={{ marginTop: 12 }}>
-                  <button onClick={handleFleetBattle} disabled={busy || chosenFleets.length === 0}>
+                  <button onClick={handleFleetBattle}
+                          disabled={busy || chosenFleets.length === 0 || tooManyFleets}>
                     {busy ? 'Assembling…' : `Assemble battle (${chosenFleets.length} fleets)`}
                   </button>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </>
         )}
 

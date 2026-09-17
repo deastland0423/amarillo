@@ -135,6 +135,11 @@ export interface FleetGameSetup {
   terrain?:      TerrainChoice;
   /** Omit to have the host roll one; it comes back so the same map can be laid again. */
   terrainSeed?:  number;
+  /**
+   * A written situation to bring the fleets to — one whose sides are waiting for a fleet.
+   * Omit for a straight fight, which is the same thing with nothing specified.
+   */
+  scenarioId?:   string;
 }
 
 export interface FleetShipEntry {
@@ -238,6 +243,10 @@ export interface ScenarioSummary {
   mrsShuttles:      boolean;
   pfs:              boolean;
   sides:            ScenarioSide[];
+  /** Sides waiting for somebody's fleet. Empty means this scenario brings its own ships. */
+  openSides:        string[];
+  /** True when the scenario has decided its own terrain and the host may not change it. */
+  fixedTerrain:     boolean;
 }
 
 // ---- COI data types ----

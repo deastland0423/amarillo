@@ -308,6 +308,32 @@ public class GameController {
             if (req.sides == null || req.sides.isEmpty())
                 return ResponseEntity.badRequest().body(Map.of("error", "A battle needs at least one fleet"));
 
+            // Whether this battle has room is a question about the battle, and is asked before
+            // any fleet is judged — a fleet's own problems should not hide "there is nowhere to
+            // put it".
+            com.sfb.scenario.ScenarioSpec template = null;
+            String situation = "fleet-battle";
+            if (req.scenarioId != null && !req.scenarioId.isBlank()) {
+                if (!SAFE_ID.matcher(req.scenarioId).matches())
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bad scenario id"));
+                try {
+                    template = com.sfb.scenario.ScenarioSpec.fromJson(
+                            "data/scenarios/" + req.scenarioId.toLowerCase() + ".json");
+                } catch (IOException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "No such scenario: " + req.scenarioId));
+                }
+                long waiting = template.sides == null ? 0
+                        : template.sides.stream().filter(sd -> sd.bringYourOwn).count();
+                if (waiting == 0)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            req.scenarioId + " lists its own ships; it has no place for a fleet"));
+                if (req.sides.size() > waiting)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            template.name + " has room for " + waiting + " fleets, not " + req.sides.size()));
+                situation = req.scenarioId;
+            }
+
             com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
 
             List<com.sfb.scenario.FleetsToScenario.Entry> entries = new ArrayList<>();
@@ -373,33 +399,8 @@ public class GameController {
                             req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus,
                             terrain);
 
-            // A written situation if one was named, otherwise a scenario shaped to fit —
-            // which is the same filling either way.
-            com.sfb.scenario.ScenarioSpec template;
-            String situation = "fleet-battle";
-            if (req.scenarioId != null && !req.scenarioId.isBlank()) {
-                if (!SAFE_ID.matcher(req.scenarioId).matches())
-                    return ResponseEntity.badRequest().body(Map.of("error", "Bad scenario id"));
-                try {
-                    template = com.sfb.scenario.ScenarioSpec.fromJson(
-                            "data/scenarios/" + req.scenarioId.toLowerCase() + ".json");
-                } catch (IOException e) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                            "error", "No such scenario: " + req.scenarioId));
-                }
-                long waiting = template.sides == null ? 0
-                        : template.sides.stream().filter(s -> s.bringYourOwn).count();
-                if (waiting == 0)
-                    return ResponseEntity.badRequest().body(Map.of("error",
-                            req.scenarioId + " lists its own ships; it has no place for a fleet"));
-                if (entries.size() > waiting)
-                    return ResponseEntity.badRequest().body(Map.of("error",
-                            req.scenarioId + " has room for " + waiting + " fleets, not " + entries.size()));
-                situation = req.scenarioId;
-            } else {
+            if (template == null)
                 template = com.sfb.scenario.FleetsToScenario.pickupTemplate(entries, conditions);
-            }
-
             session.loadBuiltScenario(
                     com.sfb.scenario.FleetsToScenario.fill(template, entries, conditions), situation);
 
@@ -764,10 +765,25 @@ public class GameController {
                             if (side.reinforcements != null)
                                 reinforcements = side.reinforcements.size();
                             s.put("reinforcementGroups", reinforcements);
+                            s.put("bringYourOwn", side.bringYourOwn);
                             sides.add(s);
                         }
                     }
                     entry.put("sides", sides);
+
+                    // What a host needs to know before offering this as a battle to bring
+                    // fleets to: which sides are waiting for one, and whether the scenario
+                    // has already decided what is on the map.
+                    List<String> open = new ArrayList<>();
+                    if (spec.sides != null)
+                        for (ScenarioSpec.SideSpec side : spec.sides)
+                            if (side.bringYourOwn)
+                                open.add(side.name != null ? side.name : side.faction);
+                    entry.put("openSides", open);
+                    entry.put("fixedTerrain",
+                            (spec.terrain != null && !spec.terrain.isEmpty())
+                            || (spec.terrainPlan != null && !spec.terrainPlan.isEmpty()));
+
                     result.add(entry);
                 } catch (Exception e) {
                     System.err.println("Could not parse scenario file: " + f.getName());
