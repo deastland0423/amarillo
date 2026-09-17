@@ -249,6 +249,11 @@ export default function DeploymentPanel({
             onSelect={obj => { if (obj?.type === 'SHIP' && !state.done) setSelected(obj.name); }}
           />
         </div>
+        {/* A full map is taller than this window, and a band down one edge runs off the
+            bottom of it. Say how to reach the rest, because neither is obvious. */}
+        <p className="deploy-map-hint">
+          Scroll to see the rest of the map — hold <kbd>Ctrl</kbd> and scroll to zoom out.
+        </p>
       </div>
     </div>
   );

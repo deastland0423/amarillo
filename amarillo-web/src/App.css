@@ -1932,8 +1932,11 @@ h3 {
 .battle-preview-map {
   border: 1px solid #30363d;
   border-radius: 6px;
-  overflow: hidden;
-  max-height: 420px;
+  /* A definite height, not a max: HexGrid's scroller is height:100%, which only resolves
+     against a parent that has one. With max-height alone the scroller grew to the full
+     canvas and this box simply cropped it - no vertical scrollbar anywhere. */
+  height: 420px;
+  overflow: hidden;   /* HexGrid manages its own scroll */
 }
 .battle-preview-key {
   display: flex;
@@ -1985,11 +1988,25 @@ h3 {
 .deploy-ship-on { border-color: #f0c040; background: #21262d; }
 .deploy-placed { display: flex; align-items: center; gap: 0.3rem; }
 .deploy-facing { margin-top: 0.75rem; }
+.deploy-map-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: #8b949e;
+}
+.deploy-map-hint kbd {
+  padding: 0 0.25rem;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  background: #161b22;
+  font-size: 0.72rem;
+}
 .deploy-map {
   border: 1px solid #30363d;
   border-radius: 6px;
-  overflow: hidden;
-  max-height: 520px;
+  /* Definite, so HexGrid's height:100% scroller resolves - see .battle-preview-map.
+     Without it the far rows of a deployment band could not be reached. */
+  height: 520px;
+  overflow: hidden;   /* HexGrid manages its own scroll */
 }
 
 /* Deployment: the one line telling you what to do now */
