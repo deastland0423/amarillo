@@ -417,7 +417,19 @@ class LaunchCoordinator {
         if (!(launched instanceof com.sfb.objects.shuttles.Fighter))
             launched.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq());
         activeShuttles.add(launched);
-        return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
+        // Everything else that appears on the map mid-turn is acquired here - drones,
+        // plasma, suicide shuttles, scatter packs. A plain shuttle was not, so nobody held
+        // lock-on to it, not even the ship that had just launched it, and it could not be
+        // tractored back aboard (G7.412). The turn-start sweep would have sorted it out at
+        // the next turn, which is why this only bit within the launching turn.
+        //
+        // The Wild Weasel launch deliberately does NOT do this: J3.132 turns the
+        // launcher's fire control off and clears its lock-ons, and this would undo that.
+        java.util.List<String> lockLog = game.checkLockOnsForNewUnit(launcher, launched);
+        String msg = launcher.getName() + " launched shuttle " + launched.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     /**

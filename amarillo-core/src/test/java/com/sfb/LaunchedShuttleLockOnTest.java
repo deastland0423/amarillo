@@ -174,4 +174,45 @@ public class LaunchedShuttleLockOnTest {
         assertFalse("own side or not, fire control gates lock-on (D6.1143)",
                 consort.hasLockOn(shuttle));
     }
+
+    // ------------------------------------------------- through the real launch path
+
+    /**
+     * The bug exactly as reported: launch a shuttle, then try to tractor it with the ship
+     * that launched it, and be told there is no lock-on.
+     * <p>
+     * launchShuttle was the one launch method that never called checkLockOnsForNewUnit -
+     * drones, plasma, pseudo-plasma, suicide shuttles and scatter packs all did. So a plain
+     * shuttle went onto the map invisible to everyone, its own launcher included, and
+     * G7.412 refused the tractor. Goes through the real launch, not the lock-on helper, so
+     * it would catch the call being dropped again.
+     */
+    @Test
+    public void theLaunchingShipHasLockOnToTheShuttleItJustLaunched() {
+        allocateAll();
+        advanceToActivity();
+
+        com.sfb.systemgroups.ShuttleBay bay = launcher.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.Shuttle toLaunch = bay.getInventory().get(0);
+
+        Game.ActionResult r = game.launchShuttle(launcher, bay, toLaunch, 6, 1);
+        assertTrue("launch should succeed: " + r.getMessage(), r.isSuccess());
+
+        com.sfb.objects.shuttles.Shuttle launched = game.getActiveShuttles()
+                .get(game.getActiveShuttles().size() - 1);
+
+        assertTrue("the ship that launched it must have lock-on to it, or it cannot tractor "
+                        + "its own shuttle back aboard (G7.412)",
+                launcher.hasLockOn(launched));
+        assertTrue("and so must the consort beside it", consort.hasLockOn(launched));
+    }
+
+    private void advanceToActivity() {
+        for (int guard = 0; guard < 400; guard++) {
+            if (game.canLaunchThisPhase())
+                return;
+            game.advancePhase();
+        }
+        fail("never reached a phase that allows launching");
+    }
 }
