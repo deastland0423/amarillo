@@ -408,10 +408,11 @@ class DamageResolver {
                     + (char) ('A' + targetSide - 1) + " of the planet (P2.52)");
 
         int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), planet.getLocation());
-        int groundClutter = 2; // P2.52 ground-clutter ECM
-        int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), planet.getLocation());
+        // P2.52 ground clutter and any terrain on the line both come from ewAgainst now, so
+        // this no longer keeps a private copy of either.
+        com.sfb.properties.EwBreakdown ew = game.ewAgainst(attacker, planet);
         int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
-        int ecmShift = Game.netEcmShift(groundClutter + terrainEcm - eccm);
+        int ecmShift = Game.netEcmShift(ew.total() - eccm);
         int adjustedRange = range + attacker.getScanner();
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), planet.getLocation());

@@ -536,6 +536,16 @@ public class Game {
         // counts whatever the actor points them at.
         int offensive = actor.getOffensiveEw();
 
+        // P2.52: shooting at a planet's surface picks up two points of ground clutter. It
+        // belongs to the target rather than the path - it is the surface itself that is
+        // cluttered - and so it lands in `natural`, where a friendly unit cannot ignore it
+        // (D6.3146). The rule excepts ground bases, which are not modelled (P2.7).
+        if (target instanceof Terrain) {
+            TerrainType tt = ((Terrain) target).getTerrainType();
+            if (tt == TerrainType.PLANET || tt == TerrainType.GAS_GIANT)
+                natural += 2;
+        }
+
         int generated = 0, builtIn = 0, lent = 0;
         if (target instanceof Ship) {
             Ship t = (Ship) target;
@@ -3004,14 +3014,18 @@ public class Game {
      * (P3.31). Counted in half-points so the round-up is exact.
      */
     int terrainEcmAlongLine(Location from, Location to) {
-        if (from == null || to == null || (asteroidHexes.isEmpty() && ringHexes.isEmpty()))
+        if (from == null || to == null
+                || (asteroidHexes.isEmpty() && ringHexes.isEmpty()
+                        && planetAtmosphereHexes.isEmpty()))
             return 0;
         int halves = 0;
         for (Location hex : com.sfb.utilities.MapUtils.hexLine(from, to)) {
             if (isAsteroidHex(hex))
-                halves += 2;
+                halves += 2;                    // P3.33: one point per asteroid hex
+            else if (isPlanetAtmosphereHex(hex))
+                halves += 2;                    // P2.51: one point per atmosphere hex
             else if (isRingHex(hex))
-                halves += 1;
+                halves += 1;                    // P2.223: half a point per ring hex
         }
         return (halves + 1) / 2; // ceil(halves / 2) — P2.223 rounds ½ up
     }
