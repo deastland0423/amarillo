@@ -509,57 +509,69 @@ public class Game {
     }
 
     /**
+     * D6.34 Step 5: the net ECM shift for a point total — the square root with all
+     * fractions dropped, which is what the rulebook's chart tabulates (1-3 = 1, 4-8 = 2,
+     * 9-15 = 3, ...). So three points of natural ECM is still only +1 on the die, and it
+     * takes a fourth to reach +2.
+     * <p>
+     * The single home for that conversion. ECCM is subtracted from the POINTS before
+     * calling this (D6.34 Step 3), never from the shift — which is why enough ECCM erases
+     * the roll rather than merely shrinking it (Step 4).
+     */
+    static int netEcmShift(int netPoints) {
+        return (int) Math.floor(Math.sqrt(Math.max(0, netPoints)));
+    }
+
+    /**
+     * The ECM bearing on {@code actor}'s action against {@code target}, split by the five
+     * sources of D6.314 so that rules which discriminate between them — D6.3146 above all
+     * — can do so without re-deriving the sum.
+     */
+    com.sfb.properties.EwBreakdown ewAgainst(Ship actor, com.sfb.objects.Marker target) {
+        // D6.3143: asteroid and ring hexes on the line (P3.33, P2.223). The other natural
+        // sources D6.3143 names - Erratic Maneuvers, atmospheres, small target modifiers -
+        // are not modelled yet; when they are, they belong here.
+        int natural = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+        // D6.3145: an enemy scout's O-EW degrades the ACTOR's systems (G24.219), so it
+        // counts whatever the actor points them at.
+        int offensive = actor.getOffensiveEw();
+
+        int generated = 0, builtIn = 0, lent = 0, weasel = 0;
+        if (target instanceof Ship) {
+            Ship t = (Ship) target;
+            generated = t.getEcmAllocated();
+            builtIn = t.getStealthEcm();          // Orion G15.8
+            lent = t.getLentEcm();
+            weasel = t.getWwEcmBonus();
+        } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
+            builtIn = ((com.sfb.objects.shuttles.Fighter) target).getEcm(); // J4.47, two points
+        }
+        // A probe canister, a drone and an admin shuttle have no EW of their own at all.
+        return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, weasel,
+                offensive);
+    }
+
+    /**
      * D6.34 net ECM shift for a tractor / transporter / SFG action (D6.371, D6.372).
      * <p>
      * D6.3146 is the rule that shapes this: against a FRIENDLY unit you ignore its
-     * GENERATED (D6.3141), BUILT-IN (D6.3142) and LENT (D6.3144) ECM, but you do NOT
-     * ignore NATURAL sources (D6.3143) or OFFENSIVE ECM from an enemy scout (D6.3145).
-     * Asteroids are a natural source (P3.33), so hauling your own shuttle out of a field
-     * is genuinely harder than hauling it out of open space - which is the whole point.
+     * GENERATED (D6.3141), BUILT-IN (D6.3142) and LENT (D6.3144) ECM, but you do NOT ignore
+     * NATURAL sources (D6.3143) or OFFENSIVE ECM from an enemy scout (D6.3145). Asteroids
+     * are a natural source (P3.33), so hauling your own shuttle out of a field is genuinely
+     * harder than hauling it out of open space.
      * <p>
-     * Offensive EW is held on the ACTOR, not the target: an enemy scout jams this ship's
-     * systems, so it counts whatever the ship points its beam at, friend or foe (D6.3145).
-     * <p>
-     * A probe canister needs no special case any more. It has no EW of its own, so the
-     * friendly and enemy formulas agree on it, and it simply takes the terrain ECM that
-     * SH35.452 wanted it to take.
-     * <p>
-     * Steps 4 and 5 of D6.34: ECCM at or above the ECM means no effect at all, and the
-     * shift is otherwise the square root with fractions dropped.
+     * Enough ECCM removes the roll entirely rather than merely improving it (D6.34 Step 4),
+     * and ECCM is inactive without fire control (D6.32).
      */
     int d637Shift(Ship actor, com.sfb.objects.Marker target) {
         // G7.412 / D6.371: once a beam is attached, lock-on is automatic in both
-        // directions, so a held unit is not re-acquired every time.
+        // directions, so a held unit is not re-acquired every impulse.
         if (target instanceof Unit && tractorLinkBetween(actor, (Unit) target))
             return 0;
 
-        // D6.3143 NATURAL SOURCES: asteroid and ring hexes on the line (P3.33). Counts
-        // for friendly and enemy targets alike.
-        int targetEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
-
-        // D6.3145 RECEIVED FROM OFFENSIVE ECM: an enemy scout's O-EW degrades this ship's
-        // own systems (G24.219), so it applies against any target. Also not ignorable for
-        // a friendly target.
-        targetEcm += actor.getOffensiveEw();
-
-        // D6.3141 / D6.3142 / D6.3144 - the target's own EW. Ignored when it is friendly.
-        if (!isFriendlyD637Target(actor, target)) {
-            if (target instanceof Ship) {
-                Ship tship = (Ship) target;
-                targetEcm += tship.getEcmAllocated()        // D6.3141 generated
-                        + tship.getLentEcm()                // D6.3144 received from lending
-                        + tship.getWwEcmBonus()             // J3.0 weasel
-                        + tship.getStealthEcm();            // D6.3142 built-in (Orion G15.8)
-            } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
-                // D6.3142/D6.393: every fighter has two points of built-in ECM (J4.47).
-                targetEcm += ((com.sfb.objects.shuttles.Fighter) target).getEcm();
-            }
-        }
-
-        // D6.34 Step 2/3: the acting unit's ECCM, which is inactive without fire
-        // control (D6.32). Step 4: no effect once it matches the ECM.
+        int ecm = ewAgainst(actor, target).totalAgainst(isFriendlyD637Target(actor, target));
         int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
-        return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
+        return netEcmShift(ecm - eccm);
     }
 
     /**
@@ -2287,7 +2299,7 @@ public class Game {
                 + attacker.getOffensiveEw();
         int attackerEccm = attacker.isActiveFireControl()
                 ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
-        return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - attackerEccm)));
+        return netEcmShift(targetEcm - attackerEccm);
     }
 
     // -------------------------------------------------------------------------

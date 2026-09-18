@@ -277,7 +277,7 @@ class LockOnResolver {
      * negated when the differential is negative (G13.331 EW Adjustment).
      */
     static int signedNetEcmShift(int netEcm) {
-        int shift = (int) Math.floor(Math.sqrt(Math.abs(netEcm)));
+        int shift = Game.netEcmShift(Math.abs(netEcm));
         return netEcm < 0 ? -shift : shift;
     }
 

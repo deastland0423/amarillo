@@ -547,7 +547,7 @@ class SeekerMover {
                 controllerEccm = cship.getEccmAllocated() + cship.getLentEccm();
         }
         int netEcm = Math.max(0, targetEcm - controllerEccm - seeker.getBuiltInEccm());
-        return (int) Math.floor(Math.sqrt(netEcm));
+        return Game.netEcmShift(netEcm);
     }
 
     /**

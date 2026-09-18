@@ -411,7 +411,7 @@ class DamageResolver {
         int groundClutter = 2; // P2.52 ground-clutter ECM
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), planet.getLocation());
         int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
-        int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, groundClutter + terrainEcm - eccm)));
+        int ecmShift = Game.netEcmShift(groundClutter + terrainEcm - eccm);
         int adjustedRange = range + attacker.getScanner();
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), planet.getLocation());
@@ -494,7 +494,7 @@ class DamageResolver {
         int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), hex);
         int terrainEcm = game.terrainEcmForClearingFire(attacker.getLocation(), hex);
         int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
-        int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, terrainEcm - eccm)));
+        int ecmShift = Game.netEcmShift(terrainEcm - eccm);
         int adjustedRange = range + attacker.getScanner();
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), hex);
@@ -655,7 +655,7 @@ class DamageResolver {
                 ? attackerShip.getEccmAllocated() + attackerShip.getLentEccm()
                 : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
-        int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
+        int ecmShift = Game.netEcmShift(netEcm);
         if (ecmShift > 0)
             log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(allocatedEcm)
                     .append(terrainEcm > 0 ? " +" + terrainEcm + " terrain" : "")
