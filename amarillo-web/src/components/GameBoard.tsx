@@ -1872,8 +1872,15 @@ function ShipSidebar({
                     WW {s.name}
                   </button>
                 ))}
-                {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13) */}
-                {(ship.availableTractors ?? 0) > 0 && (ship.tractorEnergy ?? 0) > 0 &&
+                {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13).
+                    Affordability must match what core actually charges: the unspent tractor
+                    pool PLUS batteries (TractorResolver totals both, and the bid dialog below
+                    already shows it that way). Gating on tractorEnergy — the total ALLOCATED
+                    this turn — was wrong twice over: a ship that allocated nothing but has
+                    batteries could never try, and one that had spent its whole pool still
+                    saw the button. Minimum cost is 1, at range 1. */}
+                {(ship.availableTractors ?? 0) > 0
+                 && ((ship.tractorEnergyRemaining ?? 0) + (ship.batteryPower ?? 0)) > 0 &&
                  (ship.tractoredTargetNames ?? []).length < (ship.availableTractors ?? 0) &&
                  !isCloakOperating(ship) && (
                   <button
