@@ -461,6 +461,106 @@ class DamageResolver {
         return Game.ActionResult.ok(log.toString());
     }
 
+    /**
+     * Fire into an asteroid hex to clear a path through it (P3.25). Completely different from
+     * firing THROUGH an asteroid hex at a unit: here the rocks are the target, and every point
+     * scored comes off the collision damage when this ship enters that hex (P3.251).
+     * <p>
+     * The timing is the whole rule. Because of the Sequence of Play the shot lands on the
+     * impulse before the move, so this only pays out if the ship enters that very hex on the
+     * very next impulse - it is spent in {@code Game.applyTerrainCollision}, which drops the
+     * benefit if the ship goes anywhere else first. A ship cannot clear a path for anyone but
+     * itself (P3.253), which is why the record is kept against the firing unit.
+     * <p>
+     * ECM follows P3.25 rather than plain P3.33: hexes fired from or through count, but the
+     * target hex gives itself nothing. No lock-on is needed - asteroids do not affect lock-on
+     * (P3.31), and there is nothing there to lock onto. Size class is moot (P3.36 makes
+     * asteroids size class 4 "or larger", and our to-hit does not use size class at all).
+     * <p>
+     * NOT IMPLEMENTED: seeking weapons aimed at a hex (P3.252) - a Seeker's target is a Unit
+     * in this code, so leading drones through a field is a separate piece of work.
+     */
+    com.sfb.Game.ActionResult clearAsteroidPath(Ship attacker, com.sfb.properties.Location hex,
+            List<Weapon> selected) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
+            return Game.ActionResult.fail("Weapons can only be fired during the Direct Fire phase");
+        if (hex == null || !game.isAsteroidHex(hex))
+            return Game.ActionResult.fail("There are no asteroids in that hex to clear (P3.25)");
+        if (attacker.getLocation() == null)
+            return Game.ActionResult.fail(attacker.getName() + " is not on the map");
+        if (!attacker.isActiveFireControl())
+            return Game.ActionResult.fail(attacker.getName() + " needs active fire control to fire");
+
+        int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), hex);
+        int terrainEcm = game.terrainEcmForClearingFire(attacker.getLocation(), hex);
+        int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
+        int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, terrainEcm - eccm)));
+        int adjustedRange = range + attacker.getScanner();
+
+        int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), hex);
+        int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
+
+        StringBuilder log = new StringBuilder(attacker.getName())
+                .append(" fires into the asteroid hex at ").append(hex)
+                .append(" to clear a path (range ").append(range)
+                .append(", bearing ").append(trueBearing).append("):\n");
+        int dealt = 0;
+        for (Weapon w : selected) {
+            if (!(w instanceof com.sfb.weapons.DirectFire)) {
+                log.append("  ").append(w.getName())
+                        .append(" — seeking weapons aimed at a hex are not implemented (P3.252)\n");
+                continue;
+            }
+            if (cannotClearAsteroids(w)) {
+                log.append("  ").append(w.getName())
+                        .append(" — this weapon cannot clear asteroids (P3.255)\n");
+                continue;
+            }
+            if (!w.isFunctional()) {
+                log.append("  ").append(w.getName()).append(" destroyed — cannot fire\n");
+                continue;
+            }
+            if (range > w.getMaxRange()) {
+                log.append("  ").append(w.getName()).append(" out of range\n");
+                continue;
+            }
+            if (!w.inArc(relBearing)) {
+                log.append("  ").append(w.getName()).append(" cannot bear on that hex\n");
+                continue;
+            }
+            w.setEcmShift(ecmShift);
+            try {
+                int dmg = ((com.sfb.weapons.DirectFire) w).fire(range, adjustedRange);
+                if (dmg > 0) {
+                    dealt += dmg;
+                    log.append("  ").append(w.getName()).append("  ").append(dmg).append(" damage\n");
+                } else {
+                    log.append("  ").append(w.getName()).append(" missed\n");
+                }
+            } catch (Exception ex) {
+                log.append("  ").append(w.getName()).append(" cannot fire (")
+                        .append(ex.getMessage()).append(")\n");
+            }
+        }
+
+        if (dealt > 0)
+            game.recordAsteroidClearance(attacker, hex, dealt);
+        int standing = game.pendingAsteroidClearance(attacker, hex);
+        log.append(dealt).append(" points cleared at ").append(hex)
+                .append(" (").append(standing).append(" standing) — good only if ")
+                .append(attacker.getName()).append(" enters that hex next impulse (P3.25)");
+        return Game.ActionResult.ok(log.toString());
+    }
+
+    /**
+     * P3.255: some weapons cannot clear asteroids — ADDs (E5.32), PPDs (E11.0), ESGs
+     * (G23.651), displacement devices (G18.0) and SFGs (G16.0). Only the ADD exists in this
+     * code so far; the rest join the list as they are built.
+     */
+    private boolean cannotClearAsteroids(Weapon w) {
+        return w instanceof com.sfb.weapons.ADD;
+    }
+
     String fireWeapons(Unit attacker, Unit target, List<Weapon> selected,
             int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
         if (attacker instanceof Ship && ((Ship) attacker).isCaptured())

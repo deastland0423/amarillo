@@ -2989,6 +2989,91 @@ public class Game {
     }
 
     /**
+     * Weapons fire put into an asteroid hex to clear a path through it (P3.25), waiting for
+     * the unit that fired to arrive. Keyed by the firing unit, and it holds at most one hex:
+     * the benefit belongs to the firer alone (P3.253), is spent on the first entry into that
+     * hex (P3.25), and does not carry over to any other hex (P3.251).
+     *
+     * @param hex             the hex fired into
+     * @param damage          points scored on the asteroids, to come off the collision roll
+     * @param absoluteImpulse when it was fired — the benefit is void unless the hex is
+     *                        entered on the very next impulse (P3.25)
+     */
+    record AsteroidClearance(Location hex, int damage, int absoluteImpulse) {
+    }
+
+    private final Map<Unit, AsteroidClearance> asteroidClearances = new HashMap<>();
+
+    /**
+     * Record fire put into an asteroid hex (P3.25). Several weapons fired into the same hex
+     * on the same impulse add together; firing on a later impulse replaces what came before,
+     * because only the impulse immediately prior to entry counts for anything.
+     */
+    void recordAsteroidClearance(Unit firer, Location hex, int damage) {
+        int now = getAbsoluteImpulse();
+        AsteroidClearance existing = asteroidClearances.get(firer);
+        int total = damage;
+        if (existing != null && existing.absoluteImpulse() == now && existing.hex().equals(hex))
+            total += existing.damage();
+        asteroidClearances.put(firer, new AsteroidClearance(hex, total, now));
+    }
+
+    /** What this unit has already cleared in {@code hex}, without spending it. Test/UI use. */
+    int pendingAsteroidClearance(Unit unit, Location hex) {
+        AsteroidClearance c = asteroidClearances.get(unit);
+        return c != null && c.hex().equals(hex) ? c.damage() : 0;
+    }
+
+    /**
+     * Spend whatever this unit cleared, now that it has entered {@code entered} (P3.25).
+     * <p>
+     * The record is dropped either way, which is the rule rather than tidiness: the benefit
+     * "is lost if the firing unit enters any other hex before entering the hex into which it
+     * fired", and applies "only to the first subsequent entry into that hex". It pays out
+     * only when the hex matches AND the fire was on the immediately preceding impulse - a
+     * unit that fires and then dawdles gets nothing.
+     */
+    private int spendAsteroidClearance(Unit unit, Location entered) {
+        AsteroidClearance c = asteroidClearances.remove(unit);
+        if (c == null || entered == null)
+            return 0;
+        if (!c.hex().equals(entered))
+            return 0;                                    // it went somewhere else
+        if (c.absoluteImpulse() != getAbsoluteImpulse() - 1)
+            return 0;                                    // not the impulse immediately prior
+        return c.damage();
+    }
+
+    /**
+     * Natural ECM on the line for fire aimed AT an asteroid hex (P3.25/P3.33). The same count
+     * as {@link #terrainEcmAlongLine} except that the target hex gives itself nothing - "the
+     * target asteroid hex does not provide itself any ECM benefit, but hexes fired from or
+     * through will". Shooting the rock in front of you is not made harder by that rock.
+     */
+    int terrainEcmForClearingFire(Location from, Location target) {
+        if (from == null || target == null)
+            return 0;
+        int halves = 0;
+        for (Location hex : com.sfb.utilities.MapUtils.hexLine(from, target)) {
+            if (hex.equals(target))
+                continue;                                // P3.25: the target hex is exempt
+            if (isAsteroidHex(hex))
+                halves += 2;
+            else if (isRingHex(hex))
+                halves += 1;
+        }
+        return (halves + 1) / 2;
+    }
+
+    /**
+     * Fire direct-fire weapons into an asteroid hex to clear a path (P3.25). See
+     * {@link DamageResolver#clearAsteroidPath}.
+     */
+    public ActionResult clearAsteroidPath(Ship attacker, Location hex, List<com.sfb.weapons.Weapon> selected) {
+        return damageResolver.clearAsteroidPath(attacker, hex, selected);
+    }
+
+    /**
      * C11.21: nimble units subtract 1 from the collision die (lower die = less
      * damage on the tables), for both asteroid (P3.221) and ring (P2.223).
      * C11.33: a poor crew negates a ship's nimble benefit. Not yet modeled:
@@ -3081,6 +3166,11 @@ public class Game {
         if (unit == null || unit.getLocation() == null)
             return "";
 
+        // P3.25: spend anything this unit shot into the hex it is entering. Done before the
+        // terrain test, because entering ANY other hex voids the benefit - including a hex
+        // with no asteroids in it at all.
+        int cleared = spendAsteroidClearance(unit, unit.getLocation());
+
         boolean isShip = unit instanceof Ship;
         // C11.1: "All shuttlecraft and fighters (including those on seeking courses) are
         // nimble unless noted otherwise" - so the test is the Shuttle type itself, which
@@ -3102,14 +3192,19 @@ public class Game {
             shieldNum = (relBearing - 1) / 4 + 1;
         }
 
+        // P3.251: each point scored on the asteroids takes a point off what the roll does.
+        int damage = Math.max(0, hit.damage - cleared);
+
         String name = unit.getName() != null ? unit.getName() : "a unit";
         String where = name + " enters " + hit.terrainName + " hex"
                 + " (speed " + speed + ", die " + hit.die
                 + (hit.nimble ? " −1 nimble" : "")
                 + (isShip ? ", shield " + shieldNum : "") + ")";
-        if (hit.damage == 0)
+        if (cleared > 0)
+            where += " — " + cleared + " cleared by fire (P3.25), " + hit.damage + " → " + damage;
+        if (damage == 0)
             return where + " — no damage";
-        return where + " — " + applyDamageToUnit(hit.damage, unit, shieldNum);
+        return where + " — " + applyDamageToUnit(damage, unit, shieldNum);
     }
 
     public boolean isPlanetHex(Location loc) {
