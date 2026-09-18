@@ -3007,7 +3007,8 @@ public class Game {
      * rolls, and applies the C11.21 nimble die-shift. Returns null when
      * {@code loc} is neither asteroid nor ring.
      *
-     * @param nimble true for nimble ships and ALL shuttles/fighters (C11 note)
+     * @param nimble true for nimble ships and ALL shuttles/fighters, seeking courses
+     *               included (C11.1); seeking WEAPONS - drones, plasma - are never nimble
      * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
     TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
@@ -3081,7 +3082,9 @@ public class Game {
             return "";
 
         boolean isShip = unit instanceof Ship;
-        // C11.21: shuttles and fighters are always nimble; seeking weapons never are.
+        // C11.1: "All shuttlecraft and fighters (including those on seeking courses) are
+        // nimble unless noted otherwise" - so the test is the Shuttle type itself, which
+        // is what makes a scatter pack or suicide shuttle nimble while a drone is not.
         boolean nimble = isShip ? ((Ship) unit).isNimble()
                                 : unit instanceof com.sfb.objects.shuttles.Shuttle;
         com.sfb.systemgroups.Crew.CrewQuality crew = crewQualityFor(unit);

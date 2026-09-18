@@ -5,6 +5,7 @@ import com.sfb.objects.Terrain;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.Stinger1;
+import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
 import com.sfb.samples.FederationShips;
@@ -288,5 +289,57 @@ public class ShuttleTerrainCollisionTest {
         assertTrue("the roll happened: " + line, line.contains("enters asteroid hex"));
         assertTrue("it is bracketed at the TOW's speed, not its own 6: " + line,
                 line.contains("(speed 20"));
+    }
+
+    // ------------------------------------------------- shuttles on seeking courses (C11.1)
+
+    /**
+     * C11.1 rates shuttles and fighters nimble "including those on seeking courses", which
+     * only means something if a seeking shuttle rolls for terrain in the first place. It
+     * did not: SeekerMover moves scatter packs and suicide shuttles in branches of their
+     * own, beside the drone and plasma branches that already rolled, and neither had a
+     * call. A suicide shuttle that dies in the rocks never reaches its target.
+     */
+    @Test
+    public void suicideShuttle_crossingAsteroids_rollsCollision() {
+        Ship target = new Ship();
+        target.init(FederationShips.getFedCa());
+        target.setName("Target");
+        target.setOwner(fedPlayer);
+        target.setLocation(new Location(10, 4));
+        target.setFacing(1);
+        target.setSpeedPreviousTurn(31);
+        target.setSpeedTwoTurnsAgo(31);
+        game.getShips().add(target);
+
+        // Rocks across the whole corridor it must fly down to reach the target.
+        for (int row = 5; row <= 9; row++)
+            game.addTerrain(new Terrain(TerrainType.ASTEROID, 10, row));
+
+        SuicideShuttle ss = new SuicideShuttle(new AdminShuttle());
+        ss.setName("Kamikaze");
+        ss.setOwner(fedPlayer);
+        ss.setLocation(new Location(10, 10));
+        ss.setFacing(1);
+        ss.setSpeed(6);
+        ss.setTarget(target);
+        game.getSeekers().add(ss);
+
+        String log = runImpulsesCollecting(40);
+
+        assertTrue("A suicide shuttle is on a seeking course but is still a shuttle, and "
+                        + "must roll for the rocks it flies through (C11.1, P3.2). Log:\n" + log,
+                log.contains("enters asteroid hex"));
+    }
+
+    /** Run the impulse engine a while, gathering everything it logs. */
+    private String runImpulsesCollecting(int phases) {
+        StringBuilder all = new StringBuilder();
+        for (int i = 0; i < phases; i++) {
+            Game.ActionResult r = game.advancePhase();
+            if (r != null && r.getMessage() != null)
+                all.append(r.getMessage()).append('\n');
+        }
+        return all.toString();
     }
 }

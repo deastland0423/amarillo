@@ -212,6 +212,12 @@ class SeekerMover {
                     if (pack.getLocation() == null) {
                         log.add("  Scatter pack moved off the map — lost");
                         expired.add(pack);
+                    } else if (game.isAsteroidHex(pack.getLocation())
+                            || game.isRingHex(pack.getLocation())) {
+                        // C11.1: nimble even on a seeking course — but it still rolls.
+                        log.add("  " + game.applyTerrainCollision(pack));
+                        if (pack.getCurrentHull() <= 0)
+                            expired.add(pack);
                     }
                 }
 
@@ -235,6 +241,15 @@ class SeekerMover {
                     log.add("  Suicide shuttle moved off the map");
                     expired.add(ss);
                     continue;
+                }
+                if (game.isAsteroidHex(ss.getLocation()) || game.isRingHex(ss.getLocation())) {
+                    // C11.1: nimble even on a seeking course — but it still rolls, and a
+                    // suicide shuttle that dies in the rocks never reaches its target.
+                    log.add("  " + game.applyTerrainCollision(ss));
+                    if (ss.getCurrentHull() <= 0) {
+                        expired.add(ss);
+                        continue;
+                    }
                 }
                 if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
                     if (target instanceof WildWeaselShuttle) {
