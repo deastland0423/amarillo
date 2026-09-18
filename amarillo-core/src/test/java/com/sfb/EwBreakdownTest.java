@@ -46,14 +46,14 @@ public class EwBreakdownTest {
 
     // ---------------------------------------------------------------- D6.3146 split
 
-    /** One of each, so any source landing in the wrong bucket shows up. */
+    /** Distinct powers of two, so any source landing in the wrong bucket shows up. */
     private EwBreakdown oneOfEach() {
-        return new EwBreakdown(1, 2, 4, 8, 16, 32);
+        return new EwBreakdown(1, 2, 4, 8, 16);
     }
 
     @Test
     public void againstAnEnemyEverySourceCounts() {
-        assertEquals(1 + 2 + 4 + 8 + 16 + 32, oneOfEach().total());
+        assertEquals(1 + 2 + 4 + 8 + 16, oneOfEach().total());
         assertEquals(oneOfEach().total(), oneOfEach().totalAgainst(false));
     }
 
@@ -61,15 +61,15 @@ public class EwBreakdownTest {
     public void againstAFriendlyOnlyNaturalAndOffensiveCount() {
         // D6.3146: ignore GENERATED (D6.3141), BUILT-IN (D6.3142) and LENT (D6.3144);
         // do NOT ignore NATURAL (D6.3143) or OFFENSIVE (D6.3145).
-        assertEquals("natural 4 + offensive 32", 36, oneOfEach().totalFriendly());
-        assertEquals(36, oneOfEach().totalAgainst(true));
+        assertEquals("natural 4 + offensive 16", 20, oneOfEach().totalFriendly());
+        assertEquals(20, oneOfEach().totalAgainst(true));
     }
 
     @Test
-    public void theWeaselIsNotAFriendlyUnitsProblem() {
-        // Whatever the weasel question turns out to be against direct fire, a Wild Weasel
-        // is a lending source (D6.3144) and so is ignored between friendly units.
-        EwBreakdown wwOnly = new EwBreakdown(0, 0, 0, 0, 6, 0);
+    public void aWeaselsEcmIsLentEcm_soAFriendlyUnitIgnoresIt() {
+        // J3.23: a Wild Weasel lends six points to the ship that launched it, like a small
+        // scout channel — so it is D6.3144 lending, and D6.3146 ignores it between friends.
+        EwBreakdown wwOnly = new EwBreakdown(0, 0, 0, 6, 0);
         assertEquals(6, wwOnly.total());
         assertEquals(0, wwOnly.totalFriendly());
     }
@@ -83,7 +83,7 @@ public class EwBreakdownTest {
 
     @Test
     public void describeNamesOnlyWhatIsPresent() {
-        String d = new EwBreakdown(0, 0, 3, 0, 0, 2).describe();
+        String d = new EwBreakdown(0, 0, 3, 0, 2).describe();
         assertTrue(d, d.contains("3 natural"));
         assertTrue(d, d.contains("2 offensive"));
         assertFalse("silent about sources that contribute nothing: " + d, d.contains("generated"));

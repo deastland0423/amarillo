@@ -644,7 +644,11 @@ class DamageResolver {
         // P3.33: asteroid/ring hexes on the line of fire add natural ECM to the
         // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() + targetShip.getLentEcm() : 0;
+        // D6.3144: lent ECM includes a Wild Weasel's six points (J3.23), capped across all
+        // lending sources. Direct fire used to ignore the weasel entirely, which made a
+        // weaselled ship harder to tractor than to shoot at.
+        int allocatedEcm = targetShip != null
+                ? targetShip.getEcmAllocated() + targetShip.getLentEcmTotal() : 0;
         int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
         // Offensive EW jamming the attacker (G24.219) degrades its fire — it counts as ECM for

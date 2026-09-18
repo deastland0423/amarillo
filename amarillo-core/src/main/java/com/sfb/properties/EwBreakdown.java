@@ -24,24 +24,22 @@ package com.sfb.properties;
  *                  there belongs in THIS field, because it is the one a friendly unit
  *                  cannot ignore.
  * @param lent      D6.3144 — received from lending: scout channels (G24.21), ECM drones
- *                  (FD9.0), EW fighters (R1.F7), and Wild Weasels (J3.23)
- * @param weasel    J3.23 Wild Weasel ECM, held apart from {@code lent} ONLY because the
- *                  code disagrees with itself about it: seekers and the D6.37 systems have
- *                  always counted it, direct fire never has. D6.3144 lists weasels among
- *                  the lending sources, which suggests it should fold into {@code lent} and
- *                  count everywhere — unresolved pending J3.23.
+ *                  (FD9.0), EW fighters (R1.F7), and Wild Weasels (J3.23), which lend six
+ *                  points to the launching ship like a small scout channel. Capped at six
+ *                  across ALL those sources together (D6.392), not six apiece — see
+ *                  {@code Ship.getLentEcmTotal}
  * @param offensive D6.3145 — "negative ECM" a unit receives from one enemy scout (G24.219).
  *                  Belongs to the ACTOR, not the target: it degrades that ship's own
  *                  systems, so it applies to whatever it points them at, friend or foe.
  */
-public record EwBreakdown(int generated, int builtIn, int natural, int lent, int weasel,
+public record EwBreakdown(int generated, int builtIn, int natural, int lent,
         int offensive) {
 
-    public static final EwBreakdown NONE = new EwBreakdown(0, 0, 0, 0, 0, 0);
+    public static final EwBreakdown NONE = new EwBreakdown(0, 0, 0, 0, 0);
 
     /** Every source, for an action against an enemy. */
     public int total() {
-        return generated + builtIn + natural + lent + weasel + offensive;
+        return generated + builtIn + natural + lent + offensive;
     }
 
     /**
@@ -64,7 +62,6 @@ public record EwBreakdown(int generated, int builtIn, int natural, int lent, int
         append(sb, builtIn, "built-in");
         append(sb, natural, "natural");
         append(sb, lent, "lent");
-        append(sb, weasel, "weasel");
         append(sb, offensive, "offensive");
         return sb.length() == 0 ? "none" : sb.toString();
     }

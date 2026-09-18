@@ -536,19 +536,17 @@ public class Game {
         // counts whatever the actor points them at.
         int offensive = actor.getOffensiveEw();
 
-        int generated = 0, builtIn = 0, lent = 0, weasel = 0;
+        int generated = 0, builtIn = 0, lent = 0;
         if (target instanceof Ship) {
             Ship t = (Ship) target;
             generated = t.getEcmAllocated();
             builtIn = t.getStealthEcm();          // Orion G15.8
-            lent = t.getLentEcm();
-            weasel = t.getWwEcmBonus();
+            lent = t.getLentEcmTotal();           // scouts AND any weasel, capped at six
         } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
             builtIn = ((com.sfb.objects.shuttles.Fighter) target).getEcm(); // J4.47, two points
         }
         // A probe canister, a drone and an admin shuttle have no EW of their own at all.
-        return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, weasel,
-                offensive);
+        return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
     }
 
     /**
@@ -2294,9 +2292,7 @@ public class Game {
      * (G24.219). Mirrors the fire math in DamageResolver; usable for fire previews.
      */
     public int fireEcmShift(Ship attacker, Ship target) {
-        int targetEcm = target.getEcmAllocated() + target.getLentEcm() + target.getStealthEcm()
-                + terrainEcmAlongLine(attacker.getLocation(), target.getLocation())
-                + attacker.getOffensiveEw();
+        int targetEcm = ewAgainst(attacker, target).total();
         int attackerEccm = attacker.isActiveFireControl()
                 ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
         return netEcmShift(targetEcm - attackerEccm);

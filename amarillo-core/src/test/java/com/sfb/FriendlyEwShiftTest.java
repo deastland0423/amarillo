@@ -205,4 +205,54 @@ public class FriendlyEwShiftTest {
         assertEquals("an attached tractor is not re-acquired every impulse (G7.412)",
                 0, game.d637Shift(klingonA, shuttle));
     }
+
+    // ---------------------------------------------------------------- D6.392 lending cap
+
+    /**
+     * D6.3144/D6.392: six points of ECM from ALL outside lending sources combined, not six
+     * from each. A Wild Weasel lends its six to the ship that launched it like a small
+     * scout channel (J3.23), so a ship already receiving six from a scout gains nothing
+     * further from a weasel — the code used to cap scout lending at six and then add a flat
+     * six on top, giving twelve.
+     */
+    @Test
+    public void scoutLendingAndAWeaselShareTheSixPointCeiling() {
+        klingonB.addLentEw(6, 0);
+        assertEquals("six from the scout", 6, klingonB.getLentEcmTotal());
+
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(klingonB);
+        klingonB.setActiveWildWeasel(ww);
+
+        assertEquals("a weasel on top of full scout lending is still six, not twelve (D6.392)",
+                6, klingonB.getLentEcmTotal());
+    }
+
+    @Test
+    public void aWeaselAloneLendsItsSix() {
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(klingonB);
+        klingonB.setActiveWildWeasel(ww);
+
+        assertEquals("J3.23: the weasel lends six to the ship that launched it",
+                6, klingonB.getLentEcmTotal());
+    }
+
+    /**
+     * And because it is lent ECM, it finally counts against direct fire — which never saw
+     * it, making a weaselled ship harder to tractor than to shoot at.
+     */
+    @Test
+    public void aWeaselsEcmNowCountsAgainstEnemyDirectFire() {
+        Ship fed = ship("USS Enterprise", 10, 9, federation, FederationShips.getFedCa());
+        int before = game.fireEcmShift(fed, klingonB);
+
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(klingonB);
+        klingonB.setActiveWildWeasel(ww);
+
+        assertTrue("a weasel must degrade incoming direct fire (D6.3144): " + before
+                        + " -> " + game.fireEcmShift(fed, klingonB),
+                game.fireEcmShift(fed, klingonB) > before);
+    }
 }

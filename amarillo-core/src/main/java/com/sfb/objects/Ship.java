@@ -837,6 +837,19 @@ public class Ship extends Unit implements DroneController {
 
 	/** ECM lent to this ship by operational scout channels (added to its effective ECM). */
 	public int getLentEcm()  { return lentEcm; }
+
+	/**
+	 * D6.3144 / D6.392: ECM received from ALL outside lending sources, capped at six
+	 * combined. A Wild Weasel lends its six points to the ship that launched it exactly as
+	 * a scout channel would (J3.23), so it shares the ceiling rather than sitting on top of
+	 * it - scout lending and a weasel together are still six, not twelve. The weasel itself
+	 * gets no benefit from what it lends.
+	 * <p>
+	 * Prefer this over {@link #getLentEcm()} anywhere a rule asks what is jamming this ship.
+	 */
+	public int getLentEcmTotal() {
+		return Math.min(MAX_LENT_RECEIVED, lentEcm + getWwEcmBonus());
+	}
 	public int getLentEccm() { return lentEccm; }
 
 	public void clearLentEw() { lentEcm = 0; lentEccm = 0; }
