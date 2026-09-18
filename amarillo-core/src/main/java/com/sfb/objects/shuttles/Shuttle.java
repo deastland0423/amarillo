@@ -223,6 +223,15 @@ public abstract class Shuttle extends Unit {
 		this.currentSpeed = currentSpeed;
 	}
 
+	/**
+	 * C11.1: "All shuttlecraft and fighters (including those on seeking courses) are nimble
+	 * unless noted otherwise in the rules."
+	 */
+	@Override
+	public boolean isNimbleUnit() {
+		return true;
+	}
+
 	public int getHull() {
 		return hull;
 	}

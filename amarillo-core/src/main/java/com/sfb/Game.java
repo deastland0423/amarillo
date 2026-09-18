@@ -375,6 +375,11 @@ public class Game {
      */
     public ActionResult submitAllocation(Ship ship, Energy allocation) {
         ship.allocateEnergy(allocation);
+        // C10.11/C10.12: EM costs six hexes of movement for a normal ship, three for a
+        // nimble one, on top of ordinary movement. Paying buys only the RIGHT to announce
+        // EM this turn (C10.3) - it does not begin it, and the energy is lost either way.
+        double emCost = ship.getPerformanceData().getErraticCost();
+        ship.setPaidForEm(emCost > 0 && allocation.getErraticManuvers() >= emCost);
         // Pass cloak payment flag to the device before beginImpulses evaluates it
         if (ship.getCloakingDevice() != null)
             ship.getCloakingDevice().setCostPaid(allocation.isCloakPaid());
@@ -429,6 +434,15 @@ public class Game {
                 voidWildWeasel(ship);
             }
         }
+        // C10.313/C10.35: EM carries into a new turn only if its cost was paid again in
+        // the intervening Energy Allocation; otherwise it lapses. Either way the
+        // once-per-turn start (C10.31) is available again.
+        for (Ship emShip : ships) {
+            if (emShip.isUsingEm() && !emShip.hasPaidForEm())
+                emShip.dropEm();
+            emShip.resetEmForNewTurn();
+        }
+
         lockOnResolver.performLockOnRolls();
         List<String> orphanLog = seekerControl.releaseOrphanedDrones();
         if (!orphanLog.isEmpty())
@@ -493,6 +507,33 @@ public class Game {
         return lockOnResolver.resolveFlashcube(cloaked);
     }
 
+    /**
+     * C10.3: announce that a ship will start or stop Erratic Maneuvers. Announced in the
+     * Final Movement Actions Stage, it takes effect at the END of this impulse (C10.311) -
+     * see {@code Unit.applyEmAnnouncement}, driven from Stage 6E.
+     * <p>
+     * Starting requires that the cost was paid at allocation (C10.11) and that EM has not
+     * already been begun this turn (C10.31): a ship that stops may not restart until the
+     * next turn (C10.32).
+     */
+    public ActionResult announceErraticManeuvers(Ship ship, boolean starting) {
+        if (starting) {
+            if (ship.isUsingEm())
+                return ActionResult.fail(ship.getName() + " is already using Erratic Maneuvers");
+            if (!ship.hasPaidForEm())
+                return ActionResult.fail(ship.getName()
+                        + " did not pay for Erratic Maneuvers in energy allocation (C10.11)");
+            if (ship.hasStartedEmThisTurn())
+                return ActionResult.fail(ship.getName()
+                        + " may only begin Erratic Maneuvers once per turn (C10.31)");
+        } else if (!ship.isUsingEm() && !ship.hasPendingEmAnnouncement(getAbsoluteImpulse())) {
+            return ActionResult.fail(ship.getName() + " is not using Erratic Maneuvers");
+        }
+        ship.announceEm(starting, getAbsoluteImpulse());
+        return ActionResult.ok(ship.getName() + (starting ? " announces" : " announces the end of")
+                + " Erratic Maneuvers — in force at the end of this impulse (C10.311)");
+    }
+
     /** True when either unit holds the other in a tractor beam (G7.412). */
     boolean tractorLinkBetween(Ship a, com.sfb.objects.Unit b) {
         return tractorResolver.linkExistsBetween(a, b);
@@ -535,6 +576,16 @@ public class Game {
         // D6.3145: an enemy scout's O-EW degrades the ACTOR's systems (G24.219), so it
         // counts whatever the actor points them at.
         int offensive = actor.getOffensiveEw();
+
+        // C10.41/C10.412: Erratic Maneuvers produce four points of ECM, and C10.412 is
+        // explicit that they count as a NATURAL source (D6.3143) rather than against the
+        // self-generated or lending limits - so they are also not ignorable between
+        // friendly units (D6.3146). Four points is the +2 die shift C10.42 describes,
+        // which falls out of the Step 5 chart without special-casing.
+        if (target instanceof Unit && ((Unit) target).isUsingEm())
+            natural += 4;                       // C10.413: fire aimed AT the EM unit
+        if (actor.isUsingEm())
+            natural += 4;                       // C10.414: and fire the EM unit makes itself
 
         // P2.52: shooting at a planet's surface picks up two points of ground clutter. It
         // belongs to the target rather than the path - it is the surface itself that is
@@ -787,6 +838,16 @@ public class Game {
                 return ActionResult.fail("A control channel overflow is pending — release or transfer a seeker first");
 
             case END_OF_IMPULSE:
+                // 6E: C10.311/C10.32 - an EM announcement made this impulse comes into
+                // force (or ceases) HERE, in the Post-Combat Segment, never at the moment
+                // it was announced. A ship shot at during its announcing impulse gets no
+                // benefit from it.
+                for (Ship emShip : ships)
+                    if (emShip.applyEmAnnouncement(getAbsoluteImpulse()))
+                        log.add("  " + emShip.getName() + (emShip.isUsingEm()
+                                ? " begins Erratic Maneuvers (C10.311)"
+                                : " ceases Erratic Maneuvers (C10.32)"));
+
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {
                     int eoi = clock.getImpulse();

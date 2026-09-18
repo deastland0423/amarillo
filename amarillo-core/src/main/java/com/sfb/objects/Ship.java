@@ -684,7 +684,8 @@ public class Ship extends Unit implements DroneController {
 
 	@Override
 	public int getTurnHexes() {
-		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed());
+		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed())
+				+ emTurnModePenalty();   // C10.55
 	}
 
 	/// BASIC SHIP DATA ///
@@ -967,6 +968,24 @@ public class Ship extends Unit implements DroneController {
 	public boolean isNimble() {
 		return performanceData.isNimble();
 	}
+
+	/** C11.2: a ship is nimble if its data says so. */
+	@Override
+	public boolean isNimbleUnit() {
+		return isNimble();
+	}
+
+	/**
+	 * C10.11/C10.12: whether this ship bought Erratic Maneuvers in the Energy Allocation
+	 * phase - six hexes' worth of its movement cost, or three if nimble. Paying only makes
+	 * the ship ELIGIBLE to announce EM during the turn (C10.3); it does not start it, and
+	 * the energy is lost whether or not it is ever used.
+	 */
+	private boolean paidForEm = false;
+
+	public boolean hasPaidForEm() { return paidForEm; }
+
+	public void setPaidForEm(boolean paid) { this.paidForEm = paid; }
 
 	// --- Lock-on ---
 
@@ -1572,6 +1591,12 @@ public class Ship extends Unit implements DroneController {
 	public int rollAndPerformHet(int absoluteFacing) {
 		DiceRoller roller = new DiceRoller();
 		int breakdownRoll = roller.rollOneDie();
+
+		// C10.55: one is added to every HET roll made under Erratic Maneuvers, making a
+		// breakdown likelier. Nimble ships are exempt, as they are from the Turn Mode
+		// penalty.
+		if (isUsingEm() && !isNimble())
+			breakdownRoll += 1;
 
 		if (performanceData.getBonusHetsRemaining() > 0) {
 			breakdownRoll -= 2;

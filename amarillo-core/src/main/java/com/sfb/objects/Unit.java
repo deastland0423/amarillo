@@ -135,7 +135,86 @@ public class Unit extends Marker implements Tractorable {
 	 * @return The number of hexes that must be moved before a turn.
 	 */
 	public int getTurnHexes() {
-		return TurnModeUtil.getTurnMode(this.turnMode, this.speed);
+		return TurnModeUtil.getTurnMode(this.turnMode, this.speed) + emTurnModePenalty();
+	}
+
+	/**
+	 * C10.55: Erratic Maneuvers lengthen the Turn Mode by one hex (four becomes five). The
+	 * Turn CATEGORY is unchanged - this is a hex, not a letter - and nimble units are
+	 * exempt. Defined once here because Ship overrides getTurnHexes() to account for a
+	 * skeleton crew, and an override that forgot this would silently drop the penalty.
+	 */
+	protected int emTurnModePenalty() {
+		return (isUsingEm() && !isNimbleUnit()) ? 1 : 0;
+	}
+
+	// ------------------------------------------------------------------
+	// Erratic Maneuvers (C10.0)
+	// ------------------------------------------------------------------
+
+	/** True once EM is actually in force - not merely announced (C10.311). */
+	private boolean usingEm = false;
+	/** Absolute impulse an EM start/stop was announced on, or -1 for none pending. */
+	private int emAnnouncedImpulse = -1;
+	/** Whether the pending announcement starts EM or stops it. */
+	private boolean emAnnouncementStarts = false;
+	/** C10.31: a unit may only BEGIN using EM once per turn. */
+	private boolean emStartedThisTurn = false;
+
+	public boolean isUsingEm() { return usingEm; }
+
+	public boolean hasStartedEmThisTurn() { return emStartedThisTurn; }
+
+	public boolean hasPendingEmAnnouncement(int absoluteImpulse) {
+		return emAnnouncedImpulse == absoluteImpulse;
+	}
+
+	/**
+	 * C10.311 / C10.32: announce that EM will start or stop. The announcement is made in
+	 * the Final Movement Actions Stage (6A4) and does NOT take effect there - it comes into
+	 * force in the Post-Combat Segment at the end of that same impulse (Stage 6E). That
+	 * delay is the whole reason a ship can be shot at during the impulse it announced on
+	 * without yet having the benefit.
+	 */
+	public void announceEm(boolean starting, int absoluteImpulse) {
+		emAnnouncementStarts = starting;
+		emAnnouncedImpulse = absoluteImpulse;
+	}
+
+	/**
+	 * Stage 6E: bring an announcement made on this impulse into force. Returns true only if
+	 * something actually changed, so the caller can log it.
+	 */
+	public boolean applyEmAnnouncement(int absoluteImpulse) {
+		if (emAnnouncedImpulse != absoluteImpulse)
+			return false;
+		emAnnouncedImpulse = -1;
+		if (usingEm == emAnnouncementStarts)
+			return false;
+		usingEm = emAnnouncementStarts;
+		if (usingEm)
+			emStartedThisTurn = true;
+		return true;
+	}
+
+	/** Turn boundary: the once-per-turn start becomes available again (C10.31). */
+	public void resetEmForNewTurn() {
+		emStartedThisTurn = false;
+		emAnnouncedImpulse = -1;
+	}
+
+	/** Drop EM outright - used when the energy for it was not paid again (C10.313). */
+	public void dropEm() {
+		usingEm = false;
+		emAnnouncedImpulse = -1;
+	}
+
+	/**
+	 * C11.1 / C11.23: whether this unit enjoys the nimble exemptions. A ship answers from
+	 * its own data; every shuttlecraft and fighter is nimble; seeking weapons never are.
+	 */
+	public boolean isNimbleUnit() {
+		return false;
 	}
 
 	public int getTurnCount() {
