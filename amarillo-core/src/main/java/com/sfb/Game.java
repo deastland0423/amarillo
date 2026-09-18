@@ -509,35 +509,73 @@ public class Game {
     }
 
     /**
-     * D6.34 net ECM shift for a tractor/transporter action (D6.372), with the
-     * exemptions that make it zero: non-ship targets have no ECM; friendly
-     * units ignore generated/lent EW (D6.373/D6.3146); a tractor link makes
-     * lock-on automatic in both directions (G7.412).
+     * D6.34 net ECM shift for a tractor / transporter / SFG action (D6.371, D6.372).
+     * <p>
+     * D6.3146 is the rule that shapes this: against a FRIENDLY unit you ignore its
+     * GENERATED (D6.3141), BUILT-IN (D6.3142) and LENT (D6.3144) ECM, but you do NOT
+     * ignore NATURAL sources (D6.3143) or OFFENSIVE ECM from an enemy scout (D6.3145).
+     * Asteroids are a natural source (P3.33), so hauling your own shuttle out of a field
+     * is genuinely harder than hauling it out of open space - which is the whole point.
+     * <p>
+     * Offensive EW is held on the ACTOR, not the target: an enemy scout jams this ship's
+     * systems, so it counts whatever the ship points its beam at, friend or foe (D6.3145).
+     * <p>
+     * A probe canister needs no special case any more. It has no EW of its own, so the
+     * friendly and enemy formulas agree on it, and it simply takes the terrain ECM that
+     * SH35.452 wanted it to take.
+     * <p>
+     * Steps 4 and 5 of D6.34: ECCM at or above the ECM means no effect at all, and the
+     * shift is otherwise the square root with fractions dropped.
      */
     int d637Shift(Ship actor, com.sfb.objects.Marker target) {
-        // P3.33: asteroid/ring hexes between actor and target add natural ECM
-        // along the line of fire.
-        int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
-        // Lent EW is always part of a ship's total EW (D6.373/D6.3146), so both sides'
-        // lent points count in a tractor/transporter attempt (D6.372).
-        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
+        // G7.412 / D6.371: once a beam is attached, lock-on is automatic in both
+        // directions, so a held unit is not re-acquired every time.
+        if (target instanceof Unit && tractorLinkBetween(actor, (Unit) target))
+            return 0;
 
-        if (target instanceof com.sfb.objects.Objective) {
-            // SH35.452: a probe canister has no EW of its own, but tractoring it
-            // through a gas-giant ring means the beam still has to burn through
-            // the ring's natural ECM — the whole reason the terrain ECM exists.
-            return (int) Math.floor(Math.sqrt(Math.max(0, terrainEcm - eccm)));
+        // D6.3143 NATURAL SOURCES: asteroid and ring hexes on the line (P3.33). Counts
+        // for friendly and enemy targets alike.
+        int targetEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+
+        // D6.3145 RECEIVED FROM OFFENSIVE ECM: an enemy scout's O-EW degrades this ship's
+        // own systems (G24.219), so it applies against any target. Also not ignorable for
+        // a friendly target.
+        targetEcm += actor.getOffensiveEw();
+
+        // D6.3141 / D6.3142 / D6.3144 - the target's own EW. Ignored when it is friendly.
+        if (!isFriendlyD637Target(actor, target)) {
+            if (target instanceof Ship) {
+                Ship tship = (Ship) target;
+                targetEcm += tship.getEcmAllocated()        // D6.3141 generated
+                        + tship.getLentEcm()                // D6.3144 received from lending
+                        + tship.getWwEcmBonus()             // J3.0 weasel
+                        + tship.getStealthEcm();            // D6.3142 built-in (Orion G15.8)
+            } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
+                // D6.3142/D6.393: every fighter has two points of built-in ECM (J4.47).
+                targetEcm += ((com.sfb.objects.shuttles.Fighter) target).getEcm();
+            }
         }
-        if (!(target instanceof Ship))
-            return 0; // drones, shuttles: no EW at all
-        Ship tship = (Ship) target;
-        if (isSameTeam(actor, tship))
-            return 0;
-        if (tractorLinkBetween(actor, tship))
-            return 0;
-        int targetEcm = tship.getEcmAllocated() + tship.getLentEcm() + tship.getWwEcmBonus()
-                + tship.getStealthEcm() + terrainEcm;
+
+        // D6.34 Step 2/3: the acting unit's ECCM, which is inactive without fire
+        // control (D6.32). Step 4: no effect once it matches the ECM.
+        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
         return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
+    }
+
+    /**
+     * Whether a D6.37 action is being used on one's own side, for the D6.3146 exemptions.
+     * A free canister belongs to nobody; it has no EW of its own either, so the answer
+     * makes no difference to the sum.
+     */
+    private boolean isFriendlyD637Target(Ship actor, com.sfb.objects.Marker target) {
+        if (target instanceof Ship)
+            return isSameTeam(actor, (Ship) target);
+        if (target instanceof Unit && actor.getOwner() != null) {
+            Player owner = ((Unit) target).getOwner();
+            return owner != null && actor.getOwner().getTeamName() != null
+                    && actor.getOwner().getTeamName().equals(owner.getTeamName());
+        }
+        return false;
     }
 
     /**
