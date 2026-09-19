@@ -18,6 +18,7 @@ import com.sfb.weapons.PhaserG;
 public class Stinger2 extends Fighter {
 
     public Stinger2() {
+		setCatalogType("stinger2");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(15);
         setCurrentSpeed(15);

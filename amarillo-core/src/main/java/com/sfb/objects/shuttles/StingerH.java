@@ -17,6 +17,7 @@ import com.sfb.weapons.PhaserG;
 public class StingerH extends Fighter {
 
     public StingerH() {
+		setCatalogType("stingerh");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(15);
         setCurrentSpeed(15);

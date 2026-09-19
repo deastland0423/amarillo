@@ -41,9 +41,21 @@ public final class ShuttleCatalog {
         public final int hull;
         public final int crippled;         // damage that cripples it; 0 = no crippled state
         public final int bpv;              // 0 for anything not bought with BPV
+        /** J3.18: may this be charged as a Wild Weasel? Fighters never may. */
+        public final boolean canWeasel;
+        /**
+         * FD7.11: rack spaces of drones this may carry as a scatter pack; 0 = not a
+         * qualified shuttle. One field answers both whether and how much, and the two
+         * eligibility lists are NOT the same — a GAS may weasel but not scatter-pack, a
+         * fighter the reverse.
+         */
+        public final int scatterPackSize;
 
         Entry(String type, String name, String kind, List<String> factions,
-              int year, int speed, int hull, int crippled, int bpv) {
+              int year, int speed, int hull, int crippled, int bpv,
+              boolean canWeasel, int scatterPackSize) {
+            this.canWeasel = canWeasel;
+            this.scatterPackSize = scatterPackSize;
             this.type = type;
             this.name = name;
             this.kind = kind;
@@ -55,7 +67,12 @@ public final class ShuttleCatalog {
             this.bpv = bpv;
         }
 
-        /** True if this type costs BPV and is added to its carrier's price. */
+        /** FD7.11: true if this type may be armed and launched as a scatter pack. */
+    public boolean canScatterPack() {
+        return scatterPackSize > 0;
+    }
+
+    /** True if this type costs BPV and is added to its carrier's price. */
         public boolean isFighter() {
             return "fighter".equalsIgnoreCase(kind);
         }
@@ -101,7 +118,9 @@ public final class ShuttleCatalog {
                     n.path("speed").asInt(0),
                     n.path("hull").asInt(0),
                     n.path("crippled").asInt(0),
-                    n.path("bpv").asInt(0));
+                    n.path("bpv").asInt(0),
+                    n.path("canWeasel").asBoolean(false),
+                    n.path("scatterPackSize").asInt(0));
             registry.put(e.type.toLowerCase(), e);
         }
         loaded = true;

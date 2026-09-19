@@ -7,6 +7,7 @@ package com.sfb.objects.shuttles;
 public class HTSShuttle extends Shuttle {
 
     public HTSShuttle() {
+		setCatalogType("hts");
         setHull(12);
         setCrippledHull(8);
         setMaxSpeed(6);

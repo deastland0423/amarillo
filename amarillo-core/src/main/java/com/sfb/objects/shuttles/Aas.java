@@ -28,6 +28,7 @@ public class Aas extends Fighter implements DroneController {
     private boolean dronesFiredThisTurn = false;
 
     public Aas() {
+		setCatalogType("aas");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(8);
         setCurrentSpeed(8);

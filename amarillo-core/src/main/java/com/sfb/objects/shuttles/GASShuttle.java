@@ -22,6 +22,7 @@ public class GASShuttle extends Shuttle {
     }
 
     public GASShuttle() {
+		setCatalogType("gas");
         setHull(8);
         setCrippledHull(6);
         setMaxSpeed(6);

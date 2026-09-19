@@ -29,6 +29,7 @@ public class Haas_E extends Fighter implements DroneController {
     private boolean dronesFiredThisTurn = false;
 
     public Haas_E() {
+		setCatalogType("haas_e");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(15);
         setCurrentSpeed(15);

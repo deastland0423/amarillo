@@ -34,6 +34,9 @@ public class ScatterPack extends Shuttle implements Seeker {
         setHull(base.getHull());
         setMaxSpeed(base.getMaxSpeed());
         setName(base.getName());
+        // Keep what it was built FROM. J3.18 and FD7.11 qualify shuttles by type, and a
+        // converted shuttle that forgot its type could not be named or labelled honestly.
+        setCatalogType(base.getCatalogType());
     }
 
     // -------------------------------------------------------------------------

@@ -91,13 +91,44 @@ public abstract class Shuttle extends Unit {
 	/**
 	 * True if this shuttle can be converted to a scatter pack before game start.
 	 */
+	/** FD7.11: only admin, MRS, MLS, MSS shuttles and fighters qualify. */
 	public boolean canBecomeScatterPack() {
-		return false;
+		return scatterPackSpaces() > 0;
 	}
 
-	/** True if this shuttle can be converted to a wild weasel before game start. */
+	/**
+	 * The catalogue key for what this shuttle IS — "admin", "gas", "hts", "stinger1".
+	 * Set by each concrete type's constructor. A shuttle converted to a role keeps the key
+	 * of what it was built from, which is how its name and label stay honest.
+	 */
+	private String catalogType;
+
+	public String getCatalogType() { return catalogType; }
+
+	protected void setCatalogType(String type) { this.catalogType = type; }
+
+	private com.sfb.objects.ShuttleCatalog.Entry catalogEntry() {
+		return catalogType == null ? null : com.sfb.objects.ShuttleCatalog.get(catalogType);
+	}
+
+	/**
+	 * J3.18: any non-fighter shuttle may be charged as a Wild Weasel unless its own
+	 * description says otherwise; fighters never may (J4.41).
+	 * <p>
+	 * Read from the catalogue rather than overridden per class, because this list and the
+	 * scatter-pack list of FD7.11 are NOT the same — a GAS may weasel but not scatter-pack,
+	 * a fighter the reverse — so neither can be derived from the other or from the class
+	 * hierarchy. Side by side as data, each can be checked against its rule.
+	 */
 	public boolean canBecomeWildWeasel() {
-		return false;
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e != null && e.canWeasel;
+	}
+
+	/** FD7.11: rack spaces of drones this may carry as a scatter pack; 0 = not qualified. */
+	public int scatterPackSpaces() {
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e == null ? 0 : e.scatterPackSize;
 	}
 
 	// J1.621: true while this shuttle is shut down and being pulled aboard a
