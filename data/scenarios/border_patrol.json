@@ -22,12 +22,12 @@
     {
       "name": "Patrol A",
       "bringYourOwn": true,
-      "deploymentZone": { "shape": "BAND", "edge": "LEFT", "depth": 6 }
+      "deploymentZone": { "shape": "BAND", "edge": "LEFT", "depth": 2 }
     },
     {
       "name": "Patrol B",
       "bringYourOwn": true,
-      "deploymentZone": { "shape": "BAND", "edge": "RIGHT", "depth": 6 }
+      "deploymentZone": { "shape": "BAND", "edge": "RIGHT", "depth": 2 }
     }
   ],
 
