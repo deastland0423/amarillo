@@ -191,6 +191,7 @@ export interface ShipObject extends MapObjectBase {
   boardingParties:  number;
   commandos:        number;
   availableLab:     number;
+  functioningLab?:  number;        // lab boxes that exist; availableLab is those free now (G4.451)
   // Crew
   availableCrewUnits:  number;
   minimumCrew:         number;

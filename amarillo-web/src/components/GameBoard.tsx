@@ -1697,7 +1697,12 @@ function ShipSidebar({
                         && (ship.availableTransporters ?? 0) > 0
                         && canBeamObjectTargets;
   const canUseTransporters = canTBomb || canBoard || canHar || canTransferCrew || canBeamObject;
-  const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
+  // The button stays while the ship HAS labs, even with none free: a ship that identified
+  // late last turn starts this one inside the quarter-turn delay (G4.451), and a button
+  // that silently disappears looks like a bug rather than a rule.
+  const labsCoolingOff  = Math.max(0, (ship.functioningLab ?? 0) - (ship.availableLab ?? 0));
+  const canIdentify     = isActivityPhase && isMine
+    && ((ship.availableLab ?? 0) > 0 || labsCoolingOff > 0) && idSeekers.length > 0;
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
                         && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
@@ -2014,7 +2019,9 @@ function ShipSidebar({
                   <button
                     className={`action-strip-btn${idMode ? ' active' : ''}`}
                     onClick={idMode ? onCancelId : onStartId}
-                    title={`Identify seekers and shuttles (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
+                    title={labsCoolingOff > 0 && (ship.availableLab ?? 0) === 0
+                      ? `All labs are within the quarter-turn delay (G4.451)`
+                      : `Identify seekers and shuttles (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
                   >
                     ID
                   </button>
@@ -2715,6 +2722,12 @@ function ShipSidebar({
       {idMode && (
         <div className="sidebar-action-detail">
           <div className="sidebar-section-title">Identify Contacts ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
+          {labsCoolingOff > 0 && (
+            <div style={{ color: '#d29922', fontSize: '0.75rem', margin: '4px 0' }}>
+              {labsCoolingOff} lab{labsCoolingOff !== 1 ? 's' : ''} still within the
+              quarter-turn delay from an earlier use (G4.451).
+            </div>
+          )}
           {idSeekers.length === 0 ? (
             <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy contacts in range.</div>
           ) : (

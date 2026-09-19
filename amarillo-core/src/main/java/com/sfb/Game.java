@@ -343,7 +343,9 @@ public class Game {
         }
         awaitingAllocation = true;
         for (Ship ship : ships) {
-            ship.getLabs().resetForTurn();
+            // Labs need no turn reset: a box's availability is worked out from the impulse
+            // it was last used (G4.22, G4.451), so nothing has to be handed back. The old
+            // reset also resurrected boxes that had been shot off.
             ship.resetHetsThisTurn();
         }
         // No engaged ships left to allocate (e.g. all disengaged) — don't stall
@@ -1674,17 +1676,16 @@ public class Game {
         if (blocked != null)
             return ActionResult.fail(blocked);
 
-        // A lab box is assigned per identifying channel (G24.251); count labs already in use.
-        boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY;
-        if (!alreadyIdentifying) {
-            int labsInUse = 0;
-            for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
-                if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY)
-                    labsInUse++;
-            if (labsInUse + 1 > scout.getLabs().getAvailableLab())
-                return ActionResult.fail("No lab available for this channel (G24.251): "
-                        + scout.getLabs().getAvailableLab() + " lab(s), " + labsInUse + " already identifying");
-        }
+        // A lab box is assigned per identifying channel (G24.251). The channel CLAIMS one
+        // for the turn rather than being counted against a separate tally: one accounting
+        // of lab boxes, shared with the lab panel, so neither path can spend a box the
+        // other is using (G4.21). The claim happens below, once the attempt is legal —
+        // claiming it here would spend a box on an attempt that never happened.
+        boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY
+                && channel.getLabBoxIndex() >= 0;
+        if (!alreadyIdentifying && scout.getLabs().availableLabs(impulse) <= 0)
+            return ActionResult.fail("No lab available for this channel (G24.251, G4.451): "
+                    + scout.getLabs().getFunctioningLabs() + " lab(s), none free this impulse");
 
         // Identification works on any seeker OR any shuttle (G24.25) — an unidentified enemy
         // shuttle looks just like a lurking seeker, so the attempt must be allowed either way
@@ -1731,6 +1732,11 @@ public class Game {
                     + com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS + " identify attempts this turn (G24.251)");
 
         channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY); // commits it + its lab (G24.12/.251)
+        if (channel.getLabBoxIndex() < 0)
+            channel.setLabBoxIndex(scout.getLabs().useLab(impulse));
+        else
+            // Same box, later attempt: the quarter-turn delay runs from this one (G4.451).
+            scout.getLabs().markUsed(channel.getLabBoxIndex(), impulse);
         channel.recordIdentifyAttempt();
         int left = com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS - channel.getIdentifyAttempts();
         if (roll <= 3) { // G24.252: less than four identifies it

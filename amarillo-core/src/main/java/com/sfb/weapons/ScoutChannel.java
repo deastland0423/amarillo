@@ -52,6 +52,13 @@ public class ScoutChannel extends Weapon {
 
     // Identifying seekers (G24.25): up to 4 attempts/turn, any target(s), any impulse(s).
     private int identifyAttempts;                                 // attempts spent this turn (G24.251)
+    /**
+     * Which lab box this channel claimed for identification this turn, or -1. A channel
+     * gets four attempts with ONE box (G24.251), so it has to keep hold of the same one:
+     * the box is stamped again on each attempt, and the quarter-turn delay (G4.451) then
+     * runs from the last attempt rather than from when the channel first claimed it.
+     */
+    private int labBoxIndex = -1;
 
     // Attracting drones (G24.23): one drone per channel per turn (G24.231).
     private String attractedDrone;                                // the drone drawn onto the scout, or null
@@ -160,6 +167,10 @@ public class ScoutChannel extends Weapon {
     /** Attempts spent identifying seekers this turn (G24.251). */
     public int getIdentifyAttempts() { return identifyAttempts; }
 
+    public int getLabBoxIndex() { return labBoxIndex; }
+
+    public void setLabBoxIndex(int index) { this.labBoxIndex = index; }
+
     /** Record one identification attempt (G24.251); no per-target/per-impulse limit (G24.252). */
     public void recordIdentifyAttempt() { identifyAttempts++; }
 
@@ -183,6 +194,7 @@ public class ScoutChannel extends Weapon {
         breakAttempts = 0;
         lastBreakImpulse.clear();
         identifyAttempts = 0;
+        labBoxIndex = -1;
         attractedDrone = null;
     }
 }

@@ -272,7 +272,8 @@ class SeekerControl {
             StringBuilder dieList = new StringBuilder();
             boolean success = false;
             for (int i = 0; i < labsCommitted; i++) {
-                actingShip.getLabs().decrementLab();
+                if (actingShip.getLabs().useLab(game.getAbsoluteImpulse()) < 0)
+                    break;   // the quarter-turn delay caught up mid-attempt (G4.451)
                 int roll = scriptedDice != null && scriptPos[0] < scriptedDice.length
                         ? scriptedDice[scriptPos[0]++] : dice.rollOneDie();
                 if (i > 0)
@@ -317,20 +318,16 @@ class SeekerControl {
     }
 
     /**
-     * Lab boxes free to make an identification attempt (G4.21): "Each lab box on board a
-     * ship, IF IT IS UNDERTAKING NO OTHER ACTION on that turn, can make one attempt."
+     * Lab boxes free to make an identification attempt right now (G4.21): "Each lab box on
+     * board a ship, IF IT IS UNDERTAKING NO OTHER ACTION on that turn, can make one
+     * attempt", and G4.451's quarter-turn delay on top of that.
      * <p>
-     * A scout channel assigned to IDENTIFY holds a lab for the turn (G24.251) but never
-     * decrements the count, because it may make four attempts with it. So the raw
-     * availableLab figure includes boxes a channel is already using, and this path would
-     * happily spend one of them a second time — the same box doing two jobs at once.
+     * Labs answers both, because a box a scout channel claimed is stamped as used like any
+     * other (G24.251). This used to subtract channel-held boxes from a separate count,
+     * which worked only as long as the two tallies agreed.
      */
     private int freeLabs(Ship ship) {
-        int heldByChannels = 0;
-        for (com.sfb.weapons.ScoutChannel c : ship.getScoutChannels())
-            if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY)
-                heldByChannels++;
-        return Math.max(0, ship.getLabs().getAvailableLab() - heldByChannels);
+        return ship.getLabs().availableLabs(game.getAbsoluteImpulse());
     }
 
     /**

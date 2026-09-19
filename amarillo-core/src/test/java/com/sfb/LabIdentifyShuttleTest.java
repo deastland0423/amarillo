@@ -111,6 +111,32 @@ public class LabIdentifyShuttleTest {
         return ss;
     }
 
+    /** A powered, operational scout channel on the Federation ship. */
+    private com.sfb.weapons.ScoutChannel addScoutChannel(String designator) {
+        com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
+        ch.setDesignator(designator);
+        ch.setDacHitLocaiton("torp");
+        ch.setPowered(true);
+        fed.getWeapons().addWeapon(ch);
+        return ch;
+    }
+
+    /** Step to the Activity phase of an impulse at or after {@code absoluteImpulse}. */
+    private void advanceToActivityAtOrAfter(int absoluteImpulse) {
+        for (int guard = 0; guard < 2000; guard++) {
+            if (game.getAbsoluteImpulse() >= absoluteImpulse
+                    && game.getCurrentPhase() == Game.ImpulsePhase.ACTIVITY)
+                return;
+            if (game.isAwaitingAllocation()) {
+                game.submitAllocation(fed, allocation(fed));
+                game.submitAllocation(klingon, allocation(klingon));
+                continue;
+            }
+            game.advancePhase();
+        }
+        fail("never reached impulse " + absoluteImpulse + " in the Activity phase");
+    }
+
     private ActionResult identify(Shuttle s) {
         return game.identifySeekers(fed, Collections.singletonList(s.getName()));
     }
@@ -195,14 +221,14 @@ public class LabIdentifyShuttleTest {
     public void aFriendlyShuttleCannotBeIdentified() {
         Shuttle mine = enemyShuttleAt(10, 10);
         mine.setOwner(federation);          // now it is one of ours
-        int labsBefore = fed.getLabs().getAvailableLab();
+        int labsBefore = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
 
         ActionResult r = identify(mine);
 
         assertFalse("nothing to learn about our own shuttle", mine.isIdentified());
         assertTrue(r.getMessage(), r.getMessage().contains("friendly"));
         assertEquals("and no lab should have been spent on it",
-                labsBefore, fed.getLabs().getAvailableLab());
+                labsBefore, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -252,14 +278,14 @@ public class LabIdentifyShuttleTest {
         fed.announceEm(true, game.getAbsoluteImpulse());
         fed.applyEmAnnouncement(game.getAbsoluteImpulse());   // stage 6E brings it into force
         assertTrue("fixture needs EM in force", fed.isUsingEm());
-        int labsBefore = fed.getLabs().getAvailableLab();
+        int labsBefore = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
 
         ActionResult r = identify(s);
 
         assertFalse("G4.21 bars it: " + r.getMessage(), r.isSuccess());
         assertFalse(s.isIdentified());
         assertEquals("and no lab is spent on a refused attempt",
-                labsBefore, fed.getLabs().getAvailableLab());
+                labsBefore, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -274,15 +300,17 @@ public class LabIdentifyShuttleTest {
     @Test
     public void aLabHeldByAScoutChannelCannotAlsoIdentifyHere() {
         fed.getLabs().init(java.util.Map.of("lab", 1));   // exactly one box to fight over
+        addScoutChannel("1");
 
-        com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
-        ch.setDesignator("1");
-        ch.setDacHitLocaiton("torp");
-        ch.setPowered(true);
-        fed.getWeapons().addWeapon(ch);
-        ch.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY);  // takes the lab
+        Shuttle s = enemyShuttleAt(10, 10);   // range 0: the panel would always succeed here
+        fed.addLockOn(s);
 
-        Shuttle s = enemyShuttleAt(10, 10);   // range 0: would otherwise always succeed
+        // A real channel attempt, with a die that fails (G24.252 needs 3 or less), so the
+        // contact is still unidentified and only the lab has been spent.
+        ActionResult viaChannel = game.identifySeeker(fed, "1", s.getName(), 5);
+        assertTrue(viaChannel.getMessage(), viaChannel.isSuccess());
+        assertFalse("fixture wants the attempt to have failed", s.isIdentified());
+
         ActionResult r = identify(s);
 
         assertFalse("the ship's only lab is already working (G4.21): " + r.getMessage(),
@@ -290,23 +318,40 @@ public class LabIdentifyShuttleTest {
         assertFalse(s.isIdentified());
     }
 
-    /** With a second box free, the same channel assignment no longer blocks the attempt. */
+    /** With a second box free, the channel's claim no longer blocks the attempt. */
     @Test
     public void aSecondLabIsStillFreeToIdentify() {
         fed.getLabs().init(java.util.Map.of("lab", 2));
-
-        com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
-        ch.setDesignator("1");
-        ch.setDacHitLocaiton("torp");
-        ch.setPowered(true);
-        fed.getWeapons().addWeapon(ch);
-        ch.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY);
+        addScoutChannel("1");
 
         Shuttle s = enemyShuttleAt(10, 10);
+        fed.addLockOn(s);
+        assertTrue(game.identifySeeker(fed, "1", s.getName(), 5).isSuccess());   // claims one
+
         ActionResult r = identify(s);
 
         assertTrue(r.getMessage(), r.isSuccess());
         assertTrue("one box for the channel, one for this attempt", s.isIdentified());
+    }
+
+    /**
+     * A channel gets four attempts out of the ONE box it claimed (G24.251/G24.252), so a
+     * second attempt must not reach for another lab. Stamping a box per attempt rather
+     * than per channel would eat the ship's labs four times over.
+     */
+    @Test
+    public void aChannelsFourAttemptsUseTheSameBox() {
+        fed.getLabs().init(java.util.Map.of("lab", 2));
+        addScoutChannel("1");
+
+        Shuttle s = enemyShuttleAt(10, 10);
+        fed.addLockOn(s);
+
+        for (int i = 0; i < 3; i++)
+            assertTrue(game.identifySeeker(fed, "1", s.getName(), 5).isSuccess());
+
+        assertEquals("three attempts, one box (G24.251)",
+                1, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
     }
 
     // ---------------------------------------------------------------- G4.22, several labs
@@ -351,7 +396,7 @@ public class LabIdentifyShuttleTest {
     @Test
     public void everyLabCommittedIsSpent() {
         Shuttle s = enemyShuttleAt(10, 10);
-        int before = fed.getLabs().getAvailableLab();
+        int before = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
         assertTrue("fixture needs at least three labs", before >= 3);
 
         game.identifySeekers(fed,
@@ -359,7 +404,7 @@ public class LabIdentifyShuttleTest {
                 new int[] { 6, 6, 6 });   // succeeds on the first, and still spends three
 
         assertEquals("three labs were committed, so three are gone",
-                before - 3, fed.getLabs().getAvailableLab());
+                before - 3, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
     }
 
     /**
@@ -394,7 +439,7 @@ public class LabIdentifyShuttleTest {
     @Test
     public void committingMoreLabsThanTheShipHasIsRefused() {
         Shuttle s = enemyShuttleAt(10, 10);
-        int labs = fed.getLabs().getAvailableLab();
+        int labs = fed.getLabs().availableLabs(game.getAbsoluteImpulse());
         java.util.List<String> tooMany = new java.util.ArrayList<>();
         for (int i = 0; i < labs + 1; i++)
             tooMany.add(s.getName());
@@ -404,7 +449,7 @@ public class LabIdentifyShuttleTest {
         assertFalse("cannot commit more labs than the ship has: " + r.getMessage(),
                 r.isSuccess());
         assertEquals("and a refused attempt spends none",
-                labs, fed.getLabs().getAvailableLab());
+                labs, fed.getLabs().availableLabs(game.getAbsoluteImpulse()));
     }
 
     /** Labs can still be spread across different contacts, one attempt each. */
@@ -419,6 +464,59 @@ public class LabIdentifyShuttleTest {
 
         assertTrue("both were attempted: " + msg, a.isIdentified() && b.isIdentified());
         assertTrue(msg.contains(a.getName()) && msg.contains(b.getName()));
+    }
+
+    // ---------------------------------------------------------------- G4.451, the cycle
+
+    /**
+     * G4.451: "If a lab is used ... during the last eight impulses of a turn, that same lab
+     * cannot be used ... during the first eight impulses of the next turn."
+     * <p>
+     * This is the turn break a seeker-heavy game runs into: spend the labs on the contacts
+     * closing in at the end of a turn, and they are not back the moment the new turn
+     * starts. LabQuarterTurnCycleTest pins the arithmetic; what this adds is that the
+     * engine hands Labs the right impulse, which no unit test can show.
+     */
+    @Test
+    public void aLabSpentLateInATurnIsStillCoolingOffEarlyInTheNext() {
+        fed.getLabs().init(java.util.Map.of("lab", 1));   // one box, so the cycle bites
+        Shuttle far = enemyShuttleAt(10, 16);             // range 6: the attempt always fails
+
+        advanceToActivityAtOrAfter(29);                   // late in turn 1
+        int spentAt = game.getAbsoluteImpulse();
+        ActionResult late = identify(far);
+        assertTrue(late.getMessage(), late.isSuccess());
+        assertFalse("range 6 cannot be identified, but the lab was still spent",
+                far.isIdentified());
+
+        advanceToActivityAtOrAfter(33);                   // turn 2 has begun
+        assertTrue("fixture premise: the new turn starts inside the eight-impulse delay",
+                game.getAbsoluteImpulse() - spentAt < com.sfb.systemgroups.Labs.QUARTER_TURN);
+
+        ActionResult early = identify(far);
+
+        assertFalse("the lab is still cooling off (G4.451): " + early.getMessage(),
+                early.isSuccess());
+        assertTrue("and refused for that reason, not some other: " + early.getMessage(),
+                early.getMessage().contains("no available labs"));
+    }
+
+    /** And it comes back once the eight impulses have passed, not a turn later. */
+    @Test
+    public void theLabReturnsOnceTheDelayHasPassed() {
+        fed.getLabs().init(java.util.Map.of("lab", 1));
+        Shuttle far = enemyShuttleAt(10, 16);
+
+        advanceToActivityAtOrAfter(29);
+        int spentAt = game.getAbsoluteImpulse();
+        assertTrue(identify(far).isSuccess());
+
+        advanceToActivityAtOrAfter(spentAt + com.sfb.systemgroups.Labs.QUARTER_TURN);
+
+        ActionResult r = identify(far);
+
+        assertTrue("eight impulses on, the box is free again: " + r.getMessage(),
+                r.isSuccess());
     }
 
     @Test

@@ -276,7 +276,8 @@ public class GameStateDto {
         public int transporterUses;
         public int boardingParties;
         public int commandos;
-        public int availableLab;
+        public int availableLab;   // boxes free to take a job THIS impulse (G4.22, G4.451)
+        public int functioningLab; // boxes that exist at all; the difference is cooling off
         // Crew
         public int availableCrewUnits;
         public int capturedCrew;
@@ -1035,7 +1036,12 @@ public class GameStateDto {
         dto.transporterUses = game.transporterUsesAvailable(ship);
         dto.boardingParties = ship.getCrew().getAvailableBoardingParties();
         dto.commandos = ship.getCrew().getFriendlyTroops().commandos;
-        dto.availableLab = ship.getLabs().getAvailableLab();
+        // What the player can actually commit this impulse, not the box count: a lab used
+        // late last turn is still cooling off (G4.451).
+        dto.availableLab = ship.getLabs().availableLabs(game.getAbsoluteImpulse());
+        // Sent so the client can tell "no labs left" from "labs still cooling off", which
+        // otherwise look identical and read as a bug.
+        dto.functioningLab = ship.getLabs().getFunctioningLabs();
         dto.availableCrewUnits = ship.getCrew().getAvailableCrewUnits();
         dto.capturedCrew = ship.getCrew().getCapturedCrew();
         dto.minimumCrew = ship.getCrew().getMinimumCrew();
