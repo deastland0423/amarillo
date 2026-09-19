@@ -1311,10 +1311,9 @@ public class GameStateDto {
                         sd.armed = ss.isArmed();
                         sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                         sd.warheadDamage = ss.getWarheadDamage();
-                    } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
-                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
-                        sd.wwChargeCount = admin.getWwChargeCount();
-                        sd.wwReady = admin.isWwReady();
+                    } else if (s.canBecomeWildWeasel()) {
+                        sd.wwChargeCount = s.getWwChargeCount();
+                        sd.wwReady = s.isWwReady();
                     } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
                         com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
                         sd.payload = sp.getPayload().stream()

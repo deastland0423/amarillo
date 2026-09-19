@@ -104,14 +104,16 @@ class LaunchCoordinator {
 
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
         // Find the charged admin shuttle in any bay
-        com.sfb.objects.shuttles.AdminShuttle foundShuttle = null;
+        com.sfb.objects.shuttles.Shuttle foundShuttle = null;
         com.sfb.systemgroups.ShuttleBay foundShuttleBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
             for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
-                if (s instanceof com.sfb.objects.shuttles.AdminShuttle
+                // J3.18: any non-fighter shuttle may serve, so ask the capability rather
+                // than the class — this used to read `instanceof AdminShuttle`.
+                if (s.canBecomeWildWeasel()
                         && s.getName().equalsIgnoreCase(shuttleName)
-                        && ((com.sfb.objects.shuttles.AdminShuttle) s).isWwReady()) {
-                    foundShuttle = (com.sfb.objects.shuttles.AdminShuttle) s;
+                        && s.isWwReady()) {
+                    foundShuttle = s;
                     foundShuttleBay = bay;
                     break;
                 }

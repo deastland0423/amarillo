@@ -424,14 +424,12 @@ public class ScenarioLoader {
                         System.err.println("COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
                         continue;
                     }
-                    if (!(foundShuttle instanceof com.sfb.objects.shuttles.AdminShuttle)) {
-                        System.err.println("COI: " + prep.shuttleName + " is not an AdminShuttle — skipped");
-                        continue;
-                    }
-                    com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) foundShuttle;
+                    // No AdminShuttle check: the canBecomeWildWeasel() test just above is
+                    // the rule (J3.18), and this used to refuse a GAS or HTS that had
+                    // already passed it.
                     // Charge to full (2 turns) so it's ready to launch on turn 1
-                    admin.incrementWwCharge();
-                    admin.incrementWwCharge();
+                    foundShuttle.incrementWwCharge();
+                    foundShuttle.incrementWwCharge();
                     applied++;
 
                 } else {

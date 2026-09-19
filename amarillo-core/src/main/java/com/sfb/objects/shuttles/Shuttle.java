@@ -97,6 +97,31 @@ public abstract class Shuttle extends Unit {
 		return scatterPackSpaces() > 0;
 	}
 
+	// --- Wild Weasel charging (J3.12) ---
+	// On Shuttle, not AdminShuttle: J3.18 lets any non-fighter shuttle serve as a weasel,
+	// and while this state lived on AdminShuttle every gate had to test for that class —
+	// so a GAS or an HTS could never be charged no matter what the rules said.
+
+	private int wwChargeCount = 0;
+
+	public int getWwChargeCount() {
+		return wwChargeCount;
+	}
+
+	/** J3.12: two turns of charging before it can be launched as a weasel. */
+	public boolean isWwReady() {
+		return wwChargeCount >= 2;
+	}
+
+	public void incrementWwCharge() {
+		if (wwChargeCount < 2)
+			wwChargeCount++;
+	}
+
+	public void resetWwCharge() {
+		wwChargeCount = 0;
+	}
+
 	/**
 	 * The catalogue key for what this shuttle IS — "admin", "gas", "hts", "stinger1".
 	 * Set by each concrete type's constructor. A shuttle converted to a role keeps the key

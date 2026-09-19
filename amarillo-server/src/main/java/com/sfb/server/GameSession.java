@@ -1318,15 +1318,13 @@ public class GameSession {
                 java.util.Set<String> wwCharge = request.getWwCharge();
                 for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
                     for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
-                        if (!(s instanceof com.sfb.objects.shuttles.AdminShuttle))
-                            continue;
+                        // J3.18: charge whatever may serve, not only admin shuttles.
                         if (!s.canBecomeWildWeasel())
                             continue;
-                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
                         if (wwCharge != null && wwCharge.contains(s.getName()))
-                            admin.incrementWwCharge();
+                            s.incrementWwCharge();
                         else
-                            admin.resetWwCharge();
+                            s.resetWwCharge();
                     }
                 }
 
