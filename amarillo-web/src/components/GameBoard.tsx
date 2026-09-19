@@ -1539,7 +1539,7 @@ interface SidebarProps {
   onSubmitBoarding: () => void;
   // Lab seeker identification
   idMode:           boolean;
-  idSeekers:        { name: string; type: string }[];
+  idSeekers:        { name: string; type: string; range: number | null }[];
   idSelected:       Set<string>;
   idError:          string | null;
   onStartId:        () => void;
@@ -2727,7 +2727,12 @@ function ShipSidebar({
             return (
               <label key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }}>
                 <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggleIdSeeker(s.name)} />
-                <span style={{ fontSize: '0.8rem' }}>{s.name} <span style={{ color: '#888' }}>({s.type})</span></span>
+                <span style={{ fontSize: '0.8rem' }}>
+                  {s.name}{' '}
+                  <span style={{ color: '#888' }}>
+                    ({s.type}{s.range != null ? `, range ${s.range}` : ''})
+                  </span>
+                </span>
               </label>
             );
           })}
@@ -4009,10 +4014,24 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   // Unidentified enemy seekers for lab ID panel
+  // Closest first: the seeker about to reach you is the one worth spending a lab on.
+  // Range is measured from the identifying ship, so it is null when that ship is off-map.
+  const idShipLoc = parseLocation(liveShip?.location ?? null);
   const idSeekers = (gameState?.mapObjects ?? [])
     .filter(o => (o.type === 'DRONE' || o.type === 'PLASMA') && !o.isIdentified
       && o.controllerFaction !== liveShip?.faction)
-    .map(o => ({ name: o.name, type: o.type === 'DRONE' ? 'Drone' : 'Plasma' }));
+    .map(o => {
+      const loc = parseLocation(o.location ?? null);
+      return {
+        name: o.name,
+        type: o.type === 'DRONE' ? 'Drone' : 'Plasma',
+        range: idShipLoc && loc
+          ? hexRange({ col: idShipLoc[0], row: idShipLoc[1] },
+                     { col: loc[0], row: loc[1] })
+          : null,
+      };
+    })
+    .sort((a, b) => (a.range ?? Number.MAX_SAFE_INTEGER) - (b.range ?? Number.MAX_SAFE_INTEGER));
 
   function handleStartId() {
     setIdMode(true);

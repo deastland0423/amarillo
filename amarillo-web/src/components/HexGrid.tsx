@@ -856,6 +856,7 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
 
     if (s.type === 'PLASMA') {
       // Type label and strength are always public
+      lines.push(`Name:       ${s.name ?? '?'}`);
       lines.push(`Type:       Plasma`);
       lines.push(`Controller: ${s.controllerName ?? '?'}`);
       lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
@@ -866,6 +867,9 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
     } else {
       // Drone type name is public only when identified (or mine)
       const typeLabel = (isMine || s.isIdentified) ? `Drone ${s.droneType}` : 'Drone';
+      // The name, so this can be matched against the identify list — which names each
+      // seeker in full. Without it a dozen inbound drones are indistinguishable.
+      lines.push(`Name:       ${s.name ?? '?'}`);
       lines.push(`Type:       ${typeLabel}`);
       lines.push(`Controller: ${s.controllerName ?? '?'}`);
       lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
