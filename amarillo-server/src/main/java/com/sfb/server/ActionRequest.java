@@ -245,6 +245,12 @@ public class ActionRequest {
     public void setCrewAmount(int crewAmount)  { this.crewAmount = crewAmount; }
 
     // IDENTIFY_SEEKERS fields
+    /**
+     * One entry per LAB committed, NOT per contact (G4.22): a name repeated three times
+     * commits three labs to that one contact, which core groups into a single attempt
+     * rolling three dice. Must stay a List and must never be de-duplicated - a Set here
+     * would silently cap every contact at one lab and quietly delete the rule.
+     */
     private List<String> seekerNames;
 
     public List<String> getSeekerNames()                       { return seekerNames; }

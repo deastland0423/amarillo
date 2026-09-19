@@ -1540,11 +1540,12 @@ interface SidebarProps {
   // Lab seeker identification
   idMode:           boolean;
   idSeekers:        { name: string; type: string; range: number | null }[];
-  idSelected:       Set<string>;
+  idLabs:           Record<string, number>;   // contact name -> labs committed (G4.22)
+  idCommitted:      number;                    // their sum, against the ship's free labs
   idError:          string | null;
   onStartId:        () => void;
   onCancelId:       () => void;
-  onToggleIdSeeker: (name: string) => void;
+  onSetIdLabs:      (name: string, labs: number) => void;
   onSubmitId:       () => void;
   // Shuttle launch
   shuttleLaunchMode:  boolean;
@@ -1638,7 +1639,7 @@ function ShipSidebar({
   friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw, onControlSeekers,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
-  idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
+  idMode, idSeekers, idLabs, idCommitted, idError, onStartId, onCancelId, onSetIdLabs, onSubmitId,
   shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
   wwLaunchShuttle, wwLaunchError, onStartWwLaunch, onCancelWwLaunch, onLaunchWildWeasel,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
@@ -2718,27 +2719,47 @@ function ShipSidebar({
             <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy contacts in range.</div>
           ) : (
             <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: 4 }}>
-              Select up to {ship.availableLab} contact{ship.availableLab !== 1 ? 's' : ''} to attempt identification.
+              {/* G4.22: labs may be piled onto one contact, a die each, and any die over
+                  the range identifies it. That is how a distant contact gets bought. */}
+              Commit labs to a contact: one die each, any die over the range identifies it (G4.22).
+              <div style={{ marginTop: 2, color: '#79c0ff' }}>
+                {idCommitted} of {ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} committed
+              </div>
             </div>
           )}
           {idSeekers.map(s => {
-            const checked = idSelected.has(s.name);
-            const disabled = !checked && idSelected.size >= (ship.availableLab ?? 0);
+            const n = idLabs[s.name] ?? 0;
+            const canAdd = idCommitted < (ship.availableLab ?? 0);
             return (
-              <label key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }}>
-                <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggleIdSeeker(s.name)} />
-                <span style={{ fontSize: '0.8rem' }}>
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <span style={{ fontSize: '0.8rem', flex: 1 }}>
                   {s.name}{' '}
                   <span style={{ color: '#888' }}>
                     ({s.type}{s.range != null ? `, range ${s.range}` : ''})
                   </span>
                 </span>
-              </label>
+                <button
+                  className="secondary"
+                  style={{ padding: '0 6px', minWidth: 22 }}
+                  disabled={n === 0}
+                  title="One fewer lab on this contact"
+                  onClick={() => onSetIdLabs(s.name, n - 1)}
+                >&minus;</button>
+                <span style={{ minWidth: 14, textAlign: 'center', fontSize: '0.8rem',
+                               color: n > 0 ? '#79c0ff' : '#666' }}>{n}</span>
+                <button
+                  className="secondary"
+                  style={{ padding: '0 6px', minWidth: 22 }}
+                  disabled={!canAdd}
+                  title="One more lab on this contact"
+                  onClick={() => onSetIdLabs(s.name, n + 1)}
+                >+</button>
+              </div>
             );
           })}
           {idError && <div style={{ color: '#f85149', fontSize: '0.75rem', margin: '4px 0' }}>{idError}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <button disabled={idSelected.size === 0} onClick={onSubmitId}>Attempt ID</button>
+            <button disabled={idCommitted === 0} onClick={onSubmitId}>Attempt ID</button>
             <button className="secondary" onClick={onCancelId}>Cancel</button>
           </div>
         </div>
@@ -3133,7 +3154,8 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [boardingError,   setBoardingError]   = useState<string | null>(null);
   // Lab seeker ID state
   const [idMode,     setIdMode]     = useState(false);
-  const [idSelected, setIdSelected] = useState<Set<string>>(new Set());
+  // G4.22: labs committed per contact, not a plain selection - several may go on one.
+  const [idLabs,     setIdLabs]     = useState<Record<string, number>>({});
   const [idError,    setIdError]    = useState<string | null>(null);
   // Hit & Run state
   const [harMode,    setHarMode]    = useState(false);
@@ -4058,9 +4080,11 @@ export default function GameBoard({ session, onLeave }: Props) {
     })
     .sort((a, b) => (a.range ?? Number.MAX_SAFE_INTEGER) - (b.range ?? Number.MAX_SAFE_INTEGER));
 
+  const idCommitted = Object.values(idLabs).reduce((a, b) => a + b, 0);
+
   function handleStartId() {
     setIdMode(true);
-    setIdSelected(new Set());
+    setIdLabs({});
     setIdError(null);
     setBoardingMode(false);
     setBoardingTarget(null);
@@ -4070,25 +4094,29 @@ export default function GameBoard({ session, onLeave }: Props) {
 
   function handleCancelId() {
     setIdMode(false);
-    setIdSelected(new Set());
+    setIdLabs({});
     setIdError(null);
   }
 
-  function handleToggleIdSeeker(name: string) {
-    setIdSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
+  function handleSetIdLabs(name: string, labs: number) {
+    setIdLabs(prev => {
+      const next = { ...prev };
+      if (labs <= 0) delete next[name];
+      else next[name] = labs;
       return next;
     });
   }
 
   async function handleSubmitId() {
-    if (!liveShip || idSelected.size === 0) return;
+    if (!liveShip || idCommitted === 0) return;
     setIdError(null);
     try {
       const res = await gameApi.identifySeekers(
         session.gameId, session.playerToken,
-        liveShip.name, Array.from(idSelected),
+        // One entry per LAB (G4.22): three labs on one contact send its name three
+        // times, and the server groups them back into a single three-dice attempt.
+        liveShip.name,
+        Object.entries(idLabs).flatMap(([name, n]) => Array<string>(n).fill(name)),
       );
       if (!res.success) setIdError(res.message);
       else {
@@ -5013,11 +5041,12 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelBeamObject={handleCancelBeamObject}
             idMode={idMode}
             idSeekers={idSeekers}
-            idSelected={idSelected}
+            idLabs={idLabs}
+            idCommitted={idCommitted}
             idError={idError}
             onStartId={handleStartId}
             onCancelId={handleCancelId}
-            onToggleIdSeeker={handleToggleIdSeeker}
+            onSetIdLabs={handleSetIdLabs}
             onSubmitId={handleSubmitId}
             shuttleLaunchMode={shuttleLaunchMode}
             shuttleLaunchError={shuttleLaunchError}

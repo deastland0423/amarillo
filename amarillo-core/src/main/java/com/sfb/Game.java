@@ -2818,8 +2818,18 @@ public class Game {
     // --- Lab seeker identification ---
 
     /** Attempt lab identification of enemy seekers (G4.0). */
-    public ActionResult identifySeekers(Ship actingShip, List<String> seekerNames) {
-        return seekerControl.identifySeekers(actingShip, seekerNames);
+    /**
+     * G4.22: one entry per LAB committed, so a name repeated commits several labs to that
+     * one contact — a single attempt rolling a die each, any of which beating the range
+     * carries it.
+     */
+    public ActionResult identifySeekers(Ship actingShip, List<String> labAssignments) {
+        return seekerControl.identifySeekers(actingShip, labAssignments);
+    }
+
+    /** Package-private seam: dice supplied in order (G4.22), for tests. */
+    ActionResult identifySeekers(Ship actingShip, List<String> labAssignments, int[] scriptedDice) {
+        return seekerControl.identifySeekers(actingShip, labAssignments, scriptedDice);
     }
 
     // --- Drone launching ---

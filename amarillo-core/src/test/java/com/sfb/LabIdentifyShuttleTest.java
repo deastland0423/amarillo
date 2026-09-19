@@ -309,6 +309,118 @@ public class LabIdentifyShuttleTest {
         assertTrue("one box for the channel, one for this attempt", s.isIdentified());
     }
 
+    // ---------------------------------------------------------------- G4.22, several labs
+
+    /**
+     * G4.22: "announces how many of his labs will try to identify that unit ... rolls a
+     * single die for each lab making the identification attempt, and if ANY of the results
+     * is greater than the range ... the attempt is successful."
+     * <p>
+     * Any ONE of them. Scripted dice, because with real ones this test and a
+     * last-die-wins implementation would agree most of the time.
+     */
+    @Test
+    public void anyOneOfSeveralDiceCarriesTheAttempt() {
+        Shuttle s = enemyShuttleAt(10, 15);          // range 5: only a 6 beats it
+        assertEquals(5, com.sfb.utilities.MapUtils.getRange(fed, s));
+
+        // Three labs on the one contact. The winning die is in the middle, so neither
+        // "the first roll decides" nor "the last roll decides" would pass.
+        ActionResult r = game.identifySeekers(fed,
+                java.util.Arrays.asList(s.getName(), s.getName(), s.getName()),
+                new int[] { 2, 6, 1 });
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("one die of the three beat the range (G4.22): " + r.getMessage(),
+                s.isIdentified());
+    }
+
+    @Test
+    public void whenNoDieBeatsTheRangeTheAttemptFails() {
+        Shuttle s = enemyShuttleAt(10, 15);          // range 5
+
+        ActionResult r = game.identifySeekers(fed,
+                java.util.Arrays.asList(s.getName(), s.getName(), s.getName()),
+                new int[] { 5, 3, 5 });
+
+        assertTrue(r.getMessage(), r.isSuccess());   // the attempt was legal
+        assertFalse("none of them beat range 5", s.isIdentified());
+    }
+
+    /** Every lab committed is spent, winner or not — they all made the attempt. */
+    @Test
+    public void everyLabCommittedIsSpent() {
+        Shuttle s = enemyShuttleAt(10, 10);
+        int before = fed.getLabs().getAvailableLab();
+        assertTrue("fixture needs at least three labs", before >= 3);
+
+        game.identifySeekers(fed,
+                java.util.Arrays.asList(s.getName(), s.getName(), s.getName()),
+                new int[] { 6, 6, 6 });   // succeeds on the first, and still spends three
+
+        assertEquals("three labs were committed, so three are gone",
+                before - 3, fed.getLabs().getAvailableLab());
+    }
+
+    /**
+     * Three labs on one contact is ONE attempt with three dice, not three attempts. The
+     * log has to read that way or a player cannot tell what they bought.
+     */
+    @Test
+    public void severalLabsOnOneContactAreOneAttempt() {
+        Shuttle s = enemyShuttleAt(10, 10);
+
+        String msg = game.identifySeekers(fed,
+                java.util.Arrays.asList(s.getName(), s.getName(), s.getName()),
+                new int[] { 1, 2, 3 }).getMessage();
+
+        int mentions = msg.split(java.util.regex.Pattern.quote(s.getName()), -1).length - 1;
+        assertEquals("one line for the contact, however many labs were on it: " + msg,
+                1, mentions);
+        assertTrue("and it should say how many labs and show every die: " + msg,
+                msg.contains("3 labs, dice 1, 2, 3"));
+    }
+
+    /** A single lab keeps the singular wording the rest of the log uses. */
+    @Test
+    public void oneLabStillReadsAsOneDie() {
+        Shuttle s = enemyShuttleAt(10, 10);
+
+        String msg = identify(s).getMessage();
+
+        assertTrue("singular wording for a single lab: " + msg, msg.contains("(die "));
+    }
+
+    @Test
+    public void committingMoreLabsThanTheShipHasIsRefused() {
+        Shuttle s = enemyShuttleAt(10, 10);
+        int labs = fed.getLabs().getAvailableLab();
+        java.util.List<String> tooMany = new java.util.ArrayList<>();
+        for (int i = 0; i < labs + 1; i++)
+            tooMany.add(s.getName());
+
+        ActionResult r = game.identifySeekers(fed, tooMany);
+
+        assertFalse("cannot commit more labs than the ship has: " + r.getMessage(),
+                r.isSuccess());
+        assertEquals("and a refused attempt spends none",
+                labs, fed.getLabs().getAvailableLab());
+    }
+
+    /** Labs can still be spread across different contacts, one attempt each. */
+    @Test
+    public void labsCanBeSplitBetweenContacts() {
+        Shuttle a = enemyShuttleAt(10, 10);
+        SuicideShuttle b = enemySuicideShuttleAt(10, 11);
+
+        String msg = game.identifySeekers(fed,
+                java.util.Arrays.asList(a.getName(), b.getName()),
+                new int[] { 6, 6 }).getMessage();
+
+        assertTrue("both were attempted: " + msg, a.isIdentified() && b.isIdentified());
+        assertTrue(msg.contains(a.getName()) && msg.contains(b.getName()));
+    }
+
     @Test
     public void anUnknownNameIsReportedNotFound() {
         ActionResult r = game.identifySeekers(fed, Collections.singletonList("Nothing At All"));
