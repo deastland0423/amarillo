@@ -11,10 +11,6 @@ import com.sfb.weapons.Weapon;
 
 public class AdminShuttle extends Shuttle {
 
-	@Override
-	public boolean canBecomeSuicide() {
-		return true;
-	}
 
 
 

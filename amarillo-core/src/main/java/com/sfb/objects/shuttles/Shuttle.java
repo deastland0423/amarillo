@@ -85,7 +85,8 @@ public abstract class Shuttle extends Unit {
 	 * True if this shuttle can be converted to a suicide shuttle before game start.
 	 */
 	public boolean canBecomeSuicide() {
-		return false;
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e != null && e.canSuicide;
 	}
 
 	/**

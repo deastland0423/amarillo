@@ -44,6 +44,12 @@ public final class ShuttleCatalog {
         /** J3.18: may this be charged as a Wild Weasel? Fighters never may. */
         public final boolean canWeasel;
         /**
+         * J2.222: may this be armed as a suicide shuttle? Admin, minesweeping, MRS, SWAC
+         * and minelaying shuttles may; fighters, HTS and GAS may not — a third list again
+         * distinct from the other two.
+         */
+        public final boolean canSuicide;
+        /**
          * FD7.11: rack spaces of drones this may carry as a scatter pack; 0 = not a
          * qualified shuttle. One field answers both whether and how much, and the two
          * eligibility lists are NOT the same — a GAS may weasel but not scatter-pack, a
@@ -53,8 +59,9 @@ public final class ShuttleCatalog {
 
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
-              boolean canWeasel, int scatterPackSize) {
+              boolean canWeasel, boolean canSuicide, int scatterPackSize) {
             this.canWeasel = canWeasel;
+            this.canSuicide = canSuicide;
             this.scatterPackSize = scatterPackSize;
             this.type = type;
             this.name = name;
@@ -120,6 +127,7 @@ public final class ShuttleCatalog {
                     n.path("crippled").asInt(0),
                     n.path("bpv").asInt(0),
                     n.path("canWeasel").asBoolean(false),
+                    n.path("canSuicide").asBoolean(false),
                     n.path("scatterPackSize").asInt(0));
             registry.put(e.type.toLowerCase(), e);
         }

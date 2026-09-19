@@ -14,14 +14,20 @@ import java.io.File;
 import static org.junit.Assert.*;
 
 /**
- * Which shuttles may take which special role — J3.18 for Wild Weasels, FD7.11 for scatter
- * packs.
+ * Which shuttles may take which special role — J3.18 Wild Weasels, FD7.11 scatter packs,
+ * J2.222 suicide shuttles.
  * <p>
- * The two lists are partly inverted, which is the whole reason they are data rather than
- * class overrides. J3.18: any non-fighter shuttle may weasel, fighters never. FD7.11: only
- * admin, MRS, MLS and MSS shuttles AND fighters may be scatter packs — so a GAS may weasel
- * but not scatter-pack, and a fighter the reverse. Neither list can be derived from the
- * other, or from the hierarchy; side by side as columns, each can be read against its rule.
+ * Three lists, no two the same, which is the whole reason they are data rather than class
+ * overrides:
+ * <ul>
+ *   <li>J3.18 — any non-fighter shuttle may weasel; fighters never (J4.41)</li>
+ *   <li>FD7.11 — admin, MRS, MLS, MSS and FIGHTERS may be scatter packs</li>
+ *   <li>J2.222 — admin, MSS, MRS, SWAC and MLS may be suicide shuttles; fighters, HTS and
+ *       GAS may not</li>
+ * </ul>
+ * So a GAS may weasel and nothing else, a fighter may ONLY be a scatter pack, and a SWAC
+ * may weasel and suicide but not scatter-pack. No list can be derived from another or from
+ * the hierarchy; side by side as columns, each can be read against its rule.
  * <p>
  * These assertions are the rules, not the current behaviour. If one fails, check the book
  * before changing the number.
@@ -75,7 +81,7 @@ public class ShuttleRoleEligibilityTest {
     }
 
     @Test
-    public void theTwoListsAreNotTheSameList() {
+    public void noTwoListsAreTheSameList() {
         // Stated as its own assertion because a future refactor that collapses them into
         // one "special shuttle" flag would pass every other test in this file.
         assertNotEquals("a GAS may weasel but not scatter-pack",
@@ -84,6 +90,44 @@ public class ShuttleRoleEligibilityTest {
         assertNotEquals("a fighter is the other way round",
                 new Stinger1().canBecomeWildWeasel(),
                 new Stinger1().canBecomeScatterPack());
+    }
+
+    // ---------------------------------------------------------------- J2.222, suicide
+
+    @Test
+    public void anAdminShuttleMayBeASuicideShuttle() {
+        assertTrue("J2.222 lists admin shuttles", new AdminShuttle().canBecomeSuicide());
+    }
+
+    @Test
+    public void aGasOrHtsMayNotBeASuicideShuttle() {
+        // J2.222 bars both by name — and both MAY weasel under J3.18, so this is the
+        // second place the lists diverge.
+        assertFalse("J2.222 bars ground assault shuttles", new GASShuttle().canBecomeSuicide());
+        assertFalse("J2.222 bars heavy transport shuttles", new HTSShuttle().canBecomeSuicide());
+    }
+
+    @Test
+    public void aFighterMayNotBeASuicideShuttle() {
+        // Yet a fighter MAY be a scatter pack (FD7.11) — the inversion runs both ways.
+        assertFalse("J2.222 bars fighters", new Stinger1().canBecomeSuicide());
+        assertTrue("but FD7.11 admits them as scatter packs",
+                new Stinger1().canBecomeScatterPack());
+    }
+
+    @Test
+    public void allThreeListsDiffer() {
+        // A GAS: weasel yes, suicide no, scatter pack no.
+        GASShuttle gas = new GASShuttle();
+        assertTrue(gas.canBecomeWildWeasel());
+        assertFalse(gas.canBecomeSuicide());
+        assertFalse(gas.canBecomeScatterPack());
+
+        // A fighter: the exact opposite on two of the three.
+        Stinger1 fighter = new Stinger1();
+        assertFalse(fighter.canBecomeWildWeasel());
+        assertFalse(fighter.canBecomeSuicide());
+        assertTrue(fighter.canBecomeScatterPack());
     }
 
     // ---------------------------------------------------------------- conversions remember
