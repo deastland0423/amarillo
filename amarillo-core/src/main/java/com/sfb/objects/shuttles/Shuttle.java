@@ -207,6 +207,42 @@ public abstract class Shuttle extends Unit {
 		beingRecovered = false;
 	}
 
+	// --- Erratic Maneuvers: the point of speed it costs (C10.13/C10.131) ---
+
+	private boolean emSpeedCommitted = false;
+
+	public boolean isEmSpeedCommitted() { return emSpeedCommitted; }
+
+	/**
+	 * C10.13/C10.131: a shuttle or fighter buys EM with one movement point - a point of
+	 * speed - and the commitment binds for the WHOLE turn. It is recorded during energy
+	 * allocation if the shuttle is already launched, or on the impulse of launch if it is
+	 * not, and "the shuttle cannot cancel this written commitment and accelerate to its
+	 * full speed during the turn". Switching EM itself off does not give the point back,
+	 * which is why this is separate state from {@code isUsingEm()}.
+	 */
+	public void commitEmSpeed() {
+		emSpeedCommitted = true;
+		if (getCurrentSpeed() > effectiveMaxSpeed())
+			setCurrentSpeed(effectiveMaxSpeed());
+		if (getSpeed() > effectiveMaxSpeed())
+			setSpeed(effectiveMaxSpeed());
+	}
+
+	/** Turn boundary: the commitment must be recorded afresh each turn (C10.131). */
+	public void clearEmSpeedCommitment() {
+		emSpeedCommitted = false;
+	}
+
+	/**
+	 * The fastest this shuttle may move, after any point of speed dedicated to Erratic
+	 * Maneuvers (C10.13). C10.134: a shuttle at this speed counts as being at "maximum
+	 * speed" for G7.55, even though it is one below its rating.
+	 */
+	public int effectiveMaxSpeed() {
+		return Math.max(0, maxSpeed - (emSpeedCommitted ? 1 : 0));
+	}
+
 	public int getMaxSpeed() {
 		return maxSpeed;
 	}

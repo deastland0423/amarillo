@@ -402,7 +402,10 @@ class LaunchCoordinator {
         if (!bay.canLaunch(shuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
 
-        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, game.getAbsoluteImpulse());
+        // C10.13: a shuttle that has committed a point of speed to EM cannot launch above
+        // the reduced maximum.
+        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle,
+                Math.min(speed, shuttle.effectiveMaxSpeed()), facing, game.getAbsoluteImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 

@@ -442,6 +442,13 @@ public class Game {
                 emShip.dropEm();
             emShip.resetEmForNewTurn();
         }
+        // C10.131: a shuttle's point of speed is committed one turn at a time, so the
+        // commitment lapses here and EM lapses with it unless it is made again.
+        for (com.sfb.objects.shuttles.Shuttle emShuttle : activeShuttles) {
+            emShuttle.dropEm();
+            emShuttle.resetEmForNewTurn();
+            emShuttle.clearEmSpeedCommitment();
+        }
 
         lockOnResolver.performLockOnRolls();
         List<String> orphanLog = seekerControl.releaseOrphanedDrones();
@@ -516,22 +523,70 @@ public class Game {
      * already been begun this turn (C10.31): a ship that stops may not restart until the
      * next turn (C10.32).
      */
-    public ActionResult announceErraticManeuvers(Ship ship, boolean starting) {
+    public ActionResult announceErraticManeuvers(Unit unit, boolean starting) {
         if (starting) {
-            if (ship.isUsingEm())
-                return ActionResult.fail(ship.getName() + " is already using Erratic Maneuvers");
-            if (!ship.hasPaidForEm())
-                return ActionResult.fail(ship.getName()
-                        + " did not pay for Erratic Maneuvers in energy allocation (C10.11)");
-            if (ship.hasStartedEmThisTurn())
-                return ActionResult.fail(ship.getName()
+            if (unit.isUsingEm())
+                return ActionResult.fail(unit.getName() + " is already using Erratic Maneuvers");
+            String ineligible = emIneligibility(unit);
+            if (ineligible != null)
+                return ActionResult.fail(ineligible);
+            if (unit.hasStartedEmThisTurn())
+                return ActionResult.fail(unit.getName()
                         + " may only begin Erratic Maneuvers once per turn (C10.31)");
-        } else if (!ship.isUsingEm() && !ship.hasPendingEmAnnouncement(getAbsoluteImpulse())) {
-            return ActionResult.fail(ship.getName() + " is not using Erratic Maneuvers");
+        } else if (!unit.isUsingEm() && !unit.hasPendingEmAnnouncement(getAbsoluteImpulse())) {
+            return ActionResult.fail(unit.getName() + " is not using Erratic Maneuvers");
         }
-        ship.announceEm(starting, getAbsoluteImpulse());
-        return ActionResult.ok(ship.getName() + (starting ? " announces" : " announces the end of")
+        unit.announceEm(starting, getAbsoluteImpulse());
+        return ActionResult.ok(unit.getName() + (starting ? " announces" : " announces the end of")
                 + " Erratic Maneuvers — in force at the end of this impulse (C10.311)");
+    }
+
+    /**
+     * Why this unit may not begin EM, or null if it may. A ship must have bought the energy
+     * (C10.11); a shuttle must have committed its point of speed (C10.13), and some
+     * shuttles may never use EM at all.
+     */
+    private String emIneligibility(Unit unit) {
+        if (unit instanceof Ship)
+            return ((Ship) unit).hasPaidForEm() ? null
+                    : unit.getName() + " did not pay for Erratic Maneuvers in energy"
+                            + " allocation (C10.11)";
+        if (unit instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle sh = (com.sfb.objects.shuttles.Shuttle) unit;
+            // C10.132: a shuttle on a seeking course cannot use EM - it is committed to
+            // running its target down. C10.17 says the same of seeking weapons generally.
+            if (sh instanceof Seeker)
+                return unit.getName() + " is on a seeking course and cannot use Erratic"
+                        + " Maneuvers (C10.132)";
+            // C10.133: a Wild Weasel is imitating a ship, not flying evasively.
+            if (sh instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+                return unit.getName() + " is a Wild Weasel and cannot use Erratic"
+                        + " Maneuvers (C10.133)";
+            return sh.isEmSpeedCommitted() ? null
+                    : unit.getName() + " has not given up a point of speed for Erratic"
+                            + " Maneuvers (C10.13)";
+        }
+        return unit.getName() + " cannot use Erratic Maneuvers";
+    }
+
+    /**
+     * C10.13/C10.131: record a shuttle's commitment of one movement point to EM for this
+     * turn. Made during energy allocation for a shuttle already on the map, or on the
+     * impulse of launch for one that is not. It cannot be taken back within the turn.
+     */
+    public ActionResult commitShuttleEmSpeed(com.sfb.objects.shuttles.Shuttle shuttle) {
+        String ineligible = emIneligibility(shuttle);
+        // Only the "not committed yet" answer should be overridden here; a seeking shuttle
+        // or a weasel may not commit at all.
+        if (ineligible != null && !ineligible.contains("C10.13)"))
+            return ActionResult.fail(ineligible);
+        if (shuttle.isEmSpeedCommitted())
+            return ActionResult.ok(shuttle.getName() + " has already committed to Erratic"
+                    + " Maneuvers this turn");
+        shuttle.commitEmSpeed();
+        return ActionResult.ok(shuttle.getName() + " gives up one point of speed to Erratic"
+                + " Maneuvers this turn — maximum speed " + shuttle.effectiveMaxSpeed()
+                + " (C10.13); it cannot be taken back this turn (C10.131)");
     }
 
     /** True when either unit holds the other in a tractor beam (G7.412). */
@@ -842,9 +897,11 @@ public class Game {
                 // force (or ceases) HERE, in the Post-Combat Segment, never at the moment
                 // it was announced. A ship shot at during its announcing impulse gets no
                 // benefit from it.
-                for (Ship emShip : ships)
-                    if (emShip.applyEmAnnouncement(getAbsoluteImpulse()))
-                        log.add("  " + emShip.getName() + (emShip.isUsingEm()
+                List<Unit> emUnits = new ArrayList<>(ships);
+                emUnits.addAll(activeShuttles);
+                for (Unit emUnit : emUnits)
+                    if (emUnit.applyEmAnnouncement(getAbsoluteImpulse()))
+                        log.add("  " + emUnit.getName() + (emUnit.isUsingEm()
                                 ? " begins Erratic Maneuvers (C10.311)"
                                 : " ceases Erratic Maneuvers (C10.32)"));
 

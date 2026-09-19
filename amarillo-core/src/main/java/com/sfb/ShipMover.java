@@ -525,6 +525,10 @@ class ShipMover {
             return ActionResult.fail("HETs can only be performed during the Movement phase");
         if (shuttle.isCrippled())
             return ActionResult.fail("Crippled fighters cannot perform HETs (J1.336)");
+        // C10.135: a fighter cannot perform an HET while under Erratic Maneuvers.
+        if (shuttle.isUsingEm())
+            return ActionResult.fail(shuttle.getName()
+                    + " cannot perform an HET while using Erratic Maneuvers (C10.135)");
         com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
         boolean performed = fighter.performTacticalManeuver(absoluteFacing);
         if (!performed)
