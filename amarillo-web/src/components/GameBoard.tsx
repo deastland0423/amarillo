@@ -945,6 +945,12 @@ interface FireOptions {
   shieldNumber:  number;
   weaponsInArc:  string[];
   hasLockOn:     boolean;
+  // EW for THIS attacker against THIS target. Natural ECM is counted along the line of
+  // sight, so it cannot be read off either ship on its own — the server works it out.
+  ecmPoints?:    number;
+  eccm?:         number;
+  ecmShift?:     number;
+  ecmSources?:   string | null;
 }
 
 // ---- Weapon damage preview tooltip ----
@@ -1069,20 +1075,32 @@ function FirePanel({
             </span>
           </div>
           {(() => {
-            const tShip = target && (target as ShipObject).ecmAllocated !== undefined ? target as ShipObject : null;
-            const tEcm  = tShip?.ecmAllocated ?? 0;
-            const aEccm = attacker.eccmAllocated ?? 0;
-            const net   = Math.max(0, tEcm - aEccm);
-            const shift = Math.floor(Math.sqrt(net));
+            // From the server, which counts what the target generates, what is lent to it
+            // (a weasel included), what it has built in, AND the asteroids, rings and
+            // atmosphere on the line between these two. The old sum here used only the
+            // target's generated ECM, so it disagreed with the dice roll that followed.
+            const tEcm  = options.ecmPoints ?? 0;
+            const aEccm = options.eccm ?? 0;
+            const shift = options.ecmShift ?? 0;
             if (tEcm === 0 && aEccm === 0) return null;
             return (
-              <div className="sidebar-stat-row">
-                <span className="sidebar-stat-label">EW</span>
-                <span className="sidebar-stat-value">
-                  ECM {tEcm} / ECCM {aEccm}
-                  {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
-                </span>
-              </div>
+              <>
+                <div className="sidebar-stat-row">
+                  <span className="sidebar-stat-label">EW</span>
+                  <span className="sidebar-stat-value">
+                    ECM {tEcm} / ECCM {aEccm}
+                    {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
+                  </span>
+                </div>
+                {options.ecmSources && (
+                  <div className="sidebar-stat-row">
+                    <span className="sidebar-stat-label"></span>
+                    <span className="sidebar-stat-value" style={{ color: '#8b949e' }}>
+                      {options.ecmSources}
+                    </span>
+                  </div>
+                )}
+              </>
             );
           })()}
         </>

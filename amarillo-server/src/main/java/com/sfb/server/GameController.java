@@ -1333,12 +1333,34 @@ public class GameController {
             boolean hasLockOn = attackerUnit instanceof Ship
                     && ((Ship) attackerUnit).hasLockOn(targetUnit);
 
-            return ResponseEntity.ok(Map.of(
-                    "range", range,
-                    "adjustedRange", adjRange,
-                    "shieldNumber", shieldNumber,
-                    "weaponsInArc", weaponsInArc,
-                    "hasLockOn", hasLockOn));
+            // The EW between THESE two, which is the only form of the question that has an
+            // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
+            // P2.223), so the same target presents a different figure to every shooter and
+            // no number on a ship's own panel can stand for it.
+            int ecmPoints = 0;
+            int ecmShift = 0;
+            int eccm = 0;
+            String ecmSources = null;
+            if (attackerUnit instanceof Ship) {
+                com.sfb.properties.EwBreakdown ew =
+                        session.getGame().ewAgainst((Ship) attackerUnit, targetUnit);
+                eccm = session.getGame().activeEccm((Ship) attackerUnit);
+                ecmPoints = ew.total();
+                ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
+                ecmSources = ew.describe();
+            }
+
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("range", range);
+            body.put("adjustedRange", adjRange);
+            body.put("shieldNumber", shieldNumber);
+            body.put("weaponsInArc", weaponsInArc);
+            body.put("hasLockOn", hasLockOn);
+            body.put("ecmPoints", ecmPoints);
+            body.put("eccm", eccm);
+            body.put("ecmShift", ecmShift);
+            body.put("ecmSources", ecmSources);
+            return ResponseEntity.ok(body);
         });
     }
 

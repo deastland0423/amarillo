@@ -143,4 +143,67 @@ public class NaturalEcmSourcesTest {
                 + ew.describe(), ew.natural() >= 2);
         assertTrue("and it is all natural", ew.describe().contains("natural"));
     }
+
+    // ---------------------------------------------------------------- it is pairwise
+
+    /**
+     * The same target, two shooters, two different answers — which is why natural ECM can
+     * never be a number on a ship's own panel. One fires across a belt of asteroids and one
+     * has a clear line; P3.33 counts a point per asteroid hex between them, so the belt is
+     * worth something to the first and nothing to the second.
+     */
+    @Test
+    public void theSameTargetPresentsDifferentEcmToDifferentShooters() {
+        Ship target = new Ship();
+        target.init(FederationShips.getFedCa());
+        target.setName("Target");
+        target.setLocation(new Location(21, 10));
+        target.setFacing(1);
+        game.getShips().add(target);
+
+        // A belt between the target and one shooter only.
+        for (int row = 11; row <= 14; row++)
+            game.addTerrain(new Terrain(TerrainType.ASTEROID, 21, row));
+
+        Ship throughTheRocks = new Ship();
+        throughTheRocks.init(FederationShips.getFedCa());
+        throughTheRocks.setName("Through the rocks");
+        throughTheRocks.setLocation(new Location(21, 16));
+        throughTheRocks.setFacing(1);
+        throughTheRocks.setActiveFireControl(true);
+        game.getShips().add(throughTheRocks);
+
+        Ship clearLine = new Ship();
+        clearLine.init(FederationShips.getFedCa());
+        clearLine.setName("Clear line");
+        clearLine.setLocation(new Location(28, 10));   // along the row, no belt between
+        clearLine.setFacing(1);
+        clearLine.setActiveFireControl(true);
+        game.getShips().add(clearLine);
+
+        int obstructed = game.ewAgainst(throughTheRocks, target).natural();
+        int clear      = game.ewAgainst(clearLine, target).natural();
+
+        assertTrue("four asteroid hexes on the line must count for something — got "
+                + obstructed, obstructed >= 4);
+        assertEquals("and nothing at all on a clear line", 0, clear);
+        assertNotEquals("so there is no single figure to show on the target's own panel",
+                obstructed, clear);
+    }
+
+    @Test
+    public void theBreakdownNamesTheTerrainSoAPlayerCanSeeWhy() {
+        Ship target = new Ship();
+        target.init(FederationShips.getFedCa());
+        target.setName("Target");
+        target.setLocation(new Location(21, 10));
+        game.getShips().add(target);
+        for (int row = 11; row <= 13; row++)
+            game.addTerrain(new Terrain(TerrainType.ASTEROID, 21, row));
+
+        String described = game.ewAgainst(fed, target).describe();
+
+        assertTrue("the player should be told it is the terrain, not the target's own EW: "
+                + described, described.contains("natural"));
+    }
 }

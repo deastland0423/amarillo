@@ -621,6 +621,16 @@ public class Game {
     }
 
     /**
+     * The ECCM {@code actor} can answer with — allocated plus lent, and inactive without
+     * fire control (D6.32). Public so a fire preview can show the same subtraction the
+     * fire itself makes.
+     */
+    public int activeEccm(Ship actor) {
+        return actor.isActiveFireControl()
+                ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
+    }
+
+    /**
      * How many transporter activations this ship could still pay for, counting banked
      * energy and whole points of battery alike, and capped by working transporters.
      */
@@ -658,7 +668,7 @@ public class Game {
      * calling this (D6.34 Step 3), never from the shift — which is why enough ECCM erases
      * the roll rather than merely shrinking it (Step 4).
      */
-    static int netEcmShift(int netPoints) {
+    public static int netEcmShift(int netPoints) {
         return (int) Math.floor(Math.sqrt(Math.max(0, netPoints)));
     }
 
@@ -667,7 +677,7 @@ public class Game {
      * sources of D6.314 so that rules which discriminate between them — D6.3146 above all
      * — can do so without re-deriving the sum.
      */
-    com.sfb.properties.EwBreakdown ewAgainst(Ship actor, com.sfb.objects.Marker target) {
+    public com.sfb.properties.EwBreakdown ewAgainst(Ship actor, com.sfb.objects.Marker target) {
         // D6.3143: asteroid and ring hexes on the line (P3.33, P2.223). The other natural
         // sources D6.3143 names - Erratic Maneuvers, atmospheres, small target modifiers -
         // are not modelled yet; when they are, they belong here.
