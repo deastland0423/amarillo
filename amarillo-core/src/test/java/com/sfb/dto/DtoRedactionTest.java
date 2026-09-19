@@ -250,4 +250,47 @@ public class DtoRedactionTest {
         GameStateDto.ShipDto klingonDto = (GameStateDto.ShipDto) find(solo, "IKV Saber");
         assertFalse(klingonDto.shuttleBays.isEmpty());
     }
+
+    /**
+     * Every shuttle reports its weapons, not just fighters.
+     * <p>
+     * An admin shuttle builds itself a 360-degree Ph-3, and core and the fire-options
+     * endpoint have always been willing to fire it — but the DTO populated `weapons` only
+     * for a Fighter, so the client never learned the shuttle was armed. The UI picks a
+     * shuttle as an attacker on `weapons.length > 0`, so the phaser was unreachable from
+     * inside a game: the capability existed at every level except the one that offers it.
+     */
+    @Test
+    public void everyShuttleReportsItsWeapons_notJustFighters() {
+        com.sfb.objects.shuttles.AdminShuttle admin = new com.sfb.objects.shuttles.AdminShuttle();
+        admin.setName("USS Enterprise-Shuttle-1");
+        admin.setLocation(new Location(12, 12));
+        admin.setOwner(fedPlayer);
+        game.getActiveShuttles().add(admin);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        Object obj = find(view, "USS Enterprise-Shuttle-1");
+
+        assertTrue("expected a shuttle DTO", obj instanceof GameStateDto.ShuttleDto);
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto) obj;
+        assertNotNull("an admin shuttle's Ph-3 must reach the client", dto.weapons);
+        assertFalse("...and not be an empty list", dto.weapons.isEmpty());
+        assertFalse("but it is not a fighter, whatever it is carrying", dto.isFighter);
+    }
+
+    @Test
+    public void aFighterIsFlaggedAsOne() {
+        // The type label used to be inferred from "has weapons", which stops working the
+        // moment every shuttle reports its phaser.
+        com.sfb.objects.shuttles.Stinger1 f = new com.sfb.objects.shuttles.Stinger1();
+        f.setName("Alpha 1");
+        f.setLocation(new Location(13, 13));
+        f.setOwner(fedPlayer);
+        game.getActiveShuttles().add(f);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto) find(view, "Alpha 1");
+
+        assertTrue("a Stinger is a fighter", dto.isFighter);
+    }
 }

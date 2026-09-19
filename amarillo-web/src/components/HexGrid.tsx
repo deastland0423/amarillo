@@ -746,7 +746,8 @@ function shipsAt(objects: MapObject[], col: number, row: number): ShipObject[] {
 function shuttlesAt(objects: MapObject[], col: number, row: number) {
   const loc = `<${col}|${row}>`;
   return objects.filter(
-    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK')
+    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK'
+          || o.type === 'WILD_WEASEL')
       && o.location === loc
   );
 }
@@ -792,15 +793,27 @@ function shuttleTooltipLines(
   let typeLabel: string;
   if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = revealed ? 'Suicide Shuttle' : 'Shuttle';
   else if (shuttle.type === 'SCATTER_PACK') typeLabel = revealed ? 'Scatter Pack'   : 'Shuttle';
-  else if ((shuttle as any).weapons?.length > 0) typeLabel = 'Fighter';
+  // A weasel is public by rule — its interference announces it at launch (J3.0), which is
+  // why it is not subject to the fog-of-war above.
+  else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';
+  // Decided by what it IS, not by whether it is armed — every shuttle carries a phaser.
+  else if ((shuttle as any).isFighter) typeLabel = 'Fighter';
   else typeLabel = 'Admin Shuttle';
 
-  return [
+  const lines = [
     `Faction:  ${faction}`,
     `Type:     ${typeLabel}`,
     `From:     ${(shuttle as any).parentShipName ?? '?'}`,
     `Speed:    ${(shuttle as any).speed}`,
   ];
+  // A destroyed weasel is not removed: it explodes for four impulses and keeps pulling
+  // seekers in (J3.21), then leaves a spent pocket. Both states change what it is doing,
+  // so say which one it is in.
+  if (shuttle.type === 'WILD_WEASEL') {
+    if ((shuttle as any).exploding)          lines.push('Status:   EXPLODING (J3.21)');
+    else if ((shuttle as any).postExplosion) lines.push('Status:   spent');
+  }
+  return lines;
 }
 
 /** Build tooltip lines for a list of seekers.

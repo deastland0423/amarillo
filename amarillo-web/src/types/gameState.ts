@@ -268,7 +268,11 @@ export interface ShuttleObject extends MapObjectBase {
   speed:          number;
   maxSpeed:       number;
   parentShipName: string | null;
-  weapons?:       WeaponState[];  // non-null for fighters
+  weapons?:       WeaponState[];  // every shuttle: an admin shuttle carries a Ph-3
+  isFighter?:     boolean;        // a fighter, as opposed to an admin/other shuttle
+  effectiveMaxSpeed?: number;     // after any point given to Erratic Maneuvers (C10.13)
+  usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
+  emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)
   crippled?:      boolean;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
   landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)

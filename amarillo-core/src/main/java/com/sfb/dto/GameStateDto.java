@@ -378,6 +378,7 @@ public class GameStateDto {
         public int effectiveMaxSpeed;      // after any point given to EM (C10.13)
         public boolean usingEm;            // Erratic Maneuvers in force (C10.0)
         public boolean emSpeedCommitted;   // the point of speed is spent for the turn (C10.131)
+        public boolean isFighter;          // a fighter, as opposed to an admin/other shuttle
         public String parentPlayer; // name of the player who owns this shuttle
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
@@ -1308,9 +1309,14 @@ public class GameStateDto {
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();
+        // Every shuttle's weapons, not just a fighter's. An admin shuttle builds itself a
+        // 360-degree Ph-3, and both core and the fire endpoint have always been willing to
+        // fire it - the client simply never heard about it, so the shuttle could not be
+        // picked as an attacker and its phaser was unreachable from the game.
+        dto.weapons = buildWeaponDtos(shuttle.getWeapons());
+        dto.isFighter = shuttle instanceof com.sfb.objects.shuttles.Fighter;
         if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
             com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
-            dto.weapons = buildWeaponDtos(shuttle.getWeapons());
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
         dto.beingRecovered = shuttle.isBeingRecovered();
