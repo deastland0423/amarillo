@@ -2013,7 +2013,7 @@ function ShipSidebar({
                   <button
                     className={`action-strip-btn${idMode ? ' active' : ''}`}
                     onClick={idMode ? onCancelId : onStartId}
-                    title={`Identify seekers (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
+                    title={`Identify seekers and shuttles (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
                   >
                     ID
                   </button>
@@ -2713,12 +2713,12 @@ function ShipSidebar({
 
       {idMode && (
         <div className="sidebar-action-detail">
-          <div className="sidebar-section-title">Identify Seekers ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
+          <div className="sidebar-section-title">Identify Contacts ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
           {idSeekers.length === 0 ? (
-            <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy seekers in range.</div>
+            <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy contacts in range.</div>
           ) : (
             <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: 4 }}>
-              Select up to {ship.availableLab} seeker{ship.availableLab !== 1 ? 's' : ''} to attempt identification.
+              Select up to {ship.availableLab} contact{ship.availableLab !== 1 ? 's' : ''} to attempt identification.
             </div>
           )}
           {idSeekers.map(s => {
@@ -4013,18 +4013,43 @@ export default function GameBoard({ session, onLeave }: Props) {
     else addLog(`Concede failed: ${res.message}`, 'error');
   }
 
-  // Unidentified enemy seekers for lab ID panel
-  // Closest first: the seeker about to reach you is the one worth spending a lab on.
+  // Unidentified enemy contacts for the lab ID panel.
+  // Closest first: the contact about to reach you is the one worth spending a lab on.
   // Range is measured from the identifying ship, so it is null when that ship is off-map.
+  //
+  // Shuttles belong here as much as seekers do: an enemy suicide shuttle or an unreleased
+  // scatter pack arrives as type SHUTTLE (the server redacts it), so a shuttle-looking
+  // contact is precisely what a player wants a lab to settle. Wild Weasels are excluded by
+  // type — they are public from launch, so there is nothing to buy.
   const idShipLoc = parseLocation(liveShip?.location ?? null);
+  // A plain shuttle carries no faction of its own; take it from the ship that launched it,
+  // the same way the map does. Unknown (parent gone) counts as hostile: the server decides
+  // for certain, and a contact nobody can place is exactly one worth asking about.
+  function shuttleFaction(o: MapObject): string | undefined {
+    const f = (o as { controllerFaction?: string }).controllerFaction;
+    if (f) return f;
+    const parentName = (o as { parentShipName?: string | null }).parentShipName;
+    const parent = (gameState?.mapObjects ?? [])
+      .find(p => p.type === 'SHIP' && p.name === parentName) as ShipObject | undefined;
+    return parent?.faction;
+  }
   const idSeekers = (gameState?.mapObjects ?? [])
-    .filter(o => (o.type === 'DRONE' || o.type === 'PLASMA') && !o.isIdentified
-      && o.controllerFaction !== liveShip?.faction)
+    .filter(o => {
+      // The type test comes first in each branch so isIdentified is read off a narrowed
+      // object — it lives on the seeker and shuttle shapes, not on every map object.
+      if (o.type === 'DRONE' || o.type === 'PLASMA')
+        return !o.isIdentified && o.controllerFaction !== liveShip?.faction;
+      if (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK')
+        return !o.isIdentified && shuttleFaction(o) !== liveShip?.faction;
+      return false;
+    })
     .map(o => {
       const loc = parseLocation(o.location ?? null);
       return {
         name: o.name,
-        type: o.type === 'DRONE' ? 'Drone' : 'Plasma',
+        // Never the role, only the craft: an enemy contact reads "Shuttle" whether it is
+        // an admin shuttle, a suicide shuttle, or a loaded scatter pack.
+        type: o.type === 'DRONE' ? 'Drone' : o.type === 'PLASMA' ? 'Plasma' : 'Shuttle',
         range: idShipLoc && loc
           ? hexRange({ col: idShipLoc[0], row: idShipLoc[1] },
                      { col: loc[0], row: loc[1] })

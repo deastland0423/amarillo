@@ -162,11 +162,19 @@ class SeekerControl {
     }
 
     /**
-     * Attempt to identify a list of enemy seekers using the acting ship's labs.
+     * Attempt to identify a list of enemy contacts using the acting ship's labs.
      * Each attempt costs 1 lab. Roll 1d6; result must be STRICTLY GREATER than
      * range to succeed.
      * Pseudo-plasma torps cannot be identified (attempt always fails to reveal
      * pseudo status).
+     * <p>
+     * Shuttles are identifiable too, for the same reason the scout-channel path allows it
+     * (G24.25): an enemy suicide shuttle or an unreleased scatter pack reaches its enemy
+     * as a plain shuttle, so a shuttle-looking contact may be exactly the thing worth a
+     * lab. Labs could not ask the question before: a suicide shuttle IS a seeker and so
+     * was findable by name, but nothing offered the name, and a genuine shuttle was not
+     * findable at all. Identifying a plain shuttle establishes that it is NOT a seeking
+     * weapon, which is the whole answer being bought.
      */
     ActionResult identifySeekers(Ship actingShip, List<String> seekerNames) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
@@ -187,33 +195,72 @@ class SeekerControl {
             Seeker seeker = seekers.stream()
                     .filter(s -> ((com.sfb.objects.Marker) s).getName().equals(seekerName))
                     .findFirst().orElse(null);
-            if (seeker == null) {
+            // A suicide shuttle and an unreleased scatter pack ARE seekers and are found
+            // above; a plain shuttle lives in the active-shuttle list instead.
+            com.sfb.objects.shuttles.Shuttle shuttle = null;
+            if (seeker == null)
+                for (com.sfb.objects.shuttles.Shuttle sh : game.getActiveShuttles())
+                    if (sh.getName().equals(seekerName)) {
+                        shuttle = sh;
+                        break;
+                    }
+            if (seeker == null && shuttle == null) {
                 log.append("  ").append(seekerName).append(" — not found\n");
                 continue;
             }
-            // Cannot attempt to ID own seekers
-            Unit seekerShip = seeker.getController();
-            if (seekerShip instanceof Ship && ((Ship) seekerShip).getFaction() == actingShip.getFaction()) {
-                log.append("  ").append(seekerName).append(" — cannot ID friendly seeker\n");
+
+            // Cannot attempt to ID own units. A seeker is judged by whoever guides it; a
+            // shuttle by its owner, since a shuttle flying on its own has no controller.
+            boolean friendly;
+            if (seeker != null) {
+                Unit seekerShip = seeker.getController();
+                friendly = seekerShip instanceof Ship
+                        && ((Ship) seekerShip).getFaction() == actingShip.getFaction();
+            } else {
+                friendly = sameOwnerTeam(actingShip, shuttle);
+            }
+            if (friendly) {
+                log.append("  ").append(seekerName).append(" — cannot ID friendly unit\n");
                 continue;
             }
 
+            com.sfb.objects.Marker target = seeker != null
+                    ? (com.sfb.objects.Marker) seeker : shuttle;
             actingShip.getLabs().decrementLab();
-            int range = MapUtils.getRange(actingShip, (com.sfb.objects.Marker) seeker);
+            int range = MapUtils.getRange(actingShip, target);
             int roll = dice.rollOneDie();
             log.append("  ").append(seekerName)
                     .append("  range ").append(range)
                     .append("  (die ").append(roll).append(")");
 
             if (roll > range) {
-                // Pseudo-plasma: identify() call is harmless but we don't announce type
-                seeker.identify();
-                log.append("  — IDENTIFIED\n");
+                if (seeker != null) {
+                    // Pseudo-plasma: identify() call is harmless but we don't announce type
+                    seeker.identify();
+                    log.append("  — IDENTIFIED\n");
+                } else {
+                    shuttle.identify();
+                    // What the lab bought is the negative: a shuttle, not a seeker.
+                    log.append("  — IDENTIFIED (not a seeking weapon)\n");
+                }
             } else {
                 log.append("  — FAILED\n");
             }
         }
         return ActionResult.ok(log.toString());
+    }
+
+    /**
+     * True if the shuttle's owner is on the acting ship's team. Owner-based rather than
+     * faction-based because a shuttle flying on its own has no controller to ask; this
+     * mirrors the scout-channel path. An unset owner counts as hostile, since refusing
+     * the attempt would be the worse failure.
+     */
+    private boolean sameOwnerTeam(Ship actingShip, Unit shuttle) {
+        com.sfb.Player a = actingShip.getOwner();
+        com.sfb.Player b = shuttle.getOwner();
+        return a != null && b != null && a.getTeamName() != null
+                && a.getTeamName().equals(b.getTeamName());
     }
 
     /**
