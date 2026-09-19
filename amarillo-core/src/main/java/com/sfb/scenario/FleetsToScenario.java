@@ -168,9 +168,17 @@ public final class FleetsToScenario {
             FleetSpec fleet, ScenarioSpec.SideSpec side, int index,
             ScenarioSpec spec, Conditions conditions) {
 
+        // A blank name falls back to the type, so two unnamed D7s would both be "D7" and
+        // the second would be unaddressable. Number the repeats instead.
         List<String> names = new ArrayList<>();
-        for (FleetSpec.ShipEntry ship : fleet.ships)
-            names.add(ship.name != null && !ship.name.isBlank() ? ship.name : ship.type);
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (FleetSpec.ShipEntry ship : fleet.ships) {
+            String base = ship.name != null && !ship.name.isBlank() ? ship.name : ship.type;
+            String name = base;
+            for (int n = 2; !used.add(name.toLowerCase(java.util.Locale.ROOT)); n++)
+                name = base + " " + n;
+            names.add(name);
+        }
 
         List<Deployment.Placement> laidOut = side.deploymentZone != null
                 ? Deployment.autoArrange(names, side.deploymentZone,

@@ -254,6 +254,12 @@ public class GameStateDto {
         public int lentEcm;          // ECM received from friendly scouts (D6.3144)
         public int lentEccm;         // ECCM received from friendly scouts (D6.3144)
         public int offensiveEw;      // enemy jamming imposed on this ship's own fire (G24.219)
+        /** Everything jamming fire AT this ship: generated + lent (weasel included) + built-in. */
+        public int ecmTotal;
+        /** Everything this ship can burn through with: generated + lent. */
+        public int eccmTotal;
+        /** Where the ECM comes from, e.g. "2 generated + 6 lent" — public by D6.32. */
+        public String ecmSources;
         public boolean leader;       // leader variant (S8.36)
         public boolean escort;       // carrier escort, needs a carrier group (S8.311)
         public boolean trueCarrier;  // fighters count against the force's limit (S8.321)
@@ -915,6 +921,15 @@ public class GameStateDto {
         return unit.getTractoringUnit() != null ? unit.getTractoringUnit().getName() : null;
     }
 
+    /** Name a contributing EW source, skipping the ones contributing nothing. */
+    private static void appendEwSource(StringBuilder sb, int points, String label) {
+        if (points <= 0)
+            return;
+        if (sb.length() > 0)
+            sb.append(" + ");
+        sb.append(points).append(' ').append(label);
+    }
+
     private static boolean hiddenFrom(String viewerTeam, com.sfb.Player owner) {
         return viewerTeam != null && owner != null && !viewerTeam.equals(owner.getTeamName());
     }
@@ -978,6 +993,17 @@ public class GameStateDto {
         dto.trueCarrier = ship.isTrueCarrier();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
+        // Totals computed here rather than re-added in the UI: the panel used to sum
+        // allocated + lent and stop, so a weasel's six points and an Orion's stealth ECM
+        // never appeared and the shooter learned of them from the dice log.
+        int lentTotal = ship.getLentEcmTotal();   // scouts AND weasel, capped at six (D6.392)
+        dto.ecmTotal = ship.getEcmAllocated() + lentTotal + ship.getStealthEcm();
+        dto.eccmTotal = ship.getEccmAllocated() + ship.getLentEccm();
+        StringBuilder src = new StringBuilder();
+        appendEwSource(src, ship.getEcmAllocated(), "generated");
+        appendEwSource(src, lentTotal, "lent");
+        appendEwSource(src, ship.getStealthEcm(), "stealth");
+        dto.ecmSources = src.length() == 0 ? null : src.toString();
         dto.lentEccm = ship.getLentEccm();
         dto.offensiveEw = ship.getOffensiveEw();
         dto.scoutEwPool = ship.getScoutEwPool();

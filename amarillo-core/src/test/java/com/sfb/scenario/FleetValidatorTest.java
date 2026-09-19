@@ -637,4 +637,47 @@ public class FleetValidatorTest {
 
         assertFalse(rulesBroken(FleetValidator.validate(fleet)).contains("S8.331"));
     }
+
+    // -------------------------------------------------------------------------
+    // Distinct names — not a rule in the book, a consequence of how orders work
+    // -------------------------------------------------------------------------
+
+    /**
+     * Reported from a playtest: two ships were given the same name in the builder, and the
+     * mission would not set up. A name is how every order addresses a unit — fire, lock-on,
+     * tractor, the map DTO, each player's redacted view — so the second ship of a pair is
+     * simply unreachable.
+     */
+    @Test
+    public void twoShipsWithTheSameNameIsAnError() {
+        Ship flag = ship("Flagship", 120, 3, 3);
+        Fleet fleet = new Fleet(List.of(flag, ship("Excelsior", 80, 4, 0),
+                ship("Excelsior", 80, 4, 0)), "Flagship", 500, 175);
+
+        List<FleetValidator.Violation> v = FleetValidator.validate(fleet);
+
+        assertFalse("a fleet with two identically named ships is not legal",
+                FleetValidator.isLegal(v));
+        assertTrue(v.toString(), v.toString().toLowerCase().contains("excelsior"));
+    }
+
+    @Test
+    public void namesDifferingOnlyByCaseStillCollide() {
+        // findShip and friends compare case-insensitively, so these are the same ship.
+        Ship flag = ship("Flagship", 120, 3, 3);
+        Fleet fleet = new Fleet(List.of(flag, ship("Excelsior", 80, 4, 0),
+                ship("EXCELSIOR", 80, 4, 0)), "Flagship", 500, 175);
+
+        assertFalse(FleetValidator.isLegal(FleetValidator.validate(fleet)));
+    }
+
+    @Test
+    public void distinctNamesAreFine() {
+        Ship flag = ship("Flagship", 120, 3, 3);
+        Fleet fleet = new Fleet(List.of(flag, ship("Excelsior", 80, 4, 0),
+                ship("Reliant", 80, 4, 0)), "Flagship", 500, 175);
+
+        assertTrue(FleetValidator.validate(fleet).toString(),
+                FleetValidator.isLegal(FleetValidator.validate(fleet)));
+    }
 }

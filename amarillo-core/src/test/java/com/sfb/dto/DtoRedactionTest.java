@@ -293,4 +293,41 @@ public class DtoRedactionTest {
 
         assertTrue("a Stinger is a fighter", dto.isFighter);
     }
+
+    /**
+     * A ship's TOTAL ECM, including a Wild Weasel's six points.
+     * <p>
+     * The panel summed allocated + lent and stopped, so a weasel's contribution (J3.23)
+     * and an Orion's built-in stealth (G15.8) were invisible — the player shooting at the
+     * ship first learned of them from the dice roll. EW strength is public by rule (D6.32
+     * has it announced in the lock-on segment), so there is nothing to withhold.
+     */
+    @Test
+    public void ecmTotalCountsAWeaselsContribution() {
+        fed.setEcmAllocated(2);
+        GameStateDto before = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dtoBefore = (GameStateDto.ShipDto) find(before, fed.getName());
+        assertEquals("just the two it generated", 2, dtoBefore.ecmTotal);
+
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(fed);
+        fed.setActiveWildWeasel(ww);
+
+        GameStateDto after = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dtoAfter = (GameStateDto.ShipDto) find(after, fed.getName());
+
+        assertEquals("2 generated + 6 from the weasel", 8, dtoAfter.ecmTotal);
+        assertNotNull("and it must say where they came from", dtoAfter.ecmSources);
+        assertTrue(dtoAfter.ecmSources, dtoAfter.ecmSources.contains("lent"));
+    }
+
+    @Test
+    public void ecmSourcesNamesOnlyWhatContributes() {
+        fed.setEcmAllocated(3);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dto = (GameStateDto.ShipDto) find(view, fed.getName());
+
+        assertEquals("3 generated", dto.ecmSources);
+    }
 }

@@ -366,10 +366,15 @@ function drawObjects(
     ctx.restore();
   }
 
-  // Two-pass rendering: terrain first so units always appear on top.
+  // Three-pass rendering: terrain first so units appear on top of it, then everything
+  // else, then whatever is in focus — a hex can hold several shuttles, and the one you
+  // are about to move is the one you most need to see.
   const terrain = objects.filter(o => o.type === 'TERRAIN');
-  const units   = objects.filter(o => o.type !== 'TERRAIN');
-  for (const obj of [...terrain, ...units]) {
+  const units   = objects.filter(o => o.type !== 'TERRAIN' && o.name !== selectedName);
+  const focused = selectedName
+    ? objects.filter(o => o.type !== 'TERRAIN' && o.name === selectedName)
+    : [];
+  for (const obj of [...terrain, ...units, ...focused]) {
     if (!obj.location) continue;
     const coords = parseLocation(obj.location);
     if (!coords) continue;
@@ -656,11 +661,28 @@ function drawObjects(
         ctx.arc(cx, cy, r, 0, 2 * Math.PI);
         ctx.fill();
       }
+
+      // The same ring a selected ship gets (drawShip uses this colour and width). Without
+      // it there is no telling which of several shuttles in a hex is the one moving.
+      if (obj.name === selectedName) {
+        ctx.strokeStyle = '#f0c040';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 4, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
     }
 
     if (obj.type === 'WILD_WEASEL') {
       const ww      = obj as import('../types/gameState').WildWeaselObject;
       const imgR    = SIZE * 0.2;   // shuttle image half-size
+      if (obj.name === selectedName) {
+        ctx.strokeStyle = '#f0c040';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, imgR + 4, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
       const ringR   = imgR * 1.45;  // status ring just outside the image
       const angle   = facingToAngle(ww.facing);
 

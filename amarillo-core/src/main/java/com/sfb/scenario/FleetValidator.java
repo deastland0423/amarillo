@@ -111,8 +111,32 @@ public final class FleetValidator {
         checkCarrierGroups(fleet, out);
         checkLeaders(fleet, out);
         checkShipCountGuideline(fleet, out);
+        checkDistinctNames(fleet, out);
         out.sort((a, b) -> Boolean.compare(b.isError(), a.isError()));
         return out;
+    }
+
+    /**
+     * Every ship needs its own name. Not a matter of taste: a name is how the whole game
+     * addresses a unit - fire orders, lock-ons, tractor targets, the map DTO, each
+     * player's redacted view - so a duplicate makes the second ship unreachable and breaks
+     * the battle before it starts. No rule number; this is a consequence of how the game
+     * is played rather than a passage in the book.
+     */
+    private static void checkDistinctNames(Fleet fleet, List<Violation> out) {
+        java.util.Map<String, Integer> seen = new java.util.LinkedHashMap<>();
+        for (Ship s : fleet.ships) {
+            String name = s.getName() == null ? "" : s.getName().trim();
+            if (name.isEmpty())
+                continue;   // an unnamed ship is given one at build time
+            seen.merge(name.toLowerCase(java.util.Locale.ROOT), 1, Integer::sum);
+        }
+        for (java.util.Map.Entry<String, Integer> e : seen.entrySet()) {
+            if (e.getValue() > 1)
+                out.add(new Violation(null, Severity.ERROR,
+                        e.getValue() + " ships are called \"" + e.getKey() + "\" — every ship"
+                        + " needs its own name, or orders cannot tell them apart", null));
+        }
     }
 
     /** True if nothing is actually broken; advisories do not make a fleet illegal. */
