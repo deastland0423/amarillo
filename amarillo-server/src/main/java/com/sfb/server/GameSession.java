@@ -2201,6 +2201,16 @@ public class GameSession {
                     .findFirst().orElse(null);
             if (w == null)
                 return ActionResult.fail("Weapon not found on attacker: " + wName);
+            // fetchAllWeapons() includes drone racks, which are Launchers rather than
+            // direct-fire weapons. Refuse here so the player gets a reason instead of core
+            // quietly dropping it from the volley. A G-rack firing as an ADD (FD3.7) is not
+            // built yet; when it is, the rack will be a DirectFire in that mode and this
+            // will let it through without changes.
+            if (!(w instanceof com.sfb.weapons.DirectFire))
+                return ActionResult.fail(w.getName()
+                        + " is a launcher, not a direct-fire weapon — launch it from the"
+                        + " Activity phase. (A G-rack firing as an ADD, FD3.7, is not"
+                        + " implemented yet.)");
             weapons.add(w);
         }
 

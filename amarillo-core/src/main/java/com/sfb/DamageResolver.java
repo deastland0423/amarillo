@@ -672,6 +672,20 @@ class DamageResolver {
                 log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
                 continue;
             }
+            // Not everything a ship carries can be fired AT a target. A drone rack is a
+            // Launcher: it puts a seeking weapon on the map and the weapon flies itself.
+            // The dispatch below ends in an unguarded cast to DirectFire, so anything else
+            // reaching it took the whole request down with a ClassCastException.
+            //
+            // Note this tests the CAPABILITY, not the class. A G-rack may fire as an ADD
+            // under FD3.7 — when that is built, the rack will be a DirectFire in that mode
+            // and this guard will stop applying to it on its own, rather than standing in
+            // the way as a hardcoded "racks cannot fire".
+            if (!(w instanceof DirectFire)) {
+                log.append("  ").append(w.getName())
+                        .append("  cannot be fired at a target — it launches seeking weapons\n");
+                continue;
+            }
             try {
                 // G23.84: an enveloping hellbore fired at a ship generating an active ESG
                 // hits the field automatically (no roll). The field absorbs up to its
