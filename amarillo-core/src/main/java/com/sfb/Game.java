@@ -589,6 +589,50 @@ public class Game {
                 + " (C10.13); it cannot be taken back this turn (C10.131)");
     }
 
+    /**
+     * Pay for {@code uses} transporter activations, drawing on reserve power if the energy
+     * banked at allocation will not cover them.
+     * <p>
+     * A use costs 0.2 and batteries are whole points, so a shortfall draws one point of
+     * reserve power (H7.x) into the bank - which buys five uses, and the remainder stays
+     * banked for the rest of the turn rather than being lost. Tractors work the same way
+     * (G7.15), and a ship that allocated nothing to transporters can still beam if it has
+     * the batteries to pay as it goes.
+     *
+     * @return false if the ship cannot pay, having spent nothing
+     */
+    boolean spendTransporterEnergy(Ship ship, int uses) {
+        com.sfb.systemgroups.Transporters t = ship.getTransporters();
+        if (t.getAvailableTrans() == 0 || uses <= 0)
+            return uses <= 0;
+        if (transporterUsesAvailable(ship) < uses)
+            return false;
+        for (int i = 0; i < uses; i++) {
+            if (t.useTransporter())
+                continue;
+            // Bank short: buy a point of reserve power and try that use again.
+            if (!ship.getPowerSystems().useBattery(1))
+                return false;
+            t.bankEnergy(1.0);
+            if (!t.useTransporter())
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * How many transporter activations this ship could still pay for, counting banked
+     * energy and whole points of battery alike, and capped by working transporters.
+     */
+    public int transporterUsesAvailable(Ship ship) {
+        com.sfb.systemgroups.Transporters t = ship.getTransporters();
+        if (t.getAvailableTrans() == 0)
+            return 0;
+        double energy = t.getBankedEnergy() + ship.getPowerSystems().getBatteryPower();
+        int affordable = (int) (energy / com.sfb.systemgroups.Transporters.energyPerUse() + 1e-6);
+        return Math.min(t.getAvailableTrans(), affordable);
+    }
+
     /** True when either unit holds the other in a tractor beam (G7.412). */
     boolean tractorLinkBetween(Ship a, com.sfb.objects.Unit b) {
         return tractorResolver.linkExistsBetween(a, b);

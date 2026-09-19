@@ -222,9 +222,11 @@ class BoardingResolver {
             return ActionResult.fail(target.getName() + " shield #" + targetShieldNum
                     + " is active — cannot beam through");
 
-        // Spend transporter energy
-        for (int i = 0; i < numParties; i++)
-            actingShip.getTransporters().useTransporter();
+        // Spend transporter energy — banked first, then reserve power (H7.x).
+        if (!game.spendTransporterEnergy(actingShip, numParties))
+            return ActionResult.fail(actingShip.getName() + " cannot power " + numParties
+                    + " transporter use" + (numParties == 1 ? "" : "s")
+                    + " — not enough transporter energy or battery power");
 
         return null; // all clear
     }
@@ -278,7 +280,10 @@ class BoardingResolver {
         }
 
         // D6.372: a jammed beam still expends the operation (spend it first)
-        actingShip.getTransporters().useTransporter();
+        if (!game.spendTransporterEnergy(actingShip, 1))
+            return ActionResult.fail(actingShip.getName()
+                    + " cannot power a transporter use — no energy banked and no battery"
+                    + " power to draw on");
         Game.D637Result ew = game.rollD637(actingShip, objective, "Transporter");
         if (ew != null && ew.blocked)
             return ActionResult.ok(ew.line + " — transporter jammed, " + objective.getName()
@@ -352,9 +357,11 @@ class BoardingResolver {
                         + " is active — cannot beam through (G8.21)");
         }
 
-        // Spend transporters
-        for (int i = 0; i < usesNeeded; i++)
-            source.getTransporters().useTransporter();
+        // Spend transporters — banked energy first, then reserve power (H7.x).
+        if (!game.spendTransporterEnergy(source, usesNeeded))
+            return ActionResult.fail(source.getName() + " cannot power " + usesNeeded
+                    + " transporter use" + (usesNeeded == 1 ? "" : "s")
+                    + " — not enough transporter energy or battery power");
 
         // Move crew
         source.getCrew().setAvailableCrewUnits(available - amount);

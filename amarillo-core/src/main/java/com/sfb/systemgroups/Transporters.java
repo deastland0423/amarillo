@@ -7,6 +7,8 @@ import com.sfb.objects.Unit;
 public class Transporters implements Systems {
 
 	private static final double ENERGY_PER_USE = 0.2;
+	/** Slack for binary floating point: 0.2 and 1.0 do not divide exactly. */
+	private static final double EPSILON = 1e-9;
 
 	private int    trans;
 	private int    availableTrans;
@@ -42,13 +44,16 @@ public class Transporters implements Systems {
 	/** How many uses remain given currently banked energy. */
 	public int availableUses() {
 		if (availableTrans == 0) return 0;
-		return (int) ((bankedEnergy - energyUsed) / ENERGY_PER_USE);
+		return (int) ((bankedEnergy - energyUsed) / ENERGY_PER_USE + EPSILON);
 	}
 
 	/** Spend energy for one transporter use. Returns false if insufficient energy or no working transporters. */
 	public boolean useTransporter() {
 		if (availableTrans == 0) return false;
-		if (bankedEnergy - energyUsed < ENERGY_PER_USE) return false;
+		// A point of energy is five uses at 0.2, but 1.0 - 0.8 is 0.19999999999999996 in
+		// binary floating point, so a bare comparison loses the fifth use. Compare with a
+		// tolerance, as the movement cost does for the same reason.
+		if (bankedEnergy - energyUsed < ENERGY_PER_USE - EPSILON) return false;
 		energyUsed += ENERGY_PER_USE;
 		return true;
 	}
