@@ -812,11 +812,13 @@ function shuttleTooltipLines(
   ) as ShipObject | undefined;
   const faction = parentShip?.faction ?? '?';
 
-  // Fog-of-war: SUICIDE_SHUTTLE and SCATTER_PACK appear as "Shuttle" until owned or identified
-  const revealed = isMine || !!(shuttle as any).isIdentified;
+  // Fog-of-war is the server's job and it does it properly: a SUICIDE_SHUTTLE or a
+  // SCATTER_PACK only ever reaches a viewer entitled to see it (its owner, or anyone once a
+  // pack has released its drones). It used to be unmasked here on isIdentified as well,
+  // which G4.233 forbids — identification never reveals a bomb or a load of drones.
   let typeLabel: string;
-  if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = revealed ? 'Suicide Shuttle' : 'Shuttle';
-  else if (shuttle.type === 'SCATTER_PACK') typeLabel = revealed ? 'Scatter Pack'   : 'Shuttle';
+  if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = 'Suicide Shuttle';
+  else if (shuttle.type === 'SCATTER_PACK') typeLabel = 'Scatter Pack';
   // A weasel is public by rule — its interference announces it at launch (J3.0), which is
   // why it is not subject to the fog-of-war above.
   else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';
@@ -838,6 +840,17 @@ function shuttleTooltipLines(
   if (shuttle.type === 'WILD_WEASEL') {
     if ((shuttle as any).exploding)          lines.push('Status:   EXPLODING (J3.21)');
     else if ((shuttle as any).postExplosion) lines.push('Status:   spent');
+  }
+  // G4.233: what a lab or a scout channel bought. A seeking course narrows an enemy
+  // shuttle to a suicide shuttle or a scatter pack without saying which — that is the
+  // whole of the answer, so show it and nothing more.
+  if (!isMine && (shuttle as any).isIdentified) {
+    if ((shuttle as any).seekingCourse) {
+      const t = (shuttle as any).seekingTargetName;
+      lines.push(`Course:   SEEKING${t ? ` ${String.fromCharCode(8594)} ${t}` : ''}`);
+    } else {
+      lines.push('Course:   not seeking');
+    }
   }
   return lines;
 }

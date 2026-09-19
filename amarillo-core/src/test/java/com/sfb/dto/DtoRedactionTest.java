@@ -104,15 +104,85 @@ public class DtoRedactionTest {
                 instanceof GameStateDto.SuicideShuttleDto);
     }
 
+    /**
+     * G4.233: "A successful attempt reveals if the shuttle is manned or unmanned and if it
+     * is following a seeking course ... but not if it is carrying drones or a suicide
+     * bomb."
+     * <p>
+     * This test used to assert the opposite — that identification revealed the suicide
+     * shuttle outright, warhead and arming turns and all. It was wrong against the book,
+     * and it held the wrong behaviour in place. What a lab buys is that the thing is on a
+     * seeking course and what it is aimed at; whether the bang comes from a bomb or from a
+     * bellyful of drones is exactly what stays hidden.
+     */
     @Test
-    public void identifiedEnemySuicideShuttle_isRevealed() {
+    public void identifiedEnemySuicideShuttle_revealsItsCourseButNotItsBomb() {
         SuicideShuttle ss = klingonSuicideShuttle();
-        ss.identify(); // lab identification (SeekerControl)
+        ss.identify(); // lab identification (G4.2)
+
+        GameStateDto fedView = new GameStateDto(game, "Federation");
+        GameStateDto.MapObjectDto obj = find(fedView, "IKV Saber-Shuttle-1");
+
+        assertFalse("identification must not reveal the suicide bomb (G4.233)",
+                obj instanceof GameStateDto.SuicideShuttleDto);
+        assertTrue("it stays a plain shuttle to the enemy", obj instanceof GameStateDto.ShuttleDto);
+
+        GameStateDto.ShuttleDto sd = (GameStateDto.ShuttleDto) obj;
+        assertTrue("but the enemy now knows it was identified", sd.isIdentified);
+        assertTrue("and that it is on a seeking course (G4.233)", sd.seekingCourse);
+        assertEquals("with its target, as for a drone (G4.231)",
+                "USS Enterprise", sd.seekingTargetName);
+    }
+
+    /**
+     * The other half of the same rule, and the reason it matters: an identified suicide
+     * shuttle and an identified scatter pack must be indistinguishable. If either one
+     * revealed its payload, the bluff between them would be over.
+     */
+    @Test
+    public void anIdentifiedPackAndAnIdentifiedSuicideShuttleReadAlike() {
+        SuicideShuttle ss = klingonSuicideShuttle();
+        ss.identify();
+
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        pack.setName("IKV Saber-Shuttle-3");
+        pack.setLocation(new Location(18, 12));
+        pack.setOwner(klingonPlayer);
+        pack.setTarget(fed);
+        pack.setController(klingon);
+        pack.addDrone(new Drone(DroneType.TypeI));
+        game.getSeekers().add(pack);
+        pack.identify();
+
+        GameStateDto fedView = new GameStateDto(game, "Federation");
+        GameStateDto.MapObjectDto a = find(fedView, "IKV Saber-Shuttle-1");
+        GameStateDto.MapObjectDto b = find(fedView, "IKV Saber-Shuttle-3");
+
+        assertEquals("the two must arrive as the same kind of object",
+                a.getClass(), b.getClass());
+        assertTrue(a instanceof GameStateDto.ShuttleDto);
+
+        GameStateDto.ShuttleDto sa = (GameStateDto.ShuttleDto) a;
+        GameStateDto.ShuttleDto sb = (GameStateDto.ShuttleDto) b;
+        assertEquals("both report a seeking course", sa.seekingCourse, sb.seekingCourse);
+        assertEquals("both report the same target", sa.seekingTargetName, sb.seekingTargetName);
+    }
+
+    /** Releasing the drones is what makes a pack public — not being identified. */
+    @Test
+    public void aReleasedPackIsPublic() {
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        pack.setName("IKV Saber-Shuttle-4");
+        pack.setLocation(new Location(18, 13));
+        pack.setOwner(klingonPlayer);
+        pack.addDrone(new Drone(DroneType.TypeI));
+        game.getSeekers().add(pack);
+        pack.release();
 
         GameStateDto fedView = new GameStateDto(game, "Federation");
 
-        assertTrue(find(fedView, "IKV Saber-Shuttle-1")
-                instanceof GameStateDto.SuicideShuttleDto);
+        assertTrue("everyone saw the drones come out",
+                find(fedView, "IKV Saber-Shuttle-4") instanceof GameStateDto.ScatterPackDto);
     }
 
     @Test
@@ -164,7 +234,7 @@ public class DtoRedactionTest {
                 (GameStateDto.PlasmaTorpedoDto) find(fedView, "IKV Saber-Plasma-1");
 
         assertFalse("Pseudo status must be hidden (FP1.4)", dto.pseudo);
-        assertEquals("Type must be hidden until identified", "?", dto.plasmaType);
+        assertEquals("Type must be hidden from the enemy", "?", dto.plasmaType);
         assertNull(dto.targetName);
 
         GameStateDto klingonView = new GameStateDto(game, "Klingons");
@@ -172,6 +242,37 @@ public class DtoRedactionTest {
                 (GameStateDto.PlasmaTorpedoDto) find(klingonView, "IKV Saber-Plasma-1");
         assertTrue("Owner sees the truth", own.pseudo);
         assertEquals("G", own.plasmaType);
+    }
+
+    /**
+     * G4.232: "Labs can only reveal the target of a plasma torpedo ... Note that players
+     * cannot distinguish between plasma torpedoes and pseudo-plasma torpedoes."
+     * <p>
+     * So identification buys the target and stops. It used to open the whole record: an
+     * identified torpedo handed the enemy its type AND its pseudo status, which is the one
+     * fact a pseudo exists to keep. Nothing caught it because nothing tested an identified
+     * plasma at all — the existing test only ever looked at an unidentified one.
+     */
+    @Test
+    public void identifiedEnemyPlasma_revealsItsTargetAndNothingElse() {
+        PlasmaTorpedo torp = new PlasmaTorpedo(PlasmaType.G, WeaponArmingType.STANDARD);
+        torp.setName("IKV Saber-Plasma-2");
+        torp.setLocation(new Location(19, 11));
+        torp.setPseudoPlasma(true);
+        torp.setController(klingon);
+        torp.setTarget(fed);
+        game.getSeekers().add(torp);
+        torp.identify();
+
+        GameStateDto.PlasmaTorpedoDto dto = (GameStateDto.PlasmaTorpedoDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Plasma-2");
+
+        assertEquals("the target is what a lab buys (G4.232)", "USS Enterprise", dto.targetName);
+        assertFalse("a pseudo stays indistinguishable even after identification (G4.232)",
+                dto.pseudo);
+        assertEquals("and the type is not part of what is revealed (G4.232)",
+                "?", dto.plasmaType);
+        assertTrue("strength is always known either way (FP1.32)", dto.currentStrength >= 0);
     }
 
     @Test

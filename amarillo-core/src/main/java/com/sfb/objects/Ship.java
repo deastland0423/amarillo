@@ -1454,12 +1454,14 @@ public class Ship extends Unit implements DroneController {
 	 * The channel stays powered throughout: only the function is suspended, and it resumes
 	 * on its own once the condition clears (G24.162, G24.333).
 	 * <p>
-	 * G24.16 also bars channel use during Erratic Maneuvers (C10.52), which this engine does
-	 * not model yet — add the clause here when EM arrives.
+	 * Erratic Maneuvers bar channel use too (G24.16, C10.52) — the same prohibition G4.21
+	 * puts on identifying with labs.
 	 */
 	public String scoutChannelBlockReason(boolean selfProtection) {
 		if (!selfProtection && cloak != null && cloak.isRestrictingActions())
 			return getName() + " is cloaked — only self-protection may use a channel (G24.16, G13.515)";
+		if (isUsingEm())
+			return getName() + " is using Erratic Maneuvers — scout channels are unusable (G24.16, C10.52)";
 		if (activeWildWeasel != null && !activeWildWeasel.isPostExplosion())
 			return getName() + " has an operating Wild Weasel — scout channels are unusable (G24.16, J3.403)";
 		return null;

@@ -404,7 +404,15 @@ public class GameStateDto {
         public int holdCrew;            // crew units currently in the hold
         public int holdSpacesUsed;      // personnel spaces occupied
         public int personnelCapacity;   // personnel-space capacity of the hold
-        public boolean isIdentified;    // true once an enemy scout confirmed it (as non-seeker) (G24.25)
+        public boolean isIdentified;    // true once an enemy lab or scout identified it (G4.2)
+        /**
+         * G4.233: a successful identification reveals whether the shuttle is following a
+         * seeking course and, if it is, its target — and NOTHING about drones aboard
+         * or a suicide bomb. So this pair is all an enemy ever learns about a suicide
+         * shuttle or a loaded scatter pack; it still arrives typed as a plain shuttle.
+         */
+        public boolean seekingCourse;
+        public String seekingTargetName;
     }
 
     // -------------------------------------------------------------------------
@@ -737,17 +745,24 @@ public class GameStateDto {
             } else if (seeker instanceof PlasmaTorpedo) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 mapObjects.add(fromPlasma(torp,
-                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())) && !torp.isIdentified()));
+                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())),
+                        torp.isIdentified()));
             } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                 com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
-                if (hiddenFrom(viewerTeam, ss.getOwner()) && !ss.isIdentified())
-                    mapObjects.add(fromShuttle(ss)); // renders as a plain shuttle
+                // G4.233: identification does NOT reveal a suicide bomb, so an enemy sees a
+                // plain shuttle whether or not it has been identified — with the seeking
+                // course and target added once it has. This used to open the whole DTO on
+                // identification, handing over the warhead and the arming turns.
+                if (hiddenFrom(viewerTeam, ss.getOwner()))
+                    mapObjects.add(fromShuttle(ss));
                 else
                     mapObjects.add(fromSuicideShuttle(ss));
             } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
                 com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
-                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isIdentified())
-                    mapObjects.add(fromShuttle(pack)); // unreleased pack: plain shuttle
+                // G4.233 again: "not if it is carrying drones". Releasing them is what makes
+                // a pack public, not being identified.
+                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isReleased())
+                    mapObjects.add(fromShuttle(pack));
                 else
                     mapObjects.add(fromScatterPack(pack));
             }
@@ -1373,6 +1388,14 @@ public class GameStateDto {
         dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
         dto.isIdentified = shuttle.isIdentified();
+        if (shuttle.isIdentified() && shuttle instanceof Seeker) {
+            // G4.233: identification reveals the seeking course and its target (as for a
+            // drone, G4.231). It reveals nothing about the payload, which is why an
+            // identified suicide shuttle and an identified scatter pack read exactly alike.
+            dto.seekingCourse = true;
+            com.sfb.objects.Unit t = ((Seeker) shuttle).getTarget();
+            dto.seekingTargetName = t != null ? t.getName() : null;
+        }
         return dto;
     }
 
@@ -1470,7 +1493,11 @@ public class GameStateDto {
         return dto;
     }
 
-    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean hideSecrets) {
+    /**
+     * @param enemyView  true when the viewer is not on the torpedo's side
+     * @param identified true once a lab or scout channel has identified it (G4.2)
+     */
+    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean enemyView, boolean identified) {
         // No tractoredBy: a tractor beam cannot hold a plasma torpedo — it is energy, not
         // a physical object. Ships, shuttles, drones and canisters can all be held.
         PlasmaTorpedoDto dto = new PlasmaTorpedoDto();
@@ -1481,12 +1508,16 @@ public class GameStateDto {
         dto.currentStrength = torp.getCurrentStrength();
         dto.controllerFaction = controllerFaction(torp.getController());
         dto.controllerName = torp.getController() != null ? torp.getController().getName() : null;
-        if (hideSecrets) {
-            // Type, pseudo status, and target stay unknown until identified —
-            // a pseudo must be indistinguishable from a real torpedo (FP1.4)
+        if (enemyView) {
+            // G4.232: a lab "can only reveal the target of a plasma torpedo" and cannot
+            // distinguish a real torpedo from a pseudo (FP1.4). Identification therefore
+            // buys the target and nothing else — type and pseudo status stay hidden even
+            // after it, which is what makes a pseudo worth launching. Strength is always
+            // known (FP1.32) and is sent above either way.
             dto.plasmaType = "?";
             dto.pseudo = false;
-            dto.targetName = null;
+            dto.targetName = identified && torp.getTarget() != null
+                    ? torp.getTarget().getName() : null;
         } else {
             dto.plasmaType = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
             dto.pseudo = torp.isPseudoPlasma();

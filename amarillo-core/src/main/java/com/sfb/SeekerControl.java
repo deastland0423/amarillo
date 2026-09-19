@@ -179,6 +179,16 @@ class SeekerControl {
     ActionResult identifySeekers(Ship actingShip, List<String> seekerNames) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Lab identification can only be attempted during the Activity phase");
+        // G4.21: a cloaked ship (G13.56) or one using Erratic Maneuvers (C10.52) cannot
+        // identify with labs. Note what the rule does NOT bar: this is expressly allowed
+        // under wild weasel restrictions (J3.13), unlike a scout channel (J3.403).
+        if (actingShip.getCloakingDevice() != null
+                && actingShip.getCloakingDevice().isRestrictingActions())
+            return ActionResult.fail(actingShip.getName()
+                    + " is cloaked and cannot identify with labs (G4.21, G13.56)");
+        if (actingShip.isUsingEm())
+            return ActionResult.fail(actingShip.getName()
+                    + " is using Erratic Maneuvers and cannot identify with labs (G4.21, C10.52)");
         if (actingShip.getLabs().getAvailableLab() <= 0)
             return ActionResult.fail(actingShip.getName() + " has no available labs");
         if (seekerNames == null || seekerNames.isEmpty())
@@ -234,15 +244,28 @@ class SeekerControl {
                     .append("  (die ").append(roll).append(")");
 
             if (roll > range) {
-                if (seeker != null) {
+                if (seeker != null)
                     // Pseudo-plasma: identify() call is harmless but we don't announce type
                     seeker.identify();
-                    log.append("  — IDENTIFIED\n");
-                } else {
+                else
                     shuttle.identify();
-                    // What the lab bought is the negative: a shuttle, not a seeker.
-                    log.append("  — IDENTIFIED (not a seeking weapon)\n");
+                log.append("  — IDENTIFIED");
+                // G4.233: identifying a SHUTTLE reveals whether it is on a seeking course
+                // and, if so, its target -- never whether it carries drones or a suicide
+                // bomb. A suicide shuttle and a loaded scatter pack are both shuttles and
+                // both seekers, so they read exactly alike here, which is the point: the
+                // lab narrows it to one of the two and stops.
+                if (target instanceof com.sfb.objects.shuttles.Shuttle) {
+                    if (target instanceof Seeker) {
+                        Unit t = ((Seeker) target).getTarget();
+                        log.append(" (on a seeking course")
+                           .append(t != null ? ", target " + t.getName() : "")
+                           .append(")");
+                    } else {
+                        log.append(" (not on a seeking course)");
+                    }
                 }
+                log.append("\n");
             } else {
                 log.append("  — FAILED\n");
             }

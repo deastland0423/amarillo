@@ -99,6 +99,18 @@ public class LabIdentifyShuttleTest {
         return s;
     }
 
+    /** An enemy suicide shuttle: a shuttle, a seeker, and aimed at us. */
+    private SuicideShuttle enemySuicideShuttleAt(int col, int row) {
+        SuicideShuttle ss = new SuicideShuttle(new AdminShuttle());
+        ss.setName("IKS Fury-Admin-2");
+        ss.setOwner(empire);
+        ss.setController(klingon);
+        ss.setTarget(fed);
+        ss.setLocation(new Location(col, row));
+        game.getSeekers().add(ss);
+        return ss;
+    }
+
     private ActionResult identify(Shuttle s) {
         return game.identifySeekers(fed, Collections.singletonList(s.getName()));
     }
@@ -117,15 +129,53 @@ public class LabIdentifyShuttleTest {
         assertTrue("and it is now known to be a shuttle", s.isIdentified());
     }
 
-    /** The answer a lab buys about a shuttle is the negative one, and the log says so. */
+    /**
+     * G4.233: what an identification reveals about a shuttle is whether it is following a
+     * seeking course. For a genuine shuttle that is the negative answer, and the log says
+     * so in those terms rather than claiming more than the rule gives.
+     */
     @Test
-    public void theLogSaysItIsNotASeekingWeapon() {
+    public void theLogSaysWhetherItIsOnASeekingCourse() {
         Shuttle s = enemyShuttleAt(10, 10);
 
         String msg = identify(s).getMessage();
 
-        assertTrue("the point of identifying a shuttle is ruling out a seeker: " + msg,
-                msg.contains("not a seeking weapon"));
+        assertTrue("a plain shuttle is not seeking, and that is the answer bought: " + msg,
+                msg.contains("not on a seeking course"));
+    }
+
+    /**
+     * And for one that IS seeking, the target comes with it (G4.233, via G4.231). This is
+     * the whole reason a player spends a lab on a shuttle-looking contact.
+     */
+    @Test
+    public void identifyingASeekingShuttleRevealsItsTarget() {
+        SuicideShuttle ss = enemySuicideShuttleAt(10, 10);
+
+        String msg = game.identifySeekers(fed, Collections.singletonList(ss.getName()))
+                .getMessage();
+
+        assertTrue("it should report the seeking course: " + msg,
+                msg.contains("on a seeking course"));
+        assertTrue("and the target it is aimed at: " + msg,
+                msg.contains(fed.getName()));
+    }
+
+    /**
+     * The negative that G4.233 is explicit about: "but not if it is carrying drones or a
+     * suicide bomb." A suicide shuttle and a loaded scatter pack must read alike, so the
+     * log must not name either payload.
+     */
+    @Test
+    public void theLogNeverNamesThePayload() {
+        SuicideShuttle ss = enemySuicideShuttleAt(10, 10);
+
+        String msg = game.identifySeekers(fed, Collections.singletonList(ss.getName()))
+                .getMessage().toLowerCase();
+
+        assertFalse("a lab cannot tell a bomb from a bellyful of drones (G4.233): " + msg,
+                msg.contains("suicide") || msg.contains("warhead") || msg.contains("bomb"));
+        assertFalse(msg.contains("scatter") || msg.contains("drones"));
     }
 
     @Test
@@ -162,20 +212,15 @@ public class LabIdentifyShuttleTest {
      */
     @Test
     public void aSuicideShuttleIsIdentifiableToo() {
-        SuicideShuttle ss = new SuicideShuttle(new AdminShuttle());
-        ss.setName("IKS Fury-Admin-2");
-        ss.setOwner(empire);
-        ss.setController(klingon);
-        ss.setLocation(new Location(10, 10));
-        game.getSeekers().add(ss);
+        SuicideShuttle ss = enemySuicideShuttleAt(10, 10);
 
         ActionResult r = game.identifySeekers(fed, Collections.singletonList(ss.getName()));
 
         assertTrue(r.getMessage(), r.isSuccess());
         assertTrue("a suicide shuttle identifies as the seeker it is: " + r.getMessage(),
                 ss.isIdentified());
-        assertFalse("and so it does not get the plain-shuttle wording",
-                r.getMessage().contains("not a seeking weapon"));
+        assertTrue("and it reports the seeking course a shuttle identification buys",
+                r.getMessage().contains("on a seeking course"));
     }
 
     // ---------------------------------------------------------------- seekers still work
@@ -193,6 +238,28 @@ public class LabIdentifyShuttleTest {
 
         assertTrue(r.getMessage(), r.isSuccess());
         assertTrue(r.getMessage(), d.isIdentified());
+    }
+
+    // ---------------------------------------------------------------- G4.21 prohibitions
+
+    /**
+     * G4.21: the procedure "cannot be used by ... one using Erratic Maneuvers (C10.52)".
+     * EM was not modelled when the lab path was written, so nothing here checked it.
+     */
+    @Test
+    public void aShipUsingErraticManeuversCannotIdentify() {
+        Shuttle s = enemyShuttleAt(10, 10);   // range 0: would otherwise always succeed
+        fed.announceEm(true, game.getAbsoluteImpulse());
+        fed.applyEmAnnouncement(game.getAbsoluteImpulse());   // stage 6E brings it into force
+        assertTrue("fixture needs EM in force", fed.isUsingEm());
+        int labsBefore = fed.getLabs().getAvailableLab();
+
+        ActionResult r = identify(s);
+
+        assertFalse("G4.21 bars it: " + r.getMessage(), r.isSuccess());
+        assertFalse(s.isIdentified());
+        assertEquals("and no lab is spent on a refused attempt",
+                labsBefore, fed.getLabs().getAvailableLab());
     }
 
     @Test
