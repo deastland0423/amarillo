@@ -4,6 +4,12 @@ import { useGameSocket } from '../hooks/useGameSocket';
 import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
+import {
+  hexRangeBetween as hexRange,
+  hexGetBearing,
+  hexGetRelativeBearing,
+  allowedFacingsFromMask,
+} from '../hex/geometry';
 import HexGrid from './HexGrid';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
@@ -244,77 +250,9 @@ function rotateArcMask(mask: number, facing: number): number {
 
 // Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an
 // arc bitmask that is already in absolute hex-grid coordinates.
-function allowedFacingsFromMask(arcMask: number): Set<number> {
-  const FACING_DIRS = [1, 5, 9, 13, 17, 21];
-  return new Set(FACING_DIRS.filter(d => (arcMask >> (d - 1)) & 1));
-}
-
 // Intersects two Sets.
 function intersectSets<T>(a: Set<T>, b: Set<T>): Set<T> {
   return new Set([...a].filter(x => b.has(x)));
-}
-
-// Zone-based bearing matching MapUtils.getBearing(Marker, Marker).
-// Returns SFB direction 1-24, or 0 if same hex.
-function hexGetBearing(srcCol: number, srcRow: number, tgtCol: number, tgtRow: number): number {
-  if (srcCol === tgtCol && srcRow === tgtRow) return 0;
-  const xOffset = tgtCol - srcCol;
-  if (xOffset === 0) return tgtRow < srcRow ? 1 : 13;
-  const absX = Math.abs(xOffset);
-  // Due west / due east land on the vertex between two directions: 19 between 17 and 21,
-  // 7 between 5 and 9. (4 and 10 belong to the twelve-point shield scheme, not here.)
-  if (absX % 2 === 0 && srcRow === tgtRow) return xOffset < 0 ? 19 : 7;
-
-  const srcEven = srcCol % 2 === 0;
-  const above   = srcEven ? tgtRow <= srcRow : tgtRow < srcRow;
-
-  const topArcY = srcEven ? srcRow - Math.floor(absX / 2)       : srcRow - Math.floor((absX + 1) / 2);
-  const botArcY = srcEven ? srcRow + Math.floor((absX + 1) / 2) : srcRow + Math.floor(absX / 2);
-
-  let spineOffset: number;
-  if (absX % 2 === 0) {
-    spineOffset = Math.floor(absX / 2) + absX;
-  } else {
-    const lg = _hexLargeOdd(absX), sm = _hexSmallOdd(absX);
-    spineOffset = above ? (srcEven ? sm : lg) : (srcEven ? lg : sm);
-  }
-  const spineY = above ? srcRow - spineOffset : srcRow + spineOffset;
-
-  if (xOffset < 0 && above) {
-    if (tgtRow === spineY)  return 23;
-    if (tgtRow === topArcY) return 21;
-    if (tgtRow < spineY)    return 24;
-    if (tgtRow > topArcY)   return 20;
-    return 22;
-  }
-  if (xOffset > 0 && above) {
-    if (tgtRow === spineY)  return 3;
-    if (tgtRow === topArcY) return 5;
-    if (tgtRow < spineY)    return 2;
-    if (tgtRow > topArcY)   return 6;
-    return 4;
-  }
-  if (xOffset < 0) {
-    if (tgtRow === spineY)  return 15;
-    if (tgtRow === botArcY) return 17;
-    if (tgtRow > spineY)    return 14;
-    if (tgtRow < botArcY)   return 18;
-    return 16;
-  }
-  // xOffset > 0, below
-  if (tgtRow === spineY)  return 11;
-  if (tgtRow === botArcY) return 9;
-  if (tgtRow > spineY)    return 12;
-  if (tgtRow < botArcY)   return 8;
-  return 10;
-}
-function _hexLargeOdd(x: number): number { let y = 2; for (let i = 1; i < x; i += 2) y += 3; return y; }
-function _hexSmallOdd(x: number): number { let y = 1; for (let i = 1; i < x; i += 2) y += 3; return y; }
-
-// Port of MapUtils.getRelativeBearing.
-function hexGetRelativeBearing(trueBearing: number, facing: number): number {
-  if (facing === 1) return trueBearing;
-  return trueBearing >= facing ? trueBearing - (facing - 1) : trueBearing + (24 - (facing - 1));
 }
 
 // FA = directions 21-24 and 1-5 (the seeker's forward arc).
@@ -1456,16 +1394,6 @@ const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; a
 ];
 
 // SFB hex range — replicates MapUtils.getRange (x = col, y = row).
-function hexRange(s1: { col: number; row: number }, s2: { col: number; row: number }): number {
-  const xDiff = Math.abs(s2.col - s1.col);
-  if (xDiff === 0) return Math.abs(s2.row - s1.row);
-  const even   = s1.col % 2 === 0;
-  const topY    = even ? s1.row - Math.floor(xDiff / 2) : s1.row - Math.floor((xDiff + 1) / 2);
-  const bottomY = even ? s1.row + Math.floor((xDiff + 1) / 2) : s1.row + Math.floor(xDiff / 2);
-  if (s2.row >= topY && s2.row <= bottomY) return xDiff;
-  return s2.row < topY ? xDiff + (topY - s2.row) : xDiff + (s2.row - bottomY);
-}
-
 // ---- Ship sidebar ----
 
 interface SidebarProps {

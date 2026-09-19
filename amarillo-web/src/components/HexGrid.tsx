@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
 import { parseLocation, facingToAngle, facingLabel, factionColor } from '../types/gameState';
+import { hexRange } from '../hex/geometry';
 
 // Cache of loaded token images keyed by tokenArt path.
 // Entries are HTMLImageElement once loaded, or null while loading/failed.
@@ -80,16 +81,6 @@ function hexCenter(col: number, row: number): [number, number] {
 }
 
 /** SFB hex range between two hexes — replicates MapUtils.getRange (x=col, y=row). */
-function hexRange(c1: number, r1: number, c2: number, r2: number): number {
-  const xDiff = Math.abs(c2 - c1);
-  if (xDiff === 0) return Math.abs(r2 - r1);
-  const even    = c1 % 2 === 0;
-  const topY    = even ? r1 - Math.floor(xDiff / 2) : r1 - Math.floor((xDiff + 1) / 2);
-  const bottomY = even ? r1 + Math.floor((xDiff + 1) / 2) : r1 + Math.floor(xDiff / 2);
-  if (r2 >= topY && r2 <= bottomY) return xDiff;
-  return r2 < topY ? xDiff + (topY - r2) : xDiff + (r2 - bottomY);
-}
-
 /** Return the [col, row] of the hex closest to pixel (px, py), or null if too far. */
 function pixelToHex(px: number, py: number, cols: number, rows: number): [number, number] | null {
   let bestCol = -1, bestRow = -1, bestDist = Infinity;
