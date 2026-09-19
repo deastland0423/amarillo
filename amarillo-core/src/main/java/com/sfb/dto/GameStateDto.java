@@ -51,6 +51,13 @@ public class GameStateDto {
     public static abstract class MapObjectDto {
         public String name;
         public String location; // "<x|y>" or null if off-map
+        /**
+         * Name of the ship holding this in a tractor beam, else null. On the base object
+         * because a beam can hold anything: a shuttle, a drone, a plasma torpedo, a probe
+         * canister. Ships report the same fact as {@code tractoredByName} and are drawn by
+         * their own pass, so they leave this null and are not drawn twice.
+         */
+        public String tractoredBy;
     }
 
     public static class TerrainDto extends MapObjectDto {
@@ -65,7 +72,6 @@ public class GameStateDto {
         public java.util.List<String> retrieval; // permitted retrieval methods
         public String ownerTeam;             // current controlling team (secured owner, or carrier's), else null
         public boolean secured;              // carried off a valid edge — permanent, out of play
-        public String tractoredBy;           // ship holding it in a beam (still free), else null
         public boolean beingRecovered;       // J1.621 rotation pull-in underway
         public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
     }
@@ -904,6 +910,11 @@ public class GameStateDto {
      * set, the unit has an owner, and the owner is on a different team.
      * Null viewer = omniscient (solo/dev); unowned units are public.
      */
+    /** The ship holding this unit in a beam, or null. */
+    private static String holderName(com.sfb.objects.Unit unit) {
+        return unit.getTractoringUnit() != null ? unit.getTractoringUnit().getName() : null;
+    }
+
     private static boolean hiddenFrom(String viewerTeam, com.sfb.Player owner) {
         return viewerTeam != null && owner != null && !viewerTeam.equals(owner.getTeamName());
     }
@@ -975,7 +986,10 @@ public class GameStateDto {
         dto.tBombs = ship.getTBombs();
         dto.dummyTBombs = ship.getDummyTBombs();
         dto.nuclearSpaceMines = ship.getNuclearSpaceMines();
-        dto.transporterUses = ship.getTransporters().availableUses();
+        // Counts batteries as well as banked energy: a ship that allocated nothing can
+        // still beam by drawing reserve power (H7.x), so "uses available" must say so or
+        // the UI will cap actions the ship could actually perform.
+        dto.transporterUses = game.transporterUsesAvailable(ship);
         dto.boardingParties = ship.getCrew().getAvailableBoardingParties();
         dto.commandos = ship.getCrew().getFriendlyTroops().commandos;
         dto.availableLab = ship.getLabs().getAvailableLab();
@@ -1309,6 +1323,7 @@ public class GameStateDto {
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();
+        dto.tractoredBy = holderName(shuttle);
         // Every shuttle's weapons, not just a fighter's. An admin shuttle builds itself a
         // 360-degree Ph-3, and both core and the fire endpoint have always been willing to
         // fire it - the client simply never heard about it, so the shuttle could not be
@@ -1394,6 +1409,7 @@ public class GameStateDto {
 
     private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
         DroneDto dto = new DroneDto();
+        dto.tractoredBy = holderName(drone);
         dto.name = drone.getName();
         dto.location = drone.getLocation() != null ? drone.getLocation().toString() : null;
         dto.facing = drone.getFacing();
@@ -1423,6 +1439,8 @@ public class GameStateDto {
     }
 
     private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean hideSecrets) {
+        // No tractoredBy: a tractor beam cannot hold a plasma torpedo — it is energy, not
+        // a physical object. Ships, shuttles, drones and canisters can all be held.
         PlasmaTorpedoDto dto = new PlasmaTorpedoDto();
         dto.name = torp.getName();
         dto.location = torp.getLocation() != null ? torp.getLocation().toString() : null;

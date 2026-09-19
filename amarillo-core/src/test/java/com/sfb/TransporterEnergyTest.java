@@ -147,4 +147,28 @@ public class TransporterEnergyTest {
         // Pinned because the battery arithmetic above depends on it.
         assertEquals(0.2, Transporters.energyPerUse(), 0.0001);
     }
+
+    // ---------------------------------------------------------------- a plasma is not cargo
+
+    @Test
+    public void aTractorBeamCannotHoldAPlasmaTorpedo() {
+        // PlasmaTorpedo extends Unit, and Unit is Tractorable, so a plasma turns up in the
+        // tractor target search by inheritance. It is energy rather than a physical object
+        // and cannot be caught, so the refusal has to be explicit.
+        com.sfb.objects.PlasmaTorpedo torp =
+                new com.sfb.objects.PlasmaTorpedo(com.sfb.properties.PlasmaType.G,
+                        com.sfb.properties.WeaponArmingType.STANDARD);
+        torp.setName("Plasma-1");
+        torp.setLocation(new Location(11, 10));
+        game.getSeekers().add(torp);
+
+        fed.getTractors().initForTurn(5);
+        fed.addLockOn(torp);
+        fed.setActiveFireControl(true);
+
+        Game.ActionResult r = game.establishTractor(fed, "Plasma-1", 1);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("plasma"));
+    }
 }

@@ -340,10 +340,12 @@ function drawObjects(
     ctx.restore();
   }
 
-  // Tractor lines to grabbed probe canisters being drawn aboard (J1.621/SH35.452)
+  // Tractor lines to anything else held in a beam — a shuttle, a drone, a plasma
+  // torpedo, or a probe canister being drawn aboard (J1.621/SH35.452). Ships are drawn by
+  // the pass above from their own field, so they are skipped here rather than doubled.
   for (const obj of objects) {
-    if (obj.type !== 'OBJECTIVE') continue;
-    const o = obj as import('../types/gameState').ObjectiveObject;
+    if (obj.type === 'SHIP') continue;
+    const o = obj as { tractoredBy?: string | null; location?: string | null };
     if (!o.tractoredBy || !o.location) continue;
     const holder = objects.find(h => h.type === 'SHIP' && h.name === o.tractoredBy) as import('../types/gameState').ShipObject | undefined;
     if (!holder?.location) continue;

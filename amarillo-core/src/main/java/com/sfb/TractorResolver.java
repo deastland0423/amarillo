@@ -249,6 +249,12 @@ class TractorResolver {
             target = activeShuttles.stream()
                     .filter(s -> s.getName().equalsIgnoreCase(targetName))
                     .<Tractorable>map(s -> s).findFirst().orElse(null);
+        // A plasma torpedo cannot be held. It is energy rather than a physical object, and
+        // it only reaches the search above because PlasmaTorpedo extends Unit, which is
+        // Tractorable — so the refusal has to be explicit. Ships, shuttles, drones and
+        // canisters can all be caught.
+        if (target instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("A tractor beam cannot hold a plasma torpedo");
         // SH35.452: a free probe canister may be caught in a tractor beam and
         // drawn aboard with the J1.621 rotation system — an inert Tractorable.
         if (target == null)

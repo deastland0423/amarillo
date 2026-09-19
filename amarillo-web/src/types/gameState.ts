@@ -244,6 +244,7 @@ export interface ShipObject extends MapObjectBase {
   tractored?:                  boolean;   // true if held in a tractor beam (G7.0)
   tractoredByName?:            string;    // name of the holding ship
   usingEm?:                    boolean;   // Erratic Maneuvers in force (C10.0)
+  transporterUses?:            number;    // activations still affordable, batteries included
   erraticCost?:                number;    // what EM costs this ship (C10.11/C10.12); 0 = cannot
   paidForEm?:                  boolean;   // bought at allocation, so EM may be announced (C10.11)
   emPending?:                  boolean;   // announced this impulse, in force at its end (C10.311)

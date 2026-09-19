@@ -1685,9 +1685,13 @@ function ShipSidebar({
   const canTac          = phase === 'Movement' && isMine && ship.speed === 0
                         && ((ship.tacAvailable ?? 0) > 0 || ship.sublightTacAvailable === true);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
+  // transporterUses is what the ship can actually pay for, batteries included (H7.x).
+  // This used to divide ONE point of energy by the per-use cost, which neither reflected
+  // the energy banked nor the reserve power available — it was the same number whatever
+  // the ship had left.
   const maxBoardingTotal = Math.min(
     ship.boardingParties + ship.commandos,
-    Math.min(ship.availableTransporters ?? 0, ship.transporterEnergyCost ? Math.floor(1 / ship.transporterEnergyCost) : 999),
+    Math.min(ship.availableTransporters ?? 0, ship.transporterUses ?? 0),
   );
 
   return (
