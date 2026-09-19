@@ -516,6 +516,12 @@ class LaunchCoordinator {
         pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
                                                                                // hidden
         pack.setLocation(launcher.getLocation());
+        // Whose it is, and where it came from. launchShuttle has always set both; this
+        // path never did, so a launched pack had no owner at all - which is why it showed
+        // no faction and no parent, and why anything keying off ownership (lock-on's
+        // own-side rule, lab identification, per-viewer redaction) could not place it.
+        pack.setOwner(launcher.getOwner());
+        pack.setParentShipName(launcher.getName());
         pack.setTarget(target);
         pack.setController(launcher);
         pack.setLaunchImpulse(game.getAbsoluteImpulse());

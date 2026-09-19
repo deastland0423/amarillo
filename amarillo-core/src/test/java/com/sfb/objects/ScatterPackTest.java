@@ -283,6 +283,38 @@ public class ScatterPackTest {
         assertTrue(game.getActiveShuttles().contains(loadedPack));
     }
 
+    /**
+     * A launched pack must carry its owner and its parent ship.
+     * <p>
+     * It did neither: launchShuttle set both, launchScatterPack set neither, and nothing
+     * noticed because the redaction test that guards pack secrecy builds its pack by hand
+     * and calls setOwner itself. So it proved the redaction logic while the real launch
+     * path walked past it — and hiddenFrom() returns FALSE for a null owner, meaning an
+     * enemy saw the pack rendered as a real SCATTER_PACK rather than as the anonymous
+     * shuttle it is supposed to look like.
+     */
+    @Test
+    public void launchedPack_carriesItsOwnerAndParent() {
+        com.sfb.Player fed = new com.sfb.Player();
+        fed.setTeamName("Federation");
+        launcher.setOwner(fed);
+
+        game.startTurn();
+        game.submitAllocation(launcher, makeAllocation(launcher));
+        game.submitAllocation(target, makeAllocation(target));
+        for (int guard = 0; guard < 20
+                && game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY; guard++)
+            game.advancePhase();
+
+        ActionResult launch = game.launchScatterPack(launcher, bay, loadedPack, target, 1, 6);
+        assertTrue(launch.getMessage(), launch.isSuccess());
+
+        assertSame("without an owner the enemy sees it as a scatter pack, not a shuttle",
+                fed, loadedPack.getOwner());
+        assertEquals("and it should know which ship put it out there",
+                launcher.getName(), loadedPack.getParentShipName());
+    }
+
     private com.sfb.systemgroups.Energy makeAllocation(Ship ship) {
         com.sfb.systemgroups.Energy e = new com.sfb.systemgroups.Energy();
         e.setLifeSupport(ship.getLifeSupportCost());

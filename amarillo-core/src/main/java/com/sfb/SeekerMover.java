@@ -173,6 +173,9 @@ class SeekerMover {
                         drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + game.nextSeekerSeq());
                         drone.setLocation(pack.getLocation());
                         drone.setFacing(pack.getFacing());
+                        // The drones inherit the pack's side. Without this they came out
+                        // ownerless, like the pack itself.
+                        drone.setOwner(pack.getOwner());
                         if (launcherName != null)
                             drone.setLauncherName(launcherName);
                         drone.setLaunchImpulse(game.getAbsoluteImpulse());
