@@ -34,6 +34,13 @@ public final class ShuttleCatalog {
     public static final class Entry {
         public final String type;          // key used by ship JSON and the ShuttleBay factory
         public final String name;          // display name
+        /**
+         * Short form used in a launched shuttle's name, e.g. "Admin", "GAS". Falls back to
+         * the display name. It names what the craft IS, never the role it is playing —
+         * that is the whole point (J3.0, FD7.0, J2.0 all rely on a role being unreadable
+         * from outside).
+         */
+        public final String shortName;
         public final String kind;          // "fighter" (costs BPV) or "shuttle" (carried free)
         public final List<String> factions;
         public final int year;             // first year of service
@@ -59,7 +66,9 @@ public final class ShuttleCatalog {
 
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
-              boolean canWeasel, boolean canSuicide, int scatterPackSize) {
+              boolean canWeasel, boolean canSuicide, int scatterPackSize,
+              String shortName) {
+            this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
             this.canWeasel = canWeasel;
             this.canSuicide = canSuicide;
             this.scatterPackSize = scatterPackSize;
@@ -128,7 +137,8 @@ public final class ShuttleCatalog {
                     n.path("bpv").asInt(0),
                     n.path("canWeasel").asBoolean(false),
                     n.path("canSuicide").asBoolean(false),
-                    n.path("scatterPackSize").asInt(0));
+                    n.path("scatterPackSize").asInt(0),
+                    n.path("shortName").asText(null));
             registry.put(e.type.toLowerCase(), e);
         }
         loaded = true;
@@ -144,7 +154,40 @@ public final class ShuttleCatalog {
     }
 
     /** The entry for a type key, or null if it is not catalogued. */
+    /**
+     * Where to look when nobody has loaded the catalogue explicitly. Mirrors
+     * OrionCartelTable: the working directory differs between the server (repo root) and a
+     * test run (module directory), and forgetting to load is not an acceptable failure —
+     * every role eligibility answer depends on this file, so an unloaded catalogue silently
+     * makes every shuttle ineligible for everything.
+     */
+    private static final String[] DEFAULT_PATHS = {
+        "data/shuttles/shuttles.json",
+        "../data/shuttles/shuttles.json",
+    };
+
+    /** Load from the standard location if nothing has loaded it yet. */
+    private static synchronized void ensureLoaded() {
+        if (loaded)
+            return;
+        for (String path : DEFAULT_PATHS) {
+            File f = new File(path);
+            if (f.exists()) {
+                try {
+                    load(f);
+                    return;
+                } catch (IOException e) {
+                    System.err.println("Failed to read shuttle catalogue at " + path
+                            + ": " + e.getMessage());
+                }
+            }
+        }
+        System.err.println("Shuttle catalogue not found on any default path — every shuttle"
+                + " will report itself ineligible for every special role");
+    }
+
     public static Entry get(String type) {
+        ensureLoaded();
         return type == null ? null : registry.get(type.toLowerCase());
     }
 

@@ -391,6 +391,8 @@ public class GameStateDto {
         public boolean usingEm;            // Erratic Maneuvers in force (C10.0)
         public boolean emSpeedCommitted;   // the point of speed is spent for the turn (C10.131)
         public boolean isFighter;          // a fighter, as opposed to an admin/other shuttle
+        /** What the craft IS — "Admin Shuttle", "General Assault Shuttle". Never the role. */
+        public String shuttleTypeName;
         public String parentPlayer; // name of the player who owns this shuttle
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
@@ -1356,6 +1358,11 @@ public class GameStateDto {
         // picked as an attacker and its phaser was unreachable from the game.
         dto.weapons = buildWeaponDtos(shuttle.getWeapons());
         dto.isFighter = shuttle instanceof com.sfb.objects.shuttles.Fighter;
+        // The type is a visible property of the craft; the ROLE it is playing is not, and
+        // is never sent. The hover used to call every non-fighter an "Admin Shuttle".
+        com.sfb.objects.ShuttleCatalog.Entry ce = shuttle.getCatalogType() == null ? null
+                : com.sfb.objects.ShuttleCatalog.get(shuttle.getCatalogType());
+        dto.shuttleTypeName = ce != null ? ce.name : null;
         if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
             com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
             dto.hetUsed = fighter.isTacticalManeuverUsed();

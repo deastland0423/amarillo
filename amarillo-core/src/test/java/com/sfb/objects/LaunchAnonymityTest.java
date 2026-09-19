@@ -22,6 +22,10 @@ import static org.junit.Assert.*;
  * things, and the DTO works hard to preserve it, rendering an enemy's unreleased pack as
  * a plain shuttle. All of which is undone if the name says "Suicide-1".
  * <p>
+ * The name reports the CRAFT: "IKS Fury-Admin-2". That is a visible property — a GAS is
+ * plainly not an admin shuttle — so it hides nothing that was hidden. What it must never
+ * report is the ROLE, and three shuttles of one type in three different roles read alike.
+ * <p>
  * The existing redaction tests cannot catch a regression here, because they build their
  * shuttles by hand and choose the names themselves. They prove the redaction works GIVEN
  * a uniform name; this proves the launch paths actually produce one. That gap is not
@@ -99,10 +103,12 @@ public class LaunchAnonymityTest {
         bay.getSpaces().get(0).setShuttle(shuttle);
     }
 
-    private void assertAnonymous(String name, String whatItReallyIs) {
-        assertTrue(whatItReallyIs + " was named \"" + name + "\" — a launched shuttle's name"
-                        + " must be \"<Ship>-Shuttle-<n>\" and say nothing about its type",
-                name.matches("^IKS Fury-Shuttle-\\d+$"));
+    /** Every launch from an admin shuttle reads alike, whatever role it is playing. */
+    private void assertReadsAsAdminShuttle(String name, String whatItReallyIs) {
+        assertTrue(whatItReallyIs + " was named \"" + name + "\" — all of these were built"
+                        + " from ADMIN shuttles, so all must read \"<Ship>-Admin-<n>\": the"
+                        + " name says what the craft IS and never which role it is playing",
+                name.matches("^IKS Fury-Admin-[0-9]+$"));
     }
 
     @Test
@@ -114,7 +120,7 @@ public class LaunchAnonymityTest {
         readyToLaunch();
         ActionResult r1 = game.launchShuttle(launcher, bay, admin, 4, 1);
         assertTrue(r1.getMessage(), r1.isSuccess());
-        assertAnonymous(admin.getName(), "an admin shuttle");
+        assertReadsAsAdminShuttle(admin.getName(), "an admin shuttle");
 
         // Suicide shuttle, fully armed.
         SuicideShuttle suicide = new SuicideShuttle(new AdminShuttle());
@@ -125,7 +131,7 @@ public class LaunchAnonymityTest {
         readyToLaunch();
         ActionResult r2 = game.launchSuicideShuttle(launcher, bay, suicide, target, 1, 6);
         assertTrue(r2.getMessage(), r2.isSuccess());
-        assertAnonymous(suicide.getName(), "a suicide shuttle");
+        assertReadsAsAdminShuttle(suicide.getName(), "a suicide shuttle");
 
         // Scatter pack, loaded.
         ScatterPack pack = new ScatterPack(new AdminShuttle());
@@ -135,7 +141,7 @@ public class LaunchAnonymityTest {
         readyToLaunch();
         ActionResult r3 = game.launchScatterPack(launcher, bay, pack, target, 1, 6);
         assertTrue(r3.getMessage(), r3.isSuccess());
-        assertAnonymous(pack.getName(), "a scatter pack");
+        assertReadsAsAdminShuttle(pack.getName(), "a scatter pack");
 
         // And no two of them collide, or orders could not tell them apart.
         assertNotEquals(admin.getName(), suicide.getName());
@@ -156,5 +162,26 @@ public class LaunchAnonymityTest {
 
         assertTrue(r.getMessage(), r.isSuccess());
         assertEquals("a fighter keeps the name it was given", "Alpha 1", fighter.getName());
+    }
+
+    /**
+     * The type follows the craft, so a GAS-built pack does not masquerade as an admin
+     * shuttle — and equally does not announce that it is a scatter pack.
+     */
+    @Test
+    public void theNameFollowsTheCraftNotTheRole() {
+        ScatterPack fromGas = new ScatterPack(new com.sfb.objects.shuttles.GASShuttle());
+        putInBay(fromGas);
+        for (int i = 0; i < 4; i++)
+            fromGas.addDrone(new Drone(DroneType.TypeI));
+        readyToLaunch();
+
+        ActionResult r = game.launchScatterPack(launcher, bay, fromGas, target, 1, 6);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("a GAS-built pack should read as a GAS: " + fromGas.getName(),
+                fromGas.getName().matches("^IKS Fury-GAS-[0-9]+$"));
+        assertFalse("and must not say what it is carrying",
+                fromGas.getName().toLowerCase().contains("scatter"));
     }
 }

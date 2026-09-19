@@ -36,10 +36,15 @@ import static org.junit.Assert.*;
  */
 public class ShuttleRoleEligibilityTest {
 
+    /**
+     * Deliberately does NOT load the catalogue. Nothing in the server or core loads it
+     * either, and these answers must still be right — an unloaded catalogue used to make
+     * every shuttle silently ineligible for every role, which no test caught because this
+     * class loaded it by hand. ShuttleCatalog now loads itself on first use.
+     */
     @Before
-    public void loadCatalogue() throws Exception {
-        if (!ShuttleCatalog.isLoaded())
-            ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+    public void deliberatelyDoNotLoadTheCatalogue() {
+        // intentionally empty
     }
 
     // ---------------------------------------------------------------- J3.18, weasels

@@ -74,8 +74,11 @@ class GameSessionLaunchLogTest {
         ActionResult r = session.executeAction(req);
         assertTrue(r.isSuccess(), r.getMessage());
 
-        // Private response carries the detail (the anonymous launch name)
-        assertTrue(r.getMessage().contains("launched shuttle USS Enterprise-Shuttle-"),
+        // Private response carries the detail: the launch name, which reports the CRAFT
+        // ("-Admin-") and never the role. It read "-Shuttle-" until launch naming began
+        // using the shuttle's own type; the shared line below is the assertion that
+        // actually guards secrecy, and it is unchanged.
+        assertTrue(r.getMessage().contains("launched shuttle USS Enterprise-Admin-"),
                 r.getMessage());
 
         // Shared log carries only the redacted announcement

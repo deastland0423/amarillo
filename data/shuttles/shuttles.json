@@ -17,6 +17,10 @@
     "",
     "BPV here must match what the Java class constructs — ShuttleCatalogTest pins the two.",
     "",
+    "shortName        what a launched shuttle is called: \"<Ship>-<shortName>-<n>\". It names",
+    "                 the CRAFT, never the role — an admin shuttle, a suicide shuttle and a",
+    "                 scatter pack built from one all read \"Admin\", so an opponent cannot",
+    "                 tell which is which. Fighters keep their own names.",
     "canWeasel        J3.18 — any non-fighter shuttle may be charged as a Wild Weasel;",
     "                 fighters never may (J4.41).",
     "canSuicide       J2.222 — admin, minesweeping, MRS, SWAC and minelaying shuttles may",
@@ -35,9 +39,9 @@
   ],
 
   "shuttles": [
-    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6, "crippled": 4 , "canWeasel": true, "scatterPackSize": 6 , "canSuicide": true },
-    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false },
-    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false },
+    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6, "crippled": 4 , "canWeasel": true, "scatterPackSize": 6 , "canSuicide": true, "shortName": "Admin" },
+    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS" },
+    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS" },
 
     { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
     { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },

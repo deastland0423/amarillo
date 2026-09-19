@@ -822,7 +822,9 @@ function shuttleTooltipLines(
   else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';
   // Decided by what it IS, not by whether it is armed — every shuttle carries a phaser.
   else if ((shuttle as any).isFighter) typeLabel = 'Fighter';
-  else typeLabel = 'Admin Shuttle';
+  // What the craft IS, from the catalogue. Every non-fighter used to read "Admin Shuttle",
+  // so a GAS and an HTS were both mislabelled. The ROLE is still never shown.
+  else typeLabel = (shuttle as any).shuttleTypeName ?? 'Shuttle';
 
   const lines = [
     `Faction:  ${faction}`,

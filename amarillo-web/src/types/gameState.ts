@@ -274,6 +274,7 @@ export interface ShuttleObject extends MapObjectBase {
   parentShipName: string | null;
   weapons?:       WeaponState[];  // every shuttle: an admin shuttle carries a Ph-3
   isFighter?:     boolean;        // a fighter, as opposed to an admin/other shuttle
+  shuttleTypeName?: string | null;  // "Admin Shuttle", "General Assault Shuttle" — never the role
   effectiveMaxSpeed?: number;     // after any point given to Erratic Maneuvers (C10.13)
   usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
   emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)

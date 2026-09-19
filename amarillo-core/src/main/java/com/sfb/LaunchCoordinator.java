@@ -86,6 +86,22 @@ class LaunchCoordinator {
         return ActionResult.ok(sb.toString());
     }
 
+    /**
+     * What a launched shuttle is called: "<Ship>-<Type>-<n>", e.g. "IKS Fury-Admin-2".
+     * <p>
+     * It names the CRAFT, never the role. An admin shuttle, a suicide shuttle and a scatter
+     * pack all built from admin shuttles read alike, so an opponent watching one leave a bay
+     * cannot tell which it is — the uncertainty the weasel, the suicide shuttle and the
+     * scatter pack all depend on. What it no longer hides is the shuttle TYPE, which is a
+     * visible property of the craft: a GAS reads "GAS", not "Shuttle".
+     */
+    private String launchName(Ship launcher, com.sfb.objects.shuttles.Shuttle shuttle) {
+        com.sfb.objects.ShuttleCatalog.Entry e = shuttle.getCatalogType() == null ? null
+                : com.sfb.objects.ShuttleCatalog.get(shuttle.getCatalogType());
+        String label = e != null ? e.shortName : "Shuttle";
+        return launcher.getName() + "-" + label + "-" + game.nextSeekerSeq();
+    }
+
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
         // Find the charged admin shuttle in any bay
         com.sfb.objects.shuttles.AdminShuttle foundShuttle = null;
@@ -118,8 +134,11 @@ class LaunchCoordinator {
         int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
         int wwSpeed = Math.max(0, Math.min(6, speed));
 
-        com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
-        ww.setName(ship.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming
+        // Built FROM the shuttle being charged, so it keeps that shuttle's hull, speed and
+        // type rather than assuming an admin shuttle's (J3.18 allows any non-fighter).
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(ship, foundShuttle);
+        ww.setName(launchName(ship, ww));
         ww.setParentShipName(ship.getName());
         ww.setOwner(ship.getOwner());
         foundShuttleBay.launch(foundShuttle, wwSpeed, wwFacing, game.getAbsoluteImpulse());
@@ -418,7 +437,7 @@ class LaunchCoordinator {
         // admin shuttle, suicide shuttle, scatter pack, or weasel. Fighters
         // keep their names — a fighter is visibly a fighter.
         if (!(launched instanceof com.sfb.objects.shuttles.Fighter))
-            launched.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq());
+            launched.setName(launchName(launcher, launched));
         activeShuttles.add(launched);
         // Everything else that appears on the map mid-turn is acquired here - drones,
         // plasma, suicide shuttles, scatter packs. A plain shuttle was not, so nobody held
@@ -463,7 +482,7 @@ class LaunchCoordinator {
             voidWildWeasel(launcher);
 
         bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        shuttle.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
+        shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
@@ -513,8 +532,7 @@ class LaunchCoordinator {
         launcher.forceAcquireControl(pack);
 
         bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
-                                                                               // hidden
+        pack.setName(launchName(launcher, pack));
         pack.setLocation(launcher.getLocation());
         // Whose it is, and where it came from. launchShuttle has always set both; this
         // path never did, so a launched pack had no owner at all - which is why it showed

@@ -25,6 +25,22 @@ public class WildWeaselShuttle extends Shuttle {
         setMaxSpeed(6);
     }
 
+    /**
+     * Charge a specific shuttle as a weasel, keeping what it actually is.
+     * <p>
+     * J3.18 lets any non-fighter shuttle serve, and they are not alike: an HTS has twice
+     * the hull of an admin shuttle. The older constructor assumed an admin shuttle's six
+     * hull and six speed, which was the only shape that could ever be charged. Keeping the
+     * base's catalogue type also lets the weasel be NAMED for what it is, so it reads like
+     * any other shuttle of that type rather than announcing itself.
+     */
+    public WildWeaselShuttle(Ship parentShip, Shuttle base) {
+        this.parentShip = parentShip;
+        setHull(base.getHull());
+        setMaxSpeed(base.getMaxSpeed());
+        setCatalogType(base.getCatalogType());
+    }
+
     public Ship getParentShip() { return parentShip; }
 
     /** Begin the 4-impulse explosion period (J3.211). */
