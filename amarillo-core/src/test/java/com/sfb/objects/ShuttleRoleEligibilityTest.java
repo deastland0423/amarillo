@@ -1,7 +1,9 @@
 package com.sfb.objects;
 
+import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.GASShuttle;
+import com.sfb.objects.shuttles.Haas;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.ScatterPack;
 import com.sfb.objects.shuttles.Stinger1;
@@ -64,11 +66,41 @@ public class ShuttleRoleEligibilityTest {
         assertTrue("with room for drones", new AdminShuttle().scatterPackSpaces() > 0);
     }
 
+    /**
+     * FD7.11 admits fighters as scatter packs, but FD7.211 says one "carries up to its
+     * normal load of drones" — so eligibility follows the drones it actually has. A Hydran
+     * stinger is fusion-armed and carries none, which makes it ineligible in practice
+     * despite FD7.11; a Kzinti attack shuttle carries two rails and qualifies.
+     */
     @Test
-    public void aFighterMayBeAScatterPack() {
-        // The inversion that makes this data rather than a hierarchy: a fighter cannot
-        // weasel but CAN be a scatter pack (FD7.11, via FD7.44).
-        assertTrue("FD7.11 admits fighters", new Stinger1().canBecomeScatterPack());
+    public void aFighterQualifiesOnlyIfItCarriesDrones() {
+        assertFalse("a fusion-armed stinger has no drones to scatter (FD7.211)",
+                new Stinger1().canBecomeScatterPack());
+        assertTrue("a Kzinti attack shuttle carries two rails, so it qualifies",
+                new Aas().canBecomeScatterPack());
+    }
+
+    /**
+     * FD7.211 ties a fighter's scatter-pack capacity to its NORMAL drone load, so the
+     * catalogue figure and the rails the class actually builds must agree. Two numbers in
+     * two places is how the pack capacity came to ignore the catalogue in the first place.
+     */
+    @Test
+    public void aFightersCapacityMatchesTheRailsItActuallyCarries() {
+        assertEquals("a Kzinti AAS builds two drone rails, so it scatters two (FD7.211)",
+                droneRails(new Aas()), new Aas().scatterPackSpaces());
+        assertEquals(droneRails(new Haas()), new Haas().scatterPackSpaces());
+        assertEquals("and a stinger builds none",
+                droneRails(new Stinger1()), new Stinger1().scatterPackSpaces());
+    }
+
+    /** How many drone rails this fighter actually carries. */
+    private int droneRails(com.sfb.objects.shuttles.Shuttle s) {
+        int n = 0;
+        for (com.sfb.weapons.Weapon w : s.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail)
+                n++;
+        return n;
     }
 
     @Test
@@ -87,9 +119,9 @@ public class ShuttleRoleEligibilityTest {
         assertNotEquals("a GAS may weasel but not scatter-pack",
                 new GASShuttle().canBecomeWildWeasel(),
                 new GASShuttle().canBecomeScatterPack());
-        assertNotEquals("a fighter is the other way round",
-                new Stinger1().canBecomeWildWeasel(),
-                new Stinger1().canBecomeScatterPack());
+        assertNotEquals("a drone-armed fighter is the other way round",
+                new Aas().canBecomeWildWeasel(),
+                new Aas().canBecomeScatterPack());
     }
 
     // ---------------------------------------------------------------- J2.222, suicide
@@ -109,10 +141,9 @@ public class ShuttleRoleEligibilityTest {
 
     @Test
     public void aFighterMayNotBeASuicideShuttle() {
-        // Yet a fighter MAY be a scatter pack (FD7.11) — the inversion runs both ways.
-        assertFalse("J2.222 bars fighters", new Stinger1().canBecomeSuicide());
-        assertTrue("but FD7.11 admits them as scatter packs",
-                new Stinger1().canBecomeScatterPack());
+        // Yet a drone-armed fighter MAY be a scatter pack — the inversion runs both ways.
+        assertFalse("J2.222 bars fighters", new Aas().canBecomeSuicide());
+        assertTrue("but FD7.11 admits them as scatter packs", new Aas().canBecomeScatterPack());
     }
 
     @Test
@@ -123,8 +154,8 @@ public class ShuttleRoleEligibilityTest {
         assertFalse(gas.canBecomeSuicide());
         assertFalse(gas.canBecomeScatterPack());
 
-        // A fighter: the exact opposite on two of the three.
-        Stinger1 fighter = new Stinger1();
+        // A drone-armed fighter: barred from two roles, admitted to the third.
+        Aas fighter = new Aas();
         assertFalse(fighter.canBecomeWildWeasel());
         assertFalse(fighter.canBecomeSuicide());
         assertTrue(fighter.canBecomeScatterPack());

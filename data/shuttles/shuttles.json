@@ -26,9 +26,12 @@
     "                 qualify, so this list is NOT the same as canWeasel: a GAS may weasel",
     "                 but not scatter-pack, and a fighter is the other way round. That is",
     "                 why both are data rather than one \"special shuttle\" flag.",
-    "                 UNVERIFIED: the SIZE for each type. Six spaces is what the old",
-    "                 hardcoded ScatterPack allowed and is applied across the board here;",
-    "                 FD7.44 governs fighters as SPs and has not been read."
+    "                 FD7.21 — an admin shuttle carries six; other types more or fewer",
+    "                 by their own rules (an MRS could carry eight).",
+    "                 FD7.211 — a FIGHTER carries up to its NORMAL load of drones, so this",
+    "                 must equal its drone rail count: zero for the fusion-armed Hydran",
+    "                 stingers, two for the Kzinti attack shuttles. ShuttleRoleEligibility",
+    "                 pins the two together so they cannot drift."
   ],
 
   "shuttles": [
@@ -36,12 +39,12 @@
     { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false },
     { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false },
 
-    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false },
-    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false },
-    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false },
+    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
 
-    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false },
-    { "type": "haas",       "name": "Heavy Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false },
-    { "type": "haas_e",     "name": "Heavy Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 6, "canSuicide": false }
+    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
+    { "type": "haas",       "name": "Heavy Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
+    { "type": "haas_e",     "name": "Heavy Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false }
   ]
 }
