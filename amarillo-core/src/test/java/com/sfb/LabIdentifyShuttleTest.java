@@ -204,6 +204,61 @@ public class LabIdentifyShuttleTest {
         assertFalse(msg.contains("scatter") || msg.contains("drones"));
     }
 
+    /**
+     * G4.233: "A successful attempt reveals if the shuttle is manned or unmanned". A wild
+     * weasel, a scatter pack and a suicide shuttle fly empty; every other shuttle and
+     * every fighter carries a pilot.
+     */
+    @Test
+    public void identifyingAPlainShuttleReportsItManned() {
+        Shuttle s = enemyShuttleAt(10, 10);
+
+        String msg = identify(s).getMessage();
+
+        assertTrue("an admin shuttle has a pilot aboard: " + msg, msg.contains("manned"));
+        assertFalse("and is not reported empty: " + msg, msg.contains("unmanned"));
+    }
+
+    @Test
+    public void identifyingASuicideShuttleReportsItUnmanned() {
+        SuicideShuttle ss = enemySuicideShuttleAt(10, 10);
+
+        String msg = game.identifySeekers(fed, Collections.singletonList(ss.getName()))
+                .getMessage();
+
+        assertTrue("nobody rides the bomb: " + msg, msg.contains("unmanned"));
+    }
+
+    /**
+     * And the pair still cannot be told apart. "Unmanned, on a seeking course" is true of
+     * a suicide shuttle and of a loaded scatter pack alike — which is the whole reason
+     * G4.233 stops where it does.
+     */
+    @Test
+    public void aSuicideShuttleAndAScatterPackStillReadAlike() {
+        SuicideShuttle ss = enemySuicideShuttleAt(10, 10);
+        com.sfb.objects.shuttles.ScatterPack pack =
+                new com.sfb.objects.shuttles.ScatterPack(new AdminShuttle());
+        pack.setName("IKS Fury-Admin-3");
+        pack.setOwner(empire);
+        pack.setController(klingon);
+        pack.setTarget(fed);
+        pack.setLocation(new Location(10, 10));
+        pack.addDrone(new Drone(DroneType.TypeI));
+        game.getSeekers().add(pack);
+
+        String a = game.identifySeekers(fed, Collections.singletonList(ss.getName()))
+                .getMessage().replace(ss.getName(), "X");
+        String b = game.identifySeekers(fed, Collections.singletonList(pack.getName()))
+                .getMessage().replace(pack.getName(), "X");
+
+        // Strip the dice, which differ by luck rather than by what was learned.
+        a = a.replaceAll("[(]die [0-9]+[)]", "(die N)");
+        b = b.replaceAll("[(]die [0-9]+[)]", "(die N)");
+
+        assertEquals("what the lab learned must be word for word the same", a, b);
+    }
+
     @Test
     public void aShuttleBeyondRange5CannotBeIdentified() {
         // Six hexes away: the die can never exceed the range, so this is not a lucky roll.

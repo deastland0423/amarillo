@@ -845,6 +845,9 @@ function shuttleTooltipLines(
   // shuttle to a suicide shuttle or a scatter pack without saying which — that is the
   // whole of the answer, so show it and nothing more.
   if (!isMine && (shuttle as any).isIdentified) {
+    const manned = (shuttle as any).manned;
+    if (manned != null)
+      lines.push(`Crew:     ${manned ? 'manned' : 'UNMANNED'}`);
     if ((shuttle as any).seekingCourse) {
       const t = (shuttle as any).seekingTargetName;
       lines.push(`Course:   SEEKING${t ? ` ${String.fromCharCode(8594)} ${t}` : ''}`);

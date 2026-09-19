@@ -168,6 +168,43 @@ public class DtoRedactionTest {
         assertEquals("both report the same target", sa.seekingTargetName, sb.seekingTargetName);
     }
 
+    /**
+     * G4.233's other clause: manning is revealed, and only once identified. It is sent as
+     * a Boolean because FALSE is the informative value here — a primitive would report
+     * every unidentified shuttle on the map as unmanned.
+     */
+    @Test
+    public void manningIsRevealedOnlyByIdentification() {
+        SuicideShuttle ss = klingonSuicideShuttle();
+
+        GameStateDto.ShuttleDto before = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-1");
+        assertNull("nothing is known about its crew yet", before.manned);
+
+        ss.identify();
+
+        GameStateDto.ShuttleDto after = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-1");
+        assertNotNull(after.manned);
+        assertFalse("a suicide shuttle flies empty (G4.233)", after.manned);
+    }
+
+    @Test
+    public void anIdentifiedPlainShuttleIsReportedManned() {
+        com.sfb.objects.shuttles.AdminShuttle admin = new com.sfb.objects.shuttles.AdminShuttle();
+        admin.setName("IKV Saber-Shuttle-9");
+        admin.setLocation(new Location(18, 14));
+        admin.setOwner(klingonPlayer);
+        game.getActiveShuttles().add(admin);
+        admin.identify();
+
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-9");
+
+        assertEquals(Boolean.TRUE, dto.manned);
+        assertFalse("and it is not on a seeking course", dto.seekingCourse);
+    }
+
     /** Releasing the drones is what makes a pack public — not being identified. */
     @Test
     public void aReleasedPackIsPublic() {

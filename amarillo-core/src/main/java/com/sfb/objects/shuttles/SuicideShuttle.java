@@ -89,4 +89,10 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     @Override public void setWarheadDamage(int dmg)       {}
     @Override public int impact()                         { return getWarheadDamage(); }
     // identify()/isIdentified() inherited from Shuttle
+
+    /** Unmanned: nobody rides the bomb (J2.2). Revealed by identification (G4.233). */
+    @Override
+    public boolean isManned() {
+        return false;
+    }
 }

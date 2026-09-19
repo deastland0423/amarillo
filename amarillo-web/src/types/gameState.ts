@@ -292,6 +292,7 @@ export interface ShuttleObject extends MapObjectBase {
   // an identified suicide shuttle and an identified scatter pack arrive here identical.
   seekingCourse?:     boolean;
   seekingTargetName?: string | null;
+  manned?:            boolean | null;   // G4.233; null = not established
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
   targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only

@@ -74,4 +74,10 @@ public class WildWeaselShuttle extends Shuttle {
     @Override public boolean canBecomeSuicide()     { return false; }
     @Override public boolean canBecomeScatterPack() { return false; }
     @Override public boolean canBecomeWildWeasel()  { return false; }
+
+    /** Unmanned: a decoy flies empty (J3.0). Revealed by identification (G4.233). */
+    @Override
+    public boolean isManned() {
+        return false;
+    }
 }

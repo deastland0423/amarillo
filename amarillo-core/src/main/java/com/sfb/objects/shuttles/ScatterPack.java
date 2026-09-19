@@ -154,4 +154,10 @@ public class ScatterPack extends Shuttle implements Seeker {
     // identify()/isIdentified() inherited from Shuttle
 
     @Override public boolean isArmed()                    { return true; } // D12.121
+
+    /** Unmanned: a drone carrier flies empty (FD7.0). Revealed by identification (G4.233). */
+    @Override
+    public boolean isManned() {
+        return false;
+    }
 }

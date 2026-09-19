@@ -300,13 +300,15 @@ class SeekerControl {
                 // both seekers, so they read exactly alike here, which is the point: the
                 // lab narrows it to one of the two and stops.
                 if (target instanceof com.sfb.objects.shuttles.Shuttle) {
+                    log.append(((com.sfb.objects.shuttles.Shuttle) target).isManned()
+                            ? " (manned" : " (unmanned");
                     if (target instanceof Seeker) {
                         Unit t = ((Seeker) target).getTarget();
-                        log.append(" (on a seeking course")
+                        log.append(", on a seeking course")
                            .append(t != null ? ", target " + t.getName() : "")
                            .append(")");
                     } else {
-                        log.append(" (not on a seeking course)");
+                        log.append(", not on a seeking course)");
                     }
                 }
                 log.append("\n");

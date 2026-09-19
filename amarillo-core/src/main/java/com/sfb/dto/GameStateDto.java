@@ -414,6 +414,13 @@ public class GameStateDto {
          */
         public boolean seekingCourse;
         public String seekingTargetName;
+        /**
+         * Manned or unmanned, the other half of what G4.233 reveals. A Boolean rather than
+         * a boolean because here it is FALSE that carries the information: a primitive
+         * would report every unidentified shuttle as unmanned to any reader who forgot to
+         * check isIdentified first. Null means "not established".
+         */
+        public Boolean manned;
     }
 
     // -------------------------------------------------------------------------
@@ -1394,6 +1401,9 @@ public class GameStateDto {
         dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
         dto.isIdentified = shuttle.isIdentified();
+        if (shuttle.isIdentified())
+            // G4.233: "reveals if the shuttle is manned or unmanned".
+            dto.manned = shuttle.isManned();
         if (shuttle.isIdentified() && shuttle instanceof Seeker) {
             // G4.233: identification reveals the seeking course and its target (as for a
             // drone, G4.231). It reveals nothing about the payload, which is why an

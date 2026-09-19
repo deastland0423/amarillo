@@ -97,6 +97,20 @@ public abstract class Shuttle extends Unit {
 		return scatterPackSpaces() > 0;
 	}
 
+	/**
+	 * Whether this shuttle carries a pilot. Every shuttle and fighter does, except in the
+	 * three roles that fly empty: a wild weasel, a scatter pack and a suicide shuttle,
+	 * each of which overrides this.
+	 * <p>
+	 * It matters because identification reveals it (G4.233) — and reveals nothing that
+	 * separates the last two, since both read "unmanned, on a seeking course". Manning
+	 * follows the ROLE rather than the craft, which is why it lives on the role classes
+	 * and not in the shuttle catalogue.
+	 */
+	public boolean isManned() {
+		return true;
+	}
+
 	// --- Wild Weasel charging (J3.12) ---
 	// On Shuttle, not AdminShuttle: J3.18 lets any non-fighter shuttle serve as a weasel,
 	// and while this state lived on AdminShuttle every gate had to test for that class —
