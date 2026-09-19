@@ -120,7 +120,11 @@ class GameSessionFireDeclarationTest {
 
         ActionResult ready = session.executeAction(request("ADVANCE_PHASE", HOST));
         assertFalse(ready.isSuccess());
-        assertTrue(ready.getMessage().startsWith("MUST_RESPOND_DECLARATION"), ready.getMessage());
+        // Was asserting the literal "MUST_RESPOND_DECLARATION" prefix — a raw token that
+        // nothing on the client translated, so it reached the screen as written. The
+        // refusal is what matters; the wording is now meant for a person to read.
+        assertTrue(ready.getMessage().contains("declared fire"), ready.getMessage());
+        assertTrue(ready.getMessage().contains("Bob"), ready.getMessage());
     }
 
     @Test
@@ -234,5 +238,44 @@ class GameSessionFireDeclarationTest {
         assertFalse(session.isFireDeclarationSpent());
         ActionResult call = session.executeAction(request("CALL_FIRE_DECLARATION", P2));
         assertTrue(call.isSuccess(), call.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // Advancing the phase while a declaration is open
+    // -------------------------------------------------------------------------
+
+    /**
+     * The playtest complaint: seal your orders, press Next, and be told
+     * "MUST_RESPOND_DECLARATION: Dizzle" — a raw token, naming the player who called the
+     * declaration, telling you to do the thing you had just done.
+     * <p>
+     * Both halves were wrong. declarationOpen stays true until EVERY player has answered,
+     * so a player who had already sealed still tripped the check; and nothing on the client
+     * translated the code, so it reached the screen verbatim. A player who has committed is
+     * simply waiting, which is the same state as readying up ahead of the others.
+     */
+    @Test
+    void advancingAfterSealingOrders_readsAsWaiting_notAsAnError() {
+        session.executeAction(request("CALL_FIRE_DECLARATION", HOST));
+        assertTrue(session.executeAction(request("PASS_FIRE_DECLARATION", HOST)).isSuccess());
+
+        ActionResult advance = session.executeAction(request("ADVANCE_PHASE", HOST));
+
+        assertTrue(advance.getMessage().startsWith("WAITING"),
+                "a sealed player is waiting, not being asked for something: "
+                        + advance.getMessage());
+        assertFalse(advance.getMessage().contains("MUST_RESPOND"), advance.getMessage());
+    }
+
+    @Test
+    void advancingWithoutAnswering_saysSoInEnglish() {
+        session.executeAction(request("CALL_FIRE_DECLARATION", HOST));
+
+        ActionResult advance = session.executeAction(request("ADVANCE_PHASE", P2));
+
+        assertFalse(advance.isSuccess());
+        assertFalse(advance.getMessage().contains("MUST_RESPOND_DECLARATION"),
+                "the raw code must not reach a player: " + advance.getMessage());
+        assertTrue(advance.getMessage().contains("declared fire"), advance.getMessage());
     }
 }

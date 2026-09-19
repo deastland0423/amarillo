@@ -700,9 +700,19 @@ public class GameSession {
                 // An open fire declaration must be answered before the phase moves
                 if (game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE) {
                     refreshDeclarationState();
-                    if (declarationOpen)
-                        return ActionResult.fail("MUST_RESPOND_DECLARATION:"
-                                + getFireDeclarationCallerName());
+                    if (declarationOpen) {
+                        // A player who has already sealed their orders is not being asked
+                        // for anything — the round simply has not resolved yet, because
+                        // someone else has still to answer. Report that as an ordinary
+                        // wait, the same shape as readying up, so the client offers Cancel
+                        // instead of showing an error for something already done.
+                        if (declarationCommits.containsKey(token))
+                            return ActionResult.ok("WAITING:" + declarationCommits.size()
+                                    + "/" + players.size());
+                        return ActionResult.fail(getFireDeclarationCallerName()
+                                + " has declared fire — answer the declaration before the"
+                                + " phase can advance");
+                    }
                 }
                 // During movement phase, reject ready if this player still has ships or
                 // shuttles to move
@@ -725,7 +735,11 @@ public class GameSession {
                                     .orElse(null);
                         }
                         if (pending != null) {
-                            return ActionResult.fail("MUST_MOVE:" + pending);
+                            // Was "MUST_MOVE:<name>"; nothing on the client translated it,
+                            // so the raw token reached the screen.
+                            return ActionResult.fail(pending
+                                    + " has not moved yet — every ship and shuttle must move"
+                                    + " before the phase can advance");
                         }
                     }
                 }
