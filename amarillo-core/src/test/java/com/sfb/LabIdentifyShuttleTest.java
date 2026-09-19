@@ -262,6 +262,53 @@ public class LabIdentifyShuttleTest {
                 labsBefore, fed.getLabs().getAvailableLab());
     }
 
+    /**
+     * G4.21: "Each lab box on board a ship, if it (the lab) is undertaking no other action
+     * on that turn, can make one attempt to identify a seeking weapon."
+     * <p>
+     * A scout channel assigned to IDENTIFY holds a lab for the whole turn (G24.251) but
+     * does not decrement the count, because it may make four attempts with it. So the two
+     * identification paths were spending the same box twice: this path read the raw
+     * availableLab figure, which still included boxes a channel was using.
+     */
+    @Test
+    public void aLabHeldByAScoutChannelCannotAlsoIdentifyHere() {
+        fed.getLabs().init(java.util.Map.of("lab", 1));   // exactly one box to fight over
+
+        com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
+        ch.setDesignator("1");
+        ch.setDacHitLocaiton("torp");
+        ch.setPowered(true);
+        fed.getWeapons().addWeapon(ch);
+        ch.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY);  // takes the lab
+
+        Shuttle s = enemyShuttleAt(10, 10);   // range 0: would otherwise always succeed
+        ActionResult r = identify(s);
+
+        assertFalse("the ship's only lab is already working (G4.21): " + r.getMessage(),
+                r.isSuccess());
+        assertFalse(s.isIdentified());
+    }
+
+    /** With a second box free, the same channel assignment no longer blocks the attempt. */
+    @Test
+    public void aSecondLabIsStillFreeToIdentify() {
+        fed.getLabs().init(java.util.Map.of("lab", 2));
+
+        com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
+        ch.setDesignator("1");
+        ch.setDacHitLocaiton("torp");
+        ch.setPowered(true);
+        fed.getWeapons().addWeapon(ch);
+        ch.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY);
+
+        Shuttle s = enemyShuttleAt(10, 10);
+        ActionResult r = identify(s);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("one box for the channel, one for this attempt", s.isIdentified());
+    }
+
     @Test
     public void anUnknownNameIsReportedNotFound() {
         ActionResult r = game.identifySeekers(fed, Collections.singletonList("Nothing At All"));

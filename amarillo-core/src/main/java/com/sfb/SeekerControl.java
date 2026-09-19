@@ -189,14 +189,14 @@ class SeekerControl {
         if (actingShip.isUsingEm())
             return ActionResult.fail(actingShip.getName()
                     + " is using Erratic Maneuvers and cannot identify with labs (G4.21, C10.52)");
-        if (actingShip.getLabs().getAvailableLab() <= 0)
+        int availLabs = freeLabs(actingShip);
+        if (availLabs <= 0)
             return ActionResult.fail(actingShip.getName() + " has no available labs");
         if (seekerNames == null || seekerNames.isEmpty())
-            return ActionResult.fail("No seekers selected");
-        int availLabs = actingShip.getLabs().getAvailableLab();
+            return ActionResult.fail("No contacts selected");
         if (seekerNames.size() > availLabs)
-            return ActionResult
-                    .fail("Selected " + seekerNames.size() + " seekers but only " + availLabs + " labs available");
+            return ActionResult.fail("Selected " + seekerNames.size() + " contacts but only "
+                    + availLabs + " labs available");
 
         StringBuilder log = new StringBuilder(actingShip.getName() + " lab identification attempt\n");
         DiceRoller dice = new DiceRoller();
@@ -271,6 +271,23 @@ class SeekerControl {
             }
         }
         return ActionResult.ok(log.toString());
+    }
+
+    /**
+     * Lab boxes free to make an identification attempt (G4.21): "Each lab box on board a
+     * ship, IF IT IS UNDERTAKING NO OTHER ACTION on that turn, can make one attempt."
+     * <p>
+     * A scout channel assigned to IDENTIFY holds a lab for the turn (G24.251) but never
+     * decrements the count, because it may make four attempts with it. So the raw
+     * availableLab figure includes boxes a channel is already using, and this path would
+     * happily spend one of them a second time — the same box doing two jobs at once.
+     */
+    private int freeLabs(Ship ship) {
+        int heldByChannels = 0;
+        for (com.sfb.weapons.ScoutChannel c : ship.getScoutChannels())
+            if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY)
+                heldByChannels++;
+        return Math.max(0, ship.getLabs().getAvailableLab() - heldByChannels);
     }
 
     /**
