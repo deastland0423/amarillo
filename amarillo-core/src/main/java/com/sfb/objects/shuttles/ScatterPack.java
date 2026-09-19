@@ -19,7 +19,13 @@ public class ScatterPack extends Shuttle implements Seeker {
 
     private static final int RELEASE_DELAY = 8; // impulses before drones deploy
 
-    private int maxDroneSpaces = 6; // admin shuttle default; other types may differ
+    /**
+     * FD7.21: "An admin shuttle used as an SP carries up to six spaces of drones. Other
+     * types of shuttles could carry more or fewer as provided in their rules." Set from the
+     * catalogue when the pack is built, so the number follows the shuttle it was made from
+     * rather than being the same six for everything.
+     */
+    private int maxDroneSpaces = 6;
 
     private Unit        target;
     private Unit        controller;
@@ -37,6 +43,12 @@ public class ScatterPack extends Shuttle implements Seeker {
         // Keep what it was built FROM. J3.18 and FD7.11 qualify shuttles by type, and a
         // converted shuttle that forgot its type could not be named or labelled honestly.
         setCatalogType(base.getCatalogType());
+        // FD7.21: the capacity belongs to the type this was built from. Without this every
+        // pack carried six spaces whatever it was — the catalogue column said otherwise and
+        // nothing read it.
+        int spaces = base.scatterPackSpaces();
+        if (spaces > 0)
+            setMaxDroneSpaces(spaces);
     }
 
     // -------------------------------------------------------------------------

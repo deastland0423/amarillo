@@ -130,6 +130,67 @@ public class ShuttleRoleEligibilityTest {
         assertTrue(fighter.canBecomeScatterPack());
     }
 
+    // ---------------------------------------------------------------- FD7.21, capacity
+
+    /**
+     * FD7.21: "An admin shuttle used as an SP carries up to six spaces of drones. Other
+     * types of shuttles could carry more or fewer as provided in their rules."
+     * <p>
+     * The capacity has to follow the shuttle the pack was built from. It did not: ScatterPack
+     * held its own maxDroneSpaces of six, setMaxDroneSpaces was never called by anything, and
+     * the catalogue column was read by nobody — so every pack carried six whatever it was.
+     */
+    @Test
+    public void aPacksCapacityComesFromTheShuttleItWasBuiltFrom() {
+        assertEquals("an admin shuttle's six (FD7.21)",
+                new AdminShuttle().scatterPackSpaces(),
+                new ScatterPack(new AdminShuttle()).getMaxDroneSpaces());
+    }
+
+    @Test
+    public void aPackCannotBeLoadedBeyondThatCapacity() {
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        int capacity = pack.getMaxDroneSpaces();
+
+        int loaded = 0;
+        for (int i = 0; i < capacity + 4; i++)
+            if (pack.addDrone(new Drone(DroneType.TypeI)))
+                loaded++;
+
+        assertTrue("a Type-I is one space, so it should take exactly the capacity",
+                loaded <= capacity);
+        assertTrue("and it should accept at least something", loaded > 0);
+    }
+
+    /**
+     * The guard that matters for the next shuttle added. FD7.21 names MRS at eight spaces;
+     * when MRS arrives, giving it scatterPackSize 8 must be enough on its own — nothing
+     * should need editing in ScatterPack.
+     */
+    @Test
+    public void capacityIsWhateverTheCatalogueSays_notAConstant() {
+        ShuttleCatalog.Entry admin = ShuttleCatalog.get("admin");
+        assertNotNull(admin);
+        assertEquals("the class must not be carrying its own separate number",
+                admin.scatterPackSize,
+                new ScatterPack(new AdminShuttle()).getMaxDroneSpaces());
+    }
+
+    /**
+     * The discriminating case. Every type in the catalogue today carries six spaces or none,
+     * so a pack that ignored its base entirely would still read six and every other
+     * assertion here would pass. This stands in for FD7.21's MRS at eight.
+     */
+    @Test
+    public void capacityFollowsTheBase_evenWhenItIsNotSix() {
+        AdminShuttle roomy = new AdminShuttle() {
+            @Override public int scatterPackSpaces() { return 8; }
+        };
+
+        assertEquals("the pack must take its capacity FROM the shuttle, not assume six",
+                8, new ScatterPack(roomy).getMaxDroneSpaces());
+    }
+
     // ---------------------------------------------------------------- conversions remember
 
     @Test
