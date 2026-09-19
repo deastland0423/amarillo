@@ -92,6 +92,43 @@ class GameSessionAllocateTest {
     }
 
     // -------------------------------------------------------------------------
+    // Erratic Maneuvers (C10.11/C10.12) — the allocation line that makes EM reachable
+    // -------------------------------------------------------------------------
+
+    @Test
+    void erraticManeuvers_atTheFullPrice_isBought() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setErraticManeuvers(fed.getPerformanceData().getErraticCost());
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertTrue(fed.hasPaidForEm(), "paying the full cost must buy the right to announce EM");
+    }
+
+    @Test
+    void erraticManeuvers_shortOfThePrice_isRefusedRatherThanWasted() {
+        // C10.11 is a flat price. Accepting a partial payment would silently burn the
+        // energy and still leave the ship unable to announce EM.
+        ActionRequest req = allocate("USS Enterprise");
+        req.setErraticManeuvers(fed.getPerformanceData().getErraticCost() - 1);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("C10.11"), result.getMessage());
+        assertFalse(fed.hasPaidForEm());
+    }
+
+    @Test
+    void notBuyingIt_leavesEmUnavailable() {
+        ActionResult result = session.executeAction(allocate("USS Enterprise"));
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertFalse(fed.hasPaidForEm());
+    }
+
+    // -------------------------------------------------------------------------
     // Other translation-layer validations, pinned against drift
     // -------------------------------------------------------------------------
 

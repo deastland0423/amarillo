@@ -1316,6 +1316,24 @@ public class GameSession {
                     }
                 }
 
+                // Erratic Maneuvers (C10.11/C10.12): six hexes' worth of this ship's
+                // movement cost, or three if it is nimble. Paying buys only the right to
+                // announce EM later in the turn (C10.3) — the energy is spent either way,
+                // so an amount short of the full cost buys nothing and is refused rather
+                // than silently wasted.
+                double emReq = Math.max(0, request.getErraticManeuvers());
+                if (emReq > 0) {
+                    double emCost = ship.getPerformanceData().getErraticCost();
+                    if (emCost <= 0)
+                        return ActionResult.fail(ship.getName()
+                                + " cannot use Erratic Maneuvers");
+                    if (emReq < emCost)
+                        return ActionResult.fail("Erratic Maneuvers cost "
+                                + (int) emCost + " for " + ship.getName()
+                                + " — six hexes of movement, three if nimble (C10.11/C10.12)");
+                    e.setErraticManuvers(emCost);
+                }
+
                 ActionResult allocResult = game.submitAllocation(ship, e);
                 // If this was the last allocation, beginImpulses() ran lock-on rolls — drain
                 // them
@@ -1332,6 +1350,39 @@ public class GameSession {
                 if (fireResult.isSuccess())
                     appendCombatLog(fireResult.getMessage());
                 return fireResult;
+            }
+
+            case "ANNOUNCE_EM": {
+                // C10.3: announce that EM starts or stops. It comes into force at the END
+                // of this impulse (C10.311), not now. Works for a ship or a shuttle —
+                // Game.announceErraticManeuvers takes a Unit.
+                final String emName = request.getShipName();
+                com.sfb.objects.Unit emUnit = findShip(emName);
+                if (emUnit == null)
+                    emUnit = game.getActiveShuttles().stream()
+                            .filter(s -> s.getName().equalsIgnoreCase(emName))
+                            .findFirst().orElse(null);
+                if (emUnit == null)
+                    return ActionResult.fail("Unit not found: " + request.getShipName());
+                ActionResult emResult = game.announceErraticManeuvers(emUnit, request.isEmOn());
+                if (emResult.isSuccess())
+                    appendCombatLog(emResult.getMessage());
+                return emResult;
+            }
+
+            case "COMMIT_SHUTTLE_EM": {
+                // C10.13/C10.131: a shuttle buys EM with a point of speed, committed for
+                // the whole turn and not recoverable by cancelling EM.
+                final String emShuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Shuttle emShuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(emShuttleName))
+                        .findFirst().orElse(null);
+                if (emShuttle == null)
+                    return ActionResult.fail("Shuttle not found: " + request.getShipName());
+                ActionResult commitResult = game.commitShuttleEmSpeed(emShuttle);
+                if (commitResult.isSuccess())
+                    appendCombatLog(commitResult.getMessage());
+                return commitResult;
             }
 
             case "SUBMIT_REINFORCEMENT": {

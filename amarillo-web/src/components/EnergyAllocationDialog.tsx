@@ -71,6 +71,7 @@ interface ShipAlloc {
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
   tractorEnergy:        number;   // energy pool for tractor beams (G7.15)
+  erraticManeuvers:     number;   // energy bought for Erratic Maneuvers (C10.11)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
   wwCharge:             Set<string>;             // shuttle names being charged as WW this turn
 }
@@ -134,6 +135,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ecm:               0,
     eccm:              0,
     tractorEnergy:     0,
+    erraticManeuvers:  0,
     shuttleSpeeds,
     wwCharge: new Set(
       (ship.shuttleBays ?? []).flatMap(bay =>
@@ -196,10 +198,13 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
+  // C10.11: EM is a flat price — six hexes of movement cost, three if nimble — and it
+  // counts against the power budget like anything else bought at allocation.
+  const emCost = alloc.erraticManeuvers;
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
   // scout channels: 1 energy per powered channel (G24.14) + the ship's EW-lending pool (G24.211)
   const channels = alloc.poweredChannels.length + alloc.scoutEwPoints;
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg + channels;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -508,6 +513,7 @@ export default function EnergyAllocationDialog({
           ecm:                   a.ecm,
           eccm:                  a.eccm,
           tractorEnergy:         a.tractorEnergy,
+          erraticManeuvers:      a.erraticManeuvers,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
           droneReloadSelections: Object.fromEntries(
@@ -771,6 +777,30 @@ export default function EnergyAllocationDialog({
               <Stepper value={alloc.tractorEnergy} min={0} max={ship.totalPower}
                 onChange={v => setAlloc(a => ({ ...a, tractorEnergy: v }))}
                 label="Energy pool (G7.15)" />
+            </Collapsible>
+          </div>
+        )}
+
+        {/* ---- Erratic Maneuvers (C10.0) ---- */}
+        {(ship.erraticCost ?? 0) > 0 && (
+          <div className="ea-section">
+            <Collapsible title={`ERRATIC MANEUVERS  (${alloc.erraticManeuvers > 0
+              ? `bought for ${alloc.erraticManeuvers}` : 'not bought'})`} color="#f0c040">
+              <label className="ea-check">
+                <input type="checkbox"
+                       checked={alloc.erraticManeuvers > 0}
+                       onChange={e => setAlloc(a => ({ ...a,
+                         erraticManeuvers: e.target.checked ? (ship.erraticCost ?? 0) : 0 }))} />
+                <span>
+                  Buy Erratic Maneuvers — {ship.erraticCost} energy (C10.11)
+                </span>
+              </label>
+              <p className="fb-hint">
+                Four points of ECM against everything firing at you, and the same four
+                against your own fire (C10.414). Turn Mode one hex longer and +1 on HET
+                rolls unless the ship is nimble (C10.55). Buying it only lets you announce
+                it during the turn — the energy is spent either way.
+              </p>
             </Collapsible>
           </div>
         )}

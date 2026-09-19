@@ -243,6 +243,10 @@ export interface ShipObject extends MapObjectBase {
   wwEcmBonus?:       number;    // +6 while WW active, else 0
   tractored?:                  boolean;   // true if held in a tractor beam (G7.0)
   tractoredByName?:            string;    // name of the holding ship
+  usingEm?:                    boolean;   // Erratic Maneuvers in force (C10.0)
+  erraticCost?:                number;    // what EM costs this ship (C10.11/C10.12); 0 = cannot
+  paidForEm?:                  boolean;   // bought at allocation, so EM may be announced (C10.11)
+  emPending?:                  boolean;   // announced this impulse, in force at its end (C10.311)
   tractorEnergy?:              number;    // total tractor energy allocated in EA this turn
   tractorEnergyRemaining?:     number;    // unspent tractor pool energy
   negativeTractorAccumulated?: number;    // cumulative negative-tractor spent this turn (G7.35)

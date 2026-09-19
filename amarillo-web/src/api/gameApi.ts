@@ -615,6 +615,23 @@ export const gameApi = {
     });
   },
 
+  /**
+   * C10.3: announce that Erratic Maneuvers start or stop. It comes into force at the END
+   * of the current impulse (C10.311), never at the moment of announcement.
+   */
+  announceEm(
+    gameId: string,
+    playerToken: string,
+    shipName: string,
+    on: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({ type: 'ANNOUNCE_EM', shipName, emOn: on }),
+    });
+  },
+
   placeTBomb(
     gameId: string,
     playerToken: string,

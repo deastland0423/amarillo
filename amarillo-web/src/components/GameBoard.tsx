@@ -1578,6 +1578,7 @@ interface SidebarProps {
   // Tractor beams (G7.0)
   tractorMode:          boolean;
   tractorError:         string | null;
+  onAnnounceEm:         (on: boolean) => void;
   onStartTractor:       () => void;
   onCancelTractor:      () => void;
   onReleaseTractor:     (targetName: string) => void;
@@ -1631,6 +1632,7 @@ function ShipSidebar({
   onDisengageSeparation,
   onGoPassiveFc, onGoActiveFc,
   absoluteImpulse, onEmergencyDecel,
+  onAnnounceEm,
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
   pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
@@ -1872,6 +1874,24 @@ function ShipSidebar({
                     WW {s.name}
                   </button>
                 ))}
+                {/* Erratic Maneuvers (C10.0) — announced in the Final Movement Actions
+                    Stage, in force at the END of this impulse (C10.311), which is why an
+                    announced-but-not-yet-active ship reads "EM announced". Only offered to
+                    a ship that bought the energy at allocation (C10.11). */}
+                {isMine && (ship.paidForEm || ship.usingEm) && (
+                  <button
+                    className={`action-strip-btn${ship.usingEm ? ' active' : ''}`}
+                    onClick={() => onAnnounceEm(!ship.usingEm)}
+                    disabled={ship.emPending}
+                    title={ship.usingEm
+                      ? 'Stop Erratic Maneuvers — ends at the end of this impulse (C10.32)'
+                      : 'Erratic Maneuvers: +4 ECM against you, +4 against your own fire, '
+                        + 'Turn Mode +1 and HET +1 unless nimble (C10.41/C10.414/C10.55)'}
+                    style={{ borderColor: '#f0c040', color: '#f0c040' }}
+                  >
+                    {ship.emPending ? 'EM announced' : ship.usingEm ? 'EM on' : 'EM'}
+                  </button>
+                )}
                 {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13).
                     Affordability must match what core actually charges: the unspent tractor
                     pool PLUS batteries (TractorResolver totals both, and the bid dialog below
@@ -4963,6 +4983,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             onEmergencyDecel={handleEmergencyDecel}
             tractorMode={tractorMode}
             tractorError={tractorError}
+            onAnnounceEm={(on) => {
+              if (!liveShip) return;
+              gameApi.announceEm(session.gameId, session.playerToken, liveShip.name, on)
+                .then(r => { if (!r.success) setTractorError(r.message); });
+            }}
             onStartTractor={() => setTractorMode(true)}
             onCancelTractor={() => { setTractorMode(false); setTractorError(null); }}
             onReleaseTractor={handleReleaseTractor}

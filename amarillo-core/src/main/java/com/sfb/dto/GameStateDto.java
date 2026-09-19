@@ -232,6 +232,10 @@ public class GameStateDto {
         public double phaserCapacitorMax;
         public boolean capacitorsCharged;
         public boolean activeFireControl;
+        public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
+        public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
+        public boolean paidForEm;    // bought EM at allocation, so it may be announced (C10.11)
+        public boolean emPending;    // announced this impulse, in force at its end (C10.311)
         public int scannerBonus;
         public int sensorRating;
         public int ecmAllocated;
@@ -371,6 +375,9 @@ public class GameStateDto {
         public int facing;
         public int speed;
         public int maxSpeed;
+        public int effectiveMaxSpeed;      // after any point given to EM (C10.13)
+        public boolean usingEm;            // Erratic Maneuvers in force (C10.0)
+        public boolean emSpeedCommitted;   // the point of speed is spent for the turn (C10.131)
         public String parentPlayer; // name of the player who owns this shuttle
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
@@ -944,6 +951,10 @@ public class GameStateDto {
         dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged = ship.isCapacitorsCharged();
         dto.activeFireControl = ship.isActiveFireControl();
+        dto.usingEm = ship.isUsingEm();
+        dto.erraticCost = ship.getPerformanceData().getErraticCost();
+        dto.paidForEm = ship.hasPaidForEm();
+        dto.emPending = ship.hasPendingEmAnnouncement(game.getAbsoluteImpulse());
         dto.scannerBonus = ship.getSpecialFunctions().getScanner();
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
@@ -1291,6 +1302,9 @@ public class GameStateDto {
         dto.facing = shuttle.getFacing();
         dto.speed = shuttle.getSpeed();
         dto.maxSpeed = shuttle.getMaxSpeed();
+        dto.effectiveMaxSpeed = shuttle.effectiveMaxSpeed();   // after any EM commitment
+        dto.usingEm = shuttle.isUsingEm();
+        dto.emSpeedCommitted = shuttle.isEmSpeedCommitted();
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();

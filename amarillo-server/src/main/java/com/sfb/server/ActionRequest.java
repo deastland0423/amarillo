@@ -34,6 +34,8 @@ public class ActionRequest {
     private boolean             topOffCap;              // legacy: true = charge phaser capacitor to full
     private double              capacitorCharge = -1;   // energy to add to the phaser capacitor; <0 = use topOffCap
     private String              shieldMode;             // "ACTIVE", "MINIMUM", or "OFF"
+    private double              erraticManeuvers;       // energy bought for EM (C10.11)
+    private boolean             emOn;                   // ANNOUNCE_EM: start it, or stop it
     private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
@@ -120,6 +122,12 @@ public class ActionRequest {
 
     public String getShieldMode()                        { return shieldMode; }
     public void   setShieldMode(String shieldMode)       { this.shieldMode = shieldMode; }
+
+    public double getErraticManeuvers()                  { return erraticManeuvers; }
+    public void   setErraticManeuvers(double e)          { this.erraticManeuvers = e; }
+
+    public boolean isEmOn()                              { return emOn; }
+    public void    setEmOn(boolean on)                   { this.emOn = on; }
 
     public Map<String, String> getWeaponArming()                           { return weaponArming; }
     public void                setWeaponArming(Map<String, String> arming) { this.weaponArming = arming; }
