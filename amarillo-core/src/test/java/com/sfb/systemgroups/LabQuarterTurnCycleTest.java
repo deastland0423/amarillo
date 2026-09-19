@@ -198,6 +198,57 @@ public class LabQuarterTurnCycleTest {
     // ---------------------------------------------------------------- research
 
     /**
+     * The chart as printed in G4.11, die roll down the side and range across the top. It
+     * is reproduced here literally rather than as a formula, because a formula is what
+     * went wrong: the code computed roll + 4 - range, which runs the die the wrong way up
+     * (a 6 gathered most, a 1 least) and matched the book in not one of its sixty-six
+     * cells. The only test on it asked that range 8 yield under 3 points, and that is true
+     * whichever direction the die runs.
+     */
+    private static final int[][] G4_11 = {
+        //  range: 0   1   2   3   4   5   6   7   8   9  10
+        /* die 1 */ { 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0 },
+        /* die 2 */ {  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,  0 },
+        /* die 3 */ {  8,  7,  6,  5,  4,  3,  2,  1,  0,  0,  0 },
+        /* die 4 */ {  7,  6,  5,  4,  3,  2,  1,  0,  0,  0,  0 },
+        /* die 5 */ {  6,  5,  4,  3,  2,  1,  0,  0,  0,  0,  0 },
+        /* die 6 */ {  5,  4,  3,  2,  1,  0,  0,  0,  0,  0,  0 },
+    };
+
+    @Test
+    public void everyCellOfTheResearchChartMatchesTheBook() {
+        Labs one = labs(1);   // one box, so the result IS the per-lab figure
+
+        for (int die = 1; die <= 6; die++)
+            for (int range = 0; range <= 10; range++)
+                assertEquals("G4.11 chart, die " + die + " at range " + range,
+                        G4_11[die - 1][range], one.calculateResearchPoints(range, die));
+    }
+
+    @Test
+    public void aLowRollIsTheGoodOne() {
+        // Stated on its own because it is the half of the chart the old formula inverted,
+        // and an implementation could match the corners while running the die backwards.
+        Labs one = labs(1);
+
+        assertTrue("a 1 beats a 6 at the same range",
+                one.calculateResearchPoints(2, 1) > one.calculateResearchPoints(2, 6));
+        assertEquals("the best possible result is the top-left corner",
+                10, one.calculateResearchPoints(0, 1));
+        assertEquals("and the worst roll at point blank still gathers something",
+                5, one.calculateResearchPoints(0, 6));
+    }
+
+    @Test
+    public void nothingIsGatheredBeyondRangeNine() {
+        Labs one = labs(1);
+
+        assertEquals("the chart stops (G4.11)", 0, one.calculateResearchPoints(10, 1));
+        assertEquals("and there is nothing past its edge either",
+                0, one.calculateResearchPoints(20, 1));
+    }
+
+    /**
      * G4.11 multiplies by the number of FUNCTIONING lab boxes. It used to multiply by the
      * free ones, so identifying a seeker quietly cut the ship's research for the turn.
      */
@@ -210,8 +261,7 @@ public class LabQuarterTurnCycleTest {
         busy.useLab(1);
 
         assertEquals("every box researches, busy or not", 0, busy.availableLabs(1));
-        // At range 0 the worst die still yields 1 + 4 = 5 points per box, so a zero here
-        // could only mean the boxes were not counted at all.
-        assertTrue("four boxes should still be researching", busy.calculateResearchPoints(0) > 0);
+        assertEquals("four boxes at the worst roll, point blank: 4 x 5 (G4.11)",
+                20, busy.calculateResearchPoints(0, 6));
     }
 }
