@@ -467,8 +467,8 @@ public class GameStateDto {
         public int speed;
         public String droneType; // "I", "II", etc. — revealed on identification
         public int warheadDamage; // revealed on identification
-        public int hull; // current hull remaining
-        public int damageTaken; // maxHull - hull — always public (visible on the drone)
+        public int hull; // current hull remaining — 0 to an enemy, see damageTaken
+        public int damageTaken; // always public: hits on a drone are visible
         public int maxHull; // hull at launch (from DroneType) — revealed on identification
         public int endurance; // revealed on identification
         public String targetName; // revealed on identification
@@ -1576,6 +1576,11 @@ public class GameStateDto {
         return dto;
     }
 
+    /** A drone's hull at launch, which its type decides. */
+    private static int maxHullOf(Drone drone) {
+        return drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+    }
+
     private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
         DroneDto dto = new DroneDto();
         dto.tractoredBy = holderName(drone);
@@ -1584,12 +1589,21 @@ public class GameStateDto {
         dto.facing = drone.getFacing();
         dto.speed = drone.getSpeed();
         if (hideSecrets) {
-            // Type, warhead, and endurance are unknown until identified (labs)
+            // Type, warhead, and endurance are unknown until identified (labs).
             dto.droneType = "?";
             dto.warheadDamage = 0;
-            dto.hull = drone.getHull();
-            dto.maxHull = drone.getHull();
-            dto.damageTaken = 0;
+            // Damage taken IS public — hits on a drone are there to see — but the hull
+            // behind it is not, and the two together would give the type away: every
+            // DroneType has its own hull, so maxHull = hull + damage identifies it. Hence
+            // "3 of ?", which is exactly what the client already draws: you know it has
+            // taken three, not whether that leaves a Type-I on its last point or a Type-IV
+            // with three to go.
+            //
+            // This used to send damageTaken = 0 and maxHull = the current hull, which made
+            // every enemy drone read as untouched.
+            dto.damageTaken = maxHullOf(drone) - drone.getHull();
+            dto.hull = 0;
+            dto.maxHull = 0;
         } else {
             dto.droneType = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
             dto.warheadDamage = drone.getWarheadDamage();

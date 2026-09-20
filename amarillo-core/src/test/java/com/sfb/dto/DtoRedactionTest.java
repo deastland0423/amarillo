@@ -312,6 +312,72 @@ public class DtoRedactionTest {
         assertTrue("strength is always known either way (FP1.32)", dto.currentStrength >= 0);
     }
 
+    /**
+     * G4.231 and the owner's ruling: damage taken is public, the hull behind it is not.
+     * Hits on a drone are visible; whether that leaves a Type-I on its last point or a
+     * Type-IV with three to go is exactly what identification buys. So an enemy reads
+     * "3 of ?", and the two numbers must not both be sent — maxHull = hull + damage would
+     * name the type.
+     */
+    @Test
+    public void enemyDrone_damageTakenIsPublicButTheHullIsNot() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-9");
+        drone.setLocation(new Location(19, 12));
+        drone.setController(klingon);
+        int atLaunch = drone.getHull();
+        drone.setHull(atLaunch - 2);           // took two hits
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto dto = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-9");
+
+        assertEquals("hits on a drone are there to see", 2, dto.damageTaken);
+        assertEquals("but not what it started with", 0, dto.maxHull);
+        assertEquals("nor what is left, which would give the total away", 0, dto.hull);
+        assertEquals("and certainly not the type", "?", dto.droneType);
+    }
+
+    /** Its owner sees the whole picture. */
+    @Test
+    public void ownDrone_showsHullAndDamage() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-10");
+        drone.setLocation(new Location(19, 13));
+        drone.setController(klingon);
+        int atLaunch = drone.getHull();
+        drone.setHull(atLaunch - 1);
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto dto = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Klingons"), "IKV Saber-Drone-10");
+
+        assertEquals(1, dto.damageTaken);
+        assertEquals(atLaunch, dto.maxHull);
+        assertEquals(atLaunch - 1, dto.hull);
+    }
+
+    /** What a drone is chasing is bought by identification, not watched (G4.231). */
+    @Test
+    public void enemyDrone_targetHiddenUntilIdentified() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-11");
+        drone.setLocation(new Location(19, 14));
+        drone.setController(klingon);
+        drone.setTarget(fed);
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto before = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-11");
+        assertNull("an enemy cannot see which ship it is aimed at", before.targetName);
+
+        drone.identify();
+
+        GameStateDto.DroneDto after = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-11");
+        assertEquals("USS Enterprise", after.targetName);
+    }
+
     @Test
     public void enemyDrone_typeAndWarheadHidden() {
         Drone drone = new Drone(DroneType.TypeI);
