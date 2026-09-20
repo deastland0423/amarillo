@@ -132,6 +132,36 @@ public class BayShuttleDtoTest {
                 1, sd.wwChargeCount);
     }
 
+    /**
+     * A launched pack seen by its OWNER. The enemy's view of the same pack goes through
+     * ShuttleDto and reads properly; this one takes its own DTO, which carried what the
+     * pack is DOING and had dropped what it IS — so a player's own pack showed
+     * "Faction: ?  From: ?" and no hull at all, while the enemy could see everything.
+     */
+    @Test
+    public void anOwnScatterPackOnTheMapSaysWhereItCameFrom() {
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        pack.setName("IKV Vengeance-Admin-1");
+        pack.setOwner(klingon.getOwner());
+        pack.setParentShipName(klingon.getName());
+        pack.setController(klingon);
+        pack.setLocation(new Location(10, 11));
+        pack.addDrone(new Drone(DroneType.TypeI));
+        pack.setCurrentHull(pack.getHull() - 2);
+        game.getSeekers().add(pack);
+
+        GameStateDto.ScatterPackDto dto = null;
+        for (GameStateDto.MapObjectDto o : new GameStateDto(game, "Klingon").mapObjects)
+            if (o instanceof GameStateDto.ScatterPackDto && "IKV Vengeance-Admin-1".equals(o.name))
+                dto = (GameStateDto.ScatterPackDto) o;
+
+        assertNotNull("its owner sees it as the pack it is", dto);
+        assertEquals("IKV Vengeance", dto.parentShipName);
+        assertEquals("and its damage, which nothing showed", 2, dto.damageTaken);
+        assertTrue(dto.maxHull > 0);
+        assertEquals(dto.maxHull - 2, dto.hull);
+    }
+
     /** Every prepared shuttle names its role, which is what keeps it out of the launch list. */
     @Test
     public void preparedShuttlesNameTheirRole() {

@@ -126,9 +126,11 @@ public class MapObjectPrivacyTest {
         // field cannot slip in unexamined if that ever changes.
         rule(GameStateDto.ScatterPackDto.class, Visibility.PUBLIC,
             "facing", "speed", "controllerFaction", "controllerName", "targetName",
+            "parentShipName", "parentPlayer", "hull", "maxHull", "damageTaken",
             "payload", "released", "isIdentified");
         rule(GameStateDto.SuicideShuttleDto.class, Visibility.PUBLIC,
             "facing", "speed", "controllerFaction", "controllerName", "targetName",
+            "parentShipName", "parentPlayer", "hull", "maxHull", "damageTaken",
             "warheadDamage", "armingTurnsComplete", "isIdentified");
     }
 

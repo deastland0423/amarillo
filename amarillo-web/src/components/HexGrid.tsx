@@ -811,7 +811,11 @@ function shuttleTooltipLines(
   const parentShip = allObjects.find(
     o => o.type === 'SHIP' && o.name === (shuttle as any).parentShipName
   ) as ShipObject | undefined;
-  const faction = parentShip?.faction ?? '?';
+  // Falls back to the controller: a launcher can be destroyed while its shuttle flies on,
+  // and then there is no parent ship on the map to look up.
+  const faction = parentShip?.faction
+    ?? (shuttle as { controllerFaction?: string }).controllerFaction
+    ?? '?';
 
   // Fog-of-war is the server's job and it does it properly: a SUICIDE_SHUTTLE or a
   // SCATTER_PACK only ever reaches a viewer entitled to see it (its owner, or anyone once a

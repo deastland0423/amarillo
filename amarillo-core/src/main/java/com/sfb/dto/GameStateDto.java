@@ -446,7 +446,26 @@ public class GameStateDto {
     // Suicide shuttle (seeker)
     // -------------------------------------------------------------------------
 
-    public static class SuicideShuttleDto extends MapObjectDto {
+    /**
+     * What a seeking shuttle IS, as opposed to what it is doing.
+     *
+     * Seen by an enemy, a suicide shuttle and an unreleased scatter pack arrive as a plain
+     * ShuttleDto, which carries all of this. Seen by their OWNER they take their own DTOs,
+     * which carried only the role — so a player's own pack read "Faction: ?  From: ?" with
+     * no hull, while the enemy's view of the same pack was complete.
+     *
+     * A shared base rather than the same five fields copied into both, so the compiler
+     * keeps them in step.
+     */
+    public static abstract class SeekingShuttleDto extends MapObjectDto {
+        public String parentShipName;
+        public String parentPlayer;
+        public int hull;
+        public int maxHull;
+        public int damageTaken;
+    }
+
+    public static class SuicideShuttleDto extends SeekingShuttleDto {
         public int facing;
         public int speed;
         public String controllerFaction;
@@ -461,7 +480,7 @@ public class GameStateDto {
     // Scatter pack (seeker — moves toward target, releases drones after 8 impulses)
     // -------------------------------------------------------------------------
 
-    public static class ScatterPackDto extends MapObjectDto {
+    public static class ScatterPackDto extends SeekingShuttleDto {
         public int facing;
         public int speed;
         public String controllerFaction;
@@ -1597,6 +1616,7 @@ public class GameStateDto {
         dto.controllerName = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
         dto.targetName = ss.getTarget() != null ? ss.getTarget().getName() : null;
         dto.isIdentified = ss.isIdentified();
+        describeCraft(dto, ss);
         return dto;
     }
 
@@ -1615,12 +1635,23 @@ public class GameStateDto {
                 : null;
         dto.targetName = pack.getTarget() != null ? pack.getTarget().getName() : null;
         dto.isIdentified = pack.isIdentified();
+        describeCraft(dto, pack);
         return dto;
     }
 
     /** A drone's hull at launch, which its type decides. */
     private static int maxHullOf(Drone drone) {
         return drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+    }
+
+    /** Which ship launched it, and how battered it is — the same for either role. */
+    private static void describeCraft(SeekingShuttleDto dto,
+            com.sfb.objects.shuttles.Shuttle shuttle) {
+        dto.parentShipName = shuttle.getParentShipName();
+        dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        dto.hull = shuttle.getCurrentHull();
+        dto.maxHull = shuttle.getHull();
+        dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
     }
 
     private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
