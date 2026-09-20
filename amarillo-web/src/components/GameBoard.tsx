@@ -4933,6 +4933,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           <SsdPanel
             ship={ssdShip}
             isMine={myShips.has(ssdShip.name)}
+            contacts={gameState?.mapObjects ?? []}
             onClose={() => setSsdShipName(null)}
           />
         )}
