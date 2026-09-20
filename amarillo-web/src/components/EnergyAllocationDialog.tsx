@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import type { GuardOptions } from '../api/gameApi';
+import { useDraggable } from '../hooks/useDraggable';
 
 // Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
 const TURN_MODE_TABLES: Record<string, number[]> = {
@@ -396,27 +397,8 @@ export default function EnergyAllocationDialog({
     setAllocMap(m => ({ ...m, [activeTab]: updater(m[activeTab]) }));
   }
 
-  // Drag state
-  const dragRef  = useRef<{ x: number; y: number; l: number; t: number } | null>(null);
-  const [pos, setPos] = useState({ left: 120, top: 80 });
-
-  function onTitleMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    dragRef.current = { x: e.clientX, y: e.clientY, l: pos.left, t: pos.top };
-    function onMove(ev: MouseEvent) {
-      if (!dragRef.current) return;
-      setPos({ left: dragRef.current.l + ev.clientX - dragRef.current.x,
-               top:  dragRef.current.t + ev.clientY - dragRef.current.y });
-    }
-    function onUp() {
-      dragRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
-    }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup',   onUp);
-  }
+  // Dragging lives in a hook now, shared with the SSD panel (src/hooks/useDraggable).
+  const drag = useDraggable({ left: 120, top: 80 });
 
   const [busy,   setBusy]   = useState(false);
   const [errMsg, setErrMsg] = useState('');
@@ -559,10 +541,10 @@ export default function EnergyAllocationDialog({
   const effectiveMaxWarp = Math.min(maxWarpSpeed, accelCap);
 
   return (
-    <div className="ea-dialog" style={{ left: pos.left, top: pos.top }}>
+    <div className="ea-dialog" style={{ left: drag.position.left, top: drag.position.top }}>
 
       {/* Title bar */}
-      <div className="ea-titlebar" onMouseDown={onTitleMouseDown}>
+      <div className="ea-titlebar" {...drag.handleProps}>
         <span className="ea-title">Energy Allocation</span>
       </div>
 

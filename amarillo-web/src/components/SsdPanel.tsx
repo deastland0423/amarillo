@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ShipObject, WeaponState } from '../types/gameState';
 import { facingLabel, facingToAngle, factionColor } from '../types/gameState';
 import { bearsOn, hexesInArc, type Hex } from '../hex/geometry';
+import { useDraggable } from '../hooks/useDraggable';
 
 /**
  * The SSD panel: a ship as it appears on its own record sheet, rather than as a token on
@@ -73,6 +74,12 @@ function arcBearingWeapons(ship: ShipObject): WeaponState[] {
 
 export default function SsdPanel({ ship, isMine, onClose }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+  // Opens out of the way on the right, then goes wherever it is dragged. It is meant to
+  // stay open while you look at the map, so it must not be stuck over the part you need.
+  const drag = useDraggable({
+    left: Math.max(16, (typeof window === 'undefined' ? 1200 : window.innerWidth) - 330),
+    top: 70,
+  });
 
   // The diagram is drawn around a nominal centre; only offsets matter, and column parity
   // has to be preserved or the arcs would sit half a hex out. Using the ship's real column
@@ -96,9 +103,9 @@ export default function SsdPanel({ ship, isMine, onClose }: Props) {
   const vbHeight = (RADIUS + 1.2) * ROW_H;
 
   return (
-    <div style={panelStyle}>
+    <div style={{ ...panelStyle, left: drag.position.left, top: drag.position.top }}>
       {/* ---- identity ---------------------------------------------------- */}
-      <div style={headerStyle}>
+      <div style={headerStyle} {...drag.handleProps} title="Drag to move">
         <div>
           <span style={{ fontWeight: 700, color: factionColor(ship.faction) }}>{ship.name}</span>
           <span style={{ color: '#888', marginLeft: 6, fontSize: '0.78rem' }}>
@@ -189,8 +196,6 @@ function weaponKey(w: WeaponState): string {
 
 const panelStyle: React.CSSProperties = {
   position: 'fixed',
-  top: 70,
-  right: 16,
   width: 300,
   zIndex: 40,
   background: '#161b22',
@@ -201,6 +206,7 @@ const panelStyle: React.CSSProperties = {
 };
 
 const headerStyle: React.CSSProperties = {
+  cursor: 'grab',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
