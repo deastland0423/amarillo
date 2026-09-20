@@ -4858,8 +4858,10 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       <div className="board-topbar">
-        {/* Exit controls live top-left, away from Ready (top-right), so they
-            aren't clicked by accident when readying up. */}
+        {/* Everything that is not Ready lives top-left, away from Ready (top-right), so
+            none of it is clicked by accident when readying up — which is the button
+            pressed more than any other in the game. Score joined them for that reason:
+            it sat next to Ready and was being hit instead of it. */}
         <div className="topbar-left">
           <span className="board-title">Amarillo</span>
           {!gameState?.gameOver && (
@@ -4873,6 +4875,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             </button>
           )}
           <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
+          <button className="secondary" onClick={() => setShowScore(true)}
+                  title="Current victory-point standings (S2.21)">
+            Score
+          </button>
         </div>
         <span className="board-phase">
           {!gameState ? 'Loading…' : (
@@ -4897,10 +4903,6 @@ export default function GameBoard({ session, onLeave }: Props) {
         </span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
-          <button className="secondary" onClick={() => setShowScore(true)}
-                  title="Current victory-point standings (S2.21)">
-            Score
-          </button>
           {isMovementPhase && myMovablePending.length > 0 && (
             <span className="topbar-move-warn">
               Move: <strong>{myMovablePending[0]}</strong>
