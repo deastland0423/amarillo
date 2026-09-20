@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MapObject, ShieldState, ShipObject, WeaponState } from '../types/gameState';
 import { facingLabel, facingToAngle, factionColor, parseLocation,
          shieldStrengthColor } from '../types/gameState';
@@ -134,6 +134,17 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [showContacts, setShowContacts] = useState(true);
 
+  // Escape closes it. A way out that does not depend on reaching a particular pixel: the
+  // panel is draggable, and a drag that put its close button out of reach used to leave it
+  // stuck on screen for good.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   /**
    * A facing being TRIED, or null when the diagram is showing the truth. The question a
    * player actually has is "what bears if I turn?", and answering it here costs nothing and
@@ -253,7 +264,8 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
             {ship.shipType}{isMine ? '' : ' (enemy)'}
           </span>
         </div>
-        <button className="secondary" style={{ padding: '0 8px' }} onClick={onClose}>✕</button>
+        <button className="secondary" style={{ padding: '0 8px' }}
+                title="Close (Esc)" onClick={onClose}>✕</button>
       </div>
       <div style={{ fontSize: '0.72rem', marginBottom: 6,
                     color: previewFacing == null ? '#888' : '#d29922' }}>
