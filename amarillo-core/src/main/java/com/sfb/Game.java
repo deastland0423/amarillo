@@ -3325,15 +3325,28 @@ public class Game {
     }
 
     /**
-     * C11.21: nimble units subtract 1 from the collision die (lower die = less
-     * damage on the tables), for both asteroid (P3.221) and ring (P2.223).
-     * C11.33: a poor crew negates a ship's nimble benefit. Not yet modeled:
-     * C11.31 loss-when-crippled/breakdown/warp, and the separate G21 crew /
-     * P3.222 EM shifts. Package-private for direct unit testing.
+     * The collision die after every modifier that applies, for both asteroid (P3.221) and
+     * ring (P2.223) hexes. A lower die is less damage on the tables.
+     * <p>
+     * C11.21: nimble units subtract 1. C11.33: a poor crew negates a ship's nimble benefit.
+     * D6.628: a ship without ACTIVE fire control adds 1, and the rule says outright that
+     * this is cumulative with nimbleness — so a nimble ship flying passive is back where
+     * it started rather than keeping the better of the two.
+     * <p>
+     * Not yet modelled: C11.31 loss-when-crippled/breakdown/warp, the separate G21 crew and
+     * P3.222 EM shifts, and the legendary-officer modifier D6.628 also mentions.
+     * Package-private for direct unit testing.
      */
-    static int nimbleAdjustedDie(int die, boolean nimble, com.sfb.systemgroups.Crew.CrewQuality crew) {
+    static int collisionDie(int die, boolean nimble, com.sfb.systemgroups.Crew.CrewQuality crew,
+            boolean passiveFireControl) {
         boolean effective = nimble && crew != com.sfb.systemgroups.Crew.CrewQuality.POOR;
-        return effective ? Math.max(1, die - 1) : die;
+        int adjusted = die;
+        if (effective)
+            adjusted -= 1;
+        if (passiveFireControl)
+            adjusted += 1;
+        // The tables are indexed 1-6; a modifier cannot push the roll off either end.
+        return Math.max(1, Math.min(6, adjusted));
     }
 
     /**
@@ -3348,7 +3361,7 @@ public class Game {
      * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
     TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
-            com.sfb.systemgroups.Crew.CrewQuality crew) {
+            com.sfb.systemgroups.Crew.CrewQuality crew, boolean passiveFireControl) {
         boolean asteroid = isAsteroidHex(loc);
         boolean ring = !asteroid && isRingHex(loc);
         if (!asteroid && !ring)
@@ -3356,7 +3369,7 @@ public class Game {
         int[][] table = asteroid ? ASTEROID_DAMAGE : RING_DAMAGE;
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int rawDie = new com.sfb.utilities.DiceRoller().rollOneDie();
-        int die = nimbleAdjustedDie(rawDie, nimble, crew);
+        int die = collisionDie(rawDie, nimble, crew, passiveFireControl);
         int damage = table[die - 1][bracket];
         return new TerrainHit(asteroid ? "asteroid" : "ring", rawDie, die != rawDie, damage);
     }
@@ -3429,8 +3442,13 @@ public class Game {
         boolean nimble = isShip ? ((Ship) unit).isNimble()
                                 : unit instanceof com.sfb.objects.shuttles.Shuttle;
         com.sfb.systemgroups.Crew.CrewQuality crew = crewQualityFor(unit);
+        // D6.628: a SHIP without active fire control is clumsier in a field. Shuttles,
+        // fighters and seeking weapons never allocate energy for active fire control
+        // (D6.631), so the penalty does not reach them — they are not flying passive,
+        // they simply have no such system to switch off.
+        boolean passiveFc = isShip && !((Ship) unit).isActiveFireControl();
 
-        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew);
+        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew, passiveFc);
         if (hit == null)
             return "";
 
