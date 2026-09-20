@@ -299,6 +299,17 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           );
         })}
 
+        {/* The ship itself, pointing along its facing. Drawn before the shield readouts
+            so a rotated icon can never cover one; contacts come last, over everything. */}
+        <g transform={`rotate(${(facingToAngle(facing) * 180) / Math.PI})`}>
+          <polygon
+            points={`${SIZE * 0.6},0 ${-SIZE * 0.38},${SIZE * 0.42} ${-SIZE * 0.38},${-SIZE * 0.42}`}
+            fill={factionColor(ship.faction)}
+            stroke="#c9d1d9"
+            strokeWidth={1}
+          />
+        </g>
+
         {/* shields on the ship's own hex edges, not in the ring hexes beyond them */}
         {[...shieldRing.entries()].map(([key, shield]) => {
           const [col, row] = key.split('|').map(Number);
@@ -317,15 +328,19 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
             : shieldStrengthColor(visible, state.max);
           return (
             <g key={`shield-${key}`} pointerEvents="none">
-              {/* Side by side rather than stacked: the hexes directly above and below are
-                  the tightest direction, and two lines of text there would run into the
+              {/* ONE text run, not two. Anchoring a number to the left of the point and a
+                  strength to the right left the pair straddling it, reading as two
+                  separate things pulled apart rather than one label. Tspans flow inline,
+                  so a middle anchor measures the whole string and centres it.
+
+                  Side by side rather than stacked, because the hexes directly above and
+                  below are the tight direction and two lines of text there run into the
                   contact drawn in the next hex out. */}
-              <text x={x - 3} y={y + 4} textAnchor="end" fontSize={9} fill="#6e7681">
-                {shield.num}
-              </text>
-              <text x={x + 2} y={y + 5} textAnchor="start" fontSize={13}
-                    fontWeight={700} fill={colour}>
-                {state == null ? '-' : visible}
+              <text x={x} y={y + 5} textAnchor="middle">
+                <tspan fontSize={9} fill="#6e7681">{shield.num} </tspan>
+                <tspan fontSize={13} fontWeight={700} fill={colour}>
+                  {state == null ? '-' : visible}
+                </tspan>
               </text>
             </g>
           );
@@ -360,15 +375,6 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           );
         })}
 
-        {/* the ship itself, pointing along its facing */}
-        <g transform={`rotate(${(facingToAngle(facing) * 180) / Math.PI})`}>
-          <polygon
-            points={`${SIZE * 0.6},0 ${-SIZE * 0.38},${SIZE * 0.42} ${-SIZE * 0.38},${-SIZE * 0.42}`}
-            fill={factionColor(ship.faction)}
-            stroke="#c9d1d9"
-            strokeWidth={1}
-          />
-        </g>
       </svg>
 
       {/* ---- turn it and see ---------------------------------------------- */}
