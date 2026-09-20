@@ -35,6 +35,15 @@ const RADIUS = 5;
 /** Circumradius of a mini-map hex, in SVG units. */
 const SIZE = 21;
 
+/**
+ * Where a shield readout sits, as a fraction of the way to the neighbouring hex centre.
+ * The hex edge is at exactly 0.5, so a little beyond that puts the number outside its own
+ * shield face while staying clear of 1.0, where a contact at range 1 is drawn. 0.55 rather
+ * than something roomier because the hexes directly above and below are the tight
+ * direction: at 0.62 the strength ran into the contact circle in the next hex out.
+ */
+const EDGE_FRACTION = 0.55;
+
 /** Row spacing for flat-top hexes, matching the battle map's layout. */
 const ROW_H = Math.sqrt(3) * SIZE;
 
@@ -290,10 +299,15 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           );
         })}
 
-        {/* shields on the inner ring: the six hexes at range 1 are the six facings */}
+        {/* shields on the ship's own hex edges, not in the ring hexes beyond them */}
         {[...shieldRing.entries()].map(([key, shield]) => {
           const [col, row] = key.split('|').map(Number);
-          const [x, y] = offsetFromCentre(centre, { col, row });
+          const [hx, hy] = offsetFromCentre(centre, { col, row });
+          // A shield is a FACE of this hex. The edge is halfway to the neighbour, so a
+          // little past that sits the readout just outside its own shield and well clear
+          // of the neighbouring hex centre, where contacts are drawn.
+          const x = hx * EDGE_FRACTION;
+          const y = hy * EDGE_FRACTION;
           const state = shield.state;
           // An enemy's reinforcement is not public; the base strength is. Same rule the
           // battle map follows, and worth keeping identical.
@@ -303,10 +317,13 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
             : shieldStrengthColor(visible, state.max);
           return (
             <g key={`shield-${key}`} pointerEvents="none">
-              <text x={x} y={y - 3} textAnchor="middle" fontSize={9} fill="#6e7681">
+              {/* Side by side rather than stacked: the hexes directly above and below are
+                  the tightest direction, and two lines of text there would run into the
+                  contact drawn in the next hex out. */}
+              <text x={x - 3} y={y + 4} textAnchor="end" fontSize={9} fill="#6e7681">
                 {shield.num}
               </text>
-              <text x={x} y={y + 11} textAnchor="middle" fontSize={13}
+              <text x={x + 2} y={y + 5} textAnchor="start" fontSize={13}
                     fontWeight={700} fill={colour}>
                 {state == null ? '-' : visible}
               </text>
@@ -346,7 +363,7 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
         {/* the ship itself, pointing along its facing */}
         <g transform={`rotate(${(facingToAngle(facing) * 180) / Math.PI})`}>
           <polygon
-            points={`${SIZE * 0.75},0 ${-SIZE * 0.45},${SIZE * 0.5} ${-SIZE * 0.45},${-SIZE * 0.5}`}
+            points={`${SIZE * 0.6},0 ${-SIZE * 0.38},${SIZE * 0.42} ${-SIZE * 0.38},${-SIZE * 0.42}`}
             fill={factionColor(ship.faction)}
             stroke="#c9d1d9"
             strokeWidth={1}
@@ -399,7 +416,7 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
         {weapons.length === 0 ? 'No weapons with a firing arc.'
           : 'Select a weapon to light its arc.'}
       </div>
-      <div style={{ maxHeight: 190, overflowY: 'auto' }}>
+      <div style={{ maxHeight: 240, overflowY: 'auto' }}>
         {weapons.map(w => {
           const key = weaponKey(w);
           const isSelected = key === selected;
@@ -434,7 +451,10 @@ function weaponKey(w: WeaponState): string {
 
 const panelStyle: React.CSSProperties = {
   position: 'fixed',
-  width: 300,
+  // The diagram is a viewBox at width 100%, so THIS is the zoom control: the hexes, the
+  // text and the contacts all scale with the panel. Changing SIZE would only rescale the
+  // internal units and look identical.
+  width: 450,
   zIndex: 40,
   background: '#161b22',
   border: '1px solid #30363d',
