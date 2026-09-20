@@ -1597,7 +1597,11 @@ public class GameStateDto {
             dto.maxHull = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
             dto.damageTaken = dto.maxHull - drone.getHull();
         }
-        dto.targetName = drone.getTarget() != null ? drone.getTarget().getName() : null;
+        // G4.231: what a drone is chasing is revealed by identification, not before. The
+        // field always said so in its comment and was assigned anyway, so an enemy could
+        // read off which ship every drone was aimed at.
+        dto.targetName = hideSecrets || drone.getTarget() == null
+                ? null : drone.getTarget().getName();
         dto.controllerFaction = controllerFaction(drone.getController());
         dto.controllerName = drone.getController() != null ? drone.getController().getName() : null;
         dto.launcherName = drone.getLauncherName();
