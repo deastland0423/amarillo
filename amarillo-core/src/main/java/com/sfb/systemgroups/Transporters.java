@@ -1,5 +1,7 @@
 package com.sfb.systemgroups;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import com.sfb.objects.Unit;
@@ -29,6 +31,37 @@ public class Transporters implements Systems {
 	@Override
 	public void init(Map<String, Object> values) {
 		boxes.init(values.get("trans") == null ? 0 : (Integer) values.get("trans"));
+	}
+
+	/**
+	 * Each surviving box and what it is doing, for a raid's target list (D7.835). The state
+	 * is public: every use of a transporter is seen, so an attacker knows which boxes are
+	 * spent — and will pick one that is not.
+	 */
+	public List<String> describeBoxes(int absoluteImpulse) {
+		List<String> out = new ArrayList<>();
+		for (int number : boxes.numbers()) {
+			BoxCycle.State state = boxes.stateOf(number, absoluteImpulse);
+			out.add("Transporter #" + number + " ("
+				+ (state == BoxCycle.State.USED_THIS_TURN ? "used this turn"
+				 : state == BoxCycle.State.COOLING_DOWN ? "cooling down"
+				 : "unused") + ")");
+		}
+		return out;
+	}
+
+	/** The numbers of the boxes still undamaged, in SSD order. */
+	public List<Integer> boxNumbers() {
+		return boxes.numbers();
+	}
+
+	/**
+	 * Destroy one NAMED box, for a raid that picked it deliberately (D7.835). Unlike
+	 * {@link #damage()}, which gives up the least valuable box, this destroys the one the
+	 * attacker chose.
+	 */
+	public boolean destroyBox(int number) {
+		return boxes.damageBox(number);
 	}
 
 	/** Boxes surviving damage, busy or not. Public knowledge, like every box on the SSD. */

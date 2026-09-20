@@ -82,9 +82,16 @@ class BoardingResolver {
             systems.add(new SystemTarget(SystemTarget.Type.SCANNERS, "Scanners"));
         }
 
-        // Transporters
-        if (target.getTransporters().getAvailableTrans() > 0) {
-            systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters"));
+        // Transporters — per box, like tractor beams, so a raid can pick an UNUSED one
+        // (D7.835). A box already spent this turn costs its owner almost nothing, which is
+        // why the damage chart gives those up first.
+        {
+            com.sfb.systemgroups.Transporters trans = target.getTransporters();
+            List<Integer> numbers = trans.boxNumbers();
+            List<String> labels = trans.describeBoxes(game.getAbsoluteImpulse());
+            for (int i = 0; i < numbers.size(); i++)
+                systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS,
+                        numbers.get(i), labels.get(i)));
         }
 
         // Crew deliberately absent: D7.826 forbids raids on crew units,
@@ -608,6 +615,9 @@ class BoardingResolver {
             }
             case TRACTOR:
                 return target.getTractors().destroyBeam(system.getIndex()) != null;
+            case TRANSPORTERS:
+                // The box the raider named, not the one the defender would rather lose.
+                return target.getTransporters().destroyBox(system.getIndex());
             case WARP_L:
                 return target.getPowerSystems().damageLWarp();
             case WARP_R:
@@ -621,8 +631,6 @@ class BoardingResolver {
                 return target.getSpecialFunctions().damageSensor();
             case SCANNERS:
                 return target.getSpecialFunctions().damageScanner();
-            case TRANSPORTERS:
-                return target.getTransporters().damage();
             case BATTERY:
                 return target.getPowerSystems().damageBattery();
             case FHULL:

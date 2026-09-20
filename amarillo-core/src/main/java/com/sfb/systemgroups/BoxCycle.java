@@ -35,17 +35,30 @@ public class BoxCycle {
     private int total;
 
     /**
-     * One entry per UNDAMAGED box: the absolute impulse it was last used, or {@link #NEVER}.
-     * Its size is the number of functioning boxes; damage removes an entry, repair adds one.
+     * One box, identified by its position on the SSD.
+     *
+     * The NUMBER is the identity, not the position in this list: destroying a box removes
+     * it, and everything after would otherwise shift. A hit-and-run raid names a box
+     * (D7.835), and a scout channel holds one across four attempts (G24.251) — both would
+     * quietly follow the wrong box if identity moved when a neighbour was shot off.
      */
-    private final List<Integer> lastUsed = new ArrayList<>();
+    private static final class Box {
+        final int number;
+        int lastUsed = NEVER;
 
-    /** Build a bank of {@code boxes} undamaged, unused boxes. */
-    public void init(int boxes) {
-        total = Math.max(0, boxes);
-        lastUsed.clear();
-        for (int i = 0; i < total; i++)
-            lastUsed.add(NEVER);
+        Box(int number) {
+            this.number = number;
+        }
+    }
+
+    private final List<Box> boxes = new ArrayList<>();
+
+    /** Build a bank of {@code count} undamaged, unused boxes, numbered from 1. */
+    public void init(int count) {
+        total = Math.max(0, count);
+        boxes.clear();
+        for (int i = 1; i <= total; i++)
+            boxes.add(new Box(i));
     }
 
     /** Boxes printed on the SSD, damaged or not. */
@@ -55,14 +68,22 @@ public class BoxCycle {
 
     /** Boxes that still exist: undamaged, whether or not they are busy. */
     public int functioning() {
-        return lastUsed.size();
+        return boxes.size();
+    }
+
+    /** The numbers of the boxes that still exist, in SSD order. */
+    public List<Integer> numbers() {
+        List<Integer> out = new ArrayList<>();
+        for (Box b : boxes)
+            out.add(b.number);
+        return out;
     }
 
     /** Boxes free to take a job at this impulse. */
     public int available(int absoluteImpulse) {
         int free = 0;
-        for (int i = 0; i < lastUsed.size(); i++)
-            if (isFree(i, absoluteImpulse))
+        for (Box b : boxes)
+            if (cycleFree(b.lastUsed, absoluteImpulse))
                 free++;
         return free;
     }
@@ -84,48 +105,66 @@ public class BoxCycle {
         return absoluteImpulse - lastUsed >= QUARTER_TURN;
     }
 
-    /** True if box {@code index} may be put to work at this impulse. */
-    public boolean isFree(int index, int absoluteImpulse) {
-        if (index < 0 || index >= lastUsed.size())
-            return false;
-        return cycleFree(lastUsed.get(index), absoluteImpulse);
+    private Box find(int number) {
+        for (Box b : boxes)
+            if (b.number == number)
+                return b;
+        return null;
     }
 
-    /** True if this box has been used during the turn {@code absoluteImpulse} falls in. */
-    public boolean usedThisTurn(int index, int absoluteImpulse) {
-        if (index < 0 || index >= lastUsed.size())
-            return false;
-        int last = lastUsed.get(index);
-        return last != NEVER && turnOf(last) == turnOf(absoluteImpulse);
+    /** True if the numbered box may be put to work at this impulse. */
+    public boolean isFree(int number, int absoluteImpulse) {
+        Box b = find(number);
+        return b != null && cycleFree(b.lastUsed, absoluteImpulse);
     }
 
-    /** How many boxes have been used during the turn {@code absoluteImpulse} falls in. */
+    /** True if the numbered box was used during the turn this impulse falls in. */
+    public boolean usedThisTurn(int number, int absoluteImpulse) {
+        Box b = find(number);
+        return b != null && b.lastUsed != NEVER
+            && turnOf(b.lastUsed) == turnOf(absoluteImpulse);
+    }
+
+    /** How many boxes were used during the turn this impulse falls in. */
     public int usesThisTurn(int absoluteImpulse) {
         int used = 0;
-        for (int i = 0; i < lastUsed.size(); i++)
-            if (usedThisTurn(i, absoluteImpulse))
+        for (Box b : boxes)
+            if (b.lastUsed != NEVER && turnOf(b.lastUsed) == turnOf(absoluteImpulse))
                 used++;
         return used;
     }
 
+    /** What a box is doing, for a raid's target list or a readout. */
+    public enum State { UNUSED, USED_THIS_TURN, COOLING_DOWN }
+
+    public State stateOf(int number, int absoluteImpulse) {
+        Box b = find(number);
+        if (b == null || b.lastUsed == NEVER)
+            return State.UNUSED;
+        if (turnOf(b.lastUsed) == turnOf(absoluteImpulse))
+            return State.USED_THIS_TURN;
+        return cycleFree(b.lastUsed, absoluteImpulse) ? State.UNUSED : State.COOLING_DOWN;
+    }
+
     /**
-     * Put a box to work at this impulse and return which one, or -1 if none is free. The
-     * index matters to a caller that holds its box across several attempts — a scout
+     * Put a box to work at this impulse and return its NUMBER, or -1 if none is free. The
+     * number matters to a caller that holds its box across several attempts — a scout
      * channel gets four out of one lab (G24.251) — and must keep stamping the same one.
      */
     public int use(int absoluteImpulse) {
-        for (int i = 0; i < lastUsed.size(); i++)
-            if (isFree(i, absoluteImpulse)) {
-                lastUsed.set(i, absoluteImpulse);
-                return i;
+        for (Box b : boxes)
+            if (cycleFree(b.lastUsed, absoluteImpulse)) {
+                b.lastUsed = absoluteImpulse;
+                return b.number;
             }
         return -1;
     }
 
     /** Re-stamp a box already held, so its delay runs from this use rather than the first. */
-    public void markUsed(int index, int absoluteImpulse) {
-        if (index >= 0 && index < lastUsed.size())
-            lastUsed.set(index, absoluteImpulse);
+    public void markUsed(int number, int absoluteImpulse) {
+        Box b = find(number);
+        if (b != null)
+            b.lastUsed = absoluteImpulse;
     }
 
     /**
@@ -136,14 +175,29 @@ public class BoxCycle {
      * @return false if there was nothing left to destroy
      */
     public boolean damage() {
-        if (lastUsed.isEmpty())
+        if (boxes.isEmpty())
             return false;
 
-        int worst = 0;
-        for (int i = 1; i < lastUsed.size(); i++)
-            if (lastUsed.get(i) > lastUsed.get(worst))
-                worst = i;
-        lastUsed.remove(worst);
+        Box worst = boxes.get(0);
+        for (Box b : boxes)
+            if (b.lastUsed > worst.lastUsed)
+                worst = b;
+        boxes.remove(worst);
+        return true;
+    }
+
+    /**
+     * Destroy one NAMED box, for a hit-and-run raid that picked it deliberately (D7.835).
+     * A raider wants an unused one, since a box already spent this turn costs its owner
+     * far less.
+     *
+     * @return false if that box does not exist or is already destroyed
+     */
+    public boolean damageBox(int number) {
+        Box b = find(number);
+        if (b == null)
+            return false;
+        boxes.remove(b);
         return true;
     }
 
@@ -152,11 +206,17 @@ public class BoxCycle {
      * G4.31 has it assume its function at the start of the next turn, which is not modelled.
      */
     public boolean repair(int value) {
-        if (lastUsed.size() + value > total)
+        if (boxes.size() + value > total)
             return false;
 
+        // Reuse the lowest numbers not currently present, so the SSD reads sensibly.
         for (int i = 0; i < value; i++)
-            lastUsed.add(NEVER);
+            for (int n = 1; n <= total; n++)
+                if (find(n) == null) {
+                    boxes.add(new Box(n));
+                    break;
+                }
+        boxes.sort((a, b) -> Integer.compare(a.number, b.number));
         return true;
     }
 
