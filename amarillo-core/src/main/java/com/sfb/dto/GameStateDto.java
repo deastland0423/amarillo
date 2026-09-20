@@ -101,7 +101,12 @@ public class GameStateDto {
     public static class WeaponDto {
         public String name;
         public String designator;
-        public boolean armed;
+        /**
+         * Null means NOT DISCLOSED, which is what an enemy sees: whether a heavy weapon is
+         * armed, and how, is the thing a player most wants to hide. A primitive would have
+         * reported every enemy weapon as unarmed, trading a leak for a lie.
+         */
+        public Boolean armed;
         public int armingTurn;
         public String armingType; // "STANDARD", "OVERLOAD", "SPECIAL", or null
         public int lastImpulseFired; // for canFire() checks client-side
@@ -1264,8 +1269,10 @@ public class GameStateDto {
         // what is LOADED is not).
         dto.droneRacks = new ArrayList<>();
         dto.shuttleBays = new ArrayList<>();
-        if (hideSecrets)
+        if (hideSecrets) {
+            redactForEnemy(dto);
             return dto;
+        }
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack))
                 continue;
@@ -1413,6 +1420,74 @@ public class GameStateDto {
             dto.seekingTargetName = t != null ? t.getName() : null;
         }
         return dto;
+    }
+
+    /**
+     * Everything an enemy may not know about a ship, in one place.
+     *
+     * The rule this enforces: the CLIENT never decides what to hide. It renders what it is
+     * given, and a missing value means unknown. Two systems deciding — a partial redaction
+     * here and a polite client that declines to display the rest — is how a secret ends up
+     * on the wire with only good manners protecting it, which is where this started: an
+     * opponent could read whether your disruptors were armed straight out of the DTO.
+     *
+     * Bay contents, drone rack loads, allocation notes and ESG stored energy are withheld
+     * by not being built at all, above. What is left here is the fields that ARE built and
+     * then have to be blanked.
+     *
+     * Public by ruling, and deliberately untouched: shield box strength, every damaged or
+     * remaining system box, ECM and ECCM both generated and lent, whether a weapon is
+     * destroyed, how often it has fired this turn, and command rating (which decides fleet
+     * legality and does nothing in a battle).
+     */
+    private static void redactForEnemy(ShipDto dto) {
+        // Specific reinforcement is not visible until it absorbs something; the box count
+        // is. current carries the reinforcement, baseStrength does not.
+        if (dto.shields != null)
+            for (ShieldDto sd : dto.shields)
+                sd.current = sd.baseStrength;
+
+        // Energy held rather than spent: batteries, reserve warp, phaser capacitors.
+        dto.batteryCharge = 0;
+        dto.batteryPower = 0;
+        dto.availableBattery = 0;
+        dto.reserveWarp = 0;
+        dto.phaserCapacitor = 0;          // the SSD maximum stays public
+        dto.capacitorsCharged = false;
+
+        // Mines carried, and how many of them are bluffs.
+        dto.tBombs = 0;
+        dto.dummyTBombs = 0;
+        dto.nuclearSpaceMines = 0;
+
+        // Who he has lock-on to.
+        dto.lockOnTargets = new ArrayList<>();
+
+        // Tactical manoeuvre budget, and the availability that would give it away.
+        dto.tacBudget = 0;
+        dto.tacAvailable = 0;          // an int: earned TACs ready to use
+        dto.sublightTacAvailable = false;
+
+        // How much lending capacity a scout has left. What it is actually lending, and to
+        // whom, is public.
+        dto.scoutEwPool = 0;
+        dto.scoutEwRemaining = 0;
+
+        // Whether a weapon is armed, and how. Capability stays public — arcs, whether it
+        // CAN overload, shots per turn and the like are printed on the SSD.
+        if (dto.weapons != null)
+            for (WeaponDto wd : dto.weapons) {
+                wd.armed = null;           // null: not disclosed, as opposed to unarmed
+                wd.armingType = null;
+                wd.armingTurn = 0;
+                wd.totalArmingTurns = 0;
+                wd.armingEnergy = 0;
+                wd.readyToFire = false;    // derived from armed, so it cannot be shown
+                wd.plasmaType = null;      // which torpedo is in the tube
+                wd.pseudoPlasmaReady = false;
+                wd.isRolling = false;
+                wd.chargesRemaining = 0;
+            }
     }
 
     private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup) {

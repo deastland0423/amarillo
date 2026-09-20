@@ -15,7 +15,7 @@ export interface ShieldState {
 export interface WeaponState {
   name:              string;
   designator?:       string;
-  armed:             boolean;
+  armed:             boolean | null;   // null = not disclosed (an enemy's ship)
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null
   lastImpulseFired:  number;

@@ -181,11 +181,24 @@ function WeaponRow({ w }: { w: WeaponState }) {
   let statusText = '';
   let statusClass = '';
 
+  // armed === null means the server did not disclose it: this is someone else's ship, and
+  // whether a heavy weapon is armed is exactly what an opponent may not know. Everything
+  // shown in that case comes from public facts — a destroyed weapon is visible, and so is
+  // having fired. Do not reconstruct the rest from other fields; that is the leak this
+  // closes, not a display quirk to work around.
+  const armingDisclosed = w.armed !== null && w.armed !== undefined;
+  const shotsSpent = w.maxShotsPerTurn > 1 && w.maxShotsPerTurn < 2147483647
+    && w.shotsThisTurn >= w.maxShotsPerTurn;
+
   if (!w.functional) {
     // Destroyed by damage
     dotClass  += ' dmg';
     statusText = 'DMG';
     statusClass = 'dmg';
+  } else if (!armingDisclosed) {
+    dotClass   += ' idle';
+    statusText  = shotsSpent ? 'MAX' : (w.shotsThisTurn > 0 ? 'FIRED' : '');
+    statusClass = shotsSpent ? 'cooldown' : '';
   } else if (w.isHeavy && !w.armed) {
     // Heavy weapon not yet armed (includes partially arming)
     dotClass   += ' idle';
@@ -194,9 +207,7 @@ function WeaponRow({ w }: { w: WeaponState }) {
   } else if (!w.readyToFire) {
     // Armed (or non-heavy) but cooldown / shot limit reached
     dotClass   += ' cooldown';
-    statusText  = (w.maxShotsPerTurn > 1 && w.maxShotsPerTurn < 2147483647 && w.shotsThisTurn >= w.maxShotsPerTurn)
-                  ? 'MAX'
-                  : 'COOL';
+    statusText  = shotsSpent ? 'MAX' : 'COOL';
     statusClass = 'cooldown';
   } else {
     // Ready to fire
