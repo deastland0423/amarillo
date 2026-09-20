@@ -1110,8 +1110,10 @@ public class Game {
      * Recompute EW lent between ships via scout channels (G24.21). A channel lends its EW
      * only while operational (powered, unblinded, undamaged — G24.13/.14), and lending to
      * another unit requires the scout to hold a lock-on to it (G24.218) and that unit to be
-     * within fifteen hexes (G24.2181). Self-protection (G24.28) needs neither, but cannot
-     * lend ECCM to oneself (G24.283).
+     * within fifteen hexes (G24.2181). D6.627 adds that the lock-on must be a real one: a
+     * lock-on held by an attached tractor (G7.97) will serve direct-fire weapons but not
+     * EW lending. Self-protection (G24.28) needs none of this, but cannot lend ECCM to
+     * oneself (G24.283).
      * <p>
      * Recomputed every impulse, so a function whose conditions lapse — the recipient leaves
      * range, the lock-on drops, fire control goes passive, a cloak or Wild Weasel comes up —
@@ -1156,8 +1158,11 @@ public class Game {
                 } else if (self) {
                     recipient.addLentEw(c.getLentEcm(), 0);             // G24.28/.283: self, ECM only, no FC/lock-on
                 } else if (scout.isActiveFireControl() && scout.hasLockOn(recipient)
+                        && !scout.isTractorOnlyLockOn(recipient)
                         && getRange(scout, recipient) <= SCOUT_FUNCTION_RANGE) {
                     // G24.161: active FC + lock-on; G24.2181: recipient within fifteen hexes.
+                    // D6.627: and not a lock-on held by tractor alone (G7.97) — a beam is
+                    // enough to shoot along, not enough to lend EW through.
                     recipient.addLentEw(c.getLentEcm(), c.getLentEccm());
                 }
             }

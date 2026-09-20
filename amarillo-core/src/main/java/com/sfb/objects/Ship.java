@@ -1009,16 +1009,42 @@ public class Ship extends Unit implements DroneController {
 		return lockOns.contains(target);
 	}
 
+	/**
+	 * Lock-ons held only because a tractor beam is attached (G7.412).
+	 *
+	 * Worth distinguishing because they are not worth as much: D6.627 says a tractor's
+	 * lock-on is adequate for direct-fire weapons but NOT for lending EW (G7.97). Without
+	 * the mark, a beam-granted lock-on — automatic, no roll, cloak irrelevant — looked
+	 * exactly like one the sensors had earned.
+	 */
+	private final Set<Unit> tractorLockOns = new java.util.HashSet<>();
+
 	public void addLockOn(Unit target) {
 		lockOns.add(target);
+		// A lock-on the sensors earned outranks a beam's: the scout genuinely has one now.
+		tractorLockOns.remove(target);
+	}
+
+	/** A lock-on held only by virtue of an attached beam (G7.412). */
+	public void addTractorLockOn(Unit target) {
+		if (!lockOns.contains(target))
+			tractorLockOns.add(target);
+		lockOns.add(target);
+	}
+
+	/** True if this lock-on rests on a tractor beam alone (D6.627, G7.97). */
+	public boolean isTractorOnlyLockOn(Unit target) {
+		return tractorLockOns.contains(target);
 	}
 
 	public void removeLockOn(Unit target) {
 		lockOns.remove(target);
+		tractorLockOns.remove(target);
 	}
 
 	public void clearLockOns() {
 		lockOns.clear();
+		tractorLockOns.clear();
 	}
 
 	public Set<Unit> getLockOns() {

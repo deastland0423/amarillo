@@ -74,7 +74,8 @@ class LockOnResolver {
                 // (The FC gate above still applies: D6.62 lock-ons need active
                 // fire control; the physical link only replaces the sensor roll.)
                 if (game.tractorLinkBetween(ship, target)) {
-                    ship.addLockOn(target);
+                    // Marked: good enough to fire through, not to lend EW (D6.627, G7.97).
+                    ship.addTractorLockOn(target);
                     lastLockOnLog.add(ship.getName() + " lock-on to " + target.getName()
                             + " (automatic — tractor link, G7.412)");
                     continue;
@@ -382,7 +383,7 @@ class LockOnResolver {
         if (!attacker.isActiveFireControl() || attacker.hasLockOn(target))
             return;
         if (game.tractorLinkBetween(attacker, target)) {
-            attacker.addLockOn(target);
+            attacker.addTractorLockOn(target);   // beam-held: not for EW lending (D6.627)
             log.add(attacker.getName() + " lock-on to " + target.getName()
                     + " (automatic — tractor link, G7.412)");
             return;
@@ -455,7 +456,7 @@ class LockOnResolver {
                 continue; // already locked on — keep it
             // G7.412: an attached tractor makes lock-on automatic — no roll
             if (game.tractorLinkBetween(attacker, target)) {
-                attacker.addLockOn(target);
+                attacker.addTractorLockOn(target);   // beam-held: not for EW lending (D6.627)
                 log.add(attacker.getName() + " lock-on to " + target.getName()
                         + " (automatic — tractor link, G7.412)");
                 continue;

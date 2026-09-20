@@ -44,6 +44,66 @@ public class EwLendingTest {
         return ship;
     }
 
+    /**
+     * D6.627: "The lock-ons held with tractors (G7.97) are adequate for direct-fire weapons
+     * but not for EW lending."
+     * <p>
+     * A tractor grants a lock-on automatically — no roll, cloak irrelevant (G7.412) — and
+     * that lock-on used to be indistinguishable from one the sensors had earned, so lending
+     * rode along on a beam. The scout here has active fire control and a recipient well in
+     * range: the ONLY thing wrong is where the lock-on came from.
+     */
+    @Test
+    public void aLockOnHeldByTractorAloneCannotCarryALend() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 12, 10);
+        channelOf(scout).setLend("Friend", 5, 0);
+        scout.addTractorLockOn(friend);
+
+        assertTrue("fixture: the scout does hold a lock-on", scout.hasLockOn(friend));
+        assertTrue("and it rests on the beam alone", scout.isTractorOnlyLockOn(friend));
+
+        game.resolveChannelLends();
+
+        assertEquals("a beam is enough to shoot along, not to lend through (D6.627)",
+                0, friend.getLentEcm());
+    }
+
+    /** The same scout, once its sensors find the target, lends perfectly well. */
+    @Test
+    public void aSensorLockOnOnTheSameTargetRestoresTheLend() {
+        Game game = new Game();
+        Ship scout  = scoutWithChannel(game, "Scout", 10, 10);
+        Ship friend = plainShip(game, "Friend", 12, 10);
+        channelOf(scout).setLend("Friend", 5, 0);
+        scout.addTractorLockOn(friend);
+        game.resolveChannelLends();
+        assertEquals(0, friend.getLentEcm());
+
+        scout.addLockOn(friend);   // the sensors earn one
+
+        assertFalse("a real lock-on outranks the beam's", scout.isTractorOnlyLockOn(friend));
+        game.resolveChannelLends();
+        assertEquals("and now the lend carries", 5, friend.getLentEcm());
+    }
+
+    /**
+     * Self-protection is exempt from all of this (G24.28, and D6.627 names the exception):
+     * it needs neither fire control nor a lock-on, so a beam cannot spoil it.
+     */
+    @Test
+    public void selfProtectionIsUnaffectedByAnyOfThis() {
+        Game game = new Game();
+        Ship scout = scoutWithChannel(game, "Scout", 10, 10);
+        channelOf(scout).setLend("Scout", 4, 0);
+        scout.setActiveFireControl(false);
+
+        game.resolveChannelLends();
+
+        assertEquals("a scout protects itself regardless (G24.28)", 4, scout.getLentEcm());
+    }
+
     /** G24.2181: a recipient more than fifteen hexes away gets nothing until it closes. */
     @Test
     public void friendBeyondFifteenHexes_getsNoLend_untilItClosesBack() {
