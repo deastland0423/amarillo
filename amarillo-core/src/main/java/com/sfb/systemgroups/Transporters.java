@@ -58,6 +58,14 @@ public class Transporters implements Systems {
 		return true;
 	}
 
+	/**
+	 * How many transporter uses have been made this turn. Every use is seen at the table,
+	 * so this is public knowledge even though the energy behind it is not.
+	 */
+	public int usesMadeThisTurn() {
+		return (int) (energyUsed / ENERGY_PER_USE + EPSILON);
+	}
+
 	/** Energy banked this turn but not yet spent. */
 	public double getBankedEnergy() {
 		return bankedEnergy - energyUsed;

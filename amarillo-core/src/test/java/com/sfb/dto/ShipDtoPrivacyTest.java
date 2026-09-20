@@ -50,8 +50,9 @@ public class ShipDtoPrivacyTest {
     // ---------------------------------------------------------------- the rulings
 
     private static final Set<String> SHIP_PRIVATE = new HashSet<>(Arrays.asList(
-        // Energy held rather than spent
-        "batteryCharge", "batteryPower", "availableBattery", "reserveWarp",
+        // The energy held, NOT the boxes holding it: availableBattery is a box count and
+        // is public, like every other box on the SSD.
+        "batteryCharge", "batteryPower", "reserveWarp",
         "phaserCapacitor", "capacitorsCharged",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",
@@ -83,6 +84,7 @@ public class ShipDtoPrivacyTest {
         "availableAuxcon", "maxAuxcon", "availableFlag", "maxFlag", "availableEmer",
         "maxEmer", "availableSecurity", "maxSecurity", "availableLab", "functioningLab",
         "availableTractors", "totalTractors", "availableTransporters", "totalTransporters",
+        "availableBattery",   // boxes surviving damage; the charge in them is not public
         "availableDeckCrews", "availableCrewUnits", "capturedCrew", "minimumCrew",
         "boardingParties", "commandos", "crewQuality", "totalPower", "phaserCapacitorMax",
         "uimFunctional", "sensorRating", "scannerBonus", "canDoubleEngines",
@@ -312,19 +314,42 @@ public class ShipDtoPrivacyTest {
     @Test
     public void transporterUsesTellAnEnemyNothingAboutBatteries() {
         GameStateDto.ShipDto theirs = ship(enemyView);
-        assertEquals("an enemy counts boxes, not the energy behind them",
+        assertEquals("nothing used yet, so every undamaged box is still to be used",
             theirs.availableTransporters, theirs.transporterUses);
 
-        // And the discriminating half: a ship whose batteries cannot power every box must
-        // still report all of them, or the shortfall would be the tell.
+        // The discriminating half: a ship with no energy to power its transporters must
+        // still report every unused box, or the shortfall would itself be the tell.
         fed.getPowerSystems().setBatteryPower(0);
         fed.getTransporters().init(java.util.Map.of("trans", 4));
-        GameStateDto.ShipDto starved =
-            ship(new GameStateDto(game, "Klingon"));
         assertEquals("four boxes, no energy to speak of, still four to an enemy",
-            4, starved.transporterUses);
-        assertTrue("and its owner sees the truth: nothing it can actually power",
+            4, ship(new GameStateDto(game, "Klingon")).transporterUses);
+        assertTrue("while its owner sees what it can actually power",
             ship(new GameStateDto(game, "Federation")).transporterUses < 4);
+    }
+
+    /** Uses MADE are public, because everyone watches them happen. */
+    @Test
+    public void usingATransporterIsVisibleToAnEnemy() {
+        fed.getTransporters().init(java.util.Map.of("trans", 4));
+        fed.getTransporters().bankEnergy(1.0);
+        assertTrue(fed.getTransporters().useTransporter());
+        assertTrue(fed.getTransporters().useTransporter());
+
+        assertEquals("two of four used, so two left to an enemy's eye",
+            2, ship(new GameStateDto(game, "Klingon")).transporterUses);
+    }
+
+    /** Battery boxes are damage; the charge in them is not. */
+    @Test
+    public void anEnemyCountsBatteryBoxesButNotTheirCharge() {
+        GameStateDto.ShipDto mine = ship(ownerView);
+        GameStateDto.ShipDto theirs = ship(enemyView);
+
+        assertTrue("fixture needs battery boxes", mine.availableBattery > 0);
+        assertEquals("the boxes are as public as any other damage",
+            mine.availableBattery, theirs.availableBattery);
+        assertTrue("fixture needs charge in them", mine.batteryCharge > 0);
+        assertEquals("but what is in them is not", 0, theirs.batteryCharge);
     }
 
     @Test

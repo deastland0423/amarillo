@@ -1270,7 +1270,7 @@ public class GameStateDto {
         dto.droneRacks = new ArrayList<>();
         dto.shuttleBays = new ArrayList<>();
         if (hideSecrets) {
-            redactForEnemy(dto);
+            redactForEnemy(dto, ship);
             return dto;
         }
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -1440,17 +1440,19 @@ public class GameStateDto {
      * destroyed, how often it has fired this turn, and command rating (which decides fleet
      * legality and does nothing in a battle).
      */
-    private static void redactForEnemy(ShipDto dto) {
+    private static void redactForEnemy(ShipDto dto, Ship ship) {
         // Specific reinforcement is not visible until it absorbs something; the box count
         // is. current carries the reinforcement, baseStrength does not.
         if (dto.shields != null)
             for (ShieldDto sd : dto.shields)
                 sd.current = sd.baseStrength;
 
-        // Energy held rather than spent: batteries, reserve warp, phaser capacitors.
+        // Energy held rather than spent: the CHARGE in the batteries, reserve warp, the
+        // phaser capacitors. Note what stays: availableBattery is the count of battery
+        // BOXES still undamaged, which is public like every other box on the SSD. A ship
+        // with five battery boxes and three points in them shows five and keeps the three.
         dto.batteryCharge = 0;
         dto.batteryPower = 0;
-        dto.availableBattery = 0;
         dto.reserveWarp = 0;
         dto.phaserCapacitor = 0;          // the SSD maximum stays public
         dto.capacitorsCharged = false;
@@ -1472,12 +1474,12 @@ public class GameStateDto {
         dto.tacAvailable = 0;          // an int: earned TACs ready to use
         dto.sublightTacAvailable = false;
 
-        // Transporter uses remaining are public: every use of a transporter is seen, so
-        // what is left can be counted. But our figure is min(boxes, energy / cost) and
-        // that energy includes BATTERIES, which are not public — published as-is it would
-        // let an opponent read the battery state off the transporter count. So an enemy
-        // gets the figure the boxes alone support.
-        dto.transporterUses = dto.availableTransporters;
+        // Transporter uses left this turn are public, because every use is seen: it is
+        // the boxes still undamaged, less the uses already made. NOT our owner-side figure,
+        // which is min(boxes, energy / cost) and counts battery power — published as-is an
+        // opponent could have read the battery state off the transporter count.
+        dto.transporterUses = Math.max(0,
+            dto.availableTransporters - ship.getTransporters().usesMadeThisTurn());
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.
