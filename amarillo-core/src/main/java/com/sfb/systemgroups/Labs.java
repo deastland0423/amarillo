@@ -1,7 +1,5 @@
 package com.sfb.systemgroups;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import com.sfb.objects.Marker;
@@ -28,22 +26,15 @@ import com.sfb.utilities.MapUtils;
 public class Labs implements Systems {
 
 	/** Impulses in a quarter turn (G4.451). */
-	public static final int QUARTER_TURN = 8;
-
-	private static final int IMPULSES_PER_TURN = 32;
-
-	/** A box that has never been used; older than any impulse that can occur. */
-	private static final int NEVER = Integer.MIN_VALUE / 2;
-
-	/** Lab boxes printed on the SSD, for cripple calculations. */
-	private int lab;
+	public static final int QUARTER_TURN = BoxCycle.QUARTER_TURN;
 
 	/**
-	 * One entry per UNDAMAGED box: the absolute impulse it was last used, or {@link #NEVER}.
-	 * Its size is the number of functioning boxes; damage removes an entry and repair adds
-	 * one back.
+	 * The boxes themselves. Labs were the first system to need per-box cycling, so the
+	 * model was built here; it is shared now, because transporters and tractors follow the
+	 * same rule (a box is used, then unavailable until the next turn or eight impulses,
+	 * whichever is longer).
 	 */
-	private final List<Integer> boxLastUsed = new ArrayList<>();
+	private final BoxCycle boxes = new BoxCycle();
 
 	private Unit owningUnit;
 
@@ -54,17 +45,14 @@ public class Labs implements Systems {
 	// Initialize the operations systems to the SSD values.
 	@Override
 	public void init(Map<String, Object> values) {
-		lab = values.get("lab") == null ? 0 : (Integer) values.get("lab");
-		boxLastUsed.clear();
-		for (int i = 0; i < lab; i++)
-			boxLastUsed.add(NEVER);
+		boxes.init(values.get("lab") == null ? 0 : (Integer) values.get("lab"));
 	}
 
 	/// FETCH ///
 
 	/** Boxes that still exist — undamaged, whether or not they are busy. */
 	public int getFunctioningLabs() {
-		return boxLastUsed.size();
+		return boxes.functioning();
 	}
 
 	/**
@@ -72,27 +60,12 @@ public class Labs implements Systems {
 	 * past the quarter-turn delay since their last use (G4.451).
 	 */
 	public int availableLabs(int absoluteImpulse) {
-		int free = 0;
-		for (int i = 0; i < boxLastUsed.size(); i++)
-			if (isFree(i, absoluteImpulse))
-				free++;
-		return free;
+		return boxes.available(absoluteImpulse);
 	}
 
 	/** True if box {@code index} may be put to work at this impulse. */
 	public boolean isFree(int index, int absoluteImpulse) {
-		if (index < 0 || index >= boxLastUsed.size())
-			return false;
-		int last = boxLastUsed.get(index);
-		if (last == NEVER)
-			return true;
-		// G4.22: one attempt per lab per turn, however long ago in the turn it was.
-		if (turnOf(last) == turnOf(absoluteImpulse))
-			return false;
-		// G4.451: and the eight-impulse delay carries across the turn boundary, which is
-		// the whole point of the rule — it stops a ship identifying at impulse 30 and
-		// again at impulse 1.
-		return absoluteImpulse - last >= QUARTER_TURN;
+		return boxes.isFree(index, absoluteImpulse);
 	}
 
 	/**
@@ -101,12 +74,7 @@ public class Labs implements Systems {
 	 * gets four, G24.251) and must keep stamping the same one.
 	 */
 	public int useLab(int absoluteImpulse) {
-		for (int i = 0; i < boxLastUsed.size(); i++)
-			if (isFree(i, absoluteImpulse)) {
-				boxLastUsed.set(i, absoluteImpulse);
-				return i;
-			}
-		return -1;
+		return boxes.use(absoluteImpulse);
 	}
 
 	/**
@@ -114,19 +82,13 @@ public class Labs implements Systems {
 	 * rather than from when it was first claimed.
 	 */
 	public void markUsed(int index, int absoluteImpulse) {
-		if (index >= 0 && index < boxLastUsed.size())
-			boxLastUsed.set(index, absoluteImpulse);
-	}
-
-	/** The turn an absolute impulse falls in; matches Game.getCurrentTurn(). */
-	private static int turnOf(int absoluteImpulse) {
-		return (absoluteImpulse - 1) / IMPULSES_PER_TURN;
+		boxes.markUsed(index, absoluteImpulse);
 	}
 
 	// Total operations boxes on the SSD (cripple calculations).
 	@Override
 	public int fetchOriginalTotalBoxes() {
-		return lab;
+		return boxes.total();
 	}
 
 	/**
@@ -136,7 +98,7 @@ public class Labs implements Systems {
 	 */
 	@Override
 	public int fetchRemainingTotalBoxes() {
-		return boxLastUsed.size();
+		return boxes.functioning();
 	}
 
 	/// DAMAGE ///
@@ -146,15 +108,7 @@ public class Labs implements Systems {
 	 * the box a player would mark off — losing a box already spent this turn costs least.
 	 */
 	public boolean damage() {
-		if (boxLastUsed.isEmpty())
-			return false;
-
-		int worst = 0;
-		for (int i = 1; i < boxLastUsed.size(); i++)
-			if (boxLastUsed.get(i) > boxLastUsed.get(worst))
-				worst = i;
-		boxLastUsed.remove(worst);
-		return true;
+		return boxes.damage();
 	}
 
 	/// REPAIR ///
@@ -164,12 +118,7 @@ public class Labs implements Systems {
 	 * the NEXT turn; that delay is not modelled — a restored box is free immediately.
 	 */
 	public boolean repair(int value) {
-		if (boxLastUsed.size() + value > lab)
-			return false;
-
-		for (int i = 0; i < value; i++)
-			boxLastUsed.add(NEVER);
-		return true;
+		return boxes.repair(value);
 	}
 
 	@Override
@@ -220,7 +169,7 @@ public class Labs implements Systems {
 
 		// G4.11: multiplied by the number of FUNCTIONING lab boxes, not the number idle —
 		// research is a whole-turn activity of every surviving box.
-		return researchPerLab * getFunctioningLabs();
+		return researchPerLab * boxes.functioning();
 	}
 
 }

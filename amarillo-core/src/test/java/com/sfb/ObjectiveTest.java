@@ -103,8 +103,8 @@ public class ObjectiveTest {
         toActivityPhase();
         fed.setActiveFireControl(true);
         // Drain the banked transporter energy so no operation is available
-        while (fed.getTransporters().availableUses() > 0)
-            fed.getTransporters().useTransporter();
+        while (fed.getTransporters().availableUses(game.getAbsoluteImpulse()) > 0)
+            fed.getTransporters().useTransporter(game.getAbsoluteImpulse());
 
         Game.ActionResult r = game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER);
         assertFalse(r.isSuccess());
@@ -116,11 +116,11 @@ public class ObjectiveTest {
         addObjective("Box", 12, 10, RetrievalMethod.TRANSPORTER);
         toActivityPhase();
         fed.setActiveFireControl(true);
-        int before = fed.getTransporters().availableUses();
+        int before = fed.getTransporters().availableUses(game.getAbsoluteImpulse());
 
         assertTrue(game.pickUpObjective(fed, "Box", RetrievalMethod.TRANSPORTER).isSuccess());
         assertEquals("one transporter operation spent", before - 1,
-                fed.getTransporters().availableUses());
+                fed.getTransporters().availableUses(game.getAbsoluteImpulse()));
     }
 
     @Test

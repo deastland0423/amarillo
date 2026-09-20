@@ -1270,7 +1270,7 @@ public class GameStateDto {
         dto.droneRacks = new ArrayList<>();
         dto.shuttleBays = new ArrayList<>();
         if (hideSecrets) {
-            redactForEnemy(dto, ship);
+            redactForEnemy(dto, ship, game.getAbsoluteImpulse());
             return dto;
         }
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -1440,7 +1440,7 @@ public class GameStateDto {
      * destroyed, how often it has fired this turn, and command rating (which decides fleet
      * legality and does nothing in a battle).
      */
-    private static void redactForEnemy(ShipDto dto, Ship ship) {
+    private static void redactForEnemy(ShipDto dto, Ship ship, int absoluteImpulse) {
         // Specific reinforcement is not visible until it absorbs something; the box count
         // is. current carries the reinforcement, baseStrength does not.
         if (dto.shields != null)
@@ -1479,7 +1479,7 @@ public class GameStateDto {
         // which is min(boxes, energy / cost) and counts battery power — published as-is an
         // opponent could have read the battery state off the transporter count.
         dto.transporterUses = Math.max(0,
-            dto.availableTransporters - ship.getTransporters().usesMadeThisTurn());
+            dto.availableTransporters - ship.getTransporters().usesMadeThisTurn(absoluteImpulse));
 
         // Tractor energy, allocated and unspent. The BOXES are public and so is what they
         // are doing — a beam in operation is plain to see, and a hit-and-run raid can pick

@@ -12,7 +12,7 @@ import static org.junit.Assert.*;
 /**
  * Paying for transporter use, from banked energy and from reserve power (H7.x).
  * <p>
- * Two faults sat here, the first hiding the second. {@code useTransporter()} returns false
+ * Two faults sat here, the first hiding the second. {@code useTransporter(game.getAbsoluteImpulse())} returns false
  * when the bank will not cover a use, and all four call sites threw that answer away — so
  * the energy limit was never enforced at all. Underneath it, nothing ever topped the bank
  * up from batteries: {@code bankEnergy()} was called once, at allocation, despite its own
@@ -58,10 +58,35 @@ public class TransporterEnergyTest {
                 game.spendTransporterEnergy(fed, 1));
     }
 
+    /**
+     * A transporter use consumes a BOX, not just energy: a specific box is used on each
+     * attempt and is unavailable until the next turn or eight impulses later, whichever is
+     * longer. So a ship cannot beam more times in a turn than it has transporters, however
+     * much energy it is holding.
+     */
+    @Test
+    public void aShipCannotBeamMoreOftenThanItHasTransporters() {
+        bankNothing();
+        fed.getTransporters().init(java.util.Map.of("trans", 2));
+        fed.getPowerSystems().setBatteryPower(5);   // energy for twenty-five uses
+
+        assertTrue("first box", game.spendTransporterEnergy(fed, 1));
+        assertTrue("second box", game.spendTransporterEnergy(fed, 1));
+        assertFalse("but there is no third box to use, energy or not",
+                game.spendTransporterEnergy(fed, 1));
+        assertTrue("and the energy is still there, unspent",
+                fed.getPowerSystems().getBatteryPower() > 0);
+    }
+
     @Test
     public void onePointOfReservePowerBuysFiveUses() {
         // 0.2 per use, and a battery point is indivisible — so the change stays banked.
         bankNothing();
+        // Six boxes, because this test is about the ENERGY arithmetic and a CA's three
+        // transporters would stop it at three uses for an unrelated reason. Each use
+        // consumes a box (they cool off until the next turn or eight impulses, whichever
+        // is longer), which is its own rule and has its own test below.
+        fed.getTransporters().init(java.util.Map.of("trans", 6));
         fed.getPowerSystems().setBatteryPower(1);
 
         for (int i = 1; i <= 5; i++)

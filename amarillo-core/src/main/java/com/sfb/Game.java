@@ -610,13 +610,13 @@ public class Game {
         if (transporterUsesAvailable(ship) < uses)
             return false;
         for (int i = 0; i < uses; i++) {
-            if (t.useTransporter())
+            if (t.useTransporter(getAbsoluteImpulse()))
                 continue;
             // Bank short: buy a point of reserve power and try that use again.
             if (!ship.getPowerSystems().useBattery(1))
                 return false;
             t.bankEnergy(1.0);
-            if (!t.useTransporter())
+            if (!t.useTransporter(getAbsoluteImpulse()))
                 return false;
         }
         return true;
@@ -638,11 +638,14 @@ public class Game {
      */
     public int transporterUsesAvailable(Ship ship) {
         com.sfb.systemgroups.Transporters t = ship.getTransporters();
-        if (t.getAvailableTrans() == 0)
+        // Boxes free to work THIS impulse, not merely undamaged: a box used earlier is
+        // still cooling off (next turn or eight impulses, whichever is longer).
+        int freeBoxes = t.freeBoxes(getAbsoluteImpulse());
+        if (freeBoxes == 0)
             return 0;
         double energy = t.getBankedEnergy() + ship.getPowerSystems().getBatteryPower();
         int affordable = (int) (energy / com.sfb.systemgroups.Transporters.energyPerUse() + 1e-6);
-        return Math.min(t.getAvailableTrans(), affordable);
+        return Math.min(freeBoxes, affordable);
     }
 
     /** True when either unit holds the other in a tractor beam (G7.412). */

@@ -333,8 +333,8 @@ public class ShipDtoPrivacyTest {
     public void usingATransporterIsVisibleToAnEnemy() {
         fed.getTransporters().init(java.util.Map.of("trans", 4));
         fed.getTransporters().bankEnergy(1.0);
-        assertTrue(fed.getTransporters().useTransporter());
-        assertTrue(fed.getTransporters().useTransporter());
+        assertTrue(fed.getTransporters().useTransporter(game.getAbsoluteImpulse()));
+        assertTrue(fed.getTransporters().useTransporter(game.getAbsoluteImpulse()));
 
         assertEquals("two of four used, so two left to an enemy's eye",
             2, ship(new GameStateDto(game, "Klingon")).transporterUses);

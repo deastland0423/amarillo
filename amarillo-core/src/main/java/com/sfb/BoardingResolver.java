@@ -201,7 +201,7 @@ class BoardingResolver {
         if (numParties > availableTrans)
             return ActionResult.fail("Not enough transporters (have " + availableTrans
                     + ", need " + numParties + ")");
-        int availableUses = actingShip.getTransporters().availableUses();
+        int availableUses = actingShip.getTransporters().availableUses(game.getAbsoluteImpulse());
         if (numParties > availableUses)
             return ActionResult.fail("Not enough transporter energy (have " + availableUses
                     + " use(s), need " + numParties + ")");
@@ -266,7 +266,7 @@ class BoardingResolver {
                     + objective.getName() + " aboard (D6.124)");
         if (actingShip.getTransporters().getAvailableTrans() < 1)
             return ActionResult.fail(actingShip.getName() + " has no working transporters");
-        if (actingShip.getTransporters().availableUses() < 1)
+        if (actingShip.getTransporters().availableUses(game.getAbsoluteImpulse()) < 1)
             return ActionResult.fail(actingShip.getName()
                     + " has no transporter energy allocated this turn");
 
@@ -334,7 +334,7 @@ class BoardingResolver {
         int availTrans = source.getTransporters().getAvailableTrans();
         if (usesNeeded > availTrans)
             return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
-        int availUses = source.getTransporters().availableUses();
+        int availUses = source.getTransporters().availableUses(game.getAbsoluteImpulse());
         if (usesNeeded > availUses)
             return ActionResult
                     .fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
