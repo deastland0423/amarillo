@@ -76,7 +76,10 @@ public class MapObjectPrivacyTest {
             "facing", "speed", "maxSpeed", "effectiveMaxSpeed", "usingEm", "emSpeedCommitted",
             "isFighter", "shuttleTypeName", "parentPlayer", "parentShipName", "weapons",
             "crippled", "hetUsed", "beingRecovered", "landingPhase", "landedHexSide",
-            "personnelCapacity", "isIdentified");
+            "personnelCapacity", "isIdentified",
+            // Damage is visible, and so is the hull behind it: unlike a drone, the craft
+            // type is public ("Admin Shuttle"), so its hull was never secret.
+            "hull", "maxHull", "damageTaken", "launchImpulse");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
             // What it is CARRYING: G4.233 gives the seeking course and stops there. How
             // much it could carry is a property of the craft and is public, below.

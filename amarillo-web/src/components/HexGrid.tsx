@@ -349,15 +349,33 @@ function drawObjects(
     ctx.restore();
   }
 
-  // Three-pass rendering: terrain first so units appear on top of it, then everything
-  // else, then whatever is in focus — a hex can hold several shuttles, and the one you
-  // are about to move is the one you most need to see.
+  // Painting order, coarsest first. Terrain, then ships, then the small things that sit
+  // in the same hexes as ships — shuttles, seekers, mines — and whatever is in focus last
+  // within its own group.
+  //
+  // Small things go over ships deliberately. A drone or shuttle launches into its
+  // launcher's hex, and the launcher is usually the SELECTED ship; when the selection was
+  // simply painted last, it covered whatever it had just put on the map, so a new drone
+  // could not be seen at all. The focus pass still exists — it just cannot hide something
+  // smaller than itself.
+  //
+  // Within the small things, oldest first, so the newest arrival is on top of the stack.
+  const SMALL = new Set(['SHUTTLE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'WILD_WEASEL',
+                         'DRONE', 'PLASMA', 'MINE']);
+  const launchedAt = (o: MapObject) => (o as { launchImpulse?: number }).launchImpulse ?? 0;
+
   const terrain = objects.filter(o => o.type === 'TERRAIN');
-  const units   = objects.filter(o => o.type !== 'TERRAIN' && o.name !== selectedName);
+  const ships   = objects.filter(o => o.type !== 'TERRAIN' && !SMALL.has(o.type)
+                                   && o.name !== selectedName);
+  const small   = objects.filter(o => SMALL.has(o.type) && o.name !== selectedName)
+                         .sort((a, b) => launchedAt(a) - launchedAt(b));
   const focused = selectedName
     ? objects.filter(o => o.type !== 'TERRAIN' && o.name === selectedName)
     : [];
-  for (const obj of [...terrain, ...units, ...focused]) {
+  const focusedShip  = focused.filter(o => !SMALL.has(o.type));
+  const focusedSmall = focused.filter(o => SMALL.has(o.type));
+
+  for (const obj of [...terrain, ...ships, ...focusedShip, ...small, ...focusedSmall]) {
     if (!obj.location) continue;
     const coords = parseLocation(obj.location);
     if (!coords) continue;
@@ -817,6 +835,11 @@ function shuttleTooltipLines(
     `From:     ${(shuttle as any).parentShipName ?? '?'}`,
     `Speed:    ${(shuttle as any).speed}`,
   ];
+  // Damage, which nothing showed before — not even to the shuttle's owner.
+  const hulls = shuttle as { hull?: number; maxHull?: number; crippled?: boolean };
+  if ((hulls.maxHull ?? 0) > 0)
+    lines.push(`Hull:     ${hulls.hull ?? 0} / ${hulls.maxHull}`
+      + (hulls.crippled ? '  CRIPPLED' : ''));
   // A destroyed weasel is not removed: it explodes for four impulses and keeps pulling
   // seekers in (J3.21), then leaves a spent pocket. Both states change what it is doing,
   // so say which one it is in.

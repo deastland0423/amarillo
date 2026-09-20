@@ -403,6 +403,13 @@ public class GameStateDto {
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
         public boolean crippled; // true if crippling effects have been applied (J1.33)
+        // Damage. Public to everyone: hits on a shuttle are there to see, and unlike a
+        // drone the hull behind them gives nothing away — the craft type is public too
+        // ("Admin Shuttle"), so its hull was never a secret.
+        public int hull;         // undamaged hull remaining
+        public int maxHull;      // hull the craft starts with
+        public int damageTaken;
+        public int launchImpulse; // when it left the bay; a launch is watched by everyone
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
         // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
         public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
@@ -1395,6 +1402,10 @@ public class GameStateDto {
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();
+        dto.hull = shuttle.getCurrentHull();
+        dto.maxHull = shuttle.getHull();
+        dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
+        dto.launchImpulse = shuttle.getLaunchImpulse();
         dto.tractoredBy = holderName(shuttle);
         // Every shuttle's weapons, not just a fighter's. An admin shuttle builds itself a
         // 360-degree Ph-3, and both core and the fire endpoint have always been willing to

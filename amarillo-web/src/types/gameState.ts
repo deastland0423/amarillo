@@ -280,6 +280,10 @@ export interface ShuttleObject extends MapObjectBase {
   usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
   emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)
   crippled?:      boolean;
+  hull?:          number;    // undamaged hull remaining
+  maxHull?:       number;    // hull the craft starts with
+  damageTaken?:   number;
+  launchImpulse?: number;    // when it left the bay
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
   landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)
   landedHexSide?:     number;        // 1..6 (A..F) when landed on a planet
