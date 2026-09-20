@@ -5,6 +5,7 @@ import {
   hexGetBearing,
   hexGetRelativeBearing,
   hexRange,
+  ringShieldNumber,
   turnFacing,
   hexesInArc,
 } from './geometry';
@@ -24,6 +25,15 @@ import {
  * Regenerate (only for an intended change to the algorithm) with:
  *   mvn test -pl amarillo-core -Dtest=HexGeometryFixtureTest -Dhex.fixture.regenerate=true
  */
+interface ShieldCase {
+  shipCol: number;
+  shipRow: number;
+  facing: number;
+  fromCol: number;
+  fromRow: number;
+  shieldNum: number;
+}
+
 interface RelativeCase {
   trueBearing: number;
   facing: number;
@@ -39,7 +49,12 @@ interface FixtureCase {
   range: number;
 }
 
-const fixture: { note: string; cases: FixtureCase[]; relativeBearings: RelativeCase[] } = JSON.parse(
+const fixture: {
+  note: string;
+  cases: FixtureCase[];
+  relativeBearings: RelativeCase[];
+  shieldRing: ShieldCase[];
+} = JSON.parse(
   readFileSync(new URL('../../../data/fixtures/hex-geometry.json', import.meta.url), 'utf-8'),
 );
 
@@ -70,6 +85,23 @@ describe('hex geometry mirrors MapUtils', () => {
       const got = hexGetRelativeBearing(r.trueBearing, r.facing);
       if (got !== r.relative)
         wrong.push(`bearing ${r.trueBearing} from facing ${r.facing}: server ${r.relative}, client ${got}`);
+    }
+    expect(wrong.slice(0, 10)).toEqual([]);
+    expect(wrong).toHaveLength(0);
+  });
+
+  it('numbers the shield ring the way damage allocation does', () => {
+    // The panel writes shield strengths onto the six hexes touching the ship. Core gets
+    // that number through a twelve-point scheme of its own, so the two agreeing is a
+    // conclusion rather than a guarantee — and a mislabelled ring means a player
+    // reinforces the wrong shield.
+    expect(fixture.shieldRing).toHaveLength(6 * 6 * 2);
+    const wrong: string[] = [];
+    for (const c of fixture.shieldRing) {
+      const got = ringShieldNumber(
+        { col: c.shipCol, row: c.shipRow }, c.facing, { col: c.fromCol, row: c.fromRow });
+      if (got !== c.shieldNum)
+        wrong.push(`facing ${c.facing}, hit from (${c.fromCol}|${c.fromRow}): server #${c.shieldNum}, client #${got}`);
     }
     expect(wrong.slice(0, 10)).toEqual([]);
     expect(wrong).toHaveLength(0);

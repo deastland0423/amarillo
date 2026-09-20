@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
-import { parseLocation, facingToAngle, facingLabel, factionColor } from '../types/gameState';
+import { parseLocation, facingToAngle, facingLabel, factionColor, shieldStrengthColor } from '../types/gameState';
 import { hexRange } from '../hex/geometry';
 
 // Cache of loaded token images keyed by tokenArt path.
@@ -153,14 +153,6 @@ function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
   }
 }
 
-function shieldArcColor(current: number, max: number): string {
-  if (max === 0 || current === 0) return '#333333';
-  const pct = current / max;
-  if (pct > 0.6)  return '#56d364';  // green
-  if (pct > 0.25) return '#f0c040';  // yellow
-  return '#f85149';                   // red
-}
-
 function drawShields(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -180,7 +172,7 @@ function drawShields(
     const visible  = isMine ? sh.current : sh.baseStrength;
     const center   = bowAngle + i * arcSpan;
     const isDown   = !sh.active;
-    const color    = isDown ? '#3a3a3a' : shieldArcColor(visible, sh.max);
+    const color    = isDown ? '#3a3a3a' : shieldStrengthColor(visible, sh.max);
 
     ctx.strokeStyle = color;
     ctx.lineWidth   = isDown ? 2 : 3.5;

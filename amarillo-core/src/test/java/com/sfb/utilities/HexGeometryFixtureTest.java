@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sfb.Game;
+import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
+import com.sfb.samples.FederationShips;
 import org.junit.Test;
 
 import java.io.File;
@@ -112,6 +115,21 @@ public class HexGeometryFixtureTest {
                     MapUtils.getRange(from, to));
         }
 
+        // Shield numbering: the six hexes touching a ship are its six shield facings, and
+        // the SSD panel writes the strengths onto them. Core reaches that number through a
+        // twelve-point scheme of its own, so agreement is worth asserting rather than
+        // assuming — a mislabelled ring means reinforcing the wrong shield.
+        JsonNode shields = root.path("shieldRing");
+        assertEquals("six facings times six adjacent hexes, from two parities",
+                6 * 6 * 2, shields.size());
+        for (JsonNode sh : shields) {
+            Location shipAt = new Location(sh.path("shipCol").asInt(), sh.path("shipRow").asInt());
+            Location from = new Location(sh.path("fromCol").asInt(), sh.path("fromRow").asInt());
+            assertEquals("shield facing " + sh.path("facing").asInt() + " attacked from ("
+                            + from.getX() + "|" + from.getY() + ")",
+                    sh.path("shieldNum").asInt(), shieldNumberFor(shipAt, sh.path("facing").asInt(), from));
+        }
+
         // Relative bearing: the conversion that decides which way an arc points. A mirror
         // could get every true bearing right and still draw every arc rotated.
         JsonNode relatives = root.path("relativeBearings");
@@ -139,6 +157,41 @@ public class HexGeometryFixtureTest {
 
         for (int d = 1; d <= 24; d++)
             assertTrue("no case in the fixture bears on direction " + d, seen[d]);
+    }
+
+    /** What damage allocation would call the facing shield, through the real path. */
+    private static int shieldNumberFor(Location shipAt, int facing, Location attackerAt) {
+        Game game = new Game();
+        Ship target = new Ship();
+        target.init(FederationShips.getFedCa());
+        target.setName("Target");
+        target.setLocation(shipAt);
+        target.setFacing(facing);
+
+        Ship attacker = new Ship();
+        attacker.init(FederationShips.getFedCa());
+        attacker.setName("Attacker");
+        attacker.setLocation(attackerAt);
+        attacker.setFacing(1);
+
+        game.getShips().add(target);
+        game.getShips().add(attacker);
+        return game.getShieldNumber(attacker, target);
+    }
+
+    /** The six hexes touching a hex, in offset coordinates. */
+    private static List<Location> neighbours(Location of) {
+        int c = of.getX(), r = of.getY();
+        boolean even = c % 2 == 0;
+        int up = even ? r : r - 1;          // row of the diagonal neighbours
+        int down = even ? r + 1 : r;
+        return List.of(
+            new Location(c, r - 1),          // dead ahead when facing 1
+            new Location(c + 1, up),
+            new Location(c + 1, down),
+            new Location(c, r + 1),
+            new Location(c - 1, down),
+            new Location(c - 1, up));
     }
 
     private void regenerate() throws IOException {
@@ -169,6 +222,21 @@ public class HexGeometryFixtureTest {
                 r.put("facing", facing);
                 r.put("relative", MapUtils.getRelativeBearing(trueBearing, facing));
             }
+
+        ArrayNode shields = root.putArray("shieldRing");
+        for (int[] src : SOURCES) {
+            Location shipAt = new Location(src[0], src[1]);
+            for (int facing : new int[] { 1, 5, 9, 13, 17, 21 })
+                for (Location n : neighbours(shipAt)) {
+                    ObjectNode sh = shields.addObject();
+                    sh.put("shipCol", shipAt.getX());
+                    sh.put("shipRow", shipAt.getY());
+                    sh.put("facing", facing);
+                    sh.put("fromCol", n.getX());
+                    sh.put("fromRow", n.getY());
+                    sh.put("shieldNum", shieldNumberFor(shipAt, facing, n));
+                }
+        }
 
         File f = fixture();
         f.getParentFile().mkdirs();

@@ -4567,5 +4567,510 @@
     "trueBearing" : 24,
     "facing" : 21,
     "relative" : 4
+  } ],
+  "shieldRing" : [ {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 11,
+    "fromRow" : 10,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 10,
+    "fromRow" : 11,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 9,
+    "fromRow" : 11,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 10,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 9,
+    "fromRow" : 10,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 1,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 5,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 9,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 13,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 1
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 17,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 11,
+    "fromRow" : 9,
+    "shieldNum" : 2
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 12,
+    "fromRow" : 9,
+    "shieldNum" : 3
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 12,
+    "fromRow" : 10,
+    "shieldNum" : 4
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 11,
+    "fromRow" : 11,
+    "shieldNum" : 5
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 10,
+    "fromRow" : 10,
+    "shieldNum" : 6
+  }, {
+    "shipCol" : 11,
+    "shipRow" : 10,
+    "facing" : 21,
+    "fromCol" : 10,
+    "fromRow" : 9,
+    "shieldNum" : 1
   } ]
 }

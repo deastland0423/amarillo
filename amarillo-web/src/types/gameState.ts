@@ -528,6 +528,19 @@ export function facingLabel(facing: number): string {
   return 'ABCDEF'[Math.floor(((facing - 1) % 24) / 4)] ?? '?';
 }
 
+/**
+ * Colour for a shield at this strength. Lives here beside the other display helpers rather
+ * than inside HexGrid, so the map and the SSD panel cannot come to disagree about what
+ * counts as a hurt shield.
+ */
+export function shieldStrengthColor(current: number, max: number): string {
+  if (max === 0 || current === 0) return '#333333';
+  const pct = current / max;
+  if (pct > 0.6)  return '#56d364';  // green
+  if (pct > 0.25) return '#f0c040';  // yellow
+  return '#f85149';                  // red
+}
+
 /** Faction display colour. */
 export function factionColor(faction: string): string {
   switch (faction?.toLowerCase()) {

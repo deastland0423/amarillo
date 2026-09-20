@@ -150,6 +150,23 @@ export function allowedFacingsFromMask(arcMask: number): Set<number> {
   return new Set(FACING_DIRS.filter(d => (arcMask >> (d - 1)) & 1));
 }
 
+/**
+ * Which shield faces an ADJACENT hex: 1 dead ahead, numbering clockwise, as on the SSD.
+ *
+ * Defined for the six hexes touching a unit, where the bearing is always the centre of a
+ * shield. Bearings on a seam between two shields (relative 3, 7, 11, 15, 19, 23) have
+ * split-shield rules that nothing in this project models yet, and this would answer for
+ * them with false confidence.
+ *
+ * Core reaches the same number through a twelve-point scheme of its own; the shared
+ * fixture asserts the two agree, because a mislabelled ring means reinforcing the wrong
+ * shield.
+ */
+export function ringShieldNumber(from: Hex, facing: number, adjacent: Hex): number {
+  const relative = hexGetRelativeBearing(hexGetBearingBetween(from, adjacent), facing);
+  return (Math.round((relative - 1) / 4) % 6) + 1;
+}
+
 /** True if a weapon with this arc, on a unit at `from` facing `facing`, bears on `to`. */
 export function bearsOn(from: Hex, facing: number, arcMask: number, to: Hex): boolean {
   const trueBearing = hexGetBearingBetween(from, to);

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { MapObject, ShipObject, WeaponState } from '../types/gameState';
-import { facingLabel, facingToAngle, factionColor, parseLocation } from '../types/gameState';
-import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, turnFacing,
-         type Hex } from '../hex/geometry';
+import type { MapObject, ShieldState, ShipObject, WeaponState } from '../types/gameState';
+import { facingLabel, facingToAngle, factionColor, parseLocation,
+         shieldStrengthColor } from '../types/gameState';
+import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldNumber,
+         turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
 
 /**
@@ -214,6 +215,22 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
 
   const borneCount = plotted.filter(c => c.borne).length;
 
+  /**
+   * Shield facings, keyed by hex. The six hexes at range 1 ARE the six shields: the one
+   * dead ahead is #1 and they number clockwise from there, which is the numbering on the
+   * SSD. Derived from each hex's bearing rather than assumed, so it follows the previewed
+   * facing for free — turn to starboard and the panel shows which shield WOULD be facing
+   * him.
+   */
+  const shieldRing = new Map<string, { num: number; state: ShieldState | undefined }>();
+  for (const hex of disc) {
+    if (hexRangeBetween(centre, hex) !== 1) continue;
+    const num = ringShieldNumber(centre, facing, hex);
+    const index = num - 1;
+    shieldRing.set(`${hex.col}|${hex.row}`,
+      { num, state: ship.shields?.find(sh => sh.shieldNum === num) ?? ship.shields?.[index] });
+  }
+
   const span = (RADIUS + 1.2) * SIZE * 1.5;
   const vbHeight = (RADIUS + 1.2) * ROW_H;
 
@@ -235,6 +252,10 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           ? `Facing ${facingLabel(ship.facing)} ${String.fromCharCode(183)} arcs shown as they point right now`
           : `Trying facing ${facingLabel(facing)} ${String.fromCharCode(183)} actually facing ${facingLabel(ship.facing)}`}
       </div>
+      <div style={{ fontSize: '0.68rem', color: '#6e7681', marginBottom: 4 }}>
+        Inner ring: shields 1{String.fromCharCode(8211)}6
+        {isMine ? '' : ' (base strength \u2014 an enemy\u2019s reinforcement is not public)'}
+      </div>
 
       {/* ---- arc diagram ------------------------------------------------- */}
       <svg
@@ -253,14 +274,43 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           const fill = inSelected ? '#2f6f4f'
             : covered.has(key) ? '#1b2a33'
             : '#12161c';
+          const shield = shieldRing.get(key);
+          const down = shield?.state != null && !shield.state.active;
           return (
             <polygon
               key={key}
               points={hexPoints(x, y, SIZE)}
               fill={fill}
-              stroke="#30363d"
+              // A dropped shield is drawn as a gap in the ring rather than a number in a
+              // different colour, because that is what it is (D3.4).
+              stroke={down ? '#484f58' : '#30363d'}
+              strokeDasharray={down ? '3 4' : undefined}
               strokeWidth={1}
             />
+          );
+        })}
+
+        {/* shields on the inner ring: the six hexes at range 1 are the six facings */}
+        {[...shieldRing.entries()].map(([key, shield]) => {
+          const [col, row] = key.split('|').map(Number);
+          const [x, y] = offsetFromCentre(centre, { col, row });
+          const state = shield.state;
+          // An enemy's reinforcement is not public; the base strength is. Same rule the
+          // battle map follows, and worth keeping identical.
+          const visible = state ? (isMine ? state.current : state.baseStrength) : 0;
+          const colour = state == null ? '#484f58'
+            : !state.active ? '#484f58'
+            : shieldStrengthColor(visible, state.max);
+          return (
+            <g key={`shield-${key}`} pointerEvents="none">
+              <text x={x} y={y - 3} textAnchor="middle" fontSize={9} fill="#6e7681">
+                {shield.num}
+              </text>
+              <text x={x} y={y + 11} textAnchor="middle" fontSize={13}
+                    fontWeight={700} fill={colour}>
+                {state == null ? '-' : visible}
+              </text>
+            </g>
           );
         })}
 
