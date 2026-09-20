@@ -747,7 +747,7 @@ public class GameStateDto {
                 // Only released packs live here — the release was visible to all
                 mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
-                mapObjects.add(fromShuttle(shuttle));
+                mapObjects.add(fromShuttle(shuttle, hiddenFrom(viewerTeam, shuttle.getOwner())));
         }
 
         for (Seeker seeker : game.getSeekers()) {
@@ -767,7 +767,7 @@ public class GameStateDto {
                 // course and target added once it has. This used to open the whole DTO on
                 // identification, handing over the warhead and the arming turns.
                 if (hiddenFrom(viewerTeam, ss.getOwner()))
-                    mapObjects.add(fromShuttle(ss));
+                    mapObjects.add(fromShuttle(ss, true));
                 else
                     mapObjects.add(fromSuicideShuttle(ss));
             } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
@@ -775,7 +775,7 @@ public class GameStateDto {
                 // G4.233 again: "not if it is carrying drones". Releasing them is what makes
                 // a pack public, not being identified.
                 if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isReleased())
-                    mapObjects.add(fromShuttle(pack));
+                    mapObjects.add(fromShuttle(pack, true));
                 else
                     mapObjects.add(fromScatterPack(pack));
             }
@@ -1372,7 +1372,13 @@ public class GameStateDto {
         return dto;
     }
 
-    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle) {
+    /**
+     * @param hideSecrets true when the viewer is not on this shuttle's side. What a shuttle
+     *                    carries is not public: G4.233 gives up whether it is manned and
+     *                    whether it is seeking, and stops there.
+     */
+    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle,
+            boolean hideSecrets) {
         ShuttleDto dto = new ShuttleDto();
         dto.name = shuttle.getName();
         dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
@@ -1404,8 +1410,10 @@ public class GameStateDto {
         dto.beingRecovered = shuttle.isBeingRecovered();
         dto.landingPhase = shuttle.getLandingPhase().name();
         dto.landedHexSide = shuttle.getLandedHexSide();
-        dto.holdCrew = shuttle.getHold().getCrew();
-        dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
+        // What is aboard is hidden; how much it COULD carry is a property of the craft,
+        // like its speed, and stays public.
+        dto.holdCrew = hideSecrets ? 0 : shuttle.getHold().getCrew();
+        dto.holdSpacesUsed = hideSecrets ? 0 : shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
         dto.isIdentified = shuttle.isIdentified();
         if (shuttle.isIdentified())
