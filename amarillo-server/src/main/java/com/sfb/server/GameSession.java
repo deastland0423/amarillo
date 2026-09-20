@@ -1201,7 +1201,13 @@ public class GameSession {
                             for (int i = 0; i < needed; i++) {
                                 if (deckCrewsLeft < dt.rack)
                                     break; // not enough crew for this drone
-                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > 6)
+                                // The pack's own capacity, not a hardcoded six: FD7.21 gives
+                                // an admin shuttle six spaces and says other types carry more
+                                // or fewer, and the catalogue has been the authority since
+                                // role eligibility became data. An MRS at eight would have
+                                // silently loaded six here.
+                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack
+                                        > pack.getMaxDroneSpaces())
                                     break;
                                 // Pull from reload stockpile (any rack's reload sets)
                                 boolean pulled = false;
