@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bearsOn,
   hexGetBearing,
+  hexGetRelativeBearing,
   hexRange,
   hexesInArc,
 } from './geometry';
@@ -22,6 +23,12 @@ import {
  * Regenerate (only for an intended change to the algorithm) with:
  *   mvn test -pl amarillo-core -Dtest=HexGeometryFixtureTest -Dhex.fixture.regenerate=true
  */
+interface RelativeCase {
+  trueBearing: number;
+  facing: number;
+  relative: number;
+}
+
 interface FixtureCase {
   fromCol: number;
   fromRow: number;
@@ -31,7 +38,7 @@ interface FixtureCase {
   range: number;
 }
 
-const fixture: { note: string; cases: FixtureCase[] } = JSON.parse(
+const fixture: { note: string; cases: FixtureCase[]; relativeBearings: RelativeCase[] } = JSON.parse(
   readFileSync(new URL('../../../data/fixtures/hex-geometry.json', import.meta.url), 'utf-8'),
 );
 
@@ -48,6 +55,20 @@ describe('hex geometry mirrors MapUtils', () => {
       const got = hexGetBearing(c.fromCol, c.fromRow, c.toCol, c.toRow);
       if (got !== c.bearing)
         wrong.push(`(${c.fromCol}|${c.fromRow}) -> (${c.toCol}|${c.toRow}): server ${c.bearing}, client ${got}`);
+    }
+    expect(wrong.slice(0, 10)).toEqual([]);
+    expect(wrong).toHaveLength(0);
+  });
+
+  it('agrees with the server on every relative bearing', () => {
+    // The conversion that decides which way an arc POINTS. The client could get every true
+    // bearing right and still draw every arc rotated by a facing.
+    expect(fixture.relativeBearings).toHaveLength(24 * 6);
+    const wrong: string[] = [];
+    for (const r of fixture.relativeBearings) {
+      const got = hexGetRelativeBearing(r.trueBearing, r.facing);
+      if (got !== r.relative)
+        wrong.push(`bearing ${r.trueBearing} from facing ${r.facing}: server ${r.relative}, client ${got}`);
     }
     expect(wrong.slice(0, 10)).toEqual([]);
     expect(wrong).toHaveLength(0);

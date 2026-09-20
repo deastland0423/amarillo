@@ -11,6 +11,7 @@ import {
   allowedFacingsFromMask,
 } from '../hex/geometry';
 import HexGrid from './HexGrid';
+import SsdPanel from './SsdPanel';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
 import { DacChoiceDialog } from './DacChoiceDialog';
@@ -1423,6 +1424,7 @@ interface SidebarProps {
   onCloak:         () => void;
   onUncloak:       () => void;
   onClose:         () => void;
+  onOpenSsd:       () => void;
   // Launch
   launchMode:      boolean;
   launchTarget:    MapObject | null;
@@ -1557,7 +1559,7 @@ interface SidebarProps {
 }
 
 function ShipSidebar({
-  ship, isMine, canMove, phase, gameId, playerToken,
+  ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
   onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
@@ -1651,6 +1653,14 @@ function ShipSidebar({
       <div className="sidebar-header">
         <span className="sidebar-faction-dot" style={{ background: color }} />
         <span className="sidebar-ship-name">{ship.name}</span>
+        {/* In the header rather than the action strip: the strip is for a ship you command,
+            and an enemy's arcs are public knowledge worth looking up. */}
+        <button
+          className="secondary"
+          style={{ padding: '0 8px', marginRight: 4 }}
+          title="Ship record: weapon arcs"
+          onClick={onOpenSsd}
+        >SSD</button>
         <button className="sidebar-close secondary" onClick={onClose}>✕</button>
       </div>
 
@@ -3275,6 +3285,13 @@ export default function GameBoard({ session, onLeave }: Props) {
   const canMove      = selectedShip !== null && movableNow.includes(selectedShip.name);
 
   // Always show the latest live state for the selected ship
+  // Held by NAME, not by object: the panel looks the ship up in the current state on
+  // every render, so it moves with the battle instead of freezing at the moment it opened.
+  const [ssdShipName, setSsdShipName] = useState<string | null>(null);
+  const ssdShip = ssdShipName
+    ? (gameState?.mapObjects.find(o => o.name === ssdShipName && o.type === 'SHIP') as ShipObject | undefined) ?? null
+    : null;
+
   const liveShip = selectedShip
     ? (gameState?.mapObjects.find(o => o.name === selectedShip.name && o.type === 'SHIP') as ShipObject | undefined) ?? selectedShip
     : null;
@@ -4912,10 +4929,19 @@ export default function GameBoard({ session, onLeave }: Props) {
           />
         </div>
 
+        {ssdShip && (
+          <SsdPanel
+            ship={ssdShip}
+            isMine={myShips.has(ssdShip.name)}
+            onClose={() => setSsdShipName(null)}
+          />
+        )}
+
         {liveShip && (
           <ShipSidebar
             ship={liveShip}
             isMine={myShips.has(liveShip.name)}
+            onOpenSsd={() => setSsdShipName(liveShip.name)}
             canMove={canMove}
             phase={phase}
             gameId={session.gameId}

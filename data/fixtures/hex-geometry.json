@@ -3990,5 +3990,582 @@
     "toRow" : 10,
     "bearing" : 7,
     "range" : 20
+  } ],
+  "relativeBearings" : [ {
+    "trueBearing" : 1,
+    "facing" : 1,
+    "relative" : 1
+  }, {
+    "trueBearing" : 2,
+    "facing" : 1,
+    "relative" : 2
+  }, {
+    "trueBearing" : 3,
+    "facing" : 1,
+    "relative" : 3
+  }, {
+    "trueBearing" : 4,
+    "facing" : 1,
+    "relative" : 4
+  }, {
+    "trueBearing" : 5,
+    "facing" : 1,
+    "relative" : 5
+  }, {
+    "trueBearing" : 6,
+    "facing" : 1,
+    "relative" : 6
+  }, {
+    "trueBearing" : 7,
+    "facing" : 1,
+    "relative" : 7
+  }, {
+    "trueBearing" : 8,
+    "facing" : 1,
+    "relative" : 8
+  }, {
+    "trueBearing" : 9,
+    "facing" : 1,
+    "relative" : 9
+  }, {
+    "trueBearing" : 10,
+    "facing" : 1,
+    "relative" : 10
+  }, {
+    "trueBearing" : 11,
+    "facing" : 1,
+    "relative" : 11
+  }, {
+    "trueBearing" : 12,
+    "facing" : 1,
+    "relative" : 12
+  }, {
+    "trueBearing" : 13,
+    "facing" : 1,
+    "relative" : 13
+  }, {
+    "trueBearing" : 14,
+    "facing" : 1,
+    "relative" : 14
+  }, {
+    "trueBearing" : 15,
+    "facing" : 1,
+    "relative" : 15
+  }, {
+    "trueBearing" : 16,
+    "facing" : 1,
+    "relative" : 16
+  }, {
+    "trueBearing" : 17,
+    "facing" : 1,
+    "relative" : 17
+  }, {
+    "trueBearing" : 18,
+    "facing" : 1,
+    "relative" : 18
+  }, {
+    "trueBearing" : 19,
+    "facing" : 1,
+    "relative" : 19
+  }, {
+    "trueBearing" : 20,
+    "facing" : 1,
+    "relative" : 20
+  }, {
+    "trueBearing" : 21,
+    "facing" : 1,
+    "relative" : 21
+  }, {
+    "trueBearing" : 22,
+    "facing" : 1,
+    "relative" : 22
+  }, {
+    "trueBearing" : 23,
+    "facing" : 1,
+    "relative" : 23
+  }, {
+    "trueBearing" : 24,
+    "facing" : 1,
+    "relative" : 24
+  }, {
+    "trueBearing" : 1,
+    "facing" : 5,
+    "relative" : 21
+  }, {
+    "trueBearing" : 2,
+    "facing" : 5,
+    "relative" : 22
+  }, {
+    "trueBearing" : 3,
+    "facing" : 5,
+    "relative" : 23
+  }, {
+    "trueBearing" : 4,
+    "facing" : 5,
+    "relative" : 24
+  }, {
+    "trueBearing" : 5,
+    "facing" : 5,
+    "relative" : 1
+  }, {
+    "trueBearing" : 6,
+    "facing" : 5,
+    "relative" : 2
+  }, {
+    "trueBearing" : 7,
+    "facing" : 5,
+    "relative" : 3
+  }, {
+    "trueBearing" : 8,
+    "facing" : 5,
+    "relative" : 4
+  }, {
+    "trueBearing" : 9,
+    "facing" : 5,
+    "relative" : 5
+  }, {
+    "trueBearing" : 10,
+    "facing" : 5,
+    "relative" : 6
+  }, {
+    "trueBearing" : 11,
+    "facing" : 5,
+    "relative" : 7
+  }, {
+    "trueBearing" : 12,
+    "facing" : 5,
+    "relative" : 8
+  }, {
+    "trueBearing" : 13,
+    "facing" : 5,
+    "relative" : 9
+  }, {
+    "trueBearing" : 14,
+    "facing" : 5,
+    "relative" : 10
+  }, {
+    "trueBearing" : 15,
+    "facing" : 5,
+    "relative" : 11
+  }, {
+    "trueBearing" : 16,
+    "facing" : 5,
+    "relative" : 12
+  }, {
+    "trueBearing" : 17,
+    "facing" : 5,
+    "relative" : 13
+  }, {
+    "trueBearing" : 18,
+    "facing" : 5,
+    "relative" : 14
+  }, {
+    "trueBearing" : 19,
+    "facing" : 5,
+    "relative" : 15
+  }, {
+    "trueBearing" : 20,
+    "facing" : 5,
+    "relative" : 16
+  }, {
+    "trueBearing" : 21,
+    "facing" : 5,
+    "relative" : 17
+  }, {
+    "trueBearing" : 22,
+    "facing" : 5,
+    "relative" : 18
+  }, {
+    "trueBearing" : 23,
+    "facing" : 5,
+    "relative" : 19
+  }, {
+    "trueBearing" : 24,
+    "facing" : 5,
+    "relative" : 20
+  }, {
+    "trueBearing" : 1,
+    "facing" : 9,
+    "relative" : 17
+  }, {
+    "trueBearing" : 2,
+    "facing" : 9,
+    "relative" : 18
+  }, {
+    "trueBearing" : 3,
+    "facing" : 9,
+    "relative" : 19
+  }, {
+    "trueBearing" : 4,
+    "facing" : 9,
+    "relative" : 20
+  }, {
+    "trueBearing" : 5,
+    "facing" : 9,
+    "relative" : 21
+  }, {
+    "trueBearing" : 6,
+    "facing" : 9,
+    "relative" : 22
+  }, {
+    "trueBearing" : 7,
+    "facing" : 9,
+    "relative" : 23
+  }, {
+    "trueBearing" : 8,
+    "facing" : 9,
+    "relative" : 24
+  }, {
+    "trueBearing" : 9,
+    "facing" : 9,
+    "relative" : 1
+  }, {
+    "trueBearing" : 10,
+    "facing" : 9,
+    "relative" : 2
+  }, {
+    "trueBearing" : 11,
+    "facing" : 9,
+    "relative" : 3
+  }, {
+    "trueBearing" : 12,
+    "facing" : 9,
+    "relative" : 4
+  }, {
+    "trueBearing" : 13,
+    "facing" : 9,
+    "relative" : 5
+  }, {
+    "trueBearing" : 14,
+    "facing" : 9,
+    "relative" : 6
+  }, {
+    "trueBearing" : 15,
+    "facing" : 9,
+    "relative" : 7
+  }, {
+    "trueBearing" : 16,
+    "facing" : 9,
+    "relative" : 8
+  }, {
+    "trueBearing" : 17,
+    "facing" : 9,
+    "relative" : 9
+  }, {
+    "trueBearing" : 18,
+    "facing" : 9,
+    "relative" : 10
+  }, {
+    "trueBearing" : 19,
+    "facing" : 9,
+    "relative" : 11
+  }, {
+    "trueBearing" : 20,
+    "facing" : 9,
+    "relative" : 12
+  }, {
+    "trueBearing" : 21,
+    "facing" : 9,
+    "relative" : 13
+  }, {
+    "trueBearing" : 22,
+    "facing" : 9,
+    "relative" : 14
+  }, {
+    "trueBearing" : 23,
+    "facing" : 9,
+    "relative" : 15
+  }, {
+    "trueBearing" : 24,
+    "facing" : 9,
+    "relative" : 16
+  }, {
+    "trueBearing" : 1,
+    "facing" : 13,
+    "relative" : 13
+  }, {
+    "trueBearing" : 2,
+    "facing" : 13,
+    "relative" : 14
+  }, {
+    "trueBearing" : 3,
+    "facing" : 13,
+    "relative" : 15
+  }, {
+    "trueBearing" : 4,
+    "facing" : 13,
+    "relative" : 16
+  }, {
+    "trueBearing" : 5,
+    "facing" : 13,
+    "relative" : 17
+  }, {
+    "trueBearing" : 6,
+    "facing" : 13,
+    "relative" : 18
+  }, {
+    "trueBearing" : 7,
+    "facing" : 13,
+    "relative" : 19
+  }, {
+    "trueBearing" : 8,
+    "facing" : 13,
+    "relative" : 20
+  }, {
+    "trueBearing" : 9,
+    "facing" : 13,
+    "relative" : 21
+  }, {
+    "trueBearing" : 10,
+    "facing" : 13,
+    "relative" : 22
+  }, {
+    "trueBearing" : 11,
+    "facing" : 13,
+    "relative" : 23
+  }, {
+    "trueBearing" : 12,
+    "facing" : 13,
+    "relative" : 24
+  }, {
+    "trueBearing" : 13,
+    "facing" : 13,
+    "relative" : 1
+  }, {
+    "trueBearing" : 14,
+    "facing" : 13,
+    "relative" : 2
+  }, {
+    "trueBearing" : 15,
+    "facing" : 13,
+    "relative" : 3
+  }, {
+    "trueBearing" : 16,
+    "facing" : 13,
+    "relative" : 4
+  }, {
+    "trueBearing" : 17,
+    "facing" : 13,
+    "relative" : 5
+  }, {
+    "trueBearing" : 18,
+    "facing" : 13,
+    "relative" : 6
+  }, {
+    "trueBearing" : 19,
+    "facing" : 13,
+    "relative" : 7
+  }, {
+    "trueBearing" : 20,
+    "facing" : 13,
+    "relative" : 8
+  }, {
+    "trueBearing" : 21,
+    "facing" : 13,
+    "relative" : 9
+  }, {
+    "trueBearing" : 22,
+    "facing" : 13,
+    "relative" : 10
+  }, {
+    "trueBearing" : 23,
+    "facing" : 13,
+    "relative" : 11
+  }, {
+    "trueBearing" : 24,
+    "facing" : 13,
+    "relative" : 12
+  }, {
+    "trueBearing" : 1,
+    "facing" : 17,
+    "relative" : 9
+  }, {
+    "trueBearing" : 2,
+    "facing" : 17,
+    "relative" : 10
+  }, {
+    "trueBearing" : 3,
+    "facing" : 17,
+    "relative" : 11
+  }, {
+    "trueBearing" : 4,
+    "facing" : 17,
+    "relative" : 12
+  }, {
+    "trueBearing" : 5,
+    "facing" : 17,
+    "relative" : 13
+  }, {
+    "trueBearing" : 6,
+    "facing" : 17,
+    "relative" : 14
+  }, {
+    "trueBearing" : 7,
+    "facing" : 17,
+    "relative" : 15
+  }, {
+    "trueBearing" : 8,
+    "facing" : 17,
+    "relative" : 16
+  }, {
+    "trueBearing" : 9,
+    "facing" : 17,
+    "relative" : 17
+  }, {
+    "trueBearing" : 10,
+    "facing" : 17,
+    "relative" : 18
+  }, {
+    "trueBearing" : 11,
+    "facing" : 17,
+    "relative" : 19
+  }, {
+    "trueBearing" : 12,
+    "facing" : 17,
+    "relative" : 20
+  }, {
+    "trueBearing" : 13,
+    "facing" : 17,
+    "relative" : 21
+  }, {
+    "trueBearing" : 14,
+    "facing" : 17,
+    "relative" : 22
+  }, {
+    "trueBearing" : 15,
+    "facing" : 17,
+    "relative" : 23
+  }, {
+    "trueBearing" : 16,
+    "facing" : 17,
+    "relative" : 24
+  }, {
+    "trueBearing" : 17,
+    "facing" : 17,
+    "relative" : 1
+  }, {
+    "trueBearing" : 18,
+    "facing" : 17,
+    "relative" : 2
+  }, {
+    "trueBearing" : 19,
+    "facing" : 17,
+    "relative" : 3
+  }, {
+    "trueBearing" : 20,
+    "facing" : 17,
+    "relative" : 4
+  }, {
+    "trueBearing" : 21,
+    "facing" : 17,
+    "relative" : 5
+  }, {
+    "trueBearing" : 22,
+    "facing" : 17,
+    "relative" : 6
+  }, {
+    "trueBearing" : 23,
+    "facing" : 17,
+    "relative" : 7
+  }, {
+    "trueBearing" : 24,
+    "facing" : 17,
+    "relative" : 8
+  }, {
+    "trueBearing" : 1,
+    "facing" : 21,
+    "relative" : 5
+  }, {
+    "trueBearing" : 2,
+    "facing" : 21,
+    "relative" : 6
+  }, {
+    "trueBearing" : 3,
+    "facing" : 21,
+    "relative" : 7
+  }, {
+    "trueBearing" : 4,
+    "facing" : 21,
+    "relative" : 8
+  }, {
+    "trueBearing" : 5,
+    "facing" : 21,
+    "relative" : 9
+  }, {
+    "trueBearing" : 6,
+    "facing" : 21,
+    "relative" : 10
+  }, {
+    "trueBearing" : 7,
+    "facing" : 21,
+    "relative" : 11
+  }, {
+    "trueBearing" : 8,
+    "facing" : 21,
+    "relative" : 12
+  }, {
+    "trueBearing" : 9,
+    "facing" : 21,
+    "relative" : 13
+  }, {
+    "trueBearing" : 10,
+    "facing" : 21,
+    "relative" : 14
+  }, {
+    "trueBearing" : 11,
+    "facing" : 21,
+    "relative" : 15
+  }, {
+    "trueBearing" : 12,
+    "facing" : 21,
+    "relative" : 16
+  }, {
+    "trueBearing" : 13,
+    "facing" : 21,
+    "relative" : 17
+  }, {
+    "trueBearing" : 14,
+    "facing" : 21,
+    "relative" : 18
+  }, {
+    "trueBearing" : 15,
+    "facing" : 21,
+    "relative" : 19
+  }, {
+    "trueBearing" : 16,
+    "facing" : 21,
+    "relative" : 20
+  }, {
+    "trueBearing" : 17,
+    "facing" : 21,
+    "relative" : 21
+  }, {
+    "trueBearing" : 18,
+    "facing" : 21,
+    "relative" : 22
+  }, {
+    "trueBearing" : 19,
+    "facing" : 21,
+    "relative" : 23
+  }, {
+    "trueBearing" : 20,
+    "facing" : 21,
+    "relative" : 24
+  }, {
+    "trueBearing" : 21,
+    "facing" : 21,
+    "relative" : 1
+  }, {
+    "trueBearing" : 22,
+    "facing" : 21,
+    "relative" : 2
+  }, {
+    "trueBearing" : 23,
+    "facing" : 21,
+    "relative" : 3
+  }, {
+    "trueBearing" : 24,
+    "facing" : 21,
+    "relative" : 4
   } ]
 }

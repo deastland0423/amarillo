@@ -111,6 +111,17 @@ public class HexGeometryFixtureTest {
             assertEquals("range " + where, c.path("range").asInt(),
                     MapUtils.getRange(from, to));
         }
+
+        // Relative bearing: the conversion that decides which way an arc points. A mirror
+        // could get every true bearing right and still draw every arc rotated.
+        JsonNode relatives = root.path("relativeBearings");
+        assertEquals("all 24 bearings against all 6 facings", 24 * 6, relatives.size());
+        for (JsonNode r : relatives)
+            assertEquals("relative bearing of " + r.path("trueBearing").asInt()
+                            + " seen from facing " + r.path("facing").asInt(),
+                    r.path("relative").asInt(),
+                    MapUtils.getRelativeBearing(r.path("trueBearing").asInt(),
+                            r.path("facing").asInt()));
     }
 
     /**
@@ -149,6 +160,15 @@ public class HexGeometryFixtureTest {
             c.put("bearing", MapUtils.getBearing(from, to));
             c.put("range", MapUtils.getRange(from, to));
         }
+
+        ArrayNode relatives = root.putArray("relativeBearings");
+        for (int facing : new int[] { 1, 5, 9, 13, 17, 21 })
+            for (int trueBearing = 1; trueBearing <= 24; trueBearing++) {
+                ObjectNode r = relatives.addObject();
+                r.put("trueBearing", trueBearing);
+                r.put("facing", facing);
+                r.put("relative", MapUtils.getRelativeBearing(trueBearing, facing));
+            }
 
         File f = fixture();
         f.getParentFile().mkdirs();
