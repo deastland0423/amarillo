@@ -2032,7 +2032,10 @@ function ShipSidebar({
                     )}
                   </>
                 )}
-                {/* Fire Control toggle (D6.6) — always show for ships that have FC */}
+                {/* Fire Control (D6.6). The button says what clicking it DOES, like every
+                    other button in this strip; what the state IS is a stat row beside EW.
+                    It used to be labelled with the state and perform the opposite, so "FC
+                    Active" could as easily have meant "click to activate". */}
                 {(ship.fcPaidThisTurn) && (
                   <>
                     {ship.activeFireControl && !ship.wildWeaselActive && (
@@ -2040,9 +2043,9 @@ function ShipSidebar({
                         className="action-strip-btn"
                         style={{ borderColor: '#22c55e', color: '#22c55e' }}
                         onClick={onGoPassiveFc}
-                        title="Go passive fire control (D6.6) — loses lock-ons, 4 impulses to reactivate"
+                        title="Go passive (D6.6) — drops every lock-on, and four impulses to come back"
                       >
-                        FC Active
+                        Go Passive
                       </button>
                     )}
                     {ship.fireControlActivating && (
@@ -2052,7 +2055,7 @@ function ShipSidebar({
                         style={{ borderColor: '#facc15', color: '#facc15' }}
                         title={`Fire control activating — completes at impulse ${ship.fcActivatingUntil ?? '?'} (D6.633)`}
                       >
-                        FC Activating…
+                        FC ready imp {ship.fcActivatingUntil ?? '?'}
                       </button>
                     )}
                     {!ship.activeFireControl && !ship.fireControlActivating && (
@@ -2064,7 +2067,7 @@ function ShipSidebar({
                           ? 'Activate fire control — voids Wild Weasel! (D6.65)'
                           : 'Activate fire control (D6.6) — 4-impulse countdown'}
                       >
-                        FC Passive
+                        {ship.wildWeaselActive ? 'Activate FC ⚠' : 'Activate FC (4 imp)'}
                       </button>
                     )}
                   </>
@@ -2913,6 +2916,17 @@ function ShipSidebar({
             weasel launches, and the only clue is the dice roll afterwards. */}
         {ship.ecmSources && (ship.ecmTotal ?? 0) > 0 && (
           <StatRow label="" value={ship.ecmSources} />
+        )}
+        {/* Below EW because it is the other half of the same question: what this ship can
+            see and be seen doing. The button in the action strip performs the change; this
+            is where the state lives. */}
+        {(ship.fcPaidThisTurn) && (
+          <StatRow
+            label="Fire Control"
+            value={ship.fireControlActivating
+              ? `activating (impulse ${ship.fcActivatingUntil ?? '?'})`
+              : ship.activeFireControl ? 'active' : 'passive'}
+          />
         )}
         {(ship.cloakCost ?? 0) > 0 && (
           <StatRow
