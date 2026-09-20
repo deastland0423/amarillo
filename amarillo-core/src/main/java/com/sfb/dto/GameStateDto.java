@@ -1365,10 +1365,12 @@ public class GameStateDto {
                         sd.armed = ss.isArmed();
                         sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                         sd.warheadDamage = ss.getWarheadDamage();
-                    } else if (s.canBecomeWildWeasel()) {
-                        sd.wwChargeCount = s.getWwChargeCount();
-                        sd.wwReady = s.isWwReady();
                     } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+                        // BEFORE the weasel branch. A pack built from an admin shuttle keeps
+                        // that catalogue type, and canBecomeWildWeasel() reads the catalogue
+                        // (J3.18) — so the pack answered TRUE, took the weasel branch, and
+                        // never reported its payload. The launch list needs a payload, so a
+                        // perfectly good pack could not be launched at all.
                         com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
                         sd.payload = sp.getPayload().stream()
                                 .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
@@ -1378,6 +1380,9 @@ public class GameStateDto {
                                 .collect(java.util.stream.Collectors.toList());
                         sd.maxDroneSpaces = sp.getMaxDroneSpaces();
                         sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+                    } else if (s.canBecomeWildWeasel()) {
+                        sd.wwChargeCount = s.getWwChargeCount();
+                        sd.wwReady = s.isWwReady();
                     }
                     sd.specialRole = s.specialRole();
                     spaceDto.armed = s.isArmed();
