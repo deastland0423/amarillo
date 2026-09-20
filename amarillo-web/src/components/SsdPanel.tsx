@@ -327,20 +327,22 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
             : !state.active ? '#484f58'
             : shieldStrengthColor(visible, state.max);
           return (
-            <g key={`shield-${key}`} pointerEvents="none">
-              {/* ONE text run, not two. Anchoring a number to the left of the point and a
-                  strength to the right left the pair straddling it, reading as two
-                  separate things pulled apart rather than one label. Tspans flow inline,
-                  so a middle anchor measures the whole string and centres it.
-
-                  Side by side rather than stacked, because the hexes directly above and
-                  below are the tight direction and two lines of text there run into the
-                  contact drawn in the next hex out. */}
-              <text x={x} y={y + 5} textAnchor="middle">
-                <tspan fontSize={9} fill="#6e7681">{shield.num} </tspan>
-                <tspan fontSize={13} fontWeight={700} fill={colour}>
-                  {state == null ? '-' : visible}
-                </tspan>
+            {/* Hoverable, or the tooltip below would never be reachable. The labels sit
+                at 0.55 of a hex step and contacts at 1.0, so nothing is blocked. */}
+            <g key={`shield-${key}`}>
+              {/* The strength alone. Which shield it is, the position already says — that
+                  being the whole reason for putting them on the ring — so a 1-6 label
+                  beside every number was just something else to read. It survives in the
+                  hover, where it costs nothing. */}
+              <text x={x} y={y + 5} textAnchor="middle" fontSize={13}
+                    fontWeight={700} fill={colour}>
+                {state == null ? '-' : visible}
+                <title>
+                  {state == null
+                    ? `Shield ${shield.num}`
+                    : `Shield ${shield.num}: ${visible} of ${state.max}`
+                      + (state.active ? '' : ' (down)')}
+                </title>
               </text>
             </g>
           );
