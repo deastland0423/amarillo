@@ -1455,6 +1455,10 @@ public class GameStateDto {
         dto.phaserCapacitor = 0;          // the SSD maximum stays public
         dto.capacitorsCharged = false;
 
+        // Having BOUGHT Erratic Maneuvers is an intention; using them is a manoeuvre
+        // everyone can see (C10.11 versus C10.0), so usingEm and the announcement stay.
+        dto.paidForEm = false;
+
         // Mines carried, and how many of them are bluffs.
         dto.tBombs = 0;
         dto.dummyTBombs = 0;
@@ -1467,6 +1471,13 @@ public class GameStateDto {
         dto.tacBudget = 0;
         dto.tacAvailable = 0;          // an int: earned TACs ready to use
         dto.sublightTacAvailable = false;
+
+        // Transporter uses remaining are public: every use of a transporter is seen, so
+        // what is left can be counted. But our figure is min(boxes, energy / cost) and
+        // that energy includes BATTERIES, which are not public — published as-is it would
+        // let an opponent read the battery state off the transporter count. So an enemy
+        // gets the figure the boxes alone support.
+        dto.transporterUses = dto.availableTransporters;
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.
@@ -1487,6 +1498,9 @@ public class GameStateDto {
                 wd.pseudoPlasmaReady = false;
                 wd.isRolling = false;
                 wd.chargesRemaining = 0;
+                // Ammunition remaining, hidden for the same reason drone rack loads are.
+                wd.addShots = 0;
+                wd.addReloads = 0;      // addCapacity is on the SSD and stays
             }
     }
 

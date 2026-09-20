@@ -55,8 +55,9 @@ public class ShipDtoPrivacyTest {
         "phaserCapacitor", "capacitorsCharged",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",
-        // Intentions
-        "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable",
+        // Intentions: paying for Erratic Maneuvers is one, USING them is a visible
+        // manoeuvre (C10.11 vs C10.0).
+        "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable", "paidForEm",
         "scoutEwPool", "scoutEwRemaining",
         // Built empty for an enemy rather than blanked
         "droneRacks", "shuttleBays", "allocationNotes"
@@ -71,7 +72,7 @@ public class ShipDtoPrivacyTest {
         "facing", "speed", "tractorTrueSpeed", "turnMode", "turnHexes", "hexesUntilTurn",
         "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
-        "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending", "paidForEm",
+        "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",
         "erraticCost",
         // Damage: every box, remaining and maximum
         "shields", "minimumShieldCost", "activeShieldCost",
@@ -97,10 +98,24 @@ public class ShipDtoPrivacyTest {
         "negativeTractorAccumulated", "transporterEnergyCost", "transporterUses"
     ));
 
+    /**
+     * Public, but not the same number both sides see, so excluded from the
+     * reads-the-same check and asserted on its own terms below.
+     * <p>
+     * Uses remaining are public — every use of a transporter is seen — but our figure is
+     * limited by energy INCLUDING batteries, which are not. Sent as-is, the transporter
+     * count would have been a window onto the battery state.
+     */
+    private static final Set<String> SHIP_PUBLIC_RECOMPUTED = new HashSet<>(Arrays.asList(
+        "transporterUses"
+    ));
+
     private static final Set<String> WEAPON_PRIVATE = new HashSet<>(Arrays.asList(
         "armed", "armingType", "armingTurn", "totalArmingTurns", "armingEnergy",
         "readyToFire", "plasmaType", "pseudoPlasmaReady", "isRolling", "chargesRemaining",
-        "esgStoredEnergy"
+        "esgStoredEnergy",
+        // Ammunition remaining, hidden like the drones in a rack
+        "addShots", "addReloads"
     ));
 
     private static final Set<String> WEAPON_PUBLIC = new HashSet<>(Arrays.asList(
@@ -110,8 +125,8 @@ public class ShipDtoPrivacyTest {
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",
         "eptCost", "rollingCost", "canFireDouble",
-        // ADD ammunition is visible as it is used
-        "addShots", "addCapacity", "addReloads",
+        // What a full ADD load holds is on the SSD; what is left in it is not
+        "addCapacity",
         // Scout channels: what a channel is doing and lending is public by ruling
         "scoutChannel", "channelPowered", "channelBlinded", "channelFunction",
         "channelLendTarget", "channelLentEcm", "channelLentEccm", "channelBreakAttempts",
@@ -268,6 +283,7 @@ public class ShipDtoPrivacyTest {
         GameStateDto.ShipDto theirs = ship(enemyView);
         for (String name : SHIP_PUBLIC) {
             if ("shields".equals(name) || "weapons".equals(name)) continue;  // checked below
+            if (SHIP_PUBLIC_RECOMPUTED.contains(name)) continue;             // asserted apart
             Field f = GameStateDto.ShipDto.class.getField(name);
             assertEquals(name + " differs between the two views though it is public",
                 String.valueOf(f.get(mine)), String.valueOf(f.get(theirs)));
@@ -287,6 +303,28 @@ public class ShipDtoPrivacyTest {
         // ...but the reinforcement on shield 1 is not passed on.
         assertEquals("an enemy sees the box count, never the reinforcement",
             theirs.shields.get(0).baseStrength, theirs.shields.get(0).current);
+    }
+
+    /**
+     * The awkward one: public by ruling, but the figure we compute for its owner is capped
+     * by hidden energy, so an enemy gets the count the transporter boxes alone support.
+     */
+    @Test
+    public void transporterUsesTellAnEnemyNothingAboutBatteries() {
+        GameStateDto.ShipDto theirs = ship(enemyView);
+        assertEquals("an enemy counts boxes, not the energy behind them",
+            theirs.availableTransporters, theirs.transporterUses);
+
+        // And the discriminating half: a ship whose batteries cannot power every box must
+        // still report all of them, or the shortfall would be the tell.
+        fed.getPowerSystems().setBatteryPower(0);
+        fed.getTransporters().init(java.util.Map.of("trans", 4));
+        GameStateDto.ShipDto starved =
+            ship(new GameStateDto(game, "Klingon"));
+        assertEquals("four boxes, no energy to speak of, still four to an enemy",
+            4, starved.transporterUses);
+        assertTrue("and its owner sees the truth: nothing it can actually power",
+            ship(new GameStateDto(game, "Federation")).transporterUses < 4);
     }
 
     @Test
