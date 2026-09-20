@@ -95,7 +95,7 @@ public class ObjectiveRecoveryTest {
         Objective o = addCanister(10, 9); // range 1 from fed at (10,10)
         advanceToActivity();
         fed.setActiveFireControl(true);
-        fed.getTractors().initForTurn(6);
+        fed.getTractors().initForTurn(6, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
 
         // Tractor the canister — non-ship target resolves immediately (G7.5)
@@ -132,7 +132,7 @@ public class ObjectiveRecoveryTest {
         Objective o = addCanister(10, 9);
         advanceToActivity();
         fed.setActiveFireControl(true);
-        fed.getTractors().initForTurn(6);
+        fed.getTractors().initForTurn(6, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
         assertTrue(game.establishTractor(fed, "Probe Canister", 1).isSuccess());
         assertTrue(game.beginObjectiveRecovery(fed, "Probe Canister").isSuccess());

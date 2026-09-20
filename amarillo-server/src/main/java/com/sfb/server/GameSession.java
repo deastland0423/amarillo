@@ -1311,7 +1311,7 @@ public class GameSession {
                         return ActionResult.fail(ship.getName() + " has no functional tractor beams");
                 }
                 e.setTractors(tractorReq);
-                ship.getTractors().initForTurn(tractorReq);
+                ship.getTractors().initForTurn(tractorReq, game.getAbsoluteImpulse());
 
                 // Wild Weasel charging (J3.12): increment charge for named shuttles, reset
                 // others

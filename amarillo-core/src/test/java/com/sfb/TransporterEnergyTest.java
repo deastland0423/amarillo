@@ -187,7 +187,7 @@ public class TransporterEnergyTest {
         torp.setLocation(new Location(11, 10));
         game.getSeekers().add(torp);
 
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.addLockOn(torp);
         fed.setActiveFireControl(true);
 

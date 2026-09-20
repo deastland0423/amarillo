@@ -199,8 +199,8 @@ public class FriendlyEwShiftTest {
     public void anAttachedBeamNeedsNoFurtherRoll() {
         // G7.412 / D6.371: once attached, lock-on is automatic in both directions.
         AdminShuttle shuttle = friendlyShuttleInTheRocks();
-        klingonA.getTractors().initForTurn(5);
-        klingonA.getTractors().linkUnit(shuttle);
+        klingonA.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        klingonA.getTractors().linkUnit(shuttle, game.getAbsoluteImpulse());
 
         assertEquals("an attached tractor is not re-acquired every impulse (G7.412)",
                 0, game.d637Shift(klingonA, shuttle));

@@ -94,7 +94,7 @@ public class TractorTest {
     @Test
     public void initForTurn_setsBothEnergyFields() {
         Tractors t = fed.getTractors();
-        t.initForTurn(7);
+        t.initForTurn(7, game.getAbsoluteImpulse());
         assertEquals(7, t.getTotalTractorEnergy());
         assertEquals(7, t.getRemainingTractorEnergy());
     }
@@ -102,7 +102,7 @@ public class TractorTest {
     @Test
     public void spendEnergy_deductsFromPool() {
         Tractors t = fed.getTractors();
-        t.initForTurn(10);
+        t.initForTurn(10, game.getAbsoluteImpulse());
         int leftOver = t.spendEnergy(4);
         assertEquals(0, leftOver);
         assertEquals(6, t.getRemainingTractorEnergy());
@@ -111,7 +111,7 @@ public class TractorTest {
     @Test
     public void spendEnergy_returnsRemainderWhenPoolInsufficient() {
         Tractors t = fed.getTractors();
-        t.initForTurn(3);
+        t.initForTurn(3, game.getAbsoluteImpulse());
         int leftOver = t.spendEnergy(5);
         assertEquals(2, leftOver);
         assertEquals(0, t.getRemainingTractorEnergy());
@@ -120,7 +120,7 @@ public class TractorTest {
     @Test
     public void linkUnit_incrementsUsedAndSetsTractored() {
         Tractors t = fed.getTractors();
-        assertTrue(t.linkUnit(klingon));
+        assertTrue(t.linkUnit(klingon, game.getAbsoluteImpulse()));
         assertEquals(1, t.getTractoredUnits().size());
         assertTrue(klingon.isTractored());
     }
@@ -135,11 +135,11 @@ public class TractorTest {
             Ship dummy = new Ship();
             dummy.init(FederationShips.getFedCa());
             dummy.setName("Dummy" + i);
-            boolean linked = t.linkUnit(dummy);
+            boolean linked = t.linkUnit(dummy, game.getAbsoluteImpulse());
             assertTrue("Should link dummy " + i, linked);
         }
         // Now all slots are occupied; next linkUnit must fail
-        assertFalse(t.linkUnit(klingon));
+        assertFalse(t.linkUnit(klingon, game.getAbsoluteImpulse()));
     }
 
     @Test
@@ -148,8 +148,8 @@ public class TractorTest {
         // resets. Unmaintained links are released at the NEXT turn's start
         // (TractorResolver.maintainLinksAtTurnStart), not here.
         Tractors t = fed.getTractors();
-        t.initForTurn(10);
-        t.linkUnit(klingon);
+        t.initForTurn(10, game.getAbsoluteImpulse());
+        t.linkUnit(klingon, game.getAbsoluteImpulse());
         t.addNegativeTractorAccumulated(3);
 
         t.cleanUp();
@@ -177,7 +177,7 @@ public class TractorTest {
 
     /** Helper: give fed enough tractor energy, lock-on, and AFC to attempt a tractor. */
     private void readyFed(int tractorEnergy) {
-        fed.getTractors().initForTurn(tractorEnergy);
+        fed.getTractors().initForTurn(tractorEnergy, game.getAbsoluteImpulse());
         fed.addLockOn(klingon);
         fed.setActiveFireControl(true);
     }
@@ -193,7 +193,7 @@ public class TractorTest {
     public void establish_failsWhenBidExceedsPoolAndBattery() {
         // Pool = 2, battery starts at fed.battery (3 for FedCA); total available = 5.
         // Use bid of 6 to reliably exceed both.
-        fed.getTractors().initForTurn(2);
+        fed.getTractors().initForTurn(2, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0); // drain battery so only pool matters
         fed.addLockOn(klingon);
         fed.setActiveFireControl(true);
@@ -219,7 +219,7 @@ public class TractorTest {
 
     @Test
     public void establish_failsWhenNoLockOn() {
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.setActiveFireControl(true);
         // No addLockOn call
         Game.ActionResult r = game.establishTractor(fed, "IKV Saber", 2);
@@ -228,7 +228,7 @@ public class TractorTest {
 
     @Test
     public void establish_failsWhenNoActiveFireControl() {
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.addLockOn(klingon);
         fed.setActiveFireControl(false);
         Game.ActionResult r = game.establishTractor(fed, "IKV Saber", 2);
@@ -261,7 +261,7 @@ public class TractorTest {
     private void openAuction(int fedBid, int klingonEnergy) {
         readyFed(fedBid + 5); // give fed enough pool for the bid
         game.establishTractor(fed, "IKV Saber", fedBid);
-        klingon.getTractors().initForTurn(klingonEnergy);
+        klingon.getTractors().initForTurn(klingonEnergy, game.getAbsoluteImpulse());
     }
 
     // --- Attacker wins ---
@@ -407,8 +407,8 @@ public class TractorTest {
         // Klingon allocates warp 20 → same calculation → pseudo = 10.
 
         // Establish tractor link directly (skip auction to avoid prerequisite complexity)
-        fed.getTractors().initForTurn(5);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
 
         // Submit allocations for both ships; last one triggers beginImpulses() which
         // calls computeTractorPseudoSpeeds()
@@ -434,8 +434,8 @@ public class TractorTest {
     public void pseudoSpeed_onlyCapReducedSpeed_notIncrease() {
         // Both ships allocate warp for speed 8; combined cost = 2.0.
         // Pseudo = floor(8/2.0) = 4 — slower than requested, so cap applies.
-        fed.getTractors().initForTurn(5);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
 
         game.submitAllocation(fed,     makeAllocation(fed,     8.0));
         game.submitAllocation(klingon, makeAllocation(klingon, 8.0));
@@ -495,7 +495,7 @@ public class TractorTest {
         readyFed(6);
         fed.getPowerSystems().setBatteryPower(0);
         game.establishTractor(fed, "IKV Saber", 2); // pending auction, rangeMultiplier=2
-        klingon.getTractors().initForTurn(0);
+        klingon.getTractors().initForTurn(0, game.getAbsoluteImpulse());
 
         // Defender bids 0 → defenderTotal = 0 < 2 → attacker wins
         // Attacker energy spend = (0+1)*2 = 2
@@ -512,7 +512,7 @@ public class TractorTest {
         readyFed(6);
         fed.getPowerSystems().setBatteryPower(0);
         game.establishTractor(fed, "IKV Saber", 1);
-        klingon.getTractors().initForTurn(5);
+        klingon.getTractors().initForTurn(5, game.getAbsoluteImpulse());
 
         // Defender bids 1 → defenderTotal = 1 ≥ attackerBid 1 → defender wins
         // Attacker energy spend = 1*2 = 2
@@ -535,7 +535,7 @@ public class TractorTest {
     }
 
     private void readyFedForUnit(com.sfb.objects.Unit target, int tractorEnergy) {
-        fed.getTractors().initForTurn(tractorEnergy);
+        fed.getTractors().initForTurn(tractorEnergy, game.getAbsoluteImpulse());
         fed.addLockOn(target);
         fed.setActiveFireControl(true);
     }
@@ -595,9 +595,9 @@ public class TractorTest {
 
     /** Link klingon into fed's tractor and give fed a tractor pool (pre-allocation). */
     private void linkKlingon(int fedTractorPool) {
-        fed.getTractors().initForTurn(fedTractorPool);
+        fed.getTractors().initForTurn(fedTractorPool, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
     }
 
     @Test
@@ -666,9 +666,9 @@ public class TractorTest {
     public void rotate_failsWhenNotTractoringTarget() {
         // Fed holds a drone (keeps the phase open) but NOT the klingon
         Drone drone = makeDrone("Drone-1", 10, 11);
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
-        fed.getTractors().linkUnit(drone);
+        fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity();
 
         Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 11, 9);
@@ -738,8 +738,8 @@ public class TractorTest {
         game.startTurn(); // re-queue all three ships
 
         linkKlingon(10);
-        fed2.getTractors().initForTurn(10);
-        fed2.getTractors().linkUnit(klingon);
+        fed2.getTractors().initForTurn(10, game.getAbsoluteImpulse());
+        fed2.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
 
         game.submitAllocation(fed,     makeAllocation(fed,     10.0));
         game.submitAllocation(klingon, makeAllocation(klingon, 10.0));
@@ -755,9 +755,9 @@ public class TractorTest {
     public void rotate_drone_succeeds() {
         // G7.72: rotation applies to drones and shuttles, not just ships
         Drone drone = makeDrone("Drone-1", 10, 11); // adjacent to fed at (10,10)
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
-        fed.getTractors().linkUnit(drone);
+        fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity(); // maintenance: −1 at range 1
 
         // (11,11) is adjacent to the drone and range 1 from fed — cost 3
@@ -776,8 +776,8 @@ public class TractorTest {
         // delta (+1,0) would drop it at (13,9), which is range 2 from the ship.
         Drone drone = makeDrone("Drone-1", 12, 9);
         linkKlingon(10);
-        klingon.getTractors().initForTurn(5);
-        klingon.getTractors().linkUnit(drone);
+        klingon.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        klingon.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity(); // maintenance: fed −1, klingon −1
 
         Game.ActionResult r = game.rotateTractored(fed, "IKV Saber", 12, 10);
@@ -793,8 +793,8 @@ public class TractorTest {
         // G7.717: small units tractored by the rotated ship keep relative position
         Drone drone = makeDrone("Drone-1", 12, 10);
         linkKlingon(10);
-        klingon.getTractors().initForTurn(5);
-        klingon.getTractors().linkUnit(drone);
+        klingon.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        klingon.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity(); // maintenance: fed −1, klingon −1
 
         // Rotate klingon (11,10) → (11,9): delta (0,-1); drone should follow to (12,9)
@@ -813,8 +813,8 @@ public class TractorTest {
         Drone drone = makeDrone("Drone-1", 12, 10);
         game.addTerrain(new com.sfb.objects.Terrain(com.sfb.properties.TerrainType.PLANET, 12, 9));
         linkKlingon(10);
-        klingon.getTractors().initForTurn(5);
-        klingon.getTractors().linkUnit(drone);
+        klingon.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        klingon.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity();
 
         // Rotate klingon (11,10) → (11,9), direction 1; drone (12,10) would go to (12,9) = planet
@@ -834,8 +834,8 @@ public class TractorTest {
         klingon.setLocation(new Location(11, 2));
         Drone drone = makeDrone("Drone-1", 12, 1);
         linkKlingon(10);
-        klingon.getTractors().initForTurn(5);
-        klingon.getTractors().linkUnit(drone);
+        klingon.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        klingon.getTractors().linkUnit(drone, game.getAbsoluteImpulse());
         enterInitialActivity();
 
         // Rotate klingon (11,2) → (11,1), direction 1; drone (12,1) would go to row 0 = off map
@@ -884,7 +884,7 @@ public class TractorTest {
         assertTrue(game.rotateTractored(fed, "IKV Saber", 11, 9).isSuccess());
 
         // New turn: link persisted; fresh pool allocated; maintenance −2 (now range 2)
-        fed.getTractors().initForTurn(10);
+        fed.getTractors().initForTurn(10, game.getAbsoluteImpulse());
         game.startTurn();
         enterInitialActivity();
         assertTrue("Link must survive the turn boundary", klingon.isTractored());

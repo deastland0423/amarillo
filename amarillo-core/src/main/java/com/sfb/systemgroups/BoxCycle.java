@@ -29,7 +29,7 @@ public class BoxCycle {
     private static final int IMPULSES_PER_TURN = 32;
 
     /** A box that has never been used; older than any impulse that can occur. */
-    private static final int NEVER = Integer.MIN_VALUE / 2;
+    public static final int NEVER = Integer.MIN_VALUE / 2;
 
     /** Boxes printed on the SSD, for cripple calculations. */
     private int total;
@@ -67,18 +67,28 @@ public class BoxCycle {
         return free;
     }
 
+    /**
+     * The rule itself, for systems that hold their own box state rather than a bank of
+     * them. A tractor beam is the case: it can be IN USE, holding something across
+     * impulses, which no other system can, so it keeps its own object and borrows this.
+     *
+     * @param lastUsed the absolute impulse the box was last used, or {@link #NEVER}
+     */
+    public static boolean cycleFree(int lastUsed, int absoluteImpulse) {
+        if (lastUsed == NEVER)
+            return true;
+        // One use per box per turn, however long ago in the turn it was...
+        if (turnOf(lastUsed) == turnOf(absoluteImpulse))
+            return false;
+        // ...and the eight-impulse delay on top, which is what carries across the boundary.
+        return absoluteImpulse - lastUsed >= QUARTER_TURN;
+    }
+
     /** True if box {@code index} may be put to work at this impulse. */
     public boolean isFree(int index, int absoluteImpulse) {
         if (index < 0 || index >= lastUsed.size())
             return false;
-        int last = lastUsed.get(index);
-        if (last == NEVER)
-            return true;
-        // One use per box per turn, however long ago in the turn it was...
-        if (turnOf(last) == turnOf(absoluteImpulse))
-            return false;
-        // ...and the eight-impulse delay on top, which is what carries across the boundary.
-        return absoluteImpulse - last >= QUARTER_TURN;
+        return cycleFree(lastUsed.get(index), absoluteImpulse);
     }
 
     /** True if this box has been used during the turn {@code absoluteImpulse} falls in. */
@@ -151,7 +161,7 @@ public class BoxCycle {
     }
 
     /** The turn an absolute impulse falls in; matches Game.getCurrentTurn(). */
-    private static int turnOf(int absoluteImpulse) {
+    public static int turnOf(int absoluteImpulse) {
         return (absoluteImpulse - 1) / IMPULSES_PER_TURN;
     }
 }

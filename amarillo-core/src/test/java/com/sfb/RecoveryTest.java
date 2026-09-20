@@ -87,7 +87,7 @@ public class RecoveryTest {
         Shuttle shuttle = bay.getInventory().get(0);
         assertTrue(game.launchShuttle(fed, bay, shuttle, 0, 1).isSuccess());
         shuttle.setLocation(new Location(col, row));
-        fed.getTractors().initForTurn(6);
+        fed.getTractors().initForTurn(6, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
         fed.addLockOn(shuttle);
         assertTrue("Tractor must attach: ",

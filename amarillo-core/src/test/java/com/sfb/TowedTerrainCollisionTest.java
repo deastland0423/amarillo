@@ -73,7 +73,7 @@ public class TowedTerrainCollisionTest {
         d.setSpeed(0);                       // at rest: only the tow is moving it
         game.getSeekers().add(d);
 
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.addLockOn(d);
         fed.setActiveFireControl(true);
         Game.ActionResult r = game.establishTractor(fed, "Drone-1", 1);

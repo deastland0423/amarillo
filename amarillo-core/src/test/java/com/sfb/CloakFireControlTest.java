@@ -129,7 +129,7 @@ public class CloakFireControlTest {
         advanceToPhase(Game.ImpulsePhase.ACTIVITY);
         assertTrue(game.cloak(rom).isSuccess());
 
-        rom.getTractors().initForTurn(5);
+        rom.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         rom.addLockOn(fed); // even with a (stale) lock-on, FC is passive
         Game.ActionResult r = game.establishTractor(rom, "USS Enterprise", 2);
         assertFalse(r.isSuccess());
@@ -144,7 +144,7 @@ public class CloakFireControlTest {
         // Bypass the FC consequence to prove the hard block stands on its own
         rom.setActiveFireControl(true);
         rom.addLockOn(fed);
-        rom.getTractors().initForTurn(5);
+        rom.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         Game.ActionResult r = game.establishTractor(rom, "USS Enterprise", 2);
         assertFalse(r.isSuccess());
         assertTrue("blocked by the cloak, not a later check: " + r.getMessage(),
@@ -154,8 +154,8 @@ public class CloakFireControlTest {
     @Test
     public void fullyCloaked_cannotRotateTractored() {
         // Link before the last allocation so the Initial Activity Phase opens
-        rom.getTractors().initForTurn(5);
-        rom.getTractors().linkUnit(fed);
+        rom.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        rom.getTractors().linkUnit(fed, game.getAbsoluteImpulse());
         submitAllocations(true);
         assertEquals(Game.ImpulsePhase.INITIAL_ACTIVITY, game.getCurrentPhase());
 
