@@ -326,9 +326,10 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           const colour = state == null ? '#484f58'
             : !state.active ? '#484f58'
             : shieldStrengthColor(visible, state.max);
+          // Hoverable, so the tooltip below can be reached: this group had
+          // pointerEvents="none". Nothing is blocked by allowing it, since the labels sit
+          // at 0.55 of a hex step and contacts at 1.0.
           return (
-            {/* Hoverable, or the tooltip below would never be reachable. The labels sit
-                at 0.55 of a hex step and contacts at 1.0, so nothing is blocked. */}
             <g key={`shield-${key}`}>
               {/* The strength alone. Which shield it is, the position already says — that
                   being the whole reason for putting them on the ring — so a 1-6 label
