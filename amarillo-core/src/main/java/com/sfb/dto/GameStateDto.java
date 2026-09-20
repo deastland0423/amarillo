@@ -1481,6 +1481,13 @@ public class GameStateDto {
         dto.transporterUses = Math.max(0,
             dto.availableTransporters - ship.getTransporters().usesMadeThisTurn());
 
+        // Tractor energy, allocated and unspent. The BOXES are public and so is what they
+        // are doing — a beam in operation is plain to see, and a hit-and-run raid can pick
+        // out a specific tractor box precisely because its state is known. The energy
+        // pool behind them is not.
+        dto.tractorEnergy = 0;
+        dto.tractorEnergyRemaining = 0;
+
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.
         dto.scoutEwPool = 0;

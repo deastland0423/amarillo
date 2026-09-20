@@ -54,6 +54,7 @@ public class ShipDtoPrivacyTest {
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
         "phaserCapacitor", "capacitorsCharged",
+        "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",
         // Intentions: paying for Erratic Maneuvers is one, USING them is a visible
@@ -96,7 +97,7 @@ public class ShipDtoPrivacyTest {
         "weapons", "activeFireControl", "fireControlActivating", "fcActivatingUntil",
         "fcPaidThisTurn", "fireControlCost", "lifeSupportCost", "cloakCost", "cloakState",
         "cloakFadeStep", "cloakTransitionImpulse", "tractored", "tractoredByName",
-        "tractoredTargetNames", "tractorEnergy", "tractorEnergyRemaining",
+        "tractoredTargetNames",
         "negativeTractorAccumulated", "transporterEnergyCost", "transporterUses"
     ));
 
