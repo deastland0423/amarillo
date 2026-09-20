@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ShipObject, WeaponState } from '../types/gameState';
 import { facingLabel, facingToAngle, factionColor } from '../types/gameState';
-import { bearsOn, hexesInArc, type Hex } from '../hex/geometry';
+import { bearsOn, hexesInArc, turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
 
 /**
@@ -74,6 +74,29 @@ function arcBearingWeapons(ship: ShipObject): WeaponState[] {
 
 export default function SsdPanel({ ship, isMine, onClose }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+
+  /**
+   * A facing being TRIED, or null when the diagram is showing the truth. The question a
+   * player actually has is "what bears if I turn?", and answering it here costs nothing and
+   * commits nothing: this never touches the ship.
+   *
+   * The preview remembers which ship and which real facing it was made against, and is
+   * ignored the moment either changes. So the panel cannot sit there showing a hypothesis
+   * while the battle has moved on — truth wins, every time, without an effect that
+   * resets state and costs a second render for it.
+   */
+  const [preview, setPreview] =
+    useState<{ forShip: string; forFacing: number; facing: number } | null>(null);
+  const previewFacing = preview != null
+      && preview.forShip === ship.name
+      && preview.forFacing === ship.facing
+    ? preview.facing : null;
+  const facing = previewFacing ?? ship.facing;
+
+  const tryFacing = (steps: number) => setPreview({
+    forShip: ship.name, forFacing: ship.facing, facing: turnFacing(facing, steps),
+  });
+
   // Opens out of the way on the right, then goes wherever it is dragged. It is meant to
   // stay open while you look at the map, so it must not be stuck over the part you need.
   const drag = useDraggable({
@@ -90,12 +113,12 @@ export default function SsdPanel({ ship, isMine, onClose }: Props) {
   const weapons = arcBearingWeapons(ship);
   const selectedWeapon = weapons.find(w => weaponKey(w) === selected) ?? null;
 
-  const disc = hexesInArc(centre, ship.facing, ALL_DIRECTIONS, RADIUS);
+  const disc = hexesInArc(centre, facing, ALL_DIRECTIONS, RADIUS);
   const covered = new Set<string>();   // any functional weapon bears here
   for (const w of weapons) {
     if (!w.functional) continue;
     for (const hex of disc)
-      if (bearsOn(centre, ship.facing, w.arcMask, hex))
+      if (bearsOn(centre, facing, w.arcMask, hex))
         covered.add(`${hex.col}|${hex.row}`);
   }
 
@@ -114,21 +137,25 @@ export default function SsdPanel({ ship, isMine, onClose }: Props) {
         </div>
         <button className="secondary" style={{ padding: '0 8px' }} onClick={onClose}>✕</button>
       </div>
-      <div style={{ fontSize: '0.72rem', color: '#888', marginBottom: 6 }}>
-        Facing {facingLabel(ship.facing)} · arcs shown as they point right now
+      <div style={{ fontSize: '0.72rem', marginBottom: 6,
+                    color: previewFacing == null ? '#888' : '#d29922' }}>
+        {previewFacing == null
+          ? `Facing ${facingLabel(ship.facing)} ${String.fromCharCode(183)} arcs shown as they point right now`
+          : `Trying facing ${facingLabel(facing)} ${String.fromCharCode(183)} actually facing ${facingLabel(ship.facing)}`}
       </div>
 
       {/* ---- arc diagram ------------------------------------------------- */}
       <svg
         viewBox={`${-span} ${-vbHeight} ${span * 2} ${vbHeight * 2}`}
         style={{ width: '100%', height: 'auto', display: 'block', background: '#0d1117',
-                 border: '1px solid #30363d', borderRadius: 4 }}
+                 border: `1px solid ${previewFacing == null ? '#30363d' : '#d29922'}`,
+                 borderRadius: 4 }}
       >
         {disc.map(hex => {
           const [x, y] = offsetFromCentre(centre, hex);
           const key = `${hex.col}|${hex.row}`;
           const inSelected = selectedWeapon != null
-            && bearsOn(centre, ship.facing, selectedWeapon.arcMask, hex);
+            && bearsOn(centre, facing, selectedWeapon.arcMask, hex);
           // Faint for anything the ship can reach, strong for the weapon in hand. Showing
           // both at once is the point: where two arcs overlap is where you want him.
           const fill = inSelected ? '#2f6f4f'
@@ -146,7 +173,7 @@ export default function SsdPanel({ ship, isMine, onClose }: Props) {
         })}
 
         {/* the ship itself, pointing along its facing */}
-        <g transform={`rotate(${(facingToAngle(ship.facing) * 180) / Math.PI})`}>
+        <g transform={`rotate(${(facingToAngle(facing) * 180) / Math.PI})`}>
           <polygon
             points={`${SIZE * 0.75},0 ${-SIZE * 0.45},${SIZE * 0.5} ${-SIZE * 0.45},${-SIZE * 0.5}`}
             fill={factionColor(ship.faction)}
@@ -155,6 +182,33 @@ export default function SsdPanel({ ship, isMine, onClose }: Props) {
           />
         </g>
       </svg>
+
+      {/* ---- turn it and see ---------------------------------------------- */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+        <button
+          className="secondary"
+          style={{ padding: '0 8px' }}
+          title="Turn to port and see what bears"
+          onClick={() => tryFacing(-1)}
+        >{String.fromCharCode(8630)}</button>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: '0.75rem',
+                       color: previewFacing == null ? '#8b949e' : '#d29922' }}>
+          {previewFacing == null ? 'Turn to preview' : `Facing ${facingLabel(facing)}`}
+        </span>
+        <button
+          className="secondary"
+          style={{ padding: '0 8px' }}
+          title="Turn to starboard and see what bears"
+          onClick={() => tryFacing(1)}
+        >{String.fromCharCode(8631)}</button>
+      </div>
+      {previewFacing != null && (
+        <button
+          className="secondary"
+          style={{ width: '100%', marginTop: 4, fontSize: '0.72rem' }}
+          onClick={() => setPreview(null)}
+        >Back to actual facing {facingLabel(ship.facing)}</button>
+      )}
 
       {/* ---- weapons ----------------------------------------------------- */}
       <div style={{ fontSize: '0.72rem', color: '#8b949e', margin: '8px 0 4px' }}>

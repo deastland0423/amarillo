@@ -115,6 +115,21 @@ export function hexGetRelativeBearing(trueBearing: number, facing: number): numb
   return trueBearing >= facing ? trueBearing - (facing - 1) : trueBearing + (24 - (facing - 1));
 }
 
+/**
+ * Turn a unit `steps` facings to starboard (negative for port), wrapping the ring of six.
+ *
+ * A facing is one of the six directions A-F, so turning is a step around FACING_DIRS and
+ * not arithmetic on the 24-point scale — adding 4 to direction 21 gives 25, which is not a
+ * direction at all. Anything off the ring snaps to the nearest facing rather than throwing,
+ * since a wrong-but-sane diagram beats a blank one.
+ */
+export function turnFacing(facing: number, steps: number): number {
+  const ring = FACING_DIRS.length;                       // six
+  const from = Math.round((((facing - 1) % 24) + 24) % 24 / 4) % ring;
+  const to = (((from + steps) % ring) + ring) % ring;
+  return FACING_DIRS[to];
+}
+
 // ---------------------------------------------------------------------------- arcs
 
 /**

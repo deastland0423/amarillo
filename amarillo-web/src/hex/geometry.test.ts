@@ -5,6 +5,7 @@ import {
   hexGetBearing,
   hexGetRelativeBearing,
   hexRange,
+  turnFacing,
   hexesInArc,
 } from './geometry';
 
@@ -83,6 +84,43 @@ describe('hex geometry mirrors MapUtils', () => {
     }
     expect(wrong.slice(0, 10)).toEqual([]);
     expect(wrong).toHaveLength(0);
+  });
+});
+
+describe('turning', () => {
+  const RING = [1, 5, 9, 13, 17, 21];
+
+  it('steps around the six facings', () => {
+    expect(turnFacing(1, 1)).toBe(5);
+    expect(turnFacing(5, 1)).toBe(9);
+    expect(turnFacing(1, -1)).toBe(21);
+  });
+
+  it('wraps at the ends rather than running off the 24-point scale', () => {
+    // The bug this exists to catch: facing 21 plus one is NOT direction 25.
+    expect(turnFacing(21, 1)).toBe(1);
+    expect(turnFacing(1, -1)).toBe(21);
+    expect(RING).toContain(turnFacing(21, 3));
+  });
+
+  it('returns where it started after a full circle, either way round', () => {
+    for (const f of RING) {
+      expect(turnFacing(f, 6)).toBe(f);
+      expect(turnFacing(f, -6)).toBe(f);
+      expect(turnFacing(f, 0)).toBe(f);
+    }
+  });
+
+  it('always lands on a real facing, however far it is asked to turn', () => {
+    for (const f of RING)
+      for (let steps = -13; steps <= 13; steps++)
+        expect(RING).toContain(turnFacing(f, steps));
+  });
+
+  it('snaps a facing that is not on the ring', () => {
+    // Nothing should produce one, but a diagram that renders is better than one that does
+    // not, and 3 is closer to 5 than to 1.
+    expect(RING).toContain(turnFacing(3, 0));
   });
 });
 
