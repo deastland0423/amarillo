@@ -368,6 +368,33 @@ public class GameSession {
      * Submit COI selections and mark this player as COI-done.
      * May be called with an empty map to skip COI.
      */
+    /**
+     * What these COI selections would fail to do, per ship, without doing any of it.
+     *
+     * Runs the REAL applyCoi against a freshly built set of ships and reads the notes off
+     * them. A separate implementation of the checks would drift from the one that decides
+     * the battle, and running it against the actual ships would spend their drones twice
+     * over — so this builds its own and throws them away.
+     */
+    public Map<String, java.util.List<String>> previewCoi(
+            Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
+        Map<String, java.util.List<String>> problems = new java.util.LinkedHashMap<>();
+        if (loadedSpec == null || loadouts == null || loadouts.isEmpty())
+            return problems;
+
+        for (java.util.List<com.sfb.objects.Ship> side
+                : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
+            for (com.sfb.objects.Ship ship : side) {
+                com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
+                if (loadout == null)
+                    continue;
+                com.sfb.scenario.ScenarioLoader.applyCoi(ship, loadout, loadedSpec);
+                if (!ship.getSetupNotes().isEmpty())
+                    problems.put(ship.getName(), new java.util.ArrayList<>(ship.getSetupNotes()));
+            }
+        return problems;
+    }
+
     public void submitCoi(String playerToken, Map<String, com.sfb.scenario.CoiLoadout> shipLoadouts) {
         pendingCoi.put(playerToken, new LinkedHashMap<>(shipLoadouts));
         coiDoneTokens.add(playerToken);

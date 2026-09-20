@@ -360,6 +360,9 @@ public class ScenarioLoader {
                     .filter(ss -> ship.getName().equals(ss.shipName))
                     .mapToInt(ss -> ss.weaponStatus)
                     .findFirst().orElse(0);
+            // S4.12 (Weapon Status II): one shuttle may be prepared for a special role
+            // (scatter pack, suicide shuttle, wild weasel). S4.13 (Weapon Status III): two.
+            // Below WS-II, none — there has been no time to prepare anything.
             int maxPrep = ws >= 3 ? 2 : ws == 2 ? 1 : 0;
 
             int applied = 0;

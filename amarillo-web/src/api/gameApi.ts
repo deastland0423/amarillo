@@ -549,7 +549,8 @@ export const gameApi = {
     );
   },
 
-  submitCoi(gameId: string, playerToken: string, body: CoiSubmission): Promise<{ message: string }> {
+  submitCoi(gameId: string, playerToken: string, body: CoiSubmission):
+      Promise<{ message: string; warnings?: Record<string, string[]> }> {
     return request(`/api/games/${gameId}/coi`, {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },

@@ -1121,7 +1121,7 @@ public class GameController {
     }
 
     @PostMapping("/{id}/coi")
-    public ResponseEntity<Map<String, String>> submitCoi(
+    public ResponseEntity<Map<String, Object>> submitCoi(
             @PathVariable String id,
             @RequestHeader("X-Player-Token") String token,
             @RequestBody Map<String, CoiRequest> body) {
@@ -1153,9 +1153,15 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", quotaViolation));
             }
 
+            // What could not be applied, while there is still time to change it. Warnings,
+            // not errors: the setup stands, it simply came out different from the request.
+            Map<String, java.util.List<String>> problems = session.previewCoi(loadouts);
+
             session.submitCoi(token, loadouts);
             broadcastLobby(session);
-            return ResponseEntity.ok(Map.of("message", "COI selections saved"));
+            return ResponseEntity.ok(Map.of(
+                    "message", "COI selections saved",
+                    "warnings", problems));
         });
     }
 

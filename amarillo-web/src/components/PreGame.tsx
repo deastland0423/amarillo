@@ -55,6 +55,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   // Filtered to this player's assigned ships
   const [coiData,         setCoiData]         = useState<CoiSideData[] | null>(null);
   const [coiSubmitted,    setCoiSubmitted]    = useState(false);
+  /** What the server could not apply from the COI selections, per ship. */
+  const [coiWarnings,     setCoiWarnings]     = useState<string[]>([]);
 
   const [error,  setError]  = useState('');
   const [busy,   setBusy]   = useState(false);
@@ -178,9 +180,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   }
 
   async function handleCoiSubmit(submission: CoiSubmission) {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setCoiWarnings([]);
     try {
-      await gameApi.submitCoi(session.gameId, session.playerToken, submission);
+      const res = await gameApi.submitCoi(session.gameId, session.playerToken, submission);
+      // What the server could not apply. Warnings, not errors: the selections are saved,
+      // they simply came out different from what was asked — and this is the last moment
+      // anyone can do anything about it.
+      setCoiWarnings(Object.entries(res.warnings ?? {})
+        .flatMap(([shipName, notes]) => notes.map(n => `${shipName}: ${n}`)));
       setCoiSubmitted(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save COI selections.');
@@ -513,6 +520,22 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           onSkip={handleCoiSkip}
           busy={busy}
         />
+      )}
+
+      {/* What the server could not apply. Shown after submitting and before the battle,
+          because that is the last moment it can be changed — it used to reach the player
+          as a line in the combat log on turn one, if at all. */}
+      {coiWarnings.length > 0 && (
+        <div className="card" style={{ width: '100%', maxWidth: 560,
+                                       borderColor: '#d29922' }}>
+          <p className="subtitle" style={{ color: '#d29922' }}>
+            Some selections could not be applied
+          </p>
+          <ul style={{ margin: '4px 0 8px', paddingLeft: 18, fontSize: '0.8rem' }}>
+            {coiWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+          <button className="secondary" onClick={() => setCoiWarnings([])}>Dismiss</button>
+        </div>
       )}
 
       {/* Waiting message when ships assigned but COI data not loaded yet */}
