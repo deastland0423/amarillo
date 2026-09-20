@@ -253,7 +253,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().normal += extraBPs;
             spent += bpCost;
         } else {
-            System.err.println("COI: skipping " + extraBPs + " extra BPs — over budget");
+            note(ship, "COI: skipping " + extraBPs + " extra BPs — over budget");
         }
 
         // --- Convert normal BPs to commandos ---
@@ -265,7 +265,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().commandos += conversions;
             spent += convCost;
         } else {
-            System.err.println("COI: skipping " + conversions + " BP→commando conversions — over budget");
+            note(ship, "COI: skipping " + conversions + " BP→commando conversions — over budget");
         }
 
         // --- Extra commando squads ---
@@ -275,7 +275,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().commandos += extraCommandos;
             spent += cmdCost;
         } else {
-            System.err.println("COI: skipping " + extraCommandos + " extra commando squads — over budget");
+            note(ship, "COI: skipping " + extraCommandos + " extra commando squads — over budget");
         }
 
         // --- T-bombs (4 BPV each; each purchased T-bomb includes 1 free dummy) ---
@@ -284,7 +284,7 @@ public class ScenarioLoader {
             int maxTBombs = com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()];
             int requested = Math.min(loadout.extraTBombs, maxTBombs);
             if (requested < loadout.extraTBombs) {
-                System.err.println("COI: capping T-bombs at " + maxTBombs
+                note(ship, "COI: capping T-bombs at " + maxTBombs
                         + " for size class " + ship.getSizeClass());
             }
             double tbCost = requested * CoiLoadout.COST_TBOMB;
@@ -293,7 +293,7 @@ public class ScenarioLoader {
                 ship.setDummyTBombs(ship.getDummyTBombs() + requested); // 1 free dummy per purchased
                 spent += tbCost;
             } else {
-                System.err.println("COI: skipping " + requested + " T-bombs — over budget");
+                note(ship, "COI: skipping " + requested + " T-bombs — over budget");
             }
         }
 
@@ -310,7 +310,7 @@ public class ScenarioLoader {
             for (Map.Entry<Integer, List<DroneType>> entry : loadout.droneRackLoadouts.entrySet()) {
                 int rackIndex = entry.getKey();
                 if (rackIndex < 0 || rackIndex >= racks.size()) {
-                    System.err.println("COI: drone rack index " + rackIndex + " out of range — skipped");
+                    note(ship, "COI: drone rack index " + rackIndex + " out of range — skipped");
                     continue;
                 }
                 DroneRack rack = racks.get(rackIndex);
@@ -325,17 +325,17 @@ public class ScenarioLoader {
                 boolean valid = true;
                 for (DroneType dt : requestedTypes) {
                     if (!dt.availableIn(year)) {
-                        System.err.println("COI: " + dt + " not available in year " + year
+                        note(ship, "COI: " + dt + " not available in year " + year
                                 + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
                     if (maxSpeed != null && dt.speed > maxSpeed) {
-                        System.err.println("COI: " + dt + " speed " + dt.speed
+                        note(ship, "COI: " + dt + " speed " + dt.speed
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
                     if (dt.isTypeVI() && !canTypeVI) {
-                        System.err.println("COI: " + dt + " cannot be loaded in rack type "
+                        note(ship, "COI: " + dt + " cannot be loaded in rack type "
                                 + rack.getRackType() + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
@@ -343,7 +343,7 @@ public class ScenarioLoader {
                 }
                 if (!valid) continue;
                 if (totalRackSize > rack.getSpaces()) {
-                    System.err.println("COI: loadout for rack " + rackIndex + " exceeds rack size ("
+                    note(ship, "COI: loadout for rack " + rackIndex + " exceeds rack size ("
                             + totalRackSize + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
@@ -365,7 +365,7 @@ public class ScenarioLoader {
             int applied = 0;
             for (CoiLoadout.SpecialShuttlePrep prep : loadout.specialShuttlePrep) {
                 if (applied >= maxPrep) {
-                    System.err.println("COI: special shuttle limit (" + maxPrep + ") reached — skipping "
+                    note(ship, "COI: special shuttle limit (" + maxPrep + ") reached — skipping "
                             + prep.shuttleName);
                     continue;
                 }
@@ -383,12 +383,12 @@ public class ScenarioLoader {
                     if (foundBay != null) break;
                 }
                 if (foundBay == null || foundShuttle == null) {
-                    System.err.println("COI: shuttle not found: " + prep.shuttleName + " — skipped");
+                    note(ship, "COI: shuttle not found: " + prep.shuttleName + " — skipped");
                     continue;
                 }
                 if ("suicide".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeSuicide()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
                         continue;
                     }
                     SuicideShuttle ss = new SuicideShuttle(foundShuttle);
@@ -399,29 +399,37 @@ public class ScenarioLoader {
 
                 } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeScatterPack()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
                         continue;
                     }
                     ScatterPack sp = new ScatterPack(foundShuttle);
                     for (DroneType dt : prep.drones) {
                         // Pull one drone of this type from any rack's ammo, then reloads
                         if (!pullDroneFromRacks(ship, dt)) {
-                            System.err.println("COI: no " + dt + " available in racks for scatter pack "
+                            note(ship, "COI: no " + dt + " available in racks for scatter pack "
                                     + prep.shuttleName + " — drone skipped");
                             continue;
                         }
                         if (!sp.addDrone(new Drone(dt))) {
-                            System.err.println("COI: scatter pack " + prep.shuttleName
+                            note(ship, "COI: scatter pack " + prep.shuttleName
                                     + " payload full — remaining drones skipped");
                             break;
                         }
+                    }
+                    if (sp.getPayload().isEmpty()) {
+                        // Leave it a plain shuttle. An empty pack can never launch (the
+                        // launch action wants a payload) and, being prepared, can no longer
+                        // launch as an ordinary shuttle either — dead weight all battle.
+                        note(ship, "COI: scatter pack " + prep.shuttleName
+                                + " got no drones from the racks — left as a plain shuttle");
+                        continue;
                     }
                     foundBay.replaceShuttle(foundShuttle, sp);
                     applied++;
 
                 } else if ("wildweasel".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeWildWeasel()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
                         continue;
                     }
                     // No AdminShuttle check: the canBecomeWildWeasel() test just above is
@@ -433,7 +441,7 @@ public class ScenarioLoader {
                     applied++;
 
                 } else {
-                    System.err.println("COI: unknown conversion type '" + prep.type
+                    note(ship, "COI: unknown conversion type '" + prep.type
                             + "' for shuttle " + prep.shuttleName + " — skipped");
                 }
             }
@@ -460,11 +468,11 @@ public class ScenarioLoader {
                             && mode == com.sfb.properties.WeaponArmingType.SPECIAL) {
                         ((com.sfb.weapons.Photon) w).setSpecial();
                     } else if (mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
-                        System.err.println("COI: weapon " + w.getName()
+                        note(ship, "COI: weapon " + w.getName()
                                 + " cannot start overloaded — prior-turn arming carries no"
                                 + " overload energy (S4.32)");
                     } else {
-                        System.err.println("COI: weapon " + w.getName()
+                        note(ship, "COI: weapon " + w.getName()
                                 + " is not armed — arming mode override skipped");
                     }
                     continue;
@@ -472,7 +480,7 @@ public class ScenarioLoader {
                 // Photons take their overload from the S4.32 pool below, not from a mode flag.
                 if (w instanceof com.sfb.weapons.Photon
                         && mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
-                    System.err.println("COI: photon " + w.getName()
+                    note(ship, "COI: photon " + w.getName()
                             + " — set its free overload energy in photonOverload (S4.32)");
                     continue;
                 }
@@ -515,10 +523,10 @@ public class ScenarioLoader {
                     tubes.add((com.sfb.weapons.Photon) w);
 
             if (ws < 3) {
-                System.err.println("COI: free photon overload energy is a WS-3 allowance only"
+                note(ship, "COI: free photon overload energy is a WS-3 allowance only"
                         + " — ignored for " + ship.getName() + " at WS-" + ws + " (S4.32)");
             } else if (tubes.isEmpty()) {
-                System.err.println("COI: " + ship.getName() + " has no photon tubes — free"
+                note(ship, "COI: " + ship.getName() + " has no photon tubes — free"
                         + " overload energy ignored (S4.32)");
             } else {
                 double pool = CoiLoadout.FREE_OVERLOAD_PER_TUBE * tubes.size();
@@ -529,13 +537,13 @@ public class ScenarioLoader {
                         continue;
                     double amount = Math.floor(want * 2) / 2.0;          // half points (E4.414)
                     if (amount > com.sfb.weapons.Photon.MAX_OVERLOAD) {  // 100% and no more (E4.41)
-                        System.err.println("COI: photon " + p.getDesignator() + " capped at "
+                        note(ship, "COI: photon " + p.getDesignator() + " capped at "
                                 + com.sfb.weapons.Photon.MAX_OVERLOAD + " overload points (E4.41)");
                         amount = com.sfb.weapons.Photon.MAX_OVERLOAD;
                     }
                     if (spentPool + amount > pool) {
                         amount = pool - spentPool;
-                        System.err.println("COI: " + ship.getName() + " has only " + pool
+                        note(ship, "COI: " + ship.getName() + " has only " + pool
                                 + " free overload points — photon " + p.getDesignator()
                                 + " reduced to " + amount + " (S4.32)");
                     }
@@ -558,7 +566,7 @@ public class ScenarioLoader {
                 try {
                     com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue(), spec.year);
                 } catch (IllegalArgumentException e) {
-                    System.err.println("COI: option mount " + entry.getKey() + " ("
+                    note(ship, "COI: option mount " + entry.getKey() + " ("
                             + entry.getValue() + ") — " + e.getMessage());
                 }
             }
@@ -575,6 +583,16 @@ public class ScenarioLoader {
      * Searches ammo lists first, then reload sets across all racks.
      * Returns true if a drone was found and removed, false if none available.
      */
+    /**
+     * Tell the player, not just the console. A COI selection that cannot be applied used to
+     * print to System.err and stop there, so a setup silently came out different from what
+     * was chosen and the first sign of it was a missing option mid-battle.
+     */
+    private static void note(Ship ship, String message) {
+        System.err.println(message);
+        ship.addSetupNote(message);
+    }
+
     private static boolean pullDroneFromRacks(Ship ship, DroneType type) {
         List<DroneRack> racks = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {

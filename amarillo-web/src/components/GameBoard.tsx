@@ -3257,6 +3257,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     for (const o of gameState.mapObjects ?? []) {
       if (o.type !== 'SHIP') continue;
       for (const n of (o as ShipObject).allocationNotes ?? []) notes.push(`${o.name} — ${n}`);
+      // Setup notes never change, so the same key check shows them once and leaves them.
+      for (const n of (o as ShipObject).setupNotes ?? []) notes.push(`${o.name} — ${n}`);
     }
     if (notes.length === 0) return;
     const key = `${gameState.turn}:${notes.join(' ')}`;

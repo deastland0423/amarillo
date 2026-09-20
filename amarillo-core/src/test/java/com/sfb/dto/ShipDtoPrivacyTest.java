@@ -62,7 +62,7 @@ public class ShipDtoPrivacyTest {
         "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable", "paidForEm",
         "scoutEwPool", "scoutEwRemaining",
         // Built empty for an enemy rather than blanked
-        "droneRacks", "shuttleBays", "allocationNotes"
+        "droneRacks", "shuttleBays", "allocationNotes", "setupNotes"
     ));
 
     private static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(

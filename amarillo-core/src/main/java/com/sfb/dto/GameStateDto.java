@@ -261,6 +261,8 @@ public class GameStateDto {
         // What this turn's allocation quietly cost — a photon tube left unfunded is discharged
         // (E4.21/E4.22). Allocation is secret, so this is sent only to the ship's own player.
         public List<String> allocationNotes = new ArrayList<>();
+        /** COI selections that could not be applied. Owner-only, like allocation notes. */
+        public List<String> setupNotes = new ArrayList<>();
         public int lentEcm;          // ECM received from friendly scouts (D6.3144)
         public int lentEccm;         // ECCM received from friendly scouts (D6.3144)
         public int offensiveEw;      // enemy jamming imposed on this ship's own fire (G24.219)
@@ -1030,6 +1032,7 @@ public class GameStateDto {
         dto.eccmAllocated = ship.getEccmAllocated();
         if (!hideSecrets)
             dto.allocationNotes = new ArrayList<>(ship.getAllocationNotes());
+            dto.setupNotes = new ArrayList<>(ship.getSetupNotes());
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
         dto.trueCarrier = ship.isTrueCarrier();

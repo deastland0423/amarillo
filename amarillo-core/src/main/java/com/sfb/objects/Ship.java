@@ -288,6 +288,22 @@ public class Ship extends Unit implements DroneController {
 	 */
 	private final List<String> allocationNotes = new ArrayList<>();
 
+	/**
+	 * What could not be applied from this ship's Captain's Option Items, in the player's
+	 * words rather than the server console's. Deliberately NOT cleared at turn start, which
+	 * is where allocationNotes goes: these are decided before the battle and a player needs
+	 * to find them afterwards, not in the half-second before turn one begins.
+	 */
+	private final List<String> setupNotes = new ArrayList<>();
+
+	public List<String> getSetupNotes() {
+		return java.util.Collections.unmodifiableList(setupNotes);
+	}
+
+	public void addSetupNote(String note) {
+		setupNotes.add(note);
+	}
+
 	public List<String> getAllocationNotes() {
 		return java.util.Collections.unmodifiableList(allocationNotes);
 	}
