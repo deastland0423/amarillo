@@ -204,6 +204,11 @@ public class GameStateDto {
         public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
         public int maxDroneSpaces; // scatterpack only: max rack spaces (default 6)
         public double committedSpaces; // scatterpack only: payload + pending spaces already used
+        /**
+         * The special role this shuttle is prepared for, or null. Sent so the launch list
+         * can leave it out: a prepared shuttle cannot launch as an ordinary one.
+         */
+        public String specialRole;
         public int wwChargeCount; // admin only: 0=uncharged, 1=primed, 2=ready to launch
         public boolean wwReady; // admin only: true when wwChargeCount >= 2
     }
@@ -1371,6 +1376,7 @@ public class GameStateDto {
                         sd.maxDroneSpaces = sp.getMaxDroneSpaces();
                         sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
                     }
+                    sd.specialRole = s.specialRole();
                     spaceDto.armed = s.isArmed();
                     spaceDto.shuttle = sd;
                     bd.shuttles.add(sd);

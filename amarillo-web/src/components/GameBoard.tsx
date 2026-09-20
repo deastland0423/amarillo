@@ -570,9 +570,18 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
 
 const SEEKER_TYPES = new Set(['suicide', 'scatterpack']);
 
+/**
+ * Prepared for a role, so not launchable as an ordinary shuttle. The server says which
+ * role; the type check stays because a suicide shuttle and a scatter pack are their own
+ * types, while a charged Wild Weasel is an ADMIN shuttle and looks exactly like the rest.
+ */
+function preparedRole(s: { specialRole?: string | null; type: string }): string | null {
+  return s.specialRole ?? (SEEKER_TYPES.has(s.type) ? s.type : null);
+}
+
 function hasLaunchableShuttles(ship: ShipObject): boolean {
   return (ship.shuttleBays ?? []).some(bay =>
-    bay.shuttles.some(s => !SEEKER_TYPES.has(s.type) && s.canLaunch)
+    bay.shuttles.some(s => !preparedRole(s) && s.canLaunch)
   );
 }
 
@@ -591,9 +600,15 @@ function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPa
   const bays = (ship.shuttleBays ?? [])
     .map(bay => ({
       ...bay,
-      shuttles: bay.shuttles.filter(s => !SEEKER_TYPES.has(s.type)),
+      shuttles: bay.shuttles.filter(s => !preparedRole(s)),
     }))
     .filter(bay => bay.shuttles.length > 0);
+
+  // Shown, not silently dropped: a player who prepared a weasel wants to know where it is.
+  const prepared = (ship.shuttleBays ?? [])
+    .flatMap(bay => bay.shuttles)
+    .map(s => ({ name: s.name, role: preparedRole(s) }))
+    .filter((s): s is { name: string; role: string } => s.role != null);
 
   const allShuttles = bays.flatMap(b => b.shuttles);
   const selectedShuttle = allShuttles.find(s => s.name === selected);
@@ -611,6 +626,14 @@ function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPa
   return (
     <div className="sidebar-section fire-panel">
       <div className="sidebar-section-title fire-title" style={{ color: '#f0a050' }}>Launch Shuttle</div>
+
+      {prepared.length > 0 && (
+        <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: 4 }}>
+          {/* Not an error: it is where the shuttle went. Each has its own launch action,
+              and a prepared shuttle reverts only by not being held during allocation. */}
+          Held for a special role: {prepared.map(p => `${p.name} (${p.role})`).join(', ')}
+        </div>
+      )}
 
       {allShuttles.length === 0 ? (
         <div className="sidebar-stat-label" style={{ color: '#8b949e' }}>No shuttles ready to launch</div>

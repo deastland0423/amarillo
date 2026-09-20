@@ -167,6 +167,54 @@ public class NonAdminWildWeaselTest {
         assertFalse("and must not announce itself", name.toLowerCase().contains("weasel"));
     }
 
+    // ---------------------------------------------------------------- prepared is prepared
+
+    /**
+     * A charged Wild Weasel is still an ADMIN shuttle — same class, same type string — so
+     * it sat in the ordinary launch list looking like any other, and launching it threw
+     * the charge away with nothing to show. You cannot turn a weasel back into a shuttle
+     * mid-turn; it reverts only by not being held during Energy Allocation.
+     */
+    @Test
+    public void aChargedWeaselCannotLaunchAsAnOrdinaryShuttle() {
+        Shuttle charged = charged(new AdminShuttle(), "IKS Fury-Admin-1");
+        readyToLaunch();
+
+        ActionResult r = game.launchShuttle(launcher, bay, charged, 4, 1);
+
+        assertFalse("a prepared shuttle is not an ordinary one: " + r.getMessage(),
+                r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("Wild Weasel"));
+        assertNull("and nothing was launched", launcher.getActiveWildWeasel());
+    }
+
+    /** Half-charged counts too: the energy is spent either way. */
+    @Test
+    public void aPartlyChargedWeaselIsAlsoHeld() {
+        AdminShuttle half = new AdminShuttle();
+        half.setName("IKS Fury-Admin-2");
+        bay.getSpaces().get(0).setShuttle(half);
+        half.incrementWwCharge();          // one turn of two
+        assertFalse("fixture: not ready yet", half.isWwReady());
+        readyToLaunch();
+
+        assertFalse("still held for the role it is being prepared for",
+                game.launchShuttle(launcher, bay, half, 4, 1).isSuccess());
+    }
+
+    /** An uncharged shuttle launches perfectly normally. */
+    @Test
+    public void anOrdinaryShuttleStillLaunches() {
+        AdminShuttle plain = new AdminShuttle();
+        plain.setName("IKS Fury-Admin-3");
+        bay.getSpaces().get(0).setShuttle(plain);
+        readyToLaunch();
+
+        ActionResult r = game.launchShuttle(launcher, bay, plain, 4, 1);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+    }
+
     // ---------------------------------------------------------------- fighters still barred
 
     @Test

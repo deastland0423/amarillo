@@ -95,4 +95,10 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     public boolean isManned() {
         return false;
     }
+
+    /** Prepared, so not launchable as an ordinary shuttle. */
+    @Override
+    public String specialRole() {
+        return "suicide shuttle";
+    }
 }

@@ -91,6 +91,7 @@ export interface ShuttleInBayState {
   pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading
   maxDroneSpaces?:     number;   // scatterpack only: max rack spaces (default 6)
   committedSpaces?:    number;   // scatterpack only: payload + pending spaces already used
+  specialRole?:        string | null;  // "Wild Weasel", "suicide shuttle", "scatter pack"
   wwChargeCount?:      number;   // admin only: 0=uncharged, 1=primed, 2=ready
   wwReady?:            boolean;  // admin only: true when wwChargeCount >= 2
 }

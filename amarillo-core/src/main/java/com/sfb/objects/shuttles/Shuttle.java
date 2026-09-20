@@ -111,6 +111,22 @@ public abstract class Shuttle extends Unit {
 		return true;
 	}
 
+	/**
+	 * The special role this shuttle is prepared for, or null if it is just a shuttle.
+	 *
+	 * A prepared shuttle is not interchangeable with a plain one: a charged Wild Weasel
+	 * cannot be turned back into an admin shuttle mid-turn, and neither can an armed
+	 * suicide shuttle or a loaded scatter pack. Each has its own launch action, and this
+	 * is what stops the ordinary one from spending them by mistake — which wasted the
+	 * preparation and the energy behind it, with nothing to show.
+	 *
+	 * A charged weasel is the case that needs saying: it is still an ADMIN shuttle, same
+	 * class and same type, so nothing else distinguishes it in a launch list.
+	 */
+	public String specialRole() {
+		return getWwChargeCount() > 0 ? "Wild Weasel" : null;
+	}
+
 	// --- Wild Weasel charging (J3.12) ---
 	// On Shuttle, not AdminShuttle: J3.18 lets any non-fighter shuttle serve as a weasel,
 	// and while this state lived on AdminShuttle every gate had to test for that class —

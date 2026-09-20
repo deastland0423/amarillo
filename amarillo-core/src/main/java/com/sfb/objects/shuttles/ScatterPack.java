@@ -160,4 +160,10 @@ public class ScatterPack extends Shuttle implements Seeker {
     public boolean isManned() {
         return false;
     }
+
+    /** Prepared, so not launchable as an ordinary shuttle. */
+    @Override
+    public String specialRole() {
+        return "scatter pack";
+    }
 }

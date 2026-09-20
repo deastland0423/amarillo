@@ -422,6 +422,11 @@ class LaunchCoordinator {
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (!bay.canLaunch(shuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        String role = shuttle.specialRole();
+        if (role != null)
+            return ActionResult.fail(shuttle.getName() + " is prepared as a " + role
+                    + " and cannot launch as an ordinary shuttle. A special shuttle reverts"
+                    + " only by not being held during Energy Allocation.");
 
         // C10.13: a shuttle that has committed a point of speed to EM cannot launch above
         // the reduced maximum.
