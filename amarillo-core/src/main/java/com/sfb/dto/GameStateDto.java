@@ -1173,6 +1173,10 @@ public class GameStateDto {
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
             wd.readyToFire = w.isFunctional() && armedIfNeeded && w.canFire();
+            // Assigned for EVERY weapon, not only the ones that arm. It is a Boolean now,
+            // where null means "not disclosed", so leaving it unset on a phaser made the
+            // client treat the viewer's own weapons as an enemy's.
+            wd.armed = false;
             if (w instanceof com.sfb.weapons.HeavyWeapon) {
                 com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
                 wd.armed = hw.isArmed();
@@ -1505,16 +1509,21 @@ public class GameStateDto {
         // CAN overload, shots per turn and the like are printed on the SSD.
         if (dto.weapons != null)
             for (WeaponDto wd : dto.weapons) {
-                wd.armed = null;           // null: not disclosed, as opposed to unarmed
-                wd.armingType = null;
-                wd.armingTurn = 0;
-                wd.totalArmingTurns = 0;
-                wd.armingEnergy = 0;
-                wd.readyToFire = false;    // derived from armed, so it cannot be shown
-                wd.plasmaType = null;      // which torpedo is in the tube
-                wd.pseudoPlasmaReady = false;
-                wd.isRolling = false;
-                wd.chargesRemaining = 0;
+                // Only a weapon that ARMS has arming to hide. A phaser has none, and
+                // whether it has fired this impulse is public, so blanking its readiness
+                // would have concealed something an opponent is entitled to see.
+                if (wd.isHeavy) {
+                    wd.armed = null;       // null: not disclosed, as opposed to unarmed
+                    wd.armingType = null;
+                    wd.armingTurn = 0;
+                    wd.totalArmingTurns = 0;
+                    wd.armingEnergy = 0;
+                    wd.readyToFire = false;   // derived from armed, so it cannot be shown
+                    wd.plasmaType = null;     // which torpedo is in the tube
+                    wd.pseudoPlasmaReady = false;
+                    wd.isRolling = false;
+                    wd.chargesRemaining = 0;
+                }
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
                 wd.addShots = 0;
                 wd.addReloads = 0;      // addCapacity is on the SSD and stays

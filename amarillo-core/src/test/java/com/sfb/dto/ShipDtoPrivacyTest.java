@@ -263,16 +263,67 @@ public class ShipDtoPrivacyTest {
         }
     }
 
+    /**
+     * On your OWN ship every weapon must state its arming, even the ones that do not arm.
+     *
+     * `armed` is a Boolean so that null can mean "not disclosed", and it was assigned only
+     * for heavy weapons — so a phaser, a drone rack and an ADD arrived as null and the
+     * sidebar treated the viewer's own weapons like an enemy's, showing none of them ready.
+     */
+    @Test
+    public void ownWeaponsAlwaysStateTheirArming() {
+        GameStateDto.ShipDto mine = ship(ownerView);
+
+        int checked = 0;
+        for (GameStateDto.WeaponDto w : mine.weapons) {
+            assertNotNull(w.name + " reaches its OWN ship with arming undisclosed, which"
+                + " means the panel cannot tell it is ready", w.armed);
+            if (!w.isHeavy)
+                checked++;
+        }
+        assertTrue("fixture needs a weapon that does not arm", checked > 0);
+    }
+
+    /** And one of them should actually be ready to fire, or the above proves little. */
+    @Test
+    public void anOwnPhaserReadsAsReady() {
+        GameStateDto.ShipDto mine = ship(ownerView);
+
+        assertTrue("a functional phaser with shots left should report ready",
+            mine.weapons.stream().anyMatch(w -> !w.isHeavy && w.functional && w.readyToFire));
+    }
+
+    /**
+     * Arming is secret only where there is arming to keep secret. A heavy weapon hides all
+     * of it; a phaser has none, and whether it has fired this impulse is public by ruling,
+     * so blanking its readiness would hide something an opponent may see.
+     */
     @Test
     public void everyPrivateWeaponFieldIsBlankToAnEnemy() throws Exception {
         GameStateDto.ShipDto theirs = ship(enemyView);
         assertFalse("fixture needs weapons", theirs.weapons.isEmpty());
-        for (GameStateDto.WeaponDto w : theirs.weapons)
-            for (String name : WEAPON_PRIVATE) {
-                Field f = GameStateDto.WeaponDto.class.getField(name);
-                assertTrue(w.name + "." + name + " reaches an enemy with a value in it: "
-                    + f.get(w), isBlank(f.get(w)));
+
+        int heavies = 0, light = 0;
+        for (GameStateDto.WeaponDto w : theirs.weapons) {
+            if (w.isHeavy) {
+                heavies++;
+                for (String name : WEAPON_PRIVATE) {
+                    Field f = GameStateDto.WeaponDto.class.getField(name);
+                    assertTrue(w.name + "." + name + " reaches an enemy with a value in it: "
+                        + f.get(w), isBlank(f.get(w)));
+                }
+            } else {
+                light++;
+                assertNotNull(w.name + " is not a weapon that arms, so \"unarmed\" is the"
+                    + " truth rather than a concealment", w.armed);
+                assertFalse(w.name + " should not report itself armed", w.armed);
             }
+            // Ammunition is hidden whatever the weapon is.
+            assertEquals(w.name + " ADD shots", 0, w.addShots);
+            assertEquals(w.name + " ADD reloads", 0, w.addReloads);
+        }
+        assertTrue("fixture needs a heavy weapon", heavies > 0);
+        assertTrue("and one that does not arm", light > 0);
     }
 
     /**
