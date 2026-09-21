@@ -987,6 +987,8 @@ interface FirePanelProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  /** Replace the whole selection at once - powers all-bearing / none. */
+  onSetWeapons:    (names: string[]) => void;
   shotCounts:      Map<string, number>;
   onSetShotCount:  (name: string, count: number) => void;
   useUim:          boolean;
@@ -1000,7 +1002,7 @@ interface FirePanelProps {
 
 function FirePanel({
   attacker, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon, shotCounts, onSetShotCount,
+  selectedWeapons, onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount,
   useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, error,
 }: FirePanelProps) {
   const targetColor    = target ? mapObjectColor(target) : '#888';
@@ -1086,6 +1088,12 @@ function FirePanel({
       {options && options.weaponsInArc.length > 0 && (
         <>
           <div className="sidebar-divider" />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons([])}>none</button>
+                  </div>
           <div className="fire-weapon-list">
             {attacker.weapons
               .filter(w => w.functional && !w.launcherType)
@@ -1292,6 +1300,7 @@ interface FighterFirePanelProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  onSetWeapons:    (names: string[]) => void;
   shotModes:       Record<string, 'SINGLE' | 'DOUBLE'>;
   onSetShotMode:   (name: string, mode: 'SINGLE' | 'DOUBLE') => void;
   onFire:          () => void;
@@ -1301,7 +1310,7 @@ interface FighterFirePanelProps {
 
 function FighterFirePanel({
   fighter, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon,
+  selectedWeapons, onToggleWeapon, onSetWeapons,
   shotModes, onSetShotMode,
   onFire, onClear, error,
 }: FighterFirePanelProps) {
@@ -1348,6 +1357,12 @@ function FighterFirePanel({
       {options && weapons.length > 0 && (
         <>
           <div className="sidebar-divider" />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons([])}>none</button>
+                  </div>
           <div className="fire-weapon-list">
             {weapons.map(w => {
               const inArc   = options.weaponsInArc.includes(w.name);
@@ -1444,6 +1459,7 @@ interface SidebarProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  onSetWeapons:    (names: string[]) => void;
   shotCounts:      Map<string, number>;
   onSetShotCount:  (name: string, count: number) => void;
   useUim:             boolean;
@@ -1616,7 +1632,7 @@ interface SidebarProps {
 function ShipSidebar({
   ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd, hexFire, hexFireActions,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
-  onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
+  onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
@@ -2996,6 +3012,7 @@ function ShipSidebar({
           loadingOptions={loadingOptions}
           selectedWeapons={selectedWeapons}
           onToggleWeapon={onToggleWeapon}
+          onSetWeapons={onSetWeapons}
           shotCounts={shotCounts}
           onSetShotCount={onSetShotCount}
           useUim={useUim}
@@ -3525,8 +3542,9 @@ export default function GameBoard({ session, onLeave }: Props) {
         session.gameId, session.playerToken, attackerName, targetName,
       );
       setFireOptions(opts);
-      // Pre-select all in-arc weapons
-      setSelectedWeapons(new Set(opts.weaponsInArc));
+      // Deliberately nothing pre-selected. Every in-arc weapon used to arrive checked, which
+      // made firing everything free and conserving fire - the normal case - cost a click per
+      // weapon. "All bearing" puts the alpha strike back to one click.
     } catch (e: unknown) {
       setFireError(e instanceof Error ? e.message : 'Could not get fire options');
     } finally {
@@ -5241,6 +5259,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             loadingOptions={loadingOptions}
             selectedWeapons={selectedWeapons}
             onToggleWeapon={toggleWeapon}
+            onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
             shotCounts={shotCounts}
             onSetShotCount={setShotCount}
             useUim={useUim}
@@ -5483,6 +5502,7 @@ export default function GameBoard({ session, onLeave }: Props) {
               loadingOptions={loadingOptions}
               selectedWeapons={selectedWeapons}
               onToggleWeapon={toggleWeapon}
+              onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
               shotModes={fighterShotModes}
               onSetShotMode={(name, mode) => setFighterShotModes(prev => ({ ...prev, [name]: mode }))}
               onFire={handleFire}

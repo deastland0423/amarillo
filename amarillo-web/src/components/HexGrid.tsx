@@ -203,6 +203,36 @@ function cloakAlpha(cloakState?: string, fadeStep?: number): number {
   }
 }
 
+/**
+ * The sequence number a seeker was launched with, from its name
+ * ("IKV Vengeance-Drone-7" -> "7"), or null if it has none.
+ *
+ * One game-wide sequence covers drones and plasma alike, so the number identifies a seeker
+ * uniquely without anyone having to read a full name.
+ */
+function seekerNumber(name: string): string | null {
+  const m = /-(\d+)$/.exec(name);
+  return m ? m[1] : null;
+}
+
+/** Small outlined number under a counter, legible over any terrain. */
+function drawSeekerNumber(ctx: CanvasRenderingContext2D, cx: number, cy: number,
+                          name: string, offsetY: number) {
+  const n = seekerNumber(name);
+  if (!n) return;
+  // save/restore: the wide stroke below would otherwise leak into whatever draws next.
+  ctx.save();
+  ctx.font         = 'bold 9px monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.lineWidth    = 3;
+  ctx.strokeStyle  = 'rgba(0, 0, 0, 0.85)';
+  ctx.strokeText(n, cx, cy + offsetY);
+  ctx.fillStyle    = '#ffe9a8';
+  ctx.fillText(n, cx, cy + offsetY);
+  ctx.restore();
+}
+
 function drawShip(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -467,6 +497,7 @@ function drawObjects(
         ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 6, cy);
         ctx.closePath(); ctx.fill(); ctx.stroke();
       }
+      drawSeekerNumber(ctx, cx, cy, obj.name, droneImg ? 13 : 8);
       continue;
     }
     if (obj.type === 'PLASMA') {
@@ -493,6 +524,7 @@ function drawObjects(
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(strength), cx, cy + 1);
+      drawSeekerNumber(ctx, cx, cy, obj.name, plasmaImg ? 13 : 8);
       continue;
     }
     if (obj.type === 'TERRAIN') {
