@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
+import { useDraggable } from '../hooks/useDraggable';
 import { getWeaponDamagePreview } from '../weaponDamageTables';
 
 /**
@@ -105,6 +106,54 @@ const KIND_LABEL: Record<FireCandidate['kind'], string> = {
   WEASEL:  'weasel',
 };
 
+const PANEL: React.CSSProperties = {
+  position: 'fixed',
+  width: 'min(94vw, 820px)',
+  zIndex: 45,
+  background: '#161b22',
+  border: '1px solid #a78bfa',
+  borderRadius: 6,
+  padding: 10,
+  boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+};
+
+const HEADER: React.CSSProperties = {
+  cursor: 'grab',
+  display: 'flex',
+  alignItems: 'baseline',
+  gap: 10,
+  marginBottom: 6,
+};
+
+/** The lists scroll; the footer with Commit and Pass never does. */
+const BODY: React.CSSProperties = {
+  maxHeight: '46vh',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+};
+
+const POSITION_KEY = 'amarillo-fire-pad-position';
+
+function savedPosition(): { left: number; top: number } {
+  const fallback = {
+    left: 16,
+    top: Math.max(60, (typeof window === 'undefined' ? 800 : window.innerHeight) - 470),
+  };
+  try {
+    const raw = localStorage.getItem(POSITION_KEY);
+    if (!raw) return fallback;
+    const p = JSON.parse(raw) as { left?: number; top?: number };
+    if (typeof p.left !== 'number' || typeof p.top !== 'number') return fallback;
+    // A window that shrank since last time must not strand the panel off screen.
+    return {
+      left: Math.min(p.left, Math.max(0, window.innerWidth - 120)),
+      top: Math.min(p.top, Math.max(0, window.innerHeight - 60)),
+    };
+  } catch {
+    return fallback;   // private window, or storage blocked
+  }
+}
+
 const COL: React.CSSProperties = {
   flex: '1 1 14rem',
   minWidth: 0,
@@ -174,6 +223,16 @@ export default function FireOrdersPad({
       { attacker: null, rows: [], error: null });
   const [sel, setSel] = useState<{ attacker: string | null; target: string | null; picked: Set<string> }>(
       { attacker: null, target: null, picked: new Set() });
+  const [collapsed, setCollapsed] = useState(false);
+  const drag = useDraggable(savedPosition());
+
+  // Remembered across impulses: this panel reappears 32 times a turn, and one that keeps
+  // landing back over the part of the map you just moved it off is its own annoyance.
+  useEffect(() => {
+    try { localStorage.setItem(POSITION_KEY, JSON.stringify(drag.position)); }
+    catch { /* storage blocked; the panel simply forgets */ }
+  }, [drag.position]);
+
   // Loading is not state: it is simply "the answer we hold is for a different ship".
   const answered  = loaded.attacker === attackerName;
   const loading   = !answered;
@@ -244,8 +303,8 @@ export default function FireOrdersPad({
   const sealed = orders.length;
 
   return (
-    <div className="board-log" style={{ borderColor: '#a78bfa', padding: '8px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top }}>
+      <div style={HEADER} {...drag.handleProps} title="Drag to move">
         <span style={{ color: '#a78bfa', fontWeight: 600 }}>⚔ Fire orders</span>
         <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
           turn {turn}, impulse {impulse} —{' '}
@@ -253,8 +312,18 @@ export default function FireOrdersPad({
             ? 'sealed together, revealed together (D6.315). Committing nothing is a legal bluff.'
             : 'draft freely; nobody is waiting on you until a declaration is called.'}
         </span>
+        <button
+          className="secondary"
+          style={{ padding: '0 8px', marginLeft: 'auto' }}
+          onClick={() => setCollapsed(c => !c)}
+          title={collapsed ? 'Show the pad' : 'Collapse — Commit and Pass stay available'}
+        >
+          {collapsed ? '▸' : '▾'}
+        </button>
       </div>
 
+      {!collapsed && (
+      <div style={BODY}>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
 
         {/* ---------------------------------------------------- my units */}
@@ -463,6 +532,18 @@ export default function FireOrdersPad({
           </div>
         )}
       </div>
+
+      </div>
+      )}
+
+      {collapsed && (
+        <div style={{ fontSize: '0.85em', color: '#8b949e', marginBottom: 4 }}>
+          {sealed === 0
+            ? 'No orders drafted — every unit holds fire.'
+            : `${sealed} order${sealed > 1 ? 's' : ''} drafted across ` +
+              `${new Set(orders.map(o => o.shipName)).size} unit(s).`}
+        </div>
+      )}
 
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}
 
