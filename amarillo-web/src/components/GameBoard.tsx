@@ -13,6 +13,8 @@ import {
 } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
+import FireOrdersPad from './FireOrdersPad';
+import type { FiringUnit } from './FireOrdersPad';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
 import { DacChoiceDialog } from './DacChoiceDialog';
@@ -3759,19 +3761,7 @@ export default function GameBoard({ session, onLeave }: Props) {
         setFireError('Orders already sealed for this declaration');
         return;
       }
-      if (!declarationOpen) {
-        if (gameState?.fireDeclarationSpent) {
-          setFireError("This impulse's fire declaration has already resolved (one per impulse)");
-          return;
-        }
-        const call = await gameApi.submitAction(session.gameId, session.playerToken,
-            { type: 'CALL_FIRE_DECLARATION' });
-        if (!call.success) {
-          setFireError(call.message);
-          addLog(call.message, 'error');
-          return;
-        }
-      }
+      if (!(await ensureDeclarationOpen())) return;
       const attackerName = fighterAttacker ? fighterAttacker.name : liveShip!.name;
       setDeclarationOrders(prev => [...prev, {
         label: `${attackerName} → ${fireTarget.name} (${(req.weaponNames as string[]).length} wpn)`,
@@ -3796,6 +3786,58 @@ export default function GameBoard({ session, onLeave }: Props) {
     } catch (e: unknown) {
       setFireError(e instanceof Error ? e.message : 'Fire failed');
     }
+  }
+
+  /**
+   * Everything of mine that can be given a fire order: ships, plus armed shuttles and
+   * fighters. A list, so none of them has to be dug out from under a stack of drones.
+   */
+  const padUnits: FiringUnit[] = (gameState?.mapObjects ?? []).flatMap((o): FiringUnit[] => {
+    if (o.type === 'SHIP' && myShips.has(o.name)) {
+      const ship = o as ShipObject;
+      return [{ name: ship.name, isShip: true, weapons: ship.weapons ?? [], note: null }];
+    }
+    if (o.type === 'SHUTTLE') {
+      const sh = o as ShuttleObject;
+      if (!myShips.has(sh.parentShipName ?? '') || (sh.weapons?.length ?? 0) === 0)
+        return [];
+      return [{
+        name: sh.name, isShip: false, weapons: sh.weapons ?? [],
+        note: sh.crippled ? 'fighter, crippled' : 'fighter',
+      }];
+    }
+    return [];
+  });
+
+  const padAttacker = fighterAttacker?.name ?? liveShip?.name ?? null;
+
+  /** Selecting in the pad selects on the map too, so the two never disagree. */
+  function selectPadAttacker(name: string) {
+    const obj = (gameState?.mapObjects ?? []).find(o => o.name === name);
+    if (!obj) return;
+    setFighterAttacker(obj.type === 'SHUTTLE' ? (obj as ShuttleObject) : null);
+    setSelected(obj);
+    setFireTarget(null);
+    setFireOptions(null);
+  }
+
+  // Only ships allocate EW (D6.31); a fighter selected as the attacker has no stepper.
+  const padEwLimits = !fighterAttacker && liveShip
+    ? {
+        sensor:  Math.min(liveShip.sensorRating ?? 0, 6),
+        ecm:     liveShip.ecmAllocated ?? 0,
+        eccm:    liveShip.eccmAllocated ?? 0,
+        battery: liveShip.batteryCharge ?? 0,
+      }
+    : null;
+
+  async function addPadOrder(order: DeclOrder) {
+    if (myCommitted) {
+      setActionError('Orders already sealed for this declaration');
+      return;
+    }
+    if (!(await ensureDeclarationOpen())) return;
+    setDeclarationOrders(prev => [...prev, order]);
   }
 
   // Ships of mine actually on the board (can fire this declaration).
@@ -4536,6 +4578,27 @@ export default function GameBoard({ session, onLeave }: Props) {
    * rather than resolving now. Bombarding a planet and watching the result before
    * deciding the rest of the fleet's orders is exactly what the declaration prevents.
    */
+  /**
+   * Convene a declaration if one is not already open (D6.315), returning false if the call
+   * was refused. Three places need this now - the sidebar Fire button, firing into a hex,
+   * and the pad - and it was written inline in each.
+   */
+  async function ensureDeclarationOpen(): Promise<boolean> {
+    if (declarationOpen) return true;
+    if (gameState?.fireDeclarationSpent) {
+      setActionError("This impulse's fire declaration has already resolved (one per impulse)");
+      return false;
+    }
+    const call = await gameApi.submitAction(session.gameId, session.playerToken,
+        { type: 'CALL_FIRE_DECLARATION' });
+    if (!call.success) {
+      setActionError(call.message);
+      addLog(call.message, 'error');
+      return false;
+    }
+    return true;
+  }
+
   async function handleFireAtHex() {
     if (!liveShip || !hexFireTarget || hexFireWeapons.size === 0) return;
     setHexFireError(null);
@@ -4544,19 +4607,7 @@ export default function GameBoard({ session, onLeave }: Props) {
       return;
     }
     try {
-      if (!declarationOpen) {
-        if (gameState?.fireDeclarationSpent) {
-          setHexFireError("This impulse's fire declaration has already resolved (one per impulse)");
-          return;
-        }
-        const call = await gameApi.submitAction(session.gameId, session.playerToken,
-            { type: 'CALL_FIRE_DECLARATION' });
-        if (!call.success) {
-          setHexFireError(call.message);
-          addLog(call.message, 'error');
-          return;
-        }
-      }
+      if (!(await ensureDeclarationOpen())) return;
       const where = `(${hexFireTarget.col}|${hexFireTarget.row})`;
       setDeclarationOrders(prev => [...prev, {
         label: `${liveShip.name} → hex ${where} (${hexFireWeapons.size} wpn)`,
@@ -5513,93 +5564,33 @@ export default function GameBoard({ session, onLeave }: Props) {
         )}
       </div>
 
-      {/* Fire declaration panel (D6.315) — drafted orders + EW, sealed on commit */}
-      {isFirePhase && declarationOpen && !myCommitted && (
-        <div className="board-log" style={{ borderColor: '#a78bfa', padding: '8px 12px' }}>
-          <div style={{ color: '#a78bfa', fontWeight: 600, marginBottom: 4 }}>
-            ⚔ Fire declaration — seal your orders
-          </div>
-          {/* Per-ship roster — every ship of mine, so none is forgotten. Click a
-              ship to select it, then pick an enemy + weapons and Fire. */}
-          <div style={{ fontSize: '0.85em', marginBottom: 6 }}>
-            {declarationOrders.length === 0 && (
-              <div style={{ color: '#8b949e', marginBottom: 4 }}>
-                Select one of your ships below (or on the map), pick an enemy + weapons, and Fire.
-                Committing nothing is a legal bluff.
-              </div>
-            )}
-            {myFireShips.map(name => {
-              const orders = declarationOrders.filter(o => o.shipName === name);
-              const isSel  = liveShip?.name === name;
-              const selectShip = () => {
-                const obj = (gameState?.mapObjects ?? []).find(o => o.type === 'SHIP' && o.name === name);
-                if (obj) setSelected(obj);
-              };
-              return (
-                <div key={name} style={{
-                  borderLeft: `3px solid ${isSel ? '#a78bfa' : 'transparent'}`,
-                  paddingLeft: 6, marginBottom: 3,
-                }}>
-                  <span onClick={selectShip}
-                    style={{ cursor: 'pointer', fontWeight: 600,
-                             color: orders.length ? '#e6edf3' : '#f0c040' }}>
-                    {name}
-                  </span>
-                  <span style={{ color: '#8b949e' }}>
-                    {' — '}{orders.length === 0
-                      ? 'no orders (holds fire)'
-                      : `${orders.length} order${orders.length > 1 ? 's' : ''}`}
-                    {isSel ? ' · selected' : ''}
-                  </span>
-                  {orders.map(o => {
-                    const idx = declarationOrders.indexOf(o);
-                    return (
-                      <div key={idx} style={{ paddingLeft: 12, color: '#c9d1d9' }}>
-                        {o.label}{' '}
-                        <button className="secondary" style={{ padding: '0 6px' }}
-                          onClick={() => setDeclarationOrders(prev => prev.filter((_, j) => j !== idx))}>
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-          {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
-            const ew = declarationEw[liveShip.name]
-                ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
-            // Six points generated at most, whatever the sensor track allows (D6.310) —
-            // the same cap the allocation dialog and EwCircuits apply.
-            const sensor = Math.min(liveShip.sensorRating ?? 0, 6);
-            const added = Math.max(0, ew.ecm - (liveShip.ecmAllocated ?? 0))
-                        + Math.max(0, ew.eccm - (liveShip.eccmAllocated ?? 0));
-            const step = (field: 'ecm' | 'eccm', delta: number) => {
-              const next = { ...ew, [field]: Math.max(0, ew[field] + delta) };
-              if (next.ecm + next.eccm <= sensor)
-                setDeclarationEw(prev => ({ ...prev, [liveShip.name]: next }));
-            };
-            return (
-              <div style={{ fontSize: '0.85em', marginBottom: 4 }}>
-                EW — {liveShip.name}:{' '}
-                ECM <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('ecm', -1)}>−</button>
-                {' '}{ew.ecm}{' '}
-                <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('ecm', 1)}>+</button>
-                {'   '}ECCM <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('eccm', -1)}>−</button>
-                {' '}{ew.eccm}{' '}
-                <button className="secondary" style={{ padding: '0 6px' }} onClick={() => step('eccm', 1)}>+</button>
-                {'   '}(sensor {sensor}, battery {liveShip.batteryCharge ?? 0}
-                {added > 0 ? `, +${added} costs ${added} battery` : ''})
-                {' '}<span style={{ color: '#8b949e' }}>drops are lost for the turn</span>
-              </div>
-            );
-          })()}
-          <button onClick={requestCommit} style={{ marginRight: 8 }}>
-            Commit orders ({declarationOrders.length})
-          </button>
-          <button className="secondary" onClick={handlePassDeclaration}>Pass</button>
-        </div>
+      {/* The Fire Orders pad (D6.315) — drafted orders + EW, sealed on commit.
+          Shown for the whole segment, not only once a declaration is convened: otherwise
+          there is nowhere to draft from and no way to call one. */}
+      {isFirePhase && !myCommitted && (
+        <FireOrdersPad
+          gameId={session.gameId}
+          playerToken={session.playerToken}
+          turn={gameState?.turn ?? 0}
+          impulse={gameState?.impulse ?? 0}
+          units={padUnits}
+          attackerName={padAttacker}
+          onSelectAttacker={selectPadAttacker}
+          orders={declarationOrders}
+          onAddOrder={addPadOrder}
+          onRemoveOrder={(idx: number) =>
+            setDeclarationOrders(prev => prev.filter((_, j) => j !== idx))}
+          onStartHexFire={startHexFire}
+          ew={declarationEw}
+          onSetEw={(shipName: string, value: { ecm: number; eccm: number }) =>
+            setDeclarationEw(prev => ({ ...prev, [shipName]: value }))}
+          ewLimits={padEwLimits}
+          declarationOpen={declarationOpen}
+          onCall={() => { void ensureDeclarationOpen(); }}
+          onCommit={requestCommit}
+          onPass={handlePassDeclaration}
+          error={actionError}
+        />
       )}
 
       {/* Commit confirmation — seals the whole fleet's orders at once (D6.315) */}
