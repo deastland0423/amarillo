@@ -1308,66 +1308,214 @@ public class GameController {
             if (targetUnit == null)
                 return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-            int range = MapUtils.getRange(attackerUnit, targetUnit);
-            // Fighters use raw range (no scanner bonus); ships use effectiveRange
-            int adjRange = attackerUnit instanceof Ship
-                    ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
-                    : range;
-
-            // Shield number (1-6) on the target ship facing the attacker
-            int shieldNumber = 0;
-            if (targetUnit instanceof Ship) {
-                Ship targetShip = (Ship) targetUnit;
-                int absFacing = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
-                int relFacing = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
-                shieldNumber = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
-                shieldNumber = Math.max(1, Math.min(6, shieldNumber));
-            }
-
-            com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
-                    ? ((Ship) attackerUnit).getWeapons()
-                    : ((com.sfb.objects.shuttles.Shuttle) attackerUnit).getWeapons();
-
-            boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
-                    || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
-
-            List<String> weaponsInArc = wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
-                    .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
-                    .map(w -> w.getName())
-                    .collect(Collectors.toList());
-
-            boolean hasLockOn = attackerUnit instanceof Ship
-                    && ((Ship) attackerUnit).hasLockOn(targetUnit);
-
-            // The EW between THESE two, which is the only form of the question that has an
-            // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
-            // P2.223), so the same target presents a different figure to every shooter and
-            // no number on a ship's own panel can stand for it.
-            int ecmPoints = 0;
-            int ecmShift = 0;
-            int eccm = 0;
-            String ecmSources = null;
-            if (attackerUnit instanceof Ship) {
-                com.sfb.properties.EwBreakdown ew =
-                        session.getGame().ewAgainst((Ship) attackerUnit, targetUnit);
-                eccm = session.getGame().activeEccm((Ship) attackerUnit);
-                ecmPoints = ew.total();
-                ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
-                ecmSources = ew.describe();
-            }
-
-            Map<String, Object> body = new java.util.LinkedHashMap<>();
-            body.put("range", range);
-            body.put("adjustedRange", adjRange);
-            body.put("shieldNumber", shieldNumber);
-            body.put("weaponsInArc", weaponsInArc);
-            body.put("hasLockOn", hasLockOn);
-            body.put("ecmPoints", ecmPoints);
-            body.put("eccm", eccm);
-            body.put("ecmShift", ecmShift);
-            body.put("ecmSources", ecmSources);
-            return ResponseEntity.ok(body);
+            return ResponseEntity.ok(fireOptionsFor(session, attackerUnit, targetUnit));
         });
+    }
+
+    /**
+     * Everything one attacker needs to know about firing at one target.
+     *
+     * The single implementation of the question: {@code /fire-options} answers it for a
+     * named pair, {@code /fire-targets} answers it for every candidate a ship has. A second
+     * copy of this would drift the moment a range or shield rule changed.
+     */
+    private Map<String, Object> fireOptionsFor(GameSession session, Unit attackerUnit, Unit targetUnit) {
+        int range = MapUtils.getRange(attackerUnit, targetUnit);
+        // Fighters use raw range (no scanner bonus); ships use effectiveRange
+        int adjRange = attackerUnit instanceof Ship
+                ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
+                : range;
+
+        // Shield number (1-6) on the target ship facing the attacker
+        int shieldNumber = 0;
+        if (targetUnit instanceof Ship) {
+            Ship targetShip = (Ship) targetUnit;
+            int absFacing = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
+            int relFacing = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
+            shieldNumber = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
+            shieldNumber = Math.max(1, Math.min(6, shieldNumber));
+        }
+
+        List<String> weaponsInArc = bearingWeaponNames(attackerUnit, targetUnit);
+
+        boolean hasLockOn = attackerUnit instanceof Ship
+                && ((Ship) attackerUnit).hasLockOn(targetUnit);
+
+        // The EW between THESE two, which is the only form of the question that has an
+        // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
+        // P2.223), so the same target presents a different figure to every shooter and
+        // no number on a ship's own panel can stand for it.
+        int ecmPoints = 0;
+        int ecmShift = 0;
+        int eccm = 0;
+        String ecmSources = null;
+        if (attackerUnit instanceof Ship) {
+            com.sfb.properties.EwBreakdown ew =
+                    session.getGame().ewAgainst((Ship) attackerUnit, targetUnit);
+            eccm = session.getGame().activeEccm((Ship) attackerUnit);
+            ecmPoints = ew.total();
+            ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
+            ecmSources = ew.describe();
+        }
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("range", range);
+        body.put("adjustedRange", adjRange);
+        body.put("shieldNumber", shieldNumber);
+        body.put("weaponsInArc", weaponsInArc);
+        body.put("hasLockOn", hasLockOn);
+        body.put("ecmPoints", ecmPoints);
+        body.put("eccm", eccm);
+        body.put("ecmShift", ecmShift);
+        body.put("ecmSources", ecmSources);
+        return body;
+    }
+
+    /** Names of the attacker's weapons that bear on this target, ADDs only where they apply. */
+    private List<String> bearingWeaponNames(Unit attackerUnit, Unit targetUnit) {
+        com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
+                ? ((Ship) attackerUnit).getWeapons()
+                : ((com.sfb.objects.shuttles.Shuttle) attackerUnit).getWeapons();
+        boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
+                || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
+        return wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
+                .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
+                .map(w -> w.getName())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Every unit this attacker could fire at, with the same figures {@code /fire-options}
+     * gives for one of them. One call per ship instead of one per candidate, so the pad can
+     * list targets by name instead of making the player find them on the map.
+     *
+     * A candidate is a unit the caller does not own, that at least one weapon bears on, with
+     * line of sight to it. Each of those tests comes from the code that decides the shot -
+     * {@code losBlocked} (P2.321) and {@code fetchAllBearingWeapons} - rather than being
+     * worked out again here. An exploding or spent wild weasel is excluded because it cannot
+     * be killed again (J3.21).
+     *
+     * Attacker-level refusals are NOT applied (G7.91, D19.23, breakdown lockout, one volley
+     * per pair per segment): they live in DamageResolver.fireWeapons, and a second copy here
+     * would drift. An order that runs into one fizzles at the reveal with its reason.
+     */
+    @GetMapping("/{id}/fire-targets")
+    public ResponseEntity<?> getFireTargets(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            Unit attackerUnit = findFiringUnit(session, attacker);
+            if (attackerUnit == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Attacker not found: " + attacker));
+            if (attackerUnit.getLocation() == null)
+                return ResponseEntity.ok(List.of());
+
+            // The same ownership source COMMIT_FIRE_DECLARATION checks against, so a unit the
+            // reveal would refuse as "another player's" is never offered as a target either.
+            GameSession.PlayerInfo me = session.getPlayers().get(token);
+            java.util.Set<String> mine = new java.util.HashSet<>(
+                    me != null ? me.getShipNames() : java.util.List.<String>of());
+
+            List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Unit candidate : firePossibilities(session)) {
+                if (candidate == attackerUnit || candidate.getLocation() == null)
+                    continue;
+                if (ownedBy(candidate, mine))
+                    continue;
+                if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                    com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                            (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
+                    if (ww.isExploding() || ww.isPostExplosion())
+                        continue;   // J3.21: the decoy is already spent
+                }
+                if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
+                    continue;       // P2.321
+                if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
+                    continue;
+
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", candidate.getName());
+                row.put("kind", candidateKind(candidate));
+                row.putAll(fireOptionsFor(session, attackerUnit, candidate));
+                out.add(row);
+            }
+            // Range first: the priority a player actually uses, and the only honest one -
+            // time-to-arrival would assume the player's own ship holds still.
+            out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    /** A ship or an active shuttle/fighter by name - the things that can fire. */
+    private Unit findFiringUnit(GameSession session, String name) {
+        Unit u = session.getGame().getShips().stream()
+                .filter(sh -> sh.getName().equalsIgnoreCase(name))
+                .map(sh -> (Unit) sh)
+                .findFirst().orElse(null);
+        if (u != null)
+            return u;
+        return session.getGame().getActiveShuttles().stream()
+                .filter(sh -> name.equalsIgnoreCase(sh.getName()))
+                .map(sh -> (Unit) sh)
+                .findFirst().orElse(null);
+    }
+
+    /** Everything on the map that could be shot at, before any filtering. */
+    private List<Unit> firePossibilities(GameSession session) {
+        List<Unit> all = new java.util.ArrayList<>();
+        all.addAll(session.getGame().getShips());
+        all.addAll(session.getGame().getActiveShuttles());
+        for (com.sfb.objects.Seeker seeker : session.getGame().getSeekers())
+            if (seeker instanceof Unit)
+                all.add((Unit) seeker);
+        return all;
+    }
+
+    /** Whether one of the caller's own ships owns, launched, or controls this unit. */
+    private boolean ownedBy(Unit candidate, java.util.Set<String> mine) {
+        if (candidate instanceof Ship)
+            return containsIgnoreCase(mine, candidate.getName());
+        if (candidate instanceof com.sfb.objects.Drone) {
+            com.sfb.objects.Drone d = (com.sfb.objects.Drone) candidate;
+            // Launcher AND controller: control can be handed off (FD5.4), and a drone under
+            // a teammate's control is still not something you shoot at.
+            Unit ctrl = d.getController();
+            return containsIgnoreCase(mine, ctrl != null ? ctrl.getName() : null)
+                    || containsIgnoreCase(mine, d.getLauncherName());
+        }
+        if (candidate instanceof com.sfb.objects.PlasmaTorpedo) {
+            Unit ctrl = ((com.sfb.objects.PlasmaTorpedo) candidate).getController();
+            return containsIgnoreCase(mine, ctrl != null ? ctrl.getName() : null);
+        }
+        if (candidate instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle sh = (com.sfb.objects.shuttles.Shuttle) candidate;
+            return containsIgnoreCase(mine, sh.getParentShipName());
+        }
+        return false;
+    }
+
+    private static boolean containsIgnoreCase(java.util.Set<String> names, String name) {
+        if (name == null)
+            return false;
+        for (String n : names)
+            if (n != null && n.equalsIgnoreCase(name))
+                return true;
+        return false;
+    }
+
+    /** What the pad should call this row: SHIP, DRONE, PLASMA, SHUTTLE or WEASEL. */
+    private String candidateKind(Unit candidate) {
+        if (candidate instanceof Ship)                                             return "SHIP";
+        if (candidate instanceof com.sfb.objects.Drone)                            return "DRONE";
+        if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle)       return "WEASEL";
+        if (candidate instanceof com.sfb.objects.shuttles.Shuttle)                 return "SHUTTLE";
+        return "PLASMA";
     }
 
     // -------------------------------------------------------------------------
