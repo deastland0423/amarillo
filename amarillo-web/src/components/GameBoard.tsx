@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import {
+  bearsOn,
   hexRangeBetween as hexRange,
   hexGetBearing,
   hexGetRelativeBearing,
@@ -1459,6 +1460,26 @@ interface SidebarProps {
   onUncloak:       () => void;
   onClose:         () => void;
   onOpenSsd:       () => void;
+  /**
+   * Firing at a PLACE rather than a unit (P3.25, P2.311). Bundled rather than spread
+   * across ten flat props, which is what the older panels here do and what makes them
+   * hard to read at the call site.
+   */
+  hexFire: {
+    mode:    boolean;
+    target:  { col: number; row: number } | null;
+    weapons: Set<string>;
+    side:    number;
+    error:   string | null;
+    terrain: TerrainObject[];
+  };
+  hexFireActions: {
+    start:        () => void;
+    cancel:       () => void;
+    toggleWeapon: (name: string) => void;
+    setSide:      (side: number) => void;
+    fire:         () => void;
+  };
   // Launch
   launchMode:      boolean;
   launchTarget:    MapObject | null;
@@ -1593,7 +1614,7 @@ interface SidebarProps {
 }
 
 function ShipSidebar({
-  ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd,
+  ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd, hexFire, hexFireActions,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
   onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
@@ -1985,6 +2006,15 @@ function ShipSidebar({
                     title="Drop mine from shuttle bay"
                   >
                     Drop Mine
+                  </button>
+                )}
+                {isFirePhase && isMine && (
+                  <button
+                    className={`action-strip-btn${hexFire.mode ? ' active' : ''}`}
+                    onClick={hexFire.mode ? hexFireActions.cancel : hexFireActions.start}
+                    title="Fire into a hex — clear a path through asteroids (P3.25) or bombard a planet (P2.311)"
+                  >
+                    Fire Hex
                   </button>
                 )}
                 {canIdentify && (
@@ -2593,6 +2623,114 @@ function ShipSidebar({
         </div>
       )}
 
+      {hexFire.mode && (() => {
+        const shipAt = parseLocation(ship.location);
+        const at = hexFire.target;
+        // What is in the hex decides the rule, and the server decides for certain — this
+        // only picks the wording and whether to ask for a planet face.
+        const planet = at && hexFire.terrain.find(t =>
+          (t.terrainType === 'PLANET' || t.terrainType === 'GAS_GIANT') && (() => {
+            const c = parseLocation(t.location);
+            return c != null && hexRange({ col: c[0], row: c[1] }, { col: at.col, row: at.row })
+              <= (t.radius ?? 0);
+          })());
+        const asteroid = at && !planet && hexFire.terrain.some(t => {
+          const c = parseLocation(t.location);
+          return t.terrainType === 'ASTEROID' && c != null
+            && c[0] === at.col && c[1] === at.row;
+        });
+
+        // Arc is a preview: mirrored geometry, guarded by the shared fixture, and the
+        // server refuses anything it disagrees with.
+        const bearing = (w: WeaponState) => shipAt != null && at != null
+          && bearsOn({ col: shipAt[0], row: shipAt[1] }, ship.facing, w.arcMask,
+                     { col: at.col, row: at.row });
+
+        return (
+          <div className="sidebar-action-detail">
+            {!at ? (
+              <>
+                <div className="sidebar-section-title" style={{ color: '#f0a050' }}>
+                  Click a hex to fire into
+                </div>
+                <button className="secondary" style={{ width: '100%', marginTop: 4 }}
+                        onClick={hexFireActions.cancel}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <div className="sidebar-section-title" style={{ color: '#f0a050' }}>
+                  {planet ? `Bombard ${planet.name ?? 'planet'}` : 'Clear a path'}
+                  {' '}({at.col}|{at.row})
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#8b949e', marginBottom: 4 }}>
+                  {planet ? 'P2.311: damage lands on one face of the planet.'
+                    : asteroid ? 'P3.25: enough damage clears the rock from the hex.'
+                    : 'Nothing in that hex to shoot at.'}
+                </div>
+
+                {planet && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>Face</span>
+                    {[1, 2, 3, 4, 5, 6].map(side => (
+                      <button
+                        key={side}
+                        className={hexFire.side === side ? '' : 'secondary'}
+                        style={{ padding: '0 6px' }}
+                        onClick={() => hexFireActions.setSide(side)}
+                      >{String.fromCharCode(64 + side)}</button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="fire-weapon-list">
+                  {(ship.weapons ?? [])
+                    .filter(w => w.functional && !w.scoutChannel && !w.launcherType)
+                    .map(w => {
+                      const inArc = bearing(w);
+                      const unavailLabel = !inArc ? 'out of arc'
+                        : w.isHeavy && !w.armed ? 'unarmed'
+                        : !w.readyToFire ? 'on cooldown'
+                        : null;
+                      return (
+                        <div key={w.name}
+                             className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
+                          <label className="fire-weapon-label">
+                            <input
+                              type="checkbox"
+                              disabled={!!unavailLabel}
+                              checked={hexFire.weapons.has(w.name)}
+                              onChange={() => hexFireActions.toggleWeapon(w.name)}
+                            />
+                            <span className="weapon-name">{w.name}</span>
+                            {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
+                            {unavailLabel && (
+                              <span className={`fire-ooa ${unavailLabel === 'on cooldown' ? 'fire-cooldown' : ''}`}>
+                                {unavailLabel}
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {hexFire.error && (
+                  <div style={{ color: '#f85149', fontSize: '0.75rem', margin: '4px 0' }}>
+                    {hexFire.error}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button disabled={hexFire.weapons.size === 0} onClick={hexFireActions.fire}>
+                    Fire
+                  </button>
+                  <button className="secondary" onClick={hexFireActions.cancel}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {tBombMode && (
         <div className="sidebar-action-detail">
           {tBombShieldChoice ? (
@@ -3088,6 +3226,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [snapTo, setSnapTo]                 = useState<{ name: string } | null>(null);
   // Fire state
   const [fireTarget, setFireTarget]         = useState<MapObject | null>(null);
+  // Firing at a PLACE (P3.25 clearing a path, P2.311 bombardment) rather than a unit.
+  const [hexFireMode,    setHexFireMode]    = useState(false);
+  const [hexFireTarget,  setHexFireTarget]  = useState<{ col: number; row: number } | null>(null);
+  const [hexFireWeapons, setHexFireWeapons] = useState<Set<string>>(new Set());
+  const [hexFireSide,    setHexFireSide]    = useState(1);
+  const [hexFireError,   setHexFireError]   = useState<string | null>(null);
   const [fireOptions, setFireOptions]       = useState<FireOptions | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [selectedWeapons, setSelectedWeapons] = useState<Set<string>>(new Set());
@@ -4236,6 +4380,18 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombPendingHex(null);
     setLaunchMode(false);
     setLaunchTarget(null);
+    cancelHexFire();
+  }
+
+  function startHexFire() {
+    setHexFireMode(true);
+    setHexFireTarget(null);
+    setHexFireWeapons(new Set());
+    setHexFireError(null);
+    // Both read the same hex click, so only one may be listening.
+    handleCancelTBomb();
+    setLaunchMode(false);
+    setLaunchTarget(null);
   }
 
   function handleCancelTBomb() {
@@ -4341,12 +4497,48 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   function handleHexClick(col: number, row: number) {
+    if (hexFireMode) {
+      setHexFireTarget({ col, row });
+      setHexFireError(null);
+    }
     if (tBombMode) {
       setTBombPendingHex({ col, row });
     }
     if (rotateMode && liveShip && rotateTarget && isInitialActivityPhase) {
       handleRotateTractored(col, row);
     }
+  }
+
+  async function handleFireAtHex() {
+    if (!liveShip || !hexFireTarget || hexFireWeapons.size === 0) return;
+    setHexFireError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:        'FIRE_AT_HEX',
+        shipName:    liveShip.name,
+        hexCol:      hexFireTarget.col,
+        hexRow:      hexFireTarget.row,
+        weaponNames: [...hexFireWeapons],
+        planetSide:  hexFireSide,
+      });
+      if (!res.success) {
+        setHexFireError(res.message);
+        return;
+      }
+      // Success reaches the log through the server's combat-log broadcast.
+      setHexFireMode(false);
+      setHexFireTarget(null);
+      setHexFireWeapons(new Set());
+    } catch (e: unknown) {
+      setHexFireError(e instanceof Error ? e.message : 'Fire failed');
+    }
+  }
+
+  function cancelHexFire() {
+    setHexFireMode(false);
+    setHexFireTarget(null);
+    setHexFireWeapons(new Set());
+    setHexFireError(null);
   }
 
   async function handlePlaceTBomb(isReal: boolean, shieldNumber?: number) {
@@ -4976,7 +5168,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             fireTargetName={fireTarget?.name ?? null}
             onSelect={handleMapSelect}
             onHexClick={handleHexClick}
-            pickingHex={tBombMode}
+            pickingHex={tBombMode || hexFireMode}
             snapTo={snapTo}
           />
         </div>
@@ -4995,6 +5187,26 @@ export default function GameBoard({ session, onLeave }: Props) {
             ship={liveShip}
             isMine={myShips.has(liveShip.name)}
             onOpenSsd={() => setSsdShipName(liveShip.name)}
+            hexFire={{
+              mode:    hexFireMode,
+              target:  hexFireTarget,
+              weapons: hexFireWeapons,
+              side:    hexFireSide,
+              error:   hexFireError,
+              terrain: (gameState?.mapObjects ?? [])
+                .filter((o): o is TerrainObject => o.type === 'TERRAIN'),
+            }}
+            hexFireActions={{
+              start:  startHexFire,
+              cancel: cancelHexFire,
+              toggleWeapon: (name: string) => setHexFireWeapons(prev => {
+                const next = new Set(prev);
+                if (next.has(name)) next.delete(name); else next.add(name);
+                return next;
+              }),
+              setSide: setHexFireSide,
+              fire:    handleFireAtHex,
+            }}
             canMove={canMove}
             phase={phase}
             gameId={session.gameId}
