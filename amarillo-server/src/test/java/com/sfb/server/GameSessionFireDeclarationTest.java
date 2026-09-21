@@ -4,7 +4,9 @@ import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.Player;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Terrain;
 import com.sfb.properties.Location;
+import com.sfb.properties.TerrainType;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KlingonShips;
 import com.sfb.systemgroups.Energy;
@@ -19,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Fire declaration round (D6.315 written orders): the call convenes all
  * players, commits stay sealed until everyone responds, EW applies before
  * fire at the reveal, and the round is once per impulse.
+ * <p>
+ * Also pins that the round is the ONLY way to fire - no action resolves a shot on its
+ * own, whether at a unit or at a hex.
  */
 class GameSessionFireDeclarationTest {
 
@@ -277,5 +282,75 @@ class GameSessionFireDeclarationTest {
         assertFalse(advance.getMessage().contains("MUST_RESPOND_DECLARATION"),
                 "the raw code must not reach a player: " + advance.getMessage());
         assertTrue(advance.getMessage().contains("declared fire"), advance.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // One way to fire
+    // -------------------------------------------------------------------------
+
+    /**
+     * FIRE resolved a volley the moment it arrived: see the board, shoot, watch the
+     * result, all before anyone else had decided anything. No client posted it and no
+     * test used it, which is exactly how it survived.
+     */
+    @Test
+    void thereIsNoStandaloneFireAction() {
+        ActionRequest fire = request("FIRE", HOST);
+        fire.setShipName("USS Enterprise");
+        fire.setTargetName("IKV Saber");
+        fire.setWeaponNames(List.of(fed.getWeapons().fetchAllWeapons().get(0).getName()));
+        fire.setRange(1);
+
+        ActionResult r = session.executeAction(fire);
+
+        assertFalse(r.isSuccess(), "FIRE must not resolve a shot on its own");
+        assertTrue(r.getMessage().contains("Unknown action type"), r.getMessage());
+        assertTrue(game.getPendingVolleys().isEmpty(), "nothing fired outside the declaration");
+    }
+
+    /** Same for firing into a hex (P3.25 / P2.311). */
+    @Test
+    void thereIsNoStandaloneHexFireAction() {
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
+
+        ActionRequest fire = request("FIRE_AT_HEX", HOST);
+        fire.setShipName("USS Enterprise");
+        fire.setHexCol(10);
+        fire.setHexRow(9);
+        fire.setWeaponNames(List.of(fed.getWeapons().fetchAllWeapons().get(0).getName()));
+
+        ActionResult r = session.executeAction(fire);
+
+        assertFalse(r.isSuccess(), "FIRE_AT_HEX must not resolve a shot on its own");
+        assertTrue(r.getMessage().contains("Unknown action type"), r.getMessage());
+    }
+
+    /**
+     * A volley aimed at a place is an ordinary sealed order: nothing happens when it is
+     * committed, and it resolves with everything else at the reveal.
+     */
+    @Test
+    void hexOrder_staysSealed_andResolvesAtTheReveal() {
+        game.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
+        session.executeAction(request("CALL_FIRE_DECLARATION", HOST));
+
+        ActionRequest commit = request("COMMIT_FIRE_DECLARATION", HOST);
+        ActionRequest.FireOrder order = new ActionRequest.FireOrder();
+        order.setShipName("USS Enterprise");
+        order.setWeaponNames(List.of(fed.getWeapons().fetchAllWeapons().get(0).getName()));
+        order.setHexCol(10);
+        order.setHexRow(9);
+        commit.setFireOrders(List.of(order));
+        assertTrue(session.executeAction(commit).isSuccess());
+
+        assertFalse(String.join("\n", session.drainCombatLog()).contains("clear a path"),
+                "a sealed order must not fire before the reveal");
+
+        ActionResult pass = session.executeAction(request("PASS_FIRE_DECLARATION", P2));
+        assertTrue(pass.isSuccess(), pass.getMessage());
+
+        String log = String.join("\n", session.drainCombatLog());
+        assertTrue(log.contains("Fire declaration resolves"), log);
+        assertTrue(log.contains("clear a path"), log);
     }
 }

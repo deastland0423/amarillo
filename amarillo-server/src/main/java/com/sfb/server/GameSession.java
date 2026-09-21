@@ -1387,48 +1387,10 @@ public class GameSession {
                 return allocResult;
             }
 
-            case "FIRE": {
-                ActionResult fireResult = resolveFire(request.getShipName(), request.getTargetName(),
-                        request.getWeaponNames(), request.getShotModes(),
-                        request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
-                        request.isUseUim(), request.isDirectFire());
-                if (fireResult.isSuccess())
-                    appendCombatLog(fireResult.getMessage());
-                return fireResult;
-            }
-
-            case "FIRE_AT_HEX": {
-                // Firing at a PLACE rather than a unit: clearing a path through asteroids
-                // (P3.25) or bombarding a planet's surface (P2.311/P2.525). One action for
-                // both, because the client should not have to know which rule the hex it
-                // clicked falls under — the server can see what is there.
-                Ship firer = findShip(request.getShipName());
-                if (firer == null)
-                    return ActionResult.fail("Ship not found: " + request.getShipName());
-                if (request.getHexCol() < 1 || request.getHexRow() < 1)
-                    return ActionResult.fail("No target hex given");
-                com.sfb.properties.Location hex =
-                        new com.sfb.properties.Location(request.getHexCol(), request.getHexRow());
-
-                List<com.sfb.weapons.Weapon> hexWeapons = new ArrayList<>();
-                for (String wName : request.getWeaponNames() == null
-                        ? java.util.List.<String>of() : request.getWeaponNames())
-                    for (com.sfb.weapons.Weapon w : firer.getWeapons().fetchAllWeapons())
-                        if (w.getName().equals(wName) && !hexWeapons.contains(w)) {
-                            hexWeapons.add(w);
-                            break;
-                        }
-                if (hexWeapons.isEmpty())
-                    return ActionResult.fail("No weapons selected");
-
-                com.sfb.objects.Terrain planet = game.planetCovering(hex);
-                ActionResult hexResult = planet != null
-                        ? game.bombardPlanet(firer, planet, request.getPlanetSide(), hexWeapons)
-                        : game.clearAsteroidPath(firer, hex, hexWeapons);
-                if (hexResult.isSuccess())
-                    appendCombatLog(hexResult.getMessage());
-                return hexResult;
-            }
+            // There is no FIRE or FIRE_AT_HEX action. Weapons fire ONLY through the
+            // sealed declaration (D6.315) — see COMMIT_FIRE_DECLARATION. An action
+            // that resolved a shot on its own would let a player see the board, shoot, and
+            // watch the result before anyone else had decided anything.
 
             case "ANNOUNCE_EM": {
                 // C10.3: announce that EM starts or stops. It comes into force at the END
@@ -2227,10 +2189,16 @@ public class GameSession {
         }
         for (Map.Entry<String, DeclarationCommit> e : declarationCommits.entrySet()) {
             for (ActionRequest.FireOrder o : e.getValue().fireOrders) {
-                ActionResult r = resolveFire(o.getShipName(), o.getTargetName(),
-                        o.getWeaponNames(), o.getShotModes(),
-                        o.getRange(), o.getAdjustedRange(), o.getShieldNumber(),
-                        o.isUseUim(), o.isDirectFire());
+                // One list, drafted order preserved: a volley at a unit and a volley into
+                // a hex compete for the same weapons, so whichever was ordered first gets
+                // them.
+                ActionResult r = o.isAtHex()
+                        ? resolveHexFire(o.getShipName(), o.getHexCol(), o.getHexRow(),
+                                o.getPlanetSide(), o.getWeaponNames())
+                        : resolveFire(o.getShipName(), o.getTargetName(),
+                                o.getWeaponNames(), o.getShotModes(),
+                                o.getRange(), o.getAdjustedRange(), o.getShieldNumber(),
+                                o.isUseUim(), o.isDirectFire());
                 log.append("\n").append(r.getMessage());
             }
         }
@@ -2240,7 +2208,41 @@ public class GameSession {
         appendCombatLog(log.toString());
     }
 
-    /** Shared FIRE resolution — used by the FIRE action and the declaration reveal. */
+    /**
+     * Fire aimed at a PLACE rather than a unit: clearing a path through asteroids (P3.25)
+     * or bombarding a planet's surface (P2.311/P2.525).
+     * <p>
+     * One method for both, because the client should not have to know which rule the hex
+     * it clicked falls under — the server can see what is there. Reached only from
+     * the declaration reveal, so a bombardment is sealed and simultaneous like any other
+     * volley rather than resolving the moment it is ordered.
+     */
+    private ActionResult resolveHexFire(String shipName, int hexCol, int hexRow,
+            int planetSide, List<String> weaponNames) {
+        Ship firer = findShip(shipName);
+        if (firer == null)
+            return ActionResult.fail("Ship not found: " + shipName);
+        if (hexCol < 1 || hexRow < 1)
+            return ActionResult.fail("No target hex given");
+        com.sfb.properties.Location hex = new com.sfb.properties.Location(hexCol, hexRow);
+
+        List<com.sfb.weapons.Weapon> hexWeapons = new ArrayList<>();
+        for (String wName : weaponNames == null ? java.util.List.<String>of() : weaponNames)
+            for (com.sfb.weapons.Weapon w : firer.getWeapons().fetchAllWeapons())
+                if (w.getName().equals(wName) && !hexWeapons.contains(w)) {
+                    hexWeapons.add(w);
+                    break;
+                }
+        if (hexWeapons.isEmpty())
+            return ActionResult.fail("No weapons selected");
+
+        com.sfb.objects.Terrain planet = game.planetCovering(hex);
+        return planet != null
+                ? game.bombardPlanet(firer, planet, planetSide, hexWeapons)
+                : game.clearAsteroidPath(firer, hex, hexWeapons);
+    }
+
+    /** Shared FIRE resolution — reached only from the declaration reveal. */
     private ActionResult resolveFire(String attackerName, String targetName,
             List<String> weaponNames, Map<String, String> shotModes,
             int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {

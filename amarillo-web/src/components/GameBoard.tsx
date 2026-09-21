@@ -3244,9 +3244,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   // and are cleared by commit/pass; committedRound keys the sealed state to
   // this turn+impulse so it self-resets when the next round opens.
   type DeclOrder = {
-    label: string; shipName: string; targetName: string; weaponNames: string[];
+    label: string; shipName: string; targetName: string | null; weaponNames: string[];
     shotModes?: Record<string, string>; range: number; adjustedRange: number;
     shieldNumber: number; useUim: boolean; directFire: boolean;
+    // A volley aimed at a PLACE (P3.25, P2.311) carries a hex instead of a target;
+    // the server works out the range and which rule applies.
+    hexCol?: number; hexRow?: number; planetSide?: number;
   };
   const [declarationOrders, setDeclarationOrders] = useState<DeclOrder[]>([]);
   // Keyed by ship name — a multi-ship player may adjust EW on several ships
@@ -3809,6 +3812,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           shipName: o.shipName, targetName: o.targetName, weaponNames: o.weaponNames,
           shotModes: o.shotModes, range: o.range, adjustedRange: o.adjustedRange,
           shieldNumber: o.shieldNumber, useUim: o.useUim, directFire: o.directFire,
+          hexCol: o.hexCol, hexRow: o.hexRow, planetSide: o.planetSide,
         })),
         ewAdjustments,
       });
@@ -4509,28 +4513,49 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  /**
+   * Firing into a hex is an ordinary declared volley (D6.315): it joins the sealed plan
+   * rather than resolving now. Bombarding a planet and watching the result before
+   * deciding the rest of the fleet's orders is exactly what the declaration prevents.
+   */
   async function handleFireAtHex() {
     if (!liveShip || !hexFireTarget || hexFireWeapons.size === 0) return;
     setHexFireError(null);
+    if (myCommitted) {
+      setHexFireError('Orders already sealed for this declaration');
+      return;
+    }
     try {
-      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-        type:        'FIRE_AT_HEX',
-        shipName:    liveShip.name,
-        hexCol:      hexFireTarget.col,
-        hexRow:      hexFireTarget.row,
-        weaponNames: [...hexFireWeapons],
-        planetSide:  hexFireSide,
-      });
-      if (!res.success) {
-        setHexFireError(res.message);
-        return;
+      if (!declarationOpen) {
+        if (gameState?.fireDeclarationSpent) {
+          setHexFireError("This impulse's fire declaration has already resolved (one per impulse)");
+          return;
+        }
+        const call = await gameApi.submitAction(session.gameId, session.playerToken,
+            { type: 'CALL_FIRE_DECLARATION' });
+        if (!call.success) {
+          setHexFireError(call.message);
+          addLog(call.message, 'error');
+          return;
+        }
       }
-      // Success reaches the log through the server's combat-log broadcast.
+      const where = `(${hexFireTarget.col}|${hexFireTarget.row})`;
+      setDeclarationOrders(prev => [...prev, {
+        label: `${liveShip.name} → hex ${where} (${hexFireWeapons.size} wpn)`,
+        shipName: liveShip.name,
+        targetName: null,
+        weaponNames: [...hexFireWeapons],
+        range: 0, adjustedRange: 0, shieldNumber: 0,
+        useUim: false, directFire: false,
+        hexCol: hexFireTarget.col,
+        hexRow: hexFireTarget.row,
+        planetSide: hexFireSide,
+      }]);
       setHexFireMode(false);
       setHexFireTarget(null);
       setHexFireWeapons(new Set());
     } catch (e: unknown) {
-      setHexFireError(e instanceof Error ? e.message : 'Fire failed');
+      setHexFireError(e instanceof Error ? e.message : 'Order failed');
     }
   }
 

@@ -11,7 +11,9 @@ import java.util.Map;
  *
  *   ADVANCE_PHASE  — no extra fields
  *   MOVE           — shipName, action (FORWARD | TURN_LEFT | TURN_RIGHT | SIDESLIP_LEFT | SIDESLIP_RIGHT)
- *   FIRE           — shipName (attacker), targetName, weaponNames, range, adjustedRange, shieldNumber
+ *
+ * There is no FIRE action: weapons fire only through COMMIT_FIRE_DECLARATION, whose
+ * fireOrders carry their own per-order copies of these fields (D6.315).
  */
 public class ActionRequest {
 
@@ -20,14 +22,14 @@ public class ActionRequest {
     private String       shipName;
     private String       action;
 
-    // FIRE fields
+    // Shared targeting fields. targetName and weaponNames serve many actions; range is
+    // read by the range-checked ones and shieldNumber by PLACE_TBOMB. Per-VOLLEY values
+    // (adjusted range, shield hit, UIM, Hellbore mode) live on FireOrder instead, because
+    // a volley is only ever ordered inside a sealed declaration.
     private String       targetName;
     private List<String> weaponNames;
     private int          range;
-    private int          adjustedRange;
     private int          shieldNumber;
-    private boolean      useUim;
-    private boolean      directFire;   // true = Hellbore fires in direct-fire mode (E10.7)
 
     // ALLOCATE fields
     private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
@@ -69,7 +71,6 @@ public class ActionRequest {
     private Map<String, Integer>             suicideShuttleArming;   // shuttle name → energy (1–3)
     private java.util.Set<String>            suicideShuttleHold;     // shuttle names paying hold this turn
     private Map<String, Integer> shuttleSpeeds;                       // shuttle name → requested speed (active shuttles only)
-    private Map<String, String>  shotModes;                           // weapon name → "SINGLE" or "DOUBLE" (FighterFusion)
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -100,17 +101,8 @@ public class ActionRequest {
     public int  getRange()                         { return range; }
     public void setRange(int range)                { this.range = range; }
 
-    public int  getAdjustedRange()                 { return adjustedRange; }
-    public void setAdjustedRange(int adjustedRange){ this.adjustedRange = adjustedRange; }
-
     public int  getShieldNumber()                  { return shieldNumber; }
     public void setShieldNumber(int shieldNumber)  { this.shieldNumber = shieldNumber; }
-
-    public boolean isUseUim()                      { return useUim; }
-    public void    setUseUim(boolean useUim)        { this.useUim = useUim; }
-
-    public boolean isDirectFire()                      { return directFire; }
-    public void    setDirectFire(boolean directFire)   { this.directFire = directFire; }
 
     public int  getSpeed()                         { return speed; }
     public void setSpeed(int speed)                { this.speed = speed; }
@@ -198,8 +190,6 @@ public class ActionRequest {
     public Map<String, Integer> getShuttleSpeeds()                              { return shuttleSpeeds; }
     public void                 setShuttleSpeeds(Map<String, Integer> speeds)   { this.shuttleSpeeds = speeds; }
 
-    public Map<String, String>  getShotModes()                                  { return shotModes; }
-    public void                 setShotModes(Map<String, String> shotModes)     { this.shotModes = shotModes; }
 
     // DISENGAGE_ACCEL fields
     private boolean declare;
@@ -243,13 +233,6 @@ public class ActionRequest {
 
     public int  getCrewAmount()                { return crewAmount; }
     public void setCrewAmount(int crewAmount)  { this.crewAmount = crewAmount; }
-
-    // FIRE_AT_HEX: which face of a planet is being bombarded, 1-6 (A-F). Only a side the
-    // attacker can see may be hit (P2.52), which core checks. Ignored for asteroid hexes.
-    private int planetSide;
-
-    public int  getPlanetSide()               { return planetSide; }
-    public void setPlanetSide(int planetSide) { this.planetSide = planetSide; }
 
     // IDENTIFY_SEEKERS fields
     /**
@@ -352,6 +335,12 @@ public class ActionRequest {
         private int shieldNumber;
         private boolean useUim;
         private boolean directFire = true;
+        // Firing at a PLACE instead of a unit (P3.25 clearing a path, P2.311 bombardment).
+        // targetName is null for these; hexCol/hexRow name the hex and planetSide (1-6 =
+        // A-F) the planet face, whose visibility core checks (P2.52).
+        private int hexCol;
+        private int hexRow;
+        private int planetSide;
 
         public String getShipName()                          { return shipName; }
         public void   setShipName(String s)                  { this.shipName = s; }
@@ -371,6 +360,15 @@ public class ActionRequest {
         public void    setUseUim(boolean b)                  { this.useUim = b; }
         public boolean isDirectFire()                        { return directFire; }
         public void    setDirectFire(boolean b)              { this.directFire = b; }
+        public int     getHexCol()                           { return hexCol; }
+        public void    setHexCol(int c)                      { this.hexCol = c; }
+        public int     getHexRow()                           { return hexRow; }
+        public void    setHexRow(int r)                      { this.hexRow = r; }
+        public int     getPlanetSide()                       { return planetSide; }
+        public void    setPlanetSide(int s)                  { this.planetSide = s; }
+
+        /** True when this order is aimed at a hex rather than at a unit. */
+        public boolean isAtHex() { return hexCol >= 1 && hexRow >= 1; }
     }
 
     public static class EwAdjustment {
