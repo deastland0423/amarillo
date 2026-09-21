@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
-  "hull": "CM",
+  "type": "CM",
+  "line": "CW",
   "name": "KHS Frenzy",
   "serviceYear": 170,
   "bpv": 110,
@@ -9,12 +10,14 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 6,
   "note": "War cruiser.",
+  "tokenArt": "kzinti/cm.png",
   
   "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
-    "fhull": 35,
+    "fhull": 3,
     "ahull": 6
   },
   
@@ -61,7 +64,7 @@
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["RF", "LS"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "LS"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LF", "RS"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },

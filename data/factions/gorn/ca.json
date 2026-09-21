@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
-  "hull": "CA",
+  "type": "CA",
+  "line": "CA",
   "name": "GCS Serpenticon",
   "serviceYear": 121,
   "bpv": 120,
@@ -9,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
 
   "shields": [30, 24, 24, 24, 24, 24],
   

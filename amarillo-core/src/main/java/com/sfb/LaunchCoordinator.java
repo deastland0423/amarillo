@@ -86,16 +86,34 @@ class LaunchCoordinator {
         return ActionResult.ok(sb.toString());
     }
 
+    /**
+     * What a launched shuttle is called: "<Ship>-<Type>-<n>", e.g. "IKS Fury-Admin-2".
+     * <p>
+     * It names the CRAFT, never the role. An admin shuttle, a suicide shuttle and a scatter
+     * pack all built from admin shuttles read alike, so an opponent watching one leave a bay
+     * cannot tell which it is — the uncertainty the weasel, the suicide shuttle and the
+     * scatter pack all depend on. What it no longer hides is the shuttle TYPE, which is a
+     * visible property of the craft: a GAS reads "GAS", not "Shuttle".
+     */
+    private String launchName(Ship launcher, com.sfb.objects.shuttles.Shuttle shuttle) {
+        com.sfb.objects.ShuttleCatalog.Entry e = shuttle.getCatalogType() == null ? null
+                : com.sfb.objects.ShuttleCatalog.get(shuttle.getCatalogType());
+        String label = e != null ? e.shortName : "Shuttle";
+        return launcher.getName() + "-" + label + "-" + game.nextSeekerSeq();
+    }
+
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
         // Find the charged admin shuttle in any bay
-        com.sfb.objects.shuttles.AdminShuttle foundShuttle = null;
+        com.sfb.objects.shuttles.Shuttle foundShuttle = null;
         com.sfb.systemgroups.ShuttleBay foundShuttleBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
             for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
-                if (s instanceof com.sfb.objects.shuttles.AdminShuttle
+                // J3.18: any non-fighter shuttle may serve, so ask the capability rather
+                // than the class — this used to read `instanceof AdminShuttle`.
+                if (s.canBecomeWildWeasel()
                         && s.getName().equalsIgnoreCase(shuttleName)
-                        && ((com.sfb.objects.shuttles.AdminShuttle) s).isWwReady()) {
-                    foundShuttle = (com.sfb.objects.shuttles.AdminShuttle) s;
+                        && s.isWwReady()) {
+                    foundShuttle = s;
                     foundShuttleBay = bay;
                     break;
                 }
@@ -118,8 +136,11 @@ class LaunchCoordinator {
         int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
         int wwSpeed = Math.max(0, Math.min(6, speed));
 
-        com.sfb.objects.shuttles.WildWeaselShuttle ww = new com.sfb.objects.shuttles.WildWeaselShuttle(ship);
-        ww.setName(ship.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming
+        // Built FROM the shuttle being charged, so it keeps that shuttle's hull, speed and
+        // type rather than assuming an admin shuttle's (J3.18 allows any non-fighter).
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(ship, foundShuttle);
+        ww.setName(launchName(ship, ww));
         ww.setParentShipName(ship.getName());
         ww.setOwner(ship.getOwner());
         foundShuttleBay.launch(foundShuttle, wwSpeed, wwFacing, game.getAbsoluteImpulse());
@@ -335,6 +356,10 @@ class LaunchCoordinator {
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
 
+        // G24.1342: launching a plasma torpedo blinds one of the launcher's scout channels.
+        game.queueScoutBlinds(launcher, 1);
+        game.enterBlindChoiceIfPending();
+
         String msg = launcher.getName() + " launched plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName();
         if (!lockLog.isEmpty())
@@ -369,6 +394,10 @@ class LaunchCoordinator {
         seekers.add(torpedo);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
 
+        // G24.1342: a pseudo launch blinds too — the disguise requires the same signature.
+        game.queueScoutBlinds(launcher, 1);
+        game.enterBlindChoiceIfPending();
+
         String msg = launcher.getName() + " launched pseudo plasma-"
                 + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";
         if (!lockLog.isEmpty())
@@ -393,8 +422,16 @@ class LaunchCoordinator {
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (!bay.canLaunch(shuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+        String role = shuttle.specialRole();
+        if (role != null)
+            return ActionResult.fail(shuttle.getName() + " is prepared as a " + role
+                    + " and cannot launch as an ordinary shuttle. A special shuttle reverts"
+                    + " only by not being held during Energy Allocation.");
 
-        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle, speed, facing, game.getAbsoluteImpulse());
+        // C10.13: a shuttle that has committed a point of speed to EM cannot launch above
+        // the reduced maximum.
+        com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle,
+                Math.min(speed, shuttle.effectiveMaxSpeed()), facing, game.getAbsoluteImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 
@@ -407,9 +444,21 @@ class LaunchCoordinator {
         // admin shuttle, suicide shuttle, scatter pack, or weasel. Fighters
         // keep their names — a fighter is visibly a fighter.
         if (!(launched instanceof com.sfb.objects.shuttles.Fighter))
-            launched.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq());
+            launched.setName(launchName(launcher, launched));
         activeShuttles.add(launched);
-        return ActionResult.ok(launcher.getName() + " launched shuttle " + launched.getName());
+        // Everything else that appears on the map mid-turn is acquired here - drones,
+        // plasma, suicide shuttles, scatter packs. A plain shuttle was not, so nobody held
+        // lock-on to it, not even the ship that had just launched it, and it could not be
+        // tractored back aboard (G7.412). The turn-start sweep would have sorted it out at
+        // the next turn, which is why this only bit within the launching turn.
+        //
+        // The Wild Weasel launch deliberately does NOT do this: J3.132 turns the
+        // launcher's fire control off and clears its lock-ons, and this would undo that.
+        java.util.List<String> lockLog = game.checkLockOnsForNewUnit(launcher, launched);
+        String msg = launcher.getName() + " launched shuttle " + launched.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -440,7 +489,7 @@ class LaunchCoordinator {
             voidWildWeasel(launcher);
 
         bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        shuttle.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
+        shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
@@ -490,9 +539,14 @@ class LaunchCoordinator {
         launcher.forceAcquireControl(pack);
 
         bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
-        pack.setName(launcher.getName() + "-Shuttle-" + game.nextSeekerSeq()); // uniform launch naming — type stays
-                                                                               // hidden
+        pack.setName(launchName(launcher, pack));
         pack.setLocation(launcher.getLocation());
+        // Whose it is, and where it came from. launchShuttle has always set both; this
+        // path never did, so a launched pack had no owner at all - which is why it showed
+        // no faction and no parent, and why anything keying off ownership (lock-on's
+        // own-side rule, lab identification, per-viewer redaction) could not place it.
+        pack.setOwner(launcher.getOwner());
+        pack.setParentShipName(launcher.getName());
         pack.setTarget(target);
         pack.setController(launcher);
         pack.setLaunchImpulse(game.getAbsoluteImpulse());

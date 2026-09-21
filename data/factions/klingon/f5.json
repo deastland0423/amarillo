@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "F5",
+  "type": "F5",
+  "line": "DD",
   "name": "IKS Fury",
   "serviceYear": 135,
   "bpv": 71,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 4,
   "tokenArt": "klingon/f5.png",
   
   "shields": [21, 16, 9, 9, 9, 16],

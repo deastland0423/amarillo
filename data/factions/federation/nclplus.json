@@ -1,14 +1,16 @@
 {
   "faction": "Federation",
-  "hull": "NCL+",
+  "type": "NCL+",
+  "line": "CW",
   "name": "USS Strasbourg",
   "serviceYear": 173,
   "bpv": 120,
   "turnMode": "C",
   "sizeClass": 3,
-  "moveCost": 1.0,
+  "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 6,
   "note": "War cruiser.",
   "tokenArt": "federation/ncl.png",
   

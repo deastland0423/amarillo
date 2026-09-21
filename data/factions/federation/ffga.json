@@ -1,14 +1,16 @@
 {
   "faction": "Federation",
-  "hull": "FFGa",
+  "type": "FFGa",
+  "line": "FF",
   "name": "USS Burke",
   "serviceYear": 160,
   "bpv": 76,
   "turnMode": "B",
   "sizeClass": 4,
-  "moveCost": 0.3333333333,
+  "moveCost": 0.3333333,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 3,
   "tokenArt": "federation/ff.png",
   
   "shields": [18, 18, 18, 18, 18, 18],

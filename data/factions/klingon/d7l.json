@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "D7L",
+  "type": "D7L",
+  "line": "CA",
   "name": "IKS Doomslayer",
   "serviceYear": 143,
   "bpv": 138,
@@ -10,6 +11,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
+  "isLeader": true,
   "tokenArt": "klingon/d7.png",
   
   "shields": [30, 22, 22, 22, 22, 22],

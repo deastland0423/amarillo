@@ -23,7 +23,7 @@ import java.util.List;
  *       "faction": "Federation",
  *       "ships": [
  *         {
- *           "hull": "CC",
+ *           "type": "CC",
  *           "shipName": "Kongo",
  *           "startHex": "0515",
  *           "startHeading": "C",
@@ -64,6 +64,13 @@ public class ScenarioSpec {
     public List<String> specialRules;                 // free-text rules from the X.4 section
     public List<SideSpec>        sides;
     public List<TerrainSetup>    terrain;          // optional — asteroid/planet hexes
+    /**
+     * Terrain described rather than listed: "a field in this region, at about this density".
+     * Expanded into {@link #terrain} when the scenario is loaded, so nine hand-written asteroid
+     * hexes can become one plan. Seeds are written back on first use, so a file lays out the
+     * same map every time it is read.
+     */
+    public List<TerrainGenerator.Plan> terrainPlan;
     public List<ObjectiveSetup>  objectives;       // optional — capturable objects (stasis boxes, canisters, cargo)
     public VictoryConditions     victoryConditions;
     public ShuttleRules          shuttleRules    = new ShuttleRules();
@@ -91,6 +98,7 @@ public class ScenarioSpec {
         public List<String> retrieval;            // ["TRACTOR"|"TRANSPORTER"|"SHUTTLE_PICKUP"]; default TRANSPORTER
         public boolean      survivesDestruction = true; // survives its carrier's destruction (SH47.475)
         public int          side;                 // planet hex side 1..6 (A..F) it sits on; 0 = none (SH50.46)
+        public int          points;               // victory points to the side controlling it at scenario end (0 = none)
     }
 
     /** A planetary ring band: enterable asteroid-like hexes at [inner, outer] hex-distance from center. */
@@ -107,9 +115,27 @@ public class ScenarioSpec {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SideSpec {
         public String            faction;          // e.g. "Federation"
+        /**
+         * Where this side may set up, when the players place their own ships rather than the
+         * scenario fixing every hex. Null means the ships' own startHex values stand.
+         * <p>
+         * On the spec rather than in the session because the lobby broadcasts the spec, so the
+         * deployment screen needs nothing new to learn where a fleet may stand — and a written
+         * scenario can say "within six hexes of your own edge" instead of pinning each ship.
+         */
+        public MapRegion         deploymentZone;
         public String            name;             // display name, e.g. "Orion Pirates"
         public String            cartel;           // Orion cartel (G15.44); null = player picks it at COI
         public List<ShipSetup>   ships;
+        /**
+         * True when this side's ships are brought rather than listed — somebody's saved fleet
+         * stands here. Everything else about the side still applies: its ground, its faction if
+         * the scenario insists on one, whatever the victory conditions say about it.
+         * <p>
+         * This is what lets one scenario format cover both an authored battle and a pick-up
+         * game. A pick-up game is a scenario where every side says this and little else.
+         */
+        public boolean           bringYourOwn;
         public List<Reinforcement> reinforcements; // ships arriving later (optional)
         /** Map edges that are destruction zones for this side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT". */
         public java.util.Set<String> destructionEdges = new java.util.HashSet<>();
@@ -124,7 +150,7 @@ public class ScenarioSpec {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShipSetup {
         public String       faction;        // overrides side faction for this ship (e.g. "Lyran" on a Klingon side)
-        public String       hull;           // e.g. "CC", "DD+"
+        public String       type;           // the SSD Type line, e.g. "CC", "DD+"
         public String       shipName;       // scenario-specific name, e.g. "Kongo"
         public String       startHex;       // SFB CCRR notation, e.g. "0515"
         public String       startHeading;   // "A"–"F"

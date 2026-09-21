@@ -130,7 +130,7 @@ public class ScenarioLoaderTest {
         assertEquals("Federation", spec.sides.get(0).faction);
         assertEquals(2, spec.sides.get(0).ships.size());
         ScenarioSpec.ShipSetup enterprise = spec.sides.get(0).ships.get(0);
-        assertEquals("CA+", enterprise.hull);
+        assertEquals("CA+", enterprise.type);
         assertEquals("USS Enterprise", enterprise.shipName);
         assertEquals("1201", enterprise.startHex);
         assertEquals("D", enterprise.startHeading);
@@ -403,5 +403,193 @@ public class ScenarioLoaderTest {
      */
     private static void assumeTrue(String msg, boolean condition) {
         org.junit.Assume.assumeTrue(msg, condition);
+    }
+
+    /**
+     * The scout test bed (SCOUT_TEST): every ship must actually resolve, because
+     * ScenarioLoader skips an unknown hull with a log line rather than failing, and a
+     * silently missing scout would make the scenario useless for what it is for.
+     */
+    @Test
+    public void loadScoutTestScenario_bothScoutsAndConsortsPresent() throws Exception {
+        File scenarioFile = new File("../data/scenarios/scout_test.json");
+        assumeTrue("scout_test.json must exist", scenarioFile.exists());
+        ShipLibrary.loadAllSpecs("../data/factions");
+        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+
+        ScenarioSpec spec = ScenarioSpec.fromJson(scenarioFile);
+        List<List<Ship>> sideShips = ScenarioLoader.loadShips(spec);
+
+        assertEquals(2, sideShips.size());
+        assertEquals("both Federation ships resolved", 2, sideShips.get(0).size());
+        assertEquals("both Klingon ships resolved", 2, sideShips.get(1).size());
+
+        Ship deGama = sideShips.get(0).get(0);
+        assertEquals("USS De Gama", deGama.getName());
+        assertEquals("the Federation scout brings its channels (G24.11)",
+                8, deGama.getScoutChannels().size());
+
+        Ship peekaboo = sideShips.get(1).get(0);
+        assertEquals("IKS Peekaboo", peekaboo.getName());
+        assertEquals("the Klingon scout brings its channels",
+                4, peekaboo.getScoutChannels().size());
+
+        // Seekers to work on: both consorts carry racks, and the scouts are in range of them.
+        assertTrue("Federation consort has drone racks", hasDroneRack(sideShips.get(0).get(1)));
+        assertTrue("Klingon consort has drone racks", hasDroneRack(sideShips.get(1).get(1)));
+
+        int range = com.sfb.utilities.MapUtils.getRange(deGama, peekaboo);
+        assertTrue("scouts start inside the fifteen-hex function range (G24.2181), was " + range,
+                range <= 15);
+    }
+
+    private boolean hasDroneRack(Ship ship) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack)
+                return true;
+        return false;
+    }
+
+    /**
+     * S4.12 / E4.21: a photon at weapon status II has completed one arming turn, which means
+     * two points of warp energy are sitting in the tube. The warhead is made of that stored
+     * energy (E4.413), so recording the turn without the energy halves every overload built
+     * on top of it.
+     */
+    @Test
+    public void weaponStatusTwo_photonHoldsItsFirstTurnOfEnergy() {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        assumeTrue("ShipLibrary must load specs", ShipLibrary.isLoaded());
+        Ship ship = new Ship();
+        ship.init(FederationShips.getFedCa());
+
+        ScenarioLoader.applyWeaponStatus(ship, 2);
+
+        boolean sawPhoton = false;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.Photon)) continue;
+            sawPhoton = true;
+            com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) w;
+            assertEquals("one arming turn complete", 1, p.getArmingTurn());
+            assertEquals("and its two points in the tube", 2.0, p.getArmingEnergy(), 0.001);
+            assertFalse("not yet armed", p.isArmed());
+        }
+        assumeTrue("FedCA must carry photons", sawPhoton);
+    }
+
+    // -------------------------------------------------------------------------
+    // S4.32 — free photon overload energy at WS-III
+    // -------------------------------------------------------------------------
+
+    /** A scenario spec naming one ship at the given weapon status. */
+    private ScenarioSpec specFor(String shipName, int weaponStatus) {
+        ScenarioSpec spec = new ScenarioSpec();
+        ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
+        ScenarioSpec.ShipSetup setup = new ScenarioSpec.ShipSetup();
+        setup.shipName = shipName;
+        setup.weaponStatus = weaponStatus;
+        side.ships = java.util.List.of(setup);
+        spec.sides = java.util.List.of(side);
+        return spec;
+    }
+
+    private com.sfb.weapons.Photon tube(Ship ship, String designator) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.Photon && designator.equals(w.getDesignator()))
+                return (com.sfb.weapons.Photon) w;
+        throw new IllegalStateException("no photon " + designator);
+    }
+
+    private Ship federationCruiserAt(int weaponStatus) {
+        Ship ship = new Ship();
+        ship.init(FederationShips.getFedCa());
+        ship.setName("USS Enterprise");
+        ScenarioLoader.applyWeaponStatus(ship, weaponStatus);
+        return ship;
+    }
+
+    /**
+     * S4.32: the pool may be concentrated. A four-tube cruiser has eight free points, enough
+     * for two tubes at a full 100% overload while the other two stay standard.
+     */
+    @Test
+    public void freeOverload_canBeConcentratedOnSomeTubes() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.photonOverload.put("A", 4.0);
+        loadout.photonOverload.put("B", 4.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        assertEquals("full overload", 8.0, tube(ship, "A").getArmingEnergy(), 0.001);
+        assertEquals(16, (int) (tube(ship, "A").getArmingEnergy() * 2));
+        assertEquals(8.0, tube(ship, "B").getArmingEnergy(), 0.001);
+        assertEquals("untouched tubes stay standard", 4.0, tube(ship, "C").getArmingEnergy(), 0.001);
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, tube(ship, "C").getArmingType());
+        assertEquals(com.sfb.properties.WeaponArmingType.OVERLOAD, tube(ship, "A").getArmingType());
+    }
+
+    /** Spreading it evenly is the other extreme: every tube half-overloaded, 12 damage each. */
+    @Test
+    public void freeOverload_canBeSpreadEvenly() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            loadout.photonOverload.put(d, 2.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        for (String d : java.util.List.of("A", "B", "C", "D")) {
+            assertEquals(6.0, tube(ship, d).getArmingEnergy(), 0.001);
+            assertEquals("12 damage each", 12, (int) (tube(ship, d).getArmingEnergy() * 2));
+        }
+    }
+
+    /** S4.32: the pool is two points per tube and no more — asking for more is trimmed. */
+    @Test
+    public void freeOverload_isCappedAtTwoPointsPerTube() {
+        Ship ship = federationCruiserAt(3);
+        CoiLoadout loadout = new CoiLoadout();
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            loadout.photonOverload.put(d, 4.0);   // 16 asked for, 8 available
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 3));
+
+        double total = 0;
+        for (String d : java.util.List.of("A", "B", "C", "D"))
+            total += tube(ship, d).getArmingEnergy();
+        assertEquals("four tubes of standard arming plus the eight-point pool",
+                4 * 4.0 + 8.0, total, 0.001);
+    }
+
+    /** S4.32: prior-turn arming at WS-II carries no overload energy at all. */
+    @Test
+    public void freeOverload_isIgnoredBelowWeaponStatusThree() {
+        Ship ship = federationCruiserAt(2);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.photonOverload.put("A", 4.0);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 2));
+
+        com.sfb.weapons.Photon a = tube(ship, "A");
+        assertEquals("still just its first arming turn", 2.0, a.getArmingEnergy(), 0.001);
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, a.getArmingType());
+    }
+
+    /**
+     * S4.32 again, by the other door: the WS-2 arming-mode override used to commit a photon to
+     * overload with only four points in the tube, which E4.414 leaves unfirable.
+     */
+    @Test
+    public void weaponStatusTwo_overrideCannotStartAPhotonOverloaded() {
+        Ship ship = federationCruiserAt(2);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.weaponArmingModes.put("A", com.sfb.properties.WeaponArmingType.OVERLOAD);
+
+        ScenarioLoader.applyCoi(ship, loadout, specFor("USS Enterprise", 2));
+
+        com.sfb.weapons.Photon a = tube(ship, "A");
+        assertEquals(com.sfb.properties.WeaponArmingType.STANDARD, a.getArmingType());
+        assertTrue("and it is a torpedo that can actually be fired", a.isFirableOverload());
     }
 }

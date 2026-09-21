@@ -1,0 +1,46 @@
+{
+  "_comment": [
+    "A situation rather than a battle: the sides say what ground they hold and what winning",
+    "means, and the ships are whatever fleets the players bring. Sides marked bringYourOwn",
+    "wait for a saved fleet; everything else here applies to them once they arrive.",
+    "",
+    "Nothing fixes the terrain, so the host chooses it when the battle is assembled. A",
+    "situation whose ground is measured from something - see nivram_assault - names its own."
+  ],
+
+  "id": "border_patrol",
+  "name": "Border Patrol",
+  "year": 175,
+  "numPlayers": 2,
+  "description": "Two patrols meet along a disputed frontier. Neither side was looking for a battle, and neither is willing to be the one that turned away.",
+  "mapType": "STANDARD",
+  "mapCols": 42,
+  "mapRows": 32,
+  "lengthCondition": "STANDARD",
+
+  "sides": [
+    {
+      "name": "Patrol A",
+      "bringYourOwn": true,
+      "deploymentZone": { "shape": "BAND", "edge": "LEFT", "depth": 2 }
+    },
+    {
+      "name": "Patrol B",
+      "bringYourOwn": true,
+      "deploymentZone": { "shape": "BAND", "edge": "RIGHT", "depth": 2 }
+    }
+  ],
+
+  "victoryConditions": {
+    "type": "STANDARD",
+    "notes": "Standard Victory Conditions (S2.20). Both sides buy to the same point total, so the result is simply which patrol gave the better account of itself."
+  },
+
+  "specialRules": [
+    "Each side brings a fleet built to the agreed point total under the patrol scenario rules (S8.0).",
+    "Terrain is chosen by the host before the fleets are committed (S8.15)."
+  ],
+
+  "shuttleRules": { "warpBoosterPacks": true, "megapacks": false, "mrsShuttles": true, "pfs": false },
+  "commanderOptions": { "budgetPercent": 20, "maxDroneSpeed": 20, "allowTBombs": true, "allowCommandos": true }
+}

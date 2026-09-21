@@ -22,7 +22,7 @@ public class OrionLrTest {
 
     private void assertLr(Ship lr) {
         assertEquals(Faction.Orion, lr.getFaction());
-        assertEquals("LR", lr.getHullType());
+        assertEquals("LR", lr.getType());
         assertEquals(68, lr.getBattlePointValue());
         assertEquals(4, lr.getSizeClass());
         assertTrue("LR is nimble (C11)", lr.isNimble());

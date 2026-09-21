@@ -43,6 +43,20 @@ import com.sfb.weapons.Weapon;
 public class Game {
 
     /**
+     * Range in hexes at which a scout channel can act on or support another unit — lending EW
+     * (G24.2181), offensive EW (G24.2191), breaking a lock-on (G24.222), and identifying a
+     * seeker (G24.252) all share the same fifteen-hex limit.
+     */
+    static final int SCOUT_FUNCTION_RANGE = 15;
+
+    /**
+     * Range at which a drone still answers the unit controlling it (F3.42). A scout must be
+     * within it of that unit to draw one of its drones away (G24.234); the rule applies at
+     * the moment of the transfer only.
+     */
+    static final int DRONE_CONTROL_RANGE = 35;
+
+    /**
      * The four segments of each impulse, in order.
      * Actions are gated by the current phase: movement keys only work in MOVEMENT,
      * the fire dialog only opens in DIRECT_FIRE, etc.
@@ -54,6 +68,8 @@ public class Game {
         DIRECT_FIRE("Direct Fire"),
         REINFORCEMENT("Reinforcement"),
         DAC_CHOICE("DAC Choice"),
+        BLIND_CHOICE("Blind Choice"),
+        ATTRACT_CHOICE("Attraction Choice"),
         CONTROL_OVERFLOW("Control Overflow"),
         END_OF_IMPULSE("End of Impulse");
 
@@ -78,6 +94,12 @@ public class Game {
     private int mapCols = 42; // map width in hexes
     private int mapRows = 32; // map height in hexes
     private int maxTurns = 0; // 0 = no turn limit
+    // Victory scoring method (S2.20 STANDARD = A+B+C, S2.201 MODIFIED = B+C). Defaults to
+    // MODIFIED so a game not built from a scenario applies no step-A handicap.
+    private String victoryConditionsType = "MODIFIED";
+    // Sides that had a unit disengage (or surrender) by end of Turn 2 — they forfeit the
+    // step-A handicap (S2.20 A).
+    private final java.util.Set<String> fledByTurn2 = new java.util.HashSet<>();
     private Map<String, Set<String>> destructionEdgesByTeam = new HashMap<>(); // teamName → destruction edges
     private Map<String, Set<String>> destructionDirectionsByTeam = new HashMap<>(); // teamName → destruction directions
                                                                                     // (A–F) for accel disengage
@@ -141,8 +163,16 @@ public class Game {
     private final Set<String> firedPairsThisPhase = new HashSet<>();
     private ImpulsePhase reinforcementReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase dacChoiceReturnPhase = ImpulsePhase.ACTIVITY;
+    private ImpulsePhase blindChoiceReturnPhase = ImpulsePhase.ACTIVITY;
     private ImpulsePhase controlOverflowReturnPhase = ImpulsePhase.ACTIVITY;
     private final List<PendingDacChoice> pendingDacChoices = new ArrayList<>();
+    // A scout that fired blinding weapons picks which of its powered channels are blinded
+    // (G24.13/.131) — one pending choice per blind, resolved after any defender DAC choice.
+    private final List<PendingBlindChoice> pendingBlindChoices = new ArrayList<>();
+
+    // G24.235: a scout has tried to attract an unidentified shuttle and its owner must answer.
+    private final List<PendingAttractChoice> pendingAttractChoices = new ArrayList<>();
+    private ImpulsePhase attractChoiceReturnPhase = ImpulsePhase.ACTIVITY;
     private final List<PendingControlOverflow> pendingControlOverflows = new ArrayList<>();
     // UIM: tracks which disruptors on each ship fired under UIM this impulse.
     // Burnout is rolled once per ship at END_OF_IMPULSE (6E), not per firing.
@@ -210,6 +240,9 @@ public class Game {
         mapCols = scenario.mapCols > 0 ? scenario.mapCols : 42;
         mapRows = scenario.mapRows > 0 ? scenario.mapRows : 32;
         maxTurns = scenario.maxTurns >= 0 ? scenario.maxTurns : 0;
+        victoryConditionsType = scenario.victoryConditions != null && scenario.victoryConditions.type != null
+                ? scenario.victoryConditions.type : "STANDARD"; // SFB default is Standard (S2.20)
+        fledByTurn2.clear();
         destructionEdgesByTeam.clear();
         destructionDirectionsByTeam.clear();
         if (scenario.sides != null) {
@@ -310,7 +343,9 @@ public class Game {
         }
         awaitingAllocation = true;
         for (Ship ship : ships) {
-            ship.getLabs().resetForTurn();
+            // Labs need no turn reset: a box's availability is worked out from the impulse
+            // it was last used (G4.22, G4.451), so nothing has to be handed back. The old
+            // reset also resurrected boxes that had been shot off.
             ship.resetHetsThisTurn();
         }
         // No engaged ships left to allocate (e.g. all disengaged) — don't stall
@@ -342,6 +377,11 @@ public class Game {
      */
     public ActionResult submitAllocation(Ship ship, Energy allocation) {
         ship.allocateEnergy(allocation);
+        // C10.11/C10.12: EM costs six hexes of movement for a normal ship, three for a
+        // nimble one, on top of ordinary movement. Paying buys only the RIGHT to announce
+        // EM this turn (C10.3) - it does not begin it, and the energy is lost either way.
+        double emCost = ship.getPerformanceData().getErraticCost();
+        ship.setPaidForEm(emCost > 0 && allocation.getErraticManuvers() >= emCost);
         // Pass cloak payment flag to the device before beginImpulses evaluates it
         if (ship.getCloakingDevice() != null)
             ship.getCloakingDevice().setCostPaid(allocation.isCloakPaid());
@@ -396,6 +436,22 @@ public class Game {
                 voidWildWeasel(ship);
             }
         }
+        // C10.313/C10.35: EM carries into a new turn only if its cost was paid again in
+        // the intervening Energy Allocation; otherwise it lapses. Either way the
+        // once-per-turn start (C10.31) is available again.
+        for (Ship emShip : ships) {
+            if (emShip.isUsingEm() && !emShip.hasPaidForEm())
+                emShip.dropEm();
+            emShip.resetEmForNewTurn();
+        }
+        // C10.131: a shuttle's point of speed is committed one turn at a time, so the
+        // commitment lapses here and EM lapses with it unless it is made again.
+        for (com.sfb.objects.shuttles.Shuttle emShuttle : activeShuttles) {
+            emShuttle.dropEm();
+            emShuttle.resetEmForNewTurn();
+            emShuttle.clearEmSpeedCommitment();
+        }
+
         lockOnResolver.performLockOnRolls();
         List<String> orphanLog = seekerControl.releaseOrphanedDrones();
         if (!orphanLog.isEmpty())
@@ -409,6 +465,7 @@ public class Game {
         movedThisImpulse.clear();
         prevLocations.clear();
         movedShuttlesThisImpulse.clear();
+        resolveChannelLends(); // G24.21: apply scout EW lends for the turn's first impulse
         // The Initial Activity Phase only hosts tractor rotations (G7.7); skip the
         // empty phase (and its all-players Ready round-trip) when nothing is held.
         currentPhase = tractorResolver.anyTractorLinksExist()
@@ -459,6 +516,138 @@ public class Game {
         return lockOnResolver.resolveFlashcube(cloaked);
     }
 
+    /**
+     * C10.3: announce that a ship will start or stop Erratic Maneuvers. Announced in the
+     * Final Movement Actions Stage, it takes effect at the END of this impulse (C10.311) -
+     * see {@code Unit.applyEmAnnouncement}, driven from Stage 6E.
+     * <p>
+     * Starting requires that the cost was paid at allocation (C10.11) and that EM has not
+     * already been begun this turn (C10.31): a ship that stops may not restart until the
+     * next turn (C10.32).
+     */
+    public ActionResult announceErraticManeuvers(Unit unit, boolean starting) {
+        if (starting) {
+            if (unit.isUsingEm())
+                return ActionResult.fail(unit.getName() + " is already using Erratic Maneuvers");
+            String ineligible = emIneligibility(unit);
+            if (ineligible != null)
+                return ActionResult.fail(ineligible);
+            if (unit.hasStartedEmThisTurn())
+                return ActionResult.fail(unit.getName()
+                        + " may only begin Erratic Maneuvers once per turn (C10.31)");
+        } else if (!unit.isUsingEm() && !unit.hasPendingEmAnnouncement(getAbsoluteImpulse())) {
+            return ActionResult.fail(unit.getName() + " is not using Erratic Maneuvers");
+        }
+        unit.announceEm(starting, getAbsoluteImpulse());
+        return ActionResult.ok(unit.getName() + (starting ? " announces" : " announces the end of")
+                + " Erratic Maneuvers — in force at the end of this impulse (C10.311)");
+    }
+
+    /**
+     * Why this unit may not begin EM, or null if it may. A ship must have bought the energy
+     * (C10.11); a shuttle must have committed its point of speed (C10.13), and some
+     * shuttles may never use EM at all.
+     */
+    private String emIneligibility(Unit unit) {
+        if (unit instanceof Ship)
+            return ((Ship) unit).hasPaidForEm() ? null
+                    : unit.getName() + " did not pay for Erratic Maneuvers in energy"
+                            + " allocation (C10.11)";
+        if (unit instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle sh = (com.sfb.objects.shuttles.Shuttle) unit;
+            // C10.132: a shuttle on a seeking course cannot use EM - it is committed to
+            // running its target down. C10.17 says the same of seeking weapons generally.
+            if (sh instanceof Seeker)
+                return unit.getName() + " is on a seeking course and cannot use Erratic"
+                        + " Maneuvers (C10.132)";
+            // C10.133: a Wild Weasel is imitating a ship, not flying evasively.
+            if (sh instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+                return unit.getName() + " is a Wild Weasel and cannot use Erratic"
+                        + " Maneuvers (C10.133)";
+            return sh.isEmSpeedCommitted() ? null
+                    : unit.getName() + " has not given up a point of speed for Erratic"
+                            + " Maneuvers (C10.13)";
+        }
+        return unit.getName() + " cannot use Erratic Maneuvers";
+    }
+
+    /**
+     * C10.13/C10.131: record a shuttle's commitment of one movement point to EM for this
+     * turn. Made during energy allocation for a shuttle already on the map, or on the
+     * impulse of launch for one that is not. It cannot be taken back within the turn.
+     */
+    public ActionResult commitShuttleEmSpeed(com.sfb.objects.shuttles.Shuttle shuttle) {
+        String ineligible = emIneligibility(shuttle);
+        // Only the "not committed yet" answer should be overridden here; a seeking shuttle
+        // or a weasel may not commit at all.
+        if (ineligible != null && !ineligible.contains("C10.13)"))
+            return ActionResult.fail(ineligible);
+        if (shuttle.isEmSpeedCommitted())
+            return ActionResult.ok(shuttle.getName() + " has already committed to Erratic"
+                    + " Maneuvers this turn");
+        shuttle.commitEmSpeed();
+        return ActionResult.ok(shuttle.getName() + " gives up one point of speed to Erratic"
+                + " Maneuvers this turn — maximum speed " + shuttle.effectiveMaxSpeed()
+                + " (C10.13); it cannot be taken back this turn (C10.131)");
+    }
+
+    /**
+     * Pay for {@code uses} transporter activations, drawing on reserve power if the energy
+     * banked at allocation will not cover them.
+     * <p>
+     * A use costs 0.2 and batteries are whole points, so a shortfall draws one point of
+     * reserve power (H7.x) into the bank - which buys five uses, and the remainder stays
+     * banked for the rest of the turn rather than being lost. Tractors work the same way
+     * (G7.15), and a ship that allocated nothing to transporters can still beam if it has
+     * the batteries to pay as it goes.
+     *
+     * @return false if the ship cannot pay, having spent nothing
+     */
+    boolean spendTransporterEnergy(Ship ship, int uses) {
+        com.sfb.systemgroups.Transporters t = ship.getTransporters();
+        if (t.getAvailableTrans() == 0 || uses <= 0)
+            return uses <= 0;
+        if (transporterUsesAvailable(ship) < uses)
+            return false;
+        for (int i = 0; i < uses; i++) {
+            if (t.useTransporter(getAbsoluteImpulse()))
+                continue;
+            // Bank short: buy a point of reserve power and try that use again.
+            if (!ship.getPowerSystems().useBattery(1))
+                return false;
+            t.bankEnergy(1.0);
+            if (!t.useTransporter(getAbsoluteImpulse()))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * The ECCM {@code actor} can answer with — allocated plus lent, and inactive without
+     * fire control (D6.32). Public so a fire preview can show the same subtraction the
+     * fire itself makes.
+     */
+    public int activeEccm(Ship actor) {
+        return actor.isActiveFireControl()
+                ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
+    }
+
+    /**
+     * How many transporter activations this ship could still pay for, counting banked
+     * energy and whole points of battery alike, and capped by working transporters.
+     */
+    public int transporterUsesAvailable(Ship ship) {
+        com.sfb.systemgroups.Transporters t = ship.getTransporters();
+        // Boxes free to work THIS impulse, not merely undamaged: a box used earlier is
+        // still cooling off (next turn or eight impulses, whichever is longer).
+        int freeBoxes = t.freeBoxes(getAbsoluteImpulse());
+        if (freeBoxes == 0)
+            return 0;
+        double energy = t.getBankedEnergy() + ship.getPowerSystems().getBatteryPower();
+        int affordable = (int) (energy / com.sfb.systemgroups.Transporters.energyPerUse() + 1e-6);
+        return Math.min(freeBoxes, affordable);
+    }
+
     /** True when either unit holds the other in a tractor beam (G7.412). */
     boolean tractorLinkBetween(Ship a, com.sfb.objects.Unit b) {
         return tractorResolver.linkExistsBetween(a, b);
@@ -475,33 +664,103 @@ public class Game {
     }
 
     /**
-     * D6.34 net ECM shift for a tractor/transporter action (D6.372), with the
-     * exemptions that make it zero: non-ship targets have no ECM; friendly
-     * units ignore generated/lent EW (D6.373/D6.3146); a tractor link makes
-     * lock-on automatic in both directions (G7.412).
+     * D6.34 Step 5: the net ECM shift for a point total — the square root with all
+     * fractions dropped, which is what the rulebook's chart tabulates (1-3 = 1, 4-8 = 2,
+     * 9-15 = 3, ...). So three points of natural ECM is still only +1 on the die, and it
+     * takes a fourth to reach +2.
+     * <p>
+     * The single home for that conversion. ECCM is subtracted from the POINTS before
+     * calling this (D6.34 Step 3), never from the shift — which is why enough ECCM erases
+     * the roll rather than merely shrinking it (Step 4).
+     */
+    public static int netEcmShift(int netPoints) {
+        return (int) Math.floor(Math.sqrt(Math.max(0, netPoints)));
+    }
+
+    /**
+     * The ECM bearing on {@code actor}'s action against {@code target}, split by the five
+     * sources of D6.314 so that rules which discriminate between them — D6.3146 above all
+     * — can do so without re-deriving the sum.
+     */
+    public com.sfb.properties.EwBreakdown ewAgainst(Ship actor, com.sfb.objects.Marker target) {
+        // D6.3143: asteroid and ring hexes on the line (P3.33, P2.223). The other natural
+        // sources D6.3143 names - Erratic Maneuvers, atmospheres, small target modifiers -
+        // are not modelled yet; when they are, they belong here.
+        int natural = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
+        // D6.3145: an enemy scout's O-EW degrades the ACTOR's systems (G24.219), so it
+        // counts whatever the actor points them at.
+        int offensive = actor.getOffensiveEw();
+
+        // C10.41/C10.412: Erratic Maneuvers produce four points of ECM, and C10.412 is
+        // explicit that they count as a NATURAL source (D6.3143) rather than against the
+        // self-generated or lending limits - so they are also not ignorable between
+        // friendly units (D6.3146). Four points is the +2 die shift C10.42 describes,
+        // which falls out of the Step 5 chart without special-casing.
+        if (target instanceof Unit && ((Unit) target).isUsingEm())
+            natural += 4;                       // C10.413: fire aimed AT the EM unit
+        if (actor.isUsingEm())
+            natural += 4;                       // C10.414: and fire the EM unit makes itself
+
+        // P2.52: shooting at a planet's surface picks up two points of ground clutter. It
+        // belongs to the target rather than the path - it is the surface itself that is
+        // cluttered - and so it lands in `natural`, where a friendly unit cannot ignore it
+        // (D6.3146). The rule excepts ground bases, which are not modelled (P2.7).
+        if (target instanceof Terrain) {
+            TerrainType tt = ((Terrain) target).getTerrainType();
+            if (tt == TerrainType.PLANET || tt == TerrainType.GAS_GIANT)
+                natural += 2;
+        }
+
+        int generated = 0, builtIn = 0, lent = 0;
+        if (target instanceof Ship) {
+            Ship t = (Ship) target;
+            generated = t.getEcmAllocated();
+            builtIn = t.getStealthEcm();          // Orion G15.8
+            lent = t.getLentEcmTotal();           // scouts AND any weasel, capped at six
+        } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
+            builtIn = ((com.sfb.objects.shuttles.Fighter) target).getEcm(); // J4.47, two points
+        }
+        // A probe canister, a drone and an admin shuttle have no EW of their own at all.
+        return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
+    }
+
+    /**
+     * D6.34 net ECM shift for a tractor / transporter / SFG action (D6.371, D6.372).
+     * <p>
+     * D6.3146 is the rule that shapes this: against a FRIENDLY unit you ignore its
+     * GENERATED (D6.3141), BUILT-IN (D6.3142) and LENT (D6.3144) ECM, but you do NOT ignore
+     * NATURAL sources (D6.3143) or OFFENSIVE ECM from an enemy scout (D6.3145). Asteroids
+     * are a natural source (P3.33), so hauling your own shuttle out of a field is genuinely
+     * harder than hauling it out of open space.
+     * <p>
+     * Enough ECCM removes the roll entirely rather than merely improving it (D6.34 Step 4),
+     * and ECCM is inactive without fire control (D6.32).
      */
     int d637Shift(Ship actor, com.sfb.objects.Marker target) {
-        // P3.33: asteroid/ring hexes between actor and target add natural ECM
-        // along the line of fire.
-        int terrainEcm = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
-        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() : 0;
+        // G7.412 / D6.371: once a beam is attached, lock-on is automatic in both
+        // directions, so a held unit is not re-acquired every impulse.
+        if (target instanceof Unit && tractorLinkBetween(actor, (Unit) target))
+            return 0;
 
-        if (target instanceof com.sfb.objects.Objective) {
-            // SH35.452: a probe canister has no EW of its own, but tractoring it
-            // through a gas-giant ring means the beam still has to burn through
-            // the ring's natural ECM — the whole reason the terrain ECM exists.
-            return (int) Math.floor(Math.sqrt(Math.max(0, terrainEcm - eccm)));
+        int ecm = ewAgainst(actor, target).totalAgainst(isFriendlyD637Target(actor, target));
+        int eccm = actor.isActiveFireControl() ? actor.getEccmAllocated() + actor.getLentEccm() : 0;
+        return netEcmShift(ecm - eccm);
+    }
+
+    /**
+     * Whether a D6.37 action is being used on one's own side, for the D6.3146 exemptions.
+     * A free canister belongs to nobody; it has no EW of its own either, so the answer
+     * makes no difference to the sum.
+     */
+    private boolean isFriendlyD637Target(Ship actor, com.sfb.objects.Marker target) {
+        if (target instanceof Ship)
+            return isSameTeam(actor, (Ship) target);
+        if (target instanceof Unit && actor.getOwner() != null) {
+            Player owner = ((Unit) target).getOwner();
+            return owner != null && actor.getOwner().getTeamName() != null
+                    && actor.getOwner().getTeamName().equals(owner.getTeamName());
         }
-        if (!(target instanceof Ship))
-            return 0; // drones, shuttles: no EW at all
-        Ship tship = (Ship) target;
-        if (isSameTeam(actor, tship))
-            return 0;
-        if (tractorLinkBetween(actor, tship))
-            return 0;
-        int targetEcm = tship.getEcmAllocated() + tship.getWwEcmBonus()
-                + tship.getStealthEcm() + terrainEcm;
-        return (int) Math.floor(Math.sqrt(Math.max(0, targetEcm - eccm)));
+        return false;
     }
 
     /**
@@ -653,8 +912,7 @@ public class Game {
                     lastInternalDamageLog = new ArrayList<>();
                     damageResolver.resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                        currentPhase = ImpulsePhase.ACTIVITY;
+                    settleDamagePhase(ImpulsePhase.ACTIVITY);
                 }
                 break;
             case ACTIVITY:
@@ -671,8 +929,7 @@ public class Game {
                     lastInternalDamageLog = new ArrayList<>();
                     damageResolver.resolveInternalDamage();
                     log.addAll(lastInternalDamageLog);
-                    if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                        currentPhase = ImpulsePhase.END_OF_IMPULSE;
+                    settleDamagePhase(ImpulsePhase.END_OF_IMPULSE);
                 }
                 break;
             case REINFORCEMENT:
@@ -681,18 +938,32 @@ public class Game {
                 lastInternalDamageLog = new ArrayList<>();
                 damageResolver.resolveInternalDamage();
                 log.addAll(lastInternalDamageLog);
-                if (currentPhase != ImpulsePhase.DAC_CHOICE)
-                    currentPhase = reinforcementReturnPhase;
+                settleDamagePhase(reinforcementReturnPhase);
                 break;
             case DAC_CHOICE:
                 // DAC_CHOICE is exited via submitDacChoice(), not ADVANCE_PHASE.
                 return ActionResult.fail("A DAC system choice is pending — submit your selection first");
+            case BLIND_CHOICE:
+                // BLIND_CHOICE is exited via submitBlindChoice(), not ADVANCE_PHASE.
+                return ActionResult.fail("A scout channel blind choice is pending — submit your selection first");
             case CONTROL_OVERFLOW:
                 // CONTROL_OVERFLOW is exited via submitControlOverflowChoice(), not
                 // ADVANCE_PHASE.
                 return ActionResult.fail("A control channel overflow is pending — release or transfer a seeker first");
 
             case END_OF_IMPULSE:
+                // 6E: C10.311/C10.32 - an EM announcement made this impulse comes into
+                // force (or ceases) HERE, in the Post-Combat Segment, never at the moment
+                // it was announced. A ship shot at during its announcing impulse gets no
+                // benefit from it.
+                List<Unit> emUnits = new ArrayList<>(ships);
+                emUnits.addAll(activeShuttles);
+                for (Unit emUnit : emUnits)
+                    if (emUnit.applyEmAnnouncement(getAbsoluteImpulse()))
+                        log.add("  " + emUnit.getName() + (emUnit.isUsingEm()
+                                ? " begins Erratic Maneuvers (C10.311)"
+                                : " ceases Erratic Maneuvers (C10.32)"));
+
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {
                     int eoi = clock.getImpulse();
@@ -723,6 +994,7 @@ public class Game {
                     movedThisImpulse.clear();
                     prevLocations.clear();
                     movedShuttlesThisImpulse.clear();
+                    resolveChannelLends(); // G24.21: re-apply scout EW lends (reflects blinding)
 
                     // TAC earn on Speed-4 schedule: impulses 2, 8, 16, 24 (C5.231)
                     int localImp = clock.getLocalImpulse();
@@ -785,6 +1057,9 @@ public class Game {
                     }
                 }
                 currentPhase = ImpulsePhase.MOVEMENT;
+                // A function suspended during the impulse (cloak, Wild Weasel, a blinded
+                // channel) may have dropped a scout's +6 control capacity (G24.242).
+                checkControlOverflow();
                 break;
         }
         // Secondary effects of units leaving play (chasers losing tracking)
@@ -813,6 +1088,684 @@ public class Game {
 
     public ImpulsePhase getCurrentPhase() {
         return currentPhase;
+    }
+
+    /** Victory scoring method for this game: "STANDARD" (S2.20) or "MODIFIED" (S2.201). */
+    public String getVictoryConditionsType() { return victoryConditionsType; }
+
+    public void setVictoryConditionsType(String type) {
+        this.victoryConditionsType = type != null ? type : "MODIFIED";
+    }
+
+    /**
+     * Record that {@code team} had a unit disengage or surrender by end of Turn 2 — it
+     * forfeits the step-A handicap (S2.20 A). Called from the disengagement path.
+     */
+    public void noteFledByTurn2(String team) {
+        if (team != null)
+            fledByTurn2.add(team);
+    }
+
+    /**
+     * Recompute EW lent between ships via scout channels (G24.21). A channel lends its EW
+     * only while operational (powered, unblinded, undamaged — G24.13/.14), and lending to
+     * another unit requires the scout to hold a lock-on to it (G24.218) and that unit to be
+     * within fifteen hexes (G24.2181). D6.627 adds that the lock-on must be a real one: a
+     * lock-on held by an attached tractor (G7.97) will serve direct-fire weapons but not
+     * EW lending. Self-protection (G24.28) needs none of this, but cannot lend ECCM to
+     * oneself (G24.283).
+     * <p>
+     * Recomputed every impulse, so a function whose conditions lapse — the recipient leaves
+     * range, the lock-on drops, fire control goes passive, a cloak or Wild Weasel comes up —
+     * suspends itself and resumes when they are restored (G24.333, G24.2121).
+     */
+    public void resolveChannelLends() {
+        int impulse = clock.getImpulse();
+        for (Ship s : ships) {
+            s.clearLentEw();
+            s.clearOffensiveEw();
+        }
+        for (Ship scout : ships) {
+            // G24.24's +6 is suspended and restored by the same conditions as the other
+            // functions (G24.16/.333), so it is recomputed here rather than only when a
+            // channel is blinded.
+            scout.refreshScoutControlBonus(impulse);
+            for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels()) {
+                if (c.getLendTarget() == null || !c.isOperational(impulse))
+                    continue;
+                if (c.getLentEcm() == 0 && c.getLentEccm() == 0)
+                    continue;
+                Ship recipient = null;
+                for (Ship s : ships)
+                    if (s.getName().equals(c.getLendTarget())) { recipient = s; break; }
+                if (recipient == null)
+                    continue;
+                boolean self = recipient == scout;
+                // A disengaged ship keeps its entry but leaves the map (C7.1) — it is no
+                // longer a unit any channel can reach (G24.2181).
+                if (!self && (recipient.getLocation() == null || scout.getLocation() == null))
+                    continue;
+                // G24.16: a cloak or an operating Wild Weasel suspends the channel's function
+                // while it lasts; self-protection survives a cloak (G24.28).
+                if (scout.scoutChannelBlockReason(self) != null)
+                    continue;
+                if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW) {
+                    // O-EW jams an enemy's fire (G24.219): active FC, a lock-on, and the enemy
+                    // within fifteen hexes (G24.2191).
+                    if (scout.isActiveFireControl() && scout.hasLockOn(recipient)
+                            && getRange(scout, recipient) <= SCOUT_FUNCTION_RANGE)
+                        recipient.addOffensiveEw(c.getLentEcm());       // ECM only, capped 6 (D6.3145)
+                } else if (self) {
+                    recipient.addLentEw(c.getLentEcm(), 0);             // G24.28/.283: self, ECM only, no FC/lock-on
+                } else if (scout.isActiveFireControl() && scout.hasLockOn(recipient)
+                        && !scout.isTractorOnlyLockOn(recipient)
+                        && getRange(scout, recipient) <= SCOUT_FUNCTION_RANGE) {
+                    // G24.161: active FC + lock-on; G24.2181: recipient within fifteen hexes.
+                    // D6.627: and not a lock-on held by tractor alone (G7.97) — a beam is
+                    // enough to shoot along, not enough to lend EW through.
+                    recipient.addLentEw(c.getLentEcm(), c.getLentEccm());
+                }
+            }
+        }
+    }
+
+    /**
+     * One function per channel per turn (G24.12): returns a rejection message if this channel
+     * is already committed to a function other than {@code wanted}, else null.
+     */
+    private String functionConflict(com.sfb.weapons.ScoutChannel c,
+                                    com.sfb.weapons.ScoutChannel.Function wanted) {
+        com.sfb.weapons.ScoutChannel.Function f = c.getTurnFunction();
+        if (f == com.sfb.weapons.ScoutChannel.Function.NONE || f == wanted)
+            return null;
+        String busy = f == com.sfb.weapons.ScoutChannel.Function.LEND_EW ? "lending EW"
+                : f == com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON ? "breaking drone lock-ons"
+                : f == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW ? "jamming an enemy (offensive EW)"
+                : f == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS ? "controlling seekers"
+                : f == com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES ? "attracting a drone"
+                : "identifying seekers";
+        return "Channel " + c.getDesignator() + " is " + busy
+                + " this turn — a channel performs one function per turn (G24.12)";
+    }
+
+    /**
+     * Aim one scout channel's EW lend for the turn (G24.21). The channel lends any split of
+     * ECM/ECCM totalling no more than its allocated pool (G24.211) to a single friendly unit
+     * it holds a lock-on to (G24.218), or to itself (ECM only, G24.283). The split can be
+     * changed during the turn; a 0/0 request clears the assignment. Re-resolves immediately.
+     */
+    public ActionResult assignChannelLend(Ship scout, String channelDesignator,
+                                          String targetName, int ecm, int eccm) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+
+        int wantEcm = Math.max(0, ecm);
+        int wantEccm = Math.max(0, eccm);
+
+        // Clearing the lend (0/0) needs no target.
+        if (wantEcm + wantEccm == 0) {
+            channel.clearLend();
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
+        }
+
+        Ship target = null;
+        for (Ship s : ships)
+            if (s.getName().equals(targetName)) {
+                target = s;
+                break;
+            }
+        if (target == null)
+            return ActionResult.fail("No unit named '" + targetName + "'");
+
+        boolean self = target == scout;
+        if (self)
+            wantEccm = 0; // G24.283: a scout cannot lend ECCM to itself
+        // Lending positive EW to an enemy is offensive EW (G24.219) — deferred.
+        if (!self && scout.getOwner() != null && target.getOwner() != null && !isSameTeam(scout, target))
+            return ActionResult.fail("A scout can only lend EW to a friendly unit or itself"
+                    + " (offensive EW G24.219 not yet supported)");
+
+        int req = wantEcm + wantEccm;
+        if (req == 0) { // e.g. an ECCM-only lend to self — nothing left to lend
+            channel.clearLend(); // the channel's points are dropped and lost (G24.2122)
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " lend cleared");
+        }
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.LEND_EW);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        // G24.282: only ONE channel may self-protect (lend EW to the scout itself).
+        if (self)
+            for (com.sfb.weapons.ScoutChannel other : scout.getScoutChannels())
+                if (other != channel && scout.getName().equals(other.getLendTarget()))
+                    return ActionResult.fail("Only one channel may self-protect (G24.282) — channel "
+                            + other.getDesignator() + " already is");
+        // A single channel lends at most 6 EW, ECM+ECCM combined (G24.2112).
+        if (req > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " EW points (G24.2112)");
+        // Points drawn from the remaining pool (G24.2122): only increases cost. If the channel
+        // keeps the same target, reducing one kind of EW just drops those points (lost, no
+        // refund); if it is retargeted, its old points are all dropped and the new lend is
+        // drawn fresh (a scout cannot shift lent EW from one unit to another, G24.2123).
+        boolean sameTarget = targetName.equals(channel.getLendTarget());
+        int draw = sameTarget
+                ? Math.max(0, wantEcm - channel.getLentEcm()) + Math.max(0, wantEccm - channel.getLentEccm())
+                : wantEcm + wantEccm;
+        if (draw > scout.getScoutEwRemaining())
+            return ActionResult.fail("Scout has only " + scout.getScoutEwRemaining()
+                    + " EW points left; this needs " + draw
+                    + " (dropped points are lost, G24.2122)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.LEND_EW); // commits the channel (G24.12)
+        channel.setLend(targetName, wantEcm, wantEccm);
+        scout.spendScoutEw(draw);
+        resolveChannelLends();
+
+        // Lending to another unit needs active fire control and a lock-on (G24.161) with the
+        // recipient within fifteen hexes (G24.2181); until all three hold the assignment is
+        // parked and applies on its own once they do (G24.2121). Self-protection needs none
+        // of them (G24.28).
+        if (!self && (!scout.isActiveFireControl() || !scout.hasLockOn(target)
+                || getRange(scout, target) > SCOUT_FUNCTION_RANGE))
+            return ActionResult.ok("Channel " + channelDesignator + " assigned to " + targetName
+                    + " — inactive until you have active fire control, a lock-on, and "
+                    + targetName + " within " + SCOUT_FUNCTION_RANGE + " hexes (G24.161/.2181)");
+        return ActionResult.ok("Channel " + channelDesignator + (self ? " self-protecting with " : " lending ")
+                + wantEcm + " ECM" + (self ? "" : " / " + wantEccm + " ECCM to " + targetName));
+    }
+
+    /**
+     * Commit one scout channel to offensive EW (O-EW) against an enemy unit for the turn
+     * (G24.219). O-EW jams the target's fire control — it adds to the effective ECM of
+     * everything the target shoots at, and the target counters with its own ECCM. Needs the
+     * enemy within 15 hexes with a lock-on (G24.2191); it must be a ship/base/PF, not a seeker
+     * or shuttle (G24.2192). ECM only (G24.2195). At most 6 through one channel, 6 total per
+     * scout (G24.219), and 6 on the enemy from all sources (D6.3145). Drawn from the EW pool;
+     * the amount can be raised during the turn (dropped points are lost, G24.2122). 0 clears it.
+     */
+    public ActionResult assignOffensiveEw(Ship scout, String channelDesignator, String enemyName, int points) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+
+        int want = Math.max(0, points);
+        if (want == 0) { // clearing drops the channel's O-EW — lost, not refunded (G24.2122)
+            channel.clearLend();
+            resolveChannelLends();
+            return ActionResult.ok("Channel " + channelDesignator + " offensive EW cleared");
+        }
+        if (want > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A channel can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " O-EW points (G24.2112)");
+
+        Ship target = null;
+        for (Ship s : ships)
+            if (s.getName().equals(enemyName)) {
+                target = s;
+                break;
+            }
+        if (target == null) // seekers/shuttles aren't ships → excluded (G24.2192)
+            return ActionResult.fail("No enemy ship/base/PF named '" + enemyName + "'");
+        if (target == scout)
+            return ActionResult.fail("A scout cannot jam itself");
+        if (isSameTeam(scout, target))
+            return ActionResult.fail(enemyName + " is friendly — offensive EW is enemy-only (G24.219)");
+        int range = getRange(scout, target);
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(enemyName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.2191)");
+
+        // G24.219: a scout may lend at most 6 O-EW total across all its channels.
+        int otherOEW = 0;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c != channel && c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW)
+                otherOEW += c.getLentEcm();
+        if (otherOEW + want > com.sfb.weapons.ScoutChannel.MAX_LEND)
+            return ActionResult.fail("A scout can lend at most " + com.sfb.weapons.ScoutChannel.MAX_LEND
+                    + " O-EW total (G24.219); " + otherOEW + " already committed");
+
+        // Pool draw (G24.2122): only increases cost; retarget drops the old jamming and draws fresh.
+        boolean sameTarget = enemyName.equals(channel.getLendTarget());
+        int draw = sameTarget ? Math.max(0, want - channel.getLentEcm()) : want;
+        if (draw > scout.getScoutEwRemaining())
+            return ActionResult.fail("Scout has only " + scout.getScoutEwRemaining()
+                    + " EW points left; this needs " + draw + " (dropped points are lost, G24.2122)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.OFFENSIVE_EW);
+        channel.setLend(enemyName, want, 0); // ECM only (G24.2195)
+        scout.spendScoutEw(draw);
+        resolveChannelLends();
+
+        if (!scout.isActiveFireControl() || !scout.hasLockOn(target))
+            return ActionResult.ok("Channel " + channelDesignator + " assigned to jam " + enemyName
+                    + " — inactive until you have active fire control and a lock-on (G24.2191)");
+        return ActionResult.ok("Channel " + channelDesignator + " jamming " + enemyName
+                + " with " + want + " offensive EW (G24.219)");
+    }
+
+    /**
+     * Commit a scout channel to controlling seekers (G24.24): while assigned and operational it
+     * adds +6 to the scout's seeker-control capacity. Only one channel per scout may do this
+     * (G24.24), and it is one function per turn (G24.241). Committing raises capacity, so it
+     * never triggers overflow; losing it (blinding, G24.242) is handled where blinds resolve.
+     */
+    public ActionResult assignControlSeekers(Ship scout, String channelDesignator) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+        if (!channel.isFunctional())
+            return ActionResult.fail("That scout channel is destroyed");
+        if (!channel.isPowered())
+            return ActionResult.fail("That scout channel is not powered this turn (G24.14)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        // G24.24: only one channel per scout may control seekers.
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c != channel && c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS)
+                return ActionResult.fail("Channel " + c.getDesignator()
+                        + " is already controlling seekers — only one channel per scout (G24.24)");
+
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS);
+        scout.refreshScoutControlBonus(clock.getImpulse());
+        return ActionResult.ok("Channel " + channelDesignator + " controlling seekers — +"
+                + com.sfb.weapons.ScoutChannel.CONTROL_SEEKERS_BONUS + " seeker-control capacity (G24.24)");
+    }
+
+    /**
+     * Attempt to break an enemy drone's lock-on with a scout channel (G24.22). Requires
+     * active fire control and a lock-on to the drone (G24.161), the drone within 15 hexes
+     * (G24.222), and an operational channel not already used for another function this turn
+     * (G24.12). A channel gets three attempts per turn and at most one per drone per impulse
+     * (G24.221). Rolls 1d6; on 1–3 the drone loses tracking and is removed from play (G24.223).
+     */
+    public ActionResult breakDroneLockOn(Ship scout, String channelDesignator, String droneName) {
+        return breakDroneLockOn(scout, channelDesignator, droneName,
+                new com.sfb.utilities.DiceRoller().rollOneDie());
+    }
+
+    /** Package-private seam: the break resolution with a supplied die (G24.223), for tests. */
+    ActionResult breakDroneLockOn(Ship scout, String channelDesignator, String droneName, int roll) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(droneName)) {
+                seeker = s;
+                break;
+            }
+        if (seeker == null)
+            return ActionResult.fail("No seeker named '" + droneName + "'");
+        // The function works on drones AND seeking shuttles (G24.22 / FD1.8); plasma torpedoes
+        // and warp-seekers that have locked on are immune (G24.225).
+        if (seeker instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("Plasma torpedoes are immune to this (G24.225)");
+        if (seeker.isWarpSeeker())
+            return ActionResult.fail("Warp-seeking drones that have locked on are immune (G24.225)");
+        Unit unit = (Unit) seeker;
+        Unit controller = seeker.getController();
+        if (controller instanceof Ship && isSameTeam(scout, (Ship) controller))
+            return ActionResult.fail(droneName + " is a friendly seeker");
+        if (!scout.hasLockOn(unit))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
+        int range = getRange(scout, unit);
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.222)");
+
+        // Attempt budget (G24.221): three per turn, at most one per drone per impulse.
+        if (channel.getBreakAttempts() >= com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS)
+            return ActionResult.fail("Channel " + channelDesignator + " has used all "
+                    + com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS + " attempts this turn (G24.221)");
+        if (channel.lastBreakImpulseFor(droneName) == impulse)
+            return ActionResult.fail("Channel " + channelDesignator + " already tried " + droneName
+                    + " this impulse (G24.221)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.BREAK_LOCKON); // commits it (G24.12)
+        channel.recordBreakAttempt(droneName, impulse);
+        int left = com.sfb.weapons.ScoutChannel.MAX_BREAK_ATTEMPTS - channel.getBreakAttempts();
+        if (roll <= 3) { // G24.223: 1–3 breaks the lock-on
+            if (seeker instanceof com.sfb.objects.shuttles.Shuttle) {
+                makeSeekerShuttleInert((com.sfb.objects.shuttles.Shuttle) seeker); // FD1.72
+                return ActionResult.ok("Channel " + channelDesignator + " broke " + droneName
+                        + "'s lock-on (die " + roll + ") — it went inert (speed 0, holds its hex) (G24.223)");
+            }
+            removeSeekerFromPlay(seeker);
+            return ActionResult.ok("Channel " + channelDesignator + " broke " + droneName
+                    + "'s lock-on (die " + roll + ") — it lost tracking and is removed (G24.223)");
+        }
+        return ActionResult.ok("Channel " + channelDesignator + " failed to break " + droneName
+                + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
+    }
+
+    /**
+     * A seeking shuttle whose lock-on is broken goes inert (G24.223 / FD1.72): it stops
+     * seeking, drops its guidance and control, falls to speed 0, and holds its hex — just
+     * like a shuttle after a scatter-pack launch. It stays on the map (not removed).
+     */
+    void makeSeekerShuttleInert(com.sfb.objects.shuttles.Shuttle shuttle) {
+        seekers.remove(shuttle);
+        if (shuttle instanceof Seeker) {
+            Seeker sk = (Seeker) shuttle;
+            if (sk.getController() instanceof com.sfb.objects.DroneController)
+                ((com.sfb.objects.DroneController) sk.getController()).releaseControl(sk);
+            sk.setTarget(null);
+            sk.setController(null);   // control cannot be regained (G24.224)
+            sk.setSelfGuiding(false);
+        }
+        shuttle.setSpeed(0);          // remains in its hex, inert
+    }
+
+    /**
+     * Draw an enemy drone onto the scout with a scout channel (G24.23). The channel broadcasts
+     * a signature the drone finds more attractive than its current target, and the drone simply
+     * takes the scout as its new target - there is no die roll, the attraction always works.
+     * One channel attracts one drone and is committed to that function for the turn (G24.12,
+     * G24.231): a second drone takes a second channel or a later turn.
+     * <p>
+     * Needs active fire control and a lock-on to the drone (G24.161), the drone within fifteen
+     * hexes, and the scout within {@link #DRONE_CONTROL_RANGE} hexes of the unit controlling it
+     * at the moment of transfer (G24.234). The retarget is permanent: blinding, destroying, or
+     * shutting the channel down afterwards does not send the drone back to its former target
+     * (G24.232). Control of the drone stays with its owner, who keeps guiding it - now at the
+     * scout - so it is released like any other drone if that controller loses its lock-on
+     * (D6.122).
+     * <p>
+     * Plasma torpedoes, plasma-D included, ignore the attraction (G24.233); the rule exempts
+     * ballistic drones (F4.0) and dogfight drones that won their own lock-on (FD5.131) too, and
+     * neither is modelled here. Seeking shuttles are attracted just like drones (FD1.8), so an
+     * unidentified enemy shuttle may be tried and gives itself away by not responding (G24.235).
+     * A drone held in a tractor cannot be drawn off (G7.943).
+     */
+    public ActionResult attractDrone(Ship scout, String channelDesignator, String droneName) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+        // G24.231: one drone per channel per turn.
+        if (channel.getAttractedDrone() != null)
+            return ActionResult.fail("Channel " + channelDesignator + " already attracted "
+                    + channel.getAttractedDrone() + " this turn (G24.231)");
+
+        // A seeking shuttle is attracted like a drone (FD1.8), and an unidentified enemy shuttle
+        // looks exactly like one - so a plain shuttle must be a legal thing to try (G24.235).
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(droneName)) {
+                seeker = s;
+                break;
+            }
+        com.sfb.objects.shuttles.Shuttle plainShuttle = null;
+        if (seeker == null)
+            for (com.sfb.objects.shuttles.Shuttle sh : activeShuttles)
+                if (sh.getName().equals(droneName)) {
+                    plainShuttle = sh;
+                    break;
+                }
+        if (seeker == null && plainShuttle == null)
+            return ActionResult.fail("No seeker or shuttle named '" + droneName + "'");
+        if (seeker instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("Plasma torpedoes ignore the attraction (G24.233)");
+
+        Unit unit = seeker != null ? (Unit) seeker : plainShuttle;
+        // An orphaned drone has no controlling ship to read a team from, so fall back to
+        // whose it is — there is no sense in drawing your own side's drone onto yourself.
+        boolean friendly;
+        if (seeker != null && seeker.getController() instanceof Ship) {
+            friendly = isSameTeam(scout, (Ship) seeker.getController());
+        } else {
+            friendly = sameOwnerTeam(scout, unit);
+        }
+        if (friendly)
+            return ActionResult.fail(droneName + " is friendly");
+        if (!scout.hasLockOn(unit))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + droneName + " (G24.161)");
+        int range = getRange(scout, unit);
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(droneName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.23)");
+
+        if (seeker == null) {
+            // G24.235: the attempt is only worth making against a shuttle nobody has identified
+            // yet — once it is known to be no seeking weapon there is nothing to attract.
+            if (plainShuttle.isIdentified())
+                return ActionResult.fail(droneName + " is not a seeking weapon (G24.235)");
+            // The channel is spent either way; what the scout learns is up to the shuttle's
+            // owner, who may answer honestly or bluff.
+            channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);
+            channel.recordAttraction(droneName);
+            pendingAttractChoices.add(new PendingAttractChoice(plainShuttle, scout, channelDesignator));
+            if (currentPhase != ImpulsePhase.ATTRACT_CHOICE) {
+                attractChoiceReturnPhase = currentPhase;
+                currentPhase = ImpulsePhase.ATTRACT_CHOICE;
+            }
+            return ActionResult.ok("Channel " + channelDesignator + " reaches out to " + droneName
+                    + " — waiting for its owner to answer (G24.235)");
+        }
+
+        if (unit.isTractored())
+            return ActionResult.fail(droneName + " is held in a tractor and cannot be drawn off (G7.943)");
+        if (seeker.getTarget() == scout)
+            return ActionResult.fail(droneName + " is already tracking " + scout.getName());
+
+        // G24.234: the transfer needs the scout within the drone's control range of whoever is
+        // guiding it. A drone with no controller left has nothing to be drawn away from.
+        Unit controller = seeker.getController();
+        if (controller != null && controller.getLocation() != null) {
+            int controlRange = getRange(scout, controller);
+            if (controlRange > DRONE_CONTROL_RANGE)
+                return ActionResult.fail(scout.getName() + " is " + controlRange + " hexes from "
+                        + controller.getName() + ", which controls " + droneName + " (max "
+                        + DRONE_CONTROL_RANGE + ", G24.234)");
+        }
+
+        Unit former = seeker.getTarget();
+        seeker.setTarget(scout);                                                       // G24.23
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.ATTRACT_DRONES);  // commits it (G24.12)
+        channel.recordAttraction(droneName);
+        return ActionResult.ok("Channel " + channelDesignator + " attracted " + droneName
+                + (former != null ? " away from " + former.getName() : "")
+                + " - it now tracks " + scout.getName() + " (G24.23)");
+    }
+
+    /**
+     * Attempt to identify an enemy seeker (drone, plasma, or seeking shuttle) with a scout
+     * channel and a lab box (G24.25). Needs active fire control and a lock-on to the seeker
+     * (G24.161), the seeker within 15 hexes (G24.252), an operational channel not doing another
+     * function (G24.12), and a free lab (one per identifying channel, G24.251). A channel gets
+     * four attempts per turn on any target(s), any impulse(s) (G24.252). Rolls 1d6 (not affected
+     * by EW); on 1–3 the seeker is identified — the owner reveals its details (G4.2).
+     */
+    public ActionResult identifySeeker(Ship scout, String channelDesignator, String seekerName) {
+        return identifySeeker(scout, channelDesignator, seekerName,
+                new com.sfb.utilities.DiceRoller().rollOneDie());
+    }
+
+    /** Package-private seam: identification with a supplied die (G24.252), for tests. */
+    ActionResult identifySeeker(Ship scout, String channelDesignator, String seekerName, int roll) {
+        if (scout == null)
+            return ActionResult.fail("No scout ship.");
+        com.sfb.weapons.ScoutChannel channel = null;
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (channelDesignator != null && channelDesignator.equals(c.getDesignator())) {
+                channel = c;
+                break;
+            }
+        if (channel == null)
+            return ActionResult.fail("No scout channel '" + channelDesignator + "' on " + scout.getName());
+
+        int impulse = clock.getImpulse();
+        if (!channel.isOperational(impulse))
+            return ActionResult.fail("That scout channel is not operational (destroyed, unpowered, or blinded)");
+        String conflict = functionConflict(channel, com.sfb.weapons.ScoutChannel.Function.IDENTIFY);
+        if (conflict != null)
+            return ActionResult.fail(conflict);
+        if (!scout.isActiveFireControl())
+            return ActionResult.fail(scout.getName() + " needs active fire control to use a channel (G24.161)");
+        String blocked = scout.scoutChannelBlockReason(false); // G24.16: cloak / Wild Weasel
+        if (blocked != null)
+            return ActionResult.fail(blocked);
+
+        // A lab box is assigned per identifying channel (G24.251). The channel CLAIMS one
+        // for the turn rather than being counted against a separate tally: one accounting
+        // of lab boxes, shared with the lab panel, so neither path can spend a box the
+        // other is using (G4.21). The claim happens below, once the attempt is legal —
+        // claiming it here would spend a box on an attempt that never happened.
+        boolean alreadyIdentifying = channel.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.IDENTIFY
+                && channel.getLabBoxIndex() >= 0;
+        if (!alreadyIdentifying && scout.getLabs().availableLabs(impulse) <= 0)
+            return ActionResult.fail("No lab available for this channel (G24.251, G4.451): "
+                    + scout.getLabs().getFunctioningLabs() + " lab(s), none free this impulse");
+
+        // Identification works on any seeker OR any shuttle (G24.25) — an unidentified enemy
+        // shuttle looks just like a lurking seeker, so the attempt must be allowed either way
+        // (and failure reveals nothing, preserving the bluff).
+        Seeker seeker = null;
+        for (Seeker s : seekers)
+            if (((Unit) s).getName().equals(seekerName)) {
+                seeker = s;
+                break;
+            }
+        com.sfb.objects.shuttles.Shuttle plainShuttle = null;
+        if (seeker == null)
+            for (com.sfb.objects.shuttles.Shuttle sh : activeShuttles)
+                if (sh.getName().equals(seekerName)) {
+                    plainShuttle = sh;
+                    break;
+                }
+        if (seeker == null && plainShuttle == null)
+            return ActionResult.fail("No seeker or shuttle named '" + seekerName + "'");
+
+        Unit target = seeker != null ? (Unit) seeker : plainShuttle;
+        boolean alreadyKnown = seeker != null ? seeker.isIdentified() : plainShuttle.isIdentified();
+        if (alreadyKnown)
+            return ActionResult.fail(seekerName + " is already identified");
+
+        boolean friendly;
+        if (seeker != null) {
+            Unit controller = seeker.getController();
+            friendly = controller instanceof Ship && isSameTeam(scout, (Ship) controller);
+        } else {
+            friendly = sameOwnerTeam(scout, plainShuttle);
+        }
+        if (friendly)
+            return ActionResult.fail(seekerName + " is friendly");
+        if (!scout.hasLockOn(target))
+            return ActionResult.fail(scout.getName() + " has no lock-on to " + seekerName + " (G24.161)");
+        int range = getRange(scout, target);
+        if (range > SCOUT_FUNCTION_RANGE)
+            return ActionResult.fail(seekerName + " is out of range (" + range + " hexes; max "
+                    + SCOUT_FUNCTION_RANGE + ", G24.252)");
+
+        if (channel.getIdentifyAttempts() >= com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS)
+            return ActionResult.fail("Channel " + channelDesignator + " has used all "
+                    + com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS + " identify attempts this turn (G24.251)");
+
+        channel.setTurnFunction(com.sfb.weapons.ScoutChannel.Function.IDENTIFY); // commits it + its lab (G24.12/.251)
+        if (channel.getLabBoxIndex() < 0)
+            channel.setLabBoxIndex(scout.getLabs().useLab(impulse));
+        else
+            // Same box, later attempt: the quarter-turn delay runs from this one (G4.451).
+            scout.getLabs().markUsed(channel.getLabBoxIndex(), impulse);
+        channel.recordIdentifyAttempt();
+        int left = com.sfb.weapons.ScoutChannel.MAX_IDENTIFY_ATTEMPTS - channel.getIdentifyAttempts();
+        if (roll <= 3) { // G24.252: less than four identifies it
+            if (seeker != null) {
+                seeker.identify();
+                return ActionResult.ok("Channel " + channelDesignator + " identified " + seekerName
+                        + " (die " + roll + ") — the owner reveals its details (G4.2)");
+            }
+            plainShuttle.identify();
+            return ActionResult.ok("Channel " + channelDesignator + " identified " + seekerName
+                    + " (die " + roll + ") — it is not a seeking weapon");
+        }
+        return ActionResult.ok("Channel " + channelDesignator + " failed to identify " + seekerName
+                + " (die " + roll + "); " + left + " attempt" + (left == 1 ? "" : "s") + " left");
+    }
+
+    /** True if {@code u}'s owner is on the same team as {@code scout} (owner-based, for shuttles). */
+    private boolean sameOwnerTeam(Ship scout, Unit u) {
+        Player a = scout.getOwner();
+        Player b = u.getOwner();
+        return a != null && b != null && a.getTeamName() != null && a.getTeamName().equals(b.getTeamName());
     }
 
     public int getCurrentTurn() {
@@ -877,14 +1830,38 @@ public class Game {
     public record ShipVpRow(
             String shipName, String teamName, int gabpv,
             String status, // "DESTROYED" | "CAPTURED" | "DISENGAGED" | "CRIPPLED" | "DAMAGED" | "INTACT"
-            int vpScored // points scored AGAINST this ship by the enemy
+            int vpScored, // points scored AGAINST this ship by the enemy
+            int coiSpend  // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
     ) {
     }
 
-    public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory) {
+    public record TeamScore(String teamName, int vpScored, int vpAgainst, String levelOfVictory,
+                            int coiForfeited // total COI this side handed to the enemy (S2.20 B)
+    ) {
     }
 
     public record Scoreboard(java.util.List<ShipVpRow> rows, java.util.List<TeamScore> teams) {
+    }
+
+    /**
+     * The BPV a ship is scored against. Combat BPV for almost everything, but a scout's chart
+     * entry is economic/combat, and G24.352 says that once it is with other ships on its side
+     * "the reduced combat BPV is ignored and the economic BPV is used for both purposes" —
+     * purchase and victory alike. Two scouts count as a scout and a non-scout, so any company
+     * at all is enough.
+     * <p>
+     * A scout truly alone keeps the stated values (G24.351). Not modelled: police flagships,
+     * which are always combat (G24.354), and scenarios that forbid scout systems outright,
+     * where scouts revert to combat BPV (G24.355).
+     */
+    private int victoryBpvBasis(Ship ship, String teamName) {
+        if (!ship.isScout())
+            return ship.getBattlePointValue();
+        boolean hasCompany = ships.stream()
+                .filter(s -> s != ship)
+                .anyMatch(s -> s.getOwner() != null
+                        && teamName.equals(s.getOwner().getTeamName()));
+        return hasCompany ? ship.getEconomicBpv() : ship.getBattlePointValue();
     }
 
     public Scoreboard calculateVictoryPoints() {
@@ -894,6 +1871,10 @@ public class Game {
         allShips.addAll(destroyedShips);
 
         java.util.List<ShipVpRow> rows = new java.util.ArrayList<>();
+        // S2.20 step B: each side's Commander's Option spend is awarded to the enemy.
+        java.util.Map<String, Double> coiByTeam = new java.util.LinkedHashMap<>();
+        // S2.20 step A: each side's total ship Combat BPV (for the lower-force handicap).
+        java.util.Map<String, Integer> combatBpvByTeam = new java.util.LinkedHashMap<>();
 
         for (Ship ship : allShips) {
             // Captured ships now belong to the captor (D7.50) — attribute the row
@@ -901,6 +1882,8 @@ public class Game {
             String teamName = ship.isCaptured() && ship.getCapturedFromTeam() != null
                     ? ship.getCapturedFromTeam()
                     : ship.getOwner() != null ? ship.getOwner().getTeamName() : "Unknown";
+            coiByTeam.merge(teamName, ship.getCoiSpend(), Double::sum); // the buyer's side
+            combatBpvByTeam.merge(teamName, ship.getBattlePointValue(), Integer::sum); // step-A force total
 
             // GABPV: base BPV (already includes y175 refit) + fighter BPV
             int fighterBpv = 0;
@@ -915,13 +1898,14 @@ public class Game {
                     fighterBpv += f.getBpv();
                 }
             }
-            int gabpv = ship.getBattlePointValue() + fighterBpv;
+            int gabpv = victoryBpvBasis(ship, teamName) + fighterBpv;
 
             // Scoring math lives in VictoryCalculator (S2.21 order, S2.24 rounding)
             String status = VictoryCalculator.status(ship).name();
             int vpScored = VictoryCalculator.pointsFor(ship, gabpv);
 
-            rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored));
+            rows.add(new ShipVpRow(ship.getName(), teamName, gabpv, status, vpScored,
+                    VictoryCalculator.round(ship.getCoiSpend())));
         }
 
         // Sum VPs per team: a team scores the VPs from ships belonging to OTHER teams
@@ -939,6 +1923,46 @@ public class Game {
             }
         }
 
+        // S2.20 step B: award each side's COI spend to every other side (paid to the enemy).
+        for (java.util.Map.Entry<String, Double> e : coiByTeam.entrySet()) {
+            int coi = VictoryCalculator.round(e.getValue());
+            if (coi <= 0)
+                continue;
+            for (String scorer : allTeams) {
+                if (!scorer.equals(e.getKey()))
+                    vpByTeam.merge(scorer, coi, Integer::sum);
+            }
+        }
+
+        // Generic objective scoring: the side controlling an objective at scenario end
+        // scores its point value. (Scenarios with special/conditional scoring are handled
+        // per-scenario and are not covered here.)
+        for (com.sfb.objects.Objective o : objectives) {
+            if (o.getPoints() <= 0)
+                continue;
+            Player owner = o.getCurrentOwner();
+            if (owner == null || owner.getTeamName() == null)
+                continue; // free/unclaimed — no one scores it
+            allTeams.add(owner.getTeamName());
+            vpByTeam.merge(owner.getTeamName(), o.getPoints(), Integer::sum);
+        }
+
+        // S2.20 step A (STANDARD only, two sides): the side with the lower total ship
+        // Combat BPV scores the difference — but only if none of its units disengaged or
+        // surrendered by the end of Turn 2. Modified Victory Conditions (S2.201) skip this.
+        if ("STANDARD".equalsIgnoreCase(victoryConditionsType) && combatBpvByTeam.size() == 2) {
+            java.util.Iterator<java.util.Map.Entry<String, Integer>> it = combatBpvByTeam.entrySet().iterator();
+            java.util.Map.Entry<String, Integer> a = it.next();
+            java.util.Map.Entry<String, Integer> b = it.next();
+            java.util.Map.Entry<String, Integer> lower = a.getValue() <= b.getValue() ? a : b;
+            java.util.Map.Entry<String, Integer> higher = lower == a ? b : a;
+            int diff = higher.getValue() - lower.getValue();
+            if (diff > 0 && !fledByTurn2.contains(lower.getKey())) {
+                allTeams.add(lower.getKey());
+                vpByTeam.merge(lower.getKey(), diff, Integer::sum);
+            }
+        }
+
         java.util.List<TeamScore> teams = new java.util.ArrayList<>();
         for (String team : allTeams) {
             int myScore = vpByTeam.get(team);
@@ -946,7 +1970,8 @@ public class Game {
                     .filter(t -> !t.equals(team))
                     .mapToInt(vpByTeam::get).sum();
             teams.add(new TeamScore(team, myScore, theirScore,
-                    VictoryCalculator.victoryLevel(myScore, theirScore).getLabel()));
+                    VictoryCalculator.victoryLevel(myScore, theirScore).getLabel(),
+                    VictoryCalculator.round(coiByTeam.getOrDefault(team, 0.0))));
         }
 
         return new Scoreboard(rows, teams);
@@ -1085,6 +2110,11 @@ public class Game {
         return seekerControl.transferSeekerControl(seekerName, toShipName);
     }
 
+    /** Voluntarily give up control of a seeker (F3.4) — see {@link SeekerControl}. */
+    public ActionResult releaseSeekerControl(String seekerName, String byShipName) {
+        return seekerControl.releaseSeekerControl(seekerName, byShipName);
+    }
+
     /**
      * The single exit for a seeker leaving play — impact, destruction by fire,
      * chaff distraction, endurance expiry, death drag, whatever removes it.
@@ -1135,6 +2165,20 @@ public class Game {
      * go to removalLog, drained by the next advancePhase(). Wild Weasels never
      * pass through here — their chasers follow J3.21x explosion rules instead.
      */
+    /**
+     * Sever everything still pointing at a ship that has left the map (C7.1). A disengaged
+     * ship keeps its entry in the game for scoring, but it has no hex any more: nothing can
+     * hold a lock-on to it, it holds none of its own, and a seeker flying at it loses its
+     * target. Removal from play does the same work (see {@link #removeSeekerFromPlay}); a
+     * ship that leaves under its own power needs it just as much.
+     */
+    void releaseTiesToDeparted(Ship gone, String reason) {
+        for (Ship s : ships)
+            s.removeLockOn(gone);
+        gone.clearLockOns();
+        clearChasersOf(gone, reason);
+    }
+
     void clearChasersOf(Unit gone, String reason) {
         List<Seeker> chasing = new ArrayList<>();
         for (Seeker sk : seekers)
@@ -1438,6 +2482,18 @@ public class Game {
         return MapUtils.getRange(attacker, target);
     }
 
+    /**
+     * Net direct-fire ECM shift a {@code target} imposes on {@code attacker}'s fire (D6.34):
+     * floor(sqrt(target ECM − attacker ECCM)), including offensive EW jamming the attacker
+     * (G24.219). Mirrors the fire math in DamageResolver; usable for fire previews.
+     */
+    public int fireEcmShift(Ship attacker, Ship target) {
+        int targetEcm = ewAgainst(attacker, target).total();
+        int attackerEccm = attacker.isActiveFireControl()
+                ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
+        return netEcmShift(targetEcm - attackerEccm);
+    }
+
     // -------------------------------------------------------------------------
     // Tractor beams (G7.0)
     // -------------------------------------------------------------------------
@@ -1612,14 +2668,136 @@ public class Game {
         // without adding new choices (it only changes phase when it *adds* a choice or
         // sets CONTROL_OVERFLOW). So the right exit test is: still in DAC_CHOICE AND
         // no choices remain → transition back to the phase that triggered the damage.
-        if (currentPhase == ImpulsePhase.DAC_CHOICE && pendingDacChoices.isEmpty())
-            currentPhase = dacChoiceReturnPhase;
+        if (currentPhase == ImpulsePhase.DAC_CHOICE && pendingDacChoices.isEmpty()) {
+            if (!pendingBlindChoices.isEmpty()) {
+                blindChoiceReturnPhase = dacChoiceReturnPhase; // blinds resolve after the DAC choices
+                currentPhase = ImpulsePhase.BLIND_CHOICE;
+            } else {
+                currentPhase = dacChoiceReturnPhase;
+            }
+        }
 
         return ActionResult.ok(String.join("; ", lastInternalDamageLog));
     }
 
     public List<PendingDacChoice> getPendingDacChoices() {
         return Collections.unmodifiableList(pendingDacChoices);
+    }
+
+    public List<PendingBlindChoice> getPendingBlindChoices() {
+        return Collections.unmodifiableList(pendingBlindChoices);
+    }
+
+    /** Powered, functional, currently-unblinded channels — the only ones a blind may pick (G24.131). */
+    public List<com.sfb.weapons.ScoutChannel> unblindedPoweredChannels(Ship scout) {
+        int imp = clock.getImpulse();
+        List<com.sfb.weapons.ScoutChannel> result = new ArrayList<>();
+        for (com.sfb.weapons.ScoutChannel c : scout.getScoutChannels())
+            if (c.isFunctional() && c.isPowered() && !c.isBlinded(imp))
+                result.add(c);
+        return result;
+    }
+
+    /**
+     * Apply the blinds that need no choice (G24.131) and return how many still require one. A
+     * blind is a real choice only when fewer are owed than there are unblinded channels (you're
+     * picking a subset). Otherwise it's forced: blind unblinded channels; once all powered
+     * channels are blinded, extend the earliest-recovering once and the surplus has no effect.
+     */
+    private int autoResolveForcedBlinds(Ship scout, int count) {
+        while (count > 0) {
+            List<com.sfb.weapons.ScoutChannel> unblinded = unblindedPoweredChannels(scout);
+            if (count < unblinded.size())
+                return count; // choosing which of the unblinded to sacrifice — a real choice
+            if (unblinded.isEmpty()) {
+                scout.blindOneScoutChannel(clock.getImpulse()); // all blinded → extend earliest once
+                return 0;                                       // further surplus has no effect
+            }
+            scout.blindOneScoutChannel(clock.getImpulse()); // forced: blind an unblinded channel
+            count--;
+        }
+        return 0;
+    }
+
+    /**
+     * A scout that fired {@code count} blinding weapons (G24.13) blinds that many of its powered
+     * channels. Bases never blind their own channels (G24.135). Forced blinds resolve silently;
+     * only when the player must pick a subset of unblinded channels (G24.131) is a choice queued,
+     * resolved via submitBlindChoice(). Called during fire; BLIND_CHOICE is entered once the shot
+     * settles (after any defender DAC choice).
+     */
+    void queueScoutBlinds(Ship scout, int count) {
+        if (scout == null || count <= 0 || scout.isBase())
+            return;
+        int remaining = autoResolveForcedBlinds(scout, count);
+        scout.refreshScoutControlBonus(clock.getImpulse()); // a control channel just blinded drops +6 (G24.242)
+        if (remaining > 0)
+            pendingBlindChoices.add(new PendingBlindChoice(scout, remaining));
+    }
+
+    /**
+     * Move to BLIND_CHOICE if a scout owes blind selections and no DAC choice is still pending,
+     * else to {@code intended}. Called at every damage-settling point so blinds resolve after
+     * the defender's DAC choices from the same shot.
+     */
+    void settleDamagePhase(ImpulsePhase intended) {
+        if (currentPhase == ImpulsePhase.DAC_CHOICE)
+            return; // a DAC choice is still pending — blinds wait their turn
+        if (!pendingBlindChoices.isEmpty()) {
+            blindChoiceReturnPhase = intended;
+            currentPhase = ImpulsePhase.BLIND_CHOICE;
+        } else {
+            currentPhase = intended;
+            checkControlOverflow(); // a control channel blinded during fire → shed excess (G24.242)
+        }
+    }
+
+    /**
+     * Enter BLIND_CHOICE if a scout owes blind selections and we aren't already resolving choices.
+     * Used by paths that blind outside the damage-settling flow — e.g. launching plasma (G24.1342),
+     * which happens in the Activity phase. Resumes the current phase when the blinds are assigned.
+     */
+    void enterBlindChoiceIfPending() {
+        if (currentPhase != ImpulsePhase.BLIND_CHOICE && currentPhase != ImpulsePhase.DAC_CHOICE
+                && !pendingBlindChoices.isEmpty()) {
+            blindChoiceReturnPhase = currentPhase;
+            currentPhase = ImpulsePhase.BLIND_CHOICE;
+        } else if (pendingBlindChoices.isEmpty()) {
+            checkControlOverflow(); // an auto-resolved blind may have dropped a control channel's +6
+        }
+    }
+
+    /**
+     * Firing player submits which powered channel takes the next blind (G24.131). Blinds the
+     * chosen channel and, when no blinds remain, resumes the interrupted phase.
+     */
+    public ActionResult submitBlindChoice(String channelDesignator) {
+        if (currentPhase != ImpulsePhase.BLIND_CHOICE || pendingBlindChoices.isEmpty())
+            return ActionResult.fail("No blind choice is pending");
+        PendingBlindChoice pending = pendingBlindChoices.get(0);
+        // The pick must be a currently-unblinded powered channel (G24.131) — you can't double-blind.
+        com.sfb.weapons.ScoutChannel chosen = null;
+        for (com.sfb.weapons.ScoutChannel c : unblindedPoweredChannels(pending.scout))
+            if (channelDesignator.equals(c.getDesignator())) { chosen = c; break; }
+        if (chosen == null)
+            return ActionResult.fail("Channel " + channelDesignator
+                    + " is not an unblinded powered channel");
+
+        chosen.blind(clock.getImpulse());
+        String msg = pending.scoutName + " channel " + channelDesignator
+                + " blinded until impulse " + chosen.getBlindedUntilImpulse() + " (G24.13)";
+        // The player's pick used one blind; auto-resolve any that are now forced.
+        pending.remaining = autoResolveForcedBlinds(pending.scout, pending.remaining - 1);
+        pending.scout.refreshScoutControlBonus(clock.getImpulse()); // a blinded control channel drops +6 (G24.242)
+        if (pending.remaining <= 0) {
+            pendingBlindChoices.remove(0);
+            if (pendingBlindChoices.isEmpty()) {
+                currentPhase = blindChoiceReturnPhase;
+                checkControlOverflow(); // G24.242: shed any seekers now over the normal rating
+            }
+        }
+        resolveChannelLends(); // a newly blinded channel stops lending immediately
+        return ActionResult.ok(msg);
     }
 
     /**
@@ -1654,8 +2832,18 @@ public class Game {
     // --- Lab seeker identification ---
 
     /** Attempt lab identification of enemy seekers (G4.0). */
-    public ActionResult identifySeekers(Ship actingShip, List<String> seekerNames) {
-        return seekerControl.identifySeekers(actingShip, seekerNames);
+    /**
+     * G4.22: one entry per LAB committed, so a name repeated commits several labs to that
+     * one contact — a single attempt rolling a die each, any of which beating the range
+     * carries it.
+     */
+    public ActionResult identifySeekers(Ship actingShip, List<String> labAssignments) {
+        return seekerControl.identifySeekers(actingShip, labAssignments);
+    }
+
+    /** Package-private seam: dice supplied in order (G4.22), for tests. */
+    ActionResult identifySeekers(Ship actingShip, List<String> labAssignments, int[] scriptedDice) {
+        return seekerControl.identifySeekers(actingShip, labAssignments, scriptedDice);
     }
 
     // --- Drone launching ---
@@ -2022,14 +3210,18 @@ public class Game {
      * (P3.31). Counted in half-points so the round-up is exact.
      */
     int terrainEcmAlongLine(Location from, Location to) {
-        if (from == null || to == null || (asteroidHexes.isEmpty() && ringHexes.isEmpty()))
+        if (from == null || to == null
+                || (asteroidHexes.isEmpty() && ringHexes.isEmpty()
+                        && planetAtmosphereHexes.isEmpty()))
             return 0;
         int halves = 0;
         for (Location hex : com.sfb.utilities.MapUtils.hexLine(from, to)) {
             if (isAsteroidHex(hex))
-                halves += 2;
+                halves += 2;                    // P3.33: one point per asteroid hex
+            else if (isPlanetAtmosphereHex(hex))
+                halves += 2;                    // P2.51: one point per atmosphere hex
             else if (isRingHex(hex))
-                halves += 1;
+                halves += 1;                    // P2.223: half a point per ring hex
         }
         return (halves + 1) / 2; // ceil(halves / 2) — P2.223 rounds ½ up
     }
@@ -2053,15 +3245,113 @@ public class Game {
     }
 
     /**
-     * C11.21: nimble units subtract 1 from the collision die (lower die = less
-     * damage on the tables), for both asteroid (P3.221) and ring (P2.223).
-     * C11.33: a poor crew negates a ship's nimble benefit. Not yet modeled:
-     * C11.31 loss-when-crippled/breakdown/warp, and the separate G21 crew /
-     * P3.222 EM shifts. Package-private for direct unit testing.
+     * Weapons fire put into an asteroid hex to clear a path through it (P3.25), waiting for
+     * the unit that fired to arrive. Keyed by the firing unit, and it holds at most one hex:
+     * the benefit belongs to the firer alone (P3.253), is spent on the first entry into that
+     * hex (P3.25), and does not carry over to any other hex (P3.251).
+     *
+     * @param hex             the hex fired into
+     * @param damage          points scored on the asteroids, to come off the collision roll
+     * @param absoluteImpulse when it was fired — the benefit is void unless the hex is
+     *                        entered on the very next impulse (P3.25)
      */
-    static int nimbleAdjustedDie(int die, boolean nimble, com.sfb.systemgroups.Crew.CrewQuality crew) {
+    record AsteroidClearance(Location hex, int damage, int absoluteImpulse) {
+    }
+
+    private final Map<Unit, AsteroidClearance> asteroidClearances = new HashMap<>();
+
+    /**
+     * Record fire put into an asteroid hex (P3.25). Several weapons fired into the same hex
+     * on the same impulse add together; firing on a later impulse replaces what came before,
+     * because only the impulse immediately prior to entry counts for anything.
+     */
+    void recordAsteroidClearance(Unit firer, Location hex, int damage) {
+        int now = getAbsoluteImpulse();
+        AsteroidClearance existing = asteroidClearances.get(firer);
+        int total = damage;
+        if (existing != null && existing.absoluteImpulse() == now && existing.hex().equals(hex))
+            total += existing.damage();
+        asteroidClearances.put(firer, new AsteroidClearance(hex, total, now));
+    }
+
+    /** What this unit has already cleared in {@code hex}, without spending it. Test/UI use. */
+    int pendingAsteroidClearance(Unit unit, Location hex) {
+        AsteroidClearance c = asteroidClearances.get(unit);
+        return c != null && c.hex().equals(hex) ? c.damage() : 0;
+    }
+
+    /**
+     * Spend whatever this unit cleared, now that it has entered {@code entered} (P3.25).
+     * <p>
+     * The record is dropped either way, which is the rule rather than tidiness: the benefit
+     * "is lost if the firing unit enters any other hex before entering the hex into which it
+     * fired", and applies "only to the first subsequent entry into that hex". It pays out
+     * only when the hex matches AND the fire was on the immediately preceding impulse - a
+     * unit that fires and then dawdles gets nothing.
+     */
+    private int spendAsteroidClearance(Unit unit, Location entered) {
+        AsteroidClearance c = asteroidClearances.remove(unit);
+        if (c == null || entered == null)
+            return 0;
+        if (!c.hex().equals(entered))
+            return 0;                                    // it went somewhere else
+        if (c.absoluteImpulse() != getAbsoluteImpulse() - 1)
+            return 0;                                    // not the impulse immediately prior
+        return c.damage();
+    }
+
+    /**
+     * Natural ECM on the line for fire aimed AT an asteroid hex (P3.25/P3.33). The same count
+     * as {@link #terrainEcmAlongLine} except that the target hex gives itself nothing - "the
+     * target asteroid hex does not provide itself any ECM benefit, but hexes fired from or
+     * through will". Shooting the rock in front of you is not made harder by that rock.
+     */
+    int terrainEcmForClearingFire(Location from, Location target) {
+        if (from == null || target == null)
+            return 0;
+        int halves = 0;
+        for (Location hex : com.sfb.utilities.MapUtils.hexLine(from, target)) {
+            if (hex.equals(target))
+                continue;                                // P3.25: the target hex is exempt
+            if (isAsteroidHex(hex))
+                halves += 2;
+            else if (isRingHex(hex))
+                halves += 1;
+        }
+        return (halves + 1) / 2;
+    }
+
+    /**
+     * Fire direct-fire weapons into an asteroid hex to clear a path (P3.25). See
+     * {@link DamageResolver#clearAsteroidPath}.
+     */
+    public ActionResult clearAsteroidPath(Ship attacker, Location hex, List<com.sfb.weapons.Weapon> selected) {
+        return damageResolver.clearAsteroidPath(attacker, hex, selected);
+    }
+
+    /**
+     * The collision die after every modifier that applies, for both asteroid (P3.221) and
+     * ring (P2.223) hexes. A lower die is less damage on the tables.
+     * <p>
+     * C11.21: nimble units subtract 1. C11.33: a poor crew negates a ship's nimble benefit.
+     * D6.628: a ship without ACTIVE fire control adds 1, and the rule says outright that
+     * this is cumulative with nimbleness — so a nimble ship flying passive is back where
+     * it started rather than keeping the better of the two.
+     * <p>
+     * Not yet modelled: C11.31 loss-when-crippled/breakdown/warp, the separate G21 crew and
+     * P3.222 EM shifts, and the legendary-officer modifier D6.628 also mentions.
+     * Package-private for direct unit testing.
+     */
+    static int collisionDie(int die, boolean nimble, com.sfb.systemgroups.Crew.CrewQuality crew,
+            boolean passiveFireControl) {
         boolean effective = nimble && crew != com.sfb.systemgroups.Crew.CrewQuality.POOR;
-        return effective ? Math.max(1, die - 1) : die;
+        int adjusted = die;
+        if (effective)
+            adjusted -= 1;
+        if (passiveFireControl)
+            adjusted += 1;
+        // The tables are indexed 1-6; a modifier cannot push the roll off either end.
+        return Math.max(1, Math.min(6, adjusted));
     }
 
     /**
@@ -2071,11 +3361,12 @@ public class Game {
      * rolls, and applies the C11.21 nimble die-shift. Returns null when
      * {@code loc} is neither asteroid nor ring.
      *
-     * @param nimble true for nimble ships and ALL shuttles/fighters (C11 note)
+     * @param nimble true for nimble ships and ALL shuttles/fighters, seeking courses
+     *               included (C11.1); seeking WEAPONS - drones, plasma - are never nimble
      * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
     TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
-            com.sfb.systemgroups.Crew.CrewQuality crew) {
+            com.sfb.systemgroups.Crew.CrewQuality crew, boolean passiveFireControl) {
         boolean asteroid = isAsteroidHex(loc);
         boolean ring = !asteroid && isRingHex(loc);
         if (!asteroid && !ring)
@@ -2083,9 +3374,132 @@ public class Game {
         int[][] table = asteroid ? ASTEROID_DAMAGE : RING_DAMAGE;
         int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
         int rawDie = new com.sfb.utilities.DiceRoller().rollOneDie();
-        int die = nimbleAdjustedDie(rawDie, nimble, crew);
+        int die = collisionDie(rawDie, nimble, crew, passiveFireControl);
         int damage = table[die - 1][bracket];
         return new TerrainHit(asteroid ? "asteroid" : "ring", rawDie, die != rawDie, damage);
+    }
+
+    /**
+     * Roll and apply a terrain collision for ANY unit entering an asteroid (P3.2) or
+     * planetary ring (P2.223) hex. Returns a bare log line, or "" when the hex is neither
+     * (so callers may append unconditionally).
+     * <p>
+     * Everything that enters a hex routes here: ships under power and under tow, shuttles
+     * and fighters, and seeking weapons both flying and dragged. Taking a {@link Unit}
+     * rather than a {@link Ship} is the whole point. Collision used to be wired per unit
+     * family by hand and the helper was typed to Ship, so the compiler never objected to
+     * the families that lacked it - shuttles, fighters and everything under tow crossed a
+     * field untouched. One entry point, and a new mover has one obvious thing to call.
+     * <p>
+     * The damage goes through {@link #applyDamageToUnit}, which already knows a ship takes
+     * it on a shield, a shuttle on its hull (with the J1.33 cripple check), and a plasma
+     * torpedo as phaser strength - and which routes destruction through the central
+     * removal paths rather than merely dropping the unit from a list.
+     */
+    /**
+     * Whose hands are on the controls, for C11.33 - a poor crew negates the C11.21 nimble
+     * die-shift. A ship answers for its own crew.
+     * <p>
+     * Nothing else does. The crew-quality rules are written about ships, and G21.142 says
+     * outright that admin shuttle pilots are ALWAYS treated as good - so a shuttle does not
+     * inherit the quality of the ship that launched it, however tempting the reasoning that
+     * its pilot came off that roster. Returning null here means NORMAL at the table, which
+     * is what "always good" amounts to for both the poor and the outstanding case.
+     * <p>
+     * Seeking weapons have no crew and are not nimble anyway, so this never reaches them.
+     * <p>
+     * NOT MODELLED: fighter pilots. G21 rates them separately from both ship crews and
+     * admin shuttle pilots, and that text has not been read into this code - a fighter
+     * currently flies as good, like an admin shuttle. Needs the G21.1xx/G21.2xx rules
+     * before it is worth wiring, along with the G21.128/.228 crew collision shift already
+     * noted as deferred.
+     */
+    private com.sfb.systemgroups.Crew.CrewQuality crewQualityFor(Unit unit) {
+        if (unit instanceof Ship)
+            return ((Ship) unit).getCrew() == null ? null
+                    : ((Ship) unit).getCrew().getCrewQuality();
+        return null;
+    }
+
+    String applyTerrainCollision(Unit unit) {
+        return unit == null ? "" : applyTerrainCollision(unit, unit.getSpeed());
+    }
+
+    /**
+     * As {@link #applyTerrainCollision(Unit)}, but for a unit entering the hex at a speed
+     * that is not its own - a unit under tow is hauled through the rocks at its tow's
+     * speed, which P3.2's damage brackets care about and J1.6223 states outright for a
+     * recovery tow. A drone sitting at speed 0 in a tractor beam is not gently parked.
+     */
+    String applyTerrainCollision(Unit unit, int speed) {
+        if (unit == null || unit.getLocation() == null)
+            return "";
+
+        // P3.25: spend anything this unit shot into the hex it is entering. Done before the
+        // terrain test, because entering ANY other hex voids the benefit - including a hex
+        // with no asteroids in it at all.
+        int cleared = spendAsteroidClearance(unit, unit.getLocation());
+
+        boolean isShip = unit instanceof Ship;
+        // C11.1: "All shuttlecraft and fighters (including those on seeking courses) are
+        // nimble unless noted otherwise" - so the test is the Shuttle type itself, which
+        // is what makes a scatter pack or suicide shuttle nimble while a drone is not.
+        boolean nimble = isShip ? ((Ship) unit).isNimble()
+                                : unit instanceof com.sfb.objects.shuttles.Shuttle;
+        com.sfb.systemgroups.Crew.CrewQuality crew = crewQualityFor(unit);
+        // D6.628: a SHIP without active fire control is clumsier in a field. Shuttles,
+        // fighters and seeking weapons never allocate energy for active fire control
+        // (D6.631), so the penalty does not reach them — they are not flying passive,
+        // they simply have no such system to switch off.
+        boolean passiveFc = isShip && !((Ship) unit).isActiveFireControl();
+
+        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew, passiveFc);
+        if (hit == null)
+            return "";
+
+        // The bearing it entered on decides which shield eats it; non-ships have none.
+        int shieldNum = 0;
+        if (isShip) {
+            int entryDir = unit.getEntryDirection();
+            int relBearing = entryDir == 0 ? 1
+                    : MapUtils.getRelativeBearing(entryDir, unit.getFacing());
+            shieldNum = (relBearing - 1) / 4 + 1;
+        }
+
+        // P3.251: each point scored on the asteroids takes a point off what the roll does.
+        int damage = Math.max(0, hit.damage - cleared);
+
+        String name = unit.getName() != null ? unit.getName() : "a unit";
+        String where = name + " enters " + hit.terrainName + " hex"
+                + " (speed " + speed + ", die " + hit.die
+                + (hit.nimble ? " −1 nimble" : "")
+                + (isShip ? ", shield " + shieldNum : "") + ")";
+        if (cleared > 0)
+            where += " — " + cleared + " cleared by fire (P3.25), " + hit.damage + " → " + damage;
+        if (damage == 0)
+            return where + " — no damage";
+        return where + " — " + applyDamageToUnit(damage, unit, shieldNum);
+    }
+
+    /**
+     * The planet or gas giant whose body covers this hex, or null.
+     *
+     * Not the same question as {@link #planetAt}, which matches the CENTRE only. A giant is
+     * several hexes across, and a player aiming at one clicks whatever part of it is under
+     * the cursor — usually not the middle. Matches the footprint the same way it is built:
+     * every hex within the radius (P2.222).
+     */
+    public Terrain planetCovering(Location loc) {
+        if (loc == null)
+            return null;
+        for (Terrain t : terrain) {
+            if (t.getTerrainType() != TerrainType.PLANET
+                    && t.getTerrainType() != TerrainType.GAS_GIANT)
+                continue;
+            if (com.sfb.utilities.MapUtils.getRange(t.getLocation(), loc) <= t.getRadius())
+                return t;
+        }
+        return null;
     }
 
     public boolean isPlanetHex(Location loc) {
@@ -2508,6 +3922,8 @@ public class Game {
         public final int envelopingHellboreDamage;
         public final boolean addHit;
         public final boolean fusionSuicideFired;
+        public final int feedbackDamage;  // E4.43 overload feedback owed to the FIRING ship
+        public final int feedbackShield;  // which of its shields faces the target
         public final String attackerLog; // per-weapon roll results visible to attacker
         public final PlasmaTorpedo envelopingTorp; // non-null only for EPT seeker hits
 
@@ -2515,6 +3931,17 @@ public class Game {
                 int shieldNumber, int totalDamage, int envelopingHellboreDamage,
                 boolean addHit, boolean fusionSuicideFired, String attackerLog,
                 PlasmaTorpedo envelopingTorp) {
+            this(attackerName, attackerShip, target, shieldNumber, totalDamage,
+                    envelopingHellboreDamage, addHit, fusionSuicideFired, attackerLog,
+                    envelopingTorp, 0, 1);
+        }
+
+        public PendingVolley(String attackerName, Ship attackerShip, Unit target,
+                int shieldNumber, int totalDamage, int envelopingHellboreDamage,
+                boolean addHit, boolean fusionSuicideFired, String attackerLog,
+                PlasmaTorpedo envelopingTorp, int feedbackDamage, int feedbackShield) {
+            this.feedbackDamage = feedbackDamage;
+            this.feedbackShield = feedbackShield;
             this.attackerName = attackerName;
             this.attackerShip = attackerShip;
             this.target = target;
@@ -2571,6 +3998,74 @@ public class Game {
 
         PendingControlOverflow(Ship ship) {
             this.ship = ship;
+        }
+    }
+
+    /**
+     * One scout channel to be blinded by the scout's own weapons fire (G24.13). The firing
+     * player chooses which of its powered channels takes it (G24.131) — the options list is
+     * every powered channel (including ones already spent or blinded, which can be sacrificed
+     * to protect a more useful one). Resolved via submitBlindChoice().
+     */
+    /**
+     * A scout has tried to attract a shuttle that has not been identified as a seeking weapon,
+     * and the shuttle's owner must say whether it is attracted (G24.235). Answering "no" admits
+     * it is manned or ballistic; answering "yes" is a bluff a plain shuttle is allowed to make,
+     * at the price of having to behave like a seeking weapon afterwards.
+     */
+    public static class PendingAttractChoice {
+        public final String shuttleName;
+        public final String scoutName;
+        public final String channelDesignator;
+        final com.sfb.objects.shuttles.Shuttle shuttle;
+        final Ship scout;
+
+        PendingAttractChoice(com.sfb.objects.shuttles.Shuttle shuttle, Ship scout, String channel) {
+            this.shuttle = shuttle;
+            this.scout = scout;
+            this.shuttleName = shuttle.getName();
+            this.scoutName = scout.getName();
+            this.channelDesignator = channel;
+        }
+    }
+
+    public List<PendingAttractChoice> getPendingAttractChoices() {
+        return Collections.unmodifiableList(pendingAttractChoices);
+    }
+
+    /**
+     * The shuttle's owner answers a scout's attraction attempt (G24.235). {@code attracted}
+     * false reveals it as no seeking weapon; true keeps the disguise up — the shuttle is not
+     * identified, the scout's player is told the attraction took, and the shuttle carries the
+     * obligation to fly at the scout as a seeking weapon would (enforcement of that movement
+     * is not modelled — the claim is recorded and shown to its owner).
+     */
+    public ActionResult submitAttractChoice(boolean attracted) {
+        if (currentPhase != ImpulsePhase.ATTRACT_CHOICE || pendingAttractChoices.isEmpty())
+            return ActionResult.fail("No attraction choice is pending");
+        PendingAttractChoice pending = pendingAttractChoices.remove(0);
+        if (pendingAttractChoices.isEmpty())
+            currentPhase = attractChoiceReturnPhase;
+
+        if (!attracted) {
+            pending.shuttle.identify();  // it answers as what it is: manned, or ballistic
+            return ActionResult.ok("Channel " + pending.channelDesignator + " drew nothing from "
+                    + pending.shuttleName + " — it is not a seeking weapon (G24.235)");
+        }
+        pending.shuttle.setClaimedAttractedTo(pending.scoutName);
+        return ActionResult.ok("Channel " + pending.channelDesignator + " attracted "
+                + pending.shuttleName + " — it now tracks " + pending.scoutName + " (G24.23)");
+    }
+
+    public static class PendingBlindChoice {
+        public final String scoutName;
+        final Ship scout;
+        int remaining; // blinds still to assign
+
+        PendingBlindChoice(Ship scout, int remaining) {
+            this.scout = scout;
+            this.scoutName = scout.getName();
+            this.remaining = remaining;
         }
     }
 

@@ -104,15 +104,122 @@ public class DtoRedactionTest {
                 instanceof GameStateDto.SuicideShuttleDto);
     }
 
+    /**
+     * G4.233: "A successful attempt reveals if the shuttle is manned or unmanned and if it
+     * is following a seeking course ... but not if it is carrying drones or a suicide
+     * bomb."
+     * <p>
+     * This test used to assert the opposite — that identification revealed the suicide
+     * shuttle outright, warhead and arming turns and all. It was wrong against the book,
+     * and it held the wrong behaviour in place. What a lab buys is that the thing is on a
+     * seeking course and what it is aimed at; whether the bang comes from a bomb or from a
+     * bellyful of drones is exactly what stays hidden.
+     */
     @Test
-    public void identifiedEnemySuicideShuttle_isRevealed() {
+    public void identifiedEnemySuicideShuttle_revealsItsCourseButNotItsBomb() {
         SuicideShuttle ss = klingonSuicideShuttle();
-        ss.identify(); // lab identification (SeekerControl)
+        ss.identify(); // lab identification (G4.2)
+
+        GameStateDto fedView = new GameStateDto(game, "Federation");
+        GameStateDto.MapObjectDto obj = find(fedView, "IKV Saber-Shuttle-1");
+
+        assertFalse("identification must not reveal the suicide bomb (G4.233)",
+                obj instanceof GameStateDto.SuicideShuttleDto);
+        assertTrue("it stays a plain shuttle to the enemy", obj instanceof GameStateDto.ShuttleDto);
+
+        GameStateDto.ShuttleDto sd = (GameStateDto.ShuttleDto) obj;
+        assertTrue("but the enemy now knows it was identified", sd.isIdentified);
+        assertTrue("and that it is on a seeking course (G4.233)", sd.seekingCourse);
+        assertEquals("with its target, as for a drone (G4.231)",
+                "USS Enterprise", sd.seekingTargetName);
+    }
+
+    /**
+     * The other half of the same rule, and the reason it matters: an identified suicide
+     * shuttle and an identified scatter pack must be indistinguishable. If either one
+     * revealed its payload, the bluff between them would be over.
+     */
+    @Test
+    public void anIdentifiedPackAndAnIdentifiedSuicideShuttleReadAlike() {
+        SuicideShuttle ss = klingonSuicideShuttle();
+        ss.identify();
+
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        pack.setName("IKV Saber-Shuttle-3");
+        pack.setLocation(new Location(18, 12));
+        pack.setOwner(klingonPlayer);
+        pack.setTarget(fed);
+        pack.setController(klingon);
+        pack.addDrone(new Drone(DroneType.TypeI));
+        game.getSeekers().add(pack);
+        pack.identify();
+
+        GameStateDto fedView = new GameStateDto(game, "Federation");
+        GameStateDto.MapObjectDto a = find(fedView, "IKV Saber-Shuttle-1");
+        GameStateDto.MapObjectDto b = find(fedView, "IKV Saber-Shuttle-3");
+
+        assertEquals("the two must arrive as the same kind of object",
+                a.getClass(), b.getClass());
+        assertTrue(a instanceof GameStateDto.ShuttleDto);
+
+        GameStateDto.ShuttleDto sa = (GameStateDto.ShuttleDto) a;
+        GameStateDto.ShuttleDto sb = (GameStateDto.ShuttleDto) b;
+        assertEquals("both report a seeking course", sa.seekingCourse, sb.seekingCourse);
+        assertEquals("both report the same target", sa.seekingTargetName, sb.seekingTargetName);
+    }
+
+    /**
+     * G4.233's other clause: manning is revealed, and only once identified. It is sent as
+     * a Boolean because FALSE is the informative value here — a primitive would report
+     * every unidentified shuttle on the map as unmanned.
+     */
+    @Test
+    public void manningIsRevealedOnlyByIdentification() {
+        SuicideShuttle ss = klingonSuicideShuttle();
+
+        GameStateDto.ShuttleDto before = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-1");
+        assertNull("nothing is known about its crew yet", before.manned);
+
+        ss.identify();
+
+        GameStateDto.ShuttleDto after = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-1");
+        assertNotNull(after.manned);
+        assertFalse("a suicide shuttle flies empty (G4.233)", after.manned);
+    }
+
+    @Test
+    public void anIdentifiedPlainShuttleIsReportedManned() {
+        com.sfb.objects.shuttles.AdminShuttle admin = new com.sfb.objects.shuttles.AdminShuttle();
+        admin.setName("IKV Saber-Shuttle-9");
+        admin.setLocation(new Location(18, 14));
+        admin.setOwner(klingonPlayer);
+        game.getActiveShuttles().add(admin);
+        admin.identify();
+
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Shuttle-9");
+
+        assertEquals(Boolean.TRUE, dto.manned);
+        assertFalse("and it is not on a seeking course", dto.seekingCourse);
+    }
+
+    /** Releasing the drones is what makes a pack public — not being identified. */
+    @Test
+    public void aReleasedPackIsPublic() {
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        pack.setName("IKV Saber-Shuttle-4");
+        pack.setLocation(new Location(18, 13));
+        pack.setOwner(klingonPlayer);
+        pack.addDrone(new Drone(DroneType.TypeI));
+        game.getSeekers().add(pack);
+        pack.release();
 
         GameStateDto fedView = new GameStateDto(game, "Federation");
 
-        assertTrue(find(fedView, "IKV Saber-Shuttle-1")
-                instanceof GameStateDto.SuicideShuttleDto);
+        assertTrue("everyone saw the drones come out",
+                find(fedView, "IKV Saber-Shuttle-4") instanceof GameStateDto.ScatterPackDto);
     }
 
     @Test
@@ -164,7 +271,7 @@ public class DtoRedactionTest {
                 (GameStateDto.PlasmaTorpedoDto) find(fedView, "IKV Saber-Plasma-1");
 
         assertFalse("Pseudo status must be hidden (FP1.4)", dto.pseudo);
-        assertEquals("Type must be hidden until identified", "?", dto.plasmaType);
+        assertEquals("Type must be hidden from the enemy", "?", dto.plasmaType);
         assertNull(dto.targetName);
 
         GameStateDto klingonView = new GameStateDto(game, "Klingons");
@@ -172,6 +279,103 @@ public class DtoRedactionTest {
                 (GameStateDto.PlasmaTorpedoDto) find(klingonView, "IKV Saber-Plasma-1");
         assertTrue("Owner sees the truth", own.pseudo);
         assertEquals("G", own.plasmaType);
+    }
+
+    /**
+     * G4.232: "Labs can only reveal the target of a plasma torpedo ... Note that players
+     * cannot distinguish between plasma torpedoes and pseudo-plasma torpedoes."
+     * <p>
+     * So identification buys the target and stops. It used to open the whole record: an
+     * identified torpedo handed the enemy its type AND its pseudo status, which is the one
+     * fact a pseudo exists to keep. Nothing caught it because nothing tested an identified
+     * plasma at all — the existing test only ever looked at an unidentified one.
+     */
+    @Test
+    public void identifiedEnemyPlasma_revealsItsTargetAndNothingElse() {
+        PlasmaTorpedo torp = new PlasmaTorpedo(PlasmaType.G, WeaponArmingType.STANDARD);
+        torp.setName("IKV Saber-Plasma-2");
+        torp.setLocation(new Location(19, 11));
+        torp.setPseudoPlasma(true);
+        torp.setController(klingon);
+        torp.setTarget(fed);
+        game.getSeekers().add(torp);
+        torp.identify();
+
+        GameStateDto.PlasmaTorpedoDto dto = (GameStateDto.PlasmaTorpedoDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Plasma-2");
+
+        assertEquals("the target is what a lab buys (G4.232)", "USS Enterprise", dto.targetName);
+        assertFalse("a pseudo stays indistinguishable even after identification (G4.232)",
+                dto.pseudo);
+        assertEquals("and the type is not part of what is revealed (G4.232)",
+                "?", dto.plasmaType);
+        assertTrue("strength is always known either way (FP1.32)", dto.currentStrength >= 0);
+    }
+
+    /**
+     * G4.231 and the owner's ruling: damage taken is public, the hull behind it is not.
+     * Hits on a drone are visible; whether that leaves a Type-I on its last point or a
+     * Type-IV with three to go is exactly what identification buys. So an enemy reads
+     * "3 of ?", and the two numbers must not both be sent — maxHull = hull + damage would
+     * name the type.
+     */
+    @Test
+    public void enemyDrone_damageTakenIsPublicButTheHullIsNot() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-9");
+        drone.setLocation(new Location(19, 12));
+        drone.setController(klingon);
+        int atLaunch = drone.getHull();
+        drone.setHull(atLaunch - 2);           // took two hits
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto dto = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-9");
+
+        assertEquals("hits on a drone are there to see", 2, dto.damageTaken);
+        assertEquals("but not what it started with", 0, dto.maxHull);
+        assertEquals("nor what is left, which would give the total away", 0, dto.hull);
+        assertEquals("and certainly not the type", "?", dto.droneType);
+    }
+
+    /** Its owner sees the whole picture. */
+    @Test
+    public void ownDrone_showsHullAndDamage() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-10");
+        drone.setLocation(new Location(19, 13));
+        drone.setController(klingon);
+        int atLaunch = drone.getHull();
+        drone.setHull(atLaunch - 1);
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto dto = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Klingons"), "IKV Saber-Drone-10");
+
+        assertEquals(1, dto.damageTaken);
+        assertEquals(atLaunch, dto.maxHull);
+        assertEquals(atLaunch - 1, dto.hull);
+    }
+
+    /** What a drone is chasing is bought by identification, not watched (G4.231). */
+    @Test
+    public void enemyDrone_targetHiddenUntilIdentified() {
+        Drone drone = new Drone(DroneType.TypeI);
+        drone.setName("IKV Saber-Drone-11");
+        drone.setLocation(new Location(19, 14));
+        drone.setController(klingon);
+        drone.setTarget(fed);
+        game.getSeekers().add(drone);
+
+        GameStateDto.DroneDto before = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-11");
+        assertNull("an enemy cannot see which ship it is aimed at", before.targetName);
+
+        drone.identify();
+
+        GameStateDto.DroneDto after = (GameStateDto.DroneDto)
+                find(new GameStateDto(game, "Federation"), "IKV Saber-Drone-11");
+        assertEquals("USS Enterprise", after.targetName);
     }
 
     @Test
@@ -209,6 +413,38 @@ public class DtoRedactionTest {
     }
 
     @Test
+    public void activeEsgField_strengthIsPublic_butStoredEnergyIsSecret() {
+        // G23.46: an active field's size and strength are known to every player. The
+        // generator's stored/allocated energy stays the owner's secret (G23.311).
+        com.sfb.weapons.ESG esg = new com.sfb.weapons.ESG();
+        esg.setDesignator("A");
+        esg.setHasCapacitor(true);
+        fed.getWeapons().addWeapon(esg);
+        esg.setStoredEnergy(7);
+        esg.activate(2, 0); // releases 5 → strength chart[2][5] = 17; capacitor keeps 2
+        assertEquals(17, esg.getStrength());
+        assertEquals(2, esg.getStoredEnergy());
+
+        GameStateDto.WeaponDto enemy = esgOf((GameStateDto.ShipDto)
+                find(new GameStateDto(game, "Klingons"), "USS Enterprise"));
+        assertTrue(enemy.esgActive);
+        assertEquals("strength is public (G23.46)", 17, enemy.esgStrength);
+        assertEquals("radius is public (G23.46)", 2, enemy.esgRadius);
+        assertEquals("stored energy stays secret (G23.311)", 0, enemy.esgStoredEnergy);
+
+        GameStateDto.WeaponDto owner = esgOf((GameStateDto.ShipDto)
+                find(new GameStateDto(game, "Federation"), "USS Enterprise"));
+        assertEquals("owner sees its own stored energy", 2, owner.esgStoredEnergy);
+        assertEquals(17, owner.esgStrength);
+    }
+
+    private GameStateDto.WeaponDto esgOf(GameStateDto.ShipDto ship) {
+        for (GameStateDto.WeaponDto w : ship.weapons)
+            if (w.esg) return w;
+        return null;
+    }
+
+    @Test
     public void omniscientView_seesEverything() {
         klingonSuicideShuttle();
 
@@ -217,5 +453,85 @@ public class DtoRedactionTest {
         assertTrue(find(solo, "IKV Saber-Shuttle-1") instanceof GameStateDto.SuicideShuttleDto);
         GameStateDto.ShipDto klingonDto = (GameStateDto.ShipDto) find(solo, "IKV Saber");
         assertFalse(klingonDto.shuttleBays.isEmpty());
+    }
+
+    /**
+     * Every shuttle reports its weapons, not just fighters.
+     * <p>
+     * An admin shuttle builds itself a 360-degree Ph-3, and core and the fire-options
+     * endpoint have always been willing to fire it — but the DTO populated `weapons` only
+     * for a Fighter, so the client never learned the shuttle was armed. The UI picks a
+     * shuttle as an attacker on `weapons.length > 0`, so the phaser was unreachable from
+     * inside a game: the capability existed at every level except the one that offers it.
+     */
+    @Test
+    public void everyShuttleReportsItsWeapons_notJustFighters() {
+        com.sfb.objects.shuttles.AdminShuttle admin = new com.sfb.objects.shuttles.AdminShuttle();
+        admin.setName("USS Enterprise-Shuttle-1");
+        admin.setLocation(new Location(12, 12));
+        admin.setOwner(fedPlayer);
+        game.getActiveShuttles().add(admin);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        Object obj = find(view, "USS Enterprise-Shuttle-1");
+
+        assertTrue("expected a shuttle DTO", obj instanceof GameStateDto.ShuttleDto);
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto) obj;
+        assertNotNull("an admin shuttle's Ph-3 must reach the client", dto.weapons);
+        assertFalse("...and not be an empty list", dto.weapons.isEmpty());
+        assertFalse("but it is not a fighter, whatever it is carrying", dto.isFighter);
+    }
+
+    @Test
+    public void aFighterIsFlaggedAsOne() {
+        // The type label used to be inferred from "has weapons", which stops working the
+        // moment every shuttle reports its phaser.
+        com.sfb.objects.shuttles.Stinger1 f = new com.sfb.objects.shuttles.Stinger1();
+        f.setName("Alpha 1");
+        f.setLocation(new Location(13, 13));
+        f.setOwner(fedPlayer);
+        game.getActiveShuttles().add(f);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        GameStateDto.ShuttleDto dto = (GameStateDto.ShuttleDto) find(view, "Alpha 1");
+
+        assertTrue("a Stinger is a fighter", dto.isFighter);
+    }
+
+    /**
+     * A ship's TOTAL ECM, including a Wild Weasel's six points.
+     * <p>
+     * The panel summed allocated + lent and stopped, so a weasel's contribution (J3.23)
+     * and an Orion's built-in stealth (G15.8) were invisible — the player shooting at the
+     * ship first learned of them from the dice roll. EW strength is public by rule (D6.32
+     * has it announced in the lock-on segment), so there is nothing to withhold.
+     */
+    @Test
+    public void ecmTotalCountsAWeaselsContribution() {
+        fed.setEcmAllocated(2);
+        GameStateDto before = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dtoBefore = (GameStateDto.ShipDto) find(before, fed.getName());
+        assertEquals("just the two it generated", 2, dtoBefore.ecmTotal);
+
+        com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                new com.sfb.objects.shuttles.WildWeaselShuttle(fed);
+        fed.setActiveWildWeasel(ww);
+
+        GameStateDto after = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dtoAfter = (GameStateDto.ShipDto) find(after, fed.getName());
+
+        assertEquals("2 generated + 6 from the weasel", 8, dtoAfter.ecmTotal);
+        assertNotNull("and it must say where they came from", dtoAfter.ecmSources);
+        assertTrue(dtoAfter.ecmSources, dtoAfter.ecmSources.contains("lent"));
+    }
+
+    @Test
+    public void ecmSourcesNamesOnlyWhatContributes() {
+        fed.setEcmAllocated(3);
+
+        GameStateDto view = new GameStateDto(game, "Federation");
+        GameStateDto.ShipDto dto = (GameStateDto.ShipDto) find(view, fed.getName());
+
+        assertEquals("3 generated", dto.ecmSources);
     }
 }

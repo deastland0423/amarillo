@@ -133,6 +133,21 @@ public class GameSession {
     private final Set<String> coiDoneTokens = new HashSet<>();
 
     /**
+     * Where each player has set their ships down, by token then ship name. Secret until
+     * everyone is finished: a broadcast carries only how many each player has placed, and a
+     * player fetches their own through an authenticated call.
+     */
+    private final Map<String, Map<String, com.sfb.scenario.Deployment.Placement>> pendingDeployment
+            = new LinkedHashMap<>();
+
+    /**
+     * Who has said they are finished. Reversible until the last player says it, because there
+     * is no advantage in changing your mind about a setup nobody can see, and clicking Done a
+     * moment early should not cost the battle.
+     */
+    private final Set<String> deploymentDoneTokens = new HashSet<>();
+
+    /**
      * shipName → playerToken, recorded before start() so ships can be assigned in
      * the lobby.
      */
@@ -353,6 +368,33 @@ public class GameSession {
      * Submit COI selections and mark this player as COI-done.
      * May be called with an empty map to skip COI.
      */
+    /**
+     * What these COI selections would fail to do, per ship, without doing any of it.
+     *
+     * Runs the REAL applyCoi against a freshly built set of ships and reads the notes off
+     * them. A separate implementation of the checks would drift from the one that decides
+     * the battle, and running it against the actual ships would spend their drones twice
+     * over — so this builds its own and throws them away.
+     */
+    public Map<String, java.util.List<String>> previewCoi(
+            Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
+        Map<String, java.util.List<String>> problems = new java.util.LinkedHashMap<>();
+        if (loadedSpec == null || loadouts == null || loadouts.isEmpty())
+            return problems;
+
+        for (java.util.List<com.sfb.objects.Ship> side
+                : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
+            for (com.sfb.objects.Ship ship : side) {
+                com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
+                if (loadout == null)
+                    continue;
+                com.sfb.scenario.ScenarioLoader.applyCoi(ship, loadout, loadedSpec);
+                if (!ship.getSetupNotes().isEmpty())
+                    problems.put(ship.getName(), new java.util.ArrayList<>(ship.getSetupNotes()));
+            }
+        return problems;
+    }
+
     public void submitCoi(String playerToken, Map<String, com.sfb.scenario.CoiLoadout> shipLoadouts) {
         pendingCoi.put(playerToken, new LinkedHashMap<>(shipLoadouts));
         coiDoneTokens.add(playerToken);
@@ -367,6 +409,164 @@ public class GameSession {
     }
 
     // -------------------------------------------------------------------------
+    // Deployment: each player sets their own ships down, in secret
+    // -------------------------------------------------------------------------
+
+    /**
+     * True when this battle expects players to place their own ships — that is, when a side was
+     * given ground to set up on. A hand-written scenario that names every hex does not, and its
+     * players go straight from Commander's Options to the first turn.
+     */
+    public boolean isDeploymentRequired() {
+        if (loadedSpec == null || loadedSpec.sides == null)
+            return false;
+        return loadedSpec.sides.stream().anyMatch(s -> s.deploymentZone != null);
+    }
+
+    /** The side a player belongs to, found through any ship they were given. */
+    private com.sfb.scenario.ScenarioSpec.SideSpec sideFor(String token) {
+        if (loadedSpec == null || loadedSpec.sides == null)
+            return null;
+        List<String> mine = getAssignedShipsFor(token);
+        for (com.sfb.scenario.ScenarioSpec.SideSpec side : loadedSpec.sides) {
+            if (side.ships == null)
+                continue;
+            for (com.sfb.scenario.ScenarioSpec.ShipSetup ship : side.ships)
+                if (mine.contains(ship.shipName))
+                    return side;
+        }
+        return null;
+    }
+
+    /** The ground this player may set up on, or null if they have no ships yet. */
+    public com.sfb.scenario.MapRegion deploymentZoneFor(String token) {
+        com.sfb.scenario.ScenarioSpec.SideSpec side = sideFor(token);
+        return side != null ? side.deploymentZone : null;
+    }
+
+    /** Hexes no ship may be set down on, whoever they belong to. */
+    public java.util.Set<String> noEntryHexes() {
+        return com.sfb.scenario.Deployment.noEntryHexes(loadedSpec);
+    }
+
+    /** This player's own placements — never broadcast, only fetched by the player themselves. */
+    public Map<String, com.sfb.scenario.Deployment.Placement> deploymentFor(String token) {
+        return new LinkedHashMap<>(pendingDeployment.getOrDefault(token, Map.of()));
+    }
+
+    /**
+     * Record where a player has put their ships, replacing whatever they had before.
+     *
+     * @return everything wrong with the setup; empty means it was accepted
+     */
+    public List<String> submitDeployment(String token,
+                                         List<com.sfb.scenario.Deployment.Placement> placements) {
+        List<String> mine = getAssignedShipsFor(token);
+        List<String> problems = new java.util.ArrayList<>();
+
+        for (com.sfb.scenario.Deployment.Placement p : placements)
+            if (!mine.contains(p.shipName()))
+                problems.add(p.shipName() + " is not yours to place");
+        if (!problems.isEmpty())
+            return problems;
+
+        problems.addAll(com.sfb.scenario.Deployment.check(
+                placements, deploymentZoneFor(token), noEntryHexes(),
+                loadedSpec != null ? loadedSpec.mapCols : 42,
+                loadedSpec != null ? loadedSpec.mapRows : 32));
+        if (!problems.isEmpty())
+            return problems;
+
+        Map<String, com.sfb.scenario.Deployment.Placement> byShip = new LinkedHashMap<>();
+        for (com.sfb.scenario.Deployment.Placement p : placements)
+            byShip.put(p.shipName(), p);
+        pendingDeployment.put(token, byShip);
+
+        // A setup that no longer covers every ship cannot still be finished.
+        if (!byShip.keySet().containsAll(mine))
+            deploymentDoneTokens.remove(token);
+        return problems;
+    }
+
+    /**
+     * Lay this player's ships out for them, somewhere legal in their own ground. Somewhere to
+     * start from rather than somewhere to finish — the core works out the pattern, and the
+     * player moves whatever they do not like.
+     */
+    public List<String> autoArrange(String token) {
+        List<com.sfb.scenario.Deployment.Placement> placements =
+                com.sfb.scenario.Deployment.autoArrange(
+                        getAssignedShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
+                        loadedSpec != null ? loadedSpec.mapCols : 42,
+                        loadedSpec != null ? loadedSpec.mapRows : 32);
+        return submitDeployment(token, placements);
+    }
+
+    /** True once every one of this player's ships is somewhere legal. */
+    public boolean isDeploymentComplete(String token) {
+        List<String> mine = getAssignedShipsFor(token);
+        if (mine.isEmpty())
+            return true;   // nothing to place
+        return com.sfb.scenario.Deployment.isComplete(
+                mine, new java.util.ArrayList<>(deploymentFor(token).values()),
+                deploymentZoneFor(token), noEntryHexes(),
+                loadedSpec != null ? loadedSpec.mapCols : 42,
+                loadedSpec != null ? loadedSpec.mapRows : 32);
+    }
+
+    /** Say you are finished, or that you are not after all. */
+    public String setDeploymentDone(String token, boolean done) {
+        if (!done) {
+            deploymentDoneTokens.remove(token);
+            return null;
+        }
+        if (!isDeploymentComplete(token))
+            return "Every ship must be set down somewhere legal first";
+        deploymentDoneTokens.add(token);
+        return null;
+    }
+
+    public boolean isDeploymentDone(String token) {
+        return deploymentDoneTokens.contains(token);
+    }
+
+    public boolean allDeploymentDone() {
+        return !isDeploymentRequired() || deploymentDoneTokens.containsAll(players.keySet());
+    }
+
+    /**
+     * Write the placements into the scenario and rebuild the ships from it.
+     * <p>
+     * Into the spec rather than onto the ships, because the spec is what builds them: startHex,
+     * startHeading and startSpeed are read by ScenarioLoader, and going through it keeps one
+     * path from "where a ship starts" to "where the ship is".
+     */
+    private void applyDeployments() {
+        if (!isDeploymentRequired() || loadedSpec == null || loadedSpec.sides == null)
+            return;
+
+        Map<String, com.sfb.scenario.Deployment.Placement> all = new LinkedHashMap<>();
+        for (Map<String, com.sfb.scenario.Deployment.Placement> byShip : pendingDeployment.values())
+            all.putAll(byShip);
+        if (all.isEmpty())
+            return;
+
+        for (com.sfb.scenario.ScenarioSpec.SideSpec side : loadedSpec.sides) {
+            if (side.ships == null)
+                continue;
+            for (com.sfb.scenario.ScenarioSpec.ShipSetup setup : side.ships) {
+                com.sfb.scenario.Deployment.Placement p = all.get(setup.shipName);
+                if (p == null)
+                    continue;   // never placed: it keeps the starting line it was given
+                setup.startHex = p.hex();
+                setup.startHeading = p.heading();
+                setup.startSpeed = p.speed();
+            }
+        }
+        loadedSideShips = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
+    }
+
+    // -------------------------------------------------------------------------
     // Game lifecycle
     // -------------------------------------------------------------------------
 
@@ -376,8 +576,22 @@ public class GameSession {
      */
     public void loadScenario(String scenarioId) throws java.io.IOException {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-        loadedSpec = com.sfb.scenario.ScenarioSpec.fromJson(
-                "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+        adopt(com.sfb.scenario.ScenarioSpec.fromJson(
+                "data/scenarios/" + scenarioId.toLowerCase() + ".json"), scenarioId);
+    }
+
+    /**
+     * Take a scenario that was built rather than read — a battle between bought fleets
+     * (S8.0). From here on it is indistinguishable from a hand-authored one, which is the
+     * point: assignment, Commander's Options, victory and the lobby all work from the spec.
+     */
+    public void loadBuiltScenario(com.sfb.scenario.ScenarioSpec spec, String id) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        adopt(spec, id);
+    }
+
+    private void adopt(com.sfb.scenario.ScenarioSpec spec, String scenarioId) {
+        loadedSpec = spec;
         loadedSideShips = com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec);
         loadedScenarioId = scenarioId;
         scenarioLoaded = true;
@@ -385,6 +599,8 @@ public class GameSession {
         pendingAssignments.clear();
         coiDoneTokens.clear();
         pendingCoi.clear();
+        pendingDeployment.clear();
+        deploymentDoneTokens.clear();
         // Build shipName → team name index from scenario sides
         shipTeamName.clear();
         for (int i = 0; i < loadedSpec.sides.size(); i++) {
@@ -403,6 +619,9 @@ public class GameSession {
     public void start() throws java.io.IOException {
         if (!scenarioLoaded)
             throw new IllegalStateException("Load a scenario before starting");
+
+        // Where the players put their ships, before anything is built from the spec.
+        applyDeployments();
 
         // Flatten ship name → CoiLoadout from all players' submissions
         Map<String, com.sfb.scenario.CoiLoadout> byName = new LinkedHashMap<>();
@@ -508,9 +727,19 @@ public class GameSession {
                 // An open fire declaration must be answered before the phase moves
                 if (game.getCurrentPhase() == Game.ImpulsePhase.DIRECT_FIRE) {
                     refreshDeclarationState();
-                    if (declarationOpen)
-                        return ActionResult.fail("MUST_RESPOND_DECLARATION:"
-                                + getFireDeclarationCallerName());
+                    if (declarationOpen) {
+                        // A player who has already sealed their orders is not being asked
+                        // for anything — the round simply has not resolved yet, because
+                        // someone else has still to answer. Report that as an ordinary
+                        // wait, the same shape as readying up, so the client offers Cancel
+                        // instead of showing an error for something already done.
+                        if (declarationCommits.containsKey(token))
+                            return ActionResult.ok("WAITING:" + declarationCommits.size()
+                                    + "/" + players.size());
+                        return ActionResult.fail(getFireDeclarationCallerName()
+                                + " has declared fire — answer the declaration before the"
+                                + " phase can advance");
+                    }
                 }
                 // During movement phase, reject ready if this player still has ships or
                 // shuttles to move
@@ -533,7 +762,11 @@ public class GameSession {
                                     .orElse(null);
                         }
                         if (pending != null) {
-                            return ActionResult.fail("MUST_MOVE:" + pending);
+                            // Was "MUST_MOVE:<name>"; nothing on the client translated it,
+                            // so the raw token reached the screen.
+                            return ActionResult.fail(pending
+                                    + " has not moved yet — every ship and shuttle must move"
+                                    + " before the phase can advance");
                         }
                     }
                 }
@@ -684,15 +917,89 @@ public class GameSession {
                     }
                 }
 
+                // Scout function channels (G24.14) — power the requested channels (1 energy each),
+                // plus the ship-level pool of EW points the scout generates for lending (G24.211).
+                if (request.getPoweredChannels() != null) {
+                    e.setPoweredChannels(request.getPoweredChannels());
+                }
+                e.setScoutEwPoints(request.getScoutEwPoints());
+
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();
                 for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
                     if (!(w instanceof HeavyWeapon))
                         continue;
                     String choice = arming != null ? arming.get(w.getName()) : null;
+                    HeavyWeapon hw = (HeavyWeapon) w;
+
+                    // A photon still in its arming cycle is dialled by energy, not by a mode
+                    // (E4.21/E4.411): two points arms it as a standard torpedo, every point
+                    // above that is overload energy, and six is a 100% overload. The client
+                    // sends the amount; core records what actually lands in the tube.
+                    Map<String, Double> dial = request.getPhotonArming();
+                    Double dialled = dial != null ? dial.get(w.getName()) : null;
+
+                    // A loaded torpedo is dialled too (E4.411/E4.412): the holding cost keeps it
+                    // in the tube, and anything above that overloads it where it sits. Holding
+                    // energy never counts toward the overload, and an overloaded torpedo costs
+                    // two a turn to hold thereafter rather than one (E4.413).
+                    if (dialled != null && w instanceof com.sfb.weapons.Photon && hw.isArmed()) {
+                        double amount = dialled;
+                        double holdCost = hw.holdEnergyCost();
+                        if (amount <= 0) {
+                            e.getArmingEnergy().put(w, 0.0);   // discharge it (E4.22)
+                            continue;
+                        }
+                        if (amount < holdCost)
+                            return ActionResult.fail(w.getName() + ": holding a loaded torpedo costs "
+                                    + (int) holdCost + " (E4.22/E4.413)");
+                        double room = com.sfb.weapons.Photon.MAX_OVERLOAD
+                                - ((com.sfb.weapons.Photon) w).overloadEnergy();
+                        if (amount > holdCost + room)
+                            return ActionResult.fail(w.getName() + ": at most " + (int) (holdCost + room)
+                                    + " — the hold plus the " + (int) room
+                                    + " of overload it can still take (E4.41)");
+                        if ("PROX".equalsIgnoreCase(choice) && amount > holdCost)
+                            return ActionResult.fail(w.getName()
+                                    + ": a proximity torpedo cannot be overloaded (E4.34)");
+                        e.getArmingEnergy().put(w, amount);
+                        e.getArmingType().put(w, "PROX".equalsIgnoreCase(choice)
+                                ? WeaponArmingType.SPECIAL
+                                : amount > holdCost ? WeaponArmingType.OVERLOAD : hw.getArmingType());
+                        continue;
+                    }
+
+                    if (dialled != null && w instanceof com.sfb.weapons.Photon && !hw.isArmed()) {
+                        double amount = dialled;
+                        if (amount <= 0) {
+                            e.getArmingEnergy().put(w, 0.0);   // discharge / don't arm
+                            continue;
+                        }
+                        if (amount < com.sfb.weapons.Photon.STANDARD_PER_TURN)
+                            return ActionResult.fail(w.getName() + ": a photon needs two points of warp"
+                                    + " energy to continue arming (E4.21)");
+                        double perTurnMax = com.sfb.weapons.Photon.STANDARD_PER_TURN
+                                + com.sfb.weapons.Photon.MAX_OVERLOAD;
+                        if (amount > perTurnMax)
+                            return ActionResult.fail(w.getName() + ": a photon takes at most "
+                                    + (int) perTurnMax + " points in a turn — two standard plus four"
+                                    + " of overload (E4.41)");
+                        e.getArmingEnergy().put(w, amount);
+                        // A proximity fuse is recorded with the arming, costs nothing, and
+                        // cannot be combined with overload energy (E4.31/E4.34).
+                        boolean prox = "PROX".equalsIgnoreCase(choice)
+                                && amount == com.sfb.weapons.Photon.STANDARD_PER_TURN;
+                        if ("PROX".equalsIgnoreCase(choice) && !prox)
+                            return ActionResult.fail(w.getName()
+                                    + ": a proximity torpedo cannot be overloaded (E4.34)");
+                        e.getArmingType().put(w, prox ? WeaponArmingType.SPECIAL
+                                : amount > com.sfb.weapons.Photon.STANDARD_PER_TURN
+                                ? WeaponArmingType.OVERLOAD : WeaponArmingType.STANDARD);
+                        continue;
+                    }
+
                     if (choice == null)
                         choice = "STANDARD";
-                    HeavyWeapon hw = (HeavyWeapon) w;
                     switch (choice.toUpperCase()) {
                         case "HOLD":
                             e.getArmingEnergy().put(w, (double) hw.holdEnergyCost());
@@ -921,7 +1228,13 @@ public class GameSession {
                             for (int i = 0; i < needed; i++) {
                                 if (deckCrewsLeft < dt.rack)
                                     break; // not enough crew for this drone
-                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack > 6)
+                                // The pack's own capacity, not a hardcoded six: FD7.21 gives
+                                // an admin shuttle six spaces and says other types carry more
+                                // or fewer, and the catalogue has been the authority since
+                                // role eligibility became data. An MRS at eight would have
+                                // silently loaded six here.
+                                if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack
+                                        > pack.getMaxDroneSpaces())
                                     break;
                                 // Pull from reload stockpile (any rack's reload sets)
                                 boolean pulled = false;
@@ -1008,10 +1321,15 @@ public class GameSession {
                 // allocation may be rejected if it needs a still-locked switch.
                 int ecmReq = Math.max(0, request.getEcm());
                 int eccmReq = Math.max(0, request.getEccm());
-                int sensorRating = ship.getSpecialFunctions().getSensor();
-                if (ecmReq + eccmReq > sensorRating)
+                // One circuit per point of sensor rating (D6.312), and never more than six
+                // points generated in total (D6.310) — a scout's lending pool is generated
+                // separately and is not bound by this (G24.31).
+                int ewLimit = com.sfb.systemgroups.EwCircuits.generationLimit(
+                        ship.getSpecialFunctions().getSensor());
+                if (ecmReq + eccmReq > ewLimit)
                     return ActionResult.fail(
-                            "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds sensor rating (" + sensorRating + ")");
+                            "ECM + ECCM (" + (ecmReq + eccmReq) + ") exceeds the " + ewLimit
+                                    + "-point generation limit (D6.310/D6.312)");
                 String ewErr = ship.allocateEw(ecmReq, eccmReq, game.getAbsoluteImpulse() + 1);
                 if (ewErr != null)
                     return ActionResult.fail(ewErr);
@@ -1026,23 +1344,39 @@ public class GameSession {
                         return ActionResult.fail(ship.getName() + " has no functional tractor beams");
                 }
                 e.setTractors(tractorReq);
-                ship.getTractors().initForTurn(tractorReq);
+                ship.getTractors().initForTurn(tractorReq, game.getAbsoluteImpulse());
 
                 // Wild Weasel charging (J3.12): increment charge for named shuttles, reset
                 // others
                 java.util.Set<String> wwCharge = request.getWwCharge();
                 for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
                     for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
-                        if (!(s instanceof com.sfb.objects.shuttles.AdminShuttle))
-                            continue;
+                        // J3.18: charge whatever may serve, not only admin shuttles.
                         if (!s.canBecomeWildWeasel())
                             continue;
-                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
                         if (wwCharge != null && wwCharge.contains(s.getName()))
-                            admin.incrementWwCharge();
+                            s.incrementWwCharge();
                         else
-                            admin.resetWwCharge();
+                            s.resetWwCharge();
                     }
+                }
+
+                // Erratic Maneuvers (C10.11/C10.12): six hexes' worth of this ship's
+                // movement cost, or three if it is nimble. Paying buys only the right to
+                // announce EM later in the turn (C10.3) — the energy is spent either way,
+                // so an amount short of the full cost buys nothing and is refused rather
+                // than silently wasted.
+                double emReq = Math.max(0, request.getErraticManeuvers());
+                if (emReq > 0) {
+                    double emCost = ship.getPerformanceData().getErraticCost();
+                    if (emCost <= 0)
+                        return ActionResult.fail(ship.getName()
+                                + " cannot use Erratic Maneuvers");
+                    if (emReq < emCost)
+                        return ActionResult.fail("Erratic Maneuvers cost "
+                                + (int) emCost + " for " + ship.getName()
+                                + " — six hexes of movement, three if nimble (C10.11/C10.12)");
+                    e.setErraticManuvers(emCost);
                 }
 
                 ActionResult allocResult = game.submitAllocation(ship, e);
@@ -1053,14 +1387,42 @@ public class GameSession {
                 return allocResult;
             }
 
-            case "FIRE": {
-                ActionResult fireResult = resolveFire(request.getShipName(), request.getTargetName(),
-                        request.getWeaponNames(), request.getShotModes(),
-                        request.getRange(), request.getAdjustedRange(), request.getShieldNumber(),
-                        request.isUseUim(), request.isDirectFire());
-                if (fireResult.isSuccess())
-                    appendCombatLog(fireResult.getMessage());
-                return fireResult;
+            // There is no FIRE or FIRE_AT_HEX action. Weapons fire ONLY through the
+            // sealed declaration (D6.315) — see COMMIT_FIRE_DECLARATION. An action
+            // that resolved a shot on its own would let a player see the board, shoot, and
+            // watch the result before anyone else had decided anything.
+
+            case "ANNOUNCE_EM": {
+                // C10.3: announce that EM starts or stops. It comes into force at the END
+                // of this impulse (C10.311), not now. Works for a ship or a shuttle —
+                // Game.announceErraticManeuvers takes a Unit.
+                final String emName = request.getShipName();
+                com.sfb.objects.Unit emUnit = findShip(emName);
+                if (emUnit == null)
+                    emUnit = game.getActiveShuttles().stream()
+                            .filter(s -> s.getName().equalsIgnoreCase(emName))
+                            .findFirst().orElse(null);
+                if (emUnit == null)
+                    return ActionResult.fail("Unit not found: " + request.getShipName());
+                ActionResult emResult = game.announceErraticManeuvers(emUnit, request.isEmOn());
+                if (emResult.isSuccess())
+                    appendCombatLog(emResult.getMessage());
+                return emResult;
+            }
+
+            case "COMMIT_SHUTTLE_EM": {
+                // C10.13/C10.131: a shuttle buys EM with a point of speed, committed for
+                // the whole turn and not recoverable by cancelling EM.
+                final String emShuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Shuttle emShuttle = game.getActiveShuttles().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(emShuttleName))
+                        .findFirst().orElse(null);
+                if (emShuttle == null)
+                    return ActionResult.fail("Shuttle not found: " + request.getShipName());
+                ActionResult commitResult = game.commitShuttleEmSpeed(emShuttle);
+                if (commitResult.isSuccess())
+                    appendCombatLog(commitResult.getMessage());
+                return commitResult;
             }
 
             case "SUBMIT_REINFORCEMENT": {
@@ -1090,12 +1452,42 @@ public class GameSession {
                 return r;
             }
 
+            case "SUBMIT_BLIND_CHOICE": {
+                // Firing player picks which powered scout channel takes a blind (G24.131).
+                String channel = request.getChannelDesignator();
+                if (channel == null || channel.isBlank())
+                    return ActionResult.fail("No channel chosen");
+                ActionResult r = game.submitBlindChoice(channel);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "SUBMIT_CONTROL_OVERFLOW": {
                 String seekerName = request.getTargetName();
                 String toShipName = request.getShipName(); // null/blank = release
                 if (seekerName == null || seekerName.isBlank())
                     return ActionResult.fail("No seeker specified");
                 ActionResult r = game.submitControlOverflowChoice(seekerName, toShipName);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "SUBMIT_ATTRACT_CHOICE": {
+                // The shuttle's owner answers a scout's attraction attempt (G24.235).
+                if (request.getAttracted() == null)
+                    return ActionResult.fail("attracted must be true or false");
+                ActionResult r = game.submitAttractChoice(request.getAttracted());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "RELEASE_DRONE_CONTROL": {
+                // Voluntarily cut a seeker loose (F3.4) — the answer to a scout that has
+                // attracted one of your drones (G24.23).
+                ActionResult r = game.releaseSeekerControl(request.getTargetName(), request.getShipName());
                 if (r.isSuccess())
                     appendCombatLog(r.getMessage());
                 return r;
@@ -1579,6 +1971,78 @@ public class GameSession {
                 return r;
             }
 
+            case "LEND_EW": {
+                // Aim one scout channel's EW lend for the turn (G24.21); 0/0 clears it.
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignChannelLend(scout, request.getChannelDesignator(),
+                        request.getLendTarget(), request.getLendEcm(), request.getLendEccm());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "BREAK_LOCKON": {
+                // Attempt to break an enemy drone's lock-on with a scout channel (G24.22).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.breakDroneLockOn(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "IDENTIFY_SEEKER": {
+                // Attempt to identify an enemy seeker with a scout channel + lab (G24.25).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.identifySeeker(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "OFFENSIVE_EW": {
+                // Commit a scout channel to offensive EW against an enemy (G24.219); reuses
+                // lendEcm as the point count. 0 clears it.
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignOffensiveEw(scout, request.getChannelDesignator(),
+                        request.getTargetName(), request.getLendEcm());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "ATTRACT_DRONE": {
+                // Draw an enemy drone onto the scout with a scout channel (G24.23).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.attractDrone(scout, request.getChannelDesignator(),
+                        request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
+            case "CONTROL_SEEKERS": {
+                // Commit a scout channel to controlling seekers (+6 capacity, G24.24).
+                Ship scout = findShip(request.getShipName());
+                if (scout == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.assignControlSeekers(scout, request.getChannelDesignator());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "CANCEL_ESG": {
                 // Publicly cancel a pending ESG announcement before it forms (G23.33).
                 Ship ship = findShip(request.getShipName());
@@ -1725,10 +2189,16 @@ public class GameSession {
         }
         for (Map.Entry<String, DeclarationCommit> e : declarationCommits.entrySet()) {
             for (ActionRequest.FireOrder o : e.getValue().fireOrders) {
-                ActionResult r = resolveFire(o.getShipName(), o.getTargetName(),
-                        o.getWeaponNames(), o.getShotModes(),
-                        o.getRange(), o.getAdjustedRange(), o.getShieldNumber(),
-                        o.isUseUim(), o.isDirectFire());
+                // One list, drafted order preserved: a volley at a unit and a volley into
+                // a hex compete for the same weapons, so whichever was ordered first gets
+                // them.
+                ActionResult r = o.isAtHex()
+                        ? resolveHexFire(o.getShipName(), o.getHexCol(), o.getHexRow(),
+                                o.getPlanetSide(), o.getWeaponNames())
+                        : resolveFire(o.getShipName(), o.getTargetName(),
+                                o.getWeaponNames(), o.getShotModes(),
+                                o.getRange(), o.getAdjustedRange(), o.getShieldNumber(),
+                                o.isUseUim(), o.isDirectFire());
                 log.append("\n").append(r.getMessage());
             }
         }
@@ -1738,7 +2208,41 @@ public class GameSession {
         appendCombatLog(log.toString());
     }
 
-    /** Shared FIRE resolution — used by the FIRE action and the declaration reveal. */
+    /**
+     * Fire aimed at a PLACE rather than a unit: clearing a path through asteroids (P3.25)
+     * or bombarding a planet's surface (P2.311/P2.525).
+     * <p>
+     * One method for both, because the client should not have to know which rule the hex
+     * it clicked falls under — the server can see what is there. Reached only from
+     * the declaration reveal, so a bombardment is sealed and simultaneous like any other
+     * volley rather than resolving the moment it is ordered.
+     */
+    private ActionResult resolveHexFire(String shipName, int hexCol, int hexRow,
+            int planetSide, List<String> weaponNames) {
+        Ship firer = findShip(shipName);
+        if (firer == null)
+            return ActionResult.fail("Ship not found: " + shipName);
+        if (hexCol < 1 || hexRow < 1)
+            return ActionResult.fail("No target hex given");
+        com.sfb.properties.Location hex = new com.sfb.properties.Location(hexCol, hexRow);
+
+        List<com.sfb.weapons.Weapon> hexWeapons = new ArrayList<>();
+        for (String wName : weaponNames == null ? java.util.List.<String>of() : weaponNames)
+            for (com.sfb.weapons.Weapon w : firer.getWeapons().fetchAllWeapons())
+                if (w.getName().equals(wName) && !hexWeapons.contains(w)) {
+                    hexWeapons.add(w);
+                    break;
+                }
+        if (hexWeapons.isEmpty())
+            return ActionResult.fail("No weapons selected");
+
+        com.sfb.objects.Terrain planet = game.planetCovering(hex);
+        return planet != null
+                ? game.bombardPlanet(firer, planet, planetSide, hexWeapons)
+                : game.clearAsteroidPath(firer, hex, hexWeapons);
+    }
+
+    /** Shared FIRE resolution — reached only from the declaration reveal. */
     private ActionResult resolveFire(String attackerName, String targetName,
             List<String> weaponNames, Map<String, String> shotModes,
             int range, int adjustedRange, int shieldNumber, boolean useUim, boolean directFire) {
@@ -1777,6 +2281,16 @@ public class GameSession {
                     .findFirst().orElse(null);
             if (w == null)
                 return ActionResult.fail("Weapon not found on attacker: " + wName);
+            // fetchAllWeapons() includes drone racks, which are Launchers rather than
+            // direct-fire weapons. Refuse here so the player gets a reason instead of core
+            // quietly dropping it from the volley. A G-rack firing as an ADD (FD3.7) is not
+            // built yet; when it is, the rack will be a DirectFire in that mode and this
+            // will let it through without changes.
+            if (!(w instanceof com.sfb.weapons.DirectFire))
+                return ActionResult.fail(w.getName()
+                        + " is a launcher, not a direct-fire weapon — launch it from the"
+                        + " Activity phase. (A G-rack firing as an ADD, FD3.7, is not"
+                        + " implemented yet.)");
             weapons.add(w);
         }
 

@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
-  "hull": "CS",
+  "type": "CS",
+  "line": "CA",
   "name": "KHS Quasar",
   "serviceYear": 125,
   "bpv": 116,
@@ -9,6 +10,8 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
+  "tokenArt": "kzinti/cs.png",
   
   "shields": [24, 22, 22, 22, 22, 22],
   

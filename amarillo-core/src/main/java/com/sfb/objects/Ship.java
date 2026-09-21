@@ -163,11 +163,18 @@ public class Ship extends Unit implements DroneController {
 
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
-	private String hullType = null; // Descriptor of the type of ship (i.e. "CA", "FFG", "D7K", etc.)
+	private String shipType = null; // The SSD's "Type" line (i.e. "CA", "FFG", "D7K", etc.)
+	private String line = null;     // The family it serves in (S8.36), i.e. "CA" for a D7C
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
 	private int battlePointValue = 0; // BPV, a measure of how powerful the ship is in combat.
 	private int economicPointValue = 0; // EPV (split-BPV ships only); falls back to BPV if unset.
+	// Fleet-building classifications (S8.0). Used when a force is assembled, not in play.
+	private boolean leader = false;      // leader variant (S8.36)
+	private boolean escort = false;      // carrier escort (S8.311)
+	private boolean trueCarrier = false; // true carrier rather than a hybrid (S8.321/S8.322)
+	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
+	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
 
@@ -202,12 +209,17 @@ public class Ship extends Unit implements DroneController {
 
 		// Explicit Ship values
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
-		hullType = values.get("hull") == null ? null : (String) values.get("hull");
+		shipType = values.get("type") == null ? null : (String) values.get("type");
+		line     = values.get("line") == null ? null : (String) values.get("line");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
 		battlePointValue = values.get("bpv") == null ? 0 : (Integer) values.get("bpv");
 		economicPointValue = values.get("epv") == null ? battlePointValue : (Integer) values.get("epv");
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
+		leader      = Boolean.TRUE.equals(values.get("isleader"));
+		escort      = Boolean.TRUE.equals(values.get("isescort"));
+		trueCarrier = Boolean.TRUE.equals(values.get("istruecarrier"));
+		bch         = Boolean.TRUE.equals(values.get("isbch"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -269,6 +281,33 @@ public class Ship extends Unit implements DroneController {
 	 * @param allocation Object that will contain all instructions for
 	 *                   allocation of the ship's energy for the turn.
 	 */
+	/**
+	 * What the last energy allocation quietly cost this ship — currently photon tubes that
+	 * lapsed for want of energy (E4.21/E4.22). Read once by the allocating player: energy
+	 * allocation is secret, so these never go to the shared combat log.
+	 */
+	private final List<String> allocationNotes = new ArrayList<>();
+
+	/**
+	 * What could not be applied from this ship's Captain's Option Items, in the player's
+	 * words rather than the server console's. Deliberately NOT cleared at turn start, which
+	 * is where allocationNotes goes: these are decided before the battle and a player needs
+	 * to find them afterwards, not in the half-second before turn one begins.
+	 */
+	private final List<String> setupNotes = new ArrayList<>();
+
+	public List<String> getSetupNotes() {
+		return java.util.Collections.unmodifiableList(setupNotes);
+	}
+
+	public void addSetupNote(String note) {
+		setupNotes.add(note);
+	}
+
+	public List<String> getAllocationNotes() {
+		return java.util.Collections.unmodifiableList(allocationNotes);
+	}
+
 	public void allocateEnergy(Energy allocation) {
 		this.energyAllocated = allocation;
 		// Orion engine doubling (G15.2): boost this turn's power budget; the box
@@ -293,14 +332,31 @@ public class Ship extends Unit implements DroneController {
 		powerSystems.resolveDoublingBoxLoss(getSizeClass());
 	}
 
+	/**
+	 * Hexes bought by {@code warpEnergy} at this ship's movement cost.
+	 * <p>
+	 * Movement costs are thirds and quarters, so neither the cost nor the energy paid for a
+	 * whole number of hexes survives as an exact double. Truncating the raw quotient then
+	 * charges for a hex it does not deliver: a war cruiser paying for speed 7 lands on
+	 * 6.999999… and flies at 6. The tolerance is far below the smallest real fraction of a
+	 * hex anyone can buy, so a ship short of a full hex still rounds down.
+	 */
+	private int hexesBought(double warpEnergy) {
+		double cost = performanceData.getMovementCost();
+		if (cost <= 0)
+			return 0;
+		return (int) (warpEnergy / cost + 1e-6);
+	}
+
 	@Override
 	public void startTurn() {
+		allocationNotes.clear();
 		// Warp movement: each moveCost energy = 1 speed (max 30)
 		// Impulse movement: 1 impulse point = 1 extra hex flat, regardless of moveCost
 		// (max +1, giving speed 31)
 		// Warp movement is capped at 30 (G15.26 for Orion doubling; 31 total with
 		// the +1 impulse box below). HET/EM energy is not movement (not capped).
-		int warpSpeed = Math.min(30, (int) (energyAllocated.getWarpMovement() / performanceData.getMovementCost()));
+		int warpSpeed = Math.min(30, hexesBought(energyAllocated.getWarpMovement()));
 		int impulseSpeed = Math.min(energyAllocated.getImpulseMovement(), 1);
 		int requestedSpeed = Math.min(warpSpeed + impulseSpeed, 31);
 		setSpeed(Math.min(requestedSpeed, getMaxAccelerationSpeed()));
@@ -393,6 +449,17 @@ public class Ship extends Unit implements DroneController {
 			}
 		}
 
+		// Scout function channels (G24.14) — 1 energy powers a channel. The EW the scout can
+		// lend (G24.211) is a ship-level pool generated at EA (1 energy/point), not tied to any
+		// one channel; last turn's lend assignments clear so they can't spend this turn's pool.
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
+			c.setPowered(energyAllocated.getPoweredChannels().contains(c.getDesignator()));
+			c.resetForTurn(); // clears last turn's lend + function + break attempts (G24.12)
+		}
+		refreshScoutControlBonus(0); // functions reset above, so any G24.24 bonus clears too
+		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
+		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
+
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
 			transporters.bankEnergy(energyAllocated.getTransporters());
@@ -407,6 +474,12 @@ public class Ship extends Unit implements DroneController {
 				if (armEnergy != null) {
 					((HeavyWeapon) weapon).applyAllocationEnergy(armEnergy,
 							energyAllocated.getArmingType().get(weapon));
+				} else if (weapon instanceof com.sfb.weapons.Photon) {
+					// Allocating nothing to a photon tube is a decision with a consequence
+					// (E4.21/E4.22) — see Photon.lapseArming.
+					String lapsed = ((com.sfb.weapons.Photon) weapon).lapseArming();
+					if (lapsed != null)
+						allocationNotes.add(weapon.getName() + ": " + lapsed);
 				}
 			}
 			// For drone racks, apply any assigned reload
@@ -627,16 +700,39 @@ public class Ship extends Unit implements DroneController {
 
 	@Override
 	public int getTurnHexes() {
-		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed());
+		return com.sfb.utilities.TurnModeUtil.getTurnMode(effectiveTurnMode(), getSpeed())
+				+ emTurnModePenalty();   // C10.55
 	}
 
 	/// BASIC SHIP DATA ///
 	public void setType(String type) {
-		this.hullType = type;
+		this.shipType = type;
 	}
 
 	public String getType() {
-		return this.hullType;
+		return this.shipType;
+	}
+
+	/**
+	 * The family this ship serves in, e.g. "CA" for a D7C — what the leader rules compare,
+	 * since a leader needs consorts of its own kind rather than of its own exact type.
+	 * Null until the ship's file is classified.
+	 */
+	public String getLine() {
+		return this.line;
+	}
+
+	/**
+	 * A scout is a ship with special sensor channels (G24.0). The chart marks them with a
+	 * diamond (S8.35); the channels are what the rules actually key on, and what both the
+	 * purchase price (G24.35) and the victory value (G24.352) depend on.
+	 */
+	public boolean isScout() {
+		return !getScoutChannels().isEmpty();
+	}
+
+	public void setLine(String line) {
+		this.line = line;
 	}
 
 	public String getTokenArt() {
@@ -677,6 +773,44 @@ public class Ship extends Unit implements DroneController {
 		return this.economicPointValue;
 	}
 
+	/**
+	 * Leader variant — CWL, DWL, DDL, CC and the like (S8.36). A second leader of a given type
+	 * needs two combat variants of the same hull to accompany it (S8.361), and no leader may be
+	 * included unless all larger leaders have their supporting ships (S8.362).
+	 */
+	public boolean isLeader() {
+		return leader;
+	}
+
+	/** Carrier escort: illegal in a battle force except as part of a carrier group (S8.311). */
+	public boolean isEscort() {
+		return escort;
+	}
+
+	/**
+	 * True carrier rather than a hybrid. Its fighters count against the battle force's fighter
+	 * limit (S8.321); a hybrid's do not (S8.322). Carrying fighters does not make a ship one.
+	 */
+	public boolean isTrueCarrier() {
+		return trueCarrier;
+	}
+
+	/**
+	 * Heavy battlecruiser. A fleet may include only one (S8.333), but unlike the size class 2
+	 * ship it needs no squadron of followers, and it may be taken in addition to that ship.
+	 */
+	public boolean isBCH() {
+		return bch;
+	}
+
+	/**
+	 * Victory points this ship spent on Commander's Option Items (S2.20 step B / S3.2) —
+	 * extra boarding parties, commandos, T-bombs, etc. Awarded to the enemy in scoring.
+	 * Set by {@code ScenarioLoader.applyCoi}.
+	 */
+	public double getCoiSpend()          { return this.coiSpend; }
+	public void   setCoiSpend(double vp) { this.coiSpend = vp; }
+
 	public int getArmor() {
 		return this.armor;
 	}
@@ -712,6 +846,87 @@ public class Ship extends Unit implements DroneController {
 
 	public int getEccmAllocated() {
 		return ewCircuits.getEccm();
+	}
+
+	// --- EW lent to this ship by scouts this impulse (G24.21). Recomputed by Game. ---
+	private int lentEcm;
+	private int lentEccm;
+
+	/** ECM lent to this ship by operational scout channels (added to its effective ECM). */
+	public int getLentEcm()  { return lentEcm; }
+
+	/**
+	 * D6.3144 / D6.392: ECM received from ALL outside lending sources, capped at six
+	 * combined. A Wild Weasel lends its six points to the ship that launched it exactly as
+	 * a scout channel would (J3.23), so it shares the ceiling rather than sitting on top of
+	 * it - scout lending and a weasel together are still six, not twelve. The weasel itself
+	 * gets no benefit from what it lends.
+	 * <p>
+	 * Prefer this over {@link #getLentEcm()} anywhere a rule asks what is jamming this ship.
+	 */
+	public int getLentEcmTotal() {
+		return Math.min(MAX_LENT_RECEIVED, lentEcm + getWwEcmBonus());
+	}
+	public int getLentEccm() { return lentEccm; }
+
+	public void clearLentEw() { lentEcm = 0; lentEccm = 0; }
+
+	/**
+	 * Add EW lent by an operational scout channel, clamped to the six points of each kind
+	 * a unit may receive from lending (D6.3144, cited by G24.216). One channel lends at most
+	 * six combined (G24.2112), so reaching both caps takes at least two channels.
+	 */
+	public void addLentEw(int ecm, int eccm) {
+		lentEcm  = Math.min(MAX_LENT_RECEIVED, lentEcm  + Math.max(0, ecm));
+		lentEccm = Math.min(MAX_LENT_RECEIVED, lentEccm + Math.max(0, eccm));
+	}
+
+	/** Most ECM — and, separately, most ECCM — a unit may receive from lending (D6.3144). */
+	public static final int MAX_LENT_RECEIVED = 6;
+
+	// --- Offensive EW jamming this ship (G24.219): degrades ITS fire (adds to its targets'
+	//     effective ECM). Capped at 6 from all sources (D6.3145). Recomputed by Game. ---
+	private int offensiveEw;
+
+	/** Offensive EW (O-EW) jamming this ship's fire control (G24.219); added to its targets' ECM. */
+	public int getOffensiveEw() { return offensiveEw; }
+
+	public void clearOffensiveEw() { offensiveEw = 0; }
+
+	/** Add O-EW jamming, clamped to the 6-point all-sources maximum (D6.3145). */
+	public void addOffensiveEw(int points) {
+		offensiveEw = Math.min(6, offensiveEw + Math.max(0, points));
+	}
+
+	// --- Scout EW lending pool (G24.211): points this scout generated at EA to lend out. ---
+	private int scoutEwPool;      // total generated this turn
+	private int scoutEwRemaining; // still available to commit; dropped points don't return (G24.2122)
+
+	/** EW points this scout generated this turn for lending (ship-level pool, G24.211/.31). */
+	public int getScoutEwPool() { return scoutEwPool; }
+
+	public void setScoutEwPool(int points) {
+		this.scoutEwPool = Math.max(0, points);
+		this.scoutEwRemaining = this.scoutEwPool; // a freshly generated pool is fully available (G24.2113)
+	}
+
+	/** Pool still available to commit; dropped/re-apportioned points are lost, not refunded (G24.2122). */
+	public int getScoutEwRemaining() { return scoutEwRemaining; }
+
+	public void setScoutEwRemaining(int points) { this.scoutEwRemaining = Math.max(0, points); }
+
+	/** Draw {@code points} from the remaining pool when a lend is increased (G24.2122). */
+	public void spendScoutEw(int points) {
+		this.scoutEwRemaining = Math.max(0, scoutEwRemaining - Math.max(0, points));
+	}
+
+	/** EW points currently drawn from the pool across all this scout's channels (G24.2111). */
+	public int getScoutEwLent() {
+		int total = 0;
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
+			if (c.getLendTarget() != null)
+				total += c.getLentTotal();
+		return total;
 	}
 
 	/** Force ECCM to an exact value, bypassing circuit lockouts — tests/sync only. */
@@ -770,22 +985,66 @@ public class Ship extends Unit implements DroneController {
 		return performanceData.isNimble();
 	}
 
+	/** C11.2: a ship is nimble if its data says so. */
+	@Override
+	public boolean isNimbleUnit() {
+		return isNimble();
+	}
+
+	/**
+	 * C10.11/C10.12: whether this ship bought Erratic Maneuvers in the Energy Allocation
+	 * phase - six hexes' worth of its movement cost, or three if nimble. Paying only makes
+	 * the ship ELIGIBLE to announce EM during the turn (C10.3); it does not start it, and
+	 * the energy is lost whether or not it is ever used.
+	 */
+	private boolean paidForEm = false;
+
+	public boolean hasPaidForEm() { return paidForEm; }
+
+	public void setPaidForEm(boolean paid) { this.paidForEm = paid; }
+
 	// --- Lock-on ---
 
 	public boolean hasLockOn(Unit target) {
 		return lockOns.contains(target);
 	}
 
+	/**
+	 * Lock-ons held only because a tractor beam is attached (G7.412).
+	 *
+	 * Worth distinguishing because they are not worth as much: D6.627 says a tractor's
+	 * lock-on is adequate for direct-fire weapons but NOT for lending EW (G7.97). Without
+	 * the mark, a beam-granted lock-on — automatic, no roll, cloak irrelevant — looked
+	 * exactly like one the sensors had earned.
+	 */
+	private final Set<Unit> tractorLockOns = new java.util.HashSet<>();
+
 	public void addLockOn(Unit target) {
 		lockOns.add(target);
+		// A lock-on the sensors earned outranks a beam's: the scout genuinely has one now.
+		tractorLockOns.remove(target);
+	}
+
+	/** A lock-on held only by virtue of an attached beam (G7.412). */
+	public void addTractorLockOn(Unit target) {
+		if (!lockOns.contains(target))
+			tractorLockOns.add(target);
+		lockOns.add(target);
+	}
+
+	/** True if this lock-on rests on a tractor beam alone (D6.627, G7.97). */
+	public boolean isTractorOnlyLockOn(Unit target) {
+		return tractorLockOns.contains(target);
 	}
 
 	public void removeLockOn(Unit target) {
 		lockOns.remove(target);
+		tractorLockOns.remove(target);
 	}
 
 	public void clearLockOns() {
 		lockOns.clear();
+		tractorLockOns.clear();
 	}
 
 	public Set<Unit> getLockOns() {
@@ -958,11 +1217,6 @@ public class Ship extends Unit implements DroneController {
 
 	}
 
-	/// IDENTITY ///
-	public String getHullType() {
-		return this.hullType;
-	}
-
 	public boolean isBase() { return isBase; }
 	public void setBase(boolean isBase) { this.isBase = isBase; }
 
@@ -990,6 +1244,7 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public void attachClock(com.sfb.TurnTracker clock) {
 		getShields().setClock(clock);
+		getTractors().setClock(clock);   // the damage pick reads the impulse (G7.13)
 		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
 			w.setClock(clock);
 		for (com.sfb.systemgroups.ShuttleBay bay : getShuttles().getBays())
@@ -1224,6 +1479,83 @@ public class Ship extends Unit implements DroneController {
 		return this.weapons;
 	}
 
+	// --- Scout function channels (G24.0) ---
+
+	/** All scout function channels (special sensors) on this ship. */
+	public List<com.sfb.weapons.ScoutChannel> getScoutChannels() {
+		List<com.sfb.weapons.ScoutChannel> result = new java.util.ArrayList<>();
+		for (Weapon w : weapons.fetchAllWeapons())
+			if (w instanceof com.sfb.weapons.ScoutChannel)
+				result.add((com.sfb.weapons.ScoutChannel) w);
+		return result;
+	}
+
+	/**
+	 * Why this ship cannot use its scout channels at the moment (G24.16), or null if it can.
+	 * A cloaked scout is barred from every function except self-protection (G13.515, G24.28) —
+	 * pass true when checking that one; an operating Wild Weasel bars all of them (J3.403).
+	 * The channel stays powered throughout: only the function is suspended, and it resumes
+	 * on its own once the condition clears (G24.162, G24.333).
+	 * <p>
+	 * Erratic Maneuvers bar channel use too (G24.16, C10.52) — the same prohibition G4.21
+	 * puts on identifying with labs.
+	 */
+	public String scoutChannelBlockReason(boolean selfProtection) {
+		if (!selfProtection && cloak != null && cloak.isRestrictingActions())
+			return getName() + " is cloaked — only self-protection may use a channel (G24.16, G13.515)";
+		if (isUsingEm())
+			return getName() + " is using Erratic Maneuvers — scout channels are unusable (G24.16, C10.52)";
+		if (activeWildWeasel != null && !activeWildWeasel.isPostExplosion())
+			return getName() + " has an operating Wild Weasel — scout channels are unusable (G24.16, J3.403)";
+		return null;
+	}
+
+	/**
+	 * Recompute the +6 seeker-control bonus (G24.24): granted while an operational channel
+	 * (functional, powered, unblinded) is assigned to CONTROL_SEEKERS, dropped otherwise —
+	 * e.g. when that channel is blinded (G24.242). Call after channel state changes.
+	 */
+	public void refreshScoutControlBonus(int currentImpulse) {
+		boolean active = false;
+		if (scoutChannelBlockReason(false) != null) {   // G24.16: suspended while cloaked or under a WW
+			specialFunctions.setScoutControlBonus(0);
+			return;
+		}
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels())
+			if (c.getTurnFunction() == com.sfb.weapons.ScoutChannel.Function.CONTROL_SEEKERS
+					&& c.isOperational(currentImpulse)) {
+				active = true;
+				break;
+			}
+		specialFunctions.setScoutControlBonus(active ? com.sfb.weapons.ScoutChannel.CONTROL_SEEKERS_BONUS : 0);
+	}
+
+	/**
+	 * Blind one powered channel because a weapon fired (G24.13/.131): an unblinded
+	 * powered channel if one exists, otherwise extend the powered channel recovering
+	 * first. Bases never blind their own channels (G24.135). Returns the channel blinded,
+	 * or null if there was none to blind.
+	 */
+	public com.sfb.weapons.ScoutChannel blindOneScoutChannel(int currentImpulse) {
+		if (isBase)
+			return null; // G24.135
+		com.sfb.weapons.ScoutChannel target = null;
+		for (com.sfb.weapons.ScoutChannel c : getScoutChannels()) {
+			if (!c.isFunctional() || !c.isPowered())
+				continue;
+			if (!c.isBlinded(currentImpulse)) {
+				c.blind(currentImpulse); // fresh blind of an unblinded channel
+				return c;
+			}
+			// track the one recovering first, in case all powered channels are blinded
+			if (target == null || c.getBlindedUntilImpulse() < target.getBlindedUntilImpulse())
+				target = c;
+		}
+		if (target != null)
+			target.blind(currentImpulse); // all blinded → extend the earliest-recovering (G24.131)
+		return target;
+	}
+
 	/// SHUTTLES ///
 
 	// TODO: Shuttle operations
@@ -1304,6 +1636,12 @@ public class Ship extends Unit implements DroneController {
 	public int rollAndPerformHet(int absoluteFacing) {
 		DiceRoller roller = new DiceRoller();
 		int breakdownRoll = roller.rollOneDie();
+
+		// C10.55: one is added to every HET roll made under Erratic Maneuvers, making a
+		// breakdown likelier. Nimble ships are exempt, as they are from the Turn Mode
+		// penalty.
+		if (isUsingEm() && !isNimble())
+			breakdownRoll += 1;
 
 		if (performanceData.getBonusHetsRemaining() > 0) {
 			breakdownRoll -= 2;
@@ -1532,7 +1870,13 @@ public class Ship extends Unit implements DroneController {
 	private java.util.List<String> getDacChoiceOptions(String system, Ship attacker) {
 		switch (system) {
 			case "phaser": {
-				List<Weapon> candidates = bearingFunctionalPhasers(attacker);
+				List<Weapon> candidates = new java.util.ArrayList<>(bearingFunctionalPhasers(attacker));
+				// Special sensors that replaced phasers are hit on phaser hits (G24.17), in any
+				// direction (360° arc, G24.15).
+				for (Weapon w : weapons.fetchAllWeapons())
+					if (w instanceof com.sfb.weapons.ScoutChannel
+							&& "phaser".equals(w.getDacHitLocaiton()) && w.isFunctional())
+						candidates.add(w);
 				// D4.3221 rule of 3: if this is the 3rd hit in a group and no best-type taken yet,
 				// restrict to best-available type only.
 				if (phaserDacGroupPos == 2 && !phaserDacBestTaken && !candidates.isEmpty()) {

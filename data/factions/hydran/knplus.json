@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
-  "hull": "KN+",
+  "type": "KN+",
+  "line": "DD",
   "name": "HMS Invulnerable",
   "serviceYear": 172,
   "bpv": 90,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "commandRating": 4,
   
   "shields": [24, 18, 18, 18, 18, 18],
   

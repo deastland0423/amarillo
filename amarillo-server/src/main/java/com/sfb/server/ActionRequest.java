@@ -11,7 +11,9 @@ import java.util.Map;
  *
  *   ADVANCE_PHASE  — no extra fields
  *   MOVE           — shipName, action (FORWARD | TURN_LEFT | TURN_RIGHT | SIDESLIP_LEFT | SIDESLIP_RIGHT)
- *   FIRE           — shipName (attacker), targetName, weaponNames, range, adjustedRange, shieldNumber
+ *
+ * There is no FIRE action: weapons fire only through COMMIT_FIRE_DECLARATION, whose
+ * fireOrders carry their own per-order copies of these fields (D6.315).
  */
 public class ActionRequest {
 
@@ -20,24 +22,39 @@ public class ActionRequest {
     private String       shipName;
     private String       action;
 
-    // FIRE fields
+    // Shared targeting fields. targetName and weaponNames serve many actions; range is
+    // read by the range-checked ones and shieldNumber by PLACE_TBOMB. Per-VOLLEY values
+    // (adjusted range, shield hit, UIM, Hellbore mode) live on FireOrder instead, because
+    // a volley is only ever ordered inside a sealed declaration.
     private String       targetName;
     private List<String> weaponNames;
     private int          range;
-    private int          adjustedRange;
     private int          shieldNumber;
-    private boolean      useUim;
-    private boolean      directFire;   // true = Hellbore fires in direct-fire mode (E10.7)
 
     // ALLOCATE fields
     private int                 speed;                  // warp speed requested (31 = warp 30 + impulse)
     private boolean             topOffCap;              // legacy: true = charge phaser capacitor to full
     private double              capacitorCharge = -1;   // energy to add to the phaser capacitor; <0 = use topOffCap
     private String              shieldMode;             // "ACTIVE", "MINIMUM", or "OFF"
+    private double              erraticManeuvers;       // energy bought for EM (C10.11)
+    private boolean             emOn;                   // ANNOUNCE_EM: start it, or stop it
     private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
+    private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
+    private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
+    private String              channelDesignator;      // LEND_EW: which scout channel to aim (G24.21)
+    // ALLOCATE: warp energy dialled into a photon tube this turn, by weapon name (E4.21/E4.411).
+    // Two points arms it as a standard torpedo; anything more is overload energy, up to six.
+    private Map<String, Double> photonArming;
+    // SUBMIT_ATTRACT_CHOICE: true = the shuttle answers as a seeking weapon (possibly a bluff),
+    // false = it admits to being manned or ballistic (G24.235). Boxed so a client that omits
+    // it is rejected rather than silently revealing the shuttle.
+    private Boolean             attracted;
+    private String              lendTarget;             // LEND_EW: unit name to lend EW to (self allowed, G24.28)
+    private int                 lendEcm;                // LEND_EW: ECM points to lend via the channel
+    private int                 lendEccm;               // LEND_EW: ECCM points to lend via the channel
     private String              esgDesignator;          // ANNOUNCE_ESG/CANCEL_ESG/DEACTIVATE_ESG: which ESG
     private int                 esgRadius;              // ANNOUNCE_ESG: field radius 0–3 (G23.41)
     private int                 esgReleaseAmount;       // ANNOUNCE_ESG: capacitor release 1–5 (G23.242); 0 = all
@@ -54,7 +71,6 @@ public class ActionRequest {
     private Map<String, Integer>             suicideShuttleArming;   // shuttle name → energy (1–3)
     private java.util.Set<String>            suicideShuttleHold;     // shuttle names paying hold this turn
     private Map<String, Integer> shuttleSpeeds;                       // shuttle name → requested speed (active shuttles only)
-    private Map<String, String>  shotModes;                           // weapon name → "SINGLE" or "DOUBLE" (FighterFusion)
 
     public String getType()                           { return type; }
     public void   setType(String type)                { this.type = type; }
@@ -85,17 +101,8 @@ public class ActionRequest {
     public int  getRange()                         { return range; }
     public void setRange(int range)                { this.range = range; }
 
-    public int  getAdjustedRange()                 { return adjustedRange; }
-    public void setAdjustedRange(int adjustedRange){ this.adjustedRange = adjustedRange; }
-
     public int  getShieldNumber()                  { return shieldNumber; }
     public void setShieldNumber(int shieldNumber)  { this.shieldNumber = shieldNumber; }
-
-    public boolean isUseUim()                      { return useUim; }
-    public void    setUseUim(boolean useUim)        { this.useUim = useUim; }
-
-    public boolean isDirectFire()                      { return directFire; }
-    public void    setDirectFire(boolean directFire)   { this.directFire = directFire; }
 
     public int  getSpeed()                         { return speed; }
     public void setSpeed(int speed)                { this.speed = speed; }
@@ -108,6 +115,12 @@ public class ActionRequest {
     public String getShieldMode()                        { return shieldMode; }
     public void   setShieldMode(String shieldMode)       { this.shieldMode = shieldMode; }
 
+    public double getErraticManeuvers()                  { return erraticManeuvers; }
+    public void   setErraticManeuvers(double e)          { this.erraticManeuvers = e; }
+
+    public boolean isEmOn()                              { return emOn; }
+    public void    setEmOn(boolean on)                   { this.emOn = on; }
+
     public Map<String, String> getWeaponArming()                           { return weaponArming; }
     public void                setWeaponArming(Map<String, String> arming) { this.weaponArming = arming; }
 
@@ -118,6 +131,22 @@ public class ActionRequest {
     public void    setEnergizeCaps(boolean energizeCaps)   { this.energizeCaps = energizeCaps; }
     public Map<String, Integer> getEsgEnergy()             { return esgEnergy; }
     public void    setEsgEnergy(Map<String, Integer> m)    { this.esgEnergy = m; }
+    public java.util.List<String> getPoweredChannels()     { return poweredChannels; }
+    public void    setPoweredChannels(java.util.List<String> c) { this.poweredChannels = c; }
+    public int     getScoutEwPoints()                      { return scoutEwPoints; }
+    public void    setScoutEwPoints(int p)                 { this.scoutEwPoints = p; }
+    public String  getChannelDesignator()                  { return channelDesignator; }
+    public void    setChannelDesignator(String d)          { this.channelDesignator = d; }
+    public Map<String, Double> getPhotonArming()           { return photonArming; }
+    public void    setPhotonArming(Map<String, Double> m)  { this.photonArming = m; }
+    public Boolean getAttracted()                          { return attracted; }
+    public void    setAttracted(Boolean a)                 { this.attracted = a; }
+    public String  getLendTarget()                         { return lendTarget; }
+    public void    setLendTarget(String t)                 { this.lendTarget = t; }
+    public int     getLendEcm()                            { return lendEcm; }
+    public void    setLendEcm(int e)                       { this.lendEcm = e; }
+    public int     getLendEccm()                           { return lendEccm; }
+    public void    setLendEccm(int e)                      { this.lendEccm = e; }
     public String  getEsgDesignator()                      { return esgDesignator; }
     public void    setEsgDesignator(String d)              { this.esgDesignator = d; }
     public int     getEsgRadius()                          { return esgRadius; }
@@ -161,8 +190,6 @@ public class ActionRequest {
     public Map<String, Integer> getShuttleSpeeds()                              { return shuttleSpeeds; }
     public void                 setShuttleSpeeds(Map<String, Integer> speeds)   { this.shuttleSpeeds = speeds; }
 
-    public Map<String, String>  getShotModes()                                  { return shotModes; }
-    public void                 setShotModes(Map<String, String> shotModes)     { this.shotModes = shotModes; }
 
     // DISENGAGE_ACCEL fields
     private boolean declare;
@@ -208,6 +235,12 @@ public class ActionRequest {
     public void setCrewAmount(int crewAmount)  { this.crewAmount = crewAmount; }
 
     // IDENTIFY_SEEKERS fields
+    /**
+     * One entry per LAB committed, NOT per contact (G4.22): a name repeated three times
+     * commits three labs to that one contact, which core groups into a single attempt
+     * rolling three dice. Must stay a List and must never be de-duplicated - a Set here
+     * would silently cap every contact at one lab and quietly delete the rule.
+     */
     private List<String> seekerNames;
 
     public List<String> getSeekerNames()                       { return seekerNames; }
@@ -302,6 +335,12 @@ public class ActionRequest {
         private int shieldNumber;
         private boolean useUim;
         private boolean directFire = true;
+        // Firing at a PLACE instead of a unit (P3.25 clearing a path, P2.311 bombardment).
+        // targetName is null for these; hexCol/hexRow name the hex and planetSide (1-6 =
+        // A-F) the planet face, whose visibility core checks (P2.52).
+        private int hexCol;
+        private int hexRow;
+        private int planetSide;
 
         public String getShipName()                          { return shipName; }
         public void   setShipName(String s)                  { this.shipName = s; }
@@ -321,6 +360,15 @@ public class ActionRequest {
         public void    setUseUim(boolean b)                  { this.useUim = b; }
         public boolean isDirectFire()                        { return directFire; }
         public void    setDirectFire(boolean b)              { this.directFire = b; }
+        public int     getHexCol()                           { return hexCol; }
+        public void    setHexCol(int c)                      { this.hexCol = c; }
+        public int     getHexRow()                           { return hexRow; }
+        public void    setHexRow(int r)                      { this.hexRow = r; }
+        public int     getPlanetSide()                       { return planetSide; }
+        public void    setPlanetSide(int s)                  { this.planetSide = s; }
+
+        /** True when this order is aimed at a hex rather than at a unit. */
+        public boolean isAtHex() { return hexCol >= 1 && hexRow >= 1; }
     }
 
     public static class EwAdjustment {

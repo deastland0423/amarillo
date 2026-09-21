@@ -22,8 +22,26 @@ public abstract class Shuttle extends Unit {
 	private int currentSpeed; // The speed the shuttle is currently travelling
 	private int currentHull; // The number of undamaged hull remaining.
 	private boolean crippled = false;
+	private int crippledHull = 0;   // damage that cripples it; 0 = no crippled state (J1.33)
 	private int chaffPacks = 0;
 	private int ewPods = 0; // Number of EW pods carried by the shuttle
+	// True once an enemy scout has identified this shuttle (G24.25). Every shuttle can be
+	// identified — a plain shuttle looks just like a disguised seeker until then. Seeking
+	// shuttles satisfy the Seeker interface's identify()/isIdentified() through these.
+	private boolean identified = false;
+
+	public void identify() { this.identified = true; }
+
+	public boolean isIdentified() { return this.identified; }
+
+	// G24.235: a shuttle that has not been identified may answer a scout's attraction as if it
+	// were a seeking weapon, to fool the scout's owner. Holds the scout's name while the bluff
+	// stands; the shuttle is obliged to fly at that scout for as long as it keeps it up.
+	private String claimedAttractedTo;
+
+	public String getClaimedAttractedTo() { return this.claimedAttractedTo; }
+
+	public void setClaimedAttractedTo(String scoutName) { this.claimedAttractedTo = scoutName; }
 
 	public int getEwPods() {
 		return ewPods;
@@ -67,19 +85,106 @@ public abstract class Shuttle extends Unit {
 	 * True if this shuttle can be converted to a suicide shuttle before game start.
 	 */
 	public boolean canBecomeSuicide() {
-		return false;
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e != null && e.canSuicide;
 	}
 
 	/**
 	 * True if this shuttle can be converted to a scatter pack before game start.
 	 */
+	/** FD7.11: only admin, MRS, MLS, MSS shuttles and fighters qualify. */
 	public boolean canBecomeScatterPack() {
-		return false;
+		return scatterPackSpaces() > 0;
 	}
 
-	/** True if this shuttle can be converted to a wild weasel before game start. */
+	/**
+	 * Whether this shuttle carries a pilot. Every shuttle and fighter does, except in the
+	 * three roles that fly empty: a wild weasel, a scatter pack and a suicide shuttle,
+	 * each of which overrides this.
+	 * <p>
+	 * It matters because identification reveals it (G4.233) — and reveals nothing that
+	 * separates the last two, since both read "unmanned, on a seeking course". Manning
+	 * follows the ROLE rather than the craft, which is why it lives on the role classes
+	 * and not in the shuttle catalogue.
+	 */
+	public boolean isManned() {
+		return true;
+	}
+
+	/**
+	 * The special role this shuttle is prepared for, or null if it is just a shuttle.
+	 *
+	 * A prepared shuttle is not interchangeable with a plain one: a charged Wild Weasel
+	 * cannot be turned back into an admin shuttle mid-turn, and neither can an armed
+	 * suicide shuttle or a loaded scatter pack. Each has its own launch action, and this
+	 * is what stops the ordinary one from spending them by mistake — which wasted the
+	 * preparation and the energy behind it, with nothing to show.
+	 *
+	 * A charged weasel is the case that needs saying: it is still an ADMIN shuttle, same
+	 * class and same type, so nothing else distinguishes it in a launch list.
+	 */
+	public String specialRole() {
+		return getWwChargeCount() > 0 ? "Wild Weasel" : null;
+	}
+
+	// --- Wild Weasel charging (J3.12) ---
+	// On Shuttle, not AdminShuttle: J3.18 lets any non-fighter shuttle serve as a weasel,
+	// and while this state lived on AdminShuttle every gate had to test for that class —
+	// so a GAS or an HTS could never be charged no matter what the rules said.
+
+	private int wwChargeCount = 0;
+
+	public int getWwChargeCount() {
+		return wwChargeCount;
+	}
+
+	/** J3.12: two turns of charging before it can be launched as a weasel. */
+	public boolean isWwReady() {
+		return wwChargeCount >= 2;
+	}
+
+	public void incrementWwCharge() {
+		if (wwChargeCount < 2)
+			wwChargeCount++;
+	}
+
+	public void resetWwCharge() {
+		wwChargeCount = 0;
+	}
+
+	/**
+	 * The catalogue key for what this shuttle IS — "admin", "gas", "hts", "stinger1".
+	 * Set by each concrete type's constructor. A shuttle converted to a role keeps the key
+	 * of what it was built from, which is how its name and label stay honest.
+	 */
+	private String catalogType;
+
+	public String getCatalogType() { return catalogType; }
+
+	protected void setCatalogType(String type) { this.catalogType = type; }
+
+	private com.sfb.objects.ShuttleCatalog.Entry catalogEntry() {
+		return catalogType == null ? null : com.sfb.objects.ShuttleCatalog.get(catalogType);
+	}
+
+	/**
+	 * J3.18: any non-fighter shuttle may be charged as a Wild Weasel unless its own
+	 * description says otherwise; fighters never may (J4.41).
+	 * <p>
+	 * Read from the catalogue rather than overridden per class, because this list and the
+	 * scatter-pack list of FD7.11 are NOT the same — a GAS may weasel but not scatter-pack,
+	 * a fighter the reverse — so neither can be derived from the other or from the class
+	 * hierarchy. Side by side as data, each can be checked against its rule.
+	 */
 	public boolean canBecomeWildWeasel() {
-		return false;
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e != null && e.canWeasel;
+	}
+
+	/** FD7.11: rack spaces of drones this may carry as a scatter pack; 0 = not qualified. */
+	public int scatterPackSpaces() {
+		com.sfb.objects.ShuttleCatalog.Entry e = catalogEntry();
+		return e == null ? 0 : e.scatterPackSize;
 	}
 
 	// J1.621: true while this shuttle is shut down and being pulled aboard a
@@ -189,6 +294,42 @@ public abstract class Shuttle extends Unit {
 		beingRecovered = false;
 	}
 
+	// --- Erratic Maneuvers: the point of speed it costs (C10.13/C10.131) ---
+
+	private boolean emSpeedCommitted = false;
+
+	public boolean isEmSpeedCommitted() { return emSpeedCommitted; }
+
+	/**
+	 * C10.13/C10.131: a shuttle or fighter buys EM with one movement point - a point of
+	 * speed - and the commitment binds for the WHOLE turn. It is recorded during energy
+	 * allocation if the shuttle is already launched, or on the impulse of launch if it is
+	 * not, and "the shuttle cannot cancel this written commitment and accelerate to its
+	 * full speed during the turn". Switching EM itself off does not give the point back,
+	 * which is why this is separate state from {@code isUsingEm()}.
+	 */
+	public void commitEmSpeed() {
+		emSpeedCommitted = true;
+		if (getCurrentSpeed() > effectiveMaxSpeed())
+			setCurrentSpeed(effectiveMaxSpeed());
+		if (getSpeed() > effectiveMaxSpeed())
+			setSpeed(effectiveMaxSpeed());
+	}
+
+	/** Turn boundary: the commitment must be recorded afresh each turn (C10.131). */
+	public void clearEmSpeedCommitment() {
+		emSpeedCommitted = false;
+	}
+
+	/**
+	 * The fastest this shuttle may move, after any point of speed dedicated to Erratic
+	 * Maneuvers (C10.13). C10.134: a shuttle at this speed counts as being at "maximum
+	 * speed" for G7.55, even though it is one below its rating.
+	 */
+	public int effectiveMaxSpeed() {
+		return Math.max(0, maxSpeed - (emSpeedCommitted ? 1 : 0));
+	}
+
 	public int getMaxSpeed() {
 		return maxSpeed;
 	}
@@ -203,6 +344,15 @@ public abstract class Shuttle extends Unit {
 
 	public void setCurrentSpeed(int currentSpeed) {
 		this.currentSpeed = currentSpeed;
+	}
+
+	/**
+	 * C11.1: "All shuttlecraft and fighters (including those on seeking courses) are nimble
+	 * unless noted otherwise in the rules."
+	 */
+	@Override
+	public boolean isNimbleUnit() {
+		return true;
 	}
 
 	public int getHull() {
@@ -235,6 +385,24 @@ public abstract class Shuttle extends Unit {
 
 	public boolean isCrippled() {
 		return crippled;
+	}
+
+	/**
+	 * Damage at which this shuttle is crippled rather than merely hurt (J1.33). Zero means it
+	 * has no crippled state and is destroyed outright — so a type that has never been given a
+	 * threshold is not crippled the instant it takes its first point.
+	 */
+	public int getCrippledHull() {
+		return crippledHull;
+	}
+
+	public void setCrippledHull(int crippledHull) {
+		this.crippledHull = crippledHull;
+	}
+
+	/** True once enough damage has accumulated to cripple this shuttle (J1.33). */
+	public boolean shouldCripple() {
+		return crippledHull > 0 && !crippled && (getHull() - getCurrentHull()) >= crippledHull;
 	}
 
 	public int getChaffPacks() {

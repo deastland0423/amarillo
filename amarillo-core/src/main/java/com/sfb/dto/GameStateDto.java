@@ -20,7 +20,7 @@ import java.util.Map;
  * Map objects form a hierarchy that mirrors the core object model:
  *
  * MapObjectDto (type, name, location) ← mirrors Marker
- * ShipDto (hull, faction, shields, cloak)
+ * ShipDto (shipType, faction, shields, cloak)
  * ShuttleDto (parentShip, speed, facing)
  * DroneDto (droneType, warhead, target, faction)
  * PlasmaTorpedoDto (currentStrength, controllerFaction)
@@ -51,6 +51,13 @@ public class GameStateDto {
     public static abstract class MapObjectDto {
         public String name;
         public String location; // "<x|y>" or null if off-map
+        /**
+         * Name of the ship holding this in a tractor beam, else null. On the base object
+         * because a beam can hold anything: a shuttle, a drone, a plasma torpedo, a probe
+         * canister. Ships report the same fact as {@code tractoredByName} and are drawn by
+         * their own pass, so they leave this null and are not drawn twice.
+         */
+        public String tractoredBy;
     }
 
     public static class TerrainDto extends MapObjectDto {
@@ -65,7 +72,6 @@ public class GameStateDto {
         public java.util.List<String> retrieval; // permitted retrieval methods
         public String ownerTeam;             // current controlling team (secured owner, or carrier's), else null
         public boolean secured;              // carried off a valid edge — permanent, out of play
-        public String tractoredBy;           // ship holding it in a beam (still free), else null
         public boolean beingRecovered;       // J1.621 rotation pull-in underway
         public int side;                     // planet hex side 1..6 it sits on, or 0 (SH50.46)
     }
@@ -95,7 +101,12 @@ public class GameStateDto {
     public static class WeaponDto {
         public String name;
         public String designator;
-        public boolean armed;
+        /**
+         * Null means NOT DISCLOSED, which is what an enemy sees: whether a heavy weapon is
+         * armed, and how, is the thing a player most wants to hide. A primitive would have
+         * reported every enemy weapon as unarmed, trading a leak for a lie.
+         */
+        public Boolean armed;
         public int armingTurn;
         public String armingType; // "STANDARD", "OVERLOAD", "SPECIAL", or null
         public int lastImpulseFired; // for canFire() checks client-side
@@ -110,11 +121,24 @@ public class GameStateDto {
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
         public int armingCost; // energy to arm (standard, unarmed)
+        public boolean photonTube;   // photon: dialled by energy, not by mode (E4.21/E4.411)
+        public double armingEnergy;  // photon: warp energy already in the tube (E4.413)
         public int holdCost; // energy to hold per turn; 0 = hold not supported
         public boolean canOverload; // weapon supports OVERLOAD mode
         public boolean canSuicide; // weapon supports SPECIAL/SUICIDE mode (Fusion only)
         public boolean cooldown; // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
         // ESG generator (G23.0)
+        // Scout function channel (G24.0)
+        public boolean scoutChannel;   // true if this "weapon" is a scout channel / special sensor
+        public boolean channelPowered;   // powered this turn (G24.14)
+        public boolean channelBlinded;   // blinded by weapons fire this impulse (G24.13)
+        public String  channelLendTarget; // unit this channel is lending EW to, or null (G24.21)
+        public int     channelLentEcm;    // ECM points this channel is lending (G24.21)
+        public int     channelLentEccm;   // ECCM points this channel is lending (G24.21)
+        public String  channelFunction;   // this turn's committed function: NONE/LEND_EW/BREAK_LOCKON/IDENTIFY (G24.12)
+        public int     channelBreakAttempts;    // break-lock-on attempts spent this turn (G24.221)
+        public int     channelIdentifyAttempts; // identify attempts spent this turn (G24.251)
+        public String  channelAttractedDrone;   // drone this channel drew onto the scout (G24.231)
         public boolean esg;            // true if this weapon is an ESG
         public boolean esgHasCapacitor;// G23.24 capacitor: holds up to 7, releases a chosen 1–5
         public int esgStoredEnergy;    // energy held in the generator (0–maxStorage)
@@ -180,6 +204,11 @@ public class GameStateDto {
         public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
         public int maxDroneSpaces; // scatterpack only: max rack spaces (default 6)
         public double committedSpaces; // scatterpack only: payload + pending spaces already used
+        /**
+         * The special role this shuttle is prepared for, or null. Sent so the launch list
+         * can leave it out: a prepared shuttle cannot launch as an ordinary one.
+         */
+        public String specialRole;
         public int wwChargeCount; // admin only: 0=uncharged, 1=primed, 2=ready to launch
         public boolean wwReady; // admin only: true when wwChargeCount >= 2
     }
@@ -205,7 +234,8 @@ public class GameStateDto {
     }
 
     public static class ShipDto extends MapObjectDto {
-        public String hull;
+        /** The SSD Type line, e.g. "CA+". Named shipType because Jackson owns "type" here. */
+        public String shipType;
         public String faction;
         public int facing;
         public int speed;
@@ -218,10 +248,37 @@ public class GameStateDto {
         public double phaserCapacitorMax;
         public boolean capacitorsCharged;
         public boolean activeFireControl;
+        public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
+        public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
+        public boolean paidForEm;    // bought EM at allocation, so it may be announced (C10.11)
+        public boolean emPending;    // announced this impulse, in force at its end (C10.311)
         public int scannerBonus;
         public int sensorRating;
         public int ecmAllocated;
         public int eccmAllocated;
+        // EW lending is announced as it happens and is never secret (G24.211 note, G24.2115),
+        // so these are sent for every ship, not just the viewer's own.
+        // What this turn's allocation quietly cost — a photon tube left unfunded is discharged
+        // (E4.21/E4.22). Allocation is secret, so this is sent only to the ship's own player.
+        public List<String> allocationNotes = new ArrayList<>();
+        /** COI selections that could not be applied. Owner-only, like allocation notes. */
+        public List<String> setupNotes = new ArrayList<>();
+        public int lentEcm;          // ECM received from friendly scouts (D6.3144)
+        public int lentEccm;         // ECCM received from friendly scouts (D6.3144)
+        public int offensiveEw;      // enemy jamming imposed on this ship's own fire (G24.219)
+        /** Everything jamming fire AT this ship: generated + lent (weasel included) + built-in. */
+        public int ecmTotal;
+        /** Everything this ship can burn through with: generated + lent. */
+        public int eccmTotal;
+        /** Where the ECM comes from, e.g. "2 generated + 6 lent" — public by D6.32. */
+        public String ecmSources;
+        public boolean leader;       // leader variant (S8.36)
+        public boolean escort;       // carrier escort, needs a carrier group (S8.311)
+        public boolean trueCarrier;  // fighters count against the force's limit (S8.321)
+        public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
+        public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
+        public int scoutEwLent;      // of the pool, how many are currently lent out (G24.2111)
+        public int scoutEwRemaining; // still available to commit; dropped points are lost (G24.2122)
         public List<WeaponDto> weapons;
         public List<DroneRackDto> droneRacks;
         public List<ShuttleBayDto> shuttleBays;
@@ -231,7 +288,8 @@ public class GameStateDto {
         public int transporterUses;
         public int boardingParties;
         public int commandos;
-        public int availableLab;
+        public int availableLab;   // boxes free to take a job THIS impulse (G4.22, G4.451)
+        public int functioningLab; // boxes that exist at all; the difference is cooling off
         // Crew
         public int availableCrewUnits;
         public int capturedCrew;
@@ -342,10 +400,23 @@ public class GameStateDto {
         public int facing;
         public int speed;
         public int maxSpeed;
+        public int effectiveMaxSpeed;      // after any point given to EM (C10.13)
+        public boolean usingEm;            // Erratic Maneuvers in force (C10.0)
+        public boolean emSpeedCommitted;   // the point of speed is spent for the turn (C10.131)
+        public boolean isFighter;          // a fighter, as opposed to an admin/other shuttle
+        /** What the craft IS — "Admin Shuttle", "General Assault Shuttle". Never the role. */
+        public String shuttleTypeName;
         public String parentPlayer; // name of the player who owns this shuttle
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
         public boolean crippled; // true if crippling effects have been applied (J1.33)
+        // Damage. Public to everyone: hits on a shuttle are there to see, and unlike a
+        // drone the hull behind them gives nothing away — the craft type is public too
+        // ("Admin Shuttle"), so its hull was never a secret.
+        public int hull;         // undamaged hull remaining
+        public int maxHull;      // hull the craft starts with
+        public int damageTaken;
+        public int launchImpulse; // when it left the bay; a launch is watched by everyone
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
         // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
         public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
@@ -353,13 +424,48 @@ public class GameStateDto {
         public int holdCrew;            // crew units currently in the hold
         public int holdSpacesUsed;      // personnel spaces occupied
         public int personnelCapacity;   // personnel-space capacity of the hold
+        public boolean isIdentified;    // true once an enemy lab or scout identified it (G4.2)
+        /**
+         * G4.233: a successful identification reveals whether the shuttle is following a
+         * seeking course and, if it is, its target — and NOTHING about drones aboard
+         * or a suicide bomb. So this pair is all an enemy ever learns about a suicide
+         * shuttle or a loaded scatter pack; it still arrives typed as a plain shuttle.
+         */
+        public boolean seekingCourse;
+        public String seekingTargetName;
+        /**
+         * Manned or unmanned, the other half of what G4.233 reveals. A Boolean rather than
+         * a boolean because here it is FALSE that carries the information: a primitive
+         * would report every unidentified shuttle as unmanned to any reader who forgot to
+         * check isIdentified first. Null means "not established".
+         */
+        public Boolean manned;
     }
 
     // -------------------------------------------------------------------------
     // Suicide shuttle (seeker)
     // -------------------------------------------------------------------------
 
-    public static class SuicideShuttleDto extends MapObjectDto {
+    /**
+     * What a seeking shuttle IS, as opposed to what it is doing.
+     *
+     * Seen by an enemy, a suicide shuttle and an unreleased scatter pack arrive as a plain
+     * ShuttleDto, which carries all of this. Seen by their OWNER they take their own DTOs,
+     * which carried only the role — so a player's own pack read "Faction: ?  From: ?" with
+     * no hull, while the enemy's view of the same pack was complete.
+     *
+     * A shared base rather than the same five fields copied into both, so the compiler
+     * keeps them in step.
+     */
+    public static abstract class SeekingShuttleDto extends MapObjectDto {
+        public String parentShipName;
+        public String parentPlayer;
+        public int hull;
+        public int maxHull;
+        public int damageTaken;
+    }
+
+    public static class SuicideShuttleDto extends SeekingShuttleDto {
         public int facing;
         public int speed;
         public String controllerFaction;
@@ -374,7 +480,7 @@ public class GameStateDto {
     // Scatter pack (seeker — moves toward target, releases drones after 8 impulses)
     // -------------------------------------------------------------------------
 
-    public static class ScatterPackDto extends MapObjectDto {
+    public static class ScatterPackDto extends SeekingShuttleDto {
         public int facing;
         public int speed;
         public String controllerFaction;
@@ -394,8 +500,8 @@ public class GameStateDto {
         public int speed;
         public String droneType; // "I", "II", etc. — revealed on identification
         public int warheadDamage; // revealed on identification
-        public int hull; // current hull remaining
-        public int damageTaken; // maxHull - hull — always public (visible on the drone)
+        public int hull; // current hull remaining — 0 to an enemy, see damageTaken
+        public int damageTaken; // always public: hits on a drone are visible
         public int maxHull; // hull at launch (from DroneType) — revealed on identification
         public int endurance; // revealed on identification
         public String targetName; // revealed on identification
@@ -467,7 +573,17 @@ public class GameStateDto {
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
     public List<PendingDacChoiceDto> pendingDacChoices = new ArrayList<>();
+    public List<PendingBlindChoiceDto> pendingBlindChoices = new ArrayList<>();
+    public List<PendingAttractChoiceDto> pendingAttractChoices = new ArrayList<>();
     public List<PendingControlOverflowDto> pendingControlOverflows = new ArrayList<>();
+
+    /** A scout is trying to attract an unidentified shuttle; its owner must answer (G24.235). */
+    public static class PendingAttractChoiceDto {
+        public String shuttleName;
+        public String scoutName;
+        public String channelDesignator;
+        public String ownerShipName;  // the ship that launched it — who gets asked
+    }
     public PendingTractorAuctionDto pendingTractorAuction = null;
 
     public static class PendingTractorAuctionDto {
@@ -495,6 +611,24 @@ public class GameStateDto {
         public List<String> options; // weapon names or warp engine ids
     }
 
+    /** One pending scout-channel blind the firing player must assign (G24.13/.131). */
+    public static class PendingBlindChoiceDto {
+        public String scoutName;
+        public List<BlindChannelOptionDto> channels = new ArrayList<>();
+
+        /** A powered channel the player may sacrifice, with its current role so they can decide. */
+        public static class BlindChannelOptionDto {
+            public String designator;
+            public String function;       // NONE / LEND_EW / BREAK_LOCKON / IDENTIFY / OFFENSIVE_EW
+            public String target;         // lend / O-EW target, or null
+            public int    lentEcm;
+            public int    lentEccm;
+            public int    breakAttempts;    // of 3 (G24.221)
+            public int    identifyAttempts; // of 4 (G24.251)
+            public boolean blinded;         // already blinded (still a valid, expendable target)
+        }
+    }
+
     public static class PendingControlOverflowDto {
         public String shipName;
         public int overLimitCount; // how many seekers must be released or transferred
@@ -518,6 +652,7 @@ public class GameStateDto {
         public int gabpv;
         public String status; // "INTACT" | "DAMAGED" | "CRIPPLED" | "DISENGAGED" | "DESTROYED" | "CAPTURED"
         public int vpScored; // VPs scored against this ship by the enemy
+        public int coiSpend; // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
     }
 
     public static class TeamScoreDto {
@@ -525,17 +660,19 @@ public class GameStateDto {
         public int vpScored;
         public int vpAgainst;
         public String levelOfVictory;
+        public int coiForfeited; // total COI this side handed to the enemy (S2.20 B)
     }
 
     /**
-     * One objective's current control, for the scoreboard. No points are scored
-     * yet (per-scenario victory scoring is deferred) — this is a plain ownership
-     * listing so each side can see who holds what.
+     * One objective's current control and its point value. The controlling side
+     * scores {@code points} at scenario end (generic objective scoring); scenarios
+     * with special/conditional scoring are handled separately.
      */
     public static class ObjectiveStandingDto {
         public String name;
         public String ownerTeam;   // controlling team, or null if free/unclaimed
         public String state;       // "SECURED" | "CARRIED" | "FREE"
+        public int    points;      // VP its controller scores at scenario end (0 = none)
     }
 
     public static class ScoreboardDto {
@@ -585,6 +722,7 @@ public class GameStateDto {
                 r.gabpv = row.gabpv();
                 r.status = row.status();
                 r.vpScored = row.vpScored();
+                r.coiSpend = row.coiSpend();
                 dto.ships.add(r);
             }
             for (Game.TeamScore ts : sb.teams()) {
@@ -593,15 +731,17 @@ public class GameStateDto {
                 t.vpScored = ts.vpScored();
                 t.vpAgainst = ts.vpAgainst();
                 t.levelOfVictory = ts.levelOfVictory();
+                t.coiForfeited = ts.coiForfeited();
                 dto.teams.add(t);
             }
-            // Objective control (no scoring yet — just who holds what)
+            // Objective control + point value (the controller scores `points` at end)
             for (com.sfb.objects.Objective o : game.getObjectives()) {
                 ObjectiveStandingDto os = new ObjectiveStandingDto();
                 os.name = o.getName();
                 com.sfb.Player owner = o.getCurrentOwner();
                 os.ownerTeam = owner != null ? owner.getTeamName() : null;
                 os.state = o.isSecured() ? "SECURED" : o.isCarried() ? "CARRIED" : "FREE";
+                os.points = o.getPoints();
                 dto.objectives.add(os);
             }
             this.scoreboard = dto;
@@ -640,7 +780,7 @@ public class GameStateDto {
                 // Only released packs live here — the release was visible to all
                 mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
-                mapObjects.add(fromShuttle(shuttle));
+                mapObjects.add(fromShuttle(shuttle, hiddenFrom(viewerTeam, shuttle.getOwner())));
         }
 
         for (Seeker seeker : game.getSeekers()) {
@@ -651,17 +791,24 @@ public class GameStateDto {
             } else if (seeker instanceof PlasmaTorpedo) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 mapObjects.add(fromPlasma(torp,
-                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())) && !torp.isIdentified()));
+                        hiddenFrom(viewerTeam, ownerOfController(torp.getController())),
+                        torp.isIdentified()));
             } else if (seeker instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                 com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) seeker;
-                if (hiddenFrom(viewerTeam, ss.getOwner()) && !ss.isIdentified())
-                    mapObjects.add(fromShuttle(ss)); // renders as a plain shuttle
+                // G4.233: identification does NOT reveal a suicide bomb, so an enemy sees a
+                // plain shuttle whether or not it has been identified — with the seeking
+                // course and target added once it has. This used to open the whole DTO on
+                // identification, handing over the warhead and the arming turns.
+                if (hiddenFrom(viewerTeam, ss.getOwner()))
+                    mapObjects.add(fromShuttle(ss, true));
                 else
                     mapObjects.add(fromSuicideShuttle(ss));
             } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
                 com.sfb.objects.shuttles.ScatterPack pack = (com.sfb.objects.shuttles.ScatterPack) seeker;
-                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isIdentified())
-                    mapObjects.add(fromShuttle(pack)); // unreleased pack: plain shuttle
+                // G4.233 again: "not if it is carrying drones". Releasing them is what makes
+                // a pack public, not being identified.
+                if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isReleased())
+                    mapObjects.add(fromShuttle(pack, true));
                 else
                     mapObjects.add(fromScatterPack(pack));
             }
@@ -723,6 +870,45 @@ public class GameStateDto {
             d.roll = dc.roll;
             d.options = new ArrayList<>(dc.options);
             pendingDacChoices.add(d);
+        }
+
+        // Surface the first pending blind choice (they resolve one at a time). The options are the
+        // scout's currently-unblinded powered channels — you can't double-blind (G24.131) — each
+        // with its role so the player can pick which is most expendable.
+        for (Game.PendingBlindChoice bc : game.getPendingBlindChoices()) {
+            com.sfb.objects.Ship s = game.getShips().stream()
+                    .filter(sh -> sh.getName().equals(bc.scoutName)).findFirst().orElse(null);
+            if (s == null) break;
+            PendingBlindChoiceDto d = new PendingBlindChoiceDto();
+            d.scoutName = bc.scoutName;
+            for (com.sfb.weapons.ScoutChannel c : game.unblindedPoweredChannels(s)) {
+                PendingBlindChoiceDto.BlindChannelOptionDto o = new PendingBlindChoiceDto.BlindChannelOptionDto();
+                o.designator = c.getDesignator();
+                o.function = c.getTurnFunction().name();
+                o.target = c.getLendTarget();
+                o.lentEcm = c.getLentEcm();
+                o.lentEccm = c.getLentEccm();
+                o.breakAttempts = c.getBreakAttempts();
+                o.identifyAttempts = c.getIdentifyAttempts();
+                o.blinded = false; // options are unblinded by definition
+                d.channels.add(o);
+            }
+            pendingBlindChoices.add(d);
+            break; // one at a time
+        }
+
+        // G24.235: only the shuttle's owner is asked, and the answer is theirs to lie about.
+        for (Game.PendingAttractChoice ac : game.getPendingAttractChoices()) {
+            PendingAttractChoiceDto d = new PendingAttractChoiceDto();
+            d.shuttleName = ac.shuttleName;
+            d.scoutName = ac.scoutName;
+            d.channelDesignator = ac.channelDesignator;
+            d.ownerShipName = game.getActiveShuttles().stream()
+                    .filter(sh -> sh.getName().equals(ac.shuttleName))
+                    .map(com.sfb.objects.shuttles.Shuttle::getParentShipName)
+                    .findFirst().orElse(null);
+            pendingAttractChoices.add(d);
+            break; // one at a time
         }
 
         for (Game.PendingControlOverflow ov : game.getPendingControlOverflows()) {
@@ -793,6 +979,20 @@ public class GameStateDto {
      * set, the unit has an owner, and the owner is on a different team.
      * Null viewer = omniscient (solo/dev); unowned units are public.
      */
+    /** The ship holding this unit in a beam, or null. */
+    private static String holderName(com.sfb.objects.Unit unit) {
+        return unit.getTractoringUnit() != null ? unit.getTractoringUnit().getName() : null;
+    }
+
+    /** Name a contributing EW source, skipping the ones contributing nothing. */
+    private static void appendEwSource(StringBuilder sb, int points, String label) {
+        if (points <= 0)
+            return;
+        if (sb.length() > 0)
+            sb.append(" + ");
+        sb.append(points).append(' ').append(label);
+    }
+
     private static boolean hiddenFrom(String viewerTeam, com.sfb.Player owner) {
         return viewerTeam != null && owner != null && !viewerTeam.equals(owner.getTeamName());
     }
@@ -809,7 +1009,7 @@ public class GameStateDto {
         dto.facing = ship.getFacing();
         dto.speed = ship.getSpeed();
         dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
-        dto.hull = ship.getHullType();
+        dto.shipType = ship.getType();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
         dto.shields = new ArrayList<>();
@@ -841,17 +1041,53 @@ public class GameStateDto {
         dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged = ship.isCapacitorsCharged();
         dto.activeFireControl = ship.isActiveFireControl();
+        dto.usingEm = ship.isUsingEm();
+        dto.erraticCost = ship.getPerformanceData().getErraticCost();
+        dto.paidForEm = ship.hasPaidForEm();
+        dto.emPending = ship.hasPendingEmAnnouncement(game.getAbsoluteImpulse());
         dto.scannerBonus = ship.getSpecialFunctions().getScanner();
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
         dto.eccmAllocated = ship.getEccmAllocated();
+        if (!hideSecrets)
+            dto.allocationNotes = new ArrayList<>(ship.getAllocationNotes());
+            dto.setupNotes = new ArrayList<>(ship.getSetupNotes());
+        dto.leader = ship.isLeader();
+        dto.escort = ship.isEscort();
+        dto.trueCarrier = ship.isTrueCarrier();
+        dto.bch = ship.isBCH();
+        dto.lentEcm = ship.getLentEcm();
+        // Totals computed here rather than re-added in the UI: the panel used to sum
+        // allocated + lent and stop, so a weasel's six points and an Orion's stealth ECM
+        // never appeared and the shooter learned of them from the dice log.
+        int lentTotal = ship.getLentEcmTotal();   // scouts AND weasel, capped at six (D6.392)
+        dto.ecmTotal = ship.getEcmAllocated() + lentTotal + ship.getStealthEcm();
+        dto.eccmTotal = ship.getEccmAllocated() + ship.getLentEccm();
+        StringBuilder src = new StringBuilder();
+        appendEwSource(src, ship.getEcmAllocated(), "generated");
+        appendEwSource(src, lentTotal, "lent");
+        appendEwSource(src, ship.getStealthEcm(), "stealth");
+        dto.ecmSources = src.length() == 0 ? null : src.toString();
+        dto.lentEccm = ship.getLentEccm();
+        dto.offensiveEw = ship.getOffensiveEw();
+        dto.scoutEwPool = ship.getScoutEwPool();
+        dto.scoutEwLent = ship.getScoutEwLent();
+        dto.scoutEwRemaining = ship.getScoutEwRemaining();
         dto.tBombs = ship.getTBombs();
         dto.dummyTBombs = ship.getDummyTBombs();
         dto.nuclearSpaceMines = ship.getNuclearSpaceMines();
-        dto.transporterUses = ship.getTransporters().availableUses();
+        // Counts batteries as well as banked energy: a ship that allocated nothing can
+        // still beam by drawing reserve power (H7.x), so "uses available" must say so or
+        // the UI will cap actions the ship could actually perform.
+        dto.transporterUses = game.transporterUsesAvailable(ship);
         dto.boardingParties = ship.getCrew().getAvailableBoardingParties();
         dto.commandos = ship.getCrew().getFriendlyTroops().commandos;
-        dto.availableLab = ship.getLabs().getAvailableLab();
+        // What the player can actually commit this impulse, not the box count: a lab used
+        // late last turn is still cooling off (G4.451).
+        dto.availableLab = ship.getLabs().availableLabs(game.getAbsoluteImpulse());
+        // Sent so the client can tell "no labs left" from "labs still cooling off", which
+        // otherwise look identical and read as a bug.
+        dto.functioningLab = ship.getLabs().getFunctioningLabs();
         dto.availableCrewUnits = ship.getCrew().getAvailableCrewUnits();
         dto.capturedCrew = ship.getCrew().getCapturedCrew();
         dto.minimumCrew = ship.getCrew().getMinimumCrew();
@@ -971,6 +1207,10 @@ public class GameStateDto {
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
             wd.readyToFire = w.isFunctional() && armedIfNeeded && w.canFire();
+            // Assigned for EVERY weapon, not only the ones that arm. It is a Boolean now,
+            // where null means "not disclosed", so leaving it unset on a phaser made the
+            // client treat the viewer's own weapons as an enemy's.
+            wd.armed = false;
             if (w instanceof com.sfb.weapons.HeavyWeapon) {
                 com.sfb.weapons.HeavyWeapon hw = (com.sfb.weapons.HeavyWeapon) w;
                 wd.armed = hw.isArmed();
@@ -978,6 +1218,10 @@ public class GameStateDto {
                 wd.armingType = hw.getArmingType() != null ? hw.getArmingType().name() : null;
                 wd.isHeavy = true;
                 wd.armingCost = hw.energyToArm();
+                if (hw instanceof com.sfb.weapons.Photon) {
+                    wd.photonTube = true;
+                    wd.armingEnergy = ((com.sfb.weapons.Photon) hw).getArmingEnergy();
+                }
                 wd.holdCost = hw.holdEnergyCost();
                 wd.canOverload = hw.supportsOverload();
                 wd.canSuicide = hw.supportsSuicide();
@@ -988,6 +1232,19 @@ public class GameStateDto {
             if (w instanceof com.sfb.weapons.Fusion) {
                 wd.cooldown = ((com.sfb.weapons.Fusion) w).isOnCooldown();
             }
+            if (w instanceof com.sfb.weapons.ScoutChannel) {
+                com.sfb.weapons.ScoutChannel c = (com.sfb.weapons.ScoutChannel) w;
+                wd.scoutChannel = true;
+                wd.channelPowered = c.isPowered();
+                wd.channelBlinded = c.isBlinded(game.getAbsoluteImpulse());
+                wd.channelLendTarget = c.getLendTarget();
+                wd.channelLentEcm = c.getLentEcm();
+                wd.channelLentEccm = c.getLentEccm();
+                wd.channelFunction = c.getTurnFunction().name();
+                wd.channelBreakAttempts = c.getBreakAttempts();
+                wd.channelIdentifyAttempts = c.getIdentifyAttempts();
+                wd.channelAttractedDrone = c.getAttractedDrone();
+            }
             if (w instanceof com.sfb.weapons.ESG) {
                 com.sfb.weapons.ESG esg = (com.sfb.weapons.ESG) w;
                 wd.esg = true;
@@ -996,16 +1253,20 @@ public class GameStateDto {
                 wd.esgActive = esg.isActive();
                 wd.esgAnnounced = esg.isAnnounced();
                 wd.esgReleaseIn = esg.announceCountdown(game.getAbsoluteImpulse());
-                // Public info: an active field's radius is visible to all (the ring is on
-                // the map); a pending announcement reveals only that a field is coming
-                // (G23.311). Stored energy and field strength are always the owner's secret.
-                wd.esgRadius = esg.isActive() ? esg.getRadius() : -1;
+                // G23.46: once a field is ACTIVE its size AND strength are known to every
+                // player. Secret to opponents are only the generator's stored/allocated
+                // energy and a *pending* announcement's radius (G23.311).
+                if (esg.isActive()) {
+                    wd.esgRadius = esg.getRadius();
+                    wd.esgStrength = esg.getStrength(); // public (G23.46)
+                } else {
+                    wd.esgRadius = -1;
+                    wd.esgStrength = 0;
+                }
                 if (hideSecrets) {
                     wd.esgStoredEnergy = 0;
-                    wd.esgStrength = 0;
                 } else {
                     wd.esgStoredEnergy = esg.getStoredEnergy();
-                    wd.esgStrength = esg.getStrength();
                     if (esg.isAnnounced()) {
                         wd.esgRadius = esg.getAnnouncedRadius(); // owner sees where it will form
                     }
@@ -1046,8 +1307,10 @@ public class GameStateDto {
         // what is LOADED is not).
         dto.droneRacks = new ArrayList<>();
         dto.shuttleBays = new ArrayList<>();
-        if (hideSecrets)
+        if (hideSecrets) {
+            redactForEnemy(dto, ship, game.getAbsoluteImpulse());
             return dto;
+        }
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (!(w instanceof DroneRack))
                 continue;
@@ -1121,11 +1384,12 @@ public class GameStateDto {
                         sd.armed = ss.isArmed();
                         sd.armingTurnsComplete = ss.getArmingTurnsComplete();
                         sd.warheadDamage = ss.getWarheadDamage();
-                    } else if (s instanceof com.sfb.objects.shuttles.AdminShuttle && s.canBecomeWildWeasel()) {
-                        com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) s;
-                        sd.wwChargeCount = admin.getWwChargeCount();
-                        sd.wwReady = admin.isWwReady();
                     } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+                        // BEFORE the weasel branch. A pack built from an admin shuttle keeps
+                        // that catalogue type, and canBecomeWildWeasel() reads the catalogue
+                        // (J3.18) — so the pack answered TRUE, took the weasel branch, and
+                        // never reported its payload. The launch list needs a payload, so a
+                        // perfectly good pack could not be launched at all.
                         com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
                         sd.payload = sp.getPayload().stream()
                                 .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
@@ -1135,7 +1399,11 @@ public class GameStateDto {
                                 .collect(java.util.stream.Collectors.toList());
                         sd.maxDroneSpaces = sp.getMaxDroneSpaces();
                         sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+                    } else if (s.canBecomeWildWeasel()) {
+                        sd.wwChargeCount = s.getWwChargeCount();
+                        sd.wwReady = s.isWwReady();
                     }
+                    sd.specialRole = s.specialRole();
                     spaceDto.armed = s.isArmed();
                     spaceDto.shuttle = sd;
                     bd.shuttles.add(sd);
@@ -1148,28 +1416,162 @@ public class GameStateDto {
         return dto;
     }
 
-    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle) {
+    /**
+     * @param hideSecrets true when the viewer is not on this shuttle's side. What a shuttle
+     *                    carries is not public: G4.233 gives up whether it is manned and
+     *                    whether it is seeking, and stops there.
+     */
+    private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle,
+            boolean hideSecrets) {
         ShuttleDto dto = new ShuttleDto();
         dto.name = shuttle.getName();
         dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
         dto.facing = shuttle.getFacing();
         dto.speed = shuttle.getSpeed();
         dto.maxSpeed = shuttle.getMaxSpeed();
+        dto.effectiveMaxSpeed = shuttle.effectiveMaxSpeed();   // after any EM commitment
+        dto.usingEm = shuttle.isUsingEm();
+        dto.emSpeedCommitted = shuttle.isEmSpeedCommitted();
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();
         dto.crippled = shuttle.isCrippled();
+        dto.hull = shuttle.getCurrentHull();
+        dto.maxHull = shuttle.getHull();
+        dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
+        dto.launchImpulse = shuttle.getLaunchImpulse();
+        dto.tractoredBy = holderName(shuttle);
+        // Every shuttle's weapons, not just a fighter's. An admin shuttle builds itself a
+        // 360-degree Ph-3, and both core and the fire endpoint have always been willing to
+        // fire it - the client simply never heard about it, so the shuttle could not be
+        // picked as an attacker and its phaser was unreachable from the game.
+        dto.weapons = buildWeaponDtos(shuttle.getWeapons());
+        dto.isFighter = shuttle instanceof com.sfb.objects.shuttles.Fighter;
+        // The type is a visible property of the craft; the ROLE it is playing is not, and
+        // is never sent. The hover used to call every non-fighter an "Admin Shuttle".
+        com.sfb.objects.ShuttleCatalog.Entry ce = shuttle.getCatalogType() == null ? null
+                : com.sfb.objects.ShuttleCatalog.get(shuttle.getCatalogType());
+        dto.shuttleTypeName = ce != null ? ce.name : null;
         if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
             com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
-            dto.weapons = buildWeaponDtos(shuttle.getWeapons());
             dto.hetUsed = fighter.isTacticalManeuverUsed();
         }
         dto.beingRecovered = shuttle.isBeingRecovered();
         dto.landingPhase = shuttle.getLandingPhase().name();
         dto.landedHexSide = shuttle.getLandedHexSide();
-        dto.holdCrew = shuttle.getHold().getCrew();
-        dto.holdSpacesUsed = shuttle.personnelSpacesUsed();
+        // What is aboard is hidden; how much it COULD carry is a property of the craft,
+        // like its speed, and stays public.
+        dto.holdCrew = hideSecrets ? 0 : shuttle.getHold().getCrew();
+        dto.holdSpacesUsed = hideSecrets ? 0 : shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
+        dto.isIdentified = shuttle.isIdentified();
+        if (shuttle.isIdentified())
+            // G4.233: "reveals if the shuttle is manned or unmanned".
+            dto.manned = shuttle.isManned();
+        if (shuttle.isIdentified() && shuttle instanceof Seeker) {
+            // G4.233: identification reveals the seeking course and its target (as for a
+            // drone, G4.231). It reveals nothing about the payload, which is why an
+            // identified suicide shuttle and an identified scatter pack read exactly alike.
+            dto.seekingCourse = true;
+            com.sfb.objects.Unit t = ((Seeker) shuttle).getTarget();
+            dto.seekingTargetName = t != null ? t.getName() : null;
+        }
         return dto;
+    }
+
+    /**
+     * Everything an enemy may not know about a ship, in one place.
+     *
+     * The rule this enforces: the CLIENT never decides what to hide. It renders what it is
+     * given, and a missing value means unknown. Two systems deciding — a partial redaction
+     * here and a polite client that declines to display the rest — is how a secret ends up
+     * on the wire with only good manners protecting it, which is where this started: an
+     * opponent could read whether your disruptors were armed straight out of the DTO.
+     *
+     * Bay contents, drone rack loads, allocation notes and ESG stored energy are withheld
+     * by not being built at all, above. What is left here is the fields that ARE built and
+     * then have to be blanked.
+     *
+     * Public by ruling, and deliberately untouched: shield box strength, every damaged or
+     * remaining system box, ECM and ECCM both generated and lent, whether a weapon is
+     * destroyed, how often it has fired this turn, and command rating (which decides fleet
+     * legality and does nothing in a battle).
+     */
+    private static void redactForEnemy(ShipDto dto, Ship ship, int absoluteImpulse) {
+        // Specific reinforcement is not visible until it absorbs something; the box count
+        // is. current carries the reinforcement, baseStrength does not.
+        if (dto.shields != null)
+            for (ShieldDto sd : dto.shields)
+                sd.current = sd.baseStrength;
+
+        // Energy held rather than spent: the CHARGE in the batteries, reserve warp, the
+        // phaser capacitors. Note what stays: availableBattery is the count of battery
+        // BOXES still undamaged, which is public like every other box on the SSD. A ship
+        // with five battery boxes and three points in them shows five and keeps the three.
+        dto.batteryCharge = 0;
+        dto.batteryPower = 0;
+        dto.reserveWarp = 0;
+        dto.phaserCapacitor = 0;          // the SSD maximum stays public
+        dto.capacitorsCharged = false;
+
+        // Having BOUGHT Erratic Maneuvers is an intention; using them is a manoeuvre
+        // everyone can see (C10.11 versus C10.0), so usingEm and the announcement stay.
+        dto.paidForEm = false;
+
+        // Mines carried, and how many of them are bluffs.
+        dto.tBombs = 0;
+        dto.dummyTBombs = 0;
+        dto.nuclearSpaceMines = 0;
+
+        // Who he has lock-on to.
+        dto.lockOnTargets = new ArrayList<>();
+
+        // Tactical manoeuvre budget, and the availability that would give it away.
+        dto.tacBudget = 0;
+        dto.tacAvailable = 0;          // an int: earned TACs ready to use
+        dto.sublightTacAvailable = false;
+
+        // Transporter uses left this turn are public, because every use is seen: it is
+        // the boxes still undamaged, less the uses already made. NOT our owner-side figure,
+        // which is min(boxes, energy / cost) and counts battery power — published as-is an
+        // opponent could have read the battery state off the transporter count.
+        dto.transporterUses = Math.max(0,
+            dto.availableTransporters - ship.getTransporters().usesMadeThisTurn(absoluteImpulse));
+
+        // Tractor energy, allocated and unspent. The BOXES are public and so is what they
+        // are doing — a beam in operation is plain to see, and a hit-and-run raid can pick
+        // out a specific tractor box precisely because its state is known. The energy
+        // pool behind them is not.
+        dto.tractorEnergy = 0;
+        dto.tractorEnergyRemaining = 0;
+
+        // How much lending capacity a scout has left. What it is actually lending, and to
+        // whom, is public.
+        dto.scoutEwPool = 0;
+        dto.scoutEwRemaining = 0;
+
+        // Whether a weapon is armed, and how. Capability stays public — arcs, whether it
+        // CAN overload, shots per turn and the like are printed on the SSD.
+        if (dto.weapons != null)
+            for (WeaponDto wd : dto.weapons) {
+                // Only a weapon that ARMS has arming to hide. A phaser has none, and
+                // whether it has fired this impulse is public, so blanking its readiness
+                // would have concealed something an opponent is entitled to see.
+                if (wd.isHeavy) {
+                    wd.armed = null;       // null: not disclosed, as opposed to unarmed
+                    wd.armingType = null;
+                    wd.armingTurn = 0;
+                    wd.totalArmingTurns = 0;
+                    wd.armingEnergy = 0;
+                    wd.readyToFire = false;   // derived from armed, so it cannot be shown
+                    wd.plasmaType = null;     // which torpedo is in the tube
+                    wd.pseudoPlasmaReady = false;
+                    wd.isRolling = false;
+                    wd.chargesRemaining = 0;
+                }
+                // Ammunition remaining, hidden for the same reason drone rack loads are.
+                wd.addShots = 0;
+                wd.addReloads = 0;      // addCapacity is on the SSD and stays
+            }
     }
 
     private static List<WeaponDto> buildWeaponDtos(com.sfb.systemgroups.Weapons wGroup) {
@@ -1214,6 +1616,7 @@ public class GameStateDto {
         dto.controllerName = ss.getController() != null ? ((com.sfb.objects.Unit) ss.getController()).getName() : null;
         dto.targetName = ss.getTarget() != null ? ss.getTarget().getName() : null;
         dto.isIdentified = ss.isIdentified();
+        describeCraft(dto, ss);
         return dto;
     }
 
@@ -1232,22 +1635,48 @@ public class GameStateDto {
                 : null;
         dto.targetName = pack.getTarget() != null ? pack.getTarget().getName() : null;
         dto.isIdentified = pack.isIdentified();
+        describeCraft(dto, pack);
         return dto;
+    }
+
+    /** A drone's hull at launch, which its type decides. */
+    private static int maxHullOf(Drone drone) {
+        return drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
+    }
+
+    /** Which ship launched it, and how battered it is — the same for either role. */
+    private static void describeCraft(SeekingShuttleDto dto,
+            com.sfb.objects.shuttles.Shuttle shuttle) {
+        dto.parentShipName = shuttle.getParentShipName();
+        dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
+        dto.hull = shuttle.getCurrentHull();
+        dto.maxHull = shuttle.getHull();
+        dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
     }
 
     private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
         DroneDto dto = new DroneDto();
+        dto.tractoredBy = holderName(drone);
         dto.name = drone.getName();
         dto.location = drone.getLocation() != null ? drone.getLocation().toString() : null;
         dto.facing = drone.getFacing();
         dto.speed = drone.getSpeed();
         if (hideSecrets) {
-            // Type, warhead, and endurance are unknown until identified (labs)
+            // Type, warhead, and endurance are unknown until identified (labs).
             dto.droneType = "?";
             dto.warheadDamage = 0;
-            dto.hull = drone.getHull();
-            dto.maxHull = drone.getHull();
-            dto.damageTaken = 0;
+            // Damage taken IS public — hits on a drone are there to see — but the hull
+            // behind it is not, and the two together would give the type away: every
+            // DroneType has its own hull, so maxHull = hull + damage identifies it. Hence
+            // "3 of ?", which is exactly what the client already draws: you know it has
+            // taken three, not whether that leaves a Type-I on its last point or a Type-IV
+            // with three to go.
+            //
+            // This used to send damageTaken = 0 and maxHull = the current hull, which made
+            // every enemy drone read as untouched.
+            dto.damageTaken = maxHullOf(drone) - drone.getHull();
+            dto.hull = 0;
+            dto.maxHull = 0;
         } else {
             dto.droneType = drone.getDroneType() != null ? drone.getDroneType().toString() : "?";
             dto.warheadDamage = drone.getWarheadDamage();
@@ -1255,7 +1684,11 @@ public class GameStateDto {
             dto.maxHull = drone.getDroneType() != null ? drone.getDroneType().hull : drone.getHull();
             dto.damageTaken = dto.maxHull - drone.getHull();
         }
-        dto.targetName = drone.getTarget() != null ? drone.getTarget().getName() : null;
+        // G4.231: what a drone is chasing is revealed by identification, not before. The
+        // field always said so in its comment and was assigned anyway, so an enemy could
+        // read off which ship every drone was aimed at.
+        dto.targetName = hideSecrets || drone.getTarget() == null
+                ? null : drone.getTarget().getName();
         dto.controllerFaction = controllerFaction(drone.getController());
         dto.controllerName = drone.getController() != null ? drone.getController().getName() : null;
         dto.launcherName = drone.getLauncherName();
@@ -1265,7 +1698,13 @@ public class GameStateDto {
         return dto;
     }
 
-    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean hideSecrets) {
+    /**
+     * @param enemyView  true when the viewer is not on the torpedo's side
+     * @param identified true once a lab or scout channel has identified it (G4.2)
+     */
+    private static PlasmaTorpedoDto fromPlasma(PlasmaTorpedo torp, boolean enemyView, boolean identified) {
+        // No tractoredBy: a tractor beam cannot hold a plasma torpedo — it is energy, not
+        // a physical object. Ships, shuttles, drones and canisters can all be held.
         PlasmaTorpedoDto dto = new PlasmaTorpedoDto();
         dto.name = torp.getName();
         dto.location = torp.getLocation() != null ? torp.getLocation().toString() : null;
@@ -1274,12 +1713,16 @@ public class GameStateDto {
         dto.currentStrength = torp.getCurrentStrength();
         dto.controllerFaction = controllerFaction(torp.getController());
         dto.controllerName = torp.getController() != null ? torp.getController().getName() : null;
-        if (hideSecrets) {
-            // Type, pseudo status, and target stay unknown until identified —
-            // a pseudo must be indistinguishable from a real torpedo (FP1.4)
+        if (enemyView) {
+            // G4.232: a lab "can only reveal the target of a plasma torpedo" and cannot
+            // distinguish a real torpedo from a pseudo (FP1.4). Identification therefore
+            // buys the target and nothing else — type and pseudo status stay hidden even
+            // after it, which is what makes a pseudo worth launching. Strength is always
+            // known (FP1.32) and is sent above either way.
             dto.plasmaType = "?";
             dto.pseudo = false;
-            dto.targetName = null;
+            dto.targetName = identified && torp.getTarget() != null
+                    ? torp.getTarget().getName() : null;
         } else {
             dto.plasmaType = torp.getPlasmaType() != null ? torp.getPlasmaType().name() : null;
             dto.pseudo = torp.isPseudoPlasma();

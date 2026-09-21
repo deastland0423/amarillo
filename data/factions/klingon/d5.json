@@ -1,14 +1,16 @@
 {
   "faction": "Klingon",
-  "hull": "D5",
+  "type": "D5",
+  "line": "CW",
   "name": "IKS Klodode",
   "serviceYear": 168,
   "bpv": 110,
   "turnMode": "B",
   "sizeClass": 3,
-  "moveCost": 0.6666666667,
+  "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 6,
   "tokenArt": "klingon/d5.png",
   
   "shields": [30, 26, 26, 26, 26, 26],
@@ -76,5 +78,13 @@
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12", "shots": 12 },
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12", "shots": 12 }
 
-  ]
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ]
+  }
 }

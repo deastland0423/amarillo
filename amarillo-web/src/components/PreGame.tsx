@@ -2,14 +2,30 @@ import { useEffect, useState } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useLobbySocket } from '../hooks/useLobbySocket';
 import { gameApi } from '../api/gameApi';
-import type { PlayerListing, ScenarioSummary, ScenarioSide, CoiSideData, CoiSubmission } from '../api/gameApi';
+import type {
+  PlayerListing, ScenarioSummary, CoiSideData, CoiSubmission, FleetSummary, TerrainChoice,
+} from '../api/gameApi';
 import CoiDialog from './CoiDialog';
+import HexGrid from './HexGrid';
+import DeploymentPanel from './DeploymentPanel';
+import type { MapObject } from '../types/gameState';
 
 interface Props {
   session: LobbyResult;
   onGameStarted: () => void;
   onLeave: () => void;
 }
+
+/** The year a battle is fought in when nothing says otherwise. */
+const DEFAULT_YEAR = 180;
+
+/** Zone tints, in side order. Translucent so the grid and terrain stay readable beneath. */
+const ZONE_COLORS = [
+  'rgba(88, 166, 255, 0.16)',   // blue
+  'rgba(248, 81, 73, 0.16)',    // red
+  'rgba(86, 211, 100, 0.16)',   // green
+  'rgba(240, 192, 64, 0.16)',   // amber
+];
 
 export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const lobby = useLobbySocket(session.gameId);
@@ -21,11 +37,26 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   // Host-only: scenario list + selection
   const [scenarios,       setScenarios]       = useState<ScenarioSummary[]>([]);
   const [selectedScenario,setSelectedScenario]= useState('');
+  // Host-only: the other way to start a battle — saved fleets instead of a scenario file
+  const [setupMode,       setSetupMode]       = useState<'scenario' | 'fleets'>('scenario');
+  const [fleets,          setFleets]          = useState<FleetSummary[]>([]);
+  const [chosenFleets,    setChosenFleets]    = useState<string[]>([]);
+  const [fleetYear,       setFleetYear]       = useState(DEFAULT_YEAR);
+  const [fleetBudget,     setFleetBudget]     = useState(1000);
+  const [fleetWs,         setFleetWs]         = useState(2);
+  const [fleetTerrain,    setFleetTerrain]    = useState<TerrainChoice>('OPEN_SPACE');
+  // The situation the fleets are brought to. '' is the plain battle — two sides, open space,
+  // standard victory — which is the same thing with nothing specified.
+  const [situationId,     setSituationId]     = useState('');
+  // Which side each chosen fleet flies for, when the situation names its sides.
+  const [fleetSides,      setFleetSides]      = useState<Record<string, string>>({});
   // Raw COI data for the whole scenario (fetched once per scenario)
   const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
   // Filtered to this player's assigned ships
   const [coiData,         setCoiData]         = useState<CoiSideData[] | null>(null);
   const [coiSubmitted,    setCoiSubmitted]    = useState(false);
+  /** What the server could not apply from the COI selections, per ship. */
+  const [coiWarnings,     setCoiWarnings]     = useState<string[]>([]);
 
   const [error,  setError]  = useState('');
   const [busy,   setBusy]   = useState(false);
@@ -43,6 +74,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
       .catch(() => { if (session.isHost) setError('Could not load scenarios.'); });
   }, [session.isHost]);
 
+  // ---- Host: the saved fleets available to field ----
+  useEffect(() => {
+    if (!session.isHost) return;
+    gameApi.listFleets()
+      .then(setFleets)
+      .catch(() => {/* non-fatal: the scenario path still works */});
+  }, [session.isHost]);
+
   // ---- Host: refresh token-bearing player list whenever lobby player count changes ----
   useEffect(() => {
     if (session.isHost) {
@@ -52,13 +91,15 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     }
   }, [session.isHost, session.gameId, session.playerToken, lobby?.players.length]);
 
-  // ---- Fetch raw COI data once when a scenario is loaded ----
+  // ---- Fetch raw COI data once a battle is loaded ----
+  // Asked of the GAME rather than of a scenario id: a battle assembled from saved
+  // fleets has no file to look up, and this route serves both.
   useEffect(() => {
-    if (!lobby?.scenarioLoaded || !lobby.scenarioId) return;
-    gameApi.getCoiData(lobby.scenarioId)
+    if (!lobby?.scenarioLoaded) return;
+    gameApi.getGameCoiData(session.gameId)
       .then(setRawCoiData)
       .catch(() => setError('Could not load COI data.'));
-  }, [lobby?.scenarioLoaded, lobby?.scenarioId]);
+  }, [lobby?.scenarioLoaded, lobby?.scenarioId, session.gameId]);
 
   // ---- Re-filter COI data whenever assignments or raw data change ----
   useEffect(() => {
@@ -84,6 +125,31 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     setCoiData(null);
     setCoiSubmitted(false);
   }, [lobby?.scenarioId]);
+
+  async function handleFleetBattle() {
+    if (chosenFleets.length === 0) { setError('Choose at least one fleet.'); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await gameApi.loadFleetsIntoGame(session.gameId, session.playerToken, {
+        scenarioId: situationId || undefined,
+        sides: chosenFleets.map(id => ({ fleetId: id, team: fleetSides[id] || undefined })),
+        year: fleetYear,
+        budget: fleetBudget,
+        weaponStatus: fleetWs,
+        terrain: fleetTerrain,
+      });
+      setError('');
+      void res;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not assemble the battle.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleFleet(id: string) {
+    setChosenFleets(cur => cur.includes(id) ? cur.filter(f => f !== id) : [...cur, id]);
+  }
 
   async function handleScenarioLoad(id: string) {
     setSelectedScenario(id);
@@ -114,9 +180,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   }
 
   async function handleCoiSubmit(submission: CoiSubmission) {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setCoiWarnings([]);
     try {
-      await gameApi.submitCoi(session.gameId, session.playerToken, submission);
+      const res = await gameApi.submitCoi(session.gameId, session.playerToken, submission);
+      // What the server could not apply. Warnings, not errors: the selections are saved,
+      // they simply came out different from what was asked — and this is the last moment
+      // anyone can do anything about it.
+      setCoiWarnings(Object.entries(res.warnings ?? {})
+        .flatMap(([shipName, notes]) => notes.map(n => `${shipName}: ${n}`)));
       setCoiSubmitted(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save COI selections.');
@@ -166,6 +237,25 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         <span className="subtitle">Share this ID with other players</span>
       </div>
 
+      {/* Setting up: every player places their own ships, and nobody sees anyone else's
+          until the last Done lands. */}
+      {lobby?.scenarioLoaded && lobby.deploymentRequired && !lobby.started && (
+        <DeploymentPanel
+          gameId={session.gameId}
+          playerToken={session.playerToken}
+          faction={lobby.sides.find(s =>
+            s.ships.some(sh => myShips.includes(sh.shipName)))?.faction ?? 'Federation'}
+          terrain={lobby.terrain}
+          mapCols={lobby.mapCols}
+          mapRows={lobby.mapRows}
+          revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
+          playersDone={lobby.players.filter(p => p.deploymentDone).length}
+          playerCount={lobby.players.length}
+          waitingOn={lobby.players.filter(p => !p.deploymentDone).map(p => p.name)}
+        />
+      )}
+
+
       {/* Player list with COI status, grouped by team */}
       <div className="card" style={{ width: '100%', maxWidth: 480 }}>
         <h3 style={{ margin: 0 }}>Players</h3>
@@ -214,20 +304,158 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
 
         {/* Host: scenario picker */}
         {session.isHost && (
-          <div className="scenario-picker">
-            <label htmlFor="scenario-select">Scenario</label>
-            <select
-              id="scenario-select"
-              value={selectedScenario}
-              onChange={e => handleScenarioLoad(e.target.value)}
-              disabled={busy}
-            >
-              <option value="">— choose a scenario —</option>
-              {scenarios.map(s => (
-                <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
-              ))}
-            </select>
-          </div>
+          <>
+            {/* Two ways to sit down to a battle: a written scenario, or fleets people built. */}
+            <div className="fb-faction-chips" style={{ marginBottom: 12 }}>
+              <button className={setupMode === 'scenario' ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                      onClick={() => setSetupMode('scenario')}>Scenario</button>
+              <button className={setupMode === 'fleets' ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                      onClick={() => setSetupMode('fleets')}>Saved fleets</button>
+            </div>
+
+            {setupMode === 'scenario' && (
+              <div className="scenario-picker">
+                <label htmlFor="scenario-select">Scenario</label>
+                <select
+                  id="scenario-select"
+                  value={selectedScenario}
+                  onChange={e => handleScenarioLoad(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">— choose a scenario —</option>
+                  {/* Only the ones that bring their own ships: a situation has empty sides
+                      until a fleet is brought to it, and belongs under Saved fleets. */}
+                  {scenarios.filter(s => (s.openSides?.length ?? 0) === 0).map(s => (
+                    <option key={s.id} value={s.id}>[{s.id}] {s.name} (Y{s.year})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {setupMode === 'fleets' && (() => {
+              const situations = scenarios.filter(s => (s.openSides?.length ?? 0) > 0);
+              const situation  = situations.find(s => s.id === situationId);
+              const openSides  = situation?.openSides ?? [];
+              const tooManyFleets = situation != null && chosenFleets.length > openSides.length;
+
+              return (
+              <div className="fleet-setup">
+                {/* What kind of battle. The plain one is a situation with nothing said. */}
+                <label className="fb-field">
+                  <span>Situation</span>
+                  <select value={situationId}
+                          onChange={e => {
+                            const id = e.target.value;
+                            setSituationId(id);
+                            setFleetSides({});
+                            // A situation's own year is the default for the battle, not a
+                            // decoration: refits and what is in service both turn on it, and
+                            // the form would otherwise silently override what the file says.
+                            const picked = situations.find(x => x.id === id);
+                            setFleetYear(picked && picked.year > 0 ? picked.year : DEFAULT_YEAR);
+                          }}>
+                    <option value="">A straight fight — open space, standard victory</option>
+                    {situations.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.openSides.length} fleets)
+                      </option>
+                    ))}
+                  </select>
+                  {situation?.description && (
+                    <span className="fb-hint">{situation.description}</span>
+                  )}
+                </label>
+
+                {tooManyFleets && (
+                  <p className="error">
+                    {situation!.name} has room for {openSides.length} fleets —
+                    you have chosen {chosenFleets.length}.
+                  </p>
+                )}
+
+                {fleets.length === 0 && (
+                  <p className="subtitle">
+                    No saved fleets yet. Build one from the opening menu, then come back.
+                  </p>
+                )}
+
+                {fleets.map(f => (
+                  <label key={f.id} className="fleet-choice">
+                    <input type="checkbox"
+                           checked={chosenFleets.includes(f.id)}
+                           onChange={() => toggleFleet(f.id)} />
+                    <span className="fleet-choice-name">{f.name || f.id}</span>
+                    <span className="fb-hint">
+                      {f.factions.join(' + ')} · Y{f.year} · {f.totalCost}/{f.budget} · {f.shipCount} ships
+                    </span>
+                    {/* Which side this fleet flies for, where the situation has named sides. */}
+                    {openSides.length > 0 && chosenFleets.includes(f.id) && (
+                      <select value={fleetSides[f.id] ?? ''}
+                              onClick={e => e.preventDefault()}
+                              onChange={e => setFleetSides(m => ({ ...m, [f.id]: e.target.value }))}>
+                        <option value="">— which side? —</option>
+                        {openSides.map(side => (
+                          <option key={side} value={side}>{side}</option>
+                        ))}
+                      </select>
+                    )}
+                    <span className={f.legal ? 'fb-legal' : 'fb-illegal'}>
+                      {f.legal ? 'legal' : 'illegal'}
+                    </span>
+                  </label>
+                ))}
+
+                {/* The conditions the battle is fought under. Fleets are rechecked against
+                    these, not against whatever they were saved with. */}
+                <div className="fb-conditions" style={{ marginTop: 12 }}>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Year</span>
+                    <input type="number" value={fleetYear}
+                           onChange={e => setFleetYear(Number(e.target.value) || 0)} />
+                  </label>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Budget</span>
+                    <input type="number" value={fleetBudget}
+                           onChange={e => setFleetBudget(Number(e.target.value) || 0)} />
+                  </label>
+                  <label className="fb-field fb-field-narrow">
+                    <span>Weapon status</span>
+                    <select value={fleetWs} onChange={e => setFleetWs(Number(e.target.value))}>
+                      <option value={0}>WS-0</option>
+                      <option value={1}>WS-1</option>
+                      <option value={2}>WS-2</option>
+                      <option value={3}>WS-3</option>
+                    </select>
+                  </label>
+                  {/* S8.15: the terrain is agreed before the forces take the field — unless
+                      the situation already decided, in which case its ground may be measured
+                      from what is out there and swapping it would make nonsense of the setup. */}
+                  <label className="fb-field">
+                    <span>Terrain</span>
+                    <select value={fleetTerrain}
+                            disabled={situation?.fixedTerrain ?? false}
+                            onChange={e => setFleetTerrain(e.target.value as TerrainChoice)}>
+                      <option value="OPEN_SPACE">Open space</option>
+                      <option value="ASTEROID_FIELD">Asteroid field (P3.11)</option>
+                      <option value="PLANET">A planet</option>
+                      <option value="GAS_GIANT">A gas giant — size and rings rolled</option>
+                    </select>
+                    {situation?.fixedTerrain && (
+                      <span className="fb-hint">{situation.name} sets its own.</span>
+                    )}
+                  </label>
+                </div>
+
+                <div className="button-row" style={{ marginTop: 12 }}>
+                  <button onClick={handleFleetBattle}
+                          disabled={busy || chosenFleets.length === 0 || tooManyFleets}>
+                    {busy ? 'Assembling…' : `Assemble battle (${chosenFleets.length} fleets)`}
+                  </button>
+                </div>
+              </div>
+              );
+            })()}
+          </>
         )}
 
         {/* Non-host: waiting message when no scenario yet */}
@@ -255,32 +483,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           <button className="secondary" style={{ marginTop: 12 }} onClick={onLeave}>Leave game</button>
         )}
       </div>
-
-      {/* Transient fallback from the lobby broadcast, shown until the full
-          scenario catalog has loaded and the rich detail card below resolves
-          (for the brief moment a joiner is still fetching it). */}
-      {lobby?.scenarioLoaded && !activeScenario && (
-        <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
-          <div className="scenario-detail-header">
-            <span className="scenario-detail-id">{lobby.scenarioId}</span>
-            <span className="scenario-detail-name">{lobby.scenarioName ?? lobby.scenarioId}</span>
-            {lobby.scenarioYear > 0 && (
-              <span className="scenario-detail-year">Y{lobby.scenarioYear}</span>
-            )}
-          </div>
-          {lobby.scenarioDescription && (
-            <p className="scenario-detail-desc">{lobby.scenarioDescription}</p>
-          )}
-          {(lobby.scenarioSpecialRules?.length ?? 0) > 0 && (
-            <div className="scenario-section">
-              <div className="scenario-section-title">Special Rules</div>
-              <ul className="scenario-rules-list">
-                {lobby.scenarioSpecialRules.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Host: ship assignment panel (after scenario loaded) */}
       {session.isHost && lobby?.scenarioLoaded && lobby.unassignedShips.length > 0 && (
@@ -320,6 +522,22 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         />
       )}
 
+      {/* What the server could not apply. Shown after submitting and before the battle,
+          because that is the last moment it can be changed — it used to reach the player
+          as a line in the combat log on turn one, if at all. */}
+      {coiWarnings.length > 0 && (
+        <div className="card" style={{ width: '100%', maxWidth: 560,
+                                       borderColor: '#d29922' }}>
+          <p className="subtitle" style={{ color: '#d29922' }}>
+            Some selections could not be applied
+          </p>
+          <ul style={{ margin: '4px 0 8px', paddingLeft: 18, fontSize: '0.8rem' }}>
+            {coiWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+          <button className="secondary" onClick={() => setCoiWarnings([])}>Dismiss</button>
+        </div>
+      )}
+
       {/* Waiting message when ships assigned but COI data not loaded yet */}
       {myShips.length > 0 && !iAmCoiDone && !coiData && lobby?.scenarioLoaded && (
         <div className="card" style={{ width: '100%', maxWidth: 480 }}>
@@ -336,46 +554,133 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
         </div>
       )}
 
-      {/* Scenario detail card */}
-      {activeScenario && (
+      {/* Battle detail card.
+          Identity and forces come from the lobby broadcast, which carries the loaded spec —
+          so this renders for a battle assembled from saved fleets just as it does for one
+          read from data/scenarios. The extras below come from the scenario catalogue and
+          simply do not appear for a built battle, which has no file to describe them. */}
+      {lobby?.scenarioLoaded && (
         <div className="card scenario-detail" style={{ width: '100%', maxWidth: 640 }}>
           <div className="scenario-detail-header">
-            <span className="scenario-detail-id">{activeScenario.id}</span>
-            <span className="scenario-detail-name">{activeScenario.name}</span>
-            <span className="scenario-detail-year">Y{activeScenario.year}</span>
+            <span className="scenario-detail-id">{lobby.scenarioId}</span>
+            <span className="scenario-detail-name">{lobby.scenarioName ?? lobby.scenarioId}</span>
+            {lobby.scenarioYear > 0 && (
+              <span className="scenario-detail-year">Y{lobby.scenarioYear}</span>
+            )}
           </div>
 
-          {activeScenario.description && (
-            <p className="scenario-detail-desc">{activeScenario.description}</p>
+          {lobby.scenarioDescription && (
+            <p className="scenario-detail-desc">{lobby.scenarioDescription}</p>
           )}
 
-          <div className="scenario-detail-meta">
-            <span>{activeScenario.numPlayers} players</span>
-            <span>Map: {activeScenario.mapType}</span>
-            <span>Victory: {activeScenario.victoryType}</span>
-          </div>
+          {activeScenario && (
+            <div className="scenario-detail-meta">
+              <span>{activeScenario.numPlayers} players</span>
+              <span>Map: {activeScenario.mapType}</span>
+              <span>Victory: {activeScenario.victoryType}</span>
+            </div>
+          )}
+
+          {/* Forces come from the lobby broadcast, which carries the loaded spec itself.
+              A battle assembled from saved fleets is not a file in data/scenarios, so
+              looking it up by id would show nothing. */}
+          {/* The battlefield, before anyone commits to it: the terrain that was rolled and
+              the ground each side may set up on. Both come from the broadcast spec, so this
+              is the same map everyone else is looking at. */}
+          {(() => {
+            if (!lobby) return null;
+            // While a player is setting up they have a map of their own, showing this
+            // terrain plus their ground and their ships. Two maps on one page is worse
+            // than either alone.
+            if (lobby.deploymentRequired && !lobby.started) return null;
+            const terrain: MapObject[] = lobby.terrain.map(t => ({
+              type: 'TERRAIN',
+              name: t.name ?? `${t.terrainType}-${t.hex}`,
+              location: `<${Number(t.hex.slice(0, 2))}|${Number(t.hex.slice(2, 4))}>`,
+              terrainType: t.terrainType as 'ASTEROID' | 'PLANET' | 'GAS_GIANT',
+              radius: t.radius,
+              rings: t.rings?.length ? t.rings : undefined,
+            } as MapObject));
+
+            const zones = lobby.sides
+              .map((side, i) => ({
+                hexes: side.deploymentZone?.hexes ?? [],
+                color: ZONE_COLORS[i % ZONE_COLORS.length],
+                label: side.name,
+              }))
+              .filter(z => z.hexes.length > 0);
+
+            if (terrain.length === 0 && zones.length === 0) return null;
+
+            return (
+              <div className="battle-preview">
+                <div className="scenario-section-title">The battlefield</div>
+                <div className="battle-preview-map">
+                  <HexGrid
+                    mapCols={lobby.mapCols}
+                    mapRows={lobby.mapRows}
+                    mapObjects={terrain}
+                    zones={zones}
+                  />
+                </div>
+                {zones.length > 0 && (
+                  <div className="battle-preview-key">
+                    {lobby.sides.map((side, i) => side.deploymentZone && (
+                      <span key={side.name + i} className="battle-preview-key-item">
+                        <span className="battle-preview-swatch"
+                              style={{ background: ZONE_COLORS[i % ZONE_COLORS.length] }} />
+                        {side.name} — {side.deploymentZone.describe}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* What the battle is being fought over, from the broadcast spec. */}
+          {(lobby?.terrain?.length ?? 0) > 0 && (
+            <div className="scenario-section">
+              <div className="scenario-section-title">Terrain</div>
+              <ul className="scenario-rules-list">
+                {(() => {
+                  const t = lobby!.terrain;
+                  const rocks = t.filter(x => x.terrainType === 'ASTEROID').length;
+                  const rows: string[] = [];
+                  if (rocks > 0) rows.push(`Asteroid field — ${rocks} hexes (P3.11)`);
+                  for (const body of t.filter(x => x.terrainType !== 'ASTEROID')) {
+                    const across = body.radius * 2 + 1;
+                    const rings = body.rings?.length
+                      ? `, rings at ${body.rings.map(b => `${b[0]}-${b[1]}`).join(' and ')}`
+                      : '';
+                    rows.push(body.terrainType === 'GAS_GIANT'
+                      ? `Gas giant at ${body.hex} — ${across} hexes across${rings}`
+                      : `Planet at ${body.hex}${body.name ? ` (${body.name})` : ''}`);
+                  }
+                  return rows.map((r, i) => <li key={i}>{r}</li>);
+                })()}
+              </ul>
+            </div>
+          )}
 
           <div className="scenario-sides">
-            {activeScenario.sides.map((side: ScenarioSide) => (
-              <div key={side.faction} className="scenario-side">
+            {(lobby?.sides ?? []).map((side, i) => (
+              <div key={side.name + i} className="scenario-side">
                 <div className="scenario-side-header">
                   <span className="scenario-side-name">{side.name || side.faction}</span>
-                  {side.reinforcementGroups > 0 && (
-                    <span className="scenario-reinforcement-badge">+reinforcements</span>
-                  )}
                 </div>
                 <table className="scenario-ship-table">
                   <thead>
                     <tr>
-                      <th>Ship</th><th>Hull</th><th>Hex</th>
+                      <th>Ship</th><th>Type</th><th>Hex</th>
                       <th>Hdg</th><th>Spd</th><th>WS</th><th>Refits</th>
                     </tr>
                   </thead>
                   <tbody>
                     {side.ships.map(ship => (
-                      <tr key={ship.shipName || ship.hull}>
+                      <tr key={ship.shipName || ship.type}>
                         <td>{ship.shipName}</td>
-                        <td>{ship.hull}</td>
+                        <td>{ship.type}</td>
                         <td>{ship.startHex}</td>
                         <td>{ship.startHeading}</td>
                         <td>{ship.startSpeed === 16 ? 'Max' : ship.startSpeed}</td>
@@ -389,14 +694,14 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             ))}
           </div>
 
-          {activeScenario.victoryNotes && (
+          {activeScenario?.victoryNotes && (
             <div className="scenario-section">
               <div className="scenario-section-title">Victory Conditions</div>
               <p className="scenario-section-text">{activeScenario.victoryNotes}</p>
             </div>
           )}
 
-          {(!activeScenario.warpBoosterPacks || !activeScenario.megapacks ||
+          {activeScenario && (!activeScenario.warpBoosterPacks || !activeScenario.megapacks ||
             !activeScenario.mrsShuttles || !activeScenario.pfs) && (
             <div className="scenario-section">
               <div className="scenario-section-title">Shuttle / PF Rules</div>
@@ -409,7 +714,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             </div>
           )}
 
-          {activeScenario.specialRules.length > 0 && (
+          {(activeScenario?.specialRules.length ?? 0) > 0 && activeScenario && (
             <div className="scenario-section">
               <div className="scenario-section-title">Special Rules</div>
               <ul className="scenario-rules-list">

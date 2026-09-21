@@ -135,6 +135,14 @@ public final class WeaponFactory {
                 add.setDesignator(ws.designator);
                 return add;
             }
+            case "ScoutChannel": {
+                // A scout function channel (G24.0). It occupies the DAC hit location of the
+                // weapon it replaced (G24.17); default to "torp" if unspecified.
+                com.sfb.weapons.ScoutChannel ch = new com.sfb.weapons.ScoutChannel();
+                ch.setDesignator(ws.designator);
+                ch.setDacHitLocaiton(ws.dacHitLocation != null ? ws.dacHitLocation : "torp");
+                return ch;
+            }
             case "ESG": {
                 // ESG has no firing arc — it generates a field (G23.0). Slice 1:
                 // no capacitor; the with-capacitor variant is a later slice.

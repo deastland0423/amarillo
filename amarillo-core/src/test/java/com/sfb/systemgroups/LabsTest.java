@@ -16,7 +16,7 @@ public class LabsTest {
 		
 		Labs labs = getSampleLabs(numberOfLabs);
 		
-		assertEquals(numberOfLabs, labs.getAvailableLab());
+		assertEquals(numberOfLabs, labs.getFunctioningLabs());
 	}
 	
 	@Test
@@ -25,19 +25,19 @@ public class LabsTest {
 		
 		Labs labs = getSampleLabs(numberOfLabs);
 		
-		assertEquals(numberOfLabs, labs.getAvailableLab());
+		assertEquals(numberOfLabs, labs.getFunctioningLabs());
 		
 		//damage a lab
 		labs.damage();
 		
 		// verify that there is one less lab
-		assertEquals(numberOfLabs - 1, labs.getAvailableLab());
+		assertEquals(numberOfLabs - 1, labs.getFunctioningLabs());
 		
 		// repair a lab
 		assertTrue(labs.repair(1));
 		
 		// verify that labs is back to full
-		assertEquals(numberOfLabs, labs.getAvailableLab());
+		assertEquals(numberOfLabs, labs.getFunctioningLabs());
 		
 		// fail at repairing a lab when all are functional
 		assertFalse(labs.repair(1));

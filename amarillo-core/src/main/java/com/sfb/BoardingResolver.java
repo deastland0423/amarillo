@@ -82,9 +82,16 @@ class BoardingResolver {
             systems.add(new SystemTarget(SystemTarget.Type.SCANNERS, "Scanners"));
         }
 
-        // Transporters
-        if (target.getTransporters().getAvailableTrans() > 0) {
-            systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS, "Transporters"));
+        // Transporters — per box, like tractor beams, so a raid can pick an UNUSED one
+        // (D7.835). A box already spent this turn costs its owner almost nothing, which is
+        // why the damage chart gives those up first.
+        {
+            com.sfb.systemgroups.Transporters trans = target.getTransporters();
+            List<Integer> numbers = trans.boxNumbers();
+            List<String> labels = trans.describeBoxes(game.getAbsoluteImpulse());
+            for (int i = 0; i < numbers.size(); i++)
+                systems.add(new SystemTarget(SystemTarget.Type.TRANSPORTERS,
+                        numbers.get(i), labels.get(i)));
         }
 
         // Crew deliberately absent: D7.826 forbids raids on crew units,
@@ -201,7 +208,7 @@ class BoardingResolver {
         if (numParties > availableTrans)
             return ActionResult.fail("Not enough transporters (have " + availableTrans
                     + ", need " + numParties + ")");
-        int availableUses = actingShip.getTransporters().availableUses();
+        int availableUses = actingShip.getTransporters().availableUses(game.getAbsoluteImpulse());
         if (numParties > availableUses)
             return ActionResult.fail("Not enough transporter energy (have " + availableUses
                     + " use(s), need " + numParties + ")");
@@ -222,9 +229,11 @@ class BoardingResolver {
             return ActionResult.fail(target.getName() + " shield #" + targetShieldNum
                     + " is active — cannot beam through");
 
-        // Spend transporter energy
-        for (int i = 0; i < numParties; i++)
-            actingShip.getTransporters().useTransporter();
+        // Spend transporter energy — banked first, then reserve power (H7.x).
+        if (!game.spendTransporterEnergy(actingShip, numParties))
+            return ActionResult.fail(actingShip.getName() + " cannot power " + numParties
+                    + " transporter use" + (numParties == 1 ? "" : "s")
+                    + " — not enough transporter energy or battery power");
 
         return null; // all clear
     }
@@ -264,7 +273,7 @@ class BoardingResolver {
                     + objective.getName() + " aboard (D6.124)");
         if (actingShip.getTransporters().getAvailableTrans() < 1)
             return ActionResult.fail(actingShip.getName() + " has no working transporters");
-        if (actingShip.getTransporters().availableUses() < 1)
+        if (actingShip.getTransporters().availableUses(game.getAbsoluteImpulse()) < 1)
             return ActionResult.fail(actingShip.getName()
                     + " has no transporter energy allocated this turn");
 
@@ -278,7 +287,10 @@ class BoardingResolver {
         }
 
         // D6.372: a jammed beam still expends the operation (spend it first)
-        actingShip.getTransporters().useTransporter();
+        if (!game.spendTransporterEnergy(actingShip, 1))
+            return ActionResult.fail(actingShip.getName()
+                    + " cannot power a transporter use — no energy banked and no battery"
+                    + " power to draw on");
         Game.D637Result ew = game.rollD637(actingShip, objective, "Transporter");
         if (ew != null && ew.blocked)
             return ActionResult.ok(ew.line + " — transporter jammed, " + objective.getName()
@@ -329,7 +341,7 @@ class BoardingResolver {
         int availTrans = source.getTransporters().getAvailableTrans();
         if (usesNeeded > availTrans)
             return ActionResult.fail("Not enough transporters (have " + availTrans + ", need " + usesNeeded + ")");
-        int availUses = source.getTransporters().availableUses();
+        int availUses = source.getTransporters().availableUses(game.getAbsoluteImpulse());
         if (usesNeeded > availUses)
             return ActionResult
                     .fail("Not enough transporter energy (have " + availUses + " use(s), need " + usesNeeded + ")");
@@ -352,9 +364,11 @@ class BoardingResolver {
                         + " is active — cannot beam through (G8.21)");
         }
 
-        // Spend transporters
-        for (int i = 0; i < usesNeeded; i++)
-            source.getTransporters().useTransporter();
+        // Spend transporters — banked energy first, then reserve power (H7.x).
+        if (!game.spendTransporterEnergy(source, usesNeeded))
+            return ActionResult.fail(source.getName() + " cannot power " + usesNeeded
+                    + " transporter use" + (usesNeeded == 1 ? "" : "s")
+                    + " — not enough transporter energy or battery power");
 
         // Move crew
         source.getCrew().setAvailableCrewUnits(available - amount);
@@ -601,6 +615,9 @@ class BoardingResolver {
             }
             case TRACTOR:
                 return target.getTractors().destroyBeam(system.getIndex()) != null;
+            case TRANSPORTERS:
+                // The box the raider named, not the one the defender would rather lose.
+                return target.getTransporters().destroyBox(system.getIndex());
             case WARP_L:
                 return target.getPowerSystems().damageLWarp();
             case WARP_R:
@@ -614,8 +631,6 @@ class BoardingResolver {
                 return target.getSpecialFunctions().damageSensor();
             case SCANNERS:
                 return target.getSpecialFunctions().damageScanner();
-            case TRANSPORTERS:
-                return target.getTransporters().damage();
             case BATTERY:
                 return target.getPowerSystems().damageBattery();
             case FHULL:

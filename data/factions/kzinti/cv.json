@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
-  "hull": "CV",
+  "type": "CV",
+  "line": "BCH",
   "name": "KHS Sabre",
   "serviceYear": 166,
   "bpv": 147,
@@ -9,6 +10,8 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 9,
+  "isTrueCarrier": true,
   
   "shields": [34, 24, 24, 24, 24, 24],
   

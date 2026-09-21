@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "E4B",
+  "type": "E4B",
+  "line": "FF",
   "name": "IKS Guardian",
   "serviceYear": 165,
   "bpv": 59,
@@ -9,7 +10,9 @@
   "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
-  
+  "commandRating": 3,
+  "tokenArt": "klingon/e4.png",
+
   "shields": [21, 12, 12, 12, 12, 12],
   
   "hullBoxes": {

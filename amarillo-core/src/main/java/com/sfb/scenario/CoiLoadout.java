@@ -74,6 +74,22 @@ public class CoiLoadout {
     public Map<String, WeaponArmingType> weaponArmingModes = new LinkedHashMap<>();
 
     /**
+     * Free overload energy dealt out to photon tubes at WS-III (S4.32), keyed by tube
+     * designator. A ship gets {@link #FREE_OVERLOAD_PER_TUBE} points per photon tube and may
+     * spread them across its tubes as it likes, so one tube can be taken to a full 100%
+     * overload at the price of leaving another standard. The energy is free — it is not
+     * charged against the commander's-option budget — but it may only overload, never arm
+     * (S4.32), and a tube that takes any of it is committed to being an overload (E4.414).
+     * <p>
+     * Prior-turn arming at WS-II carries no overload energy at all (S4.32), so entries are
+     * ignored for any ship below WS-III.
+     */
+    public Map<String, Double> photonOverload = new LinkedHashMap<>();
+
+    /** Free overload energy each photon tube contributes to the ship's pool at WS-III (S4.32). */
+    public static final double FREE_OVERLOAD_PER_TUBE = 2.0;
+
+    /**
      * Orion option-mount choices (G15.4), keyed by mount designator (e.g. "A")
      * → option name from Annex #8B (e.g. "Phaser-3"). Applied at ship setup via
      * {@code OptionMountLoadout.equip}. These are the ship's inherent loadout —

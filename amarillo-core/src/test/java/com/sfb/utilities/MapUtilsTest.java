@@ -80,13 +80,15 @@ public class MapUtilsTest {
 
     @Test
     public void testBearingEast() {
-        // Even xDiff, same y → bearing 4
-        assertEquals(4, MapUtils.getBearing(at(5, 5), at(7, 5)));
+        // Due east is the vertex between directions 5 and 9 — bearing 7, not the 4 of the
+        // twelve-point shield scheme.
+        assertEquals(7, MapUtils.getBearing(at(5, 5), at(7, 5)));
     }
 
     @Test
     public void testBearingWest() {
-        assertEquals(10, MapUtils.getBearing(at(7, 5), at(5, 5)));
+        // Due west is the vertex between directions 17 and 21.
+        assertEquals(19, MapUtils.getBearing(at(7, 5), at(5, 5)));
     }
 
     @Test
@@ -326,5 +328,24 @@ public class MapUtilsTest {
     public void testAdjacentInvalidBearingReturnsNull() {
         Location result = MapUtils.getAdjacentHex(new Location(5, 5), 3);
         assertEquals(null, result);
+    }
+
+    /**
+     * The two getBearing overloads used to be separate implementations that disagreed on four
+     * of the six hex directions, and the Location one fed planet bombardment's arc checks. The
+     * algorithm now lives on Locations and the Marker form delegates; this pins them together.
+     */
+    @Test
+    public void bothBearingOverloadsAgree() {
+        Location src = new Location(20, 16);
+        for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+            Location p = src;
+            for (int i = 0; i < 3; i++)
+                p = MapUtils.getAdjacentHex(p, dir, 42, 32);
+            int viaMarkers   = MapUtils.getBearing(at(src.getX(), src.getY()), at(p.getX(), p.getY()));
+            int viaLocations = MapUtils.getBearing(src, p);
+            assertEquals("direction " + dir, viaMarkers, viaLocations);
+            assertEquals("a hex direction reads as itself", dir, viaLocations);
+        }
     }
 }

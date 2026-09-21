@@ -21,7 +21,7 @@ public class FederationShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Federation);
-        s.put("hull", "CA");
+        s.put("type", "CA");
         s.put("name", "USS Lexington");
         s.put("serviceyear", 130);
         s.put("bpv", 125);
@@ -116,7 +116,7 @@ public class FederationShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Federation);
-        s.put("hull", "NCL");
+        s.put("type", "NCL");
         s.put("name", "USS Kearsarge");
         s.put("serviceyear", 170);
         s.put("bpv", 116);
@@ -211,7 +211,7 @@ public class FederationShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Federation);
-        s.put("hull", "OCL");
+        s.put("type", "OCL");
         s.put("name", "USS Texas");
         s.put("serviceyear", 120);
         s.put("bpv", 98);
@@ -295,7 +295,7 @@ public class FederationShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Federation);
-        s.put("hull", "FFG");
+        s.put("type", "FFG");
         s.put("name", "USS Perry");
         s.put("serviceyear", 160);
         s.put("bpv", 75);

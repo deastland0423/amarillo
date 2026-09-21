@@ -92,6 +92,43 @@ class GameSessionAllocateTest {
     }
 
     // -------------------------------------------------------------------------
+    // Erratic Maneuvers (C10.11/C10.12) — the allocation line that makes EM reachable
+    // -------------------------------------------------------------------------
+
+    @Test
+    void erraticManeuvers_atTheFullPrice_isBought() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setErraticManeuvers(fed.getPerformanceData().getErraticCost());
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertTrue(fed.hasPaidForEm(), "paying the full cost must buy the right to announce EM");
+    }
+
+    @Test
+    void erraticManeuvers_shortOfThePrice_isRefusedRatherThanWasted() {
+        // C10.11 is a flat price. Accepting a partial payment would silently burn the
+        // energy and still leave the ship unable to announce EM.
+        ActionRequest req = allocate("USS Enterprise");
+        req.setErraticManeuvers(fed.getPerformanceData().getErraticCost() - 1);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("C10.11"), result.getMessage());
+        assertFalse(fed.hasPaidForEm());
+    }
+
+    @Test
+    void notBuyingIt_leavesEmUnavailable() {
+        ActionResult result = session.executeAction(allocate("USS Enterprise"));
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertFalse(fed.hasPaidForEm());
+    }
+
+    // -------------------------------------------------------------------------
     // Other translation-layer validations, pinned against drift
     // -------------------------------------------------------------------------
 
@@ -108,7 +145,7 @@ class GameSessionAllocateTest {
     }
 
     @Test
-    void ecmPlusEccm_overSensorRating_isRefused() {
+    void ecmPlusEccm_overGenerationLimit_isRefused() {
         ActionRequest req = allocate("USS Enterprise");
         req.setEcm(4);
         req.setEccm(4);
@@ -116,7 +153,19 @@ class GameSessionAllocateTest {
         ActionResult result = session.executeAction(req);
 
         assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("sensor rating"), result.getMessage());
+        assertTrue(result.getMessage().contains("generation limit"), result.getMessage());
+    }
+
+    /** D6.310 caps generated EW at six even when the sensor track would allow more circuits. */
+    @Test
+    void ecmPlusEccm_atSixPointLimit_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setEcm(4);
+        req.setEccm(2);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
     }
 
     @Test
@@ -241,5 +290,138 @@ class GameSessionAllocateTest {
 
         assertTrue(result.isSuccess(), result.getMessage());
         assertTrue(orion.getPowerSystems().isAnyEngineDoubled());
+    }
+
+    // -------------------------------------------------------------------------
+    // Photon arming dial (E4.21/E4.411) — energy, not a mode
+    // -------------------------------------------------------------------------
+
+    /** The name of the Federation ship's first photon tube. */
+    private String photonName() {
+        for (com.sfb.weapons.Weapon w : fed.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.Photon)
+                return w.getName();
+        throw new IllegalStateException("FedCA has no photon");
+    }
+
+    @Test
+    void photonDial_sixPoints_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 6.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** E4.21: the two-point standard charge is mandatory; less buys no arming turn. */
+    @Test
+    void photonDial_underTwoPoints_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 1.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("two points"), result.getMessage());
+    }
+
+    /** E4.41: two standard plus four of overload is the most a turn can take. */
+    @Test
+    void photonDial_overSixPoints_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 7.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("at most"), result.getMessage());
+    }
+
+    /** Zero is "do not arm" and must be accepted — it discharges the tube (E4.21/E1.24). */
+    @Test
+    void photonDial_zero_isAcceptedAsDischarge() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 0.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** E4.31: a proximity fuse rides along with the arming and costs nothing. */
+    @Test
+    void photonDial_twoPointsWithProximity_isAccepted() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 2.0));
+        req.setWeaponArming(java.util.Map.of(photonName(), "PROX"));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** E4.34: proximity and overload cannot be combined. */
+    @Test
+    void photonDial_proximityWithOverloadEnergy_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(photonName(), 4.0));
+        req.setWeaponArming(java.util.Map.of(photonName(), "PROX"));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("proximity"), result.getMessage());
+    }
+
+    /** E4.412: a loaded tube is dialled hold-plus-overload, so five is legal on a standard one. */
+    @Test
+    void photonDial_loadedTube_acceptsHoldPlusOverload() {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);          // loaded, standard: holds for 1
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 5.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+    }
+
+    /** Below the holding cost is not an allocation it can accept (E4.22). */
+    @Test
+    void photonDial_loadedTube_belowTheHold_isRefused() throws Exception {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+        p.holdAndOverload(3);        // now an overload, holding costs 2
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 1.0));
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("holding"), result.getMessage());
+    }
+
+    /** E4.41: hold plus the overload it can still take, and no more. */
+    @Test
+    void photonDial_loadedTube_overTheRemainingAllowance_isRefused() {
+        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) fed.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Photon).findFirst().orElseThrow();
+        p.armWithEnergy(2);
+        p.armWithEnergy(2);
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPhotonArming(java.util.Map.of(p.getName(), 6.0));   // 1 hold + 5 of overload
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("at most"), result.getMessage());
     }
 }

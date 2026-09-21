@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
-  "hull": "LN+",
+  "type": "LN+",
+  "line": "DD",
   "name": "HMS Thought",
   "serviceYear": 134,
   "bpv": 77,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "commandRating": 4,
   
   "shields": [24, 18, 18, 18, 18, 18],
   

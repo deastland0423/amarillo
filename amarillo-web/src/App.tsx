@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import Lobby from './components/Lobby';
 import type { LobbyResult } from './components/Lobby';
 import PreGame from './components/PreGame';
+import FleetBuilder from './components/FleetBuilder';
 import GameBoard from './components/GameBoard';
 import { gameApi } from './api/gameApi';
 import './App.css';
 
-type Screen = 'lobby' | 'pregame' | 'game';
+type Screen = 'lobby' | 'pregame' | 'game' | 'fleet';
 
 const SESSION_KEY = 'amarillo_session';
 
@@ -31,6 +32,8 @@ export default function App() {
   const [screen,  setScreen]  = useState<Screen>('lobby');
   const [session, setSession] = useState<LobbyResult | null>(null);
   const [resuming, setResuming] = useState(false);
+  // Fleet building needs no game and no session — just a name to sign the work.
+  const [builderName, setBuilderName] = useState('');
 
   // On mount, check for a saved session and verify it's still alive.
   useEffect(() => {
@@ -75,7 +78,16 @@ export default function App() {
   }
 
   if (screen === 'lobby') {
-    return <Lobby onJoined={handleJoined} />;
+    return (
+      <Lobby
+        onJoined={handleJoined}
+        onBuildFleet={n => { setBuilderName(n); setScreen('fleet'); }}
+      />
+    );
+  }
+
+  if (screen === 'fleet') {
+    return <FleetBuilder playerName={builderName} onLeave={() => setScreen('lobby')} />;
   }
 
   if (screen === 'pregame' && session) {

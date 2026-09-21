@@ -41,9 +41,9 @@ public class DacDeadResultsTest {
 
     @Test
     public void labHit_destroysALab() {
-        int before = fed.getLabs().getAvailableLab();
+        int before = fed.getLabs().getFunctioningLabs();
         assertEquals("lab HIT", fed.applySystemHitForTest("lab"));
-        assertEquals(before - 1, fed.getLabs().getAvailableLab());
+        assertEquals(before - 1, fed.getLabs().getFunctioningLabs());
     }
 
     @Test

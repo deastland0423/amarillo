@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
-  "hull": "KR",
+  "type": "KR",
+  "line": "CA",
   "name": "RIS Talon",
   "serviceYear": 160,
   "bpv": 115,
@@ -9,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "tokenArt": "romulan/kr.png",
 
   "shields": [30, 22, 15, 13, 15, 22],

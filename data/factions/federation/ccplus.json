@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
-  "hull": "CC+",
+  "type": "CC+",
+  "line": "CA",
   "name": "USS Lexington",
   "serviceYear": 165,
   "bpv": 135,
@@ -10,6 +11,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
+  "isLeader": true,
   "tokenArt": "federation/cc.png",
 
   "shields": [30, 24, 24, 24, 24, 24],

@@ -1,13 +1,23 @@
 import { useState, useCallback, useEffect, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
+import {
+  bearsOn,
+  hexRangeBetween as hexRange,
+  hexGetBearing,
+  hexGetRelativeBearing,
+  allowedFacingsFromMask,
+} from '../hex/geometry';
 import HexGrid from './HexGrid';
+import SsdPanel from './SsdPanel';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
 import { DacChoiceDialog } from './DacChoiceDialog';
+import { BlindChoiceDialog } from './BlindChoiceDialog';
+import { AttractChoiceDialog } from './AttractChoiceDialog';
 import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
 import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
@@ -172,11 +182,24 @@ function WeaponRow({ w }: { w: WeaponState }) {
   let statusText = '';
   let statusClass = '';
 
+  // armed === null means the server did not disclose it: this is someone else's ship, and
+  // whether a heavy weapon is armed is exactly what an opponent may not know. Everything
+  // shown in that case comes from public facts — a destroyed weapon is visible, and so is
+  // having fired. Do not reconstruct the rest from other fields; that is the leak this
+  // closes, not a display quirk to work around.
+  const armingDisclosed = w.armed !== null && w.armed !== undefined;
+  const shotsSpent = w.maxShotsPerTurn > 1 && w.maxShotsPerTurn < 2147483647
+    && w.shotsThisTurn >= w.maxShotsPerTurn;
+
   if (!w.functional) {
     // Destroyed by damage
     dotClass  += ' dmg';
     statusText = 'DMG';
     statusClass = 'dmg';
+  } else if (!armingDisclosed) {
+    dotClass   += ' idle';
+    statusText  = shotsSpent ? 'MAX' : (w.shotsThisTurn > 0 ? 'FIRED' : '');
+    statusClass = shotsSpent ? 'cooldown' : '';
   } else if (w.isHeavy && !w.armed) {
     // Heavy weapon not yet armed (includes partially arming)
     dotClass   += ' idle';
@@ -185,9 +208,7 @@ function WeaponRow({ w }: { w: WeaponState }) {
   } else if (!w.readyToFire) {
     // Armed (or non-heavy) but cooldown / shot limit reached
     dotClass   += ' cooldown';
-    statusText  = (w.maxShotsPerTurn > 1 && w.maxShotsPerTurn < 2147483647 && w.shotsThisTurn >= w.maxShotsPerTurn)
-                  ? 'MAX'
-                  : 'COOL';
+    statusText  = shotsSpent ? 'MAX' : 'COOL';
     statusClass = 'cooldown';
   } else {
     // Ready to fire
@@ -242,75 +263,9 @@ function rotateArcMask(mask: number, facing: number): number {
 
 // Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an
 // arc bitmask that is already in absolute hex-grid coordinates.
-function allowedFacingsFromMask(arcMask: number): Set<number> {
-  const FACING_DIRS = [1, 5, 9, 13, 17, 21];
-  return new Set(FACING_DIRS.filter(d => (arcMask >> (d - 1)) & 1));
-}
-
 // Intersects two Sets.
 function intersectSets<T>(a: Set<T>, b: Set<T>): Set<T> {
   return new Set([...a].filter(x => b.has(x)));
-}
-
-// Zone-based bearing matching MapUtils.getBearing(Marker, Marker).
-// Returns SFB direction 1-24, or 0 if same hex.
-function hexGetBearing(srcCol: number, srcRow: number, tgtCol: number, tgtRow: number): number {
-  if (srcCol === tgtCol && srcRow === tgtRow) return 0;
-  const xOffset = tgtCol - srcCol;
-  if (xOffset === 0) return tgtRow < srcRow ? 1 : 13;
-  const absX = Math.abs(xOffset);
-  if (absX % 2 === 0 && srcRow === tgtRow) return xOffset < 0 ? 10 : 4;
-
-  const srcEven = srcCol % 2 === 0;
-  const above   = srcEven ? tgtRow <= srcRow : tgtRow < srcRow;
-
-  const topArcY = srcEven ? srcRow - Math.floor(absX / 2)       : srcRow - Math.floor((absX + 1) / 2);
-  const botArcY = srcEven ? srcRow + Math.floor((absX + 1) / 2) : srcRow + Math.floor(absX / 2);
-
-  let spineOffset: number;
-  if (absX % 2 === 0) {
-    spineOffset = Math.floor(absX / 2) + absX;
-  } else {
-    const lg = _hexLargeOdd(absX), sm = _hexSmallOdd(absX);
-    spineOffset = above ? (srcEven ? sm : lg) : (srcEven ? lg : sm);
-  }
-  const spineY = above ? srcRow - spineOffset : srcRow + spineOffset;
-
-  if (xOffset < 0 && above) {
-    if (tgtRow === spineY)  return 23;
-    if (tgtRow === topArcY) return 21;
-    if (tgtRow < spineY)    return 24;
-    if (tgtRow > topArcY)   return 20;
-    return 22;
-  }
-  if (xOffset > 0 && above) {
-    if (tgtRow === spineY)  return 3;
-    if (tgtRow === topArcY) return 5;
-    if (tgtRow < spineY)    return 2;
-    if (tgtRow > topArcY)   return 6;
-    return 4;
-  }
-  if (xOffset < 0) {
-    if (tgtRow === spineY)  return 15;
-    if (tgtRow === botArcY) return 17;
-    if (tgtRow > spineY)    return 14;
-    if (tgtRow < botArcY)   return 18;
-    return 16;
-  }
-  // xOffset > 0, below
-  if (tgtRow === spineY)  return 11;
-  if (tgtRow === botArcY) return 9;
-  if (tgtRow > spineY)    return 12;
-  if (tgtRow < botArcY)   return 8;
-  return 10;
-}
-function _hexLargeOdd(x: number): number { let y = 2; for (let i = 1; i < x; i += 2) y += 3; return y; }
-function _hexSmallOdd(x: number): number { let y = 1; for (let i = 1; i < x; i += 2) y += 3; return y; }
-
-// Port of MapUtils.getRelativeBearing.
-function hexGetRelativeBearing(trueBearing: number, facing: number): number {
-  if (facing === 1) return trueBearing;
-  return trueBearing >= facing ? trueBearing - (facing - 1) : trueBearing + (24 - (facing - 1));
 }
 
 // FA = directions 21-24 and 1-5 (the seeker's forward arc).
@@ -616,9 +571,18 @@ function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }:
 
 const SEEKER_TYPES = new Set(['suicide', 'scatterpack']);
 
+/**
+ * Prepared for a role, so not launchable as an ordinary shuttle. The server says which
+ * role; the type check stays because a suicide shuttle and a scatter pack are their own
+ * types, while a charged Wild Weasel is an ADMIN shuttle and looks exactly like the rest.
+ */
+function preparedRole(s: { specialRole?: string | null; type: string }): string | null {
+  return s.specialRole ?? (SEEKER_TYPES.has(s.type) ? s.type : null);
+}
+
 function hasLaunchableShuttles(ship: ShipObject): boolean {
   return (ship.shuttleBays ?? []).some(bay =>
-    bay.shuttles.some(s => !SEEKER_TYPES.has(s.type) && s.canLaunch)
+    bay.shuttles.some(s => !preparedRole(s) && s.canLaunch)
   );
 }
 
@@ -637,9 +601,15 @@ function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPa
   const bays = (ship.shuttleBays ?? [])
     .map(bay => ({
       ...bay,
-      shuttles: bay.shuttles.filter(s => !SEEKER_TYPES.has(s.type)),
+      shuttles: bay.shuttles.filter(s => !preparedRole(s)),
     }))
     .filter(bay => bay.shuttles.length > 0);
+
+  // Shown, not silently dropped: a player who prepared a weasel wants to know where it is.
+  const prepared = (ship.shuttleBays ?? [])
+    .flatMap(bay => bay.shuttles)
+    .map(s => ({ name: s.name, role: preparedRole(s) }))
+    .filter((s): s is { name: string; role: string } => s.role != null);
 
   const allShuttles = bays.flatMap(b => b.shuttles);
   const selectedShuttle = allShuttles.find(s => s.name === selected);
@@ -657,6 +627,14 @@ function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPa
   return (
     <div className="sidebar-section fire-panel">
       <div className="sidebar-section-title fire-title" style={{ color: '#f0a050' }}>Launch Shuttle</div>
+
+      {prepared.length > 0 && (
+        <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: 4 }}>
+          {/* Not an error: it is where the shuttle went. Each has its own launch action,
+              and a prepared shuttle reverts only by not being held during allocation. */}
+          Held for a special role: {prepared.map(p => `${p.name} (${p.role})`).join(', ')}
+        </div>
+      )}
 
       {allShuttles.length === 0 ? (
         <div className="sidebar-stat-label" style={{ color: '#8b949e' }}>No shuttles ready to launch</div>
@@ -941,6 +919,12 @@ interface FireOptions {
   shieldNumber:  number;
   weaponsInArc:  string[];
   hasLockOn:     boolean;
+  // EW for THIS attacker against THIS target. Natural ECM is counted along the line of
+  // sight, so it cannot be read off either ship on its own — the server works it out.
+  ecmPoints?:    number;
+  eccm?:         number;
+  ecmShift?:     number;
+  ecmSources?:   string | null;
 }
 
 // ---- Weapon damage preview tooltip ----
@@ -1003,6 +987,8 @@ interface FirePanelProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  /** Replace the whole selection at once - powers all-bearing / none. */
+  onSetWeapons:    (names: string[]) => void;
   shotCounts:      Map<string, number>;
   onSetShotCount:  (name: string, count: number) => void;
   useUim:          boolean;
@@ -1016,7 +1002,7 @@ interface FirePanelProps {
 
 function FirePanel({
   attacker, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon, shotCounts, onSetShotCount,
+  selectedWeapons, onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount,
   useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, error,
 }: FirePanelProps) {
   const targetColor    = target ? mapObjectColor(target) : '#888';
@@ -1065,20 +1051,32 @@ function FirePanel({
             </span>
           </div>
           {(() => {
-            const tShip = target && (target as ShipObject).ecmAllocated !== undefined ? target as ShipObject : null;
-            const tEcm  = tShip?.ecmAllocated ?? 0;
-            const aEccm = attacker.eccmAllocated ?? 0;
-            const net   = Math.max(0, tEcm - aEccm);
-            const shift = Math.floor(Math.sqrt(net));
+            // From the server, which counts what the target generates, what is lent to it
+            // (a weasel included), what it has built in, AND the asteroids, rings and
+            // atmosphere on the line between these two. The old sum here used only the
+            // target's generated ECM, so it disagreed with the dice roll that followed.
+            const tEcm  = options.ecmPoints ?? 0;
+            const aEccm = options.eccm ?? 0;
+            const shift = options.ecmShift ?? 0;
             if (tEcm === 0 && aEccm === 0) return null;
             return (
-              <div className="sidebar-stat-row">
-                <span className="sidebar-stat-label">EW</span>
-                <span className="sidebar-stat-value">
-                  ECM {tEcm} / ECCM {aEccm}
-                  {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
-                </span>
-              </div>
+              <>
+                <div className="sidebar-stat-row">
+                  <span className="sidebar-stat-label">EW</span>
+                  <span className="sidebar-stat-value">
+                    ECM {tEcm} / ECCM {aEccm}
+                    {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
+                  </span>
+                </div>
+                {options.ecmSources && (
+                  <div className="sidebar-stat-row">
+                    <span className="sidebar-stat-label"></span>
+                    <span className="sidebar-stat-value" style={{ color: '#8b949e' }}>
+                      {options.ecmSources}
+                    </span>
+                  </div>
+                )}
+              </>
             );
           })()}
         </>
@@ -1090,6 +1088,12 @@ function FirePanel({
       {options && options.weaponsInArc.length > 0 && (
         <>
           <div className="sidebar-divider" />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons([])}>none</button>
+                  </div>
           <div className="fire-weapon-list">
             {attacker.weapons
               .filter(w => w.functional && !w.launcherType)
@@ -1296,6 +1300,7 @@ interface FighterFirePanelProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  onSetWeapons:    (names: string[]) => void;
   shotModes:       Record<string, 'SINGLE' | 'DOUBLE'>;
   onSetShotMode:   (name: string, mode: 'SINGLE' | 'DOUBLE') => void;
   onFire:          () => void;
@@ -1305,7 +1310,7 @@ interface FighterFirePanelProps {
 
 function FighterFirePanel({
   fighter, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon,
+  selectedWeapons, onToggleWeapon, onSetWeapons,
   shotModes, onSetShotMode,
   onFire, onClear, error,
 }: FighterFirePanelProps) {
@@ -1352,6 +1357,12 @@ function FighterFirePanel({
       {options && weapons.length > 0 && (
         <>
           <div className="sidebar-divider" />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
+                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
+                            onClick={() => onSetWeapons([])}>none</button>
+                  </div>
           <div className="fire-weapon-list">
             {weapons.map(w => {
               const inArc   = options.weaponsInArc.includes(w.name);
@@ -1434,16 +1445,6 @@ const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; a
 ];
 
 // SFB hex range — replicates MapUtils.getRange (x = col, y = row).
-function hexRange(s1: { col: number; row: number }, s2: { col: number; row: number }): number {
-  const xDiff = Math.abs(s2.col - s1.col);
-  if (xDiff === 0) return Math.abs(s2.row - s1.row);
-  const even   = s1.col % 2 === 0;
-  const topY    = even ? s1.row - Math.floor(xDiff / 2) : s1.row - Math.floor((xDiff + 1) / 2);
-  const bottomY = even ? s1.row + Math.floor((xDiff + 1) / 2) : s1.row + Math.floor(xDiff / 2);
-  if (s2.row >= topY && s2.row <= bottomY) return xDiff;
-  return s2.row < topY ? xDiff + (topY - s2.row) : xDiff + (s2.row - bottomY);
-}
-
 // ---- Ship sidebar ----
 
 interface SidebarProps {
@@ -1458,6 +1459,7 @@ interface SidebarProps {
   loadingOptions:  boolean;
   selectedWeapons: Set<string>;
   onToggleWeapon:  (name: string) => void;
+  onSetWeapons:    (names: string[]) => void;
   shotCounts:      Map<string, number>;
   onSetShotCount:  (name: string, count: number) => void;
   useUim:             boolean;
@@ -1473,6 +1475,27 @@ interface SidebarProps {
   onCloak:         () => void;
   onUncloak:       () => void;
   onClose:         () => void;
+  onOpenSsd:       () => void;
+  /**
+   * Firing at a PLACE rather than a unit (P3.25, P2.311). Bundled rather than spread
+   * across ten flat props, which is what the older panels here do and what makes them
+   * hard to read at the call site.
+   */
+  hexFire: {
+    mode:    boolean;
+    target:  { col: number; row: number } | null;
+    weapons: Set<string>;
+    side:    number;
+    error:   string | null;
+    terrain: TerrainObject[];
+  };
+  hexFireActions: {
+    start:        () => void;
+    cancel:       () => void;
+    toggleWeapon: (name: string) => void;
+    setSide:      (side: number) => void;
+    fire:         () => void;
+  };
   // Launch
   launchMode:      boolean;
   launchTarget:    MapObject | null;
@@ -1494,6 +1517,16 @@ interface SidebarProps {
   onAnnounceEsg:   (designator: string, radius: number, amount?: number) => void;
   onCancelEsg:     (designator: string) => void;
   onDeactivateEsg: (designator: string) => void;
+  // Scout EW lending (G24.21): friendly units this scout can lend to, and the action.
+  friendlyShipNames: string[];
+  onLendEw:        (channelDesignator: string, targetName: string, ecm: number, eccm: number) => void;
+  // Seeker targeting — break (G24.22) / identify (G24.25): which channel is armed + mode.
+  aim:             { channel: string; mode: 'break' | 'identify' | 'offensive' | 'attract' } | null;
+  aimError:        string | null;
+  onArmSeeker:     (channelDesignator: string, mode: 'break' | 'identify' | 'offensive' | 'attract') => void;
+  onCancelAim:     () => void;
+  onOffensiveEw:   (channelDesignator: string, enemyName: string, points: number) => void;
+  onControlSeekers: (channelDesignator: string) => void;
   // Boarding
   boardingMode:     boolean;
   boardingTarget:   ShipObject | null;
@@ -1507,12 +1540,13 @@ interface SidebarProps {
   onSubmitBoarding: () => void;
   // Lab seeker identification
   idMode:           boolean;
-  idSeekers:        { name: string; type: string }[];
-  idSelected:       Set<string>;
+  idSeekers:        { name: string; type: string; range: number | null }[];
+  idLabs:           Record<string, number>;   // contact name -> labs committed (G4.22)
+  idCommitted:      number;                    // their sum, against the ship's free labs
   idError:          string | null;
   onStartId:        () => void;
   onCancelId:       () => void;
-  onToggleIdSeeker: (name: string) => void;
+  onSetIdLabs:      (name: string, labs: number) => void;
   onSubmitId:       () => void;
   // Shuttle launch
   shuttleLaunchMode:  boolean;
@@ -1564,6 +1598,7 @@ interface SidebarProps {
   // Tractor beams (G7.0)
   tractorMode:          boolean;
   tractorError:         string | null;
+  onAnnounceEm:         (on: boolean) => void;
   onStartTractor:       () => void;
   onCancelTractor:      () => void;
   onReleaseTractor:     (targetName: string) => void;
@@ -1595,16 +1630,17 @@ interface SidebarProps {
 }
 
 function ShipSidebar({
-  ship, isMine, canMove, phase, gameId, playerToken,
+  ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd, hexFire, hexFireActions,
   fireTarget, fireOptions, loadingOptions, selectedWeapons,
-  onToggleWeapon, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
+  onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
+  friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw, onControlSeekers,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
-  idMode, idSeekers, idSelected, idError, onStartId, onCancelId, onToggleIdSeeker, onSubmitId,
+  idMode, idSeekers, idLabs, idCommitted, idError, onStartId, onCancelId, onSetIdLabs, onSubmitId,
   shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
   wwLaunchShuttle, wwLaunchError, onStartWwLaunch, onCancelWwLaunch, onLaunchWildWeasel,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
@@ -1616,6 +1652,7 @@ function ShipSidebar({
   onDisengageSeparation,
   onGoPassiveFc, onGoActiveFc,
   absoluteImpulse, onEmergencyDecel,
+  onAnnounceEm,
   tractorMode, tractorError, onStartTractor, onCancelTractor, onReleaseTractor,
   tractorBidTarget, tractorBidValue, tractorRangeMultiplier, onSetTractorBid, onSubmitTractorBid, onCancelTractorBid, tractorBidMax,
   pendingTractorAuction, negTractorBidValue, onSetNegTractorBid, onSubmitNegTractorBid,
@@ -1628,6 +1665,11 @@ function ShipSidebar({
   const [tacMode,   setTacMode]   = useState(false);
   // Capacitor ESGs choose how much to release (1–5, G23.242); keyed by designator.
   const [esgReleaseAmt, setEsgReleaseAmt] = useState<Record<string, number>>({});
+  // In-progress scout EW lend per channel (G24.21): designator → {target, ecm, eccm}.
+  // The scout panel is the tallest thing in the strip — start it closed so it never buries
+  // the launch/fire panels below it, and let the header summarise it while shut.
+  const [scoutPanelOpen, setScoutPanelOpen] = useState(false);
+  const [lendDraft, setLendDraft] = useState<Record<string, { target: string; ecm: number; eccm: number }>>({});
 
   const color = factionColor(ship.faction);
   const totalPower = (ship.availableLWarp  ?? 0) + (ship.availableRWarp  ?? 0)
@@ -1656,16 +1698,25 @@ function ShipSidebar({
                         && (ship.availableTransporters ?? 0) > 0
                         && canBeamObjectTargets;
   const canUseTransporters = canTBomb || canBoard || canHar || canTransferCrew || canBeamObject;
-  const canIdentify     = isActivityPhase && isMine && (ship.availableLab ?? 0) > 0 && idSeekers.length > 0;
+  // The button stays while the ship HAS labs, even with none free: a ship that identified
+  // late last turn starts this one inside the quarter-turn delay (G4.451), and a button
+  // that silently disappears looks like a bug rather than a rule.
+  const labsCoolingOff  = Math.max(0, (ship.functioningLab ?? 0) - (ship.availableLab ?? 0));
+  const canIdentify     = isActivityPhase && isMine
+    && ((ship.availableLab ?? 0) > 0 || labsCoolingOff > 0) && idSeekers.length > 0;
   const canHet          = phase === 'Movement' && isMine
                         && (ship.hetCost ?? 0) > 0
                         && (ship.reserveWarp ?? 0) >= (ship.hetCost ?? 1);
   const canTac          = phase === 'Movement' && isMine && ship.speed === 0
                         && ((ship.tacAvailable ?? 0) > 0 || ship.sublightTacAvailable === true);
   const maxHarParties   = Math.min(ship.boardingParties, ship.availableTransporters ?? 0);
+  // transporterUses is what the ship can actually pay for, batteries included (H7.x).
+  // This used to divide ONE point of energy by the per-use cost, which neither reflected
+  // the energy banked nor the reserve power available — it was the same number whatever
+  // the ship had left.
   const maxBoardingTotal = Math.min(
     ship.boardingParties + ship.commandos,
-    Math.min(ship.availableTransporters ?? 0, ship.transporterEnergyCost ? Math.floor(1 / ship.transporterEnergyCost) : 999),
+    Math.min(ship.availableTransporters ?? 0, ship.transporterUses ?? 0),
   );
 
   return (
@@ -1673,6 +1724,14 @@ function ShipSidebar({
       <div className="sidebar-header">
         <span className="sidebar-faction-dot" style={{ background: color }} />
         <span className="sidebar-ship-name">{ship.name}</span>
+        {/* In the header rather than the action strip: the strip is for a ship you command,
+            and an enemy's arcs are public knowledge worth looking up. */}
+        <button
+          className="secondary"
+          style={{ padding: '0 8px', marginRight: 4 }}
+          title="Ship record: weapon arcs"
+          onClick={onOpenSsd}
+        >SSD</button>
         <button className="sidebar-close secondary" onClick={onClose}>✕</button>
       </div>
 
@@ -1852,8 +1911,33 @@ function ShipSidebar({
                     WW {s.name}
                   </button>
                 ))}
-                {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13) */}
-                {(ship.availableTractors ?? 0) > 0 && (ship.tractorEnergy ?? 0) > 0 &&
+                {/* Erratic Maneuvers (C10.0) — announced in the Final Movement Actions
+                    Stage, in force at the END of this impulse (C10.311), which is why an
+                    announced-but-not-yet-active ship reads "EM announced". Only offered to
+                    a ship that bought the energy at allocation (C10.11). */}
+                {isMine && (ship.paidForEm || ship.usingEm) && (
+                  <button
+                    className={`action-strip-btn${ship.usingEm ? ' active' : ''}`}
+                    onClick={() => onAnnounceEm(!ship.usingEm)}
+                    disabled={ship.emPending}
+                    title={ship.usingEm
+                      ? 'Stop Erratic Maneuvers — ends at the end of this impulse (C10.32)'
+                      : 'Erratic Maneuvers: +4 ECM against you, +4 against your own fire, '
+                        + 'Turn Mode +1 and HET +1 unless nimble (C10.41/C10.414/C10.55)'}
+                    style={{ borderColor: '#f0c040', color: '#f0c040' }}
+                  >
+                    {ship.emPending ? 'EM announced' : ship.usingEm ? 'EM on' : 'EM'}
+                  </button>
+                )}
+                {/* Tractor beam — establish (G7.3); unavailable while the cloak operates (G13).
+                    Affordability must match what core actually charges: the unspent tractor
+                    pool PLUS batteries (TractorResolver totals both, and the bid dialog below
+                    already shows it that way). Gating on tractorEnergy — the total ALLOCATED
+                    this turn — was wrong twice over: a ship that allocated nothing but has
+                    batteries could never try, and one that had spent its whole pool still
+                    saw the button. Minimum cost is 1, at range 1. */}
+                {(ship.availableTractors ?? 0) > 0
+                 && ((ship.tractorEnergyRemaining ?? 0) + (ship.batteryPower ?? 0)) > 0 &&
                  (ship.tractoredTargetNames ?? []).length < (ship.availableTractors ?? 0) &&
                  !isCloakOperating(ship) && (
                   <button
@@ -1940,15 +2024,41 @@ function ShipSidebar({
                     Drop Mine
                   </button>
                 )}
+                {isFirePhase && isMine && (
+                  <button
+                    className={`action-strip-btn${hexFire.mode ? ' active' : ''}`}
+                    onClick={hexFire.mode ? hexFireActions.cancel : hexFireActions.start}
+                    title="Fire into a hex — clear a path through asteroids (P3.25) or bombard a planet (P2.311)"
+                  >
+                    Fire Hex
+                  </button>
+                )}
                 {canIdentify && (
                   <button
                     className={`action-strip-btn${idMode ? ' active' : ''}`}
                     onClick={idMode ? onCancelId : onStartId}
-                    title={`Identify seekers (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
+                    title={labsCoolingOff > 0 && (ship.availableLab ?? 0) === 0
+                      ? `All labs are within the quarter-turn delay (G4.451)`
+                      : `Identify seekers and shuttles (${ship.availableLab} lab${ship.availableLab !== 1 ? 's' : ''} available)`}
                   >
                     ID
                   </button>
                 )}
+                {(ship.weapons ?? []).some(w => w.scoutChannel) && (() => {
+                  const chans   = (ship.weapons ?? []).filter(w => w.scoutChannel);
+                  const powered = chans.filter(w => w.channelPowered && w.functional).length;
+                  const busy    = chans.filter(w => (w.channelFunction ?? 'NONE') !== 'NONE').length;
+                  return (
+                    <button
+                      className={`action-strip-btn${scoutPanelOpen ? ' active' : ''}`}
+                      onClick={() => setScoutPanelOpen(o => !o)}
+                      title={`Scout function channels (G24.0) — ${powered} of ${chans.length} powered`
+                             + (busy > 0 ? `, ${busy} assigned this turn` : '')}
+                    >
+                      Channels
+                    </button>
+                  );
+                })()}
                 {(ship.cloakCost ?? 0) > 0 && (
                   <>
                     {(ship.cloakState === 'INACTIVE' || ship.cloakState === 'NONE' || !ship.cloakState) && (
@@ -1968,7 +2078,10 @@ function ShipSidebar({
                     )}
                   </>
                 )}
-                {/* Fire Control toggle (D6.6) — always show for ships that have FC */}
+                {/* Fire Control (D6.6). The button says what clicking it DOES, like every
+                    other button in this strip; what the state IS is a stat row beside EW.
+                    It used to be labelled with the state and perform the opposite, so "FC
+                    Active" could as easily have meant "click to activate". */}
                 {(ship.fcPaidThisTurn) && (
                   <>
                     {ship.activeFireControl && !ship.wildWeaselActive && (
@@ -1976,9 +2089,9 @@ function ShipSidebar({
                         className="action-strip-btn"
                         style={{ borderColor: '#22c55e', color: '#22c55e' }}
                         onClick={onGoPassiveFc}
-                        title="Go passive fire control (D6.6) — loses lock-ons, 4 impulses to reactivate"
+                        title="Go passive (D6.6) — drops every lock-on, and four impulses to come back"
                       >
-                        FC Active
+                        Go Passive
                       </button>
                     )}
                     {ship.fireControlActivating && (
@@ -1988,7 +2101,7 @@ function ShipSidebar({
                         style={{ borderColor: '#facc15', color: '#facc15' }}
                         title={`Fire control activating — completes at impulse ${ship.fcActivatingUntil ?? '?'} (D6.633)`}
                       >
-                        FC Activating…
+                        FC ready imp {ship.fcActivatingUntil ?? '?'}
                       </button>
                     )}
                     {!ship.activeFireControl && !ship.fireControlActivating && (
@@ -2000,12 +2113,253 @@ function ShipSidebar({
                           ? 'Activate fire control — voids Wild Weasel! (D6.65)'
                           : 'Activate fire control (D6.6) — 4-impulse countdown'}
                       >
-                        FC Passive
+                        {ship.wildWeaselActive ? 'Activate FC ⚠' : 'Activate FC (4 imp)'}
                       </button>
                     )}
                   </>
                 )}
               </div>
+
+              {/* Scout channels (G24.0) — powered / blinded / destroyed state, the ship's EW
+                  lending pool (G24.211), and what each channel is currently lending (G24.21). */}
+              {scoutPanelOpen && (ship.weapons ?? []).some(w => w.scoutChannel) && (
+                <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
+                  <div style={{ color: '#58c8ff', fontWeight: 600, marginBottom: 2 }}>
+                    Scout Channels (G24.0)
+                    {(ship.scoutEwPool ?? 0) > 0 && (() => {
+                      const pool = ship.scoutEwPool ?? 0;
+                      const lent = ship.scoutEwLent ?? 0;
+                      const free = ship.scoutEwRemaining ?? 0;
+                      const lost = Math.max(0, pool - lent - free);
+                      return (
+                        <span style={{ color: '#8b949e', fontWeight: 400 }}>
+                          {' — EW '}{lent} lent, {free} free
+                          {lost > 0 && <span style={{ color: '#c98' }}>, {lost} lost</span>}
+                          {' (of '}{pool}{')'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+                    const state = !w.functional ? 'destroyed'
+                                : w.channelBlinded ? 'blinded'
+                                : w.channelPowered ? 'powered'
+                                : 'off';
+                    const color = state === 'destroyed' ? '#f85149'
+                                : state === 'blinded'   ? '#f0c040'
+                                : state === 'powered'   ? '#3fb950'
+                                : '#8b949e';
+                    const ecmLent  = w.channelLentEcm ?? 0;
+                    const eccmLent = w.channelLentEccm ?? 0;
+                    const desig    = w.designator ?? w.name;
+                    // This turn's committed function (G24.12) gates which controls show.
+                    const fn = w.channelFunction ?? 'NONE';
+                    const breakAttempts = w.channelBreakAttempts ?? 0;
+                    const identifyAttempts = w.channelIdentifyAttempts ?? 0;
+                    const oewPoints = fn === 'OFFENSIVE_EW' ? (w.channelLentEcm ?? 0) : 0;
+                    const armedBreak     = aim?.channel === desig && aim.mode === 'break';
+                    const armedIdentify  = aim?.channel === desig && aim.mode === 'identify';
+                    const armedOffensive = aim?.channel === desig && aim.mode === 'offensive';
+                    const armedAttract   = aim?.channel === desig && aim.mode === 'attract';
+                    const attracted      = w.channelAttractedDrone ?? null;
+                    // Draft edits the channel's absolute lend; it seeds from what the channel
+                    // already lends so re-apportioning is natural.
+                    const draft    = lendDraft[desig] ?? { target: w.channelLendTarget ?? ship.name, ecm: ecmLent, eccm: eccmLent };
+                    const isSelf   = draft.target === ship.name;
+                    const draftEccm  = isSelf ? 0 : draft.eccm;
+                    const draftTotal = draft.ecm + draftEccm;
+                    // Fresh points this change draws from the remaining pool (G24.2122): only
+                    // increases cost; retargeting draws the whole new lend fresh (G24.2123).
+                    const sameTarget = draft.target === (w.channelLendTarget ?? '');
+                    const draw = sameTarget
+                      ? Math.max(0, draft.ecm - ecmLent) + Math.max(0, draftEccm - eccmLent)
+                      : draftTotal;
+                    const remaining = ship.scoutEwRemaining ?? 0;
+                    const canAfford = draw <= remaining;
+                    const setDraft = (patch: Partial<typeof draft>) =>
+                      setLendDraft(m => ({ ...m, [desig]: { ...draft, ...patch } }));
+                    return (
+                      <div key={w.name} style={{ marginBottom: 3 }}>
+                        <span style={{ color: '#8b949e' }}>#{w.designator}: </span>
+                        <span style={{ color }}>{state}</span>
+                        {fn !== 'OFFENSIVE_EW' && (ecmLent + eccmLent) > 0 && w.channelLendTarget && (
+                          <span style={{ color: '#58c8ff' }}>
+                            {w.channelLendTarget === ship.name
+                              ? ` — self-protection (${ecmLent} ECM)`         /* G24.28 */
+                              : ` → ${w.channelLendTarget} (${ecmLent} ECM${eccmLent > 0 ? `/${eccmLent} ECCM` : ''})`}
+                            {isMine && (
+                              <button className="action-strip-btn" style={{ padding: '0 5px', marginLeft: 4 }}
+                                onClick={() => onLendEw(desig, w.channelLendTarget!, 0, 0)}
+                                title="Stop lending through this channel (frees the points, G24.2122)">clear</button>
+                            )}
+                          </span>
+                        )}
+                        {/* Lending controls — a channel not committed to breaking (G24.12) */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'LEND_EW') && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 3 }}>
+                            {/* One control per line: with the steppers wrapped onto a shared row it
+                                was never clear which − and + belonged to which figure. */}
+                            <select value={draft.target} style={{ fontSize: '0.72rem', width: '100%' }}
+                              onChange={ev => setDraft({ target: ev.target.value })}
+                              title="Unit to lend EW to (self allowed — ECM only, G24.283)">
+                              {friendlyShipNames.map(n => (
+                                <option key={n} value={n}>{n === ship.name ? `self (${n})` : n}</option>
+                              ))}
+                            </select>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ color: '#8b949e', width: 34 }}
+                                    title="ECM — jamming lent to the recipient, making it harder to hit (D6.3)">ECM</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={draft.ecm <= 0}
+                                onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
+                              <span style={{ color: '#3fb950', minWidth: 12, textAlign: 'center' }}>{draft.ecm}</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={draftTotal >= 6}
+                                onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isSelf ? 0.45 : 1 }}>
+                              <span style={{ color: '#8b949e', width: 34 }}
+                                    title={isSelf
+                                      ? 'A scout cannot lend ECCM to itself (G24.283) — self-protection is ECM only'
+                                      : 'ECCM — lent to the recipient to see through enemy jamming (D6.3)'}>ECCM</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={isSelf || draft.eccm <= 0}
+                                onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
+                              <span style={{ color: '#f0c040', minWidth: 12, textAlign: 'center' }}>{isSelf ? 0 : draft.eccm}</span>
+                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                disabled={isSelf || draftTotal >= 6}
+                                onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
+                              {isSelf && (
+                                <span style={{ color: '#8b949e', fontSize: '0.68rem', fontStyle: 'italic' }}>
+                                  self-protection is ECM only
+                                </span>
+                              )}
+                            </div>
+
+                            <button className="action-strip-btn" style={{ padding: '0 6px', alignSelf: 'flex-start' }}
+                              disabled={draftTotal <= 0 || !canAfford}
+                              onClick={() => onLendEw(desig, draft.target, draft.ecm, isSelf ? 0 : draft.eccm)}
+                              title={!canAfford
+                                ? `Needs ${draw} fresh EW but only ${remaining} left — dropped points are lost (G24.2122)`
+                                : `Lend ${draft.ecm} ECM${isSelf ? '' : `/${draftEccm} ECCM`} (draws ${draw} from the pool) — needs a lock-on for a friendly target (G24.218)`}>
+                              {isSelf ? `self-protect with ${draft.ecm}` : `lend ${draft.ecm}/${draftEccm}`}
+                            </button>
+                          </div>
+                        )}
+                        {/* Break-lock-on controls — G24.22. Counter shows once committed. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'BREAK_LOCKON') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'BREAK_LOCKON' && (
+                              <span style={{ color: '#f0a0a0' }}>breaking lock-ons — {breakAttempts}/3 used</span>
+                            )}
+                            {breakAttempts < 3 && (armedBreak ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#f0a0a0', color: '#f0a0a0' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'break')}
+                                title="Break a seeker's lock-on (G24.22): then click an enemy drone/shuttle you have a lock-on to, within 15 hexes">
+                                {fn === 'BREAK_LOCKON' ? 'break…' : 'break lock-on…'}</button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Identify controls — G24.25. Needs a channel + lab; counter once committed. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'IDENTIFY') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'IDENTIFY' && (
+                              <span style={{ color: '#9ad' }}>identifying — {identifyAttempts}/4 used</span>
+                            )}
+                            {identifyAttempts < 4 && (armedIdentify ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#9ad', color: '#9ad' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'identify')}
+                                title="Identify a seeker (G24.25): needs a lab; then click an enemy seeker you have a lock-on to, within 15 hexes">
+                                {fn === 'IDENTIFY' ? 'identify…' : 'identify…'}</button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Offensive-EW controls — G24.219. Once committed, jam one enemy; adjust the amount. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'OFFENSIVE_EW') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            {fn === 'OFFENSIVE_EW' ? (
+                              <>
+                                <span style={{ color: '#e08a8a' }}>jamming {w.channelLendTarget} —</span>
+                                <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                  disabled={oewPoints <= 1}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, oewPoints - 1)}>−</button>
+                                <span style={{ color: '#e08a8a', minWidth: 8, textAlign: 'center' }}>{oewPoints}</span>
+                                <button className="action-strip-btn" style={{ padding: '0 5px' }}
+                                  disabled={oewPoints >= 6 || (ship.scoutEwRemaining ?? 0) < 1}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, oewPoints + 1)}>+</button>
+                                <span style={{ color: '#8b949e' }}>O-EW</span>
+                                <button className="action-strip-btn" style={{ padding: '0 6px', marginLeft: 2 }}
+                                  onClick={() => onOffensiveEw(desig, w.channelLendTarget!, 0)}
+                                  title="Stop jamming (frees the channel; dropped points are lost, G24.2122)">clear</button>
+                              </>
+                            ) : armedOffensive ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#e08a8a', color: '#e08a8a' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'offensive')}
+                                title="Offensive EW (G24.219): jam an enemy's fire control — click an enemy ship you have a lock-on to, within 15 hexes">
+                                offensive EW…</button>
+                            )}
+                          </div>
+                        )}
+                        {/* Attract-drone controls — G24.23. One drone per channel per turn (G24.231);
+                            the drone keeps tracking this ship even if the channel is later lost (G24.232). */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'ATTRACT_DRONES') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'ATTRACT_DRONES' ? (
+                              <span style={{ color: '#c9a0f0' }}>attracted {attracted} — it tracks this ship</span>
+                            ) : armedAttract ? (
+                              <button className="action-strip-btn" style={{ padding: '0 6px', borderColor: '#c9a0f0', color: '#c9a0f0' }}
+                                onClick={onCancelAim} title="Stop targeting">cancel</button>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onArmSeeker(desig, 'attract')}
+                                title="Attract a drone (G24.23): it retargets onto this ship — click an enemy drone or seeking shuttle you have a lock-on to, within 15 hexes and 35 of its controller">
+                                attract drone…</button>
+                            )}
+                          </div>
+                        )}
+                        {/* Control-seekers controls — G24.24. Commits the channel for +6 capacity. */}
+                        {isMine && state === 'powered' && (fn === 'NONE' || fn === 'CONTROL_SEEKERS') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {fn === 'CONTROL_SEEKERS' ? (
+                              <span style={{ color: '#7fd1c0' }}>controlling seekers — +6 capacity</span>
+                            ) : (
+                              <button className="action-strip-btn" style={{ padding: '0 6px' }}
+                                onClick={() => onControlSeekers(desig)}
+                                title="Control seekers (G24.24): +6 to this ship's seeker-control capacity for the turn (one channel per scout)">
+                                control seekers (+6)</button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* A map-click can be armed with the panel shut, so the prompt lives outside it. */}
+              {aim && (
+                <div style={{ marginTop: 2, fontStyle: 'italic', fontSize: '0.75rem',
+                  color: aim.mode === 'break' ? '#f0a0a0' : aim.mode === 'offensive' ? '#e08a8a'
+                       : aim.mode === 'attract' ? '#c9a0f0' : '#9ad' }}>
+                  {aim.mode === 'offensive'
+                    ? `Click an enemy ship to jam — channel ${aim.channel}…`
+                    : aim.mode === 'attract'
+                    ? `Click an enemy drone to attract onto this ship — channel ${aim.channel}…`
+                    : `Click an enemy seeker to ${aim.mode === 'break' ? 'break' : 'identify'} — channel ${aim.channel}…`}
+                </div>
+              )}
+              {aimError && <div style={{ marginTop: 2, fontSize: '0.75rem', color: '#f85149' }}>{aimError}</div>}
 
               {/* ESG generators (G23.0) — announce / countdown / drop (Activity phase).
                   A release is announced 4 impulses ahead (G23.31); the radius stays
@@ -2285,6 +2639,114 @@ function ShipSidebar({
         </div>
       )}
 
+      {hexFire.mode && (() => {
+        const shipAt = parseLocation(ship.location);
+        const at = hexFire.target;
+        // What is in the hex decides the rule, and the server decides for certain — this
+        // only picks the wording and whether to ask for a planet face.
+        const planet = at && hexFire.terrain.find(t =>
+          (t.terrainType === 'PLANET' || t.terrainType === 'GAS_GIANT') && (() => {
+            const c = parseLocation(t.location);
+            return c != null && hexRange({ col: c[0], row: c[1] }, { col: at.col, row: at.row })
+              <= (t.radius ?? 0);
+          })());
+        const asteroid = at && !planet && hexFire.terrain.some(t => {
+          const c = parseLocation(t.location);
+          return t.terrainType === 'ASTEROID' && c != null
+            && c[0] === at.col && c[1] === at.row;
+        });
+
+        // Arc is a preview: mirrored geometry, guarded by the shared fixture, and the
+        // server refuses anything it disagrees with.
+        const bearing = (w: WeaponState) => shipAt != null && at != null
+          && bearsOn({ col: shipAt[0], row: shipAt[1] }, ship.facing, w.arcMask,
+                     { col: at.col, row: at.row });
+
+        return (
+          <div className="sidebar-action-detail">
+            {!at ? (
+              <>
+                <div className="sidebar-section-title" style={{ color: '#f0a050' }}>
+                  Click a hex to fire into
+                </div>
+                <button className="secondary" style={{ width: '100%', marginTop: 4 }}
+                        onClick={hexFireActions.cancel}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <div className="sidebar-section-title" style={{ color: '#f0a050' }}>
+                  {planet ? `Bombard ${planet.name ?? 'planet'}` : 'Clear a path'}
+                  {' '}({at.col}|{at.row})
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#8b949e', marginBottom: 4 }}>
+                  {planet ? 'P2.311: damage lands on one face of the planet.'
+                    : asteroid ? 'P3.25: enough damage clears the rock from the hex.'
+                    : 'Nothing in that hex to shoot at.'}
+                </div>
+
+                {planet && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>Face</span>
+                    {[1, 2, 3, 4, 5, 6].map(side => (
+                      <button
+                        key={side}
+                        className={hexFire.side === side ? '' : 'secondary'}
+                        style={{ padding: '0 6px' }}
+                        onClick={() => hexFireActions.setSide(side)}
+                      >{String.fromCharCode(64 + side)}</button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="fire-weapon-list">
+                  {(ship.weapons ?? [])
+                    .filter(w => w.functional && !w.scoutChannel && !w.launcherType)
+                    .map(w => {
+                      const inArc = bearing(w);
+                      const unavailLabel = !inArc ? 'out of arc'
+                        : w.isHeavy && !w.armed ? 'unarmed'
+                        : !w.readyToFire ? 'on cooldown'
+                        : null;
+                      return (
+                        <div key={w.name}
+                             className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
+                          <label className="fire-weapon-label">
+                            <input
+                              type="checkbox"
+                              disabled={!!unavailLabel}
+                              checked={hexFire.weapons.has(w.name)}
+                              onChange={() => hexFireActions.toggleWeapon(w.name)}
+                            />
+                            <span className="weapon-name">{w.name}</span>
+                            {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
+                            {unavailLabel && (
+                              <span className={`fire-ooa ${unavailLabel === 'on cooldown' ? 'fire-cooldown' : ''}`}>
+                                {unavailLabel}
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {hexFire.error && (
+                  <div style={{ color: '#f85149', fontSize: '0.75rem', margin: '4px 0' }}>
+                    {hexFire.error}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button disabled={hexFire.weapons.size === 0} onClick={hexFireActions.fire}>
+                    Fire
+                  </button>
+                  <button className="secondary" onClick={hexFireActions.cancel}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {tBombMode && (
         <div className="sidebar-action-detail">
           {tBombShieldChoice ? (
@@ -2388,27 +2850,58 @@ function ShipSidebar({
 
       {idMode && (
         <div className="sidebar-action-detail">
-          <div className="sidebar-section-title">Identify Seekers ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
+          <div className="sidebar-section-title">Identify Contacts ({ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} available)</div>
+          {labsCoolingOff > 0 && (
+            <div style={{ color: '#d29922', fontSize: '0.75rem', margin: '4px 0' }}>
+              {labsCoolingOff} lab{labsCoolingOff !== 1 ? 's' : ''} still within the
+              quarter-turn delay from an earlier use (G4.451).
+            </div>
+          )}
           {idSeekers.length === 0 ? (
-            <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy seekers in range.</div>
+            <div style={{ color: '#888', fontSize: '0.75rem', margin: '4px 0' }}>No unidentified enemy contacts in range.</div>
           ) : (
             <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: 4 }}>
-              Select up to {ship.availableLab} seeker{ship.availableLab !== 1 ? 's' : ''} to attempt identification.
+              {/* G4.22: labs may be piled onto one contact, a die each, and any die over
+                  the range identifies it. That is how a distant contact gets bought. */}
+              Commit labs to a contact: one die each, any die over the range identifies it (G4.22).
+              <div style={{ marginTop: 2, color: '#79c0ff' }}>
+                {idCommitted} of {ship.availableLab} lab{ship.availableLab !== 1 ? 's' : ''} committed
+              </div>
             </div>
           )}
           {idSeekers.map(s => {
-            const checked = idSelected.has(s.name);
-            const disabled = !checked && idSelected.size >= (ship.availableLab ?? 0);
+            const n = idLabs[s.name] ?? 0;
+            const canAdd = idCommitted < (ship.availableLab ?? 0);
             return (
-              <label key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }}>
-                <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggleIdSeeker(s.name)} />
-                <span style={{ fontSize: '0.8rem' }}>{s.name} <span style={{ color: '#888' }}>({s.type})</span></span>
-              </label>
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <span style={{ fontSize: '0.8rem', flex: 1 }}>
+                  {s.name}{' '}
+                  <span style={{ color: '#888' }}>
+                    ({s.type}{s.range != null ? `, range ${s.range}` : ''})
+                  </span>
+                </span>
+                <button
+                  className="secondary"
+                  style={{ padding: '0 6px', minWidth: 22 }}
+                  disabled={n === 0}
+                  title="One fewer lab on this contact"
+                  onClick={() => onSetIdLabs(s.name, n - 1)}
+                >&minus;</button>
+                <span style={{ minWidth: 14, textAlign: 'center', fontSize: '0.8rem',
+                               color: n > 0 ? '#79c0ff' : '#666' }}>{n}</span>
+                <button
+                  className="secondary"
+                  style={{ padding: '0 6px', minWidth: 22 }}
+                  disabled={!canAdd}
+                  title="One more lab on this contact"
+                  onClick={() => onSetIdLabs(s.name, n + 1)}
+                >+</button>
+              </div>
             );
           })}
           {idError && <div style={{ color: '#f85149', fontSize: '0.75rem', margin: '4px 0' }}>{idError}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <button disabled={idSelected.size === 0} onClick={onSubmitId}>Attempt ID</button>
+            <button disabled={idCommitted === 0} onClick={onSubmitId}>Attempt ID</button>
             <button className="secondary" onClick={onCancelId}>Cancel</button>
           </div>
         </div>
@@ -2519,6 +3012,7 @@ function ShipSidebar({
           loadingOptions={loadingOptions}
           selectedWeapons={selectedWeapons}
           onToggleWeapon={onToggleWeapon}
+          onSetWeapons={onSetWeapons}
           shotCounts={shotCounts}
           onSetShotCount={onSetShotCount}
           useUim={useUim}
@@ -2533,7 +3027,7 @@ function ShipSidebar({
 
       <div className="sidebar-section">
         <div className="sidebar-section-title">Base Data</div>
-        <StatRow label="Hull"     value={ship.hull} />
+        <StatRow label="Type"     value={ship.shipType} />
         <StatRow label="Faction"  value={ship.faction} />
         <StatRow label="Location" value={locationLabel(ship.location)} />
         <StatRow label="Facing"   value={facingLabel(ship.facing)} />
@@ -2552,6 +3046,41 @@ function ShipSidebar({
                 ? `${ship.turnMode}-${ship.turnHexes} (free)`
                 : `${ship.turnMode}-${ship.turnHexes} (${ship.hexesUntilTurn} more)`
             }
+          />
+        )}
+        {/* EW is announced as it is allocated and lending is explicitly public (G24.211 note,
+            G24.2115), so this shows for enemy ships too. */}
+        {((ship.sensorRating ?? 0) > 0 || (ship.ecmTotal ?? 0) > 0
+          || (ship.eccmTotal ?? 0) > 0 || (ship.offensiveEw ?? 0) > 0) && (
+          <StatRow
+            label="EW"
+            value={(() => {
+              // Totals come from the server, which counts a weasel's six points and any
+              // built-in ECM. Adding them up here is how this row came to disagree with
+              // the fire math in the first place.
+              const ecm  = ship.ecmTotal ?? 0;
+              const eccm = ship.eccmTotal ?? 0;
+              const jam  = ship.offensiveEw ?? 0;
+              const parts = [`${ecm} ECM`, `${eccm} ECCM`];
+              if (jam > 0) parts.push(`jammed ${jam}`);
+              return parts.join(' · ');
+            })()}
+          />
+        )}
+        {/* Where the ECM comes from — otherwise six points appear from nowhere when a
+            weasel launches, and the only clue is the dice roll afterwards. */}
+        {ship.ecmSources && (ship.ecmTotal ?? 0) > 0 && (
+          <StatRow label="" value={ship.ecmSources} />
+        )}
+        {/* Below EW because it is the other half of the same question: what this ship can
+            see and be seen doing. The button in the action strip performs the change; this
+            is where the state lives. */}
+        {(ship.fcPaidThisTurn) && (
+          <StatRow
+            label="Fire Control"
+            value={ship.fireControlActivating
+              ? `activating (impulse ${ship.fcActivatingUntil ?? '?'})`
+              : ship.activeFireControl ? 'active' : 'passive'}
           />
         )}
         {(ship.cloakCost ?? 0) > 0 && (
@@ -2714,6 +3243,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [snapTo, setSnapTo]                 = useState<{ name: string } | null>(null);
   // Fire state
   const [fireTarget, setFireTarget]         = useState<MapObject | null>(null);
+  // Firing at a PLACE (P3.25 clearing a path, P2.311 bombardment) rather than a unit.
+  const [hexFireMode,    setHexFireMode]    = useState(false);
+  const [hexFireTarget,  setHexFireTarget]  = useState<{ col: number; row: number } | null>(null);
+  const [hexFireWeapons, setHexFireWeapons] = useState<Set<string>>(new Set());
+  const [hexFireSide,    setHexFireSide]    = useState(1);
+  const [hexFireError,   setHexFireError]   = useState<string | null>(null);
   const [fireOptions, setFireOptions]       = useState<FireOptions | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [selectedWeapons, setSelectedWeapons] = useState<Set<string>>(new Set());
@@ -2726,9 +3261,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   // and are cleared by commit/pass; committedRound keys the sealed state to
   // this turn+impulse so it self-resets when the next round opens.
   type DeclOrder = {
-    label: string; shipName: string; targetName: string; weaponNames: string[];
+    label: string; shipName: string; targetName: string | null; weaponNames: string[];
     shotModes?: Record<string, string>; range: number; adjustedRange: number;
     shieldNumber: number; useUim: boolean; directFire: boolean;
+    // A volley aimed at a PLACE (P3.25, P2.311) carries a hex instead of a target;
+    // the server works out the range and which rule applies.
+    hexCol?: number; hexRow?: number; planetSide?: number;
   };
   const [declarationOrders, setDeclarationOrders] = useState<DeclOrder[]>([]);
   // Keyed by ship name — a multi-ship player may adjust EW on several ships
@@ -2779,7 +3317,8 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [boardingError,   setBoardingError]   = useState<string | null>(null);
   // Lab seeker ID state
   const [idMode,     setIdMode]     = useState(false);
-  const [idSelected, setIdSelected] = useState<Set<string>>(new Set());
+  // G4.22: labs committed per contact, not a plain selection - several may go on one.
+  const [idLabs,     setIdLabs]     = useState<Record<string, number>>({});
   const [idError,    setIdError]    = useState<string | null>(null);
   // Hit & Run state
   const [harMode,    setHarMode]    = useState(false);
@@ -2794,18 +3333,31 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [crewTarget,  setCrewTarget]  = useState<ShipObject | null>(null);
   const [crewAmount,  setCrewAmount]  = useState(1);
   const [crewError,   setCrewError]   = useState<string | null>(null);
+  // Scout channel seeker-targeting (G24.22 break / G24.25 identify): which channel is armed
+  // and for which function, or null.
+  const [aim,      setAim]      = useState<{ channel: string; mode: 'break' | 'identify' | 'offensive' | 'attract' } | null>(null);
+  const [aimError, setAimError] = useState<string | null>(null);
   const [isReady, setIsReady]               = useState(false);
   const [showScore, setShowScore]           = useState(false);
   const [eaDismissed, setEaDismissed]       = useState(false);
   const [log, setLog] = useState<{ stamp: string; text: string; kind: 'combat' | 'phase' | 'error' | 'info' }[]>([]);
   const [pendingCombat, setPendingCombat]   = useState<{ stamp: string; text: string }[]>([]);
   const prevPhaseRef      = useRef<string>('');
+  const lastAllocationNoteRef = useRef<string>('');
   const lastCombatLogRef  = useRef<string>(''); // dedup: skip if same batch arrives twice
   const logEndRef     = useRef<HTMLDivElement>(null);
 
   const phase      = gameState?.phase ?? '';
   const myShips    = new Set(gameState?.myShips ?? []);
   const movableNow = gameState?.movableNow ?? [];
+  // A movable unit is "mine" if it's one of my ships, or a fighter/shuttle whose parent
+  // ship is mine (myShips lists only ships, but fighters must move too).
+  const isMyMovable = (name: string): boolean => {
+    if (myShips.has(name)) return true;
+    const o = (gameState?.mapObjects ?? []).find(m => m.name === name) as
+      { parentShipName?: string | null } | undefined;
+    return !!(o && o.parentShipName && myShips.has(o.parentShipName));
+  };
   const isMovementPhase        = phase === 'Movement';
   const isFirePhase            = phase === 'Direct Fire';
   const isReinforcementPhase   = phase === 'Reinforcement';
@@ -2819,8 +3371,8 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  const myMovablePending       = movableNow.filter(n => myShips.has(n));
-  const opponentMovablePending = movableNow.filter(n => !myShips.has(n));
+  const myMovablePending       = movableNow.filter(isMyMovable);
+  const opponentMovablePending = movableNow.filter(n => !isMyMovable(n));
 
   // Snap to my next ship when movableNow changes during movement phase
   const prevMovableKeyRef = useRef('');
@@ -2829,11 +3381,12 @@ export default function GameBoard({ session, onLeave }: Props) {
     const key  = list.join(',');
     if (key === prevMovableKeyRef.current) return;
     prevMovableKeyRef.current = key;
-    const mine = list.find(name => (gameState?.myShips ?? []).includes(name));
+    const mine = list.find(isMyMovable);
     if (mine) {
       setSnapTo({ name: mine });
-      const shipObj = (gameState?.mapObjects ?? []).find(o => o.name === mine && o.type === 'SHIP');
-      if (shipObj) setSelected(shipObj);
+      // Select whatever must move — ship OR fighter/shuttle — so move orders are ready.
+      const obj = (gameState?.mapObjects ?? []).find(o => o.name === mine);
+      if (obj) setSelected(obj);
     }
   }, [gameState?.movableNow]);
 
@@ -2873,6 +3426,25 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // A photon tube left unfunded is discharged (E4.21/E4.22). The server tells only this
+  // player's own ships, since allocation is secret — surface it once per turn.
+  useEffect(() => {
+    if (!gameState) return;
+    const notes: string[] = [];
+    for (const o of gameState.mapObjects ?? []) {
+      if (o.type !== 'SHIP') continue;
+      for (const n of (o as ShipObject).allocationNotes ?? []) notes.push(`${o.name} — ${n}`);
+      // Setup notes never change, so the same key check shows them once and leaves them.
+      for (const n of (o as ShipObject).setupNotes ?? []) notes.push(`${o.name} — ${n}`);
+    }
+    if (notes.length === 0) return;
+    const key = `${gameState.turn}:${notes.join(' ')}`;
+    if (key === lastAllocationNoteRef.current) return;
+    lastAllocationNoteRef.current = key;
+    for (const n of notes) addLog(n, 'combat');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.turn, gameState?.mapObjects]);
 
   // Buffer incoming server-side combat log entries during Direct Fire; add directly otherwise
   useEffect(() => {
@@ -2927,9 +3499,19 @@ export default function GameBoard({ session, onLeave }: Props) {
   const canMove      = selectedShip !== null && movableNow.includes(selectedShip.name);
 
   // Always show the latest live state for the selected ship
+  // Held by NAME, not by object: the panel looks the ship up in the current state on
+  // every render, so it moves with the battle instead of freezing at the moment it opened.
+  const [ssdShipName, setSsdShipName] = useState<string | null>(null);
+  const ssdShip = ssdShipName
+    ? (gameState?.mapObjects.find(o => o.name === ssdShipName && o.type === 'SHIP') as ShipObject | undefined) ?? null
+    : null;
+
   const liveShip = selectedShip
     ? (gameState?.mapObjects.find(o => o.name === selectedShip.name && o.type === 'SHIP') as ShipObject | undefined) ?? selectedShip
     : null;
+
+  // Disarm seeker-targeting when the selected ship changes (mode belongs to one scout).
+  useEffect(() => { setAim(null); setAimError(null); }, [liveShip?.name]);
 
   const selectedShuttle = selected?.type === 'SHUTTLE' ? (selected as ShuttleObject) : null;
   const liveShuttle = selectedShuttle
@@ -2960,8 +3542,9 @@ export default function GameBoard({ session, onLeave }: Props) {
         session.gameId, session.playerToken, attackerName, targetName,
       );
       setFireOptions(opts);
-      // Pre-select all in-arc weapons
-      setSelectedWeapons(new Set(opts.weaponsInArc));
+      // Deliberately nothing pre-selected. Every in-arc weapon used to arrive checked, which
+      // made firing everything free and conserving fire - the normal case - cost a click per
+      // weapon. "All bearing" puts the alpha strike back to one click.
     } catch (e: unknown) {
       setFireError(e instanceof Error ? e.message : 'Could not get fire options');
     } finally {
@@ -3007,6 +3590,35 @@ export default function GameBoard({ session, onLeave }: Props) {
           setTractorMode(false);
           return;
         }
+      }
+    }
+    if (aim && liveShip && obj) {
+      // Break (G24.22) / identify (G24.25) / offensive EW (G24.219) on the clicked target.
+      // Offensive EW jams an enemy ship (starts at 1 point, then adjust); identify also works
+      // on any shuttle; breaking is seekers only. Eligibility is validated server-side.
+      if (aim.mode === 'offensive') {
+        if (obj.type === 'SHIP' && !myShips.has(obj.name)) {
+          handleOffensiveEw(aim.channel, obj.name, 1); // commit at 1, then adjust with the stepper
+          setAim(null);
+          return;
+        }
+        return;
+      }
+      const breakTypes    = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK']);
+      const identifyTypes = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'PLASMA', 'SHUTTLE']);
+      // Attraction takes drones and seeking shuttles (FD1.8); a plain shuttle may be clicked
+      // too and simply gives itself away by not answering (G24.235). Plasma ignores it (G24.233).
+      const attractTypes  = new Set(['DRONE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'SHUTTLE']);
+      const eligible = aim.mode === 'break'   ? breakTypes
+                     : aim.mode === 'attract' ? attractTypes
+                     : identifyTypes;
+      if (eligible.has(obj.type)) {
+        if (aim.mode === 'break') handleBreakLockOn(aim.channel, obj.name);
+        else if (aim.mode === 'attract') {
+          handleAttractDrone(aim.channel, obj.name);
+          setAim(null);            // one drone per channel per turn (G24.231) — disarm after it
+        } else handleIdentifySeeker(aim.channel, obj.name);
+        return;
       }
     }
     if (beamObjectMode && liveShip && obj?.type === 'OBJECTIVE') {
@@ -3218,6 +3830,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           shipName: o.shipName, targetName: o.targetName, weaponNames: o.weaponNames,
           shotModes: o.shotModes, range: o.range, adjustedRange: o.adjustedRange,
           shieldNumber: o.shieldNumber, useUim: o.useUim, directFire: o.directFire,
+          hexCol: o.hexCol, hexRow: o.hexRow, planetSide: o.planetSide,
         })),
         ewAdjustments,
       });
@@ -3278,6 +3891,37 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  // Answer an enemy scout's attraction attempt on an unidentified shuttle (G24.235).
+  async function handleAttractChoice(attracted: boolean) {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'SUBMIT_ATTRACT_CHOICE', attracted,
+      });
+      if (!res.success) setActionError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Attraction answer failed');
+    }
+  }
+
+  // Cut a seeker loose (F3.4). A drone with its own lock-on keeps coming; one relying on
+  // this ship loses guidance — the answer to an enemy scout attracting it (G24.23).
+  async function handleReleaseDrone(droneName: string, fromShipName: string) {
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type: 'RELEASE_DRONE_CONTROL', shipName: fromShipName, targetName: droneName,
+      });
+      if (!res.success) setActionError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Drone release failed');
+    }
+  }
+
   async function handleTransferDrone(droneName: string, toShipName: string) {
     setActionError(null);
     try {
@@ -3285,7 +3929,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         type: 'TRANSFER_DRONE_CONTROL', shipName: toShipName, targetName: droneName,
       });
       if (!res.success) setActionError(res.message);
-      else if (res.message) addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Drone transfer failed');
     }
@@ -3564,15 +4209,56 @@ export default function GameBoard({ session, onLeave }: Props) {
     else addLog(`Concede failed: ${res.message}`, 'error');
   }
 
-  // Unidentified enemy seekers for lab ID panel
+  // Unidentified enemy contacts for the lab ID panel.
+  // Closest first: the contact about to reach you is the one worth spending a lab on.
+  // Range is measured from the identifying ship, so it is null when that ship is off-map.
+  //
+  // Shuttles belong here as much as seekers do: an enemy suicide shuttle or an unreleased
+  // scatter pack arrives as type SHUTTLE (the server redacts it), so a shuttle-looking
+  // contact is precisely what a player wants a lab to settle. Wild Weasels are excluded by
+  // type — they are public from launch, so there is nothing to buy.
+  const idShipLoc = parseLocation(liveShip?.location ?? null);
+  // A plain shuttle carries no faction of its own; take it from the ship that launched it,
+  // the same way the map does. Unknown (parent gone) counts as hostile: the server decides
+  // for certain, and a contact nobody can place is exactly one worth asking about.
+  function shuttleFaction(o: MapObject): string | undefined {
+    const f = (o as { controllerFaction?: string }).controllerFaction;
+    if (f) return f;
+    const parentName = (o as { parentShipName?: string | null }).parentShipName;
+    const parent = (gameState?.mapObjects ?? [])
+      .find(p => p.type === 'SHIP' && p.name === parentName) as ShipObject | undefined;
+    return parent?.faction;
+  }
   const idSeekers = (gameState?.mapObjects ?? [])
-    .filter(o => (o.type === 'DRONE' || o.type === 'PLASMA') && !o.isIdentified
-      && o.controllerFaction !== liveShip?.faction)
-    .map(o => ({ name: o.name, type: o.type === 'DRONE' ? 'Drone' : 'Plasma' }));
+    .filter(o => {
+      // The type test comes first in each branch so isIdentified is read off a narrowed
+      // object — it lives on the seeker and shuttle shapes, not on every map object.
+      if (o.type === 'DRONE' || o.type === 'PLASMA')
+        return !o.isIdentified && o.controllerFaction !== liveShip?.faction;
+      if (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK')
+        return !o.isIdentified && shuttleFaction(o) !== liveShip?.faction;
+      return false;
+    })
+    .map(o => {
+      const loc = parseLocation(o.location ?? null);
+      return {
+        name: o.name,
+        // Never the role, only the craft: an enemy contact reads "Shuttle" whether it is
+        // an admin shuttle, a suicide shuttle, or a loaded scatter pack.
+        type: o.type === 'DRONE' ? 'Drone' : o.type === 'PLASMA' ? 'Plasma' : 'Shuttle',
+        range: idShipLoc && loc
+          ? hexRange({ col: idShipLoc[0], row: idShipLoc[1] },
+                     { col: loc[0], row: loc[1] })
+          : null,
+      };
+    })
+    .sort((a, b) => (a.range ?? Number.MAX_SAFE_INTEGER) - (b.range ?? Number.MAX_SAFE_INTEGER));
+
+  const idCommitted = Object.values(idLabs).reduce((a, b) => a + b, 0);
 
   function handleStartId() {
     setIdMode(true);
-    setIdSelected(new Set());
+    setIdLabs({});
     setIdError(null);
     setBoardingMode(false);
     setBoardingTarget(null);
@@ -3582,25 +4268,29 @@ export default function GameBoard({ session, onLeave }: Props) {
 
   function handleCancelId() {
     setIdMode(false);
-    setIdSelected(new Set());
+    setIdLabs({});
     setIdError(null);
   }
 
-  function handleToggleIdSeeker(name: string) {
-    setIdSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
+  function handleSetIdLabs(name: string, labs: number) {
+    setIdLabs(prev => {
+      const next = { ...prev };
+      if (labs <= 0) delete next[name];
+      else next[name] = labs;
       return next;
     });
   }
 
   async function handleSubmitId() {
-    if (!liveShip || idSelected.size === 0) return;
+    if (!liveShip || idCommitted === 0) return;
     setIdError(null);
     try {
       const res = await gameApi.identifySeekers(
         session.gameId, session.playerToken,
-        liveShip.name, Array.from(idSelected),
+        // One entry per LAB (G4.22): three labs on one contact send its name three
+        // times, and the server groups them back into a single three-dice attempt.
+        liveShip.name,
+        Object.entries(idLabs).flatMap(([name, n]) => Array<string>(n).fill(name)),
       );
       if (!res.success) setIdError(res.message);
       else {
@@ -3712,6 +4402,18 @@ export default function GameBoard({ session, onLeave }: Props) {
     setTBombPendingHex(null);
     setLaunchMode(false);
     setLaunchTarget(null);
+    cancelHexFire();
+  }
+
+  function startHexFire() {
+    setHexFireMode(true);
+    setHexFireTarget(null);
+    setHexFireWeapons(new Set());
+    setHexFireError(null);
+    // Both read the same hex click, so only one may be listening.
+    handleCancelTBomb();
+    setLaunchMode(false);
+    setLaunchTarget(null);
   }
 
   function handleCancelTBomb() {
@@ -3741,7 +4443,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'BEGIN_RECOVERY', shipName: liveShip.name, action: shuttleName,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   /** Probe canisters currently held in a tractor beam (recovery candidates). */
@@ -3754,7 +4457,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'RECOVER_OBJECTIVE', shipName: liveShip.name, objectiveName,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   /** Free, transporter-retrievable canisters within transporter range (5) of the acting ship. */
@@ -3775,7 +4479,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'PICKUP_OBJECTIVE', shipName: liveShip.name, objectiveName, retrievalMethod: 'TRANSPORTER',
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
     setBeamObjectMode(false);
   }
 
@@ -3799,7 +4504,8 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'LOAD_PERSONNEL', shipName: liveShuttle.name,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   async function handleUnloadPersonnel() {
@@ -3808,16 +4514,74 @@ export default function GameBoard({ session, onLeave }: Props) {
       type: 'UNLOAD_PERSONNEL', shipName: liveShuttle.name,
     });
     if (!res.success) setActionError(res.message);
-    else addLog(res.message, 'combat');
+    // success reaches the log through the server's combat-log broadcast,
+    // which every player sees; logging it here as well printed it twice.
   }
 
   function handleHexClick(col: number, row: number) {
+    if (hexFireMode) {
+      setHexFireTarget({ col, row });
+      setHexFireError(null);
+    }
     if (tBombMode) {
       setTBombPendingHex({ col, row });
     }
     if (rotateMode && liveShip && rotateTarget && isInitialActivityPhase) {
       handleRotateTractored(col, row);
     }
+  }
+
+  /**
+   * Firing into a hex is an ordinary declared volley (D6.315): it joins the sealed plan
+   * rather than resolving now. Bombarding a planet and watching the result before
+   * deciding the rest of the fleet's orders is exactly what the declaration prevents.
+   */
+  async function handleFireAtHex() {
+    if (!liveShip || !hexFireTarget || hexFireWeapons.size === 0) return;
+    setHexFireError(null);
+    if (myCommitted) {
+      setHexFireError('Orders already sealed for this declaration');
+      return;
+    }
+    try {
+      if (!declarationOpen) {
+        if (gameState?.fireDeclarationSpent) {
+          setHexFireError("This impulse's fire declaration has already resolved (one per impulse)");
+          return;
+        }
+        const call = await gameApi.submitAction(session.gameId, session.playerToken,
+            { type: 'CALL_FIRE_DECLARATION' });
+        if (!call.success) {
+          setHexFireError(call.message);
+          addLog(call.message, 'error');
+          return;
+        }
+      }
+      const where = `(${hexFireTarget.col}|${hexFireTarget.row})`;
+      setDeclarationOrders(prev => [...prev, {
+        label: `${liveShip.name} → hex ${where} (${hexFireWeapons.size} wpn)`,
+        shipName: liveShip.name,
+        targetName: null,
+        weaponNames: [...hexFireWeapons],
+        range: 0, adjustedRange: 0, shieldNumber: 0,
+        useUim: false, directFire: false,
+        hexCol: hexFireTarget.col,
+        hexRow: hexFireTarget.row,
+        planetSide: hexFireSide,
+      }]);
+      setHexFireMode(false);
+      setHexFireTarget(null);
+      setHexFireWeapons(new Set());
+    } catch (e: unknown) {
+      setHexFireError(e instanceof Error ? e.message : 'Order failed');
+    }
+  }
+
+  function cancelHexFire() {
+    setHexFireMode(false);
+    setHexFireTarget(null);
+    setHexFireWeapons(new Set());
+    setHexFireError(null);
   }
 
   async function handlePlaceTBomb(isReal: boolean, shieldNumber?: number) {
@@ -3863,7 +4627,8 @@ export default function GameBoard({ session, onLeave }: Props) {
         ...(releaseAmount !== undefined ? { esgReleaseAmount: releaseAmount } : {}),
       });
       if (!res.success) setActionError(res.message);
-      else addLog(res.message, 'combat');
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'ESG action failed');
     }
@@ -3872,6 +4637,125 @@ export default function GameBoard({ session, onLeave }: Props) {
   const handleAnnounceEsg   = (designator: string, radius: number, amount?: number) => sendEsgAction('ANNOUNCE_ESG', designator, radius, amount);
   const handleCancelEsg     = (designator: string) => sendEsgAction('CANCEL_ESG', designator);
   const handleDeactivateEsg = (designator: string) => sendEsgAction('DEACTIVATE_ESG', designator);
+
+  // Aim one scout channel's EW lend for the turn (G24.21); 0/0 clears it.
+  async function handleLendEw(channelDesignator: string, targetName: string, ecm: number, eccm: number) {
+    if (!liveShip) return;
+    setActionError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'LEND_EW',
+        shipName:          liveShip.name,
+        channelDesignator,
+        lendTarget:        targetName,
+        lendEcm:           ecm,
+        lendEccm:          eccm,
+      });
+      if (!res.success) setActionError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Lend EW failed');
+    }
+  }
+
+  // Attempt to break a seeker's lock-on with a scout channel (G24.22); stays armed for
+  // further attempts (3/turn) until the player cancels.
+  async function handleBreakLockOn(channelDesignator: string, seekerName: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'BREAK_LOCKON',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        seekerName,
+      });
+      if (!res.success) setAimError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Break lock-on failed');
+    }
+  }
+
+  // Attempt to identify a seeker with a scout channel + lab (G24.25); stays armed for
+  // further attempts (4/turn) until the player cancels.
+  async function handleIdentifySeeker(channelDesignator: string, seekerName: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'IDENTIFY_SEEKER',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        seekerName,
+      });
+      if (!res.success) setAimError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Identify failed');
+    }
+  }
+
+  // Commit/adjust offensive EW on an enemy with a scout channel (G24.219); 0 clears it.
+  async function handleOffensiveEw(channelDesignator: string, enemyName: string, points: number) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'OFFENSIVE_EW',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        enemyName,
+        lendEcm:           points,
+      });
+      if (!res.success) setAimError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Offensive EW failed');
+    }
+  }
+
+  // Draw an enemy drone onto this ship with a scout channel (G24.23). One drone per channel
+  // per turn (G24.231), so the aim disarms as soon as the attempt resolves.
+  async function handleAttractDrone(channelDesignator: string, droneName: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'ATTRACT_DRONE',
+        shipName:          liveShip.name,
+        channelDesignator,
+        targetName:        droneName,
+      });
+      if (!res.success) setAimError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Attract drone failed');
+    }
+  }
+
+  // Commit a scout channel to controlling seekers — +6 control capacity (G24.24). No target.
+  async function handleControlSeekers(channelDesignator: string) {
+    if (!liveShip) return;
+    setAimError(null);
+    try {
+      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+        type:              'CONTROL_SEEKERS',
+        shipName:          liveShip.name,
+        channelDesignator,
+      });
+      if (!res.success) setAimError(res.message);
+      // success reaches the log through the server's combat-log broadcast,
+      // which every player sees; logging it here as well printed it twice.
+    } catch (e: unknown) {
+      setAimError(e instanceof Error ? e.message : 'Control seekers failed');
+    }
+  }
 
   async function handleDropMine(mineType: 'TBOMB' | 'DUMMY_TBOMB' | 'NSM') {
     if (!liveShip) return;
@@ -4134,6 +5018,12 @@ export default function GameBoard({ session, onLeave }: Props) {
                         {team.vpScored} VP — {team.levelOfVictory}
                       </span>
                     </div>
+                    {/* Commander's Options handed to the enemy (S2.20 B) */}
+                    {team.coiForfeited > 0 && (
+                      <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: '0.5rem' }}>
+                        Commander's Options: {team.coiForfeited} VP given to the enemy (S2.20 B)
+                      </div>
+                    )}
                     {/* Ship rows */}
                     {ships.map(s => (
                       <div key={s.shipName} style={{
@@ -4141,7 +5031,14 @@ export default function GameBoard({ session, onLeave }: Props) {
                         fontSize: '0.85rem', padding: '3px 0',
                         borderTop: '1px solid #21262d',
                       }}>
-                        <span style={{ color: '#e6edf3' }}>{s.shipName}</span>
+                        <span style={{ color: '#e6edf3' }}>
+                          {s.shipName}
+                          {s.coiSpend > 0 && (
+                            <span style={{ color: '#d29922', fontSize: '0.72rem', marginLeft: '0.5rem' }}>
+                              +{s.coiSpend} COI
+                            </span>
+                          )}
+                        </span>
                         <span>
                           <span style={{ color: STATUS_COLOR[s.status] ?? '#8b949e', marginRight: '0.75rem' }}>
                             {s.status}
@@ -4152,7 +5049,7 @@ export default function GameBoard({ session, onLeave }: Props) {
                         </span>
                       </div>
                     ))}
-                    {/* Objectives held by this team (no points yet — just control) */}
+                    {/* Objectives held by this team — the controller scores their point value */}
                     {(() => {
                       const held = gameState.scoreboard!.objectives.filter(o => o.ownerTeam === team.teamName);
                       if (held.length === 0) return null;
@@ -4166,7 +5063,14 @@ export default function GameBoard({ session, onLeave }: Props) {
                               display: 'flex', justifyContent: 'space-between',
                               fontSize: '0.85rem', padding: '3px 0', borderTop: '1px solid #21262d',
                             }}>
-                              <span style={{ color: '#e0b34a' }}>{o.name}</span>
+                              <span style={{ color: '#e0b34a' }}>
+                                {o.name}
+                                {o.points > 0 && (
+                                  <span style={{ color: '#8b949e', fontSize: '0.72rem', marginLeft: '0.5rem' }}>
+                                    +{o.points} vp
+                                  </span>
+                                )}
+                              </span>
                               <span style={{ color: o.state === 'SECURED' ? '#3fb950' : '#f0c040', fontWeight: 600 }}>
                                 {o.state === 'SECURED' ? 'secured' : 'carried'}
                               </span>
@@ -4203,8 +5107,10 @@ export default function GameBoard({ session, onLeave }: Props) {
       )}
 
       <div className="board-topbar">
-        {/* Exit controls live top-left, away from Ready (top-right), so they
-            aren't clicked by accident when readying up. */}
+        {/* Everything that is not Ready lives top-left, away from Ready (top-right), so
+            none of it is clicked by accident when readying up — which is the button
+            pressed more than any other in the game. Score joined them for that reason:
+            it sat next to Ready and was being hit instead of it. */}
         <div className="topbar-left">
           <span className="board-title">Amarillo</span>
           {!gameState?.gameOver && (
@@ -4218,6 +5124,10 @@ export default function GameBoard({ session, onLeave }: Props) {
             </button>
           )}
           <button className="secondary" onClick={() => setConfirmExit('leave')}>Leave</button>
+          <button className="secondary" onClick={() => setShowScore(true)}
+                  title="Current victory-point standings (S2.21)">
+            Score
+          </button>
         </div>
         <span className="board-phase">
           {!gameState ? 'Loading…' : (
@@ -4242,10 +5152,6 @@ export default function GameBoard({ session, onLeave }: Props) {
         </span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
-          <button className="secondary" onClick={() => setShowScore(true)}
-                  title="Current victory-point standings (S2.21)">
-            Score
-          </button>
           {isMovementPhase && myMovablePending.length > 0 && (
             <span className="topbar-move-warn">
               Move: <strong>{myMovablePending[0]}</strong>
@@ -4305,15 +5211,45 @@ export default function GameBoard({ session, onLeave }: Props) {
             fireTargetName={fireTarget?.name ?? null}
             onSelect={handleMapSelect}
             onHexClick={handleHexClick}
-            pickingHex={tBombMode}
+            pickingHex={tBombMode || hexFireMode}
             snapTo={snapTo}
           />
         </div>
+
+        {ssdShip && (
+          <SsdPanel
+            ship={ssdShip}
+            isMine={myShips.has(ssdShip.name)}
+            contacts={gameState?.mapObjects ?? []}
+            onClose={() => setSsdShipName(null)}
+          />
+        )}
 
         {liveShip && (
           <ShipSidebar
             ship={liveShip}
             isMine={myShips.has(liveShip.name)}
+            onOpenSsd={() => setSsdShipName(liveShip.name)}
+            hexFire={{
+              mode:    hexFireMode,
+              target:  hexFireTarget,
+              weapons: hexFireWeapons,
+              side:    hexFireSide,
+              error:   hexFireError,
+              terrain: (gameState?.mapObjects ?? [])
+                .filter((o): o is TerrainObject => o.type === 'TERRAIN'),
+            }}
+            hexFireActions={{
+              start:  startHexFire,
+              cancel: cancelHexFire,
+              toggleWeapon: (name: string) => setHexFireWeapons(prev => {
+                const next = new Set(prev);
+                if (next.has(name)) next.delete(name); else next.add(name);
+                return next;
+              }),
+              setSide: setHexFireSide,
+              fire:    handleFireAtHex,
+            }}
             canMove={canMove}
             phase={phase}
             gameId={session.gameId}
@@ -4323,6 +5259,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             loadingOptions={loadingOptions}
             selectedWeapons={selectedWeapons}
             onToggleWeapon={toggleWeapon}
+            onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
             shotCounts={shotCounts}
             onSetShotCount={setShotCount}
             useUim={useUim}
@@ -4356,6 +5293,14 @@ export default function GameBoard({ session, onLeave }: Props) {
             onAnnounceEsg={handleAnnounceEsg}
             onCancelEsg={handleCancelEsg}
             onDeactivateEsg={handleDeactivateEsg}
+            friendlyShipNames={gameState?.myShips ?? []}
+            onLendEw={handleLendEw}
+            aim={aim}
+            aimError={aimError}
+            onArmSeeker={(d, mode) => { setAim({ channel: d, mode }); setAimError(null); }}
+            onCancelAim={() => { setAim(null); setAimError(null); }}
+            onOffensiveEw={handleOffensiveEw}
+            onControlSeekers={handleControlSeekers}
             boardingMode={boardingMode}
             boardingTarget={boardingTarget}
             boardingNormal={boardingNormal}
@@ -4372,11 +5317,12 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelBeamObject={handleCancelBeamObject}
             idMode={idMode}
             idSeekers={idSeekers}
-            idSelected={idSelected}
+            idLabs={idLabs}
+            idCommitted={idCommitted}
             idError={idError}
             onStartId={handleStartId}
             onCancelId={handleCancelId}
-            onToggleIdSeeker={handleToggleIdSeeker}
+            onSetIdLabs={handleSetIdLabs}
             onSubmitId={handleSubmitId}
             shuttleLaunchMode={shuttleLaunchMode}
             shuttleLaunchError={shuttleLaunchError}
@@ -4415,6 +5361,11 @@ export default function GameBoard({ session, onLeave }: Props) {
             onEmergencyDecel={handleEmergencyDecel}
             tractorMode={tractorMode}
             tractorError={tractorError}
+            onAnnounceEm={(on) => {
+              if (!liveShip) return;
+              gameApi.announceEm(session.gameId, session.playerToken, liveShip.name, on)
+                .then(r => { if (!r.success) setTractorError(r.message); });
+            }}
             onStartTractor={() => setTractorMode(true)}
             onCancelTractor={() => { setTractorMode(false); setTractorError(null); }}
             onReleaseTractor={handleReleaseTractor}
@@ -4519,6 +5470,22 @@ export default function GameBoard({ session, onLeave }: Props) {
                         </button>
                       ))
                   }
+                  {controllerName && (
+                    <button
+                      onClick={() => handleReleaseDrone(seekerName, controllerName)}
+                      title="Give up control (F3.4): a drone with its own lock-on keeps tracking, one relying on this ship goes inert — the answer to an enemy scout attracting it (G24.23)"
+                      style={{
+                        display: 'block', width: '100%', marginTop: 8,
+                        background: '#21262d', border: '1px solid #30363d',
+                        color: '#f0a0a0', borderRadius: 6, padding: '6px 12px',
+                        fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#f0a0a0')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = '#30363d')}
+                    >
+                      Release control
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -4535,6 +5502,7 @@ export default function GameBoard({ session, onLeave }: Props) {
               loadingOptions={loadingOptions}
               selectedWeapons={selectedWeapons}
               onToggleWeapon={toggleWeapon}
+              onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
               shotModes={fighterShotModes}
               onSetShotMode={(name, mode) => setFighterShotModes(prev => ({ ...prev, [name]: mode }))}
               onFire={handleFire}
@@ -4602,7 +5570,9 @@ export default function GameBoard({ session, onLeave }: Props) {
           {liveShip && (liveShip.sensorRating ?? 0) > 0 && (() => {
             const ew = declarationEw[liveShip.name]
                 ?? { ecm: liveShip.ecmAllocated ?? 0, eccm: liveShip.eccmAllocated ?? 0 };
-            const sensor = liveShip.sensorRating ?? 0;
+            // Six points generated at most, whatever the sensor track allows (D6.310) —
+            // the same cap the allocation dialog and EwCircuits apply.
+            const sensor = Math.min(liveShip.sensorRating ?? 0, 6);
             const added = Math.max(0, ew.ecm - (liveShip.ecmAllocated ?? 0))
                         + Math.max(0, ew.eccm - (liveShip.eccmAllocated ?? 0));
             const step = (field: 'ecm' | 'eccm', delta: number) => {
@@ -4796,6 +5766,34 @@ export default function GameBoard({ session, onLeave }: Props) {
               });
             } catch (e: unknown) {
               setActionError(e instanceof Error ? e.message : 'DAC choice failed');
+            }
+          }}
+        />
+      )}
+
+      {/* Scout channel blind choice (G24.13) — shown to the firing player only */}
+      {(gameState?.pendingAttractChoices?.length ?? 0) > 0
+        && (myShips.size === 0
+            || myShips.has(gameState!.pendingAttractChoices[0].ownerShipName ?? '')) && (
+        <AttractChoiceDialog
+          choice={gameState!.pendingAttractChoices[0]}
+          onSubmit={handleAttractChoice}
+        />
+      )}
+
+      {(gameState?.pendingBlindChoices?.length ?? 0) > 0
+        && (myShips.size === 0 || myShips.has(gameState!.pendingBlindChoices[0].scoutName)) && (
+        <BlindChoiceDialog
+          choice={gameState!.pendingBlindChoices[0]}
+          onSubmit={async (designator: string) => {
+            setActionError(null);
+            try {
+              await gameApi.submitAction(session.gameId, session.playerToken, {
+                type: 'SUBMIT_BLIND_CHOICE',
+                channelDesignator: designator,
+              });
+            } catch (e: unknown) {
+              setActionError(e instanceof Error ? e.message : 'Blind choice failed');
             }
           }}
         />

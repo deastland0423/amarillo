@@ -40,6 +40,159 @@ export interface GameStatus {
   }>;
 }
 
+
+// ---------------------------------------------------------------------------
+// Fleet building (S8.0)
+// ---------------------------------------------------------------------------
+
+/** A ship on the shelf. Prices come from the validator, not the JSON, so they cannot drift. */
+export interface CatalogShip {
+  faction:       string;
+  type:          string;   // SSD Type designation, e.g. "D7C"
+  name:          string;
+  line:          string;   // hull family, e.g. "CA"
+  lineName:      string;   // "Heavy Cruiser"
+  sizeClass:     number;
+  serviceYear:   number;
+  commandRating: number;
+  bpv:           number;   // combat BPV
+  fighterBpv:    number;   // fighters it comes with
+  cost:          number;   // what it actually costs (economic for scouts, plus fighters)
+  coiAllowance:  number;   // most it may spend on Commander's Options (S3.2)
+  isScout:       boolean;
+  isLeader:      boolean;
+  isEscort:      boolean;
+  isTrueCarrier: boolean;
+  isBCH:         boolean;
+}
+
+/** The ground a side may set up on, already expanded to hexes by the server. */
+export interface LobbyZone {
+  describe: string;      // "within 6 hexes of the left edge"
+  hexes:    string[];    // CCRR; empty means the whole map, so nothing to mark
+}
+
+/** One side of a battle, as the lobby broadcasts it. */
+export interface LobbySide {
+  name:    string;
+  faction: string;
+  deploymentZone: LobbyZone | null;
+  ships: Array<{
+    shipName:     string;
+    type:         string;
+    startHex:     string;
+    startHeading: string;
+    startSpeed:   number;
+    weaponStatus: number;
+    refits:       string[];
+  }>;
+}
+
+/** A piece of terrain as the lobby broadcasts it, before any game state exists. */
+export interface LobbyTerrain {
+  terrainType: string;          // "ASTEROID" | "PLANET" | "GAS_GIANT"
+  hex:         string;          // CCRR
+  name:        string | null;
+  radius:      number;
+  rings:       number[][];      // {inner, outer} hex-distance bands (P2.223)
+}
+
+/** One ship, set down. Speed 16 is Speed Max. */
+export interface Placement {
+  shipName: string;
+  hex:      string;    // CCRR
+  heading:  string;    // "A"-"F"
+  speed:    number;
+}
+
+/** Everything a player needs to set their own fleet down. */
+export interface DeploymentState {
+  required:   boolean;
+  ships:      string[];          // the ships this player must place
+  zone:       LobbyZone | null;  // the ground they may use
+  noEntry:    string[];          // hexes no ship may occupy — planets and gas giants
+  complete:   boolean;           // every ship somewhere legal
+  done:       boolean;           // this player has said they are finished
+  placements: Placement[];
+}
+
+/** A fleet chosen into a battle, and the team flying it. */
+export interface FleetSideChoice {
+  fleetId: string;
+  team?:   string;
+}
+
+/** What a host may put on the map. Settled before forces take the field (S8.15). */
+export type TerrainChoice = 'OPEN_SPACE' | 'ASTEROID_FIELD' | 'PLANET' | 'GAS_GIANT';
+
+export interface FleetGameSetup {
+  sides:         FleetSideChoice[];
+  year:          number;
+  budget:        number;
+  mapCols?:      number;
+  mapRows?:      number;
+  weaponStatus?: number;
+  terrain?:      TerrainChoice;
+  /** Omit to have the host roll one; it comes back so the same map can be laid again. */
+  terrainSeed?:  number;
+  /**
+   * A written situation to bring the fleets to — one whose sides are waiting for a fleet.
+   * Omit for a straight fight, which is the same thing with nothing specified.
+   */
+  scenarioId?:   string;
+}
+
+export interface FleetShipEntry {
+  faction?:  string;   // blank means the fleet's first empire
+  type:      string;
+  name?:     string;   // blank means the ship file's own name
+  coiSpend?: number;
+}
+
+/** The saved fleet: what is posted to validate, and what lands in data/fleets. */
+export interface FleetSpec {
+  id?:       string;
+  name:      string;
+  author?:   string;
+  factions:  string[];   // allied empires this force draws on (S8.6)
+  year:      number;
+  budget:    number;
+  flagship?: string;
+  ships:     FleetShipEntry[];
+  updated?:  string;
+}
+
+export interface FleetViolation {
+  rule:     string;                   // e.g. "S8.36"
+  severity: 'ERROR' | 'ADVISORY';
+  message:  string;
+  shipName: string;
+}
+
+export interface FleetValidation {
+  legal:         boolean;
+  cost?:         number;   // hulls and fighters
+  totalCost?:    number;   // and Commander's Options
+  budget?:       number;
+  shipCount?:    number;
+  violations:    FleetViolation[];
+  unknownShips?: string[];
+}
+
+/** A row in the saved-fleet list, revalidated as it was listed. */
+export interface FleetSummary {
+  id:        string;
+  name:      string;
+  author:    string;
+  factions:  string[];
+  year:      number;
+  budget:    number;
+  shipCount: number;
+  updated:   string;
+  legal:     boolean;
+  totalCost: number;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const { headers: extraHeaders, ...restOptions } = options ?? {};
   const res = await fetch(path, {
@@ -59,7 +212,7 @@ export interface PlayerListing {
 }
 
 export interface ScenarioShip {
-  hull:         string;
+  type:         string;
   shipName:     string;
   startHex:     string;
   startHeading: string;
@@ -90,6 +243,10 @@ export interface ScenarioSummary {
   mrsShuttles:      boolean;
   pfs:              boolean;
   sides:            ScenarioSide[];
+  /** Sides waiting for somebody's fleet. Empty means this scenario brings its own ships. */
+  openSides:        string[];
+  /** True when the scenario has decided its own terrain and the host may not change it. */
+  fixedTerrain:     boolean;
 }
 
 // ---- COI data types ----
@@ -178,6 +335,7 @@ export interface CoiSubmission {
     extraTBombs?:          number;
     droneRackLoadouts?:    Record<string, string[]>;
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
+    photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
     specialShuttlePrep?:   CoiShuttlePrepEntry[];
     optionMounts?:         Record<string, string>;  // mount designator → option name (G15.4)
     cartel?:               string;                   // the fleet's cartel, echoed per ship (G15.44)
@@ -205,6 +363,106 @@ export const gameApi = {
 
   getLobbyState(gameId: string): Promise<unknown> {
     return request(`/api/games/${gameId}/lobby`);
+  },
+
+  // --- Fleet building (S8.0) ---
+
+  /**
+   * The ship catalogue. Fetched whole and filtered in the browser: a force may draw on several
+   * allied empires (S8.6) and the builder switches between them freely, and the lot is ~17KB.
+   */
+  listShips(factions?: string[]): Promise<CatalogShip[]> {
+    const query = factions?.length
+      ? '?' + factions.map(f => `faction=${encodeURIComponent(f)}`).join('&')
+      : '';
+    return request(`/api/games/ships${query}`);
+  },
+
+  validateFleet(spec: FleetSpec): Promise<FleetValidation> {
+    return request('/api/games/fleets/validate', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    });
+  },
+
+  /** Assemble a battle from saved fleets, in place of naming a scenario file. */
+  loadFleetsIntoGame(
+    gameId: string, hostToken: string, setup: FleetGameSetup,
+  ): Promise<{
+    message: string;
+    fleets: Array<{ fleetId: string; name: string; legal: boolean }>;
+    terrain: string;
+    terrainSeed: number;
+  }> {
+    return request(`/api/games/${gameId}/fleets`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+      body: JSON.stringify(setup),
+    });
+  },
+
+  /**
+   * COI data for the battle this game is sitting down to. Game-scoped rather than by scenario
+   * id, because a battle assembled from fleets is not a file on disk.
+   */
+  getGameCoiData(gameId: string): Promise<CoiSideData[]> {
+    return request(`/api/games/${gameId}/coi-data`);
+  },
+
+  // --- Deployment ---
+
+  /** Your own setup and the ground you may use. Authenticated: placements are secret. */
+  getDeployment(gameId: string, token: string): Promise<DeploymentState> {
+    return request(`/api/games/${gameId}/deployment`, { headers: { 'X-Player-Token': token } });
+  },
+
+  /** Set your ships down. Replaces your whole setup, so partial work is fine. */
+  submitDeployment(
+    gameId: string, token: string, placements: Placement[],
+  ): Promise<{ placed: number; complete: boolean }> {
+    return request(`/api/games/${gameId}/deployment`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+      body: JSON.stringify({ placements }),
+    });
+  },
+
+  /** Lay them out somewhere legal, as a starting point to adjust. */
+  autoArrangeDeployment(gameId: string, token: string): Promise<{ complete: boolean }> {
+    return request(`/api/games/${gameId}/deployment/auto`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+    });
+  },
+
+  /** Finished, or not after all — reversible until the last player commits. */
+  setDeploymentDone(
+    gameId: string, token: string, done: boolean,
+  ): Promise<{ done: boolean; allDone: boolean }> {
+    return request(`/api/games/${gameId}/deployment/done`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': token },
+      body: JSON.stringify({ done }),
+    });
+  },
+
+  listFleets(): Promise<FleetSummary[]> {
+    return request('/api/games/fleets');
+  },
+
+  getFleet(id: string): Promise<{ fleet: FleetSpec; validation: FleetValidation }> {
+    return request(`/api/games/fleets/${encodeURIComponent(id)}`);
+  },
+
+  saveFleet(spec: FleetSpec): Promise<{ id: string; validation: FleetValidation }> {
+    return request('/api/games/fleets', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    });
+  },
+
+  deleteFleet(id: string): Promise<{ deleted: string }> {
+    return request(`/api/games/fleets/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   listScenarios(): Promise<ScenarioSummary[]> {
@@ -291,7 +549,8 @@ export const gameApi = {
     );
   },
 
-  submitCoi(gameId: string, playerToken: string, body: CoiSubmission): Promise<{ message: string }> {
+  submitCoi(gameId: string, playerToken: string, body: CoiSubmission):
+      Promise<{ message: string; warnings?: Record<string, string[]> }> {
     return request(`/api/games/${gameId}/coi`, {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },
@@ -354,6 +613,23 @@ export const gameApi = {
       method: 'POST',
       headers: { 'X-Player-Token': playerToken },
       body: JSON.stringify({ type: 'SUBMIT_REINFORCEMENT', reinforcements }),
+    });
+  },
+
+  /**
+   * C10.3: announce that Erratic Maneuvers start or stop. It comes into force at the END
+   * of the current impulse (C10.311), never at the moment of announcement.
+   */
+  announceEm(
+    gameId: string,
+    playerToken: string,
+    shipName: string,
+    on: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({ type: 'ANNOUNCE_EM', shipName, emOn: on }),
     });
   },
 

@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "F5K",
+  "type": "F5K",
+  "line": "DD",
   "name": "IKS Blood Chariot",
   "serviceYear": 175,
   "bpv": 78,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 4,
   "tokenArt": "klingon/f5.png",
   
   "shields": [21, 16, 16, 16, 16, 16],

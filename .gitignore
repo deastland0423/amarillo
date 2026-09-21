@@ -12,3 +12,7 @@ amarillo-web/dist/
 
 # Personal per-user Claude Code project settings (local overrides)
 .claude/settings.local.json
+
+# Saved fleets are player data, not source. Tests that need one build it and
+# delete it again (FleetStorageEndpointTest), so nothing here is a fixture.
+data/fleets/

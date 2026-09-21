@@ -30,6 +30,7 @@ public class SpecialFunctions {
 	int controlChannels				= 0;					// Number of total control channels
 	int controlUsed					= 0;					// Amount of seeker control currently occupied.
 	List<Seeker> controlledSeekers	= new ArrayList<>();	// List of seekers controlled by this ship.
+	private int scoutControlBonus = 0;					// +6 from a scout channel controlling seekers (G24.24)
 	
 	public SpecialFunctions() {}
 	
@@ -107,7 +108,16 @@ public class SpecialFunctions {
 	}
 	
 	public int getControlLimit() {
-		return (int)(sensor[availableSensor] * controlModifier);
+		return (int)(sensor[availableSensor] * controlModifier) + scoutControlBonus;
+	}
+
+	/** +6 while a scout channel controls seekers (G24.24), 0 otherwise. Kept in sync by Ship. */
+	public void setScoutControlBonus(int bonus) {
+		this.scoutControlBonus = Math.max(0, bonus);
+	}
+
+	public int getScoutControlBonus() {
+		return scoutControlBonus;
 	}
 
 	public int getControlUsed() {

@@ -26,7 +26,7 @@ public class KlingonShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Klingon);
-        s.put("hull", "D7");
+        s.put("type", "D7");
         s.put("name", "IKV Saber");
         s.put("serviceyear", 120);
         s.put("bpv", 121);
@@ -147,7 +147,7 @@ public class KlingonShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Klingon);
-        s.put("hull", "D5");
+        s.put("type", "D5");
         s.put("name", "IKV Ransacker");
         s.put("serviceyear", 168);
         s.put("bpv", 110);
@@ -273,7 +273,7 @@ public class KlingonShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Klingon);
-        s.put("hull", "F5");
+        s.put("type", "F5");
         s.put("name", "IKV Dagger");
         s.put("serviceyear", 135);
         s.put("bpv", 71);

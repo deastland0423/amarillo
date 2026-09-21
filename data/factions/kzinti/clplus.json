@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
-  "hull": "CL+",
+  "type": "CL+",
+  "line": "CL",
   "name": "KHS Spectyr",
   "serviceYear": 166,
   "bpv": 96,
@@ -9,6 +10,8 @@
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "kzinti/cl.png",
   
   "shields": [18, 16, 16, 16, 16, 16],
   

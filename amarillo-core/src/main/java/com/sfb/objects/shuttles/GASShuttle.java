@@ -16,13 +16,10 @@ import com.sfb.weapons.Weapon;
  */
 public class GASShuttle extends Shuttle {
 
-    @Override
-    public boolean canBecomeWildWeasel() {
-        return true;
-    }
-
     public GASShuttle() {
+		setCatalogType("gas");
         setHull(8);
+        setCrippledHull(6);
         setMaxSpeed(6);
         setPersonnelCapacity(2); // one crew unit OR two boarding parties (J2.211)
         setCargoCapacity(15); // base cargo spaces (G25.131; scaffolded, not yet enforced)

@@ -22,7 +22,7 @@ public class KzintiShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Kzinti);
-        s.put("hull", "BC");
+        s.put("type", "BC");
         s.put("name", "KHS Quasar");
         s.put("serviceyear", 160);
         s.put("bpv", 128);
@@ -184,7 +184,7 @@ public class KzintiShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Kzinti);
-        s.put("hull", "CS");
+        s.put("type", "CS");
         s.put("name", "KHS Quasar");
         s.put("serviceyear", 125);
         s.put("bpv", 116);

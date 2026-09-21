@@ -74,7 +74,8 @@ class LockOnResolver {
                 // (The FC gate above still applies: D6.62 lock-ons need active
                 // fire control; the physical link only replaces the sensor roll.)
                 if (game.tractorLinkBetween(ship, target)) {
-                    ship.addLockOn(target);
+                    // Marked: good enough to fire through, not to lend EW (D6.627, G7.97).
+                    ship.addTractorLockOn(target);
                     lastLockOnLog.add(ship.getName() + " lock-on to " + target.getName()
                             + " (automatic — tractor link, G7.412)");
                     continue;
@@ -164,16 +165,29 @@ class LockOnResolver {
     }
 
     private void rollLockOn(Ship ship, Unit target, int sensorRating, DiceRoller dice) {
+        rollLockOn(ship, target, sensorRating, dice, lastLockOnLog);
+    }
+
+    /**
+     * As {@link #rollLockOn(Ship, Unit, int, DiceRoller)}, but writing to {@code sink}.
+     * The turn-start sweep logs into lastLockOnLog, which the server drains at the turn
+     * boundary; a mid-turn launch has to carry its lines back on the launch message
+     * instead, because nothing drains that log in the middle of an impulse. One roll,
+     * two destinations - a second copy of the roll is how the launch path came to log
+     * successes only.
+     */
+    private void rollLockOn(Ship ship, Unit target, int sensorRating, DiceRoller dice,
+            List<String> sink) {
         if (sensorRating >= 6) {
             ship.addLockOn(target);
         } else {
             int roll = dice.rollOneDie();
             if (roll <= sensorRating) {
                 ship.addLockOn(target);
-                lastLockOnLog.add(ship.getName() + " acquired lock-on to " + target.getName()
+                sink.add(ship.getName() + " acquired lock-on to " + target.getName()
                         + " (roll " + roll + " \u2264 " + sensorRating + ")");
             } else {
-                lastLockOnLog.add(ship.getName() + " failed lock-on to " + target.getName()
+                sink.add(ship.getName() + " failed lock-on to " + target.getName()
                         + " (roll " + roll + " > " + sensorRating + ")");
             }
         }
@@ -255,8 +269,8 @@ class LockOnResolver {
      * retention bonus.
      */
     private static int ewAdjustment(Ship attacker, Ship cloaked) {
-        int eccm = attacker.isActiveFireControl() ? attacker.getEccmAllocated() : 0;
-        return signedNetEcmShift(cloaked.getEcmAllocated() - eccm);
+        int eccm = attacker.isActiveFireControl() ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
+        return signedNetEcmShift(cloaked.getEcmAllocated() + cloaked.getLentEcm() - eccm);
     }
 
     /**
@@ -264,7 +278,7 @@ class LockOnResolver {
      * negated when the differential is negative (G13.331 EW Adjustment).
      */
     static int signedNetEcmShift(int netEcm) {
-        int shift = (int) Math.floor(Math.sqrt(Math.abs(netEcm)));
+        int shift = Game.netEcmShift(Math.abs(netEcm));
         return netEcm < 0 ? -shift : shift;
     }
 
@@ -369,7 +383,7 @@ class LockOnResolver {
         if (!attacker.isActiveFireControl() || attacker.hasLockOn(target))
             return;
         if (game.tractorLinkBetween(attacker, target)) {
-            attacker.addLockOn(target);
+            attacker.addTractorLockOn(target);   // beam-held: not for EW lending (D6.627)
             log.add(attacker.getName() + " lock-on to " + target.getName()
                     + " (automatic — tractor link, G7.412)");
             return;
@@ -442,7 +456,7 @@ class LockOnResolver {
                 continue; // already locked on — keep it
             // G7.412: an attached tractor makes lock-on automatic — no roll
             if (game.tractorLinkBetween(attacker, target)) {
-                attacker.addLockOn(target);
+                attacker.addTractorLockOn(target);   // beam-held: not for EW lending (D6.627)
                 log.add(attacker.getName() + " lock-on to " + target.getName()
                         + " (automatic — tractor link, G7.412)");
                 continue;
@@ -480,24 +494,41 @@ class LockOnResolver {
     List<String> checkLockOnsForNewUnit(Ship launcher, Unit newUnit) {
         List<String> log = new ArrayList<>();
 
-        // Launcher always has lock-on to its own seeker
+        // The launcher always has lock-on to what it just put on the map.
         launcher.addLockOn(newUnit);
 
-        // All other ships with active fire control roll to acquire lock-on
+        boolean isShuttle = newUnit instanceof com.sfb.objects.shuttles.Shuttle;
+
+        // Everyone else acquires it exactly as the turn-start sweep would have, so that a
+        // unit launched mid-turn is not treated differently from one already on the map.
         DiceRoller dice = new DiceRoller();
         for (Ship ship : ships) {
             if (ship == launcher)
                 continue;
             if (!ship.isActiveFireControl())
-                continue;
+                continue;   // D6.1143: no fire control, no lock-on - as in the sweep
 
+            // An own-side shuttle is automatic (performLockOnRolls says so): your own
+            // fleet knows where its shuttles are, and that cannot sensibly depend on
+            // whether the shuttle appeared before or after the turn-start roll. Seekers
+            // are NOT automatic for anyone but their controller, which both paths agree on.
+            if (isShuttle && ship.getOwner() == newUnit.getOwner()) {
+                ship.addLockOn(newUnit);
+                continue;
+            }
+
+            // A launch is a single event the player is reading a message about, so say so
+            // even when the sensor rating makes it a formality. The turn-start sweep stays
+            // quiet about automatic acquisitions on purpose - there it would be a line per
+            // ship per target, every turn.
             int sensorRating = ship.getSpecialFunctions().getSensor();
-            int roll = sensorRating >= 6 ? 1 : dice.rollOneDie();
-            if (roll <= sensorRating) {
+            if (sensorRating >= 6) {
                 ship.addLockOn(newUnit);
                 log.add(ship.getName() + " acquired lock-on to " + newUnit.getName()
-                        + " (rolled " + roll + ", needs ≤" + sensorRating + ")");
+                        + " (automatic, sensor " + sensorRating + ")");
+                continue;
             }
+            rollLockOn(ship, newUnit, sensorRating, dice, log);
         }
         return log;
     }

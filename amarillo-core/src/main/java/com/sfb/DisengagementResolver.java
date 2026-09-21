@@ -99,19 +99,30 @@ class DisengagementResolver {
         // Safe exit — any carried objectives are secured to this player (permanent)
         List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
+        noteFledIfEarly(ship);
         ship.setLocation(null);
+        game.releaseTiesToDeparted(ship, "target disengaged");
         String msg = ship.getName() + " has disengaged by acceleration (C7.1)";
         return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
+    }
+
+    /** S2.20 A: a unit that disengages by end of Turn 2 forfeits its side's handicap. */
+    private void noteFledIfEarly(Ship ship) {
+        if (game.getCurrentTurn() <= 2 && ship.getOwner() != null)
+            game.noteFledByTurn2(ship.getOwner().getTeamName());
     }
 
     // -------------------------------------------------------------------------
     // C7.2 — Disengagement by separation
     // -------------------------------------------------------------------------
 
+    /** Hexes a ship must put between itself and every enemy to break contact (C7.2). */
+    static final int SEPARATION_RANGE = 50;
+
     /**
      * Check whether the given ship currently qualifies for disengagement by
      * separation (C7.2):
-     * no enemy ship within 50 hexes, and no in-flight seekers targeting it.
+     * no enemy ship within {@link #SEPARATION_RANGE} hexes, and no in-flight seekers targeting it.
      */
     boolean canDisengageBySeparation(Ship ship) {
         if (ship.getLocation() == null || ship.isDisengaged())
@@ -121,7 +132,7 @@ class DisengagementResolver {
                 continue;
             if (other.getLocation() == null)
                 continue;
-            if (MapUtils.getRange(ship, other) <= 50)
+            if (MapUtils.getRange(ship, other) <= SEPARATION_RANGE)
                 return false;
         }
         for (Seeker s : seekers) {
@@ -140,7 +151,9 @@ class DisengagementResolver {
             return ActionResult.fail(ship.getName() + " does not meet separation disengagement conditions");
         List<String> secured = game.secureObjectivesFor(ship);
         ship.setDisengaged(true);
+        noteFledIfEarly(ship);
         ship.setLocation(null);
+        game.releaseTiesToDeparted(ship, "target disengaged");
         String msg = ship.getName() + " has disengaged by separation (C7.2)";
         return ActionResult.ok(secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured));
     }

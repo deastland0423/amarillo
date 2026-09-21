@@ -15,7 +15,7 @@ export interface ShieldState {
 export interface WeaponState {
   name:              string;
   designator?:       string;
-  armed:             boolean;
+  armed:             boolean | null;   // null = not disclosed (an enemy's ship)
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null
   lastImpulseFired:  number;
@@ -30,17 +30,29 @@ export interface WeaponState {
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)
   armingCost:        number;
+  photonTube?:       boolean;  // dialled by energy rather than by mode (E4.21/E4.411)
+  armingEnergy?:     number;   // warp energy already in the tube (E4.413)
   holdCost:          number;   // energy to hold per turn; 0 = hold not supported
   canOverload:            boolean;  // weapon supports OVERLOAD mode
   canSuicide:             boolean;  // weapon supports SPECIAL/SUICIDE mode (Fusion only)
   cooldown?:              boolean;  // Fusion only: fired last turn → cannot arm/fire this turn (E7.x)
+  scoutChannel?:          boolean;  // scout function channel / special sensor (G24.0)
+  channelPowered?:        boolean;  // powered this turn (G24.14)
+  channelBlinded?:        boolean;  // blinded by weapons fire (G24.13)
+  channelLendTarget?:     string;   // unit this channel is lending EW to, or null (G24.21)
+  channelLentEcm?:        number;   // ECM points this channel is lending (G24.21)
+  channelLentEccm?:       number;   // ECCM points this channel is lending (G24.21)
+  channelFunction?:        string;   // committed function this turn: NONE/LEND_EW/BREAK_LOCKON/IDENTIFY (G24.12)
+  channelBreakAttempts?:   number;   // break-lock-on attempts spent this turn (G24.221)
+  channelIdentifyAttempts?: number;  // identify attempts spent this turn (G24.251)
+  channelAttractedDrone?: string | null; // drone drawn onto the scout (G24.231)
   esg?:                   boolean;  // ESG generator (G23.0)
   esgHasCapacitor?:       boolean;  // G23.24 capacitor: holds up to 7, releases a chosen 1–5
   esgStoredEnergy?:       number;   // energy held (0–maxStorage)
   esgMaxEnergy?:          number;   // storage cap: 7 with a capacitor, else 5
   esgActive?:             boolean;  // a field is currently up
   esgRadius?:             number;   // active field radius (0–3); -1 hidden while announced
-  esgStrength?:           number;   // active field strength (0 when hidden from opponents)
+  esgStrength?:           number;   // active field strength — public to all players (G23.46)
   esgAnnounced?:          boolean;  // a release is announced but not yet formed (G23.31)
   esgReleaseIn?:          number;   // impulses until the announced field forms
   canProximity:           boolean;  // weapon supports PROXIMITY mode (Photon only)
@@ -79,6 +91,7 @@ export interface ShuttleInBayState {
   pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading
   maxDroneSpaces?:     number;   // scatterpack only: max rack spaces (default 6)
   committedSpaces?:    number;   // scatterpack only: payload + pending spaces already used
+  specialRole?:        string | null;  // "Wild Weasel", "suicide shuttle", "scatter pack"
   wwChargeCount?:      number;   // admin only: 0=uncharged, 1=primed, 2=ready
   wwReady?:            boolean;  // admin only: true when wwChargeCount >= 2
 }
@@ -121,8 +134,8 @@ interface MapObjectBase {
 }
 
 export interface ShipObject extends MapObjectBase {
-  type:    'SHIP';
-  hull:    string;
+  type:     'SHIP';    // map-object discriminator, not the ship's SSD type
+  shipType: string;    // the SSD Type line, e.g. "CA+"
   faction: string;
   facing:  number;
   speed:   number;
@@ -179,6 +192,7 @@ export interface ShipObject extends MapObjectBase {
   boardingParties:  number;
   commandos:        number;
   availableLab:     number;
+  functioningLab?:  number;        // lab boxes that exist; availableLab is those free now (G4.451)
   // Crew
   availableCrewUnits:  number;
   minimumCrew:         number;
@@ -196,6 +210,18 @@ export interface ShipObject extends MapObjectBase {
   sensorRating:     number;
   ecmAllocated:     number;
   eccmAllocated:    number;
+  allocationNotes?:  string[]; // what this turn's allocation cost — own ships only
+  setupNotes?:       string[]; // COI selections that could not be applied — own ships only
+  activeFireControl?: boolean; // false = passive fire control (D19.0)
+  lentEcm?:          number;   // ECM received from a friendly scout (D6.3144)
+  lentEccm?:         number;   // ECCM received from a friendly scout (D6.3144)
+  offensiveEw?:      number;   // enemy jamming on this ship's fire (G24.219)
+  ecmTotal?:         number;   // generated + lent (weasel included) + built-in
+  eccmTotal?:        number;   // generated + lent
+  ecmSources?:       string | null;   // "2 generated + 6 lent"
+  scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
+  scoutEwLent?:     number;   // of the pool, how many are currently lent out (G24.2111)
+  scoutEwRemaining?: number;  // still available to commit; dropped points are lost (G24.2122)
   // Energy allocation helpers
   totalPower:        number;
   moveCost:          number;
@@ -223,6 +249,11 @@ export interface ShipObject extends MapObjectBase {
   wwEcmBonus?:       number;    // +6 while WW active, else 0
   tractored?:                  boolean;   // true if held in a tractor beam (G7.0)
   tractoredByName?:            string;    // name of the holding ship
+  usingEm?:                    boolean;   // Erratic Maneuvers in force (C10.0)
+  transporterUses?:            number;    // activations still affordable, batteries included
+  erraticCost?:                number;    // what EM costs this ship (C10.11/C10.12); 0 = cannot
+  paidForEm?:                  boolean;   // bought at allocation, so EM may be announced (C10.11)
+  emPending?:                  boolean;   // announced this impulse, in force at its end (C10.311)
   tractorEnergy?:              number;    // total tractor energy allocated in EA this turn
   tractorEnergyRemaining?:     number;    // unspent tractor pool energy
   negativeTractorAccumulated?: number;    // cumulative negative-tractor spent this turn (G7.35)
@@ -244,15 +275,30 @@ export interface ShuttleObject extends MapObjectBase {
   speed:          number;
   maxSpeed:       number;
   parentShipName: string | null;
-  weapons?:       WeaponState[];  // non-null for fighters
+  weapons?:       WeaponState[];  // every shuttle: an admin shuttle carries a Ph-3
+  isFighter?:     boolean;        // a fighter, as opposed to an admin/other shuttle
+  shuttleTypeName?: string | null;  // "Admin Shuttle", "General Assault Shuttle" — never the role
+  effectiveMaxSpeed?: number;     // after any point given to Erratic Maneuvers (C10.13)
+  usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
+  emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)
   crippled?:      boolean;
+  hull?:          number;    // undamaged hull remaining
+  maxHull?:       number;    // hull the craft starts with
+  damageTaken?:   number;
+  launchImpulse?: number;    // when it left the bay
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
   landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)
   landedHexSide?:     number;        // 1..6 (A..F) when landed on a planet
   holdCrew?:          number;        // crew units in the hold
   holdSpacesUsed?:    number;        // personnel spaces occupied
   personnelCapacity?: number;        // personnel-space capacity
-  isIdentified?:     boolean;        // SUICIDE_SHUTTLE and SCATTER_PACK only
+  isIdentified?:     boolean;        // any shuttle: identified by an enemy lab or scout (G4.2)
+  // G4.233: all an identification reveals about a shuttle is whether it is on a seeking
+  // course and, if so, its target. Never the drones aboard or a suicide bomb, which is why
+  // an identified suicide shuttle and an identified scatter pack arrive here identical.
+  seekingCourse?:     boolean;
+  seekingTargetName?: string | null;
+  manned?:            boolean | null;   // G4.233; null = not established
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
   targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
@@ -345,6 +391,7 @@ export interface ShipVpRow {
   gabpv:     number;
   status:    'INTACT' | 'DAMAGED' | 'CRIPPLED' | 'DISENGAGED' | 'DESTROYED' | 'CAPTURED';
   vpScored:  number;
+  coiSpend:  number;  // Commander's Option points this ship bought (awarded to the enemy, S2.20 B)
 }
 
 export interface TeamScore {
@@ -352,12 +399,14 @@ export interface TeamScore {
   vpScored:       number;
   vpAgainst:      number;
   levelOfVictory: string;
+  coiForfeited:   number; // total COI this side handed to the enemy (S2.20 B)
 }
 
 export interface ObjectiveStanding {
   name:      string;
   ownerTeam: string | null;                    // null = free / unclaimed
   state:     'SECURED' | 'CARRIED' | 'FREE';
+  points:    number;                           // VP its controller scores at scenario end
 }
 
 export interface Scoreboard {
@@ -393,6 +442,8 @@ export interface GameState {
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];
+  pendingBlindChoices:     PendingBlindChoice[];
+  pendingAttractChoices:   PendingAttractChoice[];
   pendingControlOverflows: PendingControlOverflow[];
   pendingTractorAuction:   PendingTractorAuction | null;
 }
@@ -421,6 +472,30 @@ export interface PendingDacChoice {
   roll:           number;
   options:        string[]; // weapon names, "lwarp"/"cwarp"/"rwarp", or "bay:N:space:N"
   bayIndex:       number;   // shuttle chain reactions: >=0 = scoped bay; -1 = any bay
+}
+
+/** A scout is attracting an unidentified shuttle; its owner answers, honestly or not (G24.235). */
+export interface PendingAttractChoice {
+  shuttleName:       string;
+  scoutName:         string;
+  channelDesignator: string;
+  ownerShipName:     string | null;
+}
+
+export interface PendingBlindChoice {
+  scoutName: string;
+  channels:  BlindChannelOption[];
+}
+
+export interface BlindChannelOption {
+  designator:       string;
+  function:         string;  // NONE / LEND_EW / BREAK_LOCKON / IDENTIFY / OFFENSIVE_EW
+  target:           string | null;
+  lentEcm:          number;
+  lentEccm:         number;
+  breakAttempts:    number;
+  identifyAttempts: number;
+  blinded:          boolean;
 }
 
 export interface SeekerChoice {
@@ -457,6 +532,19 @@ export function facingToAngle(facing: number): number {
 /** Convert internal 24-step facing to SFB letter (A–F). */
 export function facingLabel(facing: number): string {
   return 'ABCDEF'[Math.floor(((facing - 1) % 24) / 4)] ?? '?';
+}
+
+/**
+ * Colour for a shield at this strength. Lives here beside the other display helpers rather
+ * than inside HexGrid, so the map and the SSD panel cannot come to disagree about what
+ * counts as a hurt shield.
+ */
+export function shieldStrengthColor(current: number, max: number): string {
+  if (max === 0 || current === 0) return '#333333';
+  const pct = current / max;
+  if (pct > 0.6)  return '#56d364';  // green
+  if (pct > 0.25) return '#f0c040';  // yellow
+  return '#f85149';                  // red
 }
 
 /** Faction display colour. */

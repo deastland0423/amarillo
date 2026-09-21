@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
-  "hull": "DDF",
+  "type": "DDF",
+  "line": "DD",
   "name": "GCS Fang",
   "serviceYear": 175,
   "bpv": 91,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 4,
 
   "shields": [18, 14, 10, 10, 10, 14],
   

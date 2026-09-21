@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "D7K",
+  "type": "D7K",
+  "line": "CA",
   "name": "IKS Antagonist",
   "serviceYear": 175,
   "bpv": 131,
@@ -9,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "tokenArt": "klingon/d7.png",
   
   "shields": [30, 22, 22, 22, 22, 22],

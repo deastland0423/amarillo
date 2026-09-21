@@ -10,7 +10,7 @@
       "faction": "Hydran",
       "ships": [
         {
-          "hull": "HN",
+          "type": "HN",
           "shipName": "HMS Defender",
           "startHex": "1201",
           "startHeading": "D",
@@ -18,7 +18,7 @@
           "weaponStatus": 3
         },
         {
-          "hull": "HN",
+          "type": "HN",
           "shipName": "HMS Guardian",
           "startHex": "1601",
           "startHeading": "D",
@@ -32,14 +32,14 @@
       "faction": "Klingon",
       "ships": [
         {
-          "hull": "F5",
+          "type": "F5",
           "shipName": "IKV Swift",
           "startHex": "1212",
           "startHeading": "A",
           "startSpeed": 20,
           "weaponStatus": 3        },
         {
-          "hull": "E4",
+          "type": "E4",
           "shipName": "IKV Dart",
           "startHex": "1612",
           "startHeading": "A",

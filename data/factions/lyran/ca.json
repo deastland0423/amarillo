@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
-  "hull": "CA",
+  "type": "CA",
+  "line": "CA",
   "name": "Azure",
   "serviceYear": 120,
   "bpv": 131,

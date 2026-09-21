@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
-  "hull": "S-Q",
+  "type": "S-Q",
+  "line": "F-S",
   "name": "Hide and Seek",
   "serviceYear": 130,
   "bpv": 40,
@@ -9,6 +10,7 @@
   "moveCost": 0.3333333,
   "breakdown": 1,
   "bonusHets": 0,
+  "commandRating": 3,
   
   "shields": [10, 10, 10, 10, 10, 10],
   

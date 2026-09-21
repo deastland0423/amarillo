@@ -19,7 +19,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "hull": "CC+a",
+          "type": "CC+a",
           "shipName": "Lexington",
           "startHex": "1712",
           "startHeading": "C",
@@ -36,7 +36,7 @@
       "destructionDirections": ["A", "D", "F"],
       "ships": [
         {
-          "hull": "D7N",
+          "type": "D7N",
           "shipName": "Dictator",
           "startHex": "0126",
           "startHeading": "B",
@@ -53,7 +53,7 @@
       "destructionEdges": ["TOP", "BOTTOM", "LEFT"],
       "ships": [
         {
-          "hull": "K5RB",
+          "type": "K5RB",
           "shipName": "Centaurii",
           "startHex": "4222",
           "startHeading": "F",

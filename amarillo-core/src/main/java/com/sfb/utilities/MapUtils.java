@@ -47,43 +47,13 @@ public class MapUtils {
 		                                     : xDiff + (targetLocation.getY() - bottomY);
 	}
 
+	/**
+	 * Range between two units. A unit with no hex — a ship that has disengaged keeps its
+	 * entry but loses its location (C7.1) — is unreachable rather than an error, so every
+	 * range test against it simply fails.
+	 */
 	public static int getRange(Marker source, Marker target) {
-
-		Location sourceLocation = source.getLocation();
-		Location targetLocation = target.getLocation();
-
-		// Horizontal offsets
-		int xDiff = Math.abs(targetLocation.getX() - sourceLocation.getX());
-
-		// The top and bottom Y coordinate where the range
-		// is simply the difference in X coordinates.
-		int topY = 0;
-		int bottomY = 0;
-
-		// If directly above or below the source, the
-		// range to the target is simply the difference in Y coordinates.
-		if (sourceLocation.getX() == targetLocation.getX()) {
-			return Math.abs(sourceLocation.getY() - targetLocation.getY());
-		}
-
-		// If in the 3/5 or 9/11 zone then the range
-		// is simply the xDiff
-		topY = getTopArcHex(sourceLocation, targetLocation).getY();
-		bottomY = getBottomArcHex(sourceLocation, targetLocation).getY();
-
-		// if the target falls in the side-span, it's range is just the xdiff
-		if (targetLocation.getY() >= topY && targetLocation.getY() <= bottomY) {
-			return xDiff;
-		} else {
-			// if the target is above the side span, the distance is the xdiff
-			// plus the yDiff from the spinal line.
-			if (targetLocation.getY() < topY) {
-				return xDiff + (topY - targetLocation.getY());
-			} else {
-				return xDiff + (targetLocation.getY() - bottomY);
-			}
-		}
-
+		return getRange(source.getLocation(), target.getLocation());
 	}
 
 	// Return 1 of 12 numbers. These numbers are the 6 arcs AND
@@ -93,6 +63,7 @@ public class MapUtils {
 
 		Location sourceLocation = source.getLocation();
 		Location targetLocation = target.getLocation();
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 
 		// If target directly 'above' the source, arc is 1
 		// If directly 'below' the source, arc is 7
@@ -186,6 +157,7 @@ public class MapUtils {
 	 * so planet-face logic can use it.
 	 */
 	public static int getAbsoluteShieldFacing(Location sourceLocation, Location targetLocation) {
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 		// If in the same hex, special conditions exist.
 		if (targetLocation.equals(sourceLocation)) {
 			return 0;
@@ -606,61 +578,19 @@ public class MapUtils {
 
 	}
 
-	// Return the direction value of 1..24, or 0 for same hex.
-	public static int getBearing(Location sourceLocation, Location targetLocation) {
-		if (sourceLocation == null || targetLocation == null) return 0;
-		if (sourceLocation.equals(targetLocation)) return 0;
-		int xOffset = targetLocation.getX() - sourceLocation.getX();
-		if (xOffset == 0)
-			return targetLocation.getY() < sourceLocation.getY() ? 1 : 13;
-		boolean evenOffset = (Math.abs(xOffset) % 2 == 0);
-		if (evenOffset && sourceLocation.getY() == targetLocation.getY())
-			return xOffset < 0 ? 10 : 4;
-		Location topSpine    = getTopArcHex(sourceLocation, targetLocation);
-		Location bottomSpine = getBottomArcHex(sourceLocation, targetLocation);
-		int topY    = topSpine.getY();
-		int bottomY = bottomSpine.getY();
-		if (xOffset > 0) {
-			if (targetLocation.getY() < topY)    return 2;
-			if (targetLocation.getY() == topY)   return 3;
-			if (targetLocation.getY() <= bottomY) return 4;
-			if (targetLocation.getY() == bottomY + 1) return 5;
-			return 6;
-		} else {
-			if (targetLocation.getY() < topY)    return 24;
-			if (targetLocation.getY() == topY)   return 23;
-			if (targetLocation.getY() <= bottomY) return 22;
-			if (targetLocation.getY() == bottomY + 1) return 21;
-			return 20;
-		}
-	}
-
 	/**
-	 * Pixel-geometry-accurate bearing using flat-top hex centers.
-	 * Returns 1-24 (SFB directions), 0 if same hex.
-	 * Use this for seeker tracking to avoid zone-boundary oscillation.
+	 * True bearing from one hex to another, 1..24, or 0 for the same hex. The six hex
+	 * directions fall on 1, 5, 9, 13, 17 and 21; the values between them are the vertices and
+	 * zone boundaries, so due east is 7 and due west 19.
+	 * <p>
+	 * A bearing is a property of two positions and nothing else, which is why the work lives
+	 * here and {@link #getBearing(Marker, Marker)} simply reads the units' locations. Use this
+	 * for anything that tests an arc; {@link #getGeometricBearing} is for pointing a seeker,
+	 * where a smooth angle matters more than the zone.
 	 */
-	public static int getGeometricBearing(Marker source, Marker target) {
-		Location src = source.getLocation();
-		Location tgt = target.getLocation();
-		if (src.equals(tgt)) return 0;
+	public static int getBearing(Location sourceLocation, Location targetLocation) {
+		if (sourceLocation == null || targetLocation == null) return 0; // off the map (C7.1)
 
-		double sqrt3 = Math.sqrt(3);
-		double sx = (src.getX() - 1) * 1.5;
-		double sy = (src.getY() - 1) * sqrt3 + (src.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
-		double tx = (tgt.getX() - 1) * 1.5;
-		double ty = (tgt.getY() - 1) * sqrt3 + (tgt.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
-
-		double dx = tx - sx;
-		double dy = sy - ty; // flip y: positive = north
-		double deg = (Math.toDegrees(Math.atan2(dx, dy)) + 360) % 360;
-		return ((int) Math.round(deg / 15) % 24) + 1;
-	}
-
-	public static int getBearing(Marker source, Marker target) {
-
-		Location sourceLocation = source.getLocation();
-		Location targetLocation = target.getLocation();
 
 		// If the two locations are exactly the same, we can't determint the direction.
 		if (sourceLocation.equals(targetLocation)) {
@@ -685,13 +615,17 @@ public class MapUtils {
 			}
 		}
 
-		// Determine if the target is EXACTLY ON the 10/4 line
+		// Due east or due west: an even column offset on the same row lands exactly on the
+		// vertex between two hex directions. In the 24-point bearing scheme the six directions
+		// are 1, 5, 9, 13, 17 and 21, so due east is the vertex between 5 and 9 (= 7) and due
+		// west the vertex between 17 and 21 (= 19). (4 and 10 are the equivalents in the
+		// twelve-point SHIELD scheme — a different space; see getAbsoluteShieldFacing.)
 		boolean evenOffset = (Math.abs(sourceLocation.getX() - targetLocation.getX()) % 2 == 0);
 		if (evenOffset && sourceLocation.getY() == targetLocation.getY()) {
 			if (targetLocation.getX() < sourceLocation.getX()) {
-				return 10;
+				return 19;
 			} else {
-				return 4;
+				return 7;
 			}
 		}
 
@@ -792,6 +726,35 @@ public class MapUtils {
 		}
 
 		return 99;
+	}
+
+
+	/**
+	 * Pixel-geometry-accurate bearing using flat-top hex centers.
+	 * Returns 1-24 (SFB directions), 0 if same hex.
+	 * Use this for seeker tracking to avoid zone-boundary oscillation.
+	 */
+	public static int getGeometricBearing(Marker source, Marker target) {
+		Location src = source.getLocation();
+		Location tgt = target.getLocation();
+		if (src == null || tgt == null) return 0;  // off the map (C7.1)
+		if (src.equals(tgt)) return 0;
+
+		double sqrt3 = Math.sqrt(3);
+		double sx = (src.getX() - 1) * 1.5;
+		double sy = (src.getY() - 1) * sqrt3 + (src.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
+		double tx = (tgt.getX() - 1) * 1.5;
+		double ty = (tgt.getY() - 1) * sqrt3 + (tgt.getX() % 2 == 0 ? sqrt3 / 2.0 : 0.0);
+
+		double dx = tx - sx;
+		double dy = sy - ty; // flip y: positive = north
+		double deg = (Math.toDegrees(Math.atan2(dx, dy)) + 360) % 360;
+		return ((int) Math.round(deg / 15) % 24) + 1;
+	}
+
+	/** Bearing between two units — see {@link #getBearing(Location, Location)}. */
+	public static int getBearing(Marker source, Marker target) {
+		return getBearing(source.getLocation(), target.getLocation());
 	}
 
 	// Assuming a ship is pointing due north, this returns true if the target

@@ -86,8 +86,8 @@ public class D637Test {
     public void shift_zeroAcrossTractorLink() {
         // G7.412: attached beam = automatic lock-on, both directions
         klingon.setEcmAllocated(6);
-        fed.getTractors().initForTurn(5);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
         assertEquals("holder acting on held unit", 0, game.d637Shift(fed, klingon));
         fed.setEcmAllocated(6);
         assertEquals("held unit acting on holder", 0, game.d637Shift(klingon, fed));
@@ -111,10 +111,10 @@ public class D637Test {
         for (int i = 0; i < 120 && !(sawJam && sawGrab); i++) {
             setUp(); // fresh game, ships, turn
             klingon.setEcmAllocated(6);
-            fed.getTractors().initForTurn(5);
+            fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
             fed.addLockOn(klingon);
             fed.setActiveFireControl(true);
-            int beamsBefore = fed.getTractors().getBeamsAvailableThisTurn();
+            int beamsBefore = fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse());
 
             Game.ActionResult r = game.establishTractor(fed, "IKV Saber", 2);
             assertTrue(r.getMessage(), r.isSuccess());
@@ -125,7 +125,7 @@ public class D637Test {
                 assertEquals("bid energy burned (range 1 → ×1)",
                         3, fed.getTractors().getRemainingTractorEnergy());
                 assertEquals("beam expended for the turn",
-                        beamsBefore - 1, fed.getTractors().getBeamsAvailableThisTurn());
+                        beamsBefore - 1, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
                 assertNull("defender is never asked", game.getPendingTractorAuction());
             } else {
                 sawGrab = true;
@@ -149,8 +149,8 @@ public class D637Test {
         // succeed, so any lock-on must come from the G7.412 automatic grant
         while (fed.getSpecialFunctions().getSensor() > 0)
             fed.getSpecialFunctions().damageSensor();
-        fed.getTractors().initForTurn(5);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
 
         game.submitAllocation(fed, makeAllocation(fed));
         game.submitAllocation(klingon, makeAllocation(klingon));

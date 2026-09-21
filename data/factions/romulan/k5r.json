@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
-  "hull": "K5R",
+  "type": "K5R",
+  "line": "DD",
   "name": "RIS Centaurii",
   "serviceYear": 160,
   "bpv": 78,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 4,
   
   "shields": [21, 16, 9, 9, 9, 16],
   

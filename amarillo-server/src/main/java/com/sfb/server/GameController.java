@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -104,10 +105,597 @@ public class GameController {
         }
     }
 
+    /**
+     * Tell the room where things stand. The broker is absent when a controller is exercised
+     * directly rather than through Spring, and a missing audience is not a reason to fail the
+     * action that was just taken.
+     */
     private void broadcastLobby(GameSession session) {
+        if (broker == null)
+            return;
         broker.convertAndSend(
                 "/topic/games/" + session.getId() + "/lobby",
                 new LobbyStateDto(session));
+    }
+
+    // -------------------------------------------------------------------------
+    // The ship catalogue, for the fleet builder's picker
+    // -------------------------------------------------------------------------
+
+    /**
+     * Every ship in the library, with what a picker needs to display and price it.
+     * <p>
+     * Defaults to the whole library, because a force may be drawn from several allied empires
+     * (S8.6) and the builder switches between them freely — the lot is about 17KB, cheaper
+     * than a round trip per tab. Revisit if the library ever grows by an order of magnitude.
+     * <p>
+     * {@code ?faction=} narrows it, and repeats to name several: {@code ?faction=Klingon&faction=Lyran}.
+     * <p>
+     * Prices come from FleetValidator, not from the JSON, so the shelf price and the price
+     * the validator charges cannot drift apart: a scout shows its economic value and a
+     * carrier shows its fighters.
+     */
+    @GetMapping("/ships")
+    public ResponseEntity<List<Map<String, Object>>> listShips(
+            @RequestParam(name = "faction", required = false) List<String> factions) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        try {
+            if (!com.sfb.objects.ShipLineCatalog.isLoaded())
+                com.sfb.objects.ShipLineCatalog.loadDefault("data");
+        } catch (java.io.IOException e) {
+            // A missing catalogue costs display names, not the listing.
+            System.err.println("Ship lines unavailable: " + e.getMessage());
+        }
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (com.sfb.objects.ShipSpec spec : com.sfb.objects.ShipLibrary.all()) {
+            if (factions != null && !factions.isEmpty()
+                    && factions.stream().noneMatch(f -> f.equalsIgnoreCase(spec.faction)))
+                continue;
+            com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("faction", spec.faction);
+            row.put("type", spec.type);
+            row.put("name", spec.name != null ? spec.name : "");
+            row.put("line", spec.line != null ? spec.line : "");
+            row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
+            row.put("sizeClass", spec.sizeClass);
+            row.put("serviceYear", spec.serviceYear);
+            row.put("commandRating", spec.commandRating);
+            row.put("bpv", spec.bpv);
+            row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
+            row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
+            row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
+            row.put("isScout", ship.isScout());
+            row.put("isLeader", spec.isLeader);
+            row.put("isEscort", spec.isEscort);
+            row.put("isTrueCarrier", spec.isTrueCarrier);
+            row.put("isBCH", spec.isBCH);
+            out.add(row);
+        }
+        out.sort((a, b) -> {
+            int f = String.valueOf(a.get("faction")).compareTo(String.valueOf(b.get("faction")));
+            return f != 0 ? f : String.valueOf(a.get("type")).compareTo(String.valueOf(b.get("type")));
+        });
+        return ResponseEntity.ok(out);
+    }
+
+    // -------------------------------------------------------------------------
+    // Validate a fleet against the patrol-scenario construction rules (S8.0)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Check a fleet without committing to it. The rules live in amarillo-core so that a limit
+     * is enforced wherever a fleet arrives from, not only where a form happens to check it;
+     * this endpoint exists so the builder can show the whole picture as it is assembled.
+     */
+    @PostMapping("/fleets/validate")
+    public ResponseEntity<Map<String, Object>> validateFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        return ResponseEntity.ok(judge(spec));
+    }
+
+    /** Resolve a fleet, validate it, and describe the result the way every caller wants it. */
+    private Map<String, Object> judge(com.sfb.scenario.FleetSpec spec) {
+        com.sfb.scenario.FleetLoader.Resolution resolved = com.sfb.scenario.FleetLoader.resolve(spec);
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        if (!resolved.isComplete()) {
+            body.put("legal", false);
+            body.put("unknownShips", resolved.unknown());
+            body.put("violations", List.of(Map.of(
+                    "rule", "",
+                    "severity", "ERROR",
+                    "message", "No such ship: " + String.join(", ", resolved.unknown()),
+                    "shipName", "")));
+            return body;
+        }
+
+        com.sfb.scenario.FleetValidator.Fleet fleet = new com.sfb.scenario.FleetValidator.Fleet(
+                resolved.ships(), resolved.flagshipName(), spec.budget, spec.year);
+        List<com.sfb.scenario.FleetValidator.Violation> violations =
+                com.sfb.scenario.FleetValidator.validate(fleet);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (com.sfb.scenario.FleetValidator.Violation v : violations) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("rule", v.rule);
+            row.put("severity", v.severity.name());
+            row.put("message", v.message);
+            row.put("shipName", v.shipName == null ? "" : v.shipName);
+            rows.add(row);
+        }
+
+        body.put("legal", com.sfb.scenario.FleetValidator.isLegal(violations));
+        body.put("cost", com.sfb.scenario.FleetValidator.fleetCost(resolved.ships()));
+        body.put("totalCost", com.sfb.scenario.FleetValidator.totalCost(resolved.ships()));
+        body.put("budget", spec.budget);
+        body.put("shipCount", resolved.ships().size());
+        body.put("violations", rows);
+        return body;
+    }
+
+    // -------------------------------------------------------------------------
+    // Starting a battle from saved fleets (S8.0)
+    // -------------------------------------------------------------------------
+
+    /** One side of a fleet battle: whose fleet, the team flying it, and where it sets up. */
+    public static class FleetSideRequest {
+        public String fleetId;
+        /**
+         * The side this fleet flies for. In a written situation this names one of its sides —
+         * "Defender", "Attacker" — and in a plain battle it is just what to call them.
+         */
+        public String team;
+        /**
+         * Where this fleet may deploy, overriding whatever the situation gave that side. The
+         * plain battle uses it; an authored one usually should not, since its ground tends to
+         * be measured from something.
+         */
+        public com.sfb.scenario.MapRegion zone;
+    }
+
+    /**
+     * The conditions the host agrees before anyone chooses a fleet, and the fleets themselves.
+     * Several fleets may share a team, which is how allied players field separate forces.
+     */
+    public static class FleetGameRequest {
+        public List<FleetSideRequest> sides = new ArrayList<>();
+        public int year;
+        public int budget;
+        public int mapCols = 42;
+        public int mapRows = 32;
+        public int weaponStatus = 2;   // S8.134: agreed, or rolled for
+        /**
+         * What is on the map: "OPEN_SPACE", "ASTEROID_FIELD", "PLANET" or "GAS_GIANT".
+         * Settled before forces are bought (S8.15), though saved fleets are bought earlier
+         * still — which is why a player keeps several and brings the one that suits.
+         */
+        public String terrain;
+        /** Rolled once by the host if absent, so every player sees the same map. */
+        public Long terrainSeed;
+        /**
+         * A written situation to bring the fleets to — the id of a file in data/scenarios whose
+         * sides are marked bringYourOwn. Omit it for a plain battle, which is the same thing
+         * with nothing specified.
+         */
+        public String scenarioId;
+    }
+
+    /**
+     * Build a battle out of saved fleets, in place of naming a scenario file.
+     * <p>
+     * Every fleet is revalidated against the host's conditions rather than the ones it was
+     * saved with: what matters is whether it is legal for THIS battle. A fleet built for a
+     * thousand points is welcome in a nine-hundred point game if it fits, and a fleet whose
+     * ships have been edited since it was saved may no longer fit anywhere.
+     */
+    @PostMapping("/{id}/fleets")
+    public ResponseEntity<Map<String, Object>> loadFleets(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody FleetGameRequest req) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.isHost(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Only the host can choose the fleets"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+            if (req.sides == null || req.sides.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "A battle needs at least one fleet"));
+
+            // Whether this battle has room is a question about the battle, and is asked before
+            // any fleet is judged — a fleet's own problems should not hide "there is nowhere to
+            // put it".
+            com.sfb.scenario.ScenarioSpec template = null;
+            String situation = "fleet-battle";
+            if (req.scenarioId != null && !req.scenarioId.isBlank()) {
+                if (!SAFE_ID.matcher(req.scenarioId).matches())
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bad scenario id"));
+                try {
+                    template = com.sfb.scenario.ScenarioSpec.fromJson(
+                            "data/scenarios/" + req.scenarioId.toLowerCase() + ".json");
+                } catch (IOException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "No such scenario: " + req.scenarioId));
+                }
+                long waiting = template.sides == null ? 0
+                        : template.sides.stream().filter(sd -> sd.bringYourOwn).count();
+                if (waiting == 0)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            req.scenarioId + " lists its own ships; it has no place for a fleet"));
+                if (req.sides.size() > waiting)
+                    return ResponseEntity.badRequest().body(Map.of("error",
+                            template.name + " has room for " + waiting + " fleets, not " + req.sides.size()));
+                situation = req.scenarioId;
+            }
+
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+
+            List<com.sfb.scenario.FleetsToScenario.Entry> entries = new ArrayList<>();
+            List<Map<String, Object>> reports = new ArrayList<>();
+            boolean allLegal = true;
+
+            for (FleetSideRequest side : req.sides) {
+                if (side.fleetId == null || !SAFE_ID.matcher(side.fleetId).matches())
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id: " + side.fleetId));
+                File f = fleetFile(side.fleetId);
+                if (!f.isFile())
+                    return ResponseEntity.badRequest().body(Map.of("error", "No such fleet: " + side.fleetId));
+
+                com.sfb.scenario.FleetSpec fleet;
+                try {
+                    fleet = com.sfb.scenario.FleetSpec.fromJson(f);
+                } catch (IOException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "Could not read fleet " + side.fleetId + ": " + e.getMessage()));
+                }
+
+                // The host's conditions govern, not the ones the fleet remembers.
+                com.sfb.scenario.FleetSpec asPlayed = new com.sfb.scenario.FleetSpec();
+                asPlayed.id = fleet.id;
+                asPlayed.name = fleet.name;
+                asPlayed.author = fleet.author;
+                asPlayed.factions = fleet.factions;
+                asPlayed.flagship = fleet.flagship;
+                asPlayed.ships = fleet.ships;
+                asPlayed.year = req.year > 0 ? req.year : fleet.year;
+                asPlayed.budget = req.budget > 0 ? req.budget : fleet.budget;
+
+                Map<String, Object> verdict = judge(asPlayed);
+                Map<String, Object> report = new java.util.LinkedHashMap<>();
+                report.put("fleetId", side.fleetId);
+                report.put("name", fleet.name != null ? fleet.name : side.fleetId);
+                report.put("legal", verdict.get("legal"));
+                report.put("violations", verdict.get("violations"));
+                reports.add(report);
+                if (!Boolean.TRUE.equals(verdict.get("legal")))
+                    allLegal = false;
+
+                String team = side.team != null && !side.team.isBlank()
+                        ? side.team
+                        : (fleet.name != null && !fleet.name.isBlank() ? fleet.name : side.fleetId);
+                entries.add(new com.sfb.scenario.FleetsToScenario.Entry(asPlayed, team, side.zone));
+            }
+
+            if (!allLegal) {
+                Map<String, Object> body = new java.util.LinkedHashMap<>();
+                body.put("error", "One or more fleets are not legal for these conditions");
+                body.put("fleets", reports);
+                return ResponseEntity.badRequest().body(body);
+            }
+
+            long terrainSeed = req.terrainSeed != null ? req.terrainSeed : new java.util.Random().nextLong();
+            List<com.sfb.scenario.TerrainGenerator.Plan> terrain =
+                    com.sfb.scenario.TerrainGenerator.forChoice(
+                            req.terrain, terrainSeed, req.mapCols, req.mapRows);
+
+            com.sfb.scenario.FleetsToScenario.Conditions conditions =
+                    new com.sfb.scenario.FleetsToScenario.Conditions(
+                            req.year, req.budget, req.mapCols, req.mapRows, req.weaponStatus,
+                            terrain);
+
+            if (template == null)
+                template = com.sfb.scenario.FleetsToScenario.pickupTemplate(entries, conditions);
+            session.loadBuiltScenario(
+                    com.sfb.scenario.FleetsToScenario.fill(template, entries, conditions), situation);
+
+            broadcastLobby(session);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("message", "Battle assembled from " + entries.size() + " fleets");
+            body.put("fleets", reports);
+            body.put("terrain", req.terrain != null ? req.terrain : "OPEN_SPACE");
+            body.put("terrainSeed", terrainSeed);   // so a host can lay the same map again
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Deployment: every player sets their own ships down, in secret
+    // -------------------------------------------------------------------------
+
+    /** One ship, set down. */
+    public static class PlacementRequest {
+        public String shipName;
+        public String hex;          // CCRR
+        public String heading;      // "A"-"F"
+        public int    speed = 16;   // 16 = Speed Max
+    }
+
+    /** A whole setup, replacing whatever this player had before. */
+    public static class DeploymentRequest {
+        public List<PlacementRequest> placements = new ArrayList<>();
+    }
+
+    /**
+     * This player's own setup, and the ground they may use.
+     * <p>
+     * Fetched rather than broadcast: placements are secret until everyone is finished, and a
+     * websocket topic goes to the whole room. What the room hears is only how many ships each
+     * player has put down.
+     */
+    @GetMapping("/{id}/deployment")
+    public ResponseEntity<Map<String, Object>> getDeployment(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+
+            com.sfb.scenario.MapRegion zone = session.deploymentZoneFor(token);
+            com.sfb.scenario.ScenarioSpec spec = session.getLoadedSpec();
+            int cols = spec != null ? spec.mapCols : 42;
+            int rows = spec != null ? spec.mapRows : 32;
+
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("required", session.isDeploymentRequired());
+            body.put("ships", session.getAssignedShipsFor(token));
+            body.put("zone", zone == null ? null
+                    : LobbyStateDto.ZoneDto.of(zone, cols, rows));
+            body.put("noEntry", session.noEntryHexes());
+            body.put("complete", session.isDeploymentComplete(token));
+            body.put("done", session.isDeploymentDone(token));
+
+            List<Map<String, Object>> placed = new ArrayList<>();
+            for (com.sfb.scenario.Deployment.Placement p : session.deploymentFor(token).values()) {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("shipName", p.shipName());
+                row.put("hex", p.hex());
+                row.put("heading", p.heading());
+                row.put("speed", p.speed());
+                placed.add(row);
+            }
+            body.put("placements", placed);
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    /** Set this player's ships down. Replaces their whole setup, so partial work is fine. */
+    @PostMapping("/{id}/deployment")
+    public ResponseEntity<Map<String, Object>> submitDeployment(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody DeploymentRequest req) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            List<com.sfb.scenario.Deployment.Placement> placements = new ArrayList<>();
+            for (PlacementRequest p : req.placements)
+                placements.add(new com.sfb.scenario.Deployment.Placement(
+                        p.shipName, p.hex, p.heading, p.speed));
+
+            List<String> problems = session.submitDeployment(token, placements);
+            if (!problems.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "That setup is not legal", "problems", problems));
+
+            broadcastLobby(session);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("placed", placements.size());
+            body.put("complete", session.isDeploymentComplete(token));
+            return ResponseEntity.ok(body);
+        });
+    }
+
+    /** Lay this player's ships out in their own ground, as a starting point to adjust. */
+    @PostMapping("/{id}/deployment/auto")
+    public ResponseEntity<Map<String, Object>> autoArrange(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            List<String> problems = session.autoArrange(token);
+            if (!problems.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Could not lay the fleet out", "problems", problems));
+
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of("complete", session.isDeploymentComplete(token)));
+        });
+    }
+
+    /**
+     * Say you are finished setting up, or that you are not after all.
+     * <p>
+     * Reversible right up until the last player says it: there is no advantage in changing your
+     * mind about a setup nobody can see, and clicking Done a moment early should not cost the
+     * battle.
+     */
+    @PostMapping("/{id}/deployment/done")
+    public ResponseEntity<Map<String, Object>> setDeploymentDone(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, Object> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            if (!session.hasPlayer(token))
+                return ResponseEntity.status(403).body(Map.of("error", "Not a player in this game"));
+            if (session.isStarted())
+                return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+
+            boolean done = !Boolean.FALSE.equals(body.get("done"));
+            String refusal = session.setDeploymentDone(token, done);
+            if (refusal != null)
+                return ResponseEntity.badRequest().body(Map.of("error", refusal));
+
+            broadcastLobby(session);
+            return ResponseEntity.ok(Map.of(
+                    "done", session.isDeploymentDone(token),
+                    "allDone", session.allDeploymentDone()));
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Saved fleets (data/fleets)
+    // -------------------------------------------------------------------------
+
+    private static final File FLEET_DIR = new File("data/fleets");
+
+    /**
+     * Ids become filenames, so they are kept to a shape that cannot climb out of the
+     * directory. Anything else is refused rather than sanitised, so a caller is told its id
+     * was wrong instead of quietly getting a different one.
+     */
+    private static final java.util.regex.Pattern SAFE_ID =
+            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9_-]{0,63}");
+
+    private static File fleetFile(String id) {
+        return new File(FLEET_DIR, id + ".json");
+    }
+
+    /**
+     * Saved fleets, each revalidated as it is listed.
+     * <p>
+     * Revalidating is the point of the badge: a fleet is only legal against the conditions it
+     * was built under, and the ships it names go on being edited after it is saved. A force
+     * that was legal in March can be illegal in April because a BPV moved.
+     */
+    @GetMapping("/fleets")
+    public ResponseEntity<List<Map<String, Object>>> listFleets() {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        List<Map<String, Object>> out = new ArrayList<>();
+        File[] files = FLEET_DIR.listFiles((d, n) -> n.endsWith(".json"));
+        if (files != null) {
+            for (File f : files) {
+                try {
+                    com.sfb.scenario.FleetSpec spec = com.sfb.scenario.FleetSpec.fromJson(f);
+                    Map<String, Object> judged = judge(spec);
+                    Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    row.put("id", spec.id != null ? spec.id : f.getName().replaceAll("\\.json$", ""));
+                    row.put("name", spec.name != null ? spec.name : "");
+                    row.put("author", spec.author != null ? spec.author : "");
+                    row.put("factions", spec.factions);
+                    row.put("year", spec.year);
+                    row.put("budget", spec.budget);
+                    row.put("shipCount", spec.ships.size());
+                    row.put("updated", spec.updated != null ? spec.updated : "");
+                    row.put("legal", judged.get("legal"));
+                    row.put("totalCost", judged.getOrDefault("totalCost", 0));
+                    out.add(row);
+                } catch (Exception e) {
+                    System.err.println("Unreadable fleet " + f.getName() + ": " + e.getMessage());
+                }
+            }
+        }
+        out.sort((a, b) -> String.valueOf(b.get("updated")).compareTo(String.valueOf(a.get("updated"))));
+        return ResponseEntity.ok(out);
+    }
+
+    /** One saved fleet, with the verdict on it as it stands today. */
+    @GetMapping("/fleets/{id}")
+    public ResponseEntity<Map<String, Object>> getFleet(@PathVariable String id) {
+        if (!SAFE_ID.matcher(id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id"));
+        File f = fleetFile(id);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            com.sfb.scenario.FleetSpec spec = com.sfb.scenario.FleetSpec.fromJson(f);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("fleet", spec);
+            body.put("validation", judge(spec));
+            return ResponseEntity.ok(body);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not read fleet: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Save a fleet, legal or not. A force half assembled is worth keeping — the badge says
+     * what is wrong with it, and the lobby is where an illegal one is refused a battle.
+     */
+    @PostMapping("/fleets")
+    public ResponseEntity<Map<String, Object>> saveFleet(@RequestBody com.sfb.scenario.FleetSpec spec) {
+        if (spec.id == null || spec.id.isBlank())
+            spec.id = slug(spec.name);
+        if (!SAFE_ID.matcher(spec.id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "A fleet id must be letters, digits, dashes or underscores"));
+        if (!FLEET_DIR.isDirectory() && !FLEET_DIR.mkdirs())
+            return ResponseEntity.status(500).body(Map.of("error", "Could not create data/fleets"));
+
+        spec.updated = java.time.Instant.now().toString();
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            spec.toJson(fleetFile(spec.id));
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("id", spec.id);
+            body.put("validation", judge(spec));
+            return ResponseEntity.ok(body);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not save fleet: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/fleets/{id}")
+    public ResponseEntity<Map<String, Object>> deleteFleet(@PathVariable String id) {
+        if (!SAFE_ID.matcher(id).matches())
+            return ResponseEntity.badRequest().body(Map.of("error", "Bad fleet id"));
+        File f = fleetFile(id);
+        if (!f.isFile())
+            return ResponseEntity.notFound().build();
+        if (!f.delete())
+            return ResponseEntity.status(500).body(Map.of("error", "Could not delete fleet"));
+        return ResponseEntity.ok(Map.of("deleted", id));
+    }
+
+    /** A filename from a display name: lowercase, words joined by dashes. */
+    private static String slug(String name) {
+        if (name == null)
+            return "";
+        String s = name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
+        return s.length() > 64 ? s.substring(0, 64) : s;
     }
 
     // -------------------------------------------------------------------------
@@ -162,7 +750,7 @@ public class GameController {
                             if (side.ships != null) {
                                 for (ScenarioSpec.ShipSetup ship : side.ships) {
                                     Map<String, Object> sh = new java.util.LinkedHashMap<>();
-                                    sh.put("hull", ship.hull != null ? ship.hull : "");
+                                    sh.put("type", ship.type != null ? ship.type : "");
                                     sh.put("shipName", ship.shipName != null ? ship.shipName : "");
                                     sh.put("startHex", ship.startHex != null ? ship.startHex : "");
                                     sh.put("startHeading", ship.startHeading != null ? ship.startHeading : "");
@@ -177,10 +765,25 @@ public class GameController {
                             if (side.reinforcements != null)
                                 reinforcements = side.reinforcements.size();
                             s.put("reinforcementGroups", reinforcements);
+                            s.put("bringYourOwn", side.bringYourOwn);
                             sides.add(s);
                         }
                     }
                     entry.put("sides", sides);
+
+                    // What a host needs to know before offering this as a battle to bring
+                    // fleets to: which sides are waiting for one, and whether the scenario
+                    // has already decided what is on the map.
+                    List<String> open = new ArrayList<>();
+                    if (spec.sides != null)
+                        for (ScenarioSpec.SideSpec side : spec.sides)
+                            if (side.bringYourOwn)
+                                open.add(side.name != null ? side.name : side.faction);
+                    entry.put("openSides", open);
+                    entry.put("fixedTerrain",
+                            (spec.terrain != null && !spec.terrain.isEmpty())
+                            || (spec.terrainPlan != null && !spec.terrainPlan.isEmpty()));
+
                     result.add(entry);
                 } catch (Exception e) {
                     System.err.println("Could not parse scenario file: " + f.getName());
@@ -195,14 +798,46 @@ public class GameController {
      * per ship, grouped by side. Used by the pre-game COI dialog.
      * Does not start a game — read-only.
      */
+    /**
+     * Commander's Option data for a scenario file, by id.
+     * <p>
+     * Kept for callers that know a scenario by name. A battle assembled from saved fleets is
+     * not a file, so the game-scoped route below is the one that works for both.
+     */
     @GetMapping("/scenarios/{scenarioId}/coi-data")
-    public ResponseEntity<List<Map<String, Object>>> getCoiData(
-            @PathVariable String scenarioId) {
-
+    public ResponseEntity<List<Map<String, Object>>> getCoiData(@PathVariable String scenarioId) {
         try {
             com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
-            ScenarioSpec spec = ScenarioSpec.fromJson(
-                    "data/scenarios/" + scenarioId.toLowerCase() + ".json");
+            return ResponseEntity.ok(coiDataFor(ScenarioSpec.fromJson(
+                    "data/scenarios/" + scenarioId.toLowerCase() + ".json")));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /**
+     * Commander's Option data for the battle this game is actually sitting down to, taken from
+     * the spec the session holds. Works whether that spec was read from disk or assembled from
+     * saved fleets, which the by-id route cannot be.
+     */
+    @GetMapping("/{id}/coi-data")
+    public ResponseEntity<List<Map<String, Object>>> getGameCoiData(@PathVariable String id) {
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        ScenarioSpec spec = session.getLoadedSpec();
+        if (spec == null)
+            return ResponseEntity.badRequest().body(null);
+        try {
+            com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+            return ResponseEntity.ok(coiDataFor(spec));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /** What each side may buy with its option points, ship by ship. */
+    private List<Map<String, Object>> coiDataFor(ScenarioSpec spec) {
             List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
 
             List<Map<String, Object>> result = new ArrayList<>();
@@ -363,10 +998,7 @@ public class GameController {
                 sideMap.put("ships", shipList);
                 result.add(sideMap);
             }
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
-        }
+        return result;
     }
 
     /**
@@ -474,13 +1106,22 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
             }
 
+            // A situation is not a battle until somebody brings a fleet to it. Loading one
+            // here would start a game with empty sides.
+            com.sfb.scenario.ScenarioSpec loaded = session.getLoadedSpec();
+            if (loaded != null && loaded.sides != null
+                    && loaded.sides.stream().anyMatch(sd -> sd.bringYourOwn))
+                return ResponseEntity.badRequest().body(Map.of("error",
+                        (loaded.name != null ? loaded.name : scenarioId)
+                        + " is a situation — choose it under Saved fleets and bring a force to it"));
+
             broadcastLobby(session);
             return ResponseEntity.ok(Map.of("message", "Scenario loaded: " + scenarioId));
         });
     }
 
     @PostMapping("/{id}/coi")
-    public ResponseEntity<Map<String, String>> submitCoi(
+    public ResponseEntity<Map<String, Object>> submitCoi(
             @PathVariable String id,
             @RequestHeader("X-Player-Token") String token,
             @RequestBody Map<String, CoiRequest> body) {
@@ -512,9 +1153,15 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", quotaViolation));
             }
 
+            // What could not be applied, while there is still time to change it. Warnings,
+            // not errors: the setup stands, it simply came out different from the request.
+            Map<String, java.util.List<String>> problems = session.previewCoi(loadouts);
+
             session.submitCoi(token, loadouts);
             broadcastLobby(session);
-            return ResponseEntity.ok(Map.of("message", "COI selections saved"));
+            return ResponseEntity.ok(Map.of(
+                    "message", "COI selections saved",
+                    "warnings", problems));
         });
     }
 
@@ -536,6 +1183,9 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
             if (!session.allCoiDone())
                 return ResponseEntity.badRequest().body(Map.of("error", "Waiting for all players to submit COI"));
+            if (!session.allDeploymentDone())
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Waiting for all players to finish setting up"));
 
             try {
                 session.start();
@@ -658,44 +1308,214 @@ public class GameController {
             if (targetUnit == null)
                 return ResponseEntity.badRequest().body(Map.of("error", "Target not found: " + target));
 
-            int range = MapUtils.getRange(attackerUnit, targetUnit);
-            // Fighters use raw range (no scanner bonus); ships use effectiveRange
-            int adjRange = attackerUnit instanceof Ship
-                    ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
-                    : range;
-
-            // Shield number (1-6) on the target ship facing the attacker
-            int shieldNumber = 0;
-            if (targetUnit instanceof Ship) {
-                Ship targetShip = (Ship) targetUnit;
-                int absFacing = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
-                int relFacing = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
-                shieldNumber = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
-                shieldNumber = Math.max(1, Math.min(6, shieldNumber));
-            }
-
-            com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
-                    ? ((Ship) attackerUnit).getWeapons()
-                    : ((com.sfb.objects.shuttles.Shuttle) attackerUnit).getWeapons();
-
-            boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
-                    || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
-
-            List<String> weaponsInArc = wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
-                    .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
-                    .map(w -> w.getName())
-                    .collect(Collectors.toList());
-
-            boolean hasLockOn = attackerUnit instanceof Ship
-                    && ((Ship) attackerUnit).hasLockOn(targetUnit);
-
-            return ResponseEntity.ok(Map.of(
-                    "range", range,
-                    "adjustedRange", adjRange,
-                    "shieldNumber", shieldNumber,
-                    "weaponsInArc", weaponsInArc,
-                    "hasLockOn", hasLockOn));
+            return ResponseEntity.ok(fireOptionsFor(session, attackerUnit, targetUnit));
         });
+    }
+
+    /**
+     * Everything one attacker needs to know about firing at one target.
+     *
+     * The single implementation of the question: {@code /fire-options} answers it for a
+     * named pair, {@code /fire-targets} answers it for every candidate a ship has. A second
+     * copy of this would drift the moment a range or shield rule changed.
+     */
+    private Map<String, Object> fireOptionsFor(GameSession session, Unit attackerUnit, Unit targetUnit) {
+        int range = MapUtils.getRange(attackerUnit, targetUnit);
+        // Fighters use raw range (no scanner bonus); ships use effectiveRange
+        int adjRange = attackerUnit instanceof Ship
+                ? session.getGame().getEffectiveRange((Ship) attackerUnit, targetUnit)
+                : range;
+
+        // Shield number (1-6) on the target ship facing the attacker
+        int shieldNumber = 0;
+        if (targetUnit instanceof Ship) {
+            Ship targetShip = (Ship) targetUnit;
+            int absFacing = MapUtils.getAbsoluteShieldFacing(targetShip, attackerUnit);
+            int relFacing = MapUtils.getRelativeShieldFacing(absFacing, targetShip.getFacing());
+            shieldNumber = relFacing > 0 ? (int) Math.ceil(relFacing / 2.0) : 1;
+            shieldNumber = Math.max(1, Math.min(6, shieldNumber));
+        }
+
+        List<String> weaponsInArc = bearingWeaponNames(attackerUnit, targetUnit);
+
+        boolean hasLockOn = attackerUnit instanceof Ship
+                && ((Ship) attackerUnit).hasLockOn(targetUnit);
+
+        // The EW between THESE two, which is the only form of the question that has an
+        // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
+        // P2.223), so the same target presents a different figure to every shooter and
+        // no number on a ship's own panel can stand for it.
+        int ecmPoints = 0;
+        int ecmShift = 0;
+        int eccm = 0;
+        String ecmSources = null;
+        if (attackerUnit instanceof Ship) {
+            com.sfb.properties.EwBreakdown ew =
+                    session.getGame().ewAgainst((Ship) attackerUnit, targetUnit);
+            eccm = session.getGame().activeEccm((Ship) attackerUnit);
+            ecmPoints = ew.total();
+            ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
+            ecmSources = ew.describe();
+        }
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("range", range);
+        body.put("adjustedRange", adjRange);
+        body.put("shieldNumber", shieldNumber);
+        body.put("weaponsInArc", weaponsInArc);
+        body.put("hasLockOn", hasLockOn);
+        body.put("ecmPoints", ecmPoints);
+        body.put("eccm", eccm);
+        body.put("ecmShift", ecmShift);
+        body.put("ecmSources", ecmSources);
+        return body;
+    }
+
+    /** Names of the attacker's weapons that bear on this target, ADDs only where they apply. */
+    private List<String> bearingWeaponNames(Unit attackerUnit, Unit targetUnit) {
+        com.sfb.systemgroups.Weapons wGroup = attackerUnit instanceof Ship
+                ? ((Ship) attackerUnit).getWeapons()
+                : ((com.sfb.objects.shuttles.Shuttle) attackerUnit).getWeapons();
+        boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
+                || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
+        return wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
+                .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
+                .map(w -> w.getName())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Every unit this attacker could fire at, with the same figures {@code /fire-options}
+     * gives for one of them. One call per ship instead of one per candidate, so the pad can
+     * list targets by name instead of making the player find them on the map.
+     *
+     * A candidate is a unit the caller does not own, that at least one weapon bears on, with
+     * line of sight to it. Each of those tests comes from the code that decides the shot -
+     * {@code losBlocked} (P2.321) and {@code fetchAllBearingWeapons} - rather than being
+     * worked out again here. An exploding or spent wild weasel is excluded because it cannot
+     * be killed again (J3.21).
+     *
+     * Attacker-level refusals are NOT applied (G7.91, D19.23, breakdown lockout, one volley
+     * per pair per segment): they live in DamageResolver.fireWeapons, and a second copy here
+     * would drift. An order that runs into one fizzles at the reveal with its reason.
+     */
+    @GetMapping("/{id}/fire-targets")
+    public ResponseEntity<?> getFireTargets(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            Unit attackerUnit = findFiringUnit(session, attacker);
+            if (attackerUnit == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Attacker not found: " + attacker));
+            if (attackerUnit.getLocation() == null)
+                return ResponseEntity.ok(List.of());
+
+            // The same ownership source COMMIT_FIRE_DECLARATION checks against, so a unit the
+            // reveal would refuse as "another player's" is never offered as a target either.
+            GameSession.PlayerInfo me = session.getPlayers().get(token);
+            java.util.Set<String> mine = new java.util.HashSet<>(
+                    me != null ? me.getShipNames() : java.util.List.<String>of());
+
+            List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Unit candidate : firePossibilities(session)) {
+                if (candidate == attackerUnit || candidate.getLocation() == null)
+                    continue;
+                if (ownedBy(candidate, mine))
+                    continue;
+                if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                    com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                            (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
+                    if (ww.isExploding() || ww.isPostExplosion())
+                        continue;   // J3.21: the decoy is already spent
+                }
+                if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
+                    continue;       // P2.321
+                if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
+                    continue;
+
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", candidate.getName());
+                row.put("kind", candidateKind(candidate));
+                row.putAll(fireOptionsFor(session, attackerUnit, candidate));
+                out.add(row);
+            }
+            // Range first: the priority a player actually uses, and the only honest one -
+            // time-to-arrival would assume the player's own ship holds still.
+            out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    /** A ship or an active shuttle/fighter by name - the things that can fire. */
+    private Unit findFiringUnit(GameSession session, String name) {
+        Unit u = session.getGame().getShips().stream()
+                .filter(sh -> sh.getName().equalsIgnoreCase(name))
+                .map(sh -> (Unit) sh)
+                .findFirst().orElse(null);
+        if (u != null)
+            return u;
+        return session.getGame().getActiveShuttles().stream()
+                .filter(sh -> name.equalsIgnoreCase(sh.getName()))
+                .map(sh -> (Unit) sh)
+                .findFirst().orElse(null);
+    }
+
+    /** Everything on the map that could be shot at, before any filtering. */
+    private List<Unit> firePossibilities(GameSession session) {
+        List<Unit> all = new java.util.ArrayList<>();
+        all.addAll(session.getGame().getShips());
+        all.addAll(session.getGame().getActiveShuttles());
+        for (com.sfb.objects.Seeker seeker : session.getGame().getSeekers())
+            if (seeker instanceof Unit)
+                all.add((Unit) seeker);
+        return all;
+    }
+
+    /** Whether one of the caller's own ships owns, launched, or controls this unit. */
+    private boolean ownedBy(Unit candidate, java.util.Set<String> mine) {
+        if (candidate instanceof Ship)
+            return containsIgnoreCase(mine, candidate.getName());
+        if (candidate instanceof com.sfb.objects.Drone) {
+            com.sfb.objects.Drone d = (com.sfb.objects.Drone) candidate;
+            // Launcher AND controller: control can be handed off (FD5.4), and a drone under
+            // a teammate's control is still not something you shoot at.
+            Unit ctrl = d.getController();
+            return containsIgnoreCase(mine, ctrl != null ? ctrl.getName() : null)
+                    || containsIgnoreCase(mine, d.getLauncherName());
+        }
+        if (candidate instanceof com.sfb.objects.PlasmaTorpedo) {
+            Unit ctrl = ((com.sfb.objects.PlasmaTorpedo) candidate).getController();
+            return containsIgnoreCase(mine, ctrl != null ? ctrl.getName() : null);
+        }
+        if (candidate instanceof com.sfb.objects.shuttles.Shuttle) {
+            com.sfb.objects.shuttles.Shuttle sh = (com.sfb.objects.shuttles.Shuttle) candidate;
+            return containsIgnoreCase(mine, sh.getParentShipName());
+        }
+        return false;
+    }
+
+    private static boolean containsIgnoreCase(java.util.Set<String> names, String name) {
+        if (name == null)
+            return false;
+        for (String n : names)
+            if (n != null && n.equalsIgnoreCase(name))
+                return true;
+        return false;
+    }
+
+    /** What the pad should call this row: SHIP, DRONE, PLASMA, SHUTTLE or WEASEL. */
+    private String candidateKind(Unit candidate) {
+        if (candidate instanceof Ship)                                             return "SHIP";
+        if (candidate instanceof com.sfb.objects.Drone)                            return "DRONE";
+        if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle)       return "WEASEL";
+        if (candidate instanceof com.sfb.objects.shuttles.Shuttle)                 return "SHUTTLE";
+        return "PLASMA";
     }
 
     // -------------------------------------------------------------------------

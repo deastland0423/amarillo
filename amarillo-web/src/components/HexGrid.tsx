@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
-import { parseLocation, facingToAngle, facingLabel, factionColor } from '../types/gameState';
+import { parseLocation, facingToAngle, facingLabel, factionColor, shieldStrengthColor } from '../types/gameState';
+import { hexRange } from '../hex/geometry';
 
 // Cache of loaded token images keyed by tokenArt path.
 // Entries are HTMLImageElement once loaded, or null while loading/failed.
@@ -80,16 +81,6 @@ function hexCenter(col: number, row: number): [number, number] {
 }
 
 /** SFB hex range between two hexes — replicates MapUtils.getRange (x=col, y=row). */
-function hexRange(c1: number, r1: number, c2: number, r2: number): number {
-  const xDiff = Math.abs(c2 - c1);
-  if (xDiff === 0) return Math.abs(r2 - r1);
-  const even    = c1 % 2 === 0;
-  const topY    = even ? r1 - Math.floor(xDiff / 2) : r1 - Math.floor((xDiff + 1) / 2);
-  const bottomY = even ? r1 + Math.floor((xDiff + 1) / 2) : r1 + Math.floor(xDiff / 2);
-  if (r2 >= topY && r2 <= bottomY) return xDiff;
-  return r2 < topY ? xDiff + (topY - r2) : xDiff + (r2 - bottomY);
-}
-
 /** Return the [col, row] of the hex closest to pixel (px, py), or null if too far. */
 function pixelToHex(px: number, py: number, cols: number, rows: number): [number, number] | null {
   let bestCol = -1, bestRow = -1, bestDist = Infinity;
@@ -113,6 +104,24 @@ function tracePath(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.closePath();
+}
+
+/** Wash a set of hexes in colour, beneath the counters. */
+function drawZones(
+  ctx: CanvasRenderingContext2D,
+  zones: Array<{ hexes: string[]; color: string }>,
+) {
+  for (const zone of zones) {
+    ctx.fillStyle = zone.color;
+    for (const hex of zone.hexes) {
+      const col = Number(hex.slice(0, 2));
+      const row = Number(hex.slice(2, 4));
+      if (!col || !row) continue;
+      const [cx, cy] = hexCenter(col, row);
+      tracePath(ctx, cx, cy);
+      ctx.fill();
+    }
+  }
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
@@ -144,14 +153,6 @@ function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
   }
 }
 
-function shieldArcColor(current: number, max: number): string {
-  if (max === 0 || current === 0) return '#333333';
-  const pct = current / max;
-  if (pct > 0.6)  return '#56d364';  // green
-  if (pct > 0.25) return '#f0c040';  // yellow
-  return '#f85149';                   // red
-}
-
 function drawShields(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -171,7 +172,7 @@ function drawShields(
     const visible  = isMine ? sh.current : sh.baseStrength;
     const center   = bowAngle + i * arcSpan;
     const isDown   = !sh.active;
-    const color    = isDown ? '#3a3a3a' : shieldArcColor(visible, sh.max);
+    const color    = isDown ? '#3a3a3a' : shieldStrengthColor(visible, sh.max);
 
     ctx.strokeStyle = color;
     ctx.lineWidth   = isDown ? 2 : 3.5;
@@ -200,6 +201,36 @@ function cloakAlpha(cloakState?: string, fadeStep?: number): number {
     case 'FADING_IN':     return 0.18 + ((fadeStep ?? 0) / 5) * 0.82;
     default:              return 1.0;
   }
+}
+
+/**
+ * The sequence number a seeker was launched with, from its name
+ * ("IKV Vengeance-Drone-7" -> "7"), or null if it has none.
+ *
+ * One game-wide sequence covers drones and plasma alike, so the number identifies a seeker
+ * uniquely without anyone having to read a full name.
+ */
+function seekerNumber(name: string): string | null {
+  const m = /-(\d+)$/.exec(name);
+  return m ? m[1] : null;
+}
+
+/** Small outlined number under a counter, legible over any terrain. */
+function drawSeekerNumber(ctx: CanvasRenderingContext2D, cx: number, cy: number,
+                          name: string, offsetY: number) {
+  const n = seekerNumber(name);
+  if (!n) return;
+  // save/restore: the wide stroke below would otherwise leak into whatever draws next.
+  ctx.save();
+  ctx.font         = 'bold 9px monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.lineWidth    = 3;
+  ctx.strokeStyle  = 'rgba(0, 0, 0, 0.85)';
+  ctx.strokeText(n, cx, cy + offsetY);
+  ctx.fillStyle    = '#ffe9a8';
+  ctx.fillText(n, cx, cy + offsetY);
+  ctx.restore();
 }
 
 function drawShip(
@@ -322,10 +353,12 @@ function drawObjects(
     ctx.restore();
   }
 
-  // Tractor lines to grabbed probe canisters being drawn aboard (J1.621/SH35.452)
+  // Tractor lines to anything else held in a beam — a shuttle, a drone, a plasma
+  // torpedo, or a probe canister being drawn aboard (J1.621/SH35.452). Ships are drawn by
+  // the pass above from their own field, so they are skipped here rather than doubled.
   for (const obj of objects) {
-    if (obj.type !== 'OBJECTIVE') continue;
-    const o = obj as import('../types/gameState').ObjectiveObject;
+    if (obj.type === 'SHIP') continue;
+    const o = obj as { tractoredBy?: string | null; location?: string | null };
     if (!o.tractoredBy || !o.location) continue;
     const holder = objects.find(h => h.type === 'SHIP' && h.name === o.tractoredBy) as import('../types/gameState').ShipObject | undefined;
     if (!holder?.location) continue;
@@ -346,10 +379,33 @@ function drawObjects(
     ctx.restore();
   }
 
-  // Two-pass rendering: terrain first so units always appear on top.
+  // Painting order, coarsest first. Terrain, then ships, then the small things that sit
+  // in the same hexes as ships — shuttles, seekers, mines — and whatever is in focus last
+  // within its own group.
+  //
+  // Small things go over ships deliberately. A drone or shuttle launches into its
+  // launcher's hex, and the launcher is usually the SELECTED ship; when the selection was
+  // simply painted last, it covered whatever it had just put on the map, so a new drone
+  // could not be seen at all. The focus pass still exists — it just cannot hide something
+  // smaller than itself.
+  //
+  // Within the small things, oldest first, so the newest arrival is on top of the stack.
+  const SMALL = new Set(['SHUTTLE', 'SUICIDE_SHUTTLE', 'SCATTER_PACK', 'WILD_WEASEL',
+                         'DRONE', 'PLASMA', 'MINE']);
+  const launchedAt = (o: MapObject) => (o as { launchImpulse?: number }).launchImpulse ?? 0;
+
   const terrain = objects.filter(o => o.type === 'TERRAIN');
-  const units   = objects.filter(o => o.type !== 'TERRAIN');
-  for (const obj of [...terrain, ...units]) {
+  const ships   = objects.filter(o => o.type !== 'TERRAIN' && !SMALL.has(o.type)
+                                   && o.name !== selectedName);
+  const small   = objects.filter(o => SMALL.has(o.type) && o.name !== selectedName)
+                         .sort((a, b) => launchedAt(a) - launchedAt(b));
+  const focused = selectedName
+    ? objects.filter(o => o.type !== 'TERRAIN' && o.name === selectedName)
+    : [];
+  const focusedShip  = focused.filter(o => !SMALL.has(o.type));
+  const focusedSmall = focused.filter(o => SMALL.has(o.type));
+
+  for (const obj of [...terrain, ...ships, ...focusedShip, ...small, ...focusedSmall]) {
     if (!obj.location) continue;
     const coords = parseLocation(obj.location);
     if (!coords) continue;
@@ -441,6 +497,7 @@ function drawObjects(
         ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 6, cy);
         ctx.closePath(); ctx.fill(); ctx.stroke();
       }
+      drawSeekerNumber(ctx, cx, cy, obj.name, droneImg ? 13 : 8);
       continue;
     }
     if (obj.type === 'PLASMA') {
@@ -467,6 +524,7 @@ function drawObjects(
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(strength), cx, cy + 1);
+      drawSeekerNumber(ctx, cx, cy, obj.name, plasmaImg ? 13 : 8);
       continue;
     }
     if (obj.type === 'TERRAIN') {
@@ -636,11 +694,28 @@ function drawObjects(
         ctx.arc(cx, cy, r, 0, 2 * Math.PI);
         ctx.fill();
       }
+
+      // The same ring a selected ship gets (drawShip uses this colour and width). Without
+      // it there is no telling which of several shuttles in a hex is the one moving.
+      if (obj.name === selectedName) {
+        ctx.strokeStyle = '#f0c040';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 4, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
     }
 
     if (obj.type === 'WILD_WEASEL') {
       const ww      = obj as import('../types/gameState').WildWeaselObject;
       const imgR    = SIZE * 0.2;   // shuttle image half-size
+      if (obj.name === selectedName) {
+        ctx.strokeStyle = '#f0c040';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, imgR + 4, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
       const ringR   = imgR * 1.45;  // status ring just outside the image
       const angle   = facingToAngle(ww.facing);
 
@@ -728,19 +803,35 @@ function shipsAt(objects: MapObject[], col: number, row: number): ShipObject[] {
 function shuttlesAt(objects: MapObject[], col: number, row: number) {
   const loc = `<${col}|${row}>`;
   return objects.filter(
-    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK')
+    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK'
+          || o.type === 'WILD_WEASEL')
       && o.location === loc
   );
 }
 
 function shipTooltipLines(ship: ShipObject): string[] {
-  return [
+  const lines = [
     `Faction:  ${ship.faction}`,
     `Name:     ${ship.name}`,
-    `Hull:     ${ship.hull}`,
+    `Type:     ${ship.shipType}`,
     `Facing:   ${facingLabel(ship.facing)}`,
     `Speed:    ${ship.speed}`,
   ];
+  // EW is announced as it is allocated, and lending is explicitly public (G24.211 note,
+  // G24.2115) — so it belongs on the hover for enemy ships too, where it is the figure that
+  // decides which target is worth shooting at.
+  const ecm  = (ship.ecmAllocated  ?? 0) + (ship.lentEcm  ?? 0);
+  const eccm = (ship.eccmAllocated ?? 0) + (ship.lentEccm ?? 0);
+  const lent = (ship.lentEcm ?? 0) + (ship.lentEccm ?? 0);
+  const jam  = ship.offensiveEw ?? 0;
+  if (ecm > 0 || eccm > 0 || jam > 0) {
+    let ew = `EW:       ${ecm} ECM / ${eccm} ECCM`;
+    if (lent > 0) ew += ` (${lent} lent in)`;
+    if (jam > 0)  ew += ` · jammed ${jam}`;
+    lines.push(ew);
+  }
+  if (!ship.activeFireControl) lines.push(`FC:       passive`);
+  return lines;
 }
 
 function shuttleTooltipLines(
@@ -752,22 +843,61 @@ function shuttleTooltipLines(
   const parentShip = allObjects.find(
     o => o.type === 'SHIP' && o.name === (shuttle as any).parentShipName
   ) as ShipObject | undefined;
-  const faction = parentShip?.faction ?? '?';
+  // Falls back to the controller: a launcher can be destroyed while its shuttle flies on,
+  // and then there is no parent ship on the map to look up.
+  const faction = parentShip?.faction
+    ?? (shuttle as { controllerFaction?: string }).controllerFaction
+    ?? '?';
 
-  // Fog-of-war: SUICIDE_SHUTTLE and SCATTER_PACK appear as "Shuttle" until owned or identified
-  const revealed = isMine || !!(shuttle as any).isIdentified;
+  // Fog-of-war is the server's job and it does it properly: a SUICIDE_SHUTTLE or a
+  // SCATTER_PACK only ever reaches a viewer entitled to see it (its owner, or anyone once a
+  // pack has released its drones). It used to be unmasked here on isIdentified as well,
+  // which G4.233 forbids — identification never reveals a bomb or a load of drones.
   let typeLabel: string;
-  if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = revealed ? 'Suicide Shuttle' : 'Shuttle';
-  else if (shuttle.type === 'SCATTER_PACK') typeLabel = revealed ? 'Scatter Pack'   : 'Shuttle';
-  else if ((shuttle as any).weapons?.length > 0) typeLabel = 'Fighter';
-  else typeLabel = 'Admin Shuttle';
+  if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = 'Suicide Shuttle';
+  else if (shuttle.type === 'SCATTER_PACK') typeLabel = 'Scatter Pack';
+  // A weasel is public by rule — its interference announces it at launch (J3.0), which is
+  // why it is not subject to the fog-of-war above.
+  else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';
+  // Decided by what it IS, not by whether it is armed — every shuttle carries a phaser.
+  else if ((shuttle as any).isFighter) typeLabel = 'Fighter';
+  // What the craft IS, from the catalogue. Every non-fighter used to read "Admin Shuttle",
+  // so a GAS and an HTS were both mislabelled. The ROLE is still never shown.
+  else typeLabel = (shuttle as any).shuttleTypeName ?? 'Shuttle';
 
-  return [
+  const lines = [
     `Faction:  ${faction}`,
     `Type:     ${typeLabel}`,
     `From:     ${(shuttle as any).parentShipName ?? '?'}`,
     `Speed:    ${(shuttle as any).speed}`,
   ];
+  // Damage, which nothing showed before — not even to the shuttle's owner.
+  const hulls = shuttle as { hull?: number; maxHull?: number; crippled?: boolean };
+  if ((hulls.maxHull ?? 0) > 0)
+    lines.push(`Hull:     ${hulls.hull ?? 0} / ${hulls.maxHull}`
+      + (hulls.crippled ? '  CRIPPLED' : ''));
+  // A destroyed weasel is not removed: it explodes for four impulses and keeps pulling
+  // seekers in (J3.21), then leaves a spent pocket. Both states change what it is doing,
+  // so say which one it is in.
+  if (shuttle.type === 'WILD_WEASEL') {
+    if ((shuttle as any).exploding)          lines.push('Status:   EXPLODING (J3.21)');
+    else if ((shuttle as any).postExplosion) lines.push('Status:   spent');
+  }
+  // G4.233: what a lab or a scout channel bought. A seeking course narrows an enemy
+  // shuttle to a suicide shuttle or a scatter pack without saying which — that is the
+  // whole of the answer, so show it and nothing more.
+  if (!isMine && (shuttle as any).isIdentified) {
+    const manned = (shuttle as any).manned;
+    if (manned != null)
+      lines.push(`Crew:     ${manned ? 'manned' : 'UNMANNED'}`);
+    if ((shuttle as any).seekingCourse) {
+      const t = (shuttle as any).seekingTargetName;
+      lines.push(`Course:   SEEKING${t ? ` ${String.fromCharCode(8594)} ${t}` : ''}`);
+    } else {
+      lines.push('Course:   not seeking');
+    }
+  }
+  return lines;
 }
 
 /** Build tooltip lines for a list of seekers.
@@ -786,6 +916,7 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
 
     if (s.type === 'PLASMA') {
       // Type label and strength are always public
+      lines.push(`Name:       ${s.name ?? '?'}`);
       lines.push(`Type:       Plasma`);
       lines.push(`Controller: ${s.controllerName ?? '?'}`);
       lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
@@ -796,6 +927,9 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
     } else {
       // Drone type name is public only when identified (or mine)
       const typeLabel = (isMine || s.isIdentified) ? `Drone ${s.droneType}` : 'Drone';
+      // The name, so this can be matched against the identify list — which names each
+      // seeker in full. Without it a dozen inbound drones are indistinguishable.
+      lines.push(`Name:       ${s.name ?? '?'}`);
       lines.push(`Type:       ${typeLabel}`);
       lines.push(`Controller: ${s.controllerName ?? '?'}`);
       lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
@@ -852,9 +986,15 @@ interface Props {
   pickingHex?:      boolean;
   /** When set, the map pans to center on this object's hex. New object every call ensures re-pan even for same name. */
   snapTo?:          { name: string } | null;
+  /**
+   * Ground to tint, drawn under everything else — a fleet's deployment zone. Hexes come from
+   * the server already expanded, so the tint cannot disagree with what a placement is checked
+   * against.
+   */
+  zones?:           Array<{ hexes: string[]; color: string; label?: string }>;
 }
 
-export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo }: Props) {
+export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo, zones }: Props) {
   const COLS     = mapColsProp ?? DEFAULT_COLS;
   const ROWS     = mapRowsProp ?? DEFAULT_ROWS;
   const CANVAS_W = canvasWidth(COLS);
@@ -884,6 +1024,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     if (!ctx) return;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     drawGrid(ctx, COLS, ROWS);
+    if (zones && zones.length > 0) drawZones(ctx, zones);
     if (mapObjects && mapObjects.length > 0) {
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
         () => setTokenRevision(r => r + 1), COLS, ROWS);
@@ -898,7 +1039,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex]);
+  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex, zones]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {

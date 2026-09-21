@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
-  "hull": "KE",
+  "type": "KE",
+  "line": "CA",
   "name": "RIS Audax",
   "serviceYear": 169,
   "bpv": 140,
@@ -9,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 9,
   "tokenArt": "romulan/ke.png",
 
   "shields": [30, 30, 30, 30, 30, 30],

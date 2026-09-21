@@ -43,8 +43,16 @@ public class ScenarioLoader {
      */
     public static List<List<Ship>> loadShips(ScenarioSpec spec) {
         List<List<Ship>> result = new ArrayList<>();
+        if (spec.sides == null)
+            return result;
         for (ScenarioSpec.SideSpec side : spec.sides) {
             List<Ship> ships = new ArrayList<>();
+            // A side may list no ships at all: one marked bringYourOwn is waiting for a fleet,
+            // and has none until somebody hands it one.
+            if (side.ships == null) {
+                result.add(ships);
+                continue;
+            }
             for (ScenarioSpec.ShipSetup setup : side.ships) {
                 String faction = (setup.faction != null && !setup.faction.isBlank()) ? setup.faction : side.faction;
                 Ship ship = buildShip(faction, setup, spec.year);
@@ -56,10 +64,10 @@ public class ScenarioLoader {
     }
 
     private static Ship buildShip(String faction, ScenarioSpec.ShipSetup setup, int year) {
-        ShipSpec shipSpec = ShipLibrary.get(faction, setup.hull);
+        ShipSpec shipSpec = ShipLibrary.get(faction, setup.type);
         if (shipSpec == null) {
             System.err.println("ScenarioLoader: no spec found for "
-                    + faction + "/" + setup.hull + " — ship skipped");
+                    + faction + "/" + setup.type + " — ship skipped");
             return null;
         }
         Ship ship = ShipLibrary.createShip(shipSpec);
@@ -97,6 +105,7 @@ public class ScenarioLoader {
      * Each entry in spec.terrain becomes one Terrain hex on the map.
      */
     public static List<Terrain> loadTerrain(ScenarioSpec spec) {
+        expandTerrainPlans(spec);
         List<Terrain> result = new ArrayList<>();
         if (spec.terrain == null) return result;
         for (ScenarioSpec.TerrainSetup setup : spec.terrain) {
@@ -140,6 +149,38 @@ public class ScenarioLoader {
         return result;
     }
 
+    /**
+     * Turn any terrain plans into real hexes, once, writing them into the spec itself.
+     * <p>
+     * Into the spec rather than straight into Terrain objects, because the lobby broadcasts the
+     * spec and the deployment screen has to show a player what they are setting up around — a
+     * field that only existed inside a loaded Game would be invisible until the battle began.
+     * <p>
+     * Ships that already have a starting hex keep it clear: a scenario that places a cruiser at
+     * 1216 should not drop an asteroid on top of it.
+     */
+    public static void expandTerrainPlans(ScenarioSpec spec) {
+        if (spec.terrainPlan == null || spec.terrainPlan.isEmpty())
+            return;
+
+        List<MapRegion> keepClear = new ArrayList<>();
+        if (spec.sides != null)
+            for (ScenarioSpec.SideSpec side : spec.sides)
+                if (side.ships != null)
+                    for (ScenarioSpec.ShipSetup ship : side.ships)
+                        if (ship.startHex != null && !ship.startHex.isBlank())
+                            keepClear.add(MapRegion.circle(ship.startHex, 0));
+
+        List<ScenarioSpec.TerrainSetup> generated = TerrainGenerator.generate(
+                spec.terrainPlan, keepClear, spec.mapCols, spec.mapRows);
+
+        if (spec.terrain == null)
+            spec.terrain = new ArrayList<>();
+        spec.terrain.addAll(generated);
+        // Spent: the hexes are in spec.terrain now, and running again would double them.
+        spec.terrainPlan = null;
+    }
+
     public static List<com.sfb.objects.Objective> loadObjectives(ScenarioSpec spec) {
         List<com.sfb.objects.Objective> result = new ArrayList<>();
         if (spec.objectives == null)
@@ -150,6 +191,7 @@ public class ScenarioLoader {
                     setup.name != null ? setup.name : "Objective-" + setup.hex, loc.getX(), loc.getY());
             obj.setSurvivesCarrierDestruction(setup.survivesDestruction);
             obj.setSide(setup.side);
+            obj.setPoints(setup.points);
             List<String> methods = setup.retrieval != null && !setup.retrieval.isEmpty()
                     ? setup.retrieval
                     : List.of("TRANSPORTER"); // sensible default
@@ -211,7 +253,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().normal += extraBPs;
             spent += bpCost;
         } else {
-            System.err.println("COI: skipping " + extraBPs + " extra BPs — over budget");
+            note(ship, "COI: skipping " + extraBPs + " extra BPs — over budget");
         }
 
         // --- Convert normal BPs to commandos ---
@@ -223,7 +265,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().commandos += conversions;
             spent += convCost;
         } else {
-            System.err.println("COI: skipping " + conversions + " BP→commando conversions — over budget");
+            note(ship, "COI: skipping " + conversions + " BP→commando conversions — over budget");
         }
 
         // --- Extra commando squads ---
@@ -233,7 +275,7 @@ public class ScenarioLoader {
             ship.getCrew().getFriendlyTroops().commandos += extraCommandos;
             spent += cmdCost;
         } else {
-            System.err.println("COI: skipping " + extraCommandos + " extra commando squads — over budget");
+            note(ship, "COI: skipping " + extraCommandos + " extra commando squads — over budget");
         }
 
         // --- T-bombs (4 BPV each; each purchased T-bomb includes 1 free dummy) ---
@@ -242,7 +284,7 @@ public class ScenarioLoader {
             int maxTBombs = com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()];
             int requested = Math.min(loadout.extraTBombs, maxTBombs);
             if (requested < loadout.extraTBombs) {
-                System.err.println("COI: capping T-bombs at " + maxTBombs
+                note(ship, "COI: capping T-bombs at " + maxTBombs
                         + " for size class " + ship.getSizeClass());
             }
             double tbCost = requested * CoiLoadout.COST_TBOMB;
@@ -251,7 +293,7 @@ public class ScenarioLoader {
                 ship.setDummyTBombs(ship.getDummyTBombs() + requested); // 1 free dummy per purchased
                 spent += tbCost;
             } else {
-                System.err.println("COI: skipping " + requested + " T-bombs — over budget");
+                note(ship, "COI: skipping " + requested + " T-bombs — over budget");
             }
         }
 
@@ -268,7 +310,7 @@ public class ScenarioLoader {
             for (Map.Entry<Integer, List<DroneType>> entry : loadout.droneRackLoadouts.entrySet()) {
                 int rackIndex = entry.getKey();
                 if (rackIndex < 0 || rackIndex >= racks.size()) {
-                    System.err.println("COI: drone rack index " + rackIndex + " out of range — skipped");
+                    note(ship, "COI: drone rack index " + rackIndex + " out of range — skipped");
                     continue;
                 }
                 DroneRack rack = racks.get(rackIndex);
@@ -283,17 +325,17 @@ public class ScenarioLoader {
                 boolean valid = true;
                 for (DroneType dt : requestedTypes) {
                     if (!dt.availableIn(year)) {
-                        System.err.println("COI: " + dt + " not available in year " + year
+                        note(ship, "COI: " + dt + " not available in year " + year
                                 + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
                     if (maxSpeed != null && dt.speed > maxSpeed) {
-                        System.err.println("COI: " + dt + " speed " + dt.speed
+                        note(ship, "COI: " + dt + " speed " + dt.speed
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
                     if (dt.isTypeVI() && !canTypeVI) {
-                        System.err.println("COI: " + dt + " cannot be loaded in rack type "
+                        note(ship, "COI: " + dt + " cannot be loaded in rack type "
                                 + rack.getRackType() + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
@@ -301,7 +343,7 @@ public class ScenarioLoader {
                 }
                 if (!valid) continue;
                 if (totalRackSize > rack.getSpaces()) {
-                    System.err.println("COI: loadout for rack " + rackIndex + " exceeds rack size ("
+                    note(ship, "COI: loadout for rack " + rackIndex + " exceeds rack size ("
                             + totalRackSize + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
@@ -318,12 +360,15 @@ public class ScenarioLoader {
                     .filter(ss -> ship.getName().equals(ss.shipName))
                     .mapToInt(ss -> ss.weaponStatus)
                     .findFirst().orElse(0);
+            // S4.12 (Weapon Status II): one shuttle may be prepared for a special role
+            // (scatter pack, suicide shuttle, wild weasel). S4.13 (Weapon Status III): two.
+            // Below WS-II, none — there has been no time to prepare anything.
             int maxPrep = ws >= 3 ? 2 : ws == 2 ? 1 : 0;
 
             int applied = 0;
             for (CoiLoadout.SpecialShuttlePrep prep : loadout.specialShuttlePrep) {
                 if (applied >= maxPrep) {
-                    System.err.println("COI: special shuttle limit (" + maxPrep + ") reached — skipping "
+                    note(ship, "COI: special shuttle limit (" + maxPrep + ") reached — skipping "
                             + prep.shuttleName);
                     continue;
                 }
@@ -341,12 +386,12 @@ public class ScenarioLoader {
                     if (foundBay != null) break;
                 }
                 if (foundBay == null || foundShuttle == null) {
-                    System.err.println("COI: shuttle not found: " + prep.shuttleName + " — skipped");
+                    note(ship, "COI: shuttle not found: " + prep.shuttleName + " — skipped");
                     continue;
                 }
                 if ("suicide".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeSuicide()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a suicide shuttle — skipped");
                         continue;
                     }
                     SuicideShuttle ss = new SuicideShuttle(foundShuttle);
@@ -357,43 +402,49 @@ public class ScenarioLoader {
 
                 } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeScatterPack()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
                         continue;
                     }
                     ScatterPack sp = new ScatterPack(foundShuttle);
                     for (DroneType dt : prep.drones) {
                         // Pull one drone of this type from any rack's ammo, then reloads
                         if (!pullDroneFromRacks(ship, dt)) {
-                            System.err.println("COI: no " + dt + " available in racks for scatter pack "
+                            note(ship, "COI: no " + dt + " available in racks for scatter pack "
                                     + prep.shuttleName + " — drone skipped");
                             continue;
                         }
                         if (!sp.addDrone(new Drone(dt))) {
-                            System.err.println("COI: scatter pack " + prep.shuttleName
+                            note(ship, "COI: scatter pack " + prep.shuttleName
                                     + " payload full — remaining drones skipped");
                             break;
                         }
+                    }
+                    if (sp.getPayload().isEmpty()) {
+                        // Leave it a plain shuttle. An empty pack can never launch (the
+                        // launch action wants a payload) and, being prepared, can no longer
+                        // launch as an ordinary shuttle either — dead weight all battle.
+                        note(ship, "COI: scatter pack " + prep.shuttleName
+                                + " got no drones from the racks — left as a plain shuttle");
+                        continue;
                     }
                     foundBay.replaceShuttle(foundShuttle, sp);
                     applied++;
 
                 } else if ("wildweasel".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeWildWeasel()) {
-                        System.err.println("COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a Wild Weasel — skipped");
                         continue;
                     }
-                    if (!(foundShuttle instanceof com.sfb.objects.shuttles.AdminShuttle)) {
-                        System.err.println("COI: " + prep.shuttleName + " is not an AdminShuttle — skipped");
-                        continue;
-                    }
-                    com.sfb.objects.shuttles.AdminShuttle admin = (com.sfb.objects.shuttles.AdminShuttle) foundShuttle;
+                    // No AdminShuttle check: the canBecomeWildWeasel() test just above is
+                    // the rule (J3.18), and this used to refuse a GAS or HTS that had
+                    // already passed it.
                     // Charge to full (2 turns) so it's ready to launch on turn 1
-                    admin.incrementWwCharge();
-                    admin.incrementWwCharge();
+                    foundShuttle.incrementWwCharge();
+                    foundShuttle.incrementWwCharge();
                     applied++;
 
                 } else {
-                    System.err.println("COI: unknown conversion type '" + prep.type
+                    note(ship, "COI: unknown conversion type '" + prep.type
                             + "' for shuttle " + prep.shuttleName + " — skipped");
                 }
             }
@@ -413,20 +464,27 @@ public class ScenarioLoader {
 
                 HeavyWeapon hw = (HeavyWeapon) w;
                 if (!hw.isArmed()) {
-                    // WS-2 partially-armed photon: store the correct first-turn energy
-                    // so the overload damage is correct when it fires after turn-1 arming.
-                    if (w instanceof com.sfb.weapons.Photon && hw.getArmingTurn() > 0) {
-                        com.sfb.weapons.Photon p = (com.sfb.weapons.Photon) w;
-                        switch (mode) {
-                            case OVERLOAD: p.setOverload(); break;
-                            case SPECIAL:  p.setSpecial();  break;
-                            default: break;
-                        }
-                        p.setArmingEnergy((double) p.energyToArm() * (p.totalArmingTurns() - 1));
+                    // S4.32: the arming turns a ship gets for free before the scenario cannot
+                    // include overload energy. A partly armed photon may still be fused for
+                    // proximity, which costs nothing (E4.31).
+                    if (w instanceof com.sfb.weapons.Photon && hw.getArmingTurn() > 0
+                            && mode == com.sfb.properties.WeaponArmingType.SPECIAL) {
+                        ((com.sfb.weapons.Photon) w).setSpecial();
+                    } else if (mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
+                        note(ship, "COI: weapon " + w.getName()
+                                + " cannot start overloaded — prior-turn arming carries no"
+                                + " overload energy (S4.32)");
                     } else {
-                        System.err.println("COI: weapon " + w.getName()
+                        note(ship, "COI: weapon " + w.getName()
                                 + " is not armed — arming mode override skipped");
                     }
+                    continue;
+                }
+                // Photons take their overload from the S4.32 pool below, not from a mode flag.
+                if (w instanceof com.sfb.weapons.Photon
+                        && mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
+                    note(ship, "COI: photon " + w.getName()
+                            + " — set its free overload energy in photonOverload (S4.32)");
                     continue;
                 }
 
@@ -450,6 +508,57 @@ public class ScenarioLoader {
             }
         }
 
+        // --- Free photon overload energy at WS-III (S4.32) ---
+        // Two points per tube, poolable across the ship's tubes: a Federation CA with four
+        // photons has eight points, enough to take two tubes to a full 100% overload and
+        // leave two standard, or to give every tube half an overload. The energy can only
+        // overload, never arm, and taking any commits that tube (E4.414) — which caps it at
+        // range 8 and doubles its holding cost (E4.413).
+        if (!loadout.photonOverload.isEmpty()) {
+            int ws = spec.sides.stream()
+                    .flatMap(side -> side.ships.stream())
+                    .filter(ss -> ship.getName().equals(ss.shipName))
+                    .mapToInt(ss -> ss.weaponStatus)
+                    .findFirst().orElse(0);
+            List<com.sfb.weapons.Photon> tubes = new ArrayList<>();
+            for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+                if (w instanceof com.sfb.weapons.Photon)
+                    tubes.add((com.sfb.weapons.Photon) w);
+
+            if (ws < 3) {
+                note(ship, "COI: free photon overload energy is a WS-3 allowance only"
+                        + " — ignored for " + ship.getName() + " at WS-" + ws + " (S4.32)");
+            } else if (tubes.isEmpty()) {
+                note(ship, "COI: " + ship.getName() + " has no photon tubes — free"
+                        + " overload energy ignored (S4.32)");
+            } else {
+                double pool = CoiLoadout.FREE_OVERLOAD_PER_TUBE * tubes.size();
+                double spentPool = 0;
+                for (com.sfb.weapons.Photon p : tubes) {
+                    Double want = loadout.photonOverload.get(p.getDesignator());
+                    if (want == null || want <= 0)
+                        continue;
+                    double amount = Math.floor(want * 2) / 2.0;          // half points (E4.414)
+                    if (amount > com.sfb.weapons.Photon.MAX_OVERLOAD) {  // 100% and no more (E4.41)
+                        note(ship, "COI: photon " + p.getDesignator() + " capped at "
+                                + com.sfb.weapons.Photon.MAX_OVERLOAD + " overload points (E4.41)");
+                        amount = com.sfb.weapons.Photon.MAX_OVERLOAD;
+                    }
+                    if (spentPool + amount > pool) {
+                        amount = pool - spentPool;
+                        note(ship, "COI: " + ship.getName() + " has only " + pool
+                                + " free overload points — photon " + p.getDesignator()
+                                + " reduced to " + amount + " (S4.32)");
+                    }
+                    if (amount <= 0)
+                        continue;
+                    p.setOverload();
+                    p.setArmingEnergy(p.getArmingEnergy() + amount);
+                    spentPool += amount;
+                }
+            }
+        }
+
         // --- Orion option-mount weapons (G15.4) ---
         // The ship's inherent loadout, not a commander's-option budget item: the
         // BPV delta flows into effective BPV, not the COI budget. Illegal picks
@@ -460,11 +569,16 @@ public class ScenarioLoader {
                 try {
                     com.sfb.objects.OptionMountLoadout.equip(ship, catalog, entry.getKey(), entry.getValue(), spec.year);
                 } catch (IllegalArgumentException e) {
-                    System.err.println("COI: option mount " + entry.getKey() + " ("
+                    note(ship, "COI: option mount " + entry.getKey() + " ("
                             + entry.getValue() + ") — " + e.getMessage());
                 }
             }
         }
+
+        // Record the COI spend so the enemy is awarded these points at scenario end
+        // (S2.20 step B). Option-mount weapon costs are excluded — they ride the ship's
+        // GABPV and are already scored under step C.
+        ship.setCoiSpend(spent);
     }
 
     /**
@@ -472,6 +586,16 @@ public class ScenarioLoader {
      * Searches ammo lists first, then reload sets across all racks.
      * Returns true if a drone was found and removed, false if none available.
      */
+    /**
+     * Tell the player, not just the console. A COI selection that cannot be applied used to
+     * print to System.err and stop there, so a setup silently came out different from what
+     * was chosen and the first sign of it was a missing option mid-battle.
+     */
+    private static void note(Ship ship, String message) {
+        System.err.println(message);
+        ship.addSetupNote(message);
+    }
+
     private static boolean pullDroneFromRacks(Ship ship, DroneType type) {
         List<DroneRack> racks = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -632,6 +756,14 @@ public class ScenarioLoader {
                                 && !((com.sfb.weapons.PlasmaLauncher) w).canHold()) continue;
                         HeavyWeapon hw = (HeavyWeapon) w;
                         hw.setArmingTurn(hw.totalArmingTurns() - 1);
+                        // A completed arming turn means its energy is in the tube (E4.21), and
+                        // for photons that stored energy is what the warhead is made of. The
+                        // pre-game turns are plain standard charges: nothing in S4.12 lets a
+                        // ship start with overload energy already committed (E4.411).
+                        if (w instanceof com.sfb.weapons.Photon) {
+                            ((com.sfb.weapons.Photon) w).setArmingEnergy(
+                                com.sfb.weapons.Photon.STANDARD_PER_TURN * (hw.totalArmingTurns() - 1));
+                        }
                     }
                 }
                 // WS-3: all heavy weapons start fully armed (S4.13).

@@ -10,7 +10,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "hull": "CA+",
+          "type": "CA+",
           "shipName": "USS Enterprise",
           "faction": "Federation",
           "startHex": "1201",
@@ -19,7 +19,7 @@
           "weaponStatus": 2
         },
         {
-          "hull": "FFG",
+          "type": "FFG",
           "shipName": "USS Reliant",
           "faction": "Federation",
           "startHex": "1601",
@@ -34,7 +34,7 @@
       "faction": "Klingon",
       "ships": [
         {
-          "hull": "D7Bu",
+          "type": "D7Bu",
           "shipName": "IKV Vengeance",
           "startHex": "1212",
           "faction": "Klingon",
@@ -43,7 +43,7 @@
           "weaponStatus": 2
         },
         {
-          "hull": "F5",
+          "type": "F5",
           "shipName": "IKV Swift",
           "startHex": "1612",
           "faction": "Klingon",

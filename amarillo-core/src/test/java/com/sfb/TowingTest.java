@@ -91,8 +91,8 @@ public class TowingTest {
         ShuttleBay bay = fed.getShuttles().getBays().get(0);
         Shuttle shuttle = bay.getInventory().get(0);
         assertTrue(game.launchShuttle(fed, bay, shuttle, 0, 1).isSuccess());
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(shuttle));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(shuttle, game.getAbsoluteImpulse()));
         return shuttle;
     }
 
@@ -140,8 +140,8 @@ public class TowingTest {
         drone.setName("Held-1");
         drone.setLocation(new Location(11, 10));
         game.getSeekers().add(drone);
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse()));
 
         advanceUntilCanMove(fed);
         Game.ActionResult r = game.moveForward(fed);
@@ -160,8 +160,8 @@ public class TowingTest {
         drone.setName("Held-1");
         drone.setLocation(new Location(11, 10));
         game.getSeekers().add(drone);
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse()));
 
         advanceUntilCanMove(fed);
         assertTrue(game.moveForward(fed).isSuccess()); // fed (10,9), drone (11,9)
@@ -184,8 +184,8 @@ public class TowingTest {
     public void turn_dragsLinkedShipPreservingRange() {
         allocate(12.0); // fed moves; klingon (held) plotted speed 0
         klingon.setLocation(new com.sfb.properties.Location(10, 8)); // range 2 dead ahead
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(klingon));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse()));
         assertEquals(2, game.getRange(fed, klingon));
 
         // Move forward until turn mode is satisfied, then turn right
@@ -227,8 +227,8 @@ public class TowingTest {
         drone.setName("Held-1");
         drone.setLocation(new Location(11, 10));
         game.getSeekers().add(drone);
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse()));
 
         boolean turned = false;
         for (int guard = 0; guard < 30 && !turned; guard++) {
@@ -262,8 +262,8 @@ public class TowingTest {
         drone.setEndurance(10);
         game.getSeekers().add(drone);
 
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone)); // mid-turn grab, like the UI does
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse())); // mid-turn grab, like the UI does
 
         Location held = drone.getLocation();
         for (int i = 0; i < 32; i++) // 8 full impulses
@@ -293,8 +293,8 @@ public class TowingTest {
         drone.setLocation(new Location(11, 10));
         drone.setTarget(fed);
         game.getSeekers().add(drone);
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse()));
 
         // Remove the drone from play by any path (stands in for phaser/ADD kill)
         game.getSeekers().remove(drone);
@@ -305,7 +305,7 @@ public class TowingTest {
         assertTrue("Stale link must be dropped",
                 fed.getTractors().getTractoredUnits().isEmpty());
         assertEquals("The beam stays spent for the turn (G7.13)",
-                2, fed.getTractors().getBeamsAvailableThisTurn());
+                2, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
     }
 
     @Test
@@ -321,8 +321,8 @@ public class TowingTest {
         assertTrue(klingon.acquireControl(drone));
         int channelsUsed = klingon.getControlUsed();
         game.getSeekers().add(drone);
-        fed.getTractors().initForTurn(4);
-        assertTrue(fed.getTractors().linkUnit(drone));
+        fed.getTractors().initForTurn(4, game.getAbsoluteImpulse());
+        assertTrue(fed.getTractors().linkUnit(drone, game.getAbsoluteImpulse()));
         fed.addLockOn(drone);
 
         game.removeSeekerFromPlay(drone);
@@ -333,7 +333,7 @@ public class TowingTest {
         assertFalse("Lock-on cleared", fed.getLockOns().contains(drone));
         assertNull("Position emptied", drone.getLocation());
         assertEquals("Beam stays spent for the turn (G7.13)",
-                2, fed.getTractors().getBeamsAvailableThisTurn());
+                2, fed.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()));
     }
 
     @Test
@@ -399,7 +399,7 @@ public class TowingTest {
     @Test
     public void beams_cannotBeReusedAfterReleaseSameTurn() {
         // FedCA has 3 tractor beams; use each once via grab-and-release
-        fed.getTractors().initForTurn(6);
+        fed.getTractors().initForTurn(6, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
         for (int i = 1; i <= 3; i++) {
             Drone d = placeDrone("Drone-" + i, 11, 10);
@@ -419,7 +419,7 @@ public class TowingTest {
 
     @Test
     public void beamUsage_resetsAtNextTurn() {
-        fed.getTractors().initForTurn(6);
+        fed.getTractors().initForTurn(6, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
         for (int i = 1; i <= 3; i++) {
             Drone d = placeDrone("Drone-" + i, 11, 10);
@@ -428,17 +428,37 @@ public class TowingTest {
         }
         assertFalse(game.establishTractor(fed, placeDrone("Drone-4", 11, 10).getName(), 1).isSuccess());
 
-        // Next turn: fresh beam usage
+        // Next turn AND past the quarter-turn delay, which is what frees a beam (G7.13):
+        // the two together, not the turn boundary alone. This used to pass with the clock
+        // barely moving, because beam usage was a flag that the new turn wiped.
+        int usedAt = game.getAbsoluteImpulse();
         game.startTurn();
         game.submitAllocation(fed, makeAllocation(fed, 0.0));
         game.submitAllocation(klingon, makeAllocation(klingon, 0.0));
-        fed.getTractors().initForTurn(2);
+        // BOTH halves: a later turn, and eight impulses on. Waiting for the delay alone is
+        // not enough — the beams here were used at impulse 0, and impulse 8 is still the
+        // same turn.
+        for (int guard = 0; guard < 2000; guard++) {
+            int now = game.getAbsoluteImpulse();
+            if (now - usedAt >= com.sfb.systemgroups.BoxCycle.QUARTER_TURN
+                    && com.sfb.systemgroups.BoxCycle.turnOf(now)
+                       != com.sfb.systemgroups.BoxCycle.turnOf(usedAt))
+                break;
+            if (game.isAwaitingAllocation()) {
+                game.submitAllocation(fed, makeAllocation(fed, 0.0));
+                game.submitAllocation(klingon, makeAllocation(klingon, 0.0));
+                continue;
+            }
+            game.advancePhase();
+        }
+        fed.getTractors().initForTurn(2, game.getAbsoluteImpulse());
         fed.setActiveFireControl(true);
         Drone d5 = placeDrone("Drone-5", 11, 10);
 
         Game.ActionResult r = game.establishTractor(fed, "Drone-5", 1);
 
-        assertTrue("Beams are fresh on the new turn: " + r.getMessage(), r.isSuccess());
+        assertTrue("Beams free again once the new turn and the delay have both passed: "
+                + r.getMessage(), r.isSuccess());
         assertTrue(d5.isTractored());
     }
 }

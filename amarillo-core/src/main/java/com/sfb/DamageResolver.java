@@ -73,6 +73,19 @@ class DamageResolver {
      * Size 2: attacker is on the seam between two adjacent shields — caller must
      * ask the player which shield to use.
      */
+    /**
+     * E4.43: an overloaded photon fired at a true range of zero or one blasts back down its own
+     * ionised trail, scoring damage on the FIRING ship's facing shield (E4.431). The feedback is
+     * not subtracted from the warhead (E4.432) and no other ship is affected (E4.433).
+     */
+    private void applyOverloadFeedback(Game.PendingVolley pv, StringBuilder out) {
+        if (pv.feedbackDamage <= 0 || pv.attackerShip == null)
+            return;
+        out.append("  Overload feedback (E4.43): ")
+           .append(applyDamageToUnit(pv.feedbackDamage, pv.attackerShip, pv.feedbackShield))
+           .append("\n");
+    }
+
     java.util.List<Integer> getShieldCandidates(Marker attacker, Ship target) {
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         if (shieldFacing % 2 != 0) {
@@ -270,8 +283,13 @@ class DamageResolver {
                 game.removeSeekerFromPlay(drone);
                 return drone.getName() + " destroyed (" + damage + " damage)";
             }
-            return drone.getName() + " hit for " + damage
-                    + " — " + drone.getHull() + " hull remaining";
+            // Damage only, never the hull behind it. A drone's remaining hull is hidden
+            // until it is identified (G4.2) — DroneDto sends 0 to an enemy and publishes
+            // damageTaken instead — and the combat log is ONE list broadcast to every
+            // player, so anything written here is public by construction. The owner reads
+            // what is left off the drone's own panel; the shooter is told what they did,
+            // which is all they are entitled to.
+            return drone.getName() + " hit for " + damage;
         } else if (target instanceof com.sfb.objects.shuttles.Shuttle) {
             com.sfb.objects.shuttles.Shuttle shuttle = (com.sfb.objects.shuttles.Shuttle) target;
             boolean isSeeker = shuttle instanceof Seeker;
@@ -346,11 +364,10 @@ class DamageResolver {
     }
 
     private void appendCrippleCheck(com.sfb.objects.shuttles.Shuttle shuttle, StringBuilder log) {
-        if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
-            com.sfb.objects.shuttles.Fighter f = (com.sfb.objects.shuttles.Fighter) shuttle;
-            if (f.shouldCripple())
-                log.append("\n  ").append(f.applyCripplingEffects());
-        }
+        // Crippling is a shuttle property, not a fighter one (J1.33) — a type with no threshold
+        // reports false and is simply destroyed when its hull runs out.
+        if (shuttle.shouldCripple())
+            log.append("\n  ").append(shuttle.applyCripplingEffects());
     }
 
     // -------------------------------------------------------------------------
@@ -396,18 +413,24 @@ class DamageResolver {
                     + (char) ('A' + targetSide - 1) + " of the planet (P2.52)");
 
         int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), planet.getLocation());
-        int groundClutter = 2; // P2.52 ground-clutter ECM
-        int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), planet.getLocation());
-        int eccm = attacker.getEccmAllocated();
-        int ecmShift = (int) Math.floor(Math.sqrt(Math.max(0, groundClutter + terrainEcm - eccm)));
+        // P2.52 ground clutter and any terrain on the line both come from ewAgainst now, so
+        // this no longer keeps a private copy of either.
+        com.sfb.properties.EwBreakdown ew = game.ewAgainst(attacker, planet);
+        int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
+        int ecmShift = Game.netEcmShift(ew.total() - eccm);
         int adjustedRange = range + attacker.getScanner();
 
         int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), planet.getLocation());
         int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
 
         char sideLetter = (char) ('A' + targetSide - 1);
+        // The bearing decides which weapons bear, and is the figure to check against the map
+        // when this looks wrong — the side letter only echoes what the player aimed at.
         StringBuilder log = new StringBuilder(attacker.getName())
-                .append(" bombards side ").append(sideLetter).append(" of the planet:\n");
+                .append(" bombards side ").append(sideLetter).append(" of the planet")
+                .append(" (bearing ").append(trueBearing)
+                .append(", ").append(relBearing).append(" relative to facing ")
+                .append(attacker.getFacing()).append("):\n");
         int dealt = 0;
         for (Weapon w : selected) {
             if (!(w instanceof com.sfb.weapons.DirectFire)) {
@@ -442,6 +465,106 @@ class DamageResolver {
                 .append(" (side total ").append(planet.getDamageOnSide(targetSide))
                 .append(", planet total ").append(planet.getTotalDamage()).append(") — P2.311/P2.525");
         return Game.ActionResult.ok(log.toString());
+    }
+
+    /**
+     * Fire into an asteroid hex to clear a path through it (P3.25). Completely different from
+     * firing THROUGH an asteroid hex at a unit: here the rocks are the target, and every point
+     * scored comes off the collision damage when this ship enters that hex (P3.251).
+     * <p>
+     * The timing is the whole rule. Because of the Sequence of Play the shot lands on the
+     * impulse before the move, so this only pays out if the ship enters that very hex on the
+     * very next impulse - it is spent in {@code Game.applyTerrainCollision}, which drops the
+     * benefit if the ship goes anywhere else first. A ship cannot clear a path for anyone but
+     * itself (P3.253), which is why the record is kept against the firing unit.
+     * <p>
+     * ECM follows P3.25 rather than plain P3.33: hexes fired from or through count, but the
+     * target hex gives itself nothing. No lock-on is needed - asteroids do not affect lock-on
+     * (P3.31), and there is nothing there to lock onto. Size class is moot (P3.36 makes
+     * asteroids size class 4 "or larger", and our to-hit does not use size class at all).
+     * <p>
+     * NOT IMPLEMENTED: seeking weapons aimed at a hex (P3.252) - a Seeker's target is a Unit
+     * in this code, so leading drones through a field is a separate piece of work.
+     */
+    com.sfb.Game.ActionResult clearAsteroidPath(Ship attacker, com.sfb.properties.Location hex,
+            List<Weapon> selected) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.DIRECT_FIRE)
+            return Game.ActionResult.fail("Weapons can only be fired during the Direct Fire phase");
+        if (hex == null || !game.isAsteroidHex(hex))
+            return Game.ActionResult.fail("There are no asteroids in that hex to clear (P3.25)");
+        if (attacker.getLocation() == null)
+            return Game.ActionResult.fail(attacker.getName() + " is not on the map");
+        if (!attacker.isActiveFireControl())
+            return Game.ActionResult.fail(attacker.getName() + " needs active fire control to fire");
+
+        int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), hex);
+        int terrainEcm = game.terrainEcmForClearingFire(attacker.getLocation(), hex);
+        int eccm = attacker.getEccmAllocated() + attacker.getLentEccm();
+        int ecmShift = Game.netEcmShift(terrainEcm - eccm);
+        int adjustedRange = range + attacker.getScanner();
+
+        int trueBearing = com.sfb.utilities.MapUtils.getBearing(attacker.getLocation(), hex);
+        int relBearing = com.sfb.utilities.MapUtils.getRelativeBearing(trueBearing, attacker.getFacing());
+
+        StringBuilder log = new StringBuilder(attacker.getName())
+                .append(" fires into the asteroid hex at ").append(hex)
+                .append(" to clear a path (range ").append(range)
+                .append(", bearing ").append(trueBearing).append("):\n");
+        int dealt = 0;
+        for (Weapon w : selected) {
+            if (!(w instanceof com.sfb.weapons.DirectFire)) {
+                log.append("  ").append(w.getName())
+                        .append(" — seeking weapons aimed at a hex are not implemented (P3.252)\n");
+                continue;
+            }
+            if (cannotClearAsteroids(w)) {
+                log.append("  ").append(w.getName())
+                        .append(" — this weapon cannot clear asteroids (P3.255)\n");
+                continue;
+            }
+            if (!w.isFunctional()) {
+                log.append("  ").append(w.getName()).append(" destroyed — cannot fire\n");
+                continue;
+            }
+            if (range > w.getMaxRange()) {
+                log.append("  ").append(w.getName()).append(" out of range\n");
+                continue;
+            }
+            if (!w.inArc(relBearing)) {
+                log.append("  ").append(w.getName()).append(" cannot bear on that hex\n");
+                continue;
+            }
+            w.setEcmShift(ecmShift);
+            try {
+                int dmg = ((com.sfb.weapons.DirectFire) w).fire(range, adjustedRange);
+                if (dmg > 0) {
+                    dealt += dmg;
+                    log.append("  ").append(w.getName()).append("  ").append(dmg).append(" damage\n");
+                } else {
+                    log.append("  ").append(w.getName()).append(" missed\n");
+                }
+            } catch (Exception ex) {
+                log.append("  ").append(w.getName()).append(" cannot fire (")
+                        .append(ex.getMessage()).append(")\n");
+            }
+        }
+
+        if (dealt > 0)
+            game.recordAsteroidClearance(attacker, hex, dealt);
+        int standing = game.pendingAsteroidClearance(attacker, hex);
+        log.append(dealt).append(" points cleared at ").append(hex)
+                .append(" (").append(standing).append(" standing) — good only if ")
+                .append(attacker.getName()).append(" enters that hex next impulse (P3.25)");
+        return Game.ActionResult.ok(log.toString());
+    }
+
+    /**
+     * P3.255: some weapons cannot clear asteroids — ADDs (E5.32), PPDs (E11.0), ESGs
+     * (G23.651), displacement devices (G18.0) and SFGs (G16.0). Only the ADD exists in this
+     * code so far; the rest join the list as they are built.
+     */
+    private boolean cannotClearAsteroids(Weapon w) {
+        return w instanceof com.sfb.weapons.ADD;
     }
 
     String fireWeapons(Unit attacker, Unit target, List<Weapon> selected,
@@ -510,6 +633,7 @@ class DamageResolver {
         int envelopingHellboreDamage = 0;
         boolean addHit = false;
         boolean fusionSuicideFired = false;
+        int feedbackDamage = 0;   // E4.43: what this ship's own overloads owe it
 
         Ship attackerShip = attacker instanceof Ship ? (Ship) attacker : null;
         com.sfb.systemgroups.DERFACS derfacs = attackerShip != null ? attackerShip.getDerfacs() : null;
@@ -526,15 +650,22 @@ class DamageResolver {
         // P3.33: asteroid/ring hexes on the line of fire add natural ECM to the
         // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        int allocatedEcm = targetShip != null ? targetShip.getEcmAllocated() : 0;
+        // D6.3144: lent ECM includes a Wild Weasel's six points (J3.23), capped across all
+        // lending sources. Direct fire used to ignore the weasel entirely, which made a
+        // weaselled ship harder to tractor than to shoot at.
+        int allocatedEcm = targetShip != null
+                ? targetShip.getEcmAllocated() + targetShip.getLentEcmTotal() : 0;
         int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
         int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
-        int targetEcm = allocatedEcm + stealthEcm + terrainEcm;
+        // Offensive EW jamming the attacker (G24.219) degrades its fire — it counts as ECM for
+        // every target it shoots at, on top of the target's own EW.
+        int offensiveEw = attackerShip != null ? attackerShip.getOffensiveEw() : 0;
+        int targetEcm = allocatedEcm + stealthEcm + terrainEcm + offensiveEw;
         int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
-                ? attackerShip.getEccmAllocated()
+                ? attackerShip.getEccmAllocated() + attackerShip.getLentEccm()
                 : 0;
         int netEcm = Math.max(0, targetEcm - attackerEccm);
-        int ecmShift = (int) Math.floor(Math.sqrt(netEcm));
+        int ecmShift = Game.netEcmShift(netEcm);
         if (ecmShift > 0)
             log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(allocatedEcm)
                     .append(terrainEcm > 0 ? " +" + terrainEcm + " terrain" : "")
@@ -544,6 +675,20 @@ class DamageResolver {
             w.setEcmShift(ecmShift);
             if (!w.isFunctional()) {
                 log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
+                continue;
+            }
+            // Not everything a ship carries can be fired AT a target. A drone rack is a
+            // Launcher: it puts a seeking weapon on the map and the weapon flies itself.
+            // The dispatch below ends in an unguarded cast to DirectFire, so anything else
+            // reaching it took the whole request down with a ClassCastException.
+            //
+            // Note this tests the CAPABILITY, not the class. A G-rack may fire as an ADD
+            // under FD3.7 — when that is built, the rack will be a DirectFire in that mode
+            // and this guard will stop applying to it on its own, rather than standing in
+            // the way as a hardcoded "racks cannot fire".
+            if (!(w instanceof DirectFire)) {
+                log.append("  ").append(w.getName())
+                        .append("  cannot be fired at a target — it launches seeking weapons\n");
                 continue;
             }
             try {
@@ -599,6 +744,11 @@ class DamageResolver {
                             .append("\n");
                     dmg = scaled;
                 }
+                // E4.43: an overloaded photon that HITS at a true range of zero or one feeds
+                // back onto the firing ship. A miss does no feedback damage (E4.431).
+                if (dmg > 0 && range <= 1 && w instanceof com.sfb.weapons.Photon)
+                    feedbackDamage += ((com.sfb.weapons.Photon) w).feedbackDamage();
+
                 String rollStr = w.getLastRoll() > 0 ? "  (die " + w.getLastRoll() + ")" : "";
                 if (dmg == ADD.HIT) {
                     addHit = true;
@@ -634,6 +784,21 @@ class DamageResolver {
                     .addAll(uimFiredDisruptors);
         }
 
+        // G24.13: each blinding weapon the scout fires blinds one of its powered channels. The
+        // firing player chooses which (G24.131) — queue the blinds; they resolve once the shot
+        // settles. With 0–1 powered channels queueScoutBlinds resolves it silently.
+        if (attackerShip != null && !attackerShip.getScoutChannels().isEmpty()) {
+            int blinders = 0;
+            for (Weapon w : selected)
+                if (w.isFunctional() && w.blindsScoutChannels())
+                    blinders++;
+            if (blinders > 0) {
+                game.queueScoutBlinds(attackerShip, blinders);
+                log.append("  ").append(blinders).append(" blinding weapon(s) fired — ")
+                        .append(blinders).append(" scout channel(s) to be blinded (G24.13)\n");
+            }
+        }
+
         if (target instanceof Ship) {
             // Queue the volley — damage applied after defenders spend reserve power.
             // (When Base is implemented add: || target instanceof Base)
@@ -642,13 +807,22 @@ class DamageResolver {
             pendingVolleys.add(new PendingVolley(
                     attacker.getName(), attackerShip, target,
                     shieldNumber, totalDamage, envelopingHellboreDamage,
-                    addHit, fusionSuicideFired, log.toString(), null));
+                    addHit, fusionSuicideFired, log.toString(), null,
+                    feedbackDamage,
+                    feedbackDamage > 0 && attackerShip != null
+                            ? getShieldNumber(target, attackerShip) : 1));
         } else {
             // Non-ship targets (seekers, shuttles) have no shields — apply immediately.
             if (fusionSuicideFired && attackerShip != null) {
                 pendingInternalDamage.add(new PendingDamage(attackerShip, 1));
                 log.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(attackerShip.getName()).append("\n");
+            }
+            if (feedbackDamage > 0 && attackerShip != null) {
+                log.append("  Overload feedback (E4.43): ")
+                   .append(applyDamageToUnit(feedbackDamage, attackerShip,
+                           getShieldNumber(target, attackerShip)))
+                   .append("\n");
             }
             if (addHit) {
                 String dmgLog = applyDamageToUnit(ADD.HIT, target, shieldNumber);
@@ -714,6 +888,7 @@ class DamageResolver {
                     pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                             .append(pv.attackerShip.getName()).append("\n");
                 }
+                applyOverloadFeedback(pv, pvLog);
                 if (pv.addHit) {
                     pvLog.append("  ADD result: ")
                             .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
@@ -746,6 +921,7 @@ class DamageResolver {
                 g.pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(pv.attackerShip.getName()).append("\n");
             }
+            applyOverloadFeedback(pv, g.pvLog);
             if (pv.addHit) {
                 g.pvLog.append("  ADD result: ")
                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");
@@ -785,6 +961,7 @@ class DamageResolver {
                 pvLog.append("  Fusion suicide overload — 1 internal damage to ")
                         .append(pv.attackerShip.getName()).append("\n");
             }
+            applyOverloadFeedback(pv, pvLog);
             if (pv.addHit) {
                 pvLog.append("  ADD result: ")
                         .append(applyDamageToUnit(ADD.HIT, pv.target, pv.shieldNumber)).append("\n");

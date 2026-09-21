@@ -22,7 +22,7 @@ public class RomulanShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Romulan);
-        s.put("hull", "KR");
+        s.put("type", "KR");
         s.put("name", "RIS Talon");
         s.put("serviceyear", 160);
         s.put("bpv", 115);
@@ -129,7 +129,7 @@ public class RomulanShips {
         Map<String, Object> s = new HashMap<>();
 
         s.put("faction", Faction.Romulan);
-        s.put("hull", "WE");
+        s.put("type", "WE");
         s.put("name", "RIS Senator");
         s.put("serviceyear", 162);
         s.put("bpv", 100);

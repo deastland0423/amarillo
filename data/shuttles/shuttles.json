@@ -1,0 +1,54 @@
+{
+  "note": [
+    "Catalogue of every shuttle and fighter type, for pre-game use: fleet building, force",
+    "legality by year, and pickers. The live objects are Java classes in com.sfb.objects.shuttles;",
+    "this file is what the game consults BEFORE a shuttle exists.",
+    "",
+    "type      the key used by a ship's shuttleBays list and by the ShuttleBay factory",
+    "kind      fighter = bought with BPV, added to the carrier's cost",
+    "          shuttle = carried at no cost",
+    "",
+    "Suicide shuttles, scatter-packs and wild weasels are deliberately NOT here. They are roles",
+    "an admin shuttle takes on, not types anyone buys or stocks; CoiLoadout prices those",
+    "conversions in Commander's Option points at setup.",
+    "factions  which factions may field it; [\"any\"] = all of them",
+    "year      first year of service; 0 = always available",
+    "bpv       purchase cost; absent for anything not bought with BPV",
+    "",
+    "BPV here must match what the Java class constructs — ShuttleCatalogTest pins the two.",
+    "",
+    "shortName        what a launched shuttle is called: \"<Ship>-<shortName>-<n>\". It names",
+    "                 the CRAFT, never the role — an admin shuttle, a suicide shuttle and a",
+    "                 scatter pack built from one all read \"Admin\", so an opponent cannot",
+    "                 tell which is which. Fighters keep their own names.",
+    "canWeasel        J3.18 — any non-fighter shuttle may be charged as a Wild Weasel;",
+    "                 fighters never may (J4.41).",
+    "canSuicide       J2.222 — admin, minesweeping, MRS, SWAC and minelaying shuttles may",
+    "                 be armed as suicide shuttles; fighters, HTS and GAS may not.",
+    "scatterPackSize  FD7.11 — rack spaces of drones it may carry as a scatter pack;",
+    "                 0 = not a qualified shuttle. Only admin, MRS, MLS, MSS and FIGHTERS",
+    "                 qualify, so this list is NOT the same as canWeasel: a GAS may weasel",
+    "                 but not scatter-pack, and a fighter is the other way round. That is",
+    "                 why both are data rather than one \"special shuttle\" flag.",
+    "                 FD7.21 — an admin shuttle carries six; other types more or fewer",
+    "                 by their own rules (an MRS could carry eight).",
+    "                 FD7.211 — a FIGHTER carries up to its NORMAL load of drones, so this",
+    "                 must equal its drone rail count: zero for the fusion-armed Hydran",
+    "                 stingers, two for the Kzinti attack shuttles. ShuttleRoleEligibility",
+    "                 pins the two together so they cannot drift."
+  ],
+
+  "shuttles": [
+    { "type": "admin",      "name": "Admin Shuttle",             "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 6, "crippled": 4 , "canWeasel": true, "scatterPackSize": 6 , "canSuicide": true, "shortName": "Admin" },
+    { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS" },
+    { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS" },
+
+    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+
+    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
+    { "type": "haas",       "name": "Heavy Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
+    { "type": "haas_e",     "name": "Heavy Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false }
+  ]
+}

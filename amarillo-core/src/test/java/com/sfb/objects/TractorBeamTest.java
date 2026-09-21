@@ -19,6 +19,15 @@ import static org.junit.Assert.*;
  */
 public class TractorBeamTest {
 
+    /**
+     * Named impulses, because a beam's availability now depends on them. A beam is free
+     * again only in a LATER turn and at least eight impulses on, whichever is longer
+     * (G7.13 with the quarter-turn delay), so "next turn" has to be a real impulse in the
+     * next turn rather than a flag that gets cleared.
+     */
+    private static final int T1 = 5;    // turn 1, impulse 5
+    private static final int T2 = 45;   // turn 2, impulse 13 — well past the delay
+
     private Ship fed;     // FedCA — 3 tractor beams
     private Ship klingon;
 
@@ -46,15 +55,15 @@ public class TractorBeamTest {
     @Test
     public void linkUnit_recordsHeldUnitOnSpecificBeam() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone d = drone("Drone-1");
 
-        assertTrue(t.linkUnit(d));
+        assertTrue(t.linkUnit(d, T1));
 
         List<TractorBeam> beams = t.getBeams();
         assertEquals(3, beams.size());
         assertSame(d, beams.get(0).getHeldUnit());
-        assertTrue(beams.get(0).isUsedThisTurn());
+        assertTrue(beams.get(0).isUsedThisTurn(T1));
         assertNull(beams.get(1).getHeldUnit());
         assertTrue(t.getTractoredUnits().contains(d));
     }
@@ -62,33 +71,33 @@ public class TractorBeamTest {
     @Test
     public void release_freesLinkButBeamStaysUsed() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone d = drone("Drone-1");
-        t.linkUnit(d);
+        t.linkUnit(d, T1);
 
         t.releaseTractor(d);
 
         assertNull(t.getBeams().get(0).getHeldUnit());
         assertTrue("G7.13: release does not free the beam this turn",
-                t.getBeams().get(0).isUsedThisTurn());
-        assertEquals(2, t.getBeamsAvailableThisTurn());
+                t.getBeams().get(0).isUsedThisTurn(T1));
+        assertEquals(2, t.getBeamsAvailable(T1));
         assertFalse(d.isTractored());
     }
 
     @Test
     public void newTurn_freesUsedIdleBeams_keepsHoldingBeamsUsed() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone released = drone("Drone-1");
         Drone held = drone("Drone-2");
-        t.linkUnit(released);
-        t.linkUnit(held);
+        t.linkUnit(released, T1);
+        t.linkUnit(held, T1);
         t.releaseTractor(released);
 
-        t.initForTurn(3); // next turn
+        t.initForTurn(3, T2);
 
         assertEquals("Released beam is fresh; holding beam still in use (G7.42)",
-                2, t.getBeamsAvailableThisTurn());
+                2, t.getBeamsAvailable(T2));
         assertSame(held, t.getBeams().get(1).getHeldUnit());
     }
 
@@ -99,11 +108,11 @@ public class TractorBeamTest {
     @Test
     public void damage_prefersUsedIdleBeam() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone released = drone("Drone-1");
         Drone held = drone("Drone-2");
-        t.linkUnit(released);   // beam 1: used
-        t.linkUnit(held);       // beam 2: holding
+        t.linkUnit(released, T1);   // beam 1: used
+        t.linkUnit(held, T1);       // beam 2: holding
         t.releaseTractor(released); // beam 1: used-idle; beam 3: unused-idle
 
         String label = t.damageAutoPick();
@@ -118,9 +127,9 @@ public class TractorBeamTest {
     @Test
     public void damage_lastResortBreaksTheOnlyLink() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone held = drone("Drone-1");
-        t.linkUnit(held);
+        t.linkUnit(held, T1);
         t.destroyBeam(2);
         t.destroyBeam(3); // only beam 1 (holding) remains
 
@@ -148,12 +157,12 @@ public class TractorBeamTest {
     @Test
     public void choice_requiredOnlyWhenAllFunctionalBeamsHold() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
-        t.linkUnit(drone("Drone-1"));
-        t.linkUnit(drone("Drone-2"));
+        t.initForTurn(5, T1);
+        t.linkUnit(drone("Drone-1"), T1);
+        t.linkUnit(drone("Drone-2"), T1);
         assertFalse("Idle beam exists — auto-pick", t.needsDamageChoice());
 
-        t.linkUnit(drone("Drone-3"));
+        t.linkUnit(drone("Drone-3"), T1);
         assertTrue("All 3 beams holding — owner must pick which link breaks",
                 t.needsDamageChoice());
     }
@@ -161,10 +170,10 @@ public class TractorBeamTest {
     @Test
     public void choice_optionsDescribeEachHeldBeam() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
-        t.linkUnit(drone("Drone-1"));
-        t.linkUnit(klingon);
-        t.linkUnit(drone("Drone-3"));
+        t.initForTurn(5, T1);
+        t.linkUnit(drone("Drone-1"), T1);
+        t.linkUnit(klingon, T1);
+        t.linkUnit(drone("Drone-3"), T1);
 
         List<String> options = fed.dacChoiceOptionsForTest("tractor");
 
@@ -175,12 +184,12 @@ public class TractorBeamTest {
     @Test
     public void choice_appliedHit_destroysChosenBeamAndBreaksLink() {
         Tractors t = fed.getTractors();
-        t.initForTurn(5);
+        t.initForTurn(5, T1);
         Drone d1 = drone("Drone-1");
         Drone d3 = drone("Drone-3");
-        t.linkUnit(d1);
-        t.linkUnit(klingon);
-        t.linkUnit(d3);
+        t.linkUnit(d1, T1);
+        t.linkUnit(klingon, T1);
+        t.linkUnit(d3, T1);
 
         String label = fed.applyDacChoiceHit("tractor", "Tractor #2 — holding IKV Saber", null);
 
@@ -194,7 +203,7 @@ public class TractorBeamTest {
 
     @Test
     public void choice_invalidSelection_returnsNull() {
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, T1);
         assertNull(fed.applyDacChoiceHit("tractor", "no beam here", null));
         assertNull("Beam 9 does not exist",
                 fed.applyDacChoiceHit("tractor", "Tractor #9 — holding X", null));

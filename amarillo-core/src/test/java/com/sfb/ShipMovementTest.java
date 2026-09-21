@@ -93,9 +93,9 @@ public class ShipMovementTest {
 
     /** Link klingon into fed's tractor with a small pool (pre-allocation). */
     private void linkKlingon() {
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
-        fed.getTractors().linkUnit(klingon);
+        fed.getTractors().linkUnit(klingon, game.getAbsoluteImpulse());
     }
 
     private Drone makeHeldDrone(int col, int row) {
@@ -103,9 +103,9 @@ public class ShipMovementTest {
         d.setName("Drone-1");
         d.setLocation(new Location(col, row));
         game.getSeekers().add(d);
-        fed.getTractors().initForTurn(5);
+        fed.getTractors().initForTurn(5, game.getAbsoluteImpulse());
         fed.getPowerSystems().setBatteryPower(0);
-        fed.getTractors().linkUnit(d);
+        fed.getTractors().linkUnit(d, game.getAbsoluteImpulse());
         return d;
     }
 

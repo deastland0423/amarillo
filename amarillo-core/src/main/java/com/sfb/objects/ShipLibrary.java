@@ -33,7 +33,12 @@ public class ShipLibrary {
             } else if (entry.getName().endsWith(".json")) {
                 try {
                     ShipSpec spec = ShipSpec.fromJson(entry);
-                    String key = key(spec.faction, spec.hull);
+                    // Not every JSON file under data/factions is a ship — fighter catalogues and
+                    // any other per-faction table live here too. A ship spec without a hull is
+                    // not one, and registering it would put a junk entry under a null key.
+                    if (spec.type == null || spec.type.isBlank())
+                        continue;
+                    String key = key(spec.faction, spec.type);
                     registry.put(key, spec);
                 } catch (IOException e) {
                     System.err.println("ShipLibrary: failed to load " + entry.getPath() + " — " + e.getMessage());

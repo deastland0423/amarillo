@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
-  "hull": "DDM",
+  "type": "DDM",
+  "line": "DD",
   "name": "USS Saladin",
   "serviceYear": 130,
   "bpv": 88,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 3,
   "bonusHets": 1,
+  "commandRating": 5,
   "tokenArt": "federation/dd.png",
   
   "shields": [20, 18, 16, 16, 16, 18],

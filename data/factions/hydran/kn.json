@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
-  "hull": "KN",
+  "type": "KN",
+  "line": "DD",
   "name": "HMS Inevitable",
   "serviceYear": 158,
   "bpv": 80,
@@ -9,6 +10,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "commandRating": 4,
   
   "shields": [24, 18, 14, 12, 14, 18],
   

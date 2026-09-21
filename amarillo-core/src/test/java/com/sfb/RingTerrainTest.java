@@ -151,32 +151,80 @@ public class RingTerrainTest {
 
     @Test
     public void nimble_subtractsOneFromCollisionDie() {
-        assertEquals("C11.21: nimble −1", 4, Game.nimbleAdjustedDie(5, true, CrewQuality.NORMAL));
-        assertEquals("non-nimble unchanged", 5, Game.nimbleAdjustedDie(5, false, CrewQuality.NORMAL));
+        assertEquals("C11.21: nimble −1", 4, Game.collisionDie(5, true, CrewQuality.NORMAL, false));
+        assertEquals("non-nimble unchanged", 5, Game.collisionDie(5, false, CrewQuality.NORMAL, false));
     }
 
     @Test
     public void nimbleShift_floorsAtOne() {
-        assertEquals("die 1 can't go below 1", 1, Game.nimbleAdjustedDie(1, true, CrewQuality.NORMAL));
+        assertEquals("die 1 can't go below 1", 1, Game.collisionDie(1, true, CrewQuality.NORMAL, false));
     }
 
     @Test
     public void poorCrew_negatesNimbleBenefit() {
         // C11.33: a nimble ship with a poor crew gets no nimble benefit
-        assertEquals(5, Game.nimbleAdjustedDie(5, true, CrewQuality.POOR));
+        assertEquals(5, Game.collisionDie(5, true, CrewQuality.POOR, false));
     }
 
     @Test
     public void outstandingCrew_keepsNimbleShift() {
         // C11.33's outstanding-crew clause is about retaining nimble when
         // crippled, not a further shift — the −1 still applies normally
-        assertEquals(4, Game.nimbleAdjustedDie(5, true, CrewQuality.OUTSTANDING));
+        assertEquals(4, Game.collisionDie(5, true, CrewQuality.OUTSTANDING, false));
+    }
+
+    // -------------------------------------------------------------------------
+    // D6.628 passive fire control die-shift
+    // -------------------------------------------------------------------------
+
+    /**
+     * D6.628: "A ship without active fire control adds one to the die roll for terrain
+     * effects including (P2.223), (P2.231) and (P3.2)." A higher die is worse on the
+     * tables, so flying blind through a field costs you.
+     */
+    @Test
+    public void passiveFireControl_addsOneToTheCollisionDie() {
+        assertEquals("D6.628: +1 on passive", 4,
+                Game.collisionDie(3, false, CrewQuality.NORMAL, true));
+        assertEquals("active fire control, no penalty", 3,
+                Game.collisionDie(3, false, CrewQuality.NORMAL, false));
+    }
+
+    /**
+     * The clause that decides the shape of this: "This modifier is cumulative with others
+     * such as nimbleness". Cumulative, not better-of — so a nimble ship on passive ends up
+     * exactly where a plain ship on active would be, rather than keeping its advantage.
+     */
+    @Test
+    public void theTwoModifiersAreCumulativeNotBestOf() {
+        assertEquals("nimble −1 and passive +1 cancel (D6.628)", 4,
+                Game.collisionDie(4, true, CrewQuality.NORMAL, true));
+        assertEquals("the same ship on active keeps its nimble shift", 3,
+                Game.collisionDie(4, true, CrewQuality.NORMAL, false));
+        assertEquals("and a plain ship on passive is worse than either", 5,
+                Game.collisionDie(4, false, CrewQuality.NORMAL, true));
+    }
+
+    @Test
+    public void thePassiveShiftCannotPushTheDieOffTheTable() {
+        // The tables are indexed 1-6; a 6 that would become a 7 has nowhere to go.
+        assertEquals(6, Game.collisionDie(6, false, CrewQuality.NORMAL, true));
+        assertEquals(1, Game.collisionDie(1, true, CrewQuality.NORMAL, false));
+    }
+
+    /**
+     * A poor crew loses the nimble benefit (C11.33) and still takes the passive penalty:
+     * the two rules are independent, and nothing says one forgives the other.
+     */
+    @Test
+    public void aPoorCrewOnPassiveGetsTheWorstOfBoth() {
+        assertEquals(5, Game.collisionDie(4, true, CrewQuality.POOR, true));
     }
 
     @Test
     public void nullCrew_shuttleStyle_keepsNimbleShift() {
         // Shuttles/fighters are always nimble (C11 note) and pass no crew
-        assertEquals(4, Game.nimbleAdjustedDie(5, true, null));
+        assertEquals(4, Game.collisionDie(5, true, null, false));
     }
 
     @Test

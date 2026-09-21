@@ -11,46 +11,22 @@ import com.sfb.weapons.Weapon;
 
 public class AdminShuttle extends Shuttle {
 
-	@Override
-	public boolean canBecomeSuicide() {
-		return true;
-	}
 
-	@Override
-	public boolean canBecomeScatterPack() {
-		return true;
-	}
 
-	@Override
-	public boolean canBecomeWildWeasel() {
-		return true;
-	}
 
 	// Wild Weasel charging state (J3.12): 0 = uncharged, 1 = primed, 2 = ready
-	private int wwChargeCount = 0;
 
-	public int getWwChargeCount() {
-		return wwChargeCount;
-	}
 
-	public boolean isWwReady() {
-		return wwChargeCount >= 2;
-	}
 
-	public void incrementWwCharge() {
-		if (wwChargeCount < 2)
-			wwChargeCount++;
-	}
 
-	public void resetWwCharge() {
-		wwChargeCount = 0;
-	}
 
 	public AdminShuttle() {
+		setCatalogType("admin");
 		setHull(6);
 		setMaxSpeed(6);
-		setPersonnelCapacity(2);  // one crew unit OR two boarding parties (J2.211)
-		setCargoCapacity(15);     // base cargo spaces (G25.131; scaffolded, not yet enforced)
+		setCrippledHull(4);
+		setPersonnelCapacity(2); // one crew unit OR two boarding parties (J2.211)
+		setCargoCapacity(15); // base cargo spaces (G25.131; scaffolded, not yet enforced)
 
 		// Create a phaser 3 (360 arc) and put it with the shuttle weapons.
 		Phaser3 phaser1 = new Phaser3();

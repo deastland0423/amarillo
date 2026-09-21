@@ -1,0 +1,200 @@
+package com.sfb.weapons;
+
+/**
+ * A scout function channel / special sensor (G24.0) — a "Commander's Level" system, not
+ * a firing weapon. A channel performs one scout function per turn (EW lending, breaking
+ * lock-ons, etc. — later slices). Slice 1 models it purely as a resource:
+ *
+ * <ul>
+ *   <li>It occupies the DAC hit location of the weapon it <em>replaced</em> (G24.17): a
+ *       channel that replaced a disruptor dies on a "torp" hit, one that replaced a
+ *       phaser on a "phaser" hit. That comes for free from {@link Weapon}'s hit location.</li>
+ *   <li>It must be <em>powered</em> (1 energy, at Energy Allocation) to operate (G24.14).</li>
+ *   <li>Firing a blinding weapon <em>blinds</em> it for 32 impulses (G24.13).</li>
+ * </ul>
+ */
+public class ScoutChannel extends Weapon {
+
+    /** Impulses a firing blinds a channel (G24.13). */
+    public static final int BLIND_DURATION = 32;
+
+    /** Most EW (ECM+ECCM combined) one channel can lend to a unit (G24.2112). */
+    public static final int MAX_LEND = 6;
+
+    /** Attempts one channel gets to break drone lock-ons per turn (G24.221). */
+    public static final int MAX_BREAK_ATTEMPTS = 3;
+
+    /** Attempts one channel + lab gets to identify seekers per turn (G24.251). */
+    public static final int MAX_IDENTIFY_ATTEMPTS = 4;
+
+    /** Extra seeker-control capacity one channel grants (G24.24). */
+    public static final int CONTROL_SEEKERS_BONUS = 6;
+
+    /** The single scout function a channel performs this turn (G24.12) — one per turn. */
+    public enum Function { NONE, LEND_EW, BREAK_LOCKON, IDENTIFY, OFFENSIVE_EW, CONTROL_SEEKERS,
+                           ATTRACT_DRONES }
+
+    private boolean powered = false;
+    private int blindedUntilImpulse = -1; // absolute impulse the blinding lifts; <= now = clear
+
+    // A channel performs one function per turn (G24.12); once set it is committed for the turn.
+    private Function turnFunction = Function.NONE;
+
+    // EW lending (G24.21): this channel carries EW the scout generated to one recipient.
+    private String lendTarget; // recipient ship name, or null if not lending
+    private int lentEcm;        // ECM points carried this turn
+    private int lentEccm;       // ECCM points carried this turn
+
+    // Breaking drone lock-ons (G24.22): up to 3 attempts/turn, at most one per drone per impulse.
+    private int breakAttempts;                                    // attempts spent this turn (G24.221)
+    private final java.util.Map<String, Integer> lastBreakImpulse // drone name → last impulse attempted
+            = new java.util.HashMap<>();
+
+    // Identifying seekers (G24.25): up to 4 attempts/turn, any target(s), any impulse(s).
+    private int identifyAttempts;                                 // attempts spent this turn (G24.251)
+    /**
+     * Which lab box this channel claimed for identification this turn, or -1. A channel
+     * gets four attempts with ONE box (G24.251), so it has to keep hold of the same one:
+     * the box is stamped again on each attempt, and the quarter-turn delay (G4.451) then
+     * runs from the last attempt rather than from when the channel first claimed it.
+     */
+    private int labBoxIndex = -1;
+
+    // Attracting drones (G24.23): one drone per channel per turn (G24.231).
+    private String attractedDrone;                                // the drone drawn onto the scout, or null
+
+    public ScoutChannel() {
+        setType("ScoutChannel");
+        // dacHitLocation is assigned from the ship JSON — the location of the replaced weapon (G24.17).
+    }
+
+    /** A channel never fires (G24.0). */
+    @Override
+    public boolean canFire() {
+        return false;
+    }
+
+    /** A channel firing can't blind another channel — it doesn't fire. */
+    @Override
+    public boolean blindsScoutChannels() {
+        return false;
+    }
+
+    // --- Power (G24.14) ---
+
+    public boolean isPowered() {
+        return powered;
+    }
+
+    public void setPowered(boolean powered) {
+        this.powered = powered;
+    }
+
+    /** EW currently drawn through this channel (ECM + ECCM), from the scout's ship-level pool. */
+    public int getLentTotal() {
+        return lentEcm + lentEccm;
+    }
+
+    // --- Blinding (G24.13) ---
+
+    /**
+     * Blind this channel for 32 impulses (G24.13). If it is already blinded, the blinding
+     * is extended by 32 from its recovery point (G24.131 surplus-firing handling).
+     */
+    public void blind(int currentImpulse) {
+        blindedUntilImpulse = Math.max(currentImpulse, blindedUntilImpulse) + BLIND_DURATION;
+    }
+
+    public boolean isBlinded(int currentImpulse) {
+        return currentImpulse < blindedUntilImpulse;
+    }
+
+    public int getBlindedUntilImpulse() {
+        return blindedUntilImpulse;
+    }
+
+    /** True if the channel can perform a function this impulse: undamaged, powered, unblinded. */
+    public boolean isOperational(int currentImpulse) {
+        return isFunctional() && powered && !isBlinded(currentImpulse);
+    }
+
+    // --- EW lending (G24.21) ---
+
+    /**
+     * Assign this channel to lend {@code ecm}/{@code eccm} EW to {@code target} (G24.21).
+     * A channel carries at most {@link #MAX_LEND} EW total (G24.2112).
+     */
+    public void setLend(String target, int ecm, int eccm) {
+        this.lendTarget = target;
+        this.lentEcm  = Math.max(0, ecm);
+        this.lentEccm = Math.max(0, eccm);
+    }
+
+    public void clearLend() {
+        lendTarget = null;
+        lentEcm = 0;
+        lentEccm = 0;
+    }
+
+    public String getLendTarget() { return lendTarget; }
+    public int getLentEcm()       { return lentEcm; }
+    public int getLentEccm()      { return lentEccm; }
+
+    // --- Function assignment (G24.12): one function per channel per turn ---
+
+    public Function getTurnFunction() { return turnFunction; }
+
+    public void setTurnFunction(Function f) { this.turnFunction = f; }
+
+    // --- Breaking drone lock-ons (G24.22) ---
+
+    /** Attempts spent breaking drone lock-ons this turn (G24.221). */
+    public int getBreakAttempts() { return breakAttempts; }
+
+    /** The impulse this channel last attempted the named drone, or -1 if never (G24.221). */
+    public int lastBreakImpulseFor(String droneName) {
+        return lastBreakImpulse.getOrDefault(droneName, -1);
+    }
+
+    /** Record one break attempt against {@code droneName} at {@code impulse} (G24.221). */
+    public void recordBreakAttempt(String droneName, int impulse) {
+        breakAttempts++;
+        lastBreakImpulse.put(droneName, impulse);
+    }
+
+    // --- Identifying seekers (G24.25) ---
+
+    /** Attempts spent identifying seekers this turn (G24.251). */
+    public int getIdentifyAttempts() { return identifyAttempts; }
+
+    public int getLabBoxIndex() { return labBoxIndex; }
+
+    public void setLabBoxIndex(int index) { this.labBoxIndex = index; }
+
+    /** Record one identification attempt (G24.251); no per-target/per-impulse limit (G24.252). */
+    public void recordIdentifyAttempt() { identifyAttempts++; }
+
+    // --- Attracting drones (G24.23) ---
+
+    /** The drone this channel drew onto the scout this turn, or null (G24.231). */
+    public String getAttractedDrone() { return attractedDrone; }
+
+    /**
+     * Record that this channel attracted {@code droneName} (G24.231). One channel attracts
+     * one drone per turn; drawing a second takes another channel or another turn. The
+     * attraction itself is permanent — blinding, destroying or shutting down the channel
+     * does not send the drone back to its former target (G24.232).
+     */
+    public void recordAttraction(String droneName) { attractedDrone = droneName; }
+
+    /** Clear all per-turn state (function, lend, break/identify attempts) at Energy Allocation. */
+    public void resetForTurn() {
+        clearLend();
+        turnFunction = Function.NONE;
+        breakAttempts = 0;
+        lastBreakImpulse.clear();
+        identifyAttempts = 0;
+        labBoxIndex = -1;
+        attractedDrone = null;
+    }
+}

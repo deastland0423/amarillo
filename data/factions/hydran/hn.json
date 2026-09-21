@@ -1,14 +1,16 @@
 {
   "faction": "Hydran",
-  "hull": "HN",
+  "type": "HN",
+  "line": "FF",
   "name": "HMS Faithful",
   "serviceYear": 134,
   "bpv": 48,
   "turnMode": "A",
   "sizeClass": 4,
-  "moveCost": 0.3333333333,
+  "moveCost": 0.3333333,
   "breakdown": 6,
   "bonusHets": 1,
+  "commandRating": 3,
   
   "shields": [17, 12, 10, 11, 10, 12],
   

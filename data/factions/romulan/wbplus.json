@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
-  "hull": "WB+",
+  "type": "WB+",
+  "line": "CA",
   "name": "RIS Avian Fury",
   "serviceYear": 140,
   "bpv": 60,
@@ -9,6 +10,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "tokenArt": "romulan/wb.png",
 
   "shields": [25, 25, 25, 25, 25, 25],

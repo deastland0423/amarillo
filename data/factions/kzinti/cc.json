@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
-  "hull": "CC",
+  "type": "CC",
+  "line": "CA",
   "name": "KHS White Dwarf",
   "serviceYear": 147,
   "bpv": 135,
@@ -9,6 +10,9 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 9,
+  "isLeader": true,
+  "tokenArt": "kzinti/cc.png",
   
   "shields": [30, 28, 22, 22, 22, 28],
   

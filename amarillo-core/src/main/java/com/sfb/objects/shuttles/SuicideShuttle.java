@@ -16,7 +16,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 
     private Unit   target;
     private Unit   controller;
-    private boolean identified = false;
+    // identify()/isIdentified() inherited from Shuttle (single source of truth, G24.25).
 
     // Arming state
     private int     armingTurnsComplete = 0;     // 0–3; armed when == 3
@@ -27,6 +27,9 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         setHull(base.getHull());
         setMaxSpeed(base.getMaxSpeed());
         setName(base.getName());
+        // Keep what it was built FROM. J3.18 and FD7.11 qualify shuttles by type, and a
+        // converted shuttle that forgot its type could not be named or labelled honestly.
+        setCatalogType(base.getCatalogType());
     }
 
     // -------------------------------------------------------------------------
@@ -85,6 +88,17 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     @Override public int getWarheadDamage()               { return totalEnergy * 2; }
     @Override public void setWarheadDamage(int dmg)       {}
     @Override public int impact()                         { return getWarheadDamage(); }
-    @Override public void identify()                      { identified = true; }
-    @Override public boolean isIdentified()               { return identified; }
+    // identify()/isIdentified() inherited from Shuttle
+
+    /** Unmanned: nobody rides the bomb (J2.2). Revealed by identification (G4.233). */
+    @Override
+    public boolean isManned() {
+        return false;
+    }
+
+    /** Prepared, so not launchable as an ordinary shuttle. */
+    @Override
+    public String specialRole() {
+        return "suicide shuttle";
+    }
 }

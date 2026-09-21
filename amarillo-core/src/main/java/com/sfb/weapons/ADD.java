@@ -130,4 +130,10 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
     public int[] getHitChart() {
         return HIT_CHART;
     }
+
+    /** G24.1341: an ADD does not blind scout channels. */
+    @Override
+    public boolean blindsScoutChannels() {
+        return false;
+    }
 }

@@ -230,7 +230,7 @@ class TractorResolver {
             return ActionResult.fail(holder.getName() + " has no tractor beams");
         if (holder.getTractors().getAvailableTractors() == 0)
             return ActionResult.fail(holder.getName() + " has no undamaged tractor beams");
-        if (holder.getTractors().getBeamsAvailableThisTurn() <= 0)
+        if (holder.getTractors().getBeamsAvailable(game.getAbsoluteImpulse()) <= 0)
             return ActionResult.fail(holder.getName()
                     + " has no unused tractor beams remaining this turn (G7.13)");
         if (bid < 1)
@@ -249,6 +249,12 @@ class TractorResolver {
             target = activeShuttles.stream()
                     .filter(s -> s.getName().equalsIgnoreCase(targetName))
                     .<Tractorable>map(s -> s).findFirst().orElse(null);
+        // A plasma torpedo cannot be held. It is energy rather than a physical object, and
+        // it only reaches the search above because PlasmaTorpedo extends Unit, which is
+        // Tractorable — so the refusal has to be explicit. Ships, shuttles, drones and
+        // canisters can all be caught.
+        if (target instanceof com.sfb.objects.PlasmaTorpedo)
+            return ActionResult.fail("A tractor beam cannot hold a plasma torpedo");
         // SH35.452: a free probe canister may be caught in a tractor beam and
         // drawn aboard with the J1.621 rotation system — an inert Tractorable.
         if (target == null)
@@ -293,7 +299,7 @@ class TractorResolver {
                 holder.getName() + " tractor beam");
         if (ew != null && ew.blocked) {
             spendTractorEnergy(holder, bid * rangeMultiplier);
-            holder.getTractors().expendBeamUse();
+            holder.getTractors().expendBeamUse(game.getAbsoluteImpulse());
             return ActionResult.ok(ew.line + " — " + (bid * rangeMultiplier)
                     + " energy lost, beam expended for the turn");
         }
@@ -304,7 +310,7 @@ class TractorResolver {
         // declaration to be drawn aboard.
         if (!(target instanceof Ship)) {
             spendTractorEnergy(holder, rangeMultiplier);
-            holder.getTractors().linkUnit(target);
+            holder.getTractors().linkUnit(target, game.getAbsoluteImpulse());
             return ActionResult.ok(ewLog + holder.getName() + " tractors " + targetName
                     + (rangeMultiplier > 1 ? " at range " + range + " (G7.5/G7.6)" : " (G7.5)")
                     + (objectiveTarget ? " — declare recovery to bring it aboard (J1.621)" : ""));
@@ -500,7 +506,7 @@ class TractorResolver {
             spendTractorEnergy(target,   defenderNewBid);
             target.getTractors().addNegativeTractorAccumulated(defenderNewBid);
 
-            attacker.getTractors().linkUnit(target);
+            attacker.getTractors().linkUnit(target, game.getAbsoluteImpulse());
             attacker.addLockOn(target);
             target.addLockOn(attacker);
 

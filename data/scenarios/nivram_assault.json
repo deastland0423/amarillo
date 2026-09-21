@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "The situation that made bringYourOwn worth having. The defender sets up within three",
+    "hexes of the planet - ground that only means anything because the planet is named right",
+    "here, and that no lobby dropdown could have offered.",
+    "",
+    "This scenario names its own terrain, so the host's terrain choice does not replace it:",
+    "the defender's ground is measured from Nivram and would be nonsense without it."
+  ],
+
+  "id": "nivram_assault",
+  "name": "Assault on Nivram",
+  "year": 180,
+  "numPlayers": 2,
+  "description": "Nivram is a minor colony with a major listening post. The attacker has come to silence it; the defending patrol has whatever was in orbit when the alarm went out.",
+  "mapType": "STANDARD",
+  "mapCols": 42,
+  "mapRows": 32,
+  "lengthCondition": "STANDARD",
+
+  "terrain": [
+    { "type": "PLANET", "hex": "2116", "name": "Nivram" }
+  ],
+
+  "sides": [
+    {
+      "name": "Defender",
+      "bringYourOwn": true,
+      "deploymentZone": { "shape": "CIRCLE", "hex": "2116", "radius": 3 }
+    },
+    {
+      "name": "Attacker",
+      "bringYourOwn": true,
+      "deploymentZone": { "shape": "BAND", "edge": "LEFT", "depth": 6 }
+    }
+  ],
+
+  "victoryConditions": {
+    "type": "MODIFIED",
+    "notes": "Modified Victory Conditions (S2.201). The attacker scores 100 bonus points for each 50 points of damage scored on Nivram's surface. The defender scores 150 bonus points if no damage reaches the planet at all."
+  },
+
+  "specialRules": [
+    "The defender sets up within three hexes of Nivram; the attacker enters along the left edge.",
+    "Nivram fills one hex and may not be entered (P2.211, P2.224).",
+    "Both sides build to the agreed point total under the patrol scenario rules (S8.0)."
+  ],
+
+  "shuttleRules": { "warpBoosterPacks": true, "megapacks": false, "mrsShuttles": true, "pfs": false },
+  "commanderOptions": { "budgetPercent": 20, "maxDroneSpeed": 20, "allowTBombs": true, "allowCommandos": true }
+}

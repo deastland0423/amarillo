@@ -19,11 +19,17 @@ public class ScatterPack extends Shuttle implements Seeker {
 
     private static final int RELEASE_DELAY = 8; // impulses before drones deploy
 
-    private int maxDroneSpaces = 6; // admin shuttle default; other types may differ
+    /**
+     * FD7.21: "An admin shuttle used as an SP carries up to six spaces of drones. Other
+     * types of shuttles could carry more or fewer as provided in their rules." Set from the
+     * catalogue when the pack is built, so the number follows the shuttle it was made from
+     * rather than being the same six for everything.
+     */
+    private int maxDroneSpaces = 6;
 
     private Unit        target;
     private Unit        controller;
-    private boolean     identified   = false;
+    // identify()/isIdentified() inherited from Shuttle (single source of truth, G24.25).
     private int         launchImpulse = -1;
     private boolean     released      = false; // true after drones have deployed
 
@@ -34,6 +40,15 @@ public class ScatterPack extends Shuttle implements Seeker {
         setHull(base.getHull());
         setMaxSpeed(base.getMaxSpeed());
         setName(base.getName());
+        // Keep what it was built FROM. J3.18 and FD7.11 qualify shuttles by type, and a
+        // converted shuttle that forgot its type could not be named or labelled honestly.
+        setCatalogType(base.getCatalogType());
+        // FD7.21: the capacity belongs to the type this was built from. Without this every
+        // pack carried six spaces whatever it was — the catalogue column said otherwise and
+        // nothing read it.
+        int spaces = base.scatterPackSpaces();
+        if (spaces > 0)
+            setMaxDroneSpaces(spaces);
     }
 
     // -------------------------------------------------------------------------
@@ -136,8 +151,19 @@ public class ScatterPack extends Shuttle implements Seeker {
     @Override public int getWarheadDamage()               { return 0; } // no direct damage
     @Override public void setWarheadDamage(int dmg)       {}
     @Override public int impact()                         { return 0; }
-    @Override public void identify()                      { identified = true; }
-    @Override public boolean isIdentified()               { return identified; }
+    // identify()/isIdentified() inherited from Shuttle
 
     @Override public boolean isArmed()                    { return true; } // D12.121
+
+    /** Unmanned: a drone carrier flies empty (FD7.0). Revealed by identification (G4.233). */
+    @Override
+    public boolean isManned() {
+        return false;
+    }
+
+    /** Prepared, so not launchable as an ordinary shuttle. */
+    @Override
+    public String specialRole() {
+        return "scatter pack";
+    }
 }

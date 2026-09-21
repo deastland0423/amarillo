@@ -26,6 +26,15 @@ public class CoiRequest {
     /** Weapon designator → arming mode name ("STANDARD", "OVERLOAD", "SPECIAL"). */
     public Map<String, String> weaponArmingModes = new LinkedHashMap<>();
 
+    /**
+     * Photon designator → free WS-III overload energy for that tube (S4.32).
+     *
+     * Half-points are legal (E4.414), so this is fractional. Without a field here Jackson
+     * drops the key on arrival and the selection vanishes between the dialog and the ship —
+     * silently, because an empty map is exactly what "no overload" looks like.
+     */
+    public Map<String, Double> photonOverload = new LinkedHashMap<>();
+
     /** Orion option-mount choices (G15.4): mount designator → Annex #8B option name. */
     public Map<String, String> optionMounts = new LinkedHashMap<>();
 
@@ -64,6 +73,10 @@ public class CoiRequest {
             try {
                 out.weaponArmingModes.put(entry.getKey(), WeaponArmingType.valueOf(entry.getValue()));
             } catch (IllegalArgumentException e) { /* skip unknown modes */ }
+        }
+
+        if (photonOverload != null) {
+            out.photonOverload.putAll(photonOverload);
         }
 
         if (optionMounts != null) {

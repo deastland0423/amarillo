@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import type { GuardOptions } from '../api/gameApi';
+import { useDraggable } from '../hooks/useDraggable';
 
 // Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
 const TURN_MODE_TABLES: Record<string, number[]> = {
@@ -48,8 +49,11 @@ interface ShipAlloc {
   specificReinf:        number[];     // [0..5] energy per shield
   capCharge:            number;       // energy to add to the phaser capacitor this turn (partial refill)
   esgEnergy:            Record<string, number>;   // ESG designator → energy this turn (G23.21)
+  poweredChannels:      string[];                 // scout channel designators to power (1 energy each, G24.14)
+  scoutEwPoints:        number;                    // ship-level pool of EW the scout generates to lend (G24.211)
   energizeCaps:         boolean;
   weaponArming:         Record<string, ArmChoice>;
+  photonArming:         Record<string, number>;   // warp energy dialled into each photon tube
   droneReloads:         Record<string, Record<string, number>>;  // rackName → {droneType → count}
   scatterPackLoading:   Record<string, Record<string, number>>;  // shuttleName → {droneType → count}
   suicideArming:        Record<string, number>;   // shuttleName → energy (1–3); 0 = not arming
@@ -68,6 +72,7 @@ interface ShipAlloc {
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
   tractorEnergy:        number;   // energy pool for tractor beams (G7.15)
+  erraticManeuvers:     number;   // energy bought for Erratic Maneuvers (C10.11)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
   wwCharge:             Set<string>;             // shuttle names being charged as WW this turn
 }
@@ -102,8 +107,17 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
                        ? Math.max(0, (ship.phaserCapacitorMax ?? 0) - (ship.phaserCapacitor ?? 0))
                        : 0,   // default to a full top-off; player can dial it down
     esgEnergy:       {},
+    poweredChannels: [],
+    scoutEwPoints:   0,
     energizeCaps:    false,
     weaponArming:    arming,
+    photonArming:    Object.fromEntries(
+      (ship.weapons ?? [])
+        .filter(w => w.photonTube && w.functional)
+        // An arming tube starts at its mandatory two (E4.21); a loaded one at the cost of
+        // keeping it, which it owes every turn until it fires (E4.22).
+        .map(w => [w.name, w.armed ? (w.holdCost || 1) : 2]),
+    ),
     droneReloads:        {},
     scatterPackLoading:  {},
     suicideArming:       {},
@@ -122,6 +136,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ecm:               0,
     eccm:              0,
     tractorEnergy:     0,
+    erraticManeuvers:  0,
     shuttleSpeeds,
     wwCharge: new Set(
       (ship.shuttleBays ?? []).flatMap(bay =>
@@ -147,11 +162,21 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   let arm = 0;
   for (const w of ship.weapons ?? []) {
     if (!w.isHeavy || !w.functional) continue;
+    // A photon is dialled by energy whether it is arming (E4.21/E4.411) or already loaded
+    // (E4.412, hold plus whatever overloads it) — either way it costs what was dialled.
+    if (w.photonTube && alloc.photonArming[w.name] != null) {
+      arm += alloc.photonArming[w.name];
+      continue;
+    }
     const choice = alloc.weaponArming[w.name] ?? 'SKIP';
     if      (choice === 'HOLD' || choice === 'HOLD_PROX' || choice === 'HOLD_STD') arm += w.holdCost;
     else if (choice === 'STANDARD' || choice === 'FINISH') arm += w.armingCost;
     else if (choice === 'PROX')                        arm += w.armed ? w.holdCost : w.armingCost;
-    else if (choice === 'OVERLOAD')                    arm += w.armingTurn > 0 ? w.armingCost : w.armingCost * 2;
+    // Overload costs the overload rate whatever the weapon is doing now. armingCost is
+    // type-aware (Photon.energyToArm: 2 standard, 4 overload), so double it only when the
+    // weapon is not ALREADY in overload mode — a mid-arm STANDARD photon at WS-2 still owes
+    // the full 4. Keyed on armingType, not armingTurn, to match GameSession's ALLOCATE.
+    else if (choice === 'OVERLOAD')                    arm += w.armingType === 'OVERLOAD' ? w.armingCost : w.armingCost * 2;
     else if (choice === 'SUICIDE')                     arm += 7;
     else if (choice === 'UPGRADE_OVL')                 arm += 3;
     else if (choice === 'UPGRADE_SUICIDE')             arm += 6;
@@ -174,8 +199,13 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
+  // C10.11: EM is a flat price — six hexes of movement cost, three if nimble — and it
+  // counts against the power budget like anything else bought at allocation.
+  const emCost = alloc.erraticManeuvers;
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + esg;
+  // scout channels: 1 energy per powered channel (G24.14) + the ship's EW-lending pool (G24.211)
+  const channels = alloc.poweredChannels.length + alloc.scoutEwPoints;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -367,27 +397,8 @@ export default function EnergyAllocationDialog({
     setAllocMap(m => ({ ...m, [activeTab]: updater(m[activeTab]) }));
   }
 
-  // Drag state
-  const dragRef  = useRef<{ x: number; y: number; l: number; t: number } | null>(null);
-  const [pos, setPos] = useState({ left: 120, top: 80 });
-
-  function onTitleMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    dragRef.current = { x: e.clientX, y: e.clientY, l: pos.left, t: pos.top };
-    function onMove(ev: MouseEvent) {
-      if (!dragRef.current) return;
-      setPos({ left: dragRef.current.l + ev.clientX - dragRef.current.x,
-               top:  dragRef.current.t + ev.clientY - dragRef.current.y });
-    }
-    function onUp() {
-      dragRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
-    }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup',   onUp);
-  }
+  // Dragging lives in a hook now, shared with the SSD panel (src/hooks/useDraggable).
+  const drag = useDraggable({ left: 120, top: 80 });
 
   const [busy,   setBusy]   = useState(false);
   const [errMsg, setErrMsg] = useState('');
@@ -396,6 +407,9 @@ export default function EnergyAllocationDialog({
 
   const heavy    = (ship.weapons ?? []).filter(w => w.isHeavy && w.functional);
   const hasTrans = (ship.availableTransporters ?? 0) > 0;
+  // One circuit per point of sensor rating (D6.312), capped at the six points a ship may
+  // generate in total (D6.310). A scout's lending pool is separate and not bound by this (G24.31).
+  const ewLimit  = Math.min(ship.sensorRating ?? 0, 6);
   const hasCloak = (ship.cloakCost ?? 0) > 0;
   const batMax   = ship.availableBattery ?? 0;
   const batCharge = ship.batteryCharge ?? 0;
@@ -431,6 +445,10 @@ export default function EnergyAllocationDialog({
     return spSpaces > (s.availableDeckCrews ?? 2);
   });
 
+  function setPhotonArming(name: string, energy: number) {
+    setAlloc(a => ({ ...a, photonArming: { ...a.photonArming, [name]: energy } }));
+  }
+
   function setArming(name: string, choice: ArmChoice) {
     setAlloc(a => ({ ...a, weaponArming: { ...a.weaponArming, [name]: choice } }));
   }
@@ -458,8 +476,11 @@ export default function EnergyAllocationDialog({
           shieldMode:            a.shieldMode,
           capacitorCharge:       a.capCharge,
           esgEnergy:             Object.keys(a.esgEnergy).length > 0 ? a.esgEnergy : undefined,
+          poweredChannels:       a.poweredChannels.length > 0 ? a.poweredChannels : undefined,
+          scoutEwPoints:         a.scoutEwPoints > 0 ? a.scoutEwPoints : undefined,
           energizeCaps:          a.energizeCaps,
           weaponArming:          a.weaponArming,
+          photonArming:          Object.keys(a.photonArming).length > 0 ? a.photonArming : undefined,
           transUses:             a.transUses,
           cloakPaid:             a.cloakPaid,
           doubleLwarp:           a.doubleLwarp,
@@ -474,6 +495,7 @@ export default function EnergyAllocationDialog({
           ecm:                   a.ecm,
           eccm:                  a.eccm,
           tractorEnergy:         a.tractorEnergy,
+          erraticManeuvers:      a.erraticManeuvers,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
           droneReloadSelections: Object.fromEntries(
@@ -519,10 +541,10 @@ export default function EnergyAllocationDialog({
   const effectiveMaxWarp = Math.min(maxWarpSpeed, accelCap);
 
   return (
-    <div className="ea-dialog" style={{ left: pos.left, top: pos.top }}>
+    <div className="ea-dialog" style={{ left: drag.position.left, top: drag.position.top }}>
 
       {/* Title bar */}
-      <div className="ea-titlebar" onMouseDown={onTitleMouseDown}>
+      <div className="ea-titlebar" {...drag.handleProps}>
         <span className="ea-title">Energy Allocation</span>
       </div>
 
@@ -719,11 +741,11 @@ export default function EnergyAllocationDialog({
         {/* ---- Electronic Warfare ---- */}
         {(ship.sensorRating ?? 0) > 0 && (
           <div className="ea-section">
-            <Collapsible title={`ELECTRONIC WARFARE  (sensor ${ship.sensorRating ?? 0}, used ${alloc.ecm + alloc.eccm})`} color="#a78bfa">
-              <Stepper value={alloc.ecm}  min={0} max={(ship.sensorRating ?? 0) - alloc.eccm}
+            <Collapsible title={`ELECTRONIC WARFARE  (max ${ewLimit}, used ${alloc.ecm + alloc.eccm})`} color="#a78bfa">
+              <Stepper value={alloc.ecm}  min={0} max={ewLimit - alloc.eccm}
                 onChange={v => setAlloc(a => ({ ...a, ecm: v }))}
                 label="ECM (hide)" />
-              <Stepper value={alloc.eccm} min={0} max={(ship.sensorRating ?? 0) - alloc.ecm}
+              <Stepper value={alloc.eccm} min={0} max={ewLimit - alloc.ecm}
                 onChange={v => setAlloc(a => ({ ...a, eccm: v }))}
                 label="ECCM (seek)" />
             </Collapsible>
@@ -737,6 +759,30 @@ export default function EnergyAllocationDialog({
               <Stepper value={alloc.tractorEnergy} min={0} max={ship.totalPower}
                 onChange={v => setAlloc(a => ({ ...a, tractorEnergy: v }))}
                 label="Energy pool (G7.15)" />
+            </Collapsible>
+          </div>
+        )}
+
+        {/* ---- Erratic Maneuvers (C10.0) ---- */}
+        {(ship.erraticCost ?? 0) > 0 && (
+          <div className="ea-section">
+            <Collapsible title={`ERRATIC MANEUVERS  (${alloc.erraticManeuvers > 0
+              ? `bought for ${alloc.erraticManeuvers}` : 'not bought'})`} color="#f0c040">
+              <label className="ea-check">
+                <input type="checkbox"
+                       checked={alloc.erraticManeuvers > 0}
+                       onChange={e => setAlloc(a => ({ ...a,
+                         erraticManeuvers: e.target.checked ? (ship.erraticCost ?? 0) : 0 }))} />
+                <span>
+                  Buy Erratic Maneuvers — {ship.erraticCost} energy (C10.11)
+                </span>
+              </label>
+              <p className="fb-hint">
+                Four points of ECM against everything firing at you, and the same four
+                against your own fire (C10.414). Turn Mode one hex longer and +1 on HET
+                rolls unless the ship is nimble (C10.55). Buying it only lets you announce
+                it during the turn — the energy is spent either way.
+              </p>
             </Collapsible>
           </div>
         )}
@@ -842,6 +888,52 @@ export default function EnergyAllocationDialog({
           </div>
         )}
 
+        {/* ---- Scout Channels (G24.14) ---- */}
+        {(ship.weapons ?? []).some(w => w.scoutChannel) && (
+          <div className="ea-section">
+            <div className="ea-section-title" style={{ color: '#58c8ff' }}>Scout Channels</div>
+            {(ship.weapons ?? []).filter(w => w.scoutChannel).map(w => {
+              const key  = w.designator ?? w.name;
+              const on   = alloc.poweredChannels.includes(key);
+              const dead = !w.functional;
+              return (
+                <label key={w.name} className="ea-het-row"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: dead ? 0.5 : 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={dead}
+                    onChange={ev => setAlloc(a => ({
+                      ...a,
+                      poweredChannels: ev.target.checked
+                        ? [...a.poweredChannels, key]
+                        : a.poweredChannels.filter(k => k !== key),
+                    }))}
+                  />
+                  <span>Channel {w.designator ?? ''}{dead ? ' — destroyed' : ' (1 energy)'}</span>
+                </label>
+              );
+            })}
+            {/* Ship-level EW pool the scout generates to lend (G24.211): 1 energy per point,
+                drawn through any channel during the turn — you aim it from the sidebar. */}
+            <label className="ea-het-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <span style={{ opacity: 0.85 }}>EW points to generate (lending pool):</span>
+              <input
+                type="number"
+                min={0}
+                max={18}
+                value={alloc.scoutEwPoints}
+                style={{ width: 52 }}
+                onChange={ev => {
+                  const v = Math.max(0, Math.min(18, Number(ev.target.value) || 0));
+                  setAlloc(a => ({ ...a, scoutEwPoints: v }));
+                }}
+              />
+              <span style={{ fontSize: '0.8em', opacity: 0.65 }}>1 energy each (G24.211)</span>
+            </label>
+          </div>
+        )}
+
         {/* ---- Heavy Weapons ---- */}
         {heavy.length > 0 && (
           <Collapsible title="Heavy Weapons" color="#ffa050">
@@ -866,6 +958,19 @@ export default function EnergyAllocationDialog({
                           )}
                           <ArmOption name={w.name} value="SKIP"    label="Discharge"                     current={choice} color="#8b949e" onChange={setArming} />
                         </>
+                      ) : w.photonTube && w.armed ? (
+                        /* A loaded torpedo: hold it, and overload it in the tube if you like
+                           (E4.411/E4.412) */
+                        <PhotonDial w={w} paid={alloc.photonArming[w.name] ?? (w.holdCost || 1)}
+                          prox={choice === 'PROX'}
+                          onChange={e => {
+                            setPhotonArming(w.name, e);
+                            if (e !== (w.holdCost || 1) && choice === 'PROX') setArming(w.name, 'STANDARD');
+                          }}
+                          onProx={p => {
+                            setArming(w.name, p ? 'PROX' : 'STANDARD');
+                            if (p) setPhotonArming(w.name, w.holdCost || 1);
+                          }} />
                       ) : w.armed && w.holdCost > 0 ? (
                         <>
                           {/* Pay-to-hold weapons (Photon, Fusion): hold in current mode, optional switch/upgrade, or discharge */}
@@ -905,6 +1010,18 @@ export default function EnergyAllocationDialog({
                             <ArmOption name={w.name} value="SKIP"     label="Discharge"                  current={choice} color="#8b949e" onChange={setArming} />
                           </>
                         )
+                      ) : w.photonTube ? (
+                        /* Photons are dialled by energy, not by mode (E4.21/E4.411) */
+                        <PhotonDial w={w} paid={alloc.photonArming[w.name] ?? 2}
+                          prox={choice === 'PROX'}
+                          onChange={e => {
+                            setPhotonArming(w.name, e);
+                            if (e !== 2 && choice === 'PROX') setArming(w.name, 'STANDARD');
+                          }}
+                          onProx={p => {
+                            setArming(w.name, p ? 'PROX' : 'STANDARD');
+                            if (p) setPhotonArming(w.name, 2);
+                          }} />
                       ) : (
                         /* Non-plasma unarmed */
                         <>
@@ -1241,6 +1358,81 @@ export default function EnergyAllocationDialog({
 
 // ---- Arm option radio button ----
 
+
+/**
+ * A photon tube's arming dial (E4.21/E4.411). Two points of warp energy are mandatory and arm it
+ * as a standard torpedo; every point above that is overload energy, to a maximum of four, so a
+ * turn takes 2 to 6. The readout shows what the tube will hold and what that makes it, because
+ * the choice is really "how hard do I want this to hit" — and what it costs beyond the energy.
+ */
+function PhotonDial({ w, paid, prox, onChange, onProx }: {
+  w: WeaponState; paid: number; prox: boolean;
+  onChange: (energy: number) => void; onProx: (prox: boolean) => void;
+}) {
+  const inTube        = w.armingEnergy ?? 0;
+  const armingTurn    = w.armingTurn ?? 0;
+  const overloadSoFar = Math.max(0, inTube - 2 * armingTurn);
+  // A loaded tube is paid its holding cost and overloaded with the rest (E4.412); an arming
+  // one owes the mandatory two and overloads with the rest (E4.411).
+  const loaded        = w.armed ?? false;
+  const floorCost     = loaded ? (w.holdCost || 1) : 2;
+  const overloadNow   = Math.min(Math.max(0, paid - floorCost), 4 - overloadSoFar);
+  const total         = inTube + (loaded ? 0 : 2) + overloadNow;
+  const willBeArmed   = loaded || armingTurn + 1 >= 2;
+  const overloaded    = total > 4;
+  const warhead       = overloaded ? total * 2 : 8;
+  const feedback      = !overloaded ? 0 : total <= 5 ? 1 : total <= 6 ? 2 : total <= 7 ? 3 : 4;
+  const maxThisTurn   = floorCost + Math.max(0, 4 - overloadSoFar);
+  // Zero is a real choice, not a smaller payment: allocate nothing and the tube is discharged
+  // and starts over (E4.21/E1.24). One point is never legal — the two are mandatory (E4.21) —
+  // so the dial steps 0 ↔ 2.
+  const arming = paid > 0;
+  // E4.31: the fuse is recorded when the second turn's arming is, so it is a choice only on
+  // the turn that completes the torpedo — and never together with overload energy (E4.34).
+  const canFuse = (w.canProximity ?? false) && willBeArmed && overloadSoFar === 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <span style={{ color: '#8b949e' }}>Arm</span>
+      <button className="action-strip-btn" style={{ padding: '0 6px' }}
+        disabled={paid <= 0}
+        onClick={() => onChange(paid <= floorCost ? 0 : paid - 1)}>−</button>
+      <span style={{ color: !arming ? '#8b949e' : overloaded ? '#ffa050' : '#56d364',
+                     minWidth: 10, textAlign: 'center' }}>
+        {arming ? paid : '—'}
+      </span>
+      <button className="action-strip-btn" style={{ padding: '0 6px' }}
+        disabled={paid >= maxThisTurn}
+        onClick={() => onChange(paid < floorCost ? floorCost : Math.min(maxThisTurn, paid + 1))}>+</button>
+      {canFuse && (
+        <label className="ea-radio-label" style={{ color: '#a0d0ff', marginLeft: 4 }}
+          title="Proximity fuse (E4.31): free, recorded with this arming turn. Warhead 4, and it misses entirely inside range 9 (E4.32/E4.33). Cannot be overloaded (E4.34).">
+          <input type="checkbox" checked={prox} disabled={paid !== floorCost}
+            onChange={e => onProx(e.target.checked)} />
+          Prox
+        </label>
+      )}
+      <span style={{ color: '#8b949e', fontSize: '0.72rem' }}>
+        {prox && arming
+          ? <>→ proximity: <strong style={{ color: '#a0d0ff' }}>4 damage</strong> · minimum range 9</>
+          : arming && loaded
+          ? <>hold {floorCost}{overloadNow > 0 ? ` + ${overloadNow} overload` : ''} → {total} in tube,
+              {' '}<strong style={{ color: overloaded ? '#ffa050' : '#56d364' }}>{warhead} damage</strong>
+              {overloaded && <> · max range 8 · feedback {feedback} at range 0–1</>}</>
+          : !arming
+          ? (inTube > 0
+              ? <>not arming — <strong style={{ color: '#f0a0a0' }}>discharges</strong>, losing the
+                  {' '}{inTube} point{inTube === 1 ? '' : 's'} in the tube (E4.21)</>
+              : <>not arming</>)
+          : willBeArmed
+          ? <>→ {total} in tube, <strong style={{ color: overloaded ? '#ffa050' : '#56d364' }}>
+              {warhead} damage
+            </strong>{overloaded && <> · max range 8 · feedback {feedback} at range 0–1</>}</>
+          : <>→ {total} in tube, needs another arming turn</>}
+      </span>
+    </div>
+  );
+}
 function ArmOption({ name, value, label, current, color, onChange }: {
   name: string; value: ArmChoice; label: string; current: ArmChoice;
   color: string; onChange: (n: string, c: ArmChoice) => void;

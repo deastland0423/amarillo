@@ -24,6 +24,21 @@ public class Tractors implements Systems {
 
 	Unit owningUnit; // The unit on which the tractors are installed.
 
+	/**
+	 * The game's impulse clock, injected by {@link com.sfb.objects.Ship#attachClock}. The
+	 * damage pick needs to know which beams were used THIS turn and cannot be handed an
+	 * impulse: it is reached from the damage allocation chart, which has no clock.
+	 */
+	private com.sfb.TurnTracker clock;
+
+	public void setClock(com.sfb.TurnTracker clock) {
+		this.clock = clock;
+	}
+
+	private int now() {
+		return clock != null ? clock.getImpulse() : 0;
+	}
+
 	private final List<TractorBeam> beams = new ArrayList<>();
 
 	public Tractors(Unit owningUnit) {
@@ -69,18 +84,18 @@ public class Tractors implements Systems {
 	// Establish the physical tractor link after auction resolution (no energy
 	// deduction). Uses the first beam that is functional, unused this turn
 	// (G7.13), and not already holding.
-	public boolean linkUnit(Tractorable target) {
-		TractorBeam beam = firstFreeBeam();
+	public boolean linkUnit(Tractorable target, int absoluteImpulse) {
+		TractorBeam beam = firstFreeBeam(absoluteImpulse);
 		if (beam == null)
 			return false;
 		target.applyTractor(owningUnit);
-		beam.hold(target);
+		beam.hold(target, absoluteImpulse);
 		return true;
 	}
 
-	private TractorBeam firstFreeBeam() {
+	private TractorBeam firstFreeBeam(int absoluteImpulse) {
 		for (TractorBeam b : beams)
-			if (b.isAvailableForNewLink())
+			if (b.isAvailableForNewLink(absoluteImpulse))
 				return b;
 		return null;
 	}
@@ -90,29 +105,31 @@ public class Tractors implements Systems {
 	 * that failed its D6.372 EW roll still consumes the beam for the turn (the
 	 * standard rate-of-operations lockout).
 	 */
-	public boolean expendBeamUse() {
-		TractorBeam beam = firstFreeBeam();
+	public boolean expendBeamUse(int absoluteImpulse) {
+		TractorBeam beam = firstFreeBeam(absoluteImpulse);
 		if (beam == null)
 			return false;
-		beam.markUsed();
+		beam.markUsed(absoluteImpulse);
 		return true;
 	}
 
 	/** Beams that can still initiate a NEW link this turn (G7.13). */
-	public int getBeamsAvailableThisTurn() {
+	public int getBeamsAvailable(int absoluteImpulse) {
 		int count = 0;
 		for (TractorBeam b : beams)
-			if (b.isAvailableForNewLink())
+			if (b.isAvailableForNewLink(absoluteImpulse))
 				count++;
 		return count;
 	}
 
-	public void initForTurn(int energy) {
+	public void initForTurn(int energy, int absoluteImpulse) {
 		totalTractorEnergy = remainingTractorEnergy = energy;
-		// G7.13 usage resets each turn; beams still holding persistent links
-		// (G7.42) remain in use.
+		// Nothing to clear: a beam's availability is worked out from the impulse it was
+		// last used, so the turn boundary takes care of itself and the quarter-turn delay
+		// carries across it. A beam still holding a persistent link (G7.42) has its use
+		// restamped, because it is in use now, not merely spent earlier.
 		for (TractorBeam b : beams)
-			b.resetForTurn();
+			b.keepHoldingAcrossTurn(absoluteImpulse);
 	}
 
 	/**
@@ -152,11 +169,11 @@ public class Tractors implements Systems {
 
 	// Legacy direct-link (used only for non-contested establishes; prefer linkUnit
 	// after auction).
-	public void tractorUnit(int energy, Tractorable target) {
-		TractorBeam beam = firstFreeBeam();
+	public void tractorUnit(int energy, Tractorable target, int absoluteImpulse) {
+		TractorBeam beam = firstFreeBeam(absoluteImpulse);
 		if (energy <= remainingTractorEnergy && beam != null) {
 			target.applyTractor(owningUnit);
-			beam.hold(target);
+			beam.hold(target, absoluteImpulse);
 			remainingTractorEnergy -= energy;
 		}
 	}
@@ -188,8 +205,9 @@ public class Tractors implements Systems {
 		// (TractorResolver.maintainLinksAtTurnStart). Only per-turn energy resets here.
 		totalTractorEnergy = remainingTractorEnergy = 0;
 		negativeTractorAccumulated = 0;
-		for (TractorBeam b : beams)
-			b.resetForTurn();
+		// Beams need nothing cleared: availability follows the impulse each was last used,
+		// so the quarter-turn delay carries across the boundary instead of being wiped by
+		// it (G7.13 with the G4.451-shaped cycle).
 	}
 
 	@Override
@@ -227,7 +245,7 @@ public class Tractors implements Systems {
 	public String damageAutoPick() {
 		TractorBeam pick = null;
 		for (TractorBeam b : beams) { // used-idle first
-			if (b.isFunctional() && b.getHeldUnit() == null && b.isUsedThisTurn()) {
+			if (b.isFunctional() && b.getHeldUnit() == null && b.isUsedThisTurn(now())) {
 				pick = b;
 				break;
 			}

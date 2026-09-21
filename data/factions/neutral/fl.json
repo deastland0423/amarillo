@@ -1,6 +1,7 @@
 {
   "faction": "Neutral",
-  "hull": "F-L",
+  "type": "F-L",
+  "line": "F-L",
   "name": "Red Dwarf",
   "serviceYear": 120,
   "bpv": 18,
@@ -10,6 +11,7 @@
   "moveCost": 0.5,
   "breakdown": 1,
   "bonusHets": 0,
+  "commandRating": 0,
   
   "shields": [9, 9, 9, 9, 9, 9],
   

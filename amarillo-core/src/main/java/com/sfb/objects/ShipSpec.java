@@ -20,7 +20,13 @@ public class ShipSpec {
 
     // --- Top-level fields ---
     public String faction;
-    public String hull;
+    /** The SSD's "Type" line: this exact variant, e.g. "CA+", "D7C". Identity, not family. */
+    public String type;
+    /**
+     * The family this variant serves in, e.g. "CA" for a D7C. Catalogued in
+     * data/shiplines/shiplines.json; what the leader rules (S8.36) compare.
+     */
+    public String line;
     public String name;
     public String tokenArt;  // optional path to a PNG token image, e.g. "federation/constitution.png"
     public int serviceYear;
@@ -35,6 +41,24 @@ public class ShipSpec {
     public boolean nimble;
     public int stealthBonus; // Orion Stealth Bonus in ECM points (G15.8), 0 if none
     public Boolean canDoubleEngines; // G15.28: null/absent = capable (default); set false for freighters & the one non-doubling warship
+
+    // --- Fleet-building classifications (S8.0 patrol scenarios). All default false. ---
+    /** Leader variant (CWL, DWL, DDL, CC…): restricted by S8.36/S8.361 when fleet building. */
+    public boolean isLeader;
+    /** Carrier escort: cannot be fielded except as part of a carrier group (S8.311). */
+    public boolean isEscort;
+    /**
+     * A true carrier rather than a hybrid. Its fighters count against the battle force's
+     * fighter limit (S8.321); hybrids' do not (S8.322). Not inferable from bay contents —
+     * plenty of ships carry a few fighters without being carriers.
+     */
+    public boolean isTrueCarrier;
+    /**
+     * Heavy battlecruiser. No more than one may be in a battle force, though it needs no
+     * squadron of followers and may be there alongside the one allowed size class 2 ship
+     * (S8.333).
+     */
+    public boolean isBCH;
 
     public int[] shields;
 
@@ -172,6 +196,8 @@ public class ShipSpec {
         public String addType;
         /** For ADD: number of shots */
         public int shots;
+        /** For ScoutChannel: DAC hit location of the weapon it replaced (G24.17), e.g. "torp", "phaser". */
+        public String dacHitLocation;
     }
 
     // -------------------------------------------------------------------------
@@ -194,7 +220,9 @@ public class ShipSpec {
         Map<String, Object> m = new HashMap<>();
 
         m.put("faction", Faction.valueOf(faction));
-        m.put("hull", hull);
+        m.put("type", type);
+        if (line != null && !line.isBlank())
+            m.put("line", line);
         m.put("name", name);
         if (tokenArt != null) m.put("tokenart", tokenArt);
         m.put("serviceyear", serviceYear);
@@ -209,6 +237,14 @@ public class ShipSpec {
         m.put("bonushets", bonusHets);
         if (nimble)
             m.put("nimble", true);
+        if (isLeader)
+            m.put("isleader", true);
+        if (isEscort)
+            m.put("isescort", true);
+        if (isTrueCarrier)
+            m.put("istruecarrier", true);
+        if (isBCH)
+            m.put("isbch", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
         if (canDoubleEngines != null)

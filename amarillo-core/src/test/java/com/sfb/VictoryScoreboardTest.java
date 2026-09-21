@@ -117,6 +117,99 @@ public class VictoryScoreboardTest {
     }
 
     @Test
+    public void commanderOptionSpend_isAwardedToTheEnemy() {
+        // S2.20 step B: what you buy in the COI, you hand to the enemy as points.
+        fed.setCoiSpend(10);    // Fed bought 10 BPV of Commander's Options
+        klingon.setCoiSpend(3); // Klingon bought 3
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        // Both ships intact → no step-C points; only the COI transfer scores.
+        assertEquals("Klingons receive the Fed's COI spend",
+                10, teamScore(board, "Klingons").vpScored());
+        assertEquals("Federation receive the Klingon's COI spend",
+                3, teamScore(board, "Federation").vpScored());
+        // ...and the scoreboard itemizes it so players can see it.
+        assertEquals("Fed team's forfeited COI is shown", 10, teamScore(board, "Federation").coiForfeited());
+        assertEquals("Klingon team's forfeited COI is shown", 3, teamScore(board, "Klingons").coiForfeited());
+        Game.ShipVpRow fedRow = board.rows().stream()
+                .filter(r -> r.shipName().equals("USS Enterprise")).findFirst().orElseThrow();
+        assertEquals("per-ship COI spend is shown", 10, fedRow.coiSpend());
+    }
+
+    @Test
+    public void controlledObjective_scoresItsValueForTheController() {
+        com.sfb.objects.Objective o = new com.sfb.objects.Objective("Cargo Pod", 15, 15);
+        o.setPoints(30);
+        o.setCarrier(fed); // Fed carries it → Fed is the current controller
+        game.getObjectives().add(o);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("the controller scores the objective's value",
+                30, teamScore(board, "Federation").vpScored());
+        assertEquals("the enemy scores nothing from it",
+                0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
+    public void freeObjective_scoresForNobody() {
+        com.sfb.objects.Objective o = new com.sfb.objects.Objective("Cargo Pod", 15, 15);
+        o.setPoints(30); // valuable, but uncontrolled at scenario end
+        game.getObjectives().add(o);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals(0, teamScore(board, "Federation").vpScored());
+        assertEquals(0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
+    public void standardStepA_lowerBpvSideScoresTheDifference() {
+        // S2.20 A: the smaller force gets the Combat-BPV difference (STANDARD only).
+        game.setVictoryConditionsType("STANDARD");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("weaker side gets the 30-point handicap", 30,
+                teamScore(board, "Federation").vpScored());
+        assertEquals(0, teamScore(board, "Klingons").vpScored());
+    }
+
+    @Test
+    public void modifiedConditions_haveNoStepAHandicap() {
+        game.setVictoryConditionsType("MODIFIED");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("Modified (S2.201) drops step A", 0, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
+    public void stepA_isForfeitedIfTheWeakerSideFledByTurnTwo() {
+        game.setVictoryConditionsType("STANDARD");
+        fed.setBattlePointValue(100);
+        klingon.setBattlePointValue(130);
+        game.noteFledByTurn2("Federation"); // a Fed unit disengaged by end of Turn 2
+
+        Game.Scoreboard board = game.calculateVictoryPoints();
+
+        assertEquals("fleeing by Turn 2 forfeits the handicap (S2.20 A)",
+                0, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
+    public void coiSpend_roundsPerS224() {
+        klingon.setCoiSpend(4.5); // rounds up to 5 (S2.24)
+        Game.Scoreboard board = game.calculateVictoryPoints();
+        assertEquals(5, teamScore(board, "Federation").vpScored());
+    }
+
+    @Test
     public void crippledDisengagedShip_scoresAsCrippled() {
         // Highest-applicable: crippled (50%) beats disengaged (25%) — the old
         // inline Game code checked disengaged first and under-scored this case

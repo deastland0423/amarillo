@@ -80,7 +80,7 @@ class MineResolver {
         }
 
         // Transporter energy
-        if (actingShip.getTransporters().availableUses() < 1) {
+        if (actingShip.getTransporters().availableUses(game.getAbsoluteImpulse()) < 1) {
             return ActionResult.fail("No transporter energy available");
         }
 
@@ -119,7 +119,11 @@ class MineResolver {
         } else {
             actingShip.setDummyTBombs(actingShip.getDummyTBombs() - 1);
         }
-        actingShip.getTransporters().useTransporter();
+        // The energy limit is real now: this used to call useTransporter() and throw the
+        // answer away, so a ship with no transporter energy laid mines regardless.
+        if (!game.spendTransporterEnergy(actingShip, 1))
+            return ActionResult.fail(actingShip.getName()
+                    + " has no transporter energy left, and no battery power to draw on");
 
         // Place the mine
         SpaceMine mine = SpaceMine.createTBomb(actingShip, game.getAbsoluteImpulse(), isReal, range == 1);

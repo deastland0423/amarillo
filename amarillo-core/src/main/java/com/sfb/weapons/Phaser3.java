@@ -90,4 +90,10 @@ public class Phaser3 extends VariableDamageWeapon implements DirectFire, PhaserW
 			return 5;
 		return 6; // Out of range
 	}
+
+	/** G24.1341: a phaser-3 does not blind scout channels (and bigger phasers can fire as ph-3 to avoid it). */
+	@Override
+	public boolean blindsScoutChannels() {
+		return false;
+	}
 }

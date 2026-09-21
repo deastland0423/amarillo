@@ -115,8 +115,7 @@ class SeekerMover {
                 }
 
                 if (game.isAsteroidHex(drone.getLocation()) || game.isRingHex(drone.getLocation())) {
-                    String asteroidResult = applyTerrainCollisionToDrone(drone);
-                    log.add(asteroidResult);
+                    log.add("  " + game.applyTerrainCollision(drone));
                     if (drone.getHull() <= 0) {
                         expired.add(drone);
                         continue;
@@ -174,6 +173,9 @@ class SeekerMover {
                         drone.setName((launcherName != null ? launcherName : "SP") + "-Drone-" + game.nextSeekerSeq());
                         drone.setLocation(pack.getLocation());
                         drone.setFacing(pack.getFacing());
+                        // The drones inherit the pack's side. Without this they came out
+                        // ownerless, like the pack itself.
+                        drone.setOwner(pack.getOwner());
                         if (launcherName != null)
                             drone.setLauncherName(launcherName);
                         drone.setLaunchImpulse(game.getAbsoluteImpulse());
@@ -213,6 +215,12 @@ class SeekerMover {
                     if (pack.getLocation() == null) {
                         log.add("  Scatter pack moved off the map — lost");
                         expired.add(pack);
+                    } else if (game.isAsteroidHex(pack.getLocation())
+                            || game.isRingHex(pack.getLocation())) {
+                        // C11.1: nimble even on a seeking course — but it still rolls.
+                        log.add("  " + game.applyTerrainCollision(pack));
+                        if (pack.getCurrentHull() <= 0)
+                            expired.add(pack);
                     }
                 }
 
@@ -236,6 +244,15 @@ class SeekerMover {
                     log.add("  Suicide shuttle moved off the map");
                     expired.add(ss);
                     continue;
+                }
+                if (game.isAsteroidHex(ss.getLocation()) || game.isRingHex(ss.getLocation())) {
+                    // C11.1: nimble even on a seeking course — but it still rolls, and a
+                    // suicide shuttle that dies in the rocks never reaches its target.
+                    log.add("  " + game.applyTerrainCollision(ss));
+                    if (ss.getCurrentHull() <= 0) {
+                        expired.add(ss);
+                        continue;
+                    }
                 }
                 if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
                     if (target instanceof WildWeaselShuttle) {
@@ -281,7 +298,7 @@ class SeekerMover {
                 }
 
                 if (game.isAsteroidHex(torp.getLocation()) || game.isRingHex(torp.getLocation())) {
-                    log.add(applyTerrainCollisionToPlasma(torp));
+                    log.add("  " + game.applyTerrainCollision(torp));
                     if (torp.getCurrentStrength() <= 0) {
                         expired.add(seeker);
                         continue;
@@ -522,7 +539,7 @@ class SeekerMover {
         int targetEcm = terrainEcm;
         if (target instanceof Ship) {
             Ship tship = (Ship) target;
-            targetEcm += tship.getEcmAllocated() + tship.getWwEcmBonus() + tship.getStealthEcm();
+            targetEcm += tship.getEcmAllocated() + tship.getLentEcmTotal() + tship.getStealthEcm();
         }
         int controllerEccm = 0;
         Unit controller = seeker.getController();
@@ -530,10 +547,10 @@ class SeekerMover {
             Ship cship = (Ship) controller;
             // D19.12: ECCM cannot be *used* under PFC, even if energy was spent on it
             if (cship.isActiveFireControl())
-                controllerEccm = cship.getEccmAllocated();
+                controllerEccm = cship.getEccmAllocated() + cship.getLentEccm();
         }
         int netEcm = Math.max(0, targetEcm - controllerEccm - seeker.getBuiltInEccm());
-        return (int) Math.floor(Math.sqrt(netEcm));
+        return Game.netEcmShift(netEcm);
     }
 
     /**
@@ -560,11 +577,6 @@ class SeekerMover {
     }
 
     /**
-     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
-     * (P2.223) — and apply it directly to a drone's hull. Returns a log line;
-     * removes the drone from play if hull reaches 0.
-     */
-    /**
      * Non-revealing label for a drone in the shared combat log: its name (owner +
      * sequence), never its type. A drone's type is hidden from the enemy until
      * identified (D17), and the log is broadcast to both players — so naming the
@@ -574,50 +586,4 @@ class SeekerMover {
         return d.getName() != null ? d.getName() : "a drone";
     }
 
-    private String applyTerrainCollisionToDrone(Drone drone) {
-        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
-        Game.TerrainHit hit = game.rollTerrainCollision(drone.getLocation(), drone.getSpeed(),
-                false, null);
-        if (hit == null)
-            return "";
-        String base = "  " + droneLabel(drone) + " enters " + hit.terrainName + " hex"
-                + " (speed " + drone.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
-        if (hit.damage == 0)
-            return base + " — no damage";
-        int remaining = drone.getHull() - hit.damage;
-        drone.setHull(Math.max(0, remaining));
-        if (drone.getHull() <= 0) {
-            seekers.remove(drone);
-            if (drone.getController() instanceof DroneController)
-                ((DroneController) drone.getController()).releaseControl(drone);
-            return base + " — " + hit.damage + " hull damage — destroyed";
-        }
-        return base + " — " + hit.damage + " hull damage — " + drone.getHull() + " remaining";
-    }
-
-    /**
-     * Roll terrain collision damage — asteroid (P3.2) or planetary ring
-     * (P2.223) — and apply it as phaser damage to a plasma torpedo. Each point
-     * reduces strength by 0.5 (same as direct phaser fire). Returns a log line;
-     * removes the torpedo if strength reaches 0.
-     */
-    private String applyTerrainCollisionToPlasma(PlasmaTorpedo torp) {
-        // Seeking weapons are not shuttlecraft/fighters, so not nimble (C11 note)
-        Game.TerrainHit hit = game.rollTerrainCollision(torp.getLocation(), torp.getSpeed(),
-                false, null);
-        if (hit == null)
-            return "";
-        String base = "  Plasma-" + torp.getPlasmaType() + " enters " + hit.terrainName + " hex"
-                + " (speed " + torp.getSpeed() + ", die " + hit.die + (hit.nimble ? " −1 nimble" : "") + ")";
-        if (hit.damage == 0)
-            return base + " — no damage";
-        int before = torp.getCurrentStrength();
-        torp.applyPhaserDamage(hit.damage);
-        int after = torp.getCurrentStrength();
-        if (after <= 0) {
-            seekers.remove(torp);
-            return base + " — " + hit.damage + " phaser pts — destroyed";
-        }
-        return base + " — " + hit.damage + " phaser pts — strength " + before + " → " + after;
-    }
 }

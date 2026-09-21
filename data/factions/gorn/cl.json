@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
-  "hull": "CL",
+  "type": "CL",
+  "line": "CL",
   "name": "GCS Dragonfire",
   "serviceYear": 121,
   "bpv": 92,
@@ -9,6 +10,7 @@
   "moveCost": 0.6666667,
   "breakdown": 4,
   "bonusHets": 1,
+  "commandRating": 6,
 
   "shields": [24, 18, 16, 16, 16, 18],
   

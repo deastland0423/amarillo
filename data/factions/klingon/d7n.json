@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
-  "hull": "D7N",
+  "type": "D7N",
+  "line": "CA",
   "name": "IKS Dictator",
   "serviceYear": 137,
   "bpv": 119,
@@ -10,6 +11,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "commandRating": 8,
   "tokenArt": "klingon/d7.png",
   
   "shields": [30, 22, 22, 22, 22, 22],

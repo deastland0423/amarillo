@@ -1,12 +1,13 @@
 {
   "faction": "Lyran",
-  "hull": "CL",
+  "type": "CL",
+  "line": "CL",
   "name": "Blood of Heroes",
   "serviceYear": 120,
   "bpv": 92,
   "turnMode": "C",
   "sizeClass": 3,
-  "moveCost": 0.666666667,
+  "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
@@ -68,8 +69,8 @@
     { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
-    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
   ]
