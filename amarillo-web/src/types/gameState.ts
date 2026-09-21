@@ -86,6 +86,7 @@ export interface ShuttleInBayState {
   canLaunch:           boolean;  // hatch or tube available for this shuttle right now
   armed?:              boolean;  // suicide only
   armingTurnsComplete?: number; // suicide only
+  lastArmingEnergy?:   number;  // suicide only: energy paid on the most recent arming turn
   warheadDamage?:      number;  // suicide only
   payload?:            string[]; // scatterpack only: live drone type names
   pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading

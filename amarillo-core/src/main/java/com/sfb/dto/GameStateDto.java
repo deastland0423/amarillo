@@ -199,6 +199,7 @@ public class GameStateDto {
         public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
         public boolean armed; // suicide only: true when armingTurnsComplete >= 3
         public int armingTurnsComplete; // suicide only: 0-3
+        public int lastArmingEnergy; // suicide only: energy paid on the most recent arming turn
         public int warheadDamage; // suicide only: totalEnergy * 2
         public List<String> payload; // scatterpack only: live drone type names (e.g. "TypeIM")
         public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
@@ -1383,6 +1384,7 @@ public class GameStateDto {
                         com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
                         sd.armed = ss.isArmed();
                         sd.armingTurnsComplete = ss.getArmingTurnsComplete();
+                        sd.lastArmingEnergy = ss.getLastArmingEnergy();
                         sd.warheadDamage = ss.getWarheadDamage();
                     } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
                         // BEFORE the weasel branch. A pack built from an admin shuttle keeps

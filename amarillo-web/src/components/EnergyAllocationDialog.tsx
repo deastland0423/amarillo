@@ -120,7 +120,19 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ),
     droneReloads:        {},
     scatterPackLoading:  {},
-    suicideArming:       {},
+    // Carry on at last turn's rate. Arming runs three turns and the rate is the player's
+    // each turn, so a stepper that starts at 0 makes every turn of a three-turn job a hunt
+    // through the panel - and offers no reminder of what was paid last time.
+    suicideArming: Object.fromEntries(
+      (ship.shuttleBays ?? []).flatMap(bay =>
+        bay.shuttles
+          .filter(s => {
+            const turns = s.armingTurnsComplete ?? 0;
+            return turns >= 1 && turns < 3 && (s.lastArmingEnergy ?? 0) >= 1;
+          })
+          .map(s => [s.name, s.lastArmingEnergy ?? 0] as [string, number])
+      )
+    ),
     // An armed suicide shuttle pays to keep its charge by default, the same way an armed
     // weapon defaults to its hold cost above and a charged Wild Weasel does below. Left
     // false, a shuttle armed in the COI was released on turn 1 unless the player went

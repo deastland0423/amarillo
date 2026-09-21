@@ -21,6 +21,10 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     // Arming state
     private int     armingTurnsComplete = 0;     // 0–3; armed when == 3
     private int     totalEnergy         = 0;     // cumulative energy across all arming turns
+    // What was paid on the most recent arming turn. The cumulative total cannot answer this
+    // - divided by the turns it gives the average, which stops being the rate as soon as the
+    // player varies it - and the allocation form needs it to offer "same again".
+    private int     lastArmingEnergy    = 0;
     private boolean holdPaidThisTurn    = false; // true if hold energy was allocated in current EA
 
     public SuicideShuttle(Shuttle base) {
@@ -44,6 +48,7 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         if (isFullyArmed()) return false;
         if (energy < 1 || energy > 3) return false;
         totalEnergy += energy;
+        lastArmingEnergy = energy;
         armingTurnsComplete++;
         return true;
     }
@@ -68,6 +73,9 @@ public class SuicideShuttle extends Shuttle implements Seeker {
 
     public int getArmingTurnsComplete() { return armingTurnsComplete; }
     public int getTotalEnergy()         { return totalEnergy; }
+
+    /** Energy paid on the most recent arming turn; 0 before any. */
+    public int getLastArmingEnergy()    { return lastArmingEnergy; }
 
     // -------------------------------------------------------------------------
     // Seeker interface

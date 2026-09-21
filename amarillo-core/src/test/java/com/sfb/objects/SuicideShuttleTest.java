@@ -51,6 +51,34 @@ public class SuicideShuttleTest {
         assertTrue(shuttle.arm(3));
     }
 
+    /**
+     * The allocation form offers "same again" on the next arming turn, which needs the RATE,
+     * not the running total. Divided by the turns the total gives the average, and that stops
+     * being the rate the moment the player varies it - so 1 then 3 must read as 3, not 2.
+     */
+    @Test
+    public void lastArmingEnergy_isTheRateNotTheAverage() {
+        assertEquals("nothing paid yet", 0, shuttle.getLastArmingEnergy());
+
+        shuttle.arm(1);
+        assertEquals(1, shuttle.getLastArmingEnergy());
+
+        shuttle.arm(3);
+        assertEquals("the most recent turn, not the 2 an average would give",
+                3, shuttle.getLastArmingEnergy());
+        assertEquals("and the total is still the total", 4, shuttle.getTotalEnergy());
+    }
+
+    /** A refused arming turn charges nothing, so it must not move the remembered rate. */
+    @Test
+    public void lastArmingEnergy_ignoresARefusedArmingTurn() {
+        shuttle.arm(2);
+        assertFalse(shuttle.arm(0));
+        assertFalse(shuttle.arm(4));
+
+        assertEquals(2, shuttle.getLastArmingEnergy());
+    }
+
     @Test
     public void arm_rejectsZeroEnergy() {
         assertFalse(shuttle.arm(0));
