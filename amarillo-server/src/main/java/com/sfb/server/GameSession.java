@@ -1397,6 +1397,39 @@ public class GameSession {
                 return fireResult;
             }
 
+            case "FIRE_AT_HEX": {
+                // Firing at a PLACE rather than a unit: clearing a path through asteroids
+                // (P3.25) or bombarding a planet's surface (P2.311/P2.525). One action for
+                // both, because the client should not have to know which rule the hex it
+                // clicked falls under — the server can see what is there.
+                Ship firer = findShip(request.getShipName());
+                if (firer == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (request.getHexCol() < 1 || request.getHexRow() < 1)
+                    return ActionResult.fail("No target hex given");
+                com.sfb.properties.Location hex =
+                        new com.sfb.properties.Location(request.getHexCol(), request.getHexRow());
+
+                List<com.sfb.weapons.Weapon> hexWeapons = new ArrayList<>();
+                for (String wName : request.getWeaponNames() == null
+                        ? java.util.List.<String>of() : request.getWeaponNames())
+                    for (com.sfb.weapons.Weapon w : firer.getWeapons().fetchAllWeapons())
+                        if (w.getName().equals(wName) && !hexWeapons.contains(w)) {
+                            hexWeapons.add(w);
+                            break;
+                        }
+                if (hexWeapons.isEmpty())
+                    return ActionResult.fail("No weapons selected");
+
+                com.sfb.objects.Terrain planet = game.planetCovering(hex);
+                ActionResult hexResult = planet != null
+                        ? game.bombardPlanet(firer, planet, request.getPlanetSide(), hexWeapons)
+                        : game.clearAsteroidPath(firer, hex, hexWeapons);
+                if (hexResult.isSuccess())
+                    appendCombatLog(hexResult.getMessage());
+                return hexResult;
+            }
+
             case "ANNOUNCE_EM": {
                 // C10.3: announce that EM starts or stops. It comes into force at the END
                 // of this impulse (C10.311), not now. Works for a ship or a shuttle —

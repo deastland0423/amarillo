@@ -3481,6 +3481,27 @@ public class Game {
         return where + " — " + applyDamageToUnit(damage, unit, shieldNum);
     }
 
+    /**
+     * The planet or gas giant whose body covers this hex, or null.
+     *
+     * Not the same question as {@link #planetAt}, which matches the CENTRE only. A giant is
+     * several hexes across, and a player aiming at one clicks whatever part of it is under
+     * the cursor — usually not the middle. Matches the footprint the same way it is built:
+     * every hex within the radius (P2.222).
+     */
+    public Terrain planetCovering(Location loc) {
+        if (loc == null)
+            return null;
+        for (Terrain t : terrain) {
+            if (t.getTerrainType() != TerrainType.PLANET
+                    && t.getTerrainType() != TerrainType.GAS_GIANT)
+                continue;
+            if (com.sfb.utilities.MapUtils.getRange(t.getLocation(), loc) <= t.getRadius())
+                return t;
+        }
+        return null;
+    }
+
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
     }

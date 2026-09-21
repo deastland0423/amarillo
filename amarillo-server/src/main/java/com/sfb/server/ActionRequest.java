@@ -244,6 +244,13 @@ public class ActionRequest {
     public int  getCrewAmount()                { return crewAmount; }
     public void setCrewAmount(int crewAmount)  { this.crewAmount = crewAmount; }
 
+    // FIRE_AT_HEX: which face of a planet is being bombarded, 1-6 (A-F). Only a side the
+    // attacker can see may be hit (P2.52), which core checks. Ignored for asteroid hexes.
+    private int planetSide;
+
+    public int  getPlanetSide()               { return planetSide; }
+    public void setPlanetSide(int planetSide) { this.planetSide = planetSide; }
+
     // IDENTIFY_SEEKERS fields
     /**
      * One entry per LAB committed, NOT per contact (G4.22): a name repeated three times
