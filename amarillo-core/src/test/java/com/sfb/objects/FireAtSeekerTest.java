@@ -67,6 +67,30 @@ public class FireAtSeekerTest {
     // Drone hull damage
     // -------------------------------------------------------------------------
 
+    /**
+     * G4.2: an unidentified drone's remaining hull is not the shooter's to know — DroneDto
+     * sends 0 to an enemy and publishes damageTaken instead. The combat log is ONE list
+     * broadcast to every player, so it cannot be redacted per viewer; it reports the damage
+     * done and stops there. The owner reads what is left off the drone's own panel.
+     * <p>
+     * Found in a playtest: "hit for 2 — 2 hull remaining" against a drone nobody had
+     * identified. A shuttle is deliberately different and keeps its hull in the log — its
+     * craft type is public, so the hull behind the hits was never a secret.
+     */
+    @Test
+    public void damageLog_doesNotRevealAnUnidentifiedDronesHull() {
+        Drone drone = addDrone("Enterprise-Drone-1", 10, 11);   // TypeI, 4 hull
+
+        String log = game.applyDamageToUnit(2, drone, 0);
+
+        assertTrue(log, log.contains("hit for 2"));
+        // Deliberately not "does not contain 2": the damage dealt is 2 as well, and here so
+        // is the hull left, which is exactly how a loose assertion would pass while leaking.
+        assertFalse("the shared log must not carry a drone's remaining hull (G4.2)",
+                log.contains("hull remaining"));
+        assertEquals("the hull still goes down, it is simply not announced", 2, drone.getHull());
+    }
+
     @Test
     public void partialDamage_reducesHull() {
         Drone drone = addDrone("Enterprise-Drone-1", 10, 11);

@@ -283,8 +283,13 @@ class DamageResolver {
                 game.removeSeekerFromPlay(drone);
                 return drone.getName() + " destroyed (" + damage + " damage)";
             }
-            return drone.getName() + " hit for " + damage
-                    + " — " + drone.getHull() + " hull remaining";
+            // Damage only, never the hull behind it. A drone's remaining hull is hidden
+            // until it is identified (G4.2) — DroneDto sends 0 to an enemy and publishes
+            // damageTaken instead — and the combat log is ONE list broadcast to every
+            // player, so anything written here is public by construction. The owner reads
+            // what is left off the drone's own panel; the shooter is told what they did,
+            // which is all they are entitled to.
+            return drone.getName() + " hit for " + damage;
         } else if (target instanceof com.sfb.objects.shuttles.Shuttle) {
             com.sfb.objects.shuttles.Shuttle shuttle = (com.sfb.objects.shuttles.Shuttle) target;
             boolean isSeeker = shuttle instanceof Seeker;
