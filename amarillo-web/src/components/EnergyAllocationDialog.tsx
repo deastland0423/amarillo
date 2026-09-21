@@ -121,7 +121,18 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     droneReloads:        {},
     scatterPackLoading:  {},
     suicideArming:       {},
-    suicideHold:         {},
+    // An armed suicide shuttle pays to keep its charge by default, the same way an armed
+    // weapon defaults to its hold cost above and a charged Wild Weasel does below. Left
+    // false, a shuttle armed in the COI was released on turn 1 unless the player went
+    // looking for its checkbox — and a COI suicide shuttle arrives fully armed
+    // (ScenarioLoader arms it three times over), so it was always in that state.
+    suicideHold: Object.fromEntries(
+      (ship.shuttleBays ?? []).flatMap(bay =>
+        bay.shuttles
+          .filter(s => (s.armingTurnsComplete ?? 0) >= 3)
+          .map(s => [s.name, true] as [string, boolean])
+      )
+    ),
     transUses:       0,
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     doubleLwarp:     false,
