@@ -25,7 +25,11 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     // - divided by the turns it gives the average, which stops being the rate as soon as the
     // player varies it - and the allocation form needs it to offer "same again".
     private int     lastArmingEnergy    = 0;
-    private boolean holdPaidThisTurn    = false; // true if hold energy was allocated in current EA
+    // Whether this turn's upkeep has been met, by EITHER route: arming energy while it is
+    // still arming, or the hold once it is fully armed. Named for the meaning rather than
+    // for one of the two payments - as "holdPaid" it read as unrelated to arming, which is
+    // exactly the mistake the code made.
+    private boolean upkeepPaidThisTurn   = false;
 
     public SuicideShuttle(Shuttle base) {
         setHull(base.getHull());
@@ -50,6 +54,9 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         totalEnergy += energy;
         lastArmingEnergy = energy;
         armingTurnsComplete++;
+        // Arming energy IS this turn's upkeep. Nothing is owed on top of it until the shuttle
+        // is fully armed, at which point the 1-point hold takes over.
+        upkeepPaidThisTurn = true;
         return true;
     }
 
@@ -63,13 +70,20 @@ public class SuicideShuttle extends Shuttle implements Seeker {
         return armingTurnsComplete >= 3;
     }
 
-    /** Record that hold energy was paid this turn. */
-    public void payHold() { this.holdPaidThisTurn = true; }
+    /**
+     * Record the 1-point hold (owed only once fully armed). Arming energy pays its own way
+     * through {@link #arm}, so this is not called while a shuttle is still arming.
+     */
+    public void payHold() { this.upkeepPaidThisTurn = true; }
 
-    public boolean isHoldPaid()         { return holdPaidThisTurn; }
+    /** True if this turn's upkeep was met, by arming energy or by the hold. */
+    public boolean isUpkeepPaid()       { return upkeepPaidThisTurn; }
 
-    /** Called at end of turn — resets hold flag for next turn. */
-    public void resetHold()             { this.holdPaidThisTurn = false; }
+    /** True once the shuttle owes the 1-point hold rather than arming energy. */
+    public boolean owesHold()           { return isFullyArmed(); }
+
+    /** Called at end of turn — next turn must be paid for on its own. */
+    public void resetUpkeep()           { this.upkeepPaidThisTurn = false; }
 
     public int getArmingTurnsComplete() { return armingTurnsComplete; }
     public int getTotalEnergy()         { return totalEnergy; }

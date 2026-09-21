@@ -79,6 +79,51 @@ public class SuicideShuttleTest {
         assertEquals(2, shuttle.getLastArmingEnergy());
     }
 
+    // -------------------------------------------------------------------------
+    // Upkeep at end of turn (owner's ruling): no holding energy is owed until the shuttle
+    // is fully armed. Three turns of 1-3 energy, then 1 a turn to hold. A turn that pays
+    // nothing mid-arming loses ALL the arming.
+    //
+    // None of this was tested before, which is how the code came to charge twice: cleanUp
+    // reverted anything part-armed that had not paid a HOLD, and arming energy did not count.
+    // -------------------------------------------------------------------------
+
+    /** Paying this turn's arming energy is all a part-armed shuttle owes. */
+    @Test
+    public void partArmed_armingEnergyIsTheUpkeep() {
+        shuttle.arm(3);
+
+        assertTrue("arming energy paid for this turn", shuttle.isUpkeepPaid());
+        assertFalse("and no hold is owed yet", shuttle.owesHold());
+    }
+
+    /** A part-armed shuttle that is paid nothing has met nothing. */
+    @Test
+    public void partArmed_payingNothing_leavesUpkeepUnmet() {
+        shuttle.arm(2);
+        shuttle.resetUpkeep();            // the turn rolls over
+
+        assertFalse(shuttle.isUpkeepPaid());
+        assertTrue("still part-armed, so still at risk", shuttle.isArmed());
+    }
+
+    /** Fully armed, the 1-point hold is what it owes - arming can pay no more. */
+    @Test
+    public void fullyArmed_owesTheHold() {
+        shuttle.arm(3);
+        shuttle.arm(3);
+        shuttle.arm(3);
+        shuttle.resetUpkeep();
+
+        assertTrue(shuttle.owesHold());
+        assertFalse("a fourth arming turn is refused", shuttle.arm(3));
+        assertFalse("so it cannot pay its way by arming", shuttle.isUpkeepPaid());
+
+        shuttle.payHold();
+        assertTrue(shuttle.isUpkeepPaid());
+        assertEquals("3+3+3 = 9 energy, an 18-point warhead", 18, shuttle.getWarheadDamage());
+    }
+
     @Test
     public void arm_rejectsZeroEnergy() {
         assertFalse(shuttle.arm(0));
@@ -202,8 +247,10 @@ public class SuicideShuttleTest {
         if (bay == null) {
             fail("FedCa has no shuttle bays — check ship definition");
         }
-        bay.getInventory().clear();
-        bay.getInventory().add(armedShuttle);
+        // Through the bay, not through getInventory(): that hands back a fresh copy, so
+        // clear()/add() on it changed nothing and launch_removesShuttleFromBay was asserting
+        // the absence of a shuttle that had never been there.
+        bay.replaceShuttle(bay.getInventory().get(0), armedShuttle);
 
         // Lock on to target (required by rules)
         launcher.addLockOn(target);
@@ -275,5 +322,74 @@ public class SuicideShuttleTest {
         ActionResult result = game.launchSuicideShuttle(launcher, bay, armedShuttle, target, 1, 6);
         assertTrue(result.isSuccess());
         assertTrue(result.getMessage().contains(String.valueOf(armedShuttle.getWarheadDamage())));
+    }
+
+    // -------------------------------------------------------------------------
+    // End of turn: what actually happens to the shuttle (Shuttles.cleanUp)
+    // -------------------------------------------------------------------------
+
+    private SuicideShuttle putInBay(int... armingTurns) {
+        SuicideShuttle ss = new SuicideShuttle(new AdminShuttle());
+        ss.setName("SS-upkeep");
+        for (int energy : armingTurns)
+            ss.arm(energy);
+        // Through the bay's own API: getInventory() hands back a copy, so adding to that
+        // list changes nothing - which is exactly the bug these tests found in cleanUp.
+        bay.replaceShuttle(bay.getInventory().get(0), ss);
+        return ss;
+    }
+
+    private Shuttle inBay() {
+        return bay.getInventory().get(0);
+    }
+
+    /**
+     * The bug this ruling settled: a part-armed shuttle paid its arming energy and was
+     * reverted anyway, because cleanUp wanted a HOLD that is not owed until full arming.
+     */
+    @Test
+    public void partArmed_paidItsArmingEnergy_survivesTheTurn() {
+        putInBay(3);                       // one arming turn paid, this turn
+
+        launcher.getShuttles().cleanUp();
+
+        assertTrue("still a suicide shuttle", inBay() instanceof SuicideShuttle);
+        assertEquals(1, ((SuicideShuttle) inBay()).getArmingTurnsComplete());
+    }
+
+    /** And a turn that pays nothing loses all of it, not just that turn's worth. */
+    @Test
+    public void partArmed_paidNothing_losesAllTheArming() {
+        SuicideShuttle ss = putInBay(3, 3);   // two turns in
+        ss.resetUpkeep();                     // and then a turn where nothing was paid
+
+        launcher.getShuttles().cleanUp();
+
+        assertFalse("reverted to a plain admin shuttle", inBay() instanceof SuicideShuttle);
+        assertTrue(inBay() instanceof AdminShuttle);
+        assertEquals("the name survives the reversion", "SS-upkeep", inBay().getName());
+    }
+
+    /** Fully armed, the hold is what keeps it. */
+    @Test
+    public void fullyArmed_holdPaid_survivesTheTurn() {
+        SuicideShuttle ss = putInBay(3, 3, 3);
+        ss.resetUpkeep();
+        ss.payHold();
+
+        launcher.getShuttles().cleanUp();
+
+        assertTrue(inBay() instanceof SuicideShuttle);
+        assertEquals(18, ((SuicideShuttle) inBay()).getWarheadDamage());
+    }
+
+    @Test
+    public void fullyArmed_holdUnpaid_isLost() {
+        SuicideShuttle ss = putInBay(3, 3, 3);
+        ss.resetUpkeep();
+
+        launcher.getShuttles().cleanUp();
+
+        assertFalse(inBay() instanceof SuicideShuttle);
     }
 }

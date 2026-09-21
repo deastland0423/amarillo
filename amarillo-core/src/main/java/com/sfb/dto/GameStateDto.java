@@ -197,7 +197,10 @@ public class GameStateDto {
         public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
         public int maxSpeed;
         public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
-        public boolean armed; // suicide only: true when armingTurnsComplete >= 3
+        // suicide only: arming has BEGUN (D12.123 counts a part-armed shuttle as armed).
+        // Not the same as fully armed at three turns, which is what decides whether it owes
+        // the 1-point hold — read armingTurnsComplete for that.
+        public boolean armed;
         public int armingTurnsComplete; // suicide only: 0-3
         public int lastArmingEnergy; // suicide only: energy paid on the most recent arming turn
         public int warheadDamage; // suicide only: totalEnergy * 2

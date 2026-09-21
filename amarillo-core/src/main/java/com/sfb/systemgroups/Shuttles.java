@@ -79,22 +79,26 @@ public class Shuttles implements Systems {
     @Override
     public void cleanUp() {
         for (ShuttleBay bay : bays) {
-            java.util.List<com.sfb.objects.shuttles.Shuttle> inv = bay.getInventory();
-            for (int i = 0; i < inv.size(); i++) {
-                com.sfb.objects.shuttles.Shuttle s = inv.get(i);
+            for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory()) {
                 if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
                     ((com.sfb.objects.shuttles.ScatterPack) s).applyPendingPayload();
                 } else if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                     com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
-                    if (ss.isArmed() && !ss.isHoldPaid()) {
-                        // Hold energy not paid — revert to plain admin shuttle
+                    // Nothing paid for this turn, by either route: all the arming is lost and
+                    // it is a plain admin shuttle again. While arming, the arming energy is
+                    // the upkeep; once fully armed, the 1-point hold is.
+                    if (ss.isArmed() && !ss.isUpkeepPaid()) {
                         com.sfb.objects.shuttles.AdminShuttle admin = new com.sfb.objects.shuttles.AdminShuttle();
                         admin.setName(ss.getName());
                         admin.setMaxSpeed(ss.getMaxSpeed());
                         admin.setHull(ss.getHull());
-                        inv.set(i, admin);
+                        admin.setCurrentHull(ss.getCurrentHull());
+                        // Through the BAY. getInventory() builds a fresh list on every call,
+                        // so the old inv.set(i, admin) rewrote a throwaway copy and the
+                        // shuttle was never actually reverted - the whole lapse was a no-op.
+                        bay.replaceShuttle(ss, admin);
                     } else {
-                        ss.resetHold();
+                        ss.resetUpkeep();
                     }
                 }
             }
