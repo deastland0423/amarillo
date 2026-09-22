@@ -636,7 +636,7 @@ export default function SeekerOrdersPad({
                                       label: `${attacker.name} → ${target.name}: ${w.name}`,
                                       kind: 'PLASMA', shipName: attacker.name,
                                       targetName: target.name, weaponName: w.name, facing,
-                                    })}>send</button>
+                                    })}>launch</button>
                           )}
                           {w.pseudoPlasmaReady && (
                             <button className="secondary" style={{ padding: '0 6px' }}
@@ -712,7 +712,7 @@ export default function SeekerOrdersPad({
                                 kind: 'SUICIDE', shipName: attacker.name,
                                 targetName: target.name, shuttleName: s.name,
                                 facing: facings[s.name] ?? 0, speed: speedOf(s),
-                              })}>send</button>
+                              })}>launch</button>
                     </span>
                   </div>
                 ))}
@@ -735,7 +735,7 @@ export default function SeekerOrdersPad({
                                 kind: 'SCATTER_PACK', shipName: attacker.name,
                                 targetName: target.name, shuttleName: s.name,
                                 facing: facings[s.name] ?? 0, speed: speedOf(s),
-                              })}>send</button>
+                              })}>launch</button>
                     </span>
                   </div>
                 ))}
