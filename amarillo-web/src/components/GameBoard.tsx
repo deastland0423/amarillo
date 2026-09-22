@@ -3747,7 +3747,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   const padUnits: FiringUnit[] = (gameState?.mapObjects ?? []).flatMap((o): FiringUnit[] => {
     if (o.type === 'SHIP' && myShips.has(o.name)) {
       const ship = o as ShipObject;
-      return [{ name: ship.name, isShip: true, weapons: ship.weapons ?? [], note: null }];
+      return [{
+        name: ship.name, isShip: true, weapons: ship.weapons ?? [], note: null,
+        uimFunctional: ship.uimFunctional,
+      }];
     }
     if (o.type === 'SHUTTLE') {
       const sh = o as ShuttleObject;

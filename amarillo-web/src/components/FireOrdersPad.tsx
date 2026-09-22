@@ -49,6 +49,8 @@ export interface FiringUnit {
   name:    string;
   isShip:  boolean;
   weapons: WeaponState[];
+  /** Ships only: a working UIM offers its targeting to a volley (D6.51). */
+  uimFunctional?: boolean;
   /** Shown beside the name so a fighter reads as a fighter, not as a ship. */
   note:    string | null;
 }
@@ -107,8 +109,31 @@ interface Props {
   error:    string | null;
 }
 
-/** One shared empty set, so deriving "nothing picked" does not allocate on every render. */
-const EMPTY_PICK: Set<string> = new Set();
+/**
+ * Everything chosen for ONE volley, keyed by the attacker and target it belongs to. Keyed
+ * rather than reset, so moving the selection discards it without an effect to do the clearing
+ * — and so there is never a render showing the last target's weapons.
+ */
+interface Sel {
+  attacker: string | null;
+  target:   string | null;
+  picked:   Set<string>;
+  /** Weapon name -> shots this impulse, for weapons that may fire more than once. */
+  shots:    Record<string, number>;
+  /** Weapon name -> SINGLE or DOUBLE, for a fighter's fusion. */
+  modes:    Record<string, 'SINGLE' | 'DOUBLE'>;
+  useUim:   boolean;
+  /** A Hellbore firing in direct-fire mode: half damage, the facing shield (E10.7). */
+  hellbore: boolean;
+}
+
+const EMPTY_PICK:  Set<string> = new Set();
+const EMPTY_SHOTS: Record<string, number> = {};
+const EMPTY_MODES: Record<string, 'SINGLE' | 'DOUBLE'> = {};
+const EMPTY_SEL: Sel = {
+  attacker: null, target: null, picked: EMPTY_PICK,
+  shots: EMPTY_SHOTS, modes: EMPTY_MODES, useUim: false, hellbore: false,
+};
 
 /**
  * Likewise for "no candidates": a fresh [] changes identity on every render, which makes the
@@ -254,8 +279,7 @@ export default function FireOrdersPad({
   const [loaded, setLoaded] = useState<{
       attacker: string | null; rows: FireCandidate[]; error: string | null }>(
       { attacker: null, rows: [], error: null });
-  const [sel, setSel] = useState<{ attacker: string | null; target: string | null; picked: Set<string> }>(
-      { attacker: null, target: null, picked: new Set() });
+  const [sel, setSel] = useState<Sel>(EMPTY_SEL);
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const drag = useDraggable(savedPosition());
@@ -274,14 +298,23 @@ export default function FireOrdersPad({
 
   const candidates = answered ? loaded.rows : EMPTY_ROWS;
   const targetName = sel.attacker === attackerName ? sel.target : null;
-  const picked     = sel.attacker === attackerName && sel.target === targetName
-      ? sel.picked : EMPTY_PICK;
+  const onTarget   = sel.attacker === attackerName && sel.target === targetName;
+  const picked     = onTarget ? sel.picked : EMPTY_PICK;
+  const shots      = onTarget ? sel.shots : EMPTY_SHOTS;
+  const modes      = onTarget ? sel.modes : EMPTY_MODES;
+  const useUim     = onTarget && sel.useUim;
+  const hellbore   = onTarget && sel.hellbore;
 
   const attacker = units.find(u => u.name === attackerName) ?? null;
   const target   = candidates.find(c => c.name === targetName) ?? null;
 
+  /** Replace the selection. Changing target or attacker drops every per-volley choice. */
   const pick = (target: string | null, weapons: Set<string>) =>
-      setSel({ attacker: attackerName, target, picked: weapons });
+      setSel({ ...EMPTY_SEL, attacker: attackerName, target, picked: weapons });
+
+  const amend = (patch: Partial<Sel>) =>
+      setSel({ ...sel, attacker: attackerName, target: targetName,
+               picked, shots, modes, useUim, hellbore, ...patch });
 
   // One call per attacker, not per candidate. Re-asked when the impulse moves, because
   // ranges and arcs change with it.
@@ -374,22 +407,40 @@ export default function FireOrdersPad({
   function toggle(name: string) {
     const next = new Set(picked);
     if (next.has(name)) next.delete(name); else next.add(name);
-    pick(targetName, next);
+    amend({ picked: next });
+  }
+
+  /** How many shots this weapon will actually take, capped by what it has left this turn. */
+  function shotsFor(w: WeaponState): number {
+    if (!(w.minImpulseGap === 0 && w.maxShotsPerTurn > 1)) return 1;
+    const left = Math.max(1, w.maxShotsPerTurn - w.shotsThisTurn);
+    return Math.min(shots[w.name] ?? 1, left);
   }
 
   function addOrder() {
     if (!attacker || !target || picked.size === 0) return;
-    const names = [...picked];
+    // A weapon firing more than once appears once per shot: the wire format counts shots by
+    // repetition, which is how the sidebar has always sent them.
+    const names = [...picked].flatMap(name => {
+      const w = attacker.weapons.find(x => x.name === name);
+      return w ? Array(shotsFor(w)).fill(name) as string[] : [name];
+    });
+    const shotModes: Record<string, string> = {};
+    for (const name of picked)
+      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining !== undefined)
+        shotModes[name] = modes[name] ?? 'SINGLE';
+
     onAddOrder({
       label: `${attacker.name} → ${target.name} (${names.length} wpn)`,
       shipName:      attacker.name,
       targetName:    target.name,
       weaponNames:   names,
+      shotModes:     Object.keys(shotModes).length > 0 ? shotModes : undefined,
       range:         target.range,
       adjustedRange: target.adjustedRange,
       shieldNumber:  target.shieldNumber,
-      useUim:        false,
-      directFire:    false,
+      useUim,
+      directFire:    hellbore,
     });
     pick(null, new Set());
   }
@@ -588,9 +639,54 @@ export default function FireOrdersPad({
                     {w?.arcLabel && (
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                     )}
+                    {w?.addCapacity != null && (
+                      <span style={{ color: '#50d0f0', fontSize: '0.9em', whiteSpace: 'nowrap' }}
+                            title="anti-drone shots loaded / capacity (reloads available)">
+                        {w.addShots}/{w.addCapacity}
+                        {(w.addReloads ?? 0) > 0 ? ` (+${w.addReloads})` : ''}
+                      </span>
+                    )}
                     <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
                       {unavailable ?? ''}
                     </span>
+                    {/* Shots this impulse, for a weapon that may fire more than once
+                        (a phaser with no minimum gap). Only once it is picked. */}
+                    {w && picked.has(name) && w.minImpulseGap === 0 && w.maxShotsPerTurn > 1 && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+                            onClick={e => e.preventDefault()}>
+                        <button className="secondary" style={{ padding: '0 5px' }}
+                                onClick={e => { e.preventDefault();
+                                  amend({ shots: { ...shots, [name]: Math.max(1, shotsFor(w) - 1) } }); }}>
+                          −
+                        </button>
+                        <span style={{ minWidth: 16, textAlign: 'center' }}>{shotsFor(w)}×</span>
+                        <button className="secondary" style={{ padding: '0 5px' }}
+                                onClick={e => { e.preventDefault();
+                                  amend({ shots: { ...shots, [name]:
+                                    Math.min(w.maxShotsPerTurn - w.shotsThisTurn, shotsFor(w) + 1) } }); }}>
+                          +
+                        </button>
+                      </span>
+                    )}
+
+                    {/* A fighter's fusion may fire both charges at once (J-section). */}
+                    {w && picked.has(name) && w.chargesRemaining !== undefined && (
+                      <span style={{ display: 'flex', gap: 3 }} onClick={e => e.preventDefault()}>
+                        {(['SINGLE', 'DOUBLE'] as const).map(m => (
+                          <button
+                            key={m}
+                            className={(modes[name] ?? 'SINGLE') === m ? '' : 'secondary'}
+                            style={{ padding: '0 5px', fontSize: '0.72rem' }}
+                            disabled={m === 'DOUBLE' && (w.chargesRemaining ?? 0) < 2}
+                            onClick={e => { e.preventDefault();
+                              amend({ modes: { ...modes, [name]: m } }); }}
+                          >
+                            {m === 'SINGLE' ? '1×' : '2×'}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+
                     {/* The whole table, die by die — a single "up to N" was a worse
                         summary of it than the thing itself. */}
                     {hoveredWeapon === name && w && (
@@ -604,12 +700,32 @@ export default function FireOrdersPad({
                   </label>
                 );
               })}
+              {attacker.uimFunctional && (
+                <label style={{ ...ROW, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={useUim}
+                         onChange={() => amend({ useUim: !useUim })} />
+                  <span>UIM targeting (D6.51)</span>
+                </label>
+              )}
+              {[...picked].some(n => n.startsWith('Hellbore')) && (
+                <label style={{ ...ROW, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={hellbore}
+                         onChange={() => amend({ hellbore: !hellbore })} />
+                  <span>Hellbore direct fire — half damage, facing shield (E10.7)</span>
+                </label>
+              )}
               <button
                 disabled={picked.size === 0}
                 style={{ marginTop: 4 }}
                 onClick={addOrder}
               >
-                Add order ({picked.size})
+                {(() => {
+                  const total = [...picked].reduce((sum, n) => {
+                    const w = attacker.weapons.find(x => x.name === n);
+                    return sum + (w ? shotsFor(w) : 1);
+                  }, 0);
+                  return `Add order (${total} shot${total === 1 ? '' : 's'})`;
+                })()}
               </button>
             </>
           )}
