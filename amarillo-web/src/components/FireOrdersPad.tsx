@@ -88,6 +88,11 @@ interface Props {
    * Whether a declaration is convened. Until one is, there is nothing to seal — the pad is
    * a place to draft, and calling is what obliges everyone else to answer.
    */
+  /** Units under the cursor on the map, so the matching rows can light up. */
+  hoveredOnMap: string[];
+  /** A row was hovered here; the map rings that unit. */
+  onHoverCandidate: (name: string | null) => void;
+
   declarationOpen: boolean;
   onCall:   () => void;
   onCommit: () => void;
@@ -212,6 +217,7 @@ export default function FireOrdersPad({
   gameId, playerToken, turn, impulse,
   units, attackerName, onSelectAttacker,
   orders, onAddOrder, onRemoveOrder, onStartHexFire,
+  hoveredOnMap, onHoverCandidate,
   ew, onSetEw, ewLimits,
   declarationOpen, onCall, onCommit, onPass, error,
 }: Props) {
@@ -264,6 +270,25 @@ export default function FireOrdersPad({
       });
     return () => { live = false; };
   }, [gameId, playerToken, attackerName, turn, impulse]);
+
+  /**
+   * How much of the WHOLE fleet is already aimed at each target, across every unit's orders.
+   *
+   * This is the number the old sidebar panel could never show, because it only ever knew
+   * about one ship. With fifteen drones inbound the hard part is not telling them apart, it
+   * is not putting four phasers into one while another sails through untouched.
+   */
+  const aimedAt = useMemo(() => {
+    const m = new Map<string, { weapons: number; units: string[] }>();
+    for (const o of orders) {
+      const key = o.targetName ?? `hex ${o.hexCol}|${o.hexRow}`;
+      const row = m.get(key) ?? { weapons: 0, units: [] };
+      row.weapons += o.weaponNames.length;
+      if (!row.units.includes(o.shipName)) row.units.push(o.shipName);
+      m.set(key, row);
+    }
+    return m;
+  }, [orders]);
 
   /** Weapons this attacker has already promised elsewhere this declaration. */
   const spokenFor = useMemo(() => {
@@ -380,20 +405,33 @@ export default function FireOrdersPad({
             const isSel = c.name === targetName;
             const already = orders.some(o => o.shipName === attacker.name && o.targetName === c.name);
             const worth = volleyEstimate(attacker.weapons, c.weaponsInArc, c.range, c.adjustedRange);
+            const aimed = aimedAt.get(c.name);
+            const lit = hoveredOnMap.includes(c.name);
             return (
               <button
                 key={c.name}
                 style={{
                   ...ROW,
-                  borderColor: isSel ? '#a78bfa' : 'transparent',
-                  background: isSel ? 'rgba(167,139,250,0.10)' : 'none',
+                  borderColor: isSel ? '#a78bfa' : lit ? '#6e5cb8' : 'transparent',
+                  background: isSel ? 'rgba(167,139,250,0.10)'
+                            : lit ? 'rgba(167,139,250,0.06)' : 'none',
                   opacity: already ? 0.55 : 1,
                 }}
                 onClick={() => pick(c.name, new Set())}
+                onMouseEnter={() => onHoverCandidate(c.name)}
+                onMouseLeave={() => onHoverCandidate(null)}
                 title={already ? 'already has an order from this unit this segment' : undefined}
               >
                 <span style={{ color: '#e6edf3' }}>{c.name}</span>
                 <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{KIND_LABEL[c.kind]}</span>
+                {aimed && (
+                  <span
+                    style={{ color: '#f0c040', fontSize: '0.9em', whiteSpace: 'nowrap' }}
+                    title={`already aimed here: ${aimed.units.join(', ')}`}
+                  >
+                    ◀{aimed.weapons}
+                  </span>
+                )}
                 <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
                   r{c.range}
                   {c.kind === 'SHIP' && c.shieldNumber > 0 ? ` · sh#${c.shieldNumber}` : ''}
@@ -504,7 +542,14 @@ export default function FireOrdersPad({
 
       {/* ---------------------------------------------------- the plan */}
       <div style={{ marginTop: 8, borderTop: '1px solid #30363d', paddingTop: 6 }}>
-        <div style={COL_TITLE}>The plan</div>
+        <div style={COL_TITLE}>
+          The plan
+          {aimedAt.size > 0 && (
+            <span style={{ textTransform: 'none', letterSpacing: 0, marginLeft: 6 }}>
+              — ◀ marks how many weapons the fleet already has on a target
+            </span>
+          )}
+        </div>
         {units.map(u => {
           const mine = orders.filter(o => o.shipName === u.name);
           return (

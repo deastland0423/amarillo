@@ -321,6 +321,8 @@ function drawObjects(
   myShips: string[] | null,
   selectedName: string | null,
   fireTargetName: string | null,
+  /** Lit from elsewhere - the Fire Orders pad, when a row is hovered. Any unit type. */
+  highlightName: string | null,
   onImageLoad: () => void,
   cols: number,
   rows: number,
@@ -412,6 +414,16 @@ function drawObjects(
     const [col, row] = coords;
     if (col < 1 || col > cols || row < 1 || row > rows) continue;
     const [cx, cy] = hexCenter(col, row);
+
+    // Before the token, and for every unit type rather than ships only: what the pad points
+    // at is as often a drone as a cruiser.
+    if (highlightName && obj.name === highlightName) {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth   = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, SIZE * 0.42 + 9, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
 
     if (obj.type === 'SHIP') {
       const isFireTarget = obj.name === fireTargetName;
@@ -979,6 +991,10 @@ interface Props {
   myShips?:         string[] | null;
   selectedName?:    string | null;
   fireTargetName?:  string | null;
+  /** Unit to ring, driven from outside (the Fire Orders pad's hovered row). */
+  highlightName?:   string | null;
+  /** Units under the cursor, reported only when the set changes. */
+  onHoverUnits?:    (names: string[]) => void;
   onSelect?:        (obj: MapObject | null) => void;
   /** When set, clicks call this with hex col/row instead of unit selection. */
   onHexClick?:      (col: number, row: number) => void;
@@ -994,7 +1010,9 @@ interface Props {
   zones?:           Array<{ hexes: string[]; color: string; label?: string }>;
 }
 
-export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, onSelect, onHexClick, pickingHex, snapTo, zones }: Props) {
+export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, mapObjects, myShips, selectedName, fireTargetName, highlightName, onHoverUnits, onSelect, onHexClick, pickingHex, snapTo, zones }: Props) {
+  // Last set reported, so a mouse crossing the map does not re-render the pad per pixel.
+  const hoverReported = useRef<string>('');
   const COLS     = mapColsProp ?? DEFAULT_COLS;
   const ROWS     = mapRowsProp ?? DEFAULT_ROWS;
   const CANVAS_W = canvasWidth(COLS);
@@ -1027,7 +1045,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     if (zones && zones.length > 0) drawZones(ctx, zones);
     if (mapObjects && mapObjects.length > 0) {
       drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
-        () => setTokenRevision(r => r + 1), COLS, ROWS);
+        highlightName ?? null, () => setTokenRevision(r => r + 1), COLS, ROWS);
     }
     if (hoveredHex) {
       const [hcol, hrow] = hoveredHex;
@@ -1039,7 +1057,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [mapObjects, myShips, selectedName, fireTargetName, tokenRevision, hoveredHex, zones]);
+  }, [mapObjects, myShips, selectedName, fireTargetName, highlightName, tokenRevision, hoveredHex, zones]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {
@@ -1105,6 +1123,22 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     };
   }
 
+  /**
+   * Tell the parent what is under the cursor, but only when the answer changes: the tooltip
+   * hit-test below runs on every mouse move, and pushing that rate into the pad would make a
+   * pan across the map re-render it hundreds of times.
+   */
+  function reportHover(objects: MapObject[] | null, col: number, row: number) {
+    if (!onHoverUnits) return;
+    const names = objects
+      ? objects.filter(o => o.location === `<${col}|${row}>`).map(o => o.name).sort()
+      : [];
+    const key = names.join('\u0000');
+    if (key === hoverReported.current) return;
+    hoverReported.current = key;
+    onHoverUnits(names);
+  }
+
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     // Pan logic
     if (dragging.current) {
@@ -1118,7 +1152,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     }
 
     // Tooltip hit-test (skip if dragging or no seeker objects to check)
-    if (!mapObjects) { setTooltip(null); return; }
+    if (!mapObjects) { setTooltip(null); reportHover(null, 0, 0); return; }
     const canvas  = canvasRef.current!;
     const rect    = canvas.getBoundingClientRect();
     const scaleX  = CANVAS_W / rect.width;
@@ -1126,7 +1160,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     const px      = (e.clientX - rect.left) * scaleX;
     const py      = (e.clientY - rect.top)  * scaleY;
     const hex     = pixelToHex(px, py, COLS, ROWS);
-    if (!hex) { setTooltip(null); if (pickingHex) setHoveredHex(null); return; }
+    if (!hex) { setTooltip(null); reportHover(null, 0, 0); if (pickingHex) setHoveredHex(null); return; }
     const [col, row] = hex;
     if (pickingHex) { setHoveredHex([col, row]); setTooltip(null); return; }
     const lines: string[] = [];
@@ -1145,6 +1179,8 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
       );
       lines.push(...shuttleTooltipLines(shuttle, isMine, mapObjects));
     }
+
+    reportHover(mapObjects, col, row);
 
     const seekers = seekersAt(mapObjects, col, row);
     if (seekers.length > 0) {
@@ -1170,6 +1206,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     dragging.current = false;
     setTooltip(null);
     setHoveredHex(null);
+    reportHover(null, 0, 0);   // or the last unit stays lit in the pad after the cursor goes
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

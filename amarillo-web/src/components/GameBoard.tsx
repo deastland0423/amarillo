@@ -3251,6 +3251,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [hexFireWeapons, setHexFireWeapons] = useState<Set<string>>(new Set());
   const [hexFireSide,    setHexFireSide]    = useState(1);
   const [hexFireError,   setHexFireError]   = useState<string | null>(null);
+  // Hover, both ways: a pad row rings its counter, a counter lights its rows.
+  const [padHighlight, setPadHighlight] = useState<string | null>(null);
+  const [hoveredUnits, setHoveredUnits] = useState<string[]>([]);
   const [fireOptions, setFireOptions]       = useState<FireOptions | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [selectedWeapons, setSelectedWeapons] = useState<Set<string>>(new Set());
@@ -5262,6 +5265,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             fireTargetName={fireTarget?.name ?? null}
             onSelect={handleMapSelect}
             onHexClick={handleHexClick}
+            highlightName={padHighlight}
+            onHoverUnits={setHoveredUnits}
             pickingHex={tBombMode || hexFireMode}
             snapTo={snapTo}
           />
@@ -5581,6 +5586,8 @@ export default function GameBoard({ session, onLeave }: Props) {
           onRemoveOrder={(idx: number) =>
             setDeclarationOrders(prev => prev.filter((_, j) => j !== idx))}
           onStartHexFire={startHexFire}
+          hoveredOnMap={hoveredUnits}
+          onHoverCandidate={setPadHighlight}
           ew={declarationEw}
           onSetEw={(shipName: string, value: { ecm: number; eccm: number }) =>
             setDeclarationEw(prev => ({ ...prev, [shipName]: value }))}
