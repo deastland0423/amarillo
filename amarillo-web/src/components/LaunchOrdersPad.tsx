@@ -143,9 +143,16 @@ function snapToFacing(bearing: number): number {
 
 const EMPTY_ROWS: LaunchCandidate[] = [];
 
+/**
+ * How wide the pad gets. Written once: the flyout has to know it too, to work out which side
+ * of the pad it will fit on, and the two used to be separate numbers that agreed by luck.
+ */
+const PANEL_MAX_PX = 1040;
+const PANEL_MAX_VW = 0.96;
+
 const PANEL: React.CSSProperties = {
   position: 'fixed',
-  width: 'min(94vw, 820px)',
+  width: `min(${PANEL_MAX_VW * 100}vw, ${PANEL_MAX_PX}px)`,
   zIndex: 45,
   background: '#161b22',
   border: `1px solid ${JADE}`,
@@ -162,6 +169,24 @@ const BODY: React.CSSProperties = { maxHeight: '46vh', overflowY: 'auto', overfl
 
 const COL: React.CSSProperties = {
   flex: '1 1 14rem', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2,
+};
+
+/**
+ * The column the work happens in. The other two hold one line per ship and per target; this
+ * one holds every tube, rack and craft with its heading, its speed and its buttons, so the
+ * extra width the pad has goes here rather than being split three ways.
+ */
+const WORK_COL: React.CSSProperties = { ...COL, flex: '2 1 26rem' };
+
+/**
+ * A cell inside a row: stretched to its neighbour's height rather than sitting on a shared
+ * baseline. For a rack of six drones the buttons wrap onto two lines, and a heading button
+ * level with the first line floats above the second — the heading governs the whole rack,
+ * and a cell of the same height says so.
+ */
+const CELL: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
+  border: '1px solid #21262d', borderRadius: 4, background: 'rgba(255,255,255,0.03)',
 };
 
 const COL_TITLE: React.CSSProperties = {
@@ -239,9 +264,9 @@ export default function LaunchOrdersPad({
   const loadError  = answered ? loaded.error : null;
   const candidates = answered ? loaded.rows : EMPTY_ROWS;
 
-  // Panel width follows min(94vw, 820px); the picker needs about 170.
+  // The picker needs about 170px beside the pad.
   const viewport = typeof window === 'undefined' ? 1400 : window.innerWidth;
-  const panelWidth = Math.min(viewport * 0.94, 820);
+  const panelWidth = Math.min(viewport * PANEL_MAX_VW, PANEL_MAX_PX);
   const roomOnRight = drag.position.left + panelWidth + 170 < viewport;
 
   const attacker = units.find(u => u.name === attackerName) ?? null;
@@ -556,7 +581,7 @@ export default function LaunchOrdersPad({
 
           {/* ------------------------------------------------ candidates */}
           <div style={COL}>
-            <div style={COL_TITLE}>{attacker ? `${attacker.name} can send one at` : 'Can send one at'}</div>
+            <div style={COL_TITLE}>{attacker ? `${attacker.name} can target` : 'Can target'}</div>
             {!attacker && <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Pick a ship.</div>}
             {attacker && loading && <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Looking…</div>}
             {attacker && loadError && (
@@ -592,7 +617,7 @@ export default function LaunchOrdersPad({
                           title="launches already drafted at this target">◀{aimed}</span>
                   )}
                   <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
-                    r{c.range}
+                    range {c.range}
                     {c.plasmaLaunchers.length > 0 ? ` · ${c.plasmaLaunchers.length} tube` : ''}
                   </span>
                 </button>
@@ -601,7 +626,7 @@ export default function LaunchOrdersPad({
           </div>
 
           {/* ------------------------------------------------ what to send */}
-          <div style={COL}>
+          <div style={WORK_COL}>
             <div style={COL_TITLE}>
               {target ? `Send at ${target.name}` : 'What to send'}
             </div>
@@ -678,25 +703,32 @@ export default function LaunchOrdersPad({
                 {racks.map(r => {
                   const used = spent.has(r.name);
                   return (
-                    <div key={r.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
-                      <span style={{ color: used ? '#8b949e' : '#e6edf3' }}>{r.name}</span>
+                    <div key={r.name} style={{ ...ROW, cursor: 'default',
+                                               alignItems: 'stretch' }}>
+                      <span style={{ color: used ? '#8b949e' : '#e6edf3',
+                                     alignSelf: 'center' }}>{r.name}</span>
                       {used ? (
-                        <span style={{ color: '#8b949e', fontSize: '0.9em' }}>already sent</span>
+                        <span style={{ color: '#8b949e', fontSize: '0.9em',
+                                       alignSelf: 'center' }}>already sent</span>
                       ) : (
                         <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
-                                       flexWrap: 'wrap', alignItems: 'center' }}>
-                          {facingChip(r.name)}
-                          {r.drones.map((d, i) => (
-                            <button key={i} className="secondary" style={{ padding: '0 6px' }}
-                                    disabled={!legalHeading(r.name)}
-                                    title={`speed ${d.speed}, ${d.warheadDamage} damage`}
-                                    onClick={() => draft({
-                                      label: `${attacker.name} → ${target.name}: ${d.droneType}`,
-                                      kind: 'DRONE', shipName: attacker.name,
-                                      targetName: target.name, weaponName: r.name,
-                                      droneIndex: i, facing: facings[r.name] ?? 0,
-                                    })}>{d.droneType}</button>
-                          ))}
+                                       alignItems: 'stretch', minWidth: 0 }}>
+                          {/* One heading for the whole rack, in a cell of its own... */}
+                          <span style={CELL}>{facingChip(r.name)}</span>
+                          {/* ...beside every drone in it, sharing one cell of equal height. */}
+                          <span style={{ ...CELL, flexWrap: 'wrap', minWidth: 0 }}>
+                            {r.drones.map((d, i) => (
+                              <button key={i} className="secondary" style={{ padding: '0 6px' }}
+                                      disabled={!legalHeading(r.name)}
+                                      title={`speed ${d.speed}, ${d.warheadDamage} damage`}
+                                      onClick={() => draft({
+                                        label: `${attacker.name} → ${target.name}: ${d.droneType}`,
+                                        kind: 'DRONE', shipName: attacker.name,
+                                        targetName: target.name, weaponName: r.name,
+                                        droneIndex: i, facing: facings[r.name] ?? 0,
+                                      })}>{d.droneType}</button>
+                            ))}
+                          </span>
                         </span>
                       )}
                     </div>
