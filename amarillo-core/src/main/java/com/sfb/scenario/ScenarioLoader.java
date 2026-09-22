@@ -402,19 +402,19 @@ public class ScenarioLoader {
 
                 } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeScatterPack()) {
-                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatterpack — skipped");
                         continue;
                     }
                     ScatterPack sp = new ScatterPack(foundShuttle);
                     for (DroneType dt : prep.drones) {
                         // Pull one drone of this type from any rack's ammo, then reloads
                         if (!pullDroneFromRacks(ship, dt)) {
-                            note(ship, "COI: no " + dt + " available in racks for scatter pack "
+                            note(ship, "COI: no " + dt + " available in racks for scatterpack "
                                     + prep.shuttleName + " — drone skipped");
                             continue;
                         }
                         if (!sp.addDrone(new Drone(dt))) {
-                            note(ship, "COI: scatter pack " + prep.shuttleName
+                            note(ship, "COI: scatterpack " + prep.shuttleName
                                     + " payload full — remaining drones skipped");
                             break;
                         }
@@ -423,7 +423,7 @@ public class ScenarioLoader {
                         // Leave it a plain shuttle. An empty pack can never launch (the
                         // launch action wants a payload) and, being prepared, can no longer
                         // launch as an ordinary shuttle either — dead weight all battle.
-                        note(ship, "COI: scatter pack " + prep.shuttleName
+                        note(ship, "COI: scatterpack " + prep.shuttleName
                                 + " got no drones from the racks — left as a plain shuttle");
                         continue;
                     }

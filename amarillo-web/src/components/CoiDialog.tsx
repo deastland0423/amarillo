@@ -160,7 +160,7 @@ function ShipCoiPanel({
 
   const CONVERSION_LABELS: Record<string, string> = {
     suicide:     'Suicide Shuttle',
-    scatterpack: 'Scatter Pack',
+    scatterpack: 'Scatterpack',
     wildweasel:  'Wild Weasel',
   };
 

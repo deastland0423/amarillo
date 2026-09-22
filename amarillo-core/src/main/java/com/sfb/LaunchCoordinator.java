@@ -685,11 +685,11 @@ class LaunchCoordinator {
         if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (pack.getPayload().isEmpty())
-            return ActionResult.fail("Scatter pack has no drones loaded");
+            return ActionResult.fail("Scatterpack has no drones loaded");
         if (!bay.canLaunch(game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
         if (!launcher.hasLockOn(target))
-            return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
+            return ActionResult.fail("No lock-on to target — cannot launch scatterpack");
 
         int packFacing = craftFacing(launcher, target, facing);
         if (packFacing == 0)
@@ -717,7 +717,7 @@ class LaunchCoordinator {
         seekers.add(pack);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, pack);
 
-        String msg = launcher.getName() + " launched scatter pack ("
+        String msg = launcher.getName() + " launched scatterpack ("
                 + pack.getPayload().size() + " drones) at " + target.getName();
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
@@ -747,7 +747,7 @@ class LaunchCoordinator {
                 || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
                 || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
             return ActionResult.fail(
-                    "Active suicide shuttles, scatter packs, and Wild Weasels cannot land aboard (J1.611)");
+                    "Active suicide shuttles, scatterpacks, and Wild Weasels cannot land aboard (J1.611)");
 
         String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
         String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;

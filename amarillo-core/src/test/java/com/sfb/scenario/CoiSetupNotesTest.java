@@ -87,7 +87,7 @@ public class CoiSetupNotesTest {
 
         assertFalse("a setup that could not be applied must say so", ship.getSetupNotes().isEmpty());
         assertTrue("and say which shuttle: " + ship.getSetupNotes(),
-                ship.getSetupNotes().stream().anyMatch(n -> n.contains("scatter pack")));
+                ship.getSetupNotes().stream().anyMatch(n -> n.contains("scatterpack")));
     }
 
     @Test

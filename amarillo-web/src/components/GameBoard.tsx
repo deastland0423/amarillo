@@ -249,7 +249,7 @@ function ShuttleMovementPanel({
 
   const typeLabel = (s: ShuttleObject) => {
     if (s.type === 'SUICIDE_SHUTTLE') return 'Suicide Shuttle';
-    if (s.type === 'SCATTER_PACK')    return 'Scatter Pack';
+    if (s.type === 'SCATTER_PACK')    return 'Scatterpack';
     if ((s.weapons?.length ?? 0) > 0) return 'Fighter';
     return 'Shuttle';
   };
@@ -4088,7 +4088,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           const targetName    = liveDrone?.targetName ?? liveSeekerShuttle!.targetName ?? null;
           const seekerLabel   = liveDrone
             ? `Drone${liveDrone.isIdentified ? ` (Type ${liveDrone.droneType})` : ''}`
-            : liveSeekerShuttle!.type === 'SUICIDE_SHUTTLE' ? 'Suicide Shuttle' : 'Scatter Pack';
+            : liveSeekerShuttle!.type === 'SUICIDE_SHUTTLE' ? 'Suicide Shuttle' : 'Scatterpack';
           const isMine = myShips.has(controllerName ?? '');
           const transferShips = isMine && targetName
             ? (gameState?.mapObjects ?? [])

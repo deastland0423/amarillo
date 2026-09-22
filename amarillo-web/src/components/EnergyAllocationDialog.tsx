@@ -1278,7 +1278,7 @@ export default function EnergyAllocationDialog({
                 const deckCrewsOver  = totalSpLoading > deckCrewsAvail;
                 return (
                   <div className="ea-section">
-                    <div className="ea-section-title" style={{ color: '#79c0ff' }}>Scatter Pack Loading</div>
+                    <div className="ea-section-title" style={{ color: '#79c0ff' }}>Scatterpack Loading</div>
                     <div className={`ea-note${deckCrewsOver ? ' ea-budget-over' : ''}`}>
                       Deck crews: {totalSpLoading.toFixed(1)} / {deckCrewsAvail} used{deckCrewsOver && ' — OVER LIMIT'}
                     </div>

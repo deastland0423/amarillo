@@ -1691,7 +1691,7 @@ public class GameSession {
                         break;
                 }
                 if (foundBay == null || foundPack == null)
-                    return ActionResult.fail("Scatter pack not found: " + packName);
+                    return ActionResult.fail("Scatterpack not found: " + packName);
                 ActionResult spRes = game.launchScatterPack(launcher, foundBay, foundPack, target,
                         request.getFacing(), request.getSpeed());
                 if (spRes.isSuccess())

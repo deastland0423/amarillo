@@ -164,6 +164,6 @@ public class ScatterPack extends Shuttle implements Seeker {
     /** Prepared, so not launchable as an ordinary shuttle. */
     @Override
     public String specialRole() {
-        return "scatter pack";
+        return "scatterpack";
     }
 }

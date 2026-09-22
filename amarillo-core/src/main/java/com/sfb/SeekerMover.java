@@ -190,7 +190,7 @@ class SeekerMover {
                         }
                         seekers.add(drone);
                     }
-                    log.add("  Scatter pack released " + released.size() + " drones at "
+                    log.add("  Scatterpack released " + released.size() + " drones at "
                             + (target != null ? target.getName() : "?"));
                     game.checkControlOverflow();
                     // The shuttle stays on the map at speed 0 (recoverable
@@ -213,7 +213,7 @@ class SeekerMover {
                     }
                     pack.goForward(game.getMapCols(), game.getMapRows());
                     if (pack.getLocation() == null) {
-                        log.add("  Scatter pack moved off the map — lost");
+                        log.add("  Scatterpack moved off the map — lost");
                         expired.add(pack);
                     } else if (game.isAsteroidHex(pack.getLocation())
                             || game.isRingHex(pack.getLocation())) {

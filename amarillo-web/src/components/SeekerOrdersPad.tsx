@@ -721,7 +721,7 @@ export default function SeekerOrdersPad({
                   <div key={s.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
                     <span>{s.name}</span>
                     <span style={{ color: '#f0c040', fontSize: '0.9em' }}>
-                      pack, {s.payload?.length ?? 0} aboard
+                      scatterpack, {s.payload?.length ?? 0} aboard
                     </span>
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
                                    alignItems: 'center' }}>

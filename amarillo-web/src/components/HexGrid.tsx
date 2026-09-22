@@ -867,7 +867,7 @@ function shuttleTooltipLines(
   // which G4.233 forbids — identification never reveals a bomb or a load of drones.
   let typeLabel: string;
   if (shuttle.type === 'SUICIDE_SHUTTLE') typeLabel = 'Suicide Shuttle';
-  else if (shuttle.type === 'SCATTER_PACK') typeLabel = 'Scatter Pack';
+  else if (shuttle.type === 'SCATTER_PACK') typeLabel = 'Scatterpack';
   // A weasel is public by rule — its interference announces it at launch (J3.0), which is
   // why it is not subject to the fog-of-war above.
   else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';

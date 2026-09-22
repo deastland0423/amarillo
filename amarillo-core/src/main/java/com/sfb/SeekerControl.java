@@ -154,7 +154,7 @@ class SeekerControl {
         if (seeker instanceof Drone)
             ((Drone) seeker).setSelfGuiding(false);
 
-        String label = seeker instanceof com.sfb.objects.shuttles.ScatterPack ? "Scatter pack"
+        String label = seeker instanceof com.sfb.objects.shuttles.ScatterPack ? "Scatterpack"
                 : seeker instanceof com.sfb.objects.shuttles.SuicideShuttle ? "Suicide shuttle"
                         : "Drone";
         return ActionResult

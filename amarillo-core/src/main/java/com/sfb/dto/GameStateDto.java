@@ -989,7 +989,7 @@ public class GameStateDto {
             return "Drone (Type " + type + ")";
         }
         if (s instanceof com.sfb.objects.shuttles.ScatterPack)
-            return "Scatter Pack";
+            return "Scatterpack";
         if (s instanceof com.sfb.objects.shuttles.SuicideShuttle)
             return "Suicide Shuttle";
         return "Seeker";
