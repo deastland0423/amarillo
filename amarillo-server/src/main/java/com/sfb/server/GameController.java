@@ -64,6 +64,10 @@ public class GameController {
         dto.fireDeclarationCaller = session.getFireDeclarationCallerName();
         dto.fireDeclarationResponded = session.getFireDeclarationRespondedNames();
         dto.fireDeclarationSpent = session.isFireDeclarationSpent();
+        dto.activityDeclarationOpen = session.isActivityDeclarationOpen();
+        dto.activityDeclarationCaller = session.getActivityDeclarationCallerName();
+        dto.activityDeclarationResponded = session.getActivityDeclarationRespondedNames();
+        dto.activityDeclarationSpent = session.isActivityDeclarationSpent();
         return dto;
     }
 

@@ -573,6 +573,12 @@ public class GameStateDto {
     public String fireDeclarationCaller;
     public List<String> fireDeclarationResponded = new ArrayList<>();
     public boolean fireDeclarationSpent; // this impulse's round already resolved
+    // Launch declaration round (Annex #2, Impulse Activity Segment) — a separate round from
+    // the fire one above, with its own call, and the same secrecy: only WHO has answered.
+    public boolean activityDeclarationOpen;
+    public String activityDeclarationCaller;
+    public List<String> activityDeclarationResponded = new ArrayList<>();
+    public boolean activityDeclarationSpent;
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
