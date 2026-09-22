@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * The /fire-targets endpoint: one call answers "what can this ship shoot?" for a whole ship,
@@ -199,6 +200,31 @@ class FireTargetsEndpointTest {
 
         assertNull(row(targetsFor(HOST, "USS Enterprise"), "IKV Saber"),
                 "a planet in the way means no line of sight (P2.321)");
+    }
+
+    /**
+     * A drone rack bears like anything else, but resolveFire refuses it — it is a Launcher,
+     * not a direct-fire weapon. Offering one and then refusing it at the reveal is worse than
+     * not offering it, so the row filters on the same predicate the refusal uses.
+     * <p>
+     * A plasma launcher is NOT caught by this: it implements DirectFire and fires as a bolt.
+     */
+    @Test
+    void weaponsThatCannotFireDirectly_areNotOffered() {
+        List<String> notDirectFire = klingon.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> !(w instanceof com.sfb.weapons.DirectFire))
+                .map(com.sfb.weapons.Weapon::getName)
+                .toList();
+        assumeTrue(!notDirectFire.isEmpty(),
+                "the D7 needs a launcher for this to prove anything");
+
+        for (Map<String, Object> row : targetsFor(P2, "IKV Saber")) {
+            @SuppressWarnings("unchecked")
+            List<String> bearing = (List<String>) row.get("weaponsInArc");
+            for (String name : notDirectFire)
+                assertFalse(bearing.contains(name),
+                        "offered " + name + ", which could never fire");
+        }
     }
 
     @Test

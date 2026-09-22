@@ -1379,6 +1379,12 @@ public class GameController {
         boolean targetIsAddValid = targetUnit instanceof com.sfb.objects.Drone
                 || targetUnit instanceof com.sfb.objects.shuttles.Shuttle;
         return wGroup.fetchAllBearingWeapons(attackerUnit, targetUnit).stream()
+                // The same predicate resolveFire uses to decide a weapon can be fired at
+                // all. It drops drone racks, which bear like anything else but are Launchers
+                // rather than direct-fire weapons — offering one only to refuse it at the
+                // reveal is a worse answer than not offering it. A plasma launcher IS
+                // DirectFire and stays: selected here it fires as a bolt.
+                .filter(w -> w instanceof com.sfb.weapons.DirectFire)
                 .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
                 .map(w -> w.getName())
                 .collect(Collectors.toList());

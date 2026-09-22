@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
-import { getWeaponDamagePreview } from '../weaponDamageTables';
+import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
 
 /**
  * The Fire Orders pad (D6.315 written orders).
@@ -191,6 +191,20 @@ const ROW: React.CSSProperties = {
 };
 
 /**
+ * The damage rows for one weapon at this range.
+ *
+ * A plasma launcher selected for direct fire is a BOLT (half the torpedo's strength, its own
+ * hit chart, max range 30) and reads from a different table — the same split the hover
+ * tooltip makes. Without this a launcher showed no figure at all and was quietly missing
+ * from the volley estimate.
+ */
+function previewFor(w: WeaponState, range: number, adjustedRange: number) {
+  return w.launcherType
+    ? getPlasmaBoltPreview(w.plasmaType, range)
+    : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, true);
+}
+
+/**
  * Roughly what a volley of these weapons is worth at this range, averaged over the die.
  *
  * "In range" turns out to be almost always true — a Ph-1 reaches 75 hexes — so the useful
@@ -205,7 +219,7 @@ function volleyEstimate(weapons: WeaponState[], names: string[],
   for (const name of names) {
     const w = weapons.find(x => x.name === name);
     if (!w) continue;
-    const rows = getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, true);
+    const rows = previewFor(w, range, adjustedRange);
     if (!rows || rows.length === 0) continue;
     known = true;
     total += rows.reduce((sum, r) => sum + r.damage, 0) / rows.length;
@@ -480,9 +494,7 @@ export default function FireOrdersPad({
                   : w && w.isHeavy && !w.armed ? 'unarmed'
                   : w && !w.readyToFire ? 'on cooldown'
                   : null;
-                const rows = w
-                  ? getWeaponDamagePreview(w.name, w.armingType, target.range, target.adjustedRange, true)
-                  : null;
+                const rows = w ? previewFor(w, target.range, target.adjustedRange) : null;
                 const best = rows && rows.length ? Math.max(...rows.map(r => r.damage)) : null;
                 return (
                   <label key={name} style={{ ...ROW, cursor: unavailable ? 'default' : 'pointer' }}>
@@ -493,6 +505,16 @@ export default function FireOrdersPad({
                       onChange={() => toggle(name)}
                     />
                     <span style={{ color: unavailable ? '#8b949e' : '#e6edf3' }}>{name}</span>
+                    {w?.launcherType && (
+                      <span
+                        style={{ color: '#f0a050', fontSize: '0.9em' }}
+                        title={'Fires as a direct-fire BOLT: half the torpedo’s strength, '
+                             + 'its own hit chart, maximum range 30. This does not launch the '
+                             + 'torpedo — launching is an Activity-phase action.'}
+                      >
+                        bolt
+                      </span>
+                    )}
                     {w?.arcLabel && (
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                     )}
