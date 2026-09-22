@@ -14,7 +14,6 @@ import {
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
-import WeaponDamageTooltip from './WeaponDamageTooltip';
 import type { FiringUnit } from './FireOrdersPad';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
@@ -78,7 +77,15 @@ function mapObjectColor(obj: MapObject): string {
 }
 
 /** True if this object can be selected as a fire target by the given player. */
-function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
+/**
+ * What a seeker may be LAUNCHED at.
+ *
+ * This is the last rules mirror in this file, and it is on borrowed time: the direct-fire
+ * version of it became /fire-targets, and launching is due the same treatment (the seeker pad).
+ * Until then it stays, because deleting it would silently change what a launch may target.
+ * It carries J3.21 — a weasel already exploding or reduced to radiation cannot be attacked.
+ */
+function canBeLaunchTarget(obj: MapObject, myShips: Set<string>): boolean {
   if (obj.type === 'SHIP')   return !myShips.has(obj.name);
   if (obj.type === 'DRONE')  return !myShips.has((obj as DroneObject).controllerName ?? '');
   if (obj.type === 'PLASMA') return !myShips.has((obj as PlasmaObject).controllerName ?? '');
@@ -87,8 +94,6 @@ function canBeFireTarget(obj: MapObject, myShips: Set<string>): boolean {
     return !myShips.has(s.parentShipName ?? '') && !myShips.has(s.controllerName ?? '');
   }
   if (obj.type === 'WILD_WEASEL') {
-    // Shooting down the decoy is the counter-tactic (J3.21) — but a weasel
-    // already exploding or reduced to radiation cannot be killed again
     const w = obj as WildWeaselObject;
     return !myShips.has(w.parentShipName ?? '') && !w.exploding && !w.postExplosion;
   }
@@ -913,476 +918,7 @@ function ShuttleMovementPanel({
   );
 }
 
-// ---- Fire options ----
-
-interface FireOptions {
-  range:         number;
-  adjustedRange: number;
-  shieldNumber:  number;
-  weaponsInArc:  string[];
-  hasLockOn:     boolean;
-  // EW for THIS attacker against THIS target. Natural ECM is counted along the line of
-  // sight, so it cannot be read off either ship on its own — the server works it out.
-  ecmPoints?:    number;
-  eccm?:         number;
-  ecmShift?:     number;
-  ecmSources?:   string | null;
-}
-
 // ---- Weapon damage preview tooltip ----
-
-interface FirePanelProps {
-  attacker:        ShipObject;
-  target:          MapObject | null;
-  options:         FireOptions | null;
-  loadingOptions:  boolean;
-  selectedWeapons: Set<string>;
-  onToggleWeapon:  (name: string) => void;
-  /** Replace the whole selection at once - powers all-bearing / none. */
-  onSetWeapons:    (names: string[]) => void;
-  shotCounts:      Map<string, number>;
-  onSetShotCount:  (name: string, count: number) => void;
-  useUim:          boolean;
-  onToggleUim:     () => void;
-  directFire:      boolean;
-  onToggleDirectFire: () => void;
-  onFire:          () => void;
-  onClearTarget:   () => void;
-  error:           string | null;
-}
-
-function FirePanel({
-  attacker, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount,
-  useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, error,
-}: FirePanelProps) {
-  const targetColor    = target ? mapObjectColor(target) : '#888';
-  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
-
-  return (
-    <div className="sidebar-section fire-panel">
-      <div className="sidebar-section-title fire-title">Direct Fire</div>
-
-      {/* Target row */}
-      <div className="fire-target-row">
-        <span className="sidebar-stat-label">Target</span>
-        {target ? (
-          <span className="fire-target-name">
-            <span className="sidebar-faction-dot" style={{ background: targetColor, display: 'inline-block' }} />
-            {target.name}
-            <button className="fire-clear-btn secondary" onClick={onClearTarget}>✕</button>
-          </span>
-        ) : (
-          <span className="fire-hint">Click enemy on map</span>
-        )}
-      </div>
-
-      {/* Range + shield */}
-      {options && (
-        <>
-          <div className="sidebar-stat-row">
-            <span className="sidebar-stat-label">Range</span>
-            <span className="sidebar-stat-value">
-              {options.range}
-              {options.adjustedRange !== options.range && (
-                <span className="fire-adj-range"> ({options.adjustedRange} adj)</span>
-              )}
-            </span>
-          </div>
-          <div className="sidebar-stat-row">
-            <span className="sidebar-stat-label">Shield hit</span>
-            <span className="sidebar-stat-value">
-              #{options.shieldNumber} {SHIELD_NAMES[options.shieldNumber] ?? ''}
-            </span>
-          </div>
-          <div className="sidebar-stat-row">
-            <span className="sidebar-stat-label">Lock-on</span>
-            <span className="sidebar-stat-value" style={{ color: options.hasLockOn ? '#3fb950' : '#f85149' }}>
-              {options.hasLockOn ? 'Yes' : 'No — eff. range ×2'}
-            </span>
-          </div>
-          {(() => {
-            // From the server, which counts what the target generates, what is lent to it
-            // (a weasel included), what it has built in, AND the asteroids, rings and
-            // atmosphere on the line between these two. The old sum here used only the
-            // target's generated ECM, so it disagreed with the dice roll that followed.
-            const tEcm  = options.ecmPoints ?? 0;
-            const aEccm = options.eccm ?? 0;
-            const shift = options.ecmShift ?? 0;
-            if (tEcm === 0 && aEccm === 0) return null;
-            return (
-              <>
-                <div className="sidebar-stat-row">
-                  <span className="sidebar-stat-label">EW</span>
-                  <span className="sidebar-stat-value">
-                    ECM {tEcm} / ECCM {aEccm}
-                    {shift > 0 && <span style={{ color: '#f85149' }}> → +{shift} shift</span>}
-                  </span>
-                </div>
-                {options.ecmSources && (
-                  <div className="sidebar-stat-row">
-                    <span className="sidebar-stat-label"></span>
-                    <span className="sidebar-stat-value" style={{ color: '#8b949e' }}>
-                      {options.ecmSources}
-                    </span>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </>
-      )}
-
-      {loadingOptions && <div className="fire-hint">Calculating…</div>}
-
-      {/* Weapon checkboxes */}
-      {options && options.weaponsInArc.length > 0 && (
-        <>
-          <div className="sidebar-divider" />
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
-                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
-                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
-                            onClick={() => onSetWeapons([])}>none</button>
-                  </div>
-          <div className="fire-weapon-list">
-            {attacker.weapons
-              .filter(w => w.functional && !w.launcherType)
-              .map(w => {
-                const inArc = options.weaponsInArc.includes(w.name);
-                const checked = selectedWeapons.has(w.name);
-
-                // Reason this weapon can't fire (only relevant when not in arc list)
-                let unavailLabel: string | null = null;
-                if (!inArc) {
-                  if (w.isHeavy && !w.armed)  unavailLabel = 'unarmed';
-                  else if (!w.readyToFire)     unavailLabel = 'on cooldown';
-                  else                          unavailLabel = 'out of arc';
-                }
-
-                const isMultiShot = w.minImpulseGap === 0 && w.maxShotsPerTurn > 1;
-                const maxShots    = w.maxShotsPerTurn - w.shotsThisTurn;
-                const shots       = Math.min(shotCounts.get(w.name) ?? 1, maxShots);
-
-                return (
-                  <div
-                    key={w.name}
-                    className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}
-                    onMouseEnter={() => setHoveredWeapon(w.name)}
-                    onMouseLeave={() => setHoveredWeapon(null)}
-                  >
-                    <label className="fire-weapon-label">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!!unavailLabel}
-                        onChange={() => onToggleWeapon(w.name)}
-                      />
-                      <span className="weapon-name">{weaponLabel(w)}</span>
-                      {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
-                      {unavailLabel && <span className={`fire-ooa ${unavailLabel === 'on cooldown' ? 'fire-cooldown' : ''}`}>{unavailLabel}</span>}
-                    </label>
-                    {isMultiShot && checked && (
-                      <div className="shot-stepper">
-                        <button className="shot-step-btn" onClick={e => { e.preventDefault(); onSetShotCount(w.name, Math.max(1, shots - 1)); }}>−</button>
-                        <span className="shot-count">{shots}×</span>
-                        <button className="shot-step-btn" onClick={e => { e.preventDefault(); onSetShotCount(w.name, Math.min(maxShots, shots + 1)); }}>+</button>
-                      </div>
-                    )}
-                    {hoveredWeapon === w.name && options && (
-                      <WeaponDamageTooltip
-                        w={w}
-                        range={options.range}
-                        adjustedRange={options.adjustedRange}
-                        directFire={directFire}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-
-          {/* Plasma bolt section — armed plasma launchers fire as direct-fire bolts here */}
-          {attacker.weapons.some(w => w.functional && w.launcherType) && (
-            <>
-              <div className="sidebar-divider" />
-              <div className="sidebar-stat-label" style={{ marginBottom: 4, color: '#f0a050' }}>Plasma Bolts</div>
-              <div className="fire-weapon-list">
-                {attacker.weapons
-                  .filter(w => w.functional && w.launcherType)
-                  .map(w => {
-                    const inArc    = options.weaponsInArc.includes(w.name);
-                    const checked  = selectedWeapons.has(w.name);
-                    const disabled = !inArc;
-                    const unavailLabel = !inArc
-                      ? (w.isHeavy && !w.armed ? 'unarmed' : 'out of arc')
-                      : null;
-                    return (
-                      <div
-                        key={w.name}
-                        className={`fire-weapon-row ${disabled ? 'out-of-arc' : ''}`}
-                        onMouseEnter={() => setHoveredWeapon(w.name)}
-                        onMouseLeave={() => setHoveredWeapon(null)}
-                      >
-                        <label className="fire-weapon-label">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={disabled}
-                            onChange={() => onToggleWeapon(w.name)}
-                          />
-                          <span className="weapon-name">{weaponLabel(w)}</span>
-                          {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
-                          {!disabled && <span className="weapon-arc" style={{ color: '#f0a050' }}>bolt</span>}
-                          {unavailLabel && <span className="fire-ooa">{unavailLabel}</span>}
-                        </label>
-                        {hoveredWeapon === w.name && options && (
-                          <WeaponDamageTooltip
-                            w={w}
-                            range={options.range}
-                            adjustedRange={options.adjustedRange}
-                            directFire={directFire}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </>
-          )}
-
-          {attacker.uimFunctional && (
-            <label className="fire-uim-row">
-              <input
-                type="checkbox"
-                checked={useUim}
-                onChange={onToggleUim}
-              />
-              <span>Use UIM targeting (D6.51)</span>
-            </label>
-          )}
-          {Array.from(selectedWeapons).some(name =>
-            attacker.weapons.find(w => w.name === name)?.name.startsWith('Hellbore')
-          ) && (
-            <label className="fire-uim-row">
-              <input
-                type="checkbox"
-                checked={directFire}
-                onChange={onToggleDirectFire}
-              />
-              <span>Direct Fire mode — half dmg, facing shield (E10.7)</span>
-            </label>
-          )}
-          <button
-            className="fire-btn"
-            disabled={selectedWeapons.size === 0}
-            onClick={onFire}
-          >
-            {(() => {
-              const totalShots = Array.from(selectedWeapons).reduce((sum, name) => {
-                const w = attacker.weapons.find(x => x.name === name);
-                return sum + (w && w.minImpulseGap === 0 && w.maxShotsPerTurn > 1
-                  ? Math.min(shotCounts.get(name) ?? 1, w.maxShotsPerTurn - w.shotsThisTurn)
-                  : 1);
-              }, 0);
-              return `Fire (${totalShots} shot${totalShots !== 1 ? 's' : ''})`;
-            })()}
-          </button>
-        </>
-      )}
-
-      {options && options.weaponsInArc.length === 0 && (
-        <div className="fire-hint">No weapons bear on this target</div>
-      )}
-
-      {/* ADD section — always visible when ship carries ADDs */}
-      {attacker.weapons.some(w => w.functional && w.addCapacity) && (
-        <>
-          <div className="sidebar-divider" />
-          <div className="sidebar-stat-label" style={{ marginBottom: 4, color: '#50d0f0' }}>
-            Anti-Drone (ADD)
-          </div>
-          <div className="fire-weapon-list">
-            {attacker.weapons
-              .filter(w => w.functional && w.addCapacity)
-              .map(w => {
-                const inArc    = options?.weaponsInArc.includes(w.name) ?? false;
-                const checked  = selectedWeapons.has(w.name);
-                const noAmmo   = (w.addShots ?? 0) === 0;
-                const noTarget = !options;
-                let unavailLabel: string | null = null;
-                if (noAmmo)        unavailLabel = 'no shots';
-                else if (noTarget) unavailLabel = 'select drone/shuttle target';
-                else if (!inArc)   unavailLabel = 'out of range (1-3)';
-                return (
-                  <div key={w.name} className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
-                    <label className="fire-weapon-label">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!!unavailLabel}
-                        onChange={() => onToggleWeapon(w.name)}
-                      />
-                      <span className="weapon-name">{w.name}</span>
-                      <span className="weapon-arc" style={{ color: '#50d0f0' }}>
-                        {w.addShots}/{w.addCapacity}
-                        {(w.addReloads ?? 0) > 0 && ` (+${w.addReloads})`}
-                      </span>
-                      {unavailLabel && <span className="fire-ooa">{unavailLabel}</span>}
-                    </label>
-                  </div>
-                );
-              })}
-          </div>
-        </>
-      )}
-
-      {error && <div className="fire-error">{error}</div>}
-    </div>
-  );
-}
-
-// ---- Fighter fire panel ----
-
-interface FighterFirePanelProps {
-  fighter:         ShuttleObject;
-  target:          MapObject | null;
-  options:         FireOptions | null;
-  loadingOptions:  boolean;
-  selectedWeapons: Set<string>;
-  onToggleWeapon:  (name: string) => void;
-  onSetWeapons:    (names: string[]) => void;
-  shotModes:       Record<string, 'SINGLE' | 'DOUBLE'>;
-  onSetShotMode:   (name: string, mode: 'SINGLE' | 'DOUBLE') => void;
-  onFire:          () => void;
-  onClear:         () => void;
-  error:           string | null;
-}
-
-function FighterFirePanel({
-  fighter, target, options, loadingOptions,
-  selectedWeapons, onToggleWeapon, onSetWeapons,
-  shotModes, onSetShotMode,
-  onFire, onClear, error,
-}: FighterFirePanelProps) {
-  const weapons = fighter.weapons ?? [];
-  const targetColor = target ? mapObjectColor(target) : '#888';
-  const shortName = fighter.name.includes('-')
-    ? fighter.name.slice(fighter.name.lastIndexOf('-', fighter.name.lastIndexOf('-') - 1) + 1)
-    : fighter.name;
-
-  return (
-    <div className="sidebar-section fire-panel" style={{ borderColor: '#9b3ad5' }}>
-      <div className="sidebar-section-title fire-title" style={{ color: fighter.crippled ? '#e05050' : '#9b3ad5' }}>
-        Fighter: {shortName}{fighter.crippled ? ' ⚠ CRIPPLED' : ''}
-      </div>
-
-      <div className="fire-target-row">
-        <span className="sidebar-stat-label">Target</span>
-        {target ? (
-          <span className="fire-target-name">
-            <span className="sidebar-faction-dot" style={{ background: targetColor, display: 'inline-block' }} />
-            {target.name}
-            <button className="fire-clear-btn secondary" onClick={onClear}>✕</button>
-          </span>
-        ) : (
-          <span className="fire-hint">Click enemy on map</span>
-        )}
-      </div>
-
-      {options && (
-        <>
-          <div className="sidebar-stat-row">
-            <span className="sidebar-stat-label">Range</span>
-            <span className="sidebar-stat-value">{options.range}</span>
-          </div>
-          <div className="sidebar-stat-row">
-            <span className="sidebar-stat-label">Shield hit</span>
-            <span className="sidebar-stat-value">#{options.shieldNumber} {SHIELD_NAMES[options.shieldNumber] ?? ''}</span>
-          </div>
-        </>
-      )}
-
-      {loadingOptions && <div className="fire-hint">Calculating…</div>}
-
-      {options && weapons.length > 0 && (
-        <>
-          <div className="sidebar-divider" />
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
-                            onClick={() => onSetWeapons(options.weaponsInArc)}>all bearing</button>
-                    <button className="secondary" style={{ padding: '0 6px', fontSize: '0.72rem' }}
-                            onClick={() => onSetWeapons([])}>none</button>
-                  </div>
-          <div className="fire-weapon-list">
-            {weapons.map(w => {
-              const inArc   = options.weaponsInArc.includes(w.name);
-              const checked = selectedWeapons.has(w.name);
-              const isFusion = w.chargesRemaining !== undefined;
-              const mode = shotModes[w.name] ?? 'SINGLE';
-              let unavailLabel: string | null = null;
-              if (!inArc) {
-                if ((w.chargesRemaining ?? 1) === 0) unavailLabel = 'no charges';
-                else if (!w.readyToFire)             unavailLabel = 'on cooldown';
-                else                                  unavailLabel = 'out of arc';
-              }
-              return (
-                <div key={w.name} className={`fire-weapon-row ${unavailLabel ? 'out-of-arc' : ''}`}>
-                  <label className="fire-weapon-label">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={!!unavailLabel}
-                      onChange={() => onToggleWeapon(w.name)}
-                    />
-                    <span className="weapon-name">{weaponLabel(w)}</span>
-                    {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
-                    {isFusion && (
-                      <span className="weapon-arc" style={{ color: '#f0c040' }}>⚡{w.chargesRemaining}</span>
-                    )}
-                    {unavailLabel && (
-                      <span className={`fire-ooa${unavailLabel === 'on cooldown' ? ' fire-cooldown' : ''}`}>
-                        {unavailLabel}
-                      </span>
-                    )}
-                  </label>
-                  {isFusion && checked && !unavailLabel && (
-                    <div className="shot-stepper">
-                      <button
-                        className={`shot-step-btn${mode === 'SINGLE' ? ' active' : ''}`}
-                        title="Single shot (1 charge, range 0-3)"
-                        onClick={e => { e.preventDefault(); onSetShotMode(w.name, 'SINGLE'); }}
-                      >1×</button>
-                      <button
-                        className={`shot-step-btn${mode === 'DOUBLE' ? ' active' : ''}`}
-                        disabled={!w.canFireDouble}
-                        title="Double shot (2 charges, range 0-10)"
-                        onClick={e => { e.preventDefault(); onSetShotMode(w.name, 'DOUBLE'); }}
-                      >2×</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <button
-            className="fire-btn"
-            disabled={selectedWeapons.size === 0}
-            onClick={onFire}
-          >
-            Fire ({selectedWeapons.size} weapon{selectedWeapons.size !== 1 ? 's' : ''})
-          </button>
-        </>
-      )}
-
-      {options && weapons.length === 0 && (
-        <div className="fire-hint">No weapons on this fighter</div>
-      )}
-
-      {error && <div className="fire-error">{error}</div>}
-    </div>
-  );
-}
 
 // ---- Move button grid ----
 
@@ -1405,21 +941,6 @@ interface SidebarProps {
   phase:           string;
   gameId:          string;
   playerToken:     string;
-  fireTarget:      MapObject | null;
-  fireOptions:     FireOptions | null;
-  loadingOptions:  boolean;
-  selectedWeapons: Set<string>;
-  onToggleWeapon:  (name: string) => void;
-  onSetWeapons:    (names: string[]) => void;
-  shotCounts:      Map<string, number>;
-  onSetShotCount:  (name: string, count: number) => void;
-  useUim:             boolean;
-  onToggleUim:        () => void;
-  directFire:         boolean;
-  onToggleDirectFire: () => void;
-  onFire:             () => void;
-  onClearTarget:      () => void;
-  fireError:          string | null;
   onMove:          (action: string) => void;
   onHet:           (facing: number) => Promise<void>;
   onTacTurn:       (facing: number, sublight: boolean) => Promise<void>;
@@ -1582,8 +1103,6 @@ interface SidebarProps {
 
 function ShipSidebar({
   ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd, hexFire, hexFireActions,
-  fireTarget, fireOptions, loadingOptions, selectedWeapons,
-  onToggleWeapon, onSetWeapons, shotCounts, onSetShotCount, useUim, onToggleUim, directFire, onToggleDirectFire, onFire, onClearTarget, fireError,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
   launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
@@ -2954,28 +2473,6 @@ function ShipSidebar({
         </div>
       )}
 
-      {/* Fire panel — top of sidebar during Direct Fire */}
-      {isFirePhase && (
-        <FirePanel
-          attacker={ship}
-          target={fireTarget}
-          options={fireOptions}
-          loadingOptions={loadingOptions}
-          selectedWeapons={selectedWeapons}
-          onToggleWeapon={onToggleWeapon}
-          onSetWeapons={onSetWeapons}
-          shotCounts={shotCounts}
-          onSetShotCount={onSetShotCount}
-          useUim={useUim}
-          onToggleUim={onToggleUim}
-          directFire={directFire}
-          onToggleDirectFire={onToggleDirectFire}
-          onFire={onFire}
-          onClearTarget={onClearTarget}
-          error={fireError}
-        />
-      )}
-
       <div className="sidebar-section">
         <div className="sidebar-section-title">Base Data</div>
         <StatRow label="Type"     value={ship.shipType} />
@@ -3203,13 +2700,9 @@ export default function GameBoard({ session, onLeave }: Props) {
   // Hover, both ways: a pad row rings its counter, a counter lights its rows.
   const [padHighlight, setPadHighlight] = useState<string | null>(null);
   const [hoveredUnits, setHoveredUnits] = useState<string[]>([]);
-  const [fireOptions, setFireOptions]       = useState<FireOptions | null>(null);
-  const [loadingOptions, setLoadingOptions] = useState(false);
-  const [selectedWeapons, setSelectedWeapons] = useState<Set<string>>(new Set());
-  const [shotCounts, setShotCounts]           = useState<Map<string, number>>(new Map());
-  const [useUim, setUseUim]                 = useState(false);
-  const [directFire, setDirectFire]         = useState(false);
-  const [fireError, setFireError]           = useState<string | null>(null);
+  // Per-volley choices — which weapons, how many shots, UIM, Hellbore mode — now live in
+  // the pad, keyed to the attacker and target they belong to. fireTarget stays here: the map
+  // highlights it, and a click on the map is how you name one.
   // Fire declaration round (D6.315) — locally drafted orders, sealed on commit.
   // Drafts exist only while a round is open (the first order places the call),
   // and are cleared by commit/pass; committedRound keys the sealed state to
@@ -3234,7 +2727,6 @@ export default function GameBoard({ session, onLeave }: Props) {
   const myCommitted = committedRound === roundKey;
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
-  const [fighterShotModes, setFighterShotModes]   = useState<Record<string, 'SINGLE' | 'DOUBLE'>>({});
   // Launch state
   const [launchMode,        setLaunchMode]        = useState(false);
   const [launchTarget,      setLaunchTarget]      = useState<MapObject | null>(null);
@@ -3486,24 +2978,14 @@ export default function GameBoard({ session, onLeave }: Props) {
     : null;
 
   // Fetch fire options whenever attacker + target are both set in Direct Fire phase
-  async function fetchFireOptions(attackerName: string, targetName: string) {
-    setLoadingOptions(true);
-    setFireOptions(null);
-    setSelectedWeapons(new Set());
-    setFireError(null);
-    try {
-      const opts = await gameApi.getFireOptions(
-        session.gameId, session.playerToken, attackerName, targetName,
-      );
-      setFireOptions(opts);
-      // Deliberately nothing pre-selected. Every in-arc weapon used to arrive checked, which
-      // made firing everything free and conserving fire - the normal case - cost a click per
-      // weapon. "All bearing" puts the alpha strike back to one click.
-    } catch (e: unknown) {
-      setFireError(e instanceof Error ? e.message : 'Could not get fire options');
-    } finally {
-      setLoadingOptions(false);
-    }
+  /**
+   * Whether this map object is one of mine. Ownership, not a rule: which units may be FIRED
+   * at is the server's to say, and it does, in /fire-targets.
+   */
+  function isMineOnMap(obj: MapObject): boolean {
+    if (obj.type === 'SHIP') return myShips.has(obj.name);
+    const o = obj as { parentShipName?: string | null; controllerName?: string | null };
+    return myShips.has(o.parentShipName ?? '') || myShips.has(o.controllerName ?? '');
   }
 
   // Map click handler — tri-mode: select ship, pick fire target, or pick launch target
@@ -3599,7 +3081,7 @@ export default function GameBoard({ session, onLeave }: Props) {
       setCrewError(null);
       return;
     }
-    if (launchMode && liveShip && obj && canBeFireTarget(obj, myShips)) {
+    if (launchMode && liveShip && obj && canBeLaunchTarget(obj, myShips)) {
       setLaunchTarget(obj);
       return;
     }
@@ -3610,33 +3092,21 @@ export default function GameBoard({ session, onLeave }: Props) {
       if (owned && (shuttle.weapons?.length ?? 0) > 0) {
         setFighterAttacker(shuttle);
         setFireTarget(null);
-        setFireOptions(null);
-        setSelectedWeapons(new Set());
-        setFighterShotModes({});
-        setFireError(null);
         return;
       }
     }
-    // When fighter is the attacker, clicking an enemy picks the target
-    if (isFirePhase && fighterAttacker && obj && canBeFireTarget(obj, myShips)) {
+    // Clicking something that is not mine during the fire phase is a SHORTCUT INTO THE PAD:
+    // it names the target and nothing more. Whether anything bears on it is /fire-targets'
+    // answer, and the pad says so — deciding it here is what used to put J3.21 in the view.
+    if (isFirePhase && (liveShip || fighterAttacker) && obj && !isMineOnMap(obj)) {
       setFireTarget(obj);
-      fetchFireOptions(fighterAttacker.name, obj.name);
-      return;
-    }
-    if (isFirePhase && liveShip && obj && canBeFireTarget(obj, myShips)) {
-      setFireTarget(obj);
-      fetchFireOptions(liveShip.name, obj.name);
       return;
     }
     // Normal: select the clicked ship as the attacker / info ship
     setFighterAttacker(null);
-    setFighterShotModes({});
     setSelected(obj);
     setSnapTo(obj ? { name: obj.name } : null);
     setFireTarget(null);
-    setFireOptions(null);
-    setSelectedWeapons(new Set());
-    setFireError(null);
     setLaunchMode(false);
     setLaunchTarget(null);
     setLaunchError(null);
@@ -3648,96 +3118,10 @@ export default function GameBoard({ session, onLeave }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFirePhase, launchMode, boardingMode, harMode, crewMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
-  function toggleWeapon(name: string) {
-    setSelectedWeapons(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-        setShotCounts(sc => { const m = new Map(sc); m.delete(name); return m; });
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
-  }
-
-  function setShotCount(name: string, count: number) {
-    setShotCounts(prev => new Map(prev).set(name, count));
-  }
-
   function addLog(text: string, kind: 'combat' | 'phase' | 'error' | 'info') {
     const turn    = gameState?.turn    ?? '?';
     const impulse = gameState?.impulse ?? '?';
     setLog(prev => [...prev, { stamp: `T${turn}I${impulse}`, text, kind }]);
-  }
-
-  async function handleFire() {
-    if ((!liveShip && !fighterAttacker) || !fireTarget || !fireOptions) return;
-    setFireError(null);
-    try {
-      // Build the order (same shape as the FIRE wire format)
-      const req: Record<string, unknown> = {
-        shipName:      fighterAttacker ? fighterAttacker.name : liveShip!.name,
-        targetName:    fireTarget.name,
-        range:         fireOptions.range,
-        adjustedRange: fireOptions.adjustedRange,
-        shieldNumber:  fireOptions.shieldNumber,
-      };
-      if (fighterAttacker) {
-        req.weaponNames = Array.from(selectedWeapons);
-        req.useUim      = false;
-        req.directFire  = false;
-        // Include shotModes for FighterFusion weapons
-        const modes: Record<string, string> = {};
-        for (const wName of selectedWeapons) {
-          const w = (fighterAttacker.weapons ?? []).find(x => x.name === wName);
-          if (w?.chargesRemaining !== undefined)
-            modes[wName] = fighterShotModes[wName] ?? 'SINGLE';
-        }
-        if (Object.keys(modes).length > 0) req.shotModes = modes;
-      } else {
-        req.weaponNames = Array.from(selectedWeapons).flatMap(name => {
-          const w = liveShip!.weapons.find(x => x.name === name);
-          const n = w && w.minImpulseGap === 0 && w.maxShotsPerTurn > 1
-            ? Math.min(shotCounts.get(name) ?? 1, w.maxShotsPerTurn - w.shotsThisTurn)
-            : 1;
-          return Array(n).fill(name);
-        });
-        req.useUim     = useUim;
-        req.directFire = directFire;
-      }
-      // Fire declaration flow (D6.315): the first order places the call —
-      // everyone is convened to commit sealed orders; this order joins the
-      // local draft plan and is submitted with COMMIT_FIRE_DECLARATION.
-      if (myCommitted) {
-        setFireError('Orders already sealed for this declaration');
-        return;
-      }
-      if (!(await ensureDeclarationOpen())) return;
-      const attackerName = fighterAttacker ? fighterAttacker.name : liveShip!.name;
-      setDeclarationOrders(prev => [...prev, {
-        label: `${attackerName} → ${fireTarget.name} (${(req.weaponNames as string[]).length} wpn)`,
-        shipName: attackerName,
-        targetName: fireTarget.name,
-        weaponNames: req.weaponNames as string[],
-        shotModes: req.shotModes as Record<string, string> | undefined,
-        range: fireOptions.range,
-        adjustedRange: fireOptions.adjustedRange,
-        shieldNumber: fireOptions.shieldNumber,
-        useUim: (req.useUim as boolean) ?? false,
-        directFire: (req.directFire as boolean) ?? false,
-      }]);
-      setFireTarget(null);
-      setFireOptions(null);
-      setSelectedWeapons(new Set());
-      setShotCounts(new Map());
-      setUseUim(false);
-      setDirectFire(false);
-      // Keep fighterAttacker so the player can add another order for it
-      setFighterShotModes({});
-    } catch (e: unknown) {
-      setFireError(e instanceof Error ? e.message : 'Fire failed');
-    }
   }
 
   /**
@@ -3773,7 +3157,6 @@ export default function GameBoard({ session, onLeave }: Props) {
     setFighterAttacker(obj.type === 'SHUTTLE' ? (obj as ShuttleObject) : null);
     setSelected(obj);
     setFireTarget(null);
-    setFireOptions(null);
   }
 
   // Only ships allocate EW (D6.31); a fighter selected as the attacker has no stepper.
@@ -5262,27 +4645,12 @@ export default function GameBoard({ session, onLeave }: Props) {
             phase={phase}
             gameId={session.gameId}
             playerToken={session.playerToken}
-            fireTarget={fireTarget}
-            fireOptions={fireOptions}
-            loadingOptions={loadingOptions}
-            selectedWeapons={selectedWeapons}
-            onToggleWeapon={toggleWeapon}
-            onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
-            shotCounts={shotCounts}
-            onSetShotCount={setShotCount}
-            useUim={useUim}
-            onToggleUim={() => setUseUim(v => !v)}
-            directFire={directFire}
-            onToggleDirectFire={() => setDirectFire(v => !v)}
-            onFire={handleFire}
-            onClearTarget={() => { setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); setShotCounts(new Map()); setUseUim(false); setDirectFire(false); }}
-            fireError={fireError}
             onMove={handleMove}
             onHet={handleHet}
             onTacTurn={handleTacTurn}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
-            onClose={() => { setSelected(null); setFireTarget(null); setFireOptions(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
+            onClose={() => { setSelected(null); setFireTarget(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
             launchMode={launchMode}
             launchTarget={launchTarget}
             launchError={launchError}
@@ -5500,25 +4868,6 @@ export default function GameBoard({ session, onLeave }: Props) {
           );
         })()}
 
-        {/* Fighter fire panel — shown when a fighter is the attacker */}
-        {isFirePhase && fighterAttacker && (
-          <div className="board-sidebar">
-            <FighterFirePanel
-              fighter={fighterAttacker}
-              target={fireTarget}
-              options={fireOptions}
-              loadingOptions={loadingOptions}
-              selectedWeapons={selectedWeapons}
-              onToggleWeapon={toggleWeapon}
-              onSetWeapons={(names: string[]) => setSelectedWeapons(new Set(names))}
-              shotModes={fighterShotModes}
-              onSetShotMode={(name, mode) => setFighterShotModes(prev => ({ ...prev, [name]: mode }))}
-              onFire={handleFire}
-              onClear={() => { setFighterAttacker(null); setFireTarget(null); setFireOptions(null); setSelectedWeapons(new Set()); setFighterShotModes({}); setFireError(null); }}
-              error={fireError}
-            />
-          </div>
-        )}
       </div>
 
       {/* The Fire Orders pad (D6.315) — drafted orders + EW, sealed on commit.
@@ -5533,6 +4882,11 @@ export default function GameBoard({ session, onLeave }: Props) {
           units={padUnits}
           attackerName={padAttacker}
           onSelectAttacker={selectPadAttacker}
+          targetName={fireTarget?.name ?? null}
+          onSelectTarget={(name: string | null) =>
+            setFireTarget(name
+              ? (gameState?.mapObjects ?? []).find(o => o.name === name) ?? null
+              : null)}
           orders={declarationOrders}
           onAddOrder={addPadOrder}
           onRemoveOrder={(idx: number) =>

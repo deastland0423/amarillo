@@ -81,6 +81,13 @@ interface Props {
   attackerName: string | null;
   onSelectAttacker: (name: string) => void;
 
+  /**
+   * The chosen target, held by the board rather than here, so clicking an enemy on the map is
+   * a shortcut INTO the pad rather than a second way to compose an order.
+   */
+  targetName:     string | null;
+  onSelectTarget: (name: string | null) => void;
+
   orders:        DraftOrder[];
   onAddOrder:    (order: DraftOrder) => void;
   onRemoveOrder: (index: number) => void;
@@ -267,7 +274,7 @@ function volleyEstimate(weapons: WeaponState[], names: string[],
 
 export default function FireOrdersPad({
   gameId, playerToken, turn, impulse,
-  units, attackerName, onSelectAttacker,
+  units, attackerName, onSelectAttacker, targetName, onSelectTarget,
   orders, onAddOrder, onRemoveOrder, onStartHexFire,
   hoveredOnMap, onHoverCandidate,
   ew, onSetEw, ewLimits,
@@ -297,7 +304,6 @@ export default function FireOrdersPad({
   const loadError = answered ? loaded.error : null;
 
   const candidates = answered ? loaded.rows : EMPTY_ROWS;
-  const targetName = sel.attacker === attackerName ? sel.target : null;
   const onTarget   = sel.attacker === attackerName && sel.target === targetName;
   const picked     = onTarget ? sel.picked : EMPTY_PICK;
   const shots      = onTarget ? sel.shots : EMPTY_SHOTS;
@@ -309,8 +315,10 @@ export default function FireOrdersPad({
   const target   = candidates.find(c => c.name === targetName) ?? null;
 
   /** Replace the selection. Changing target or attacker drops every per-volley choice. */
-  const pick = (target: string | null, weapons: Set<string>) =>
-      setSel({ ...EMPTY_SEL, attacker: attackerName, target, picked: weapons });
+  const pick = (target: string | null, weapons: Set<string>) => {
+    onSelectTarget(target);
+    setSel({ ...EMPTY_SEL, attacker: attackerName, target, picked: weapons });
+  };
 
   const amend = (patch: Partial<Sel>) =>
       setSel({ ...sel, attacker: attackerName, target: targetName,
@@ -582,7 +590,12 @@ export default function FireOrdersPad({
           <div style={COL_TITLE}>
             {target ? `${attacker?.name} → ${target.name}` : 'Weapons'}
           </div>
-          {!target && (
+          {!target && targetName && (
+            <div style={{ fontSize: '0.85em', color: '#f0c040' }}>
+              {attacker?.name} has nothing that bears on {targetName}.
+            </div>
+          )}
+          {!target && !targetName && (
             <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Pick a target.</div>
           )}
           {target && attacker && (
