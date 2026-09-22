@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory.
+A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory — but look in `data/rules/` first, which holds PDFs already to hand (currently Annex #2, the Sequence of Play). Read them with `pdftotext -layout`; page rendering is unavailable on this machine. The directory is gitignored: these are ADB's watermarked product and must never be committed.
 
 ## Commands
 
