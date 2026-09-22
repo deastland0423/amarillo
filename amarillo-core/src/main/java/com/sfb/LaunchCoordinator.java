@@ -193,6 +193,38 @@ class LaunchCoordinator {
      *
      * @return ActionResult describing success or reason for failure.
      */
+    /**
+     * A launched seeker must be able to see where it is going: with the facing it is launched
+     * on, the target has to lie inside the seeker's OWN forward arc (ArcUtils.FA, the nine
+     * directions 21-5).
+     *
+     * A third constraint, distinct from the two on the launcher. A drone rack has no arc of
+     * its own and a plasma tube's arcs are about the ship; this one is about the seeker, and
+     * it is the only thing bounding a rack that launches in any direction at all.
+     * <p>
+     * It bites when a direction is NAMED that points away from the target. A launch with no
+     * direction aims straight at it, so the target sits at relative bearing 1 and is
+     * trivially inside its own forward arc.
+     * <p>
+     * Owner's ruling 2026-09-21; the F-section citation should be added when that page is to
+     * hand.
+     *
+     * @return a refusal, or null if the seeker can track from there
+     */
+    private ActionResult seekerArcBlock(Unit launcher, Unit target, int seekerFacing, String what) {
+        if (seekerFacing <= 0 || target == null)
+            return null;
+        int bearing = MapUtils.getBearing(launcher, target);
+        if (bearing == 0)
+            return null;               // same hex: no bearing exists to judge
+        int relative = MapUtils.getRelativeBearing(bearing, seekerFacing);
+        if (!ArcUtils.inArc(relative, ArcUtils.FA))
+            return ActionResult.fail(what + " launched on direction " + seekerFacing
+                    + " cannot track " + target.getName()
+                    + " — the target must lie in the seeker's forward arc");
+        return null;
+    }
+
     public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
@@ -260,7 +292,11 @@ class LaunchCoordinator {
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
         drone.setLocation(launcher.getLocation());
-        drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        int droneFacing = facing > 0 ? facing : MapUtils.getBearing(launcher, target);
+        ActionResult droneArc = seekerArcBlock(launcher, target, droneFacing, rack.getName());
+        if (droneArc != null)
+            return droneArc;
+        drone.setFacing(droneFacing);
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
         Unit droneTarget = target;
@@ -338,6 +374,11 @@ class LaunchCoordinator {
                         + facing + " — outside launcher arc");
         }
 
+        int torpFacing = facing > 0 ? facing : MapUtils.getBearing(launcher, target);
+        ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, weapon.getName());
+        if (torpArc != null)
+            return torpArc;
+
         PlasmaTorpedo torpedo = weapon.launch();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch");
@@ -348,7 +389,7 @@ class LaunchCoordinator {
 
         torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq());
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(torpFacing);
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
         Unit torpTarget = target;
@@ -394,6 +435,30 @@ class LaunchCoordinator {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.canLaunchPseudo())
             return ActionResult.fail(weapon.getName() + " cannot launch pseudo plasma now");
+
+        // A pseudo must be bound by exactly what binds a real one, or the bluff gives itself
+        // away: a torpedo launched at an angle no real one could manage could only be pseudo.
+        // These three were all missing here, so a pseudo could be thrown anywhere at all.
+        int pseudoBearing = MapUtils.getBearing(launcher, target);
+        if (pseudoBearing > 0) {
+            int relBearing = MapUtils.getRelativeBearing(pseudoBearing, launcher.getFacing());
+            if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
+                return ActionResult.fail(weapon.getName() + " cannot target "
+                        + target.getName() + " — outside launcher arc");
+        }
+        if (facing > 0) {
+            int launchDirs = weapon.getLaunchDirections() != 0
+                    ? weapon.getLaunchDirections() : weapon.getArcs();
+            int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
+            if (!ArcUtils.inArc(relFacing, launchDirs))
+                return ActionResult.fail(weapon.getName() + " cannot launch in direction "
+                        + facing + " — outside launcher arc");
+        }
+        int pseudoFacing = facing > 0 ? facing : pseudoBearing;
+        ActionResult pseudoArc = seekerArcBlock(launcher, target, pseudoFacing, weapon.getName());
+        if (pseudoArc != null)
+            return pseudoArc;
+
         PlasmaTorpedo torpedo = weapon.launchPseudo();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
@@ -401,7 +466,7 @@ class LaunchCoordinator {
         torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq()); // named like a real one — the name
                                                                                  // must not reveal pseudo status
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(pseudoFacing);
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
