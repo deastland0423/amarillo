@@ -817,7 +817,7 @@ export default function LaunchOrdersPad({
                                    alignItems: 'center' }}>
                       {facingChip(craft.name)}
                       {speedStepper(craft)}
-                      <button className="secondary" style={{ padding: '0 6px' }}
+                      <button style={{ padding: '0 6px' }}
                               disabled={spent.has(craft.name)}
                               onClick={() => draft({
                                 label: `${attacker.name}: ${craft.name}`
