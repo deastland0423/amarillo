@@ -697,7 +697,12 @@ class LaunchCoordinator {
 
         launcher.forceAcquireControl(pack);
 
-        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), packFacing, game.getAbsoluteImpulse());
+        // effectiveMaxSpeed, like the other three craft launches: a pack is built on a
+        // shuttle and carries that shuttle's speed limits, erratic maneuvers included
+        // (C10.13, owner's ruling 2026-09-21). The floor matters too — a negative speed
+        // asked for is a standing still, not a reverse.
+        bay.launch(pack, Math.max(0, Math.min(speed, pack.effectiveMaxSpeed())),
+                packFacing, game.getAbsoluteImpulse());
         pack.setName(launchName(launcher, pack));
         pack.setLocation(launcher.getLocation());
         // Whose it is, and where it came from. launchShuttle has always set both; this

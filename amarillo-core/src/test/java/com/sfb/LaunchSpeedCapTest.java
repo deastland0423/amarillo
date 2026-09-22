@@ -7,7 +7,10 @@ import org.junit.Test;
 
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Ship;
+import com.sfb.objects.Drone;
+import com.sfb.objects.DroneType;
 import com.sfb.objects.shuttles.AdminShuttle;
+import com.sfb.objects.shuttles.ScatterPack;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.objects.shuttles.WildWeaselShuttle;
@@ -126,6 +129,25 @@ public class LaunchSpeedCapTest {
 
         assertTrue(r.getMessage(), r.isSuccess());
         assertEquals("the same cap an ordinary shuttle gets", 5, ss.getSpeed());
+    }
+
+    /**
+     * The fourth craft launch, and the one this class did not cover — which is how it kept a
+     * fourth answer. The pack clamped to getMaxSpeed, so like the suicide shuttle before it,
+     * a point of speed given to erratic maneuvers bought nothing.
+     */
+    @Test
+    public void aScatterPackIsBoundedByTheShuttleItWasBuiltFrom() {
+        ScatterPack pack = new ScatterPack(new AdminShuttle());
+        putInBay(pack);
+        pack.addDrone(new Drone(DroneType.TypeI));
+        pack.commitEmSpeed();
+        assertEquals(5, pack.effectiveMaxSpeed());
+
+        ActionResult r = game.launchScatterPack(ship, bay, pack, target, 1, 6);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertEquals("the same cap the other three craft get", 5, pack.getSpeed());
     }
 
     /**

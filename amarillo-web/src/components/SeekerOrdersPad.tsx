@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ShipObject } from '../types/gameState';
+import type { ShipObject, ShuttleInBayState } from '../types/gameState';
 import { parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
@@ -211,7 +211,13 @@ export default function SeekerOrdersPad({
   const [facings, setFacings] = useState<Record<string, number>>({});
   /** Which row the graphical picker is open for, if any. */
   const [pickerFor, setPickerFor] = useState<string | null>(null);
-  const [speed, setSpeed] = useState<number>(6);
+  /**
+   * A speed per craft, keyed by name; absent means "that craft's own maximum".
+   *
+   * Not one number for the pad: a fighter and an admin shuttle leaving the same bay in the
+   * same impulse are two orders, and each names its own speed on the wire.
+   */
+  const [speeds, setSpeeds] = useState<Record<string, number>>({});
   const drag = useDraggable(savedPosition());
 
   useEffect(() => {
@@ -322,9 +328,37 @@ export default function SeekerOrdersPad({
   const weaselsReady = bayCraft.filter(s => s.wwReady && s.canLaunch);
   /** Ordinary craft — a shuttle or a fighter going out with no special role to play. */
   const plainReady = bayCraft.filter(s => !s.specialRole && s.canLaunch && !s.wwReady);
-  /** No point offering a speed no craft here could take. */
-  const fastestReady = [...weaselsReady, ...plainReady]
-      .reduce((m, c) => Math.max(m, c.effectiveMaxSpeed), 0);
+  /**
+   * What this craft launches at: what was set for it, or its own maximum.
+   *
+   * effectiveMaxSpeed, not maxSpeed — a craft that has committed a point of speed to erratic
+   * maneuvers (C10.13) cannot launch above what it has left, and the shuttle is the one that
+   * knows. Core clamps to the same figure, so the default is never a speed it will refuse.
+   */
+  function speedOf(craft: ShuttleInBayState): number {
+    const set = speeds[craft.name];
+    return set === undefined ? craft.effectiveMaxSpeed
+                             : Math.max(0, Math.min(craft.effectiveMaxSpeed, set));
+  }
+
+  /** One craft's speed, bounded by its own cap rather than by the fastest thing in the bay. */
+  function speedStepper(craft: ShuttleInBayState) {
+    const cap = craft.effectiveMaxSpeed;
+    const at  = speedOf(craft);
+    const em  = cap < craft.maxSpeed;
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}
+            title={em ? `up to ${cap}: a point of speed is committed to erratic maneuvers (C10.13)`
+                      : `launch speed, up to ${cap}`}>
+        <button className="secondary" style={{ padding: '0 5px' }} disabled={at <= 0}
+                onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at - 1 }))}>−</button>
+        <span style={{ minWidth: 16, textAlign: 'center',
+                       color: em ? '#f0c040' : undefined }}>{at}</span>
+        <button className="secondary" style={{ padding: '0 5px' }} disabled={at >= cap}
+                onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at + 1 }))}>+</button>
+      </span>
+    );
+  }
 
   const shipFacing = ship?.facing ?? 1;
 
@@ -661,7 +695,7 @@ export default function SeekerOrdersPad({
                 })}
 
                 {suicideReady.map(s => (
-                  <div key={s.name} style={{ ...ROW, cursor: 'default' }}>
+                  <div key={s.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
                     <span>{s.name}</span>
                     <span style={{ color: '#ff6060', fontSize: '0.9em' }}>
                       suicide, {s.warheadDamage} dmg
@@ -669,20 +703,22 @@ export default function SeekerOrdersPad({
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
                                    alignItems: 'center' }}>
                       {facingChip(s.name)}
+                      {speedStepper(s)}
                       <button style={{ padding: '0 6px' }}
                               disabled={spent.has(s.name) || !legalHeading(s.name)}
                               onClick={() => draft({
-                                label: `${attacker.name} → ${target.name}: ${s.name}`,
+                                label: `${attacker.name} → ${target.name}: ${s.name}`
+                                     + ` (speed ${speedOf(s)})`,
                                 kind: 'SUICIDE', shipName: attacker.name,
                                 targetName: target.name, shuttleName: s.name,
-                                facing: facings[s.name] ?? 0,
+                                facing: facings[s.name] ?? 0, speed: speedOf(s),
                               })}>send</button>
                     </span>
                   </div>
                 ))}
 
                 {packsReady.map(s => (
-                  <div key={s.name} style={{ ...ROW, cursor: 'default' }}>
+                  <div key={s.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
                     <span>{s.name}</span>
                     <span style={{ color: '#f0c040', fontSize: '0.9em' }}>
                       pack, {s.payload?.length ?? 0} aboard
@@ -690,13 +726,15 @@ export default function SeekerOrdersPad({
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
                                    alignItems: 'center' }}>
                       {facingChip(s.name)}
+                      {speedStepper(s)}
                       <button style={{ padding: '0 6px' }}
                               disabled={spent.has(s.name) || !legalHeading(s.name)}
                               onClick={() => draft({
-                                label: `${attacker.name} → ${target.name}: ${s.name}`,
+                                label: `${attacker.name} → ${target.name}: ${s.name}`
+                                     + ` (speed ${speedOf(s)})`,
                                 kind: 'SCATTER_PACK', shipName: attacker.name,
                                 targetName: target.name, shuttleName: s.name,
-                                facing: facings[s.name] ?? 0,
+                                facing: facings[s.name] ?? 0, speed: speedOf(s),
                               })}>send</button>
                     </span>
                   </div>
@@ -714,72 +752,49 @@ export default function SeekerOrdersPad({
             {attacker && (weaselsReady.length > 0 || plainReady.length > 0) && (
               <>
                 <div style={{ ...COL_TITLE, marginTop: 8 }}>No target needed</div>
-                {/* The stepper reaches as far as the fastest craft here; each row is then
-                    bounded by its own cap, which is the shuttle's to state and not this
-                    panel's to assume. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                  <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>Speed</span>
-                  <button className="secondary" style={{ padding: '0 5px' }}
-                          onClick={() => setSpeed(v => Math.max(0, v - 1))}>−</button>
-                  <span style={{ minWidth: 14, textAlign: 'center' }}>{speed}</span>
-                  <button className="secondary" style={{ padding: '0 5px' }}
-                          disabled={speed >= fastestReady}
-                          onClick={() => setSpeed(v => Math.min(fastestReady, v + 1))}>+</button>
-                </div>
-                {plainReady.map(craft => {
-                  const cap = craft.effectiveMaxSpeed;
-                  const at  = Math.min(speed, cap);
-                  return (
-                    <div key={craft.name} style={{ ...ROW, cursor: 'default' }}>
-                      <span>{craft.name}</span>
-                      <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
-                      <span style={{ color: '#8b949e', fontSize: '0.9em' }}>
-                        at {at}{at < speed ? ` (max ${cap})` : ''}
-                      </span>
-                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
-                                     alignItems: 'center' }}>
-                        {facingChip(craft.name)}
-                        <button className="secondary" style={{ padding: '0 6px' }}
-                                disabled={spent.has(craft.name)}
-                                onClick={() => draft({
-                                  label: `${attacker.name}: ${craft.name} (speed ${at})`,
-                                  kind: 'SHUTTLE', shipName: attacker.name,
-                                  shuttleName: craft.name,
-                                  facing: facings[craft.name] || undefined, speed: at,
-                                })}>launch</button>
-                      </span>
-                    </div>
-                  );
-                })}
+                {plainReady.map(craft => (
+                  <div key={craft.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
+                    <span>{craft.name}</span>
+                    <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                   alignItems: 'center' }}>
+                      {facingChip(craft.name)}
+                      {speedStepper(craft)}
+                      <button className="secondary" style={{ padding: '0 6px' }}
+                              disabled={spent.has(craft.name)}
+                              onClick={() => draft({
+                                label: `${attacker.name}: ${craft.name}`
+                                     + ` (speed ${speedOf(craft)})`,
+                                kind: 'SHUTTLE', shipName: attacker.name,
+                                shuttleName: craft.name,
+                                facing: facings[craft.name] || undefined,
+                                speed: speedOf(craft),
+                              })}>launch</button>
+                    </span>
+                  </div>
+                ))}
 
-                {weaselsReady.map(craft => {
-                  const cap = craft.effectiveMaxSpeed;
-                  const at  = Math.min(speed, cap);
-                  return (
-                    <div key={craft.name} style={{ ...ROW, cursor: 'default' }}>
-                      <span>{craft.name}</span>
-                      <span style={{ color: JADE, fontSize: '0.9em' }}>weasel</span>
-                      <span style={{ color: '#8b949e', fontSize: '0.9em' }}
-                            title={craft.effectiveMaxSpeed < craft.maxSpeed
-                                 ? 'a point of speed is committed to erratic maneuvers (C10.13)'
-                                 : undefined}>
-                        at {at}{at < speed ? ` (max ${cap})` : ''}
-                      </span>
-                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
-                                     alignItems: 'center' }}>
-                        {facingChip(craft.name)}
-                        <button style={{ padding: '0 6px' }}
-                                disabled={spent.has(craft.name)}
-                                onClick={() => draft({
-                                  label: `${attacker.name}: ${craft.name} (weasel, speed ${at})`,
-                                  kind: 'WEASEL', shipName: attacker.name,
-                                  shuttleName: craft.name,
-                                  facing: facings[craft.name] || undefined, speed: at,
-                                })}>launch</button>
-                      </span>
-                    </div>
-                  );
-                })}
+                {weaselsReady.map(craft => (
+                  <div key={craft.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
+                    <span>{craft.name}</span>
+                    <span style={{ color: JADE, fontSize: '0.9em' }}>weasel</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                   alignItems: 'center' }}>
+                      {facingChip(craft.name)}
+                      {speedStepper(craft)}
+                      <button style={{ padding: '0 6px' }}
+                              disabled={spent.has(craft.name)}
+                              onClick={() => draft({
+                                label: `${attacker.name}: ${craft.name}`
+                                     + ` (weasel, speed ${speedOf(craft)})`,
+                                kind: 'WEASEL', shipName: attacker.name,
+                                shuttleName: craft.name,
+                                facing: facings[craft.name] || undefined,
+                                speed: speedOf(craft),
+                              })}>launch</button>
+                    </span>
+                  </div>
+                ))}
               </>
             )}
           </div>
