@@ -196,6 +196,12 @@ public class GameStateDto {
         public String name;
         public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
         public int maxSpeed;
+        /**
+         * The speed a launch is ACTUALLY capped at — maxSpeed less any point given to
+         * erratic maneuvers (C10.13). The launch uses this, so anything showing the raw
+         * maximum would promise a speed the game then quietly refuses.
+         */
+        public int effectiveMaxSpeed;
         public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
         // suicide only: arming has BEGUN (D12.123 counts a part-armed shuttle as armed).
         // Not the same as fully armed at three turns, which is what decides whether it owes
@@ -1388,6 +1394,7 @@ public class GameStateDto {
                     sd.name = s.getName();
                     sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
                     sd.maxSpeed = s.getMaxSpeed();
+                    sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
                     if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                         com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;

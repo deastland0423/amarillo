@@ -83,6 +83,8 @@ export interface ShuttleInBayState {
   name:                string;
   type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
   maxSpeed:            number;
+  /** What a launch is actually capped at: maxSpeed less any point given to EM (C10.13). */
+  effectiveMaxSpeed:   number;
   canLaunch:           boolean;  // hatch or tube available for this shuttle right now
   armed?:              boolean;  // suicide only
   armingTurnsComplete?: number; // suicide only

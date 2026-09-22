@@ -1,16 +1,10 @@
 import { useState, useCallback, useEffect, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject, WildWeaselObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
 import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
-import {
-  bearsOn,
-  hexRangeBetween as hexRange,
-  hexGetBearing,
-  hexGetRelativeBearing,
-  allowedFacingsFromMask,
-} from '../hex/geometry';
+import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
@@ -69,14 +63,6 @@ function weaponLabel(w: WeaponState): string {
 
 
 /** Faction color for any map object (ships use faction, seekers use controllerFaction). */
-function mapObjectColor(obj: MapObject): string {
-  if (obj.type === 'SHIP')   return factionColor((obj as ShipObject).faction);
-  if (obj.type === 'DRONE')         return factionColor((obj as DroneObject).controllerFaction);
-  if (obj.type === 'PLASMA')        return factionColor((obj as PlasmaObject).controllerFaction);
-  if (obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK')
-    return factionColor((obj as ShuttleObject).controllerFaction ?? '');
-  return '#888';
-}
 
 /** True if this object can be selected as a fire target by the given player. */
 /**
@@ -87,21 +73,6 @@ function mapObjectColor(obj: MapObject): string {
  * Until then it stays, because deleting it would silently change what a launch may target.
  * It carries J3.21 — a weasel already exploding or reduced to radiation cannot be attacked.
  */
-function canBeLaunchTarget(obj: MapObject, myShips: Set<string>): boolean {
-  if (obj.type === 'SHIP')   return !myShips.has(obj.name);
-  if (obj.type === 'DRONE')  return !myShips.has((obj as DroneObject).controllerName ?? '');
-  if (obj.type === 'PLASMA') return !myShips.has((obj as PlasmaObject).controllerName ?? '');
-  if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
-    const s = obj as ShuttleObject;
-    return !myShips.has(s.parentShipName ?? '') && !myShips.has(s.controllerName ?? '');
-  }
-  if (obj.type === 'WILD_WEASEL') {
-    const w = obj as WildWeaselObject;
-    return !myShips.has(w.parentShipName ?? '') && !w.exploding && !w.postExplosion;
-  }
-  return false;
-}
-
 // ---- Sub-components ----
 
 /**
@@ -250,514 +221,6 @@ function isCloakOperating(ship: ShipObject): boolean {
   return !!ship.cloakState && ship.cloakState !== 'NONE' && ship.cloakState !== 'INACTIVE';
 }
 
-function hasLaunchableWeapons(ship: ShipObject): boolean {
-  const hasPlasma      = (ship.weapons    ?? []).some(w => w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady));
-  const hasLoadedRack  = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0 && r.canFire);
-  const hasSuicide     = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'suicide' && s.armed && s.canLaunch));
-  const hasScatterPack = (ship.shuttleBays ?? []).some(bay => bay.shuttles.some(s => s.type === 'scatterpack' && s.canLaunch && (s.payload?.length ?? 0) > 0));
-  return hasPlasma || hasLoadedRack || hasSuicide || hasScatterPack;
-}
-
-// ---- Launch panel ----
-
-// Rotates a ship-relative 24-bit arc bitmask by the ship's absolute facing so
-// the result is in hex-grid absolute coordinates (direction 1 = hex-north).
-// Arc masks are always stored ship-relative (bit 0 = forward).
-// The FacingPicker shows absolute directions, so we must rotate before filtering.
-function rotateArcMask(mask: number, facing: number): number {
-  if (!mask || facing <= 1) return mask;
-  const shift = facing - 1; // facing 5 → shift 4, facing 9 → shift 8, etc.
-  return ((mask << shift) | (mask >>> (24 - shift))) & 0xFFFFFF;
-}
-
-// Returns the set of FacingPicker values (1,5,9,13,17,21) that fall within an
-// arc bitmask that is already in absolute hex-grid coordinates.
-// Intersects two Sets.
-function intersectSets<T>(a: Set<T>, b: Set<T>): Set<T> {
-  return new Set([...a].filter(x => b.has(x)));
-}
-
-// FA = directions 21-24 and 1-5 (the seeker's forward arc).
-const FA_DIRS = new Set([21, 22, 23, 24, 1, 2, 3, 4, 5]);
-const ALL_FACINGS = new Set([1, 5, 9, 13, 17, 21]);
-
-interface LaunchPanelProps {
-  ship:           ShipObject;
-  target:         MapObject | null;
-  onLaunch:       (plasmaSelections: {name: string; pseudo: boolean; fastLoad?: boolean}[], rackSelections: {rackName: string; droneIndex: number}[], facing: number, seekerShuttles: {name: string; type: string}[], seekerSpeed: number) => void;
-  onClearTarget:  () => void;
-  onCancel:       () => void;
-  error:          string | null;
-}
-
-function LaunchPanel({ ship, target, onLaunch, onClearTarget, onCancel, error }: LaunchPanelProps) {
-  const [selLaunchers,     setSelLaunchers]     = useState<Set<string>>(new Set());
-  const [pseudoSet,        setPseudoSet]        = useState<Set<string>>(new Set());
-  const [fastLoadSet,      setFastLoadSet]      = useState<Set<string>>(new Set());
-  const [selRackDrones,    setSelRackDrones]    = useState<Map<string, number>>(new Map());
-  const [selSeekerShuttles,setSelSeekerShuttles]= useState<Set<string>>(new Set());
-  const [launchFacing,     setLaunchFacing]     = useState<number | null>(null);
-  const [seekerSpeed,      setSeekerSpeed]      = useState<number>(6);
-
-  const launchablePlasma = (ship.weapons ?? []).filter(w =>
-    w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady || w.canFastLoad)
-  );
-  const loadedRacks = (ship.droneRacks ?? []).filter(r => r.functional && r.drones.length > 0 && r.canFire);
-  const launchableSeekerShuttles = (ship.shuttleBays ?? []).flatMap(bay =>
-    bay.shuttles.filter(s =>
-      (s.type === 'suicide' && s.armed && s.canLaunch) ||
-      (s.type === 'scatterpack' && s.canLaunch && (s.payload?.length ?? 0) > 0)
-    )
-  );
-  const targetColor = target ? mapObjectColor(target) : '#888';
-
-  function selectReal(name: string) {
-    setSelLaunchers(prev => { const n = new Set(prev); n.add(name); return n; });
-    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function deselectReal(name: string) {
-    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function selectPseudo(name: string) {
-    setPseudoSet(prev => { const n = new Set(prev); n.add(name); return n; });
-    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
-    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function deselectPseudo(name: string) {
-    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function selectFastLoad(name: string) {
-    setFastLoadSet(prev => { const n = new Set(prev); n.add(name); return n; });
-    setSelLaunchers(prev => { const n = new Set(prev); n.delete(name); return n; });
-    setPseudoSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function deselectFastLoad(name: string) {
-    setFastLoadSet(prev => { const n = new Set(prev); n.delete(name); return n; });
-  }
-  function selectDrone(rackName: string, droneIndex: number) {
-    setSelRackDrones(prev => {
-      const n = new Map(prev);
-      // Clicking the already-selected drone deselects the rack
-      if (n.get(rackName) === droneIndex) n.delete(rackName);
-      else n.set(rackName, droneIndex);
-      return n;
-    });
-  }
-
-  const totalSelected      = selLaunchers.size + pseudoSet.size + fastLoadSet.size + selRackDrones.size;
-  const totalSeekerShuttles = selSeekerShuttles.size;
-  const anythingSelected   = totalSelected > 0 || totalSeekerShuttles > 0;
-  const facingRequired     = totalSelected > 0 || totalSeekerShuttles > 0;
-
-  // Max speed for selected seeker shuttles (min of all selected, clamped ≥ 1).
-  const selectedSeekerObjs = launchableSeekerShuttles.filter(s => selSeekerShuttles.has(s.name));
-  const seekerMaxSpeed     = selectedSeekerObjs.length > 0
-    ? Math.max(1, Math.min(...selectedSeekerObjs.map(s => s.maxSpeed)))
-    : 6;
-  const effectiveSeekerSpeed = Math.min(seekerSpeed, seekerMaxSpeed);
-
-  // Compute the intersection of all selected weapons' allowed launch facings.
-  // Start with all 6 facings, then filter by launchDirectionsMask (or arcMask fallback)
-  // and the FA constraint (target must be in the seeker's forward arc at launch).
-  let allowedFacings: Set<number> = new Set(ALL_FACINGS);
-
-  // Launch-direction constraint: each selected plasma launcher (real or pseudo) restricts to its own set.
-  // Arc masks are ship-relative, so rotate by ship facing to get absolute hex directions.
-  const allSelectedLaunchers = new Set([...selLaunchers, ...pseudoSet]);
-  for (const wName of allSelectedLaunchers) {
-    const w = (ship.weapons ?? []).find(x => x.name === wName);
-    if (w) {
-      const relativeMask = w.launchDirectionsMask || w.arcMask;
-      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rotateArcMask(relativeMask, ship.facing)));
-    }
-  }
-  // Drone racks: use launchDirectionsMask if set, otherwise all facings allowed.
-  for (const [rackName] of selRackDrones) {
-    const rack = (ship.droneRacks ?? []).find(r => r.name === rackName);
-    if (rack && rack.launchDirectionsMask) {
-      allowedFacings = intersectSets(allowedFacings, allowedFacingsFromMask(rotateArcMask(rack.launchDirectionsMask, ship.facing)));
-    }
-  }
-
-  // FA constraint: the target must be in the seeker's FA at the chosen launch facing.
-  // For each candidate facing, check if getRelativeBearing(bearing, facing) is in FA.
-  if (target) {
-    const srcLoc = parseLocation(ship.location ?? null);
-    const tgtLoc = parseLocation(target.location ?? null);
-    if (srcLoc && tgtLoc) {
-      const bearing = hexGetBearing(srcLoc[0], srcLoc[1], tgtLoc[0], tgtLoc[1]);
-      if (bearing > 0) {
-        const faValid = new Set(
-          [1, 5, 9, 13, 17, 21].filter(f => FA_DIRS.has(hexGetRelativeBearing(bearing, f)))
-        );
-        allowedFacings = intersectSets(allowedFacings, faValid);
-      }
-    }
-  }
-
-  return (
-    <div className="sidebar-section fire-panel">
-      <div className="sidebar-section-title fire-title" style={{ color: '#f0a050' }}>Launch Seekers</div>
-
-      {/* Target row */}
-      <div className="fire-target-row">
-        <span className="sidebar-stat-label">Target</span>
-        {target ? (
-          <span className="fire-target-name">
-            <span className="sidebar-faction-dot" style={{ background: targetColor, display: 'inline-block' }} />
-            {target.name}
-            <button className="fire-clear-btn secondary" onClick={onClearTarget}>✕</button>
-          </span>
-        ) : (
-          <span className="fire-hint">Click enemy on map</span>
-        )}
-      </div>
-
-      {target && (
-        <div className="sidebar-stat-row">
-          <span className="sidebar-stat-label">Lock-on</span>
-          <span className="sidebar-stat-value" style={{ color: ship.lockOnTargets?.includes(target.name) ? '#3fb950' : '#f85149' }}>
-            {ship.lockOnTargets?.includes(target.name) ? 'Yes' : 'No — eff. range ×2'}
-          </span>
-        </div>
-      )}
-
-      {target && (
-        <>
-          {/* Plasma launchers */}
-          {launchablePlasma.length > 0 && (
-            <>
-              <div className="sidebar-divider" />
-              <div className="sidebar-stat-label" style={{ marginBottom: 4 }}>Plasma Torpedoes</div>
-              {launchablePlasma.map(w => (
-                <div key={w.name} className="launch-weapon-row">
-                  {w.armed && (
-                    <label className="ea-check-label">
-                      <input type="checkbox" checked={selLaunchers.has(w.name)}
-                        onChange={() => selLaunchers.has(w.name) ? deselectReal(w.name) : selectReal(w.name)} />
-                      {weaponLabel(w)}
-                      <span className="ea-note-dim" style={{ marginLeft: 4 }}>
-                        {w.armingType === 'OVERLOAD' ? 'EPT' : 'Real'}
-                      </span>
-                    </label>
-                  )}
-                  {w.pseudoPlasmaReady && (
-                    <label className="ea-check-label" style={{ marginLeft: w.armed ? 16 : 0, color: '#8b949e' }}>
-                      <input type="checkbox" checked={pseudoSet.has(w.name)}
-                        onChange={() => pseudoSet.has(w.name) ? deselectPseudo(w.name) : selectPseudo(w.name)} />
-                      {w.armed ? 'Pseudo' : weaponLabel(w)}
-                      {!w.armed && <span className="ea-note-dim" style={{ marginLeft: 4 }}>Pseudo</span>}
-                    </label>
-                  )}
-                  {w.canFastLoad && (
-                    <label className="ea-check-label" style={{ marginLeft: (w.armed || w.pseudoPlasmaReady) ? 16 : 0, color: '#f0a050' }}>
-                      <input type="checkbox" checked={fastLoadSet.has(w.name)}
-                        onChange={() => fastLoadSet.has(w.name) ? deselectFastLoad(w.name) : selectFastLoad(w.name)} />
-                      {weaponLabel(w)}
-                      <span className="ea-note-dim" style={{ marginLeft: 4 }}>Fast-F (2 bty)</span>
-                    </label>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Drone racks */}
-          {loadedRacks.length > 0 && (
-            <>
-              <div className="sidebar-divider" />
-              <div className="sidebar-stat-label" style={{ marginBottom: 4 }}>Drones</div>
-              {loadedRacks.map(r => (
-                <div key={r.name} className="launch-weapon-row">
-                  <div className="sidebar-stat-label" style={{ color: '#8b949e', marginBottom: 2 }}>{r.name}</div>
-                  {r.drones.map((d, i) => {
-                    const isSelected = selRackDrones.get(r.name) === i;
-                    return (
-                      <label key={i} className="ea-check-label" style={{ marginLeft: 10 }}>
-                        <input type="radio" checked={isSelected}
-                          onChange={() => selectDrone(r.name, i)} />
-                        <span style={{ marginLeft: 4 }}>
-                          [{i + 1}] {d.droneType}
-                          <span className="ea-note-dim" style={{ marginLeft: 4 }}>
-                            spd {d.speed}  dmg {d.warheadDamage}  end {d.endurance}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Seeker shuttles (suicide + scatter packs) */}
-          {launchableSeekerShuttles.length > 0 && (
-            <>
-              <div className="sidebar-divider" />
-              <div className="sidebar-stat-label" style={{ marginBottom: 4 }}>Seeker Shuttles</div>
-              {launchableSeekerShuttles.map(s => (
-                <div key={s.name} className="launch-weapon-row">
-                  <label className="ea-check-label">
-                    <input type="checkbox"
-                      checked={selSeekerShuttles.has(s.name)}
-                      onChange={() => setSelSeekerShuttles(prev => {
-                        const n = new Set(prev);
-                        n.has(s.name) ? n.delete(s.name) : n.add(s.name);
-                        return n;
-                      })} />
-                    {s.name}
-                    <span className="ea-note-dim" style={{ marginLeft: 4 }}>
-                      {s.type === 'suicide'
-                        ? `Suicide — dmg ${s.warheadDamage}`
-                        : `Scatter Pack — ${s.payload?.join(', ') ?? '0 drones'}`}
-                    </span>
-                  </label>
-                </div>
-              ))}
-            </>
-          )}
-
-          {facingRequired && (
-            <>
-              <div className="sidebar-divider" />
-              <FacingPicker
-                label="Launch Facing"
-                value={launchFacing}
-                onChange={setLaunchFacing}
-                allowedFacings={allowedFacings}
-              />
-            </>
-          )}
-
-          {totalSeekerShuttles > 0 && (
-            <div className="sidebar-stat-row" style={{ marginTop: 8 }}>
-              <span className="sidebar-stat-label">Speed</span>
-              <input
-                type="number"
-                min={1}
-                max={seekerMaxSpeed}
-                value={effectiveSeekerSpeed}
-                onChange={e => setSeekerSpeed(Math.max(1, Math.min(seekerMaxSpeed, parseInt(e.target.value) || 1)))}
-                style={{ width: 52, background: '#161b22', color: '#e6edf3', border: '1px solid #30363d', borderRadius: 4, padding: '2px 6px', fontSize: 13 }}
-              />
-              <span className="ea-note-dim" style={{ marginLeft: 4 }}>/ {seekerMaxSpeed}</span>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            <button className="fire-btn"
-              style={{ flex: 1 }}
-              disabled={!anythingSelected || (facingRequired && launchFacing === null)}
-              onClick={() => onLaunch(
-                [
-                  ...launchablePlasma.filter(w => selLaunchers.has(w.name)).map(w => ({ name: w.name, pseudo: false, fastLoad: false })),
-                  ...launchablePlasma.filter(w => pseudoSet.has(w.name)).map(w => ({ name: w.name, pseudo: true, fastLoad: false })),
-                  ...launchablePlasma.filter(w => fastLoadSet.has(w.name)).map(w => ({ name: w.name, pseudo: false, fastLoad: true })),
-                ],
-                Array.from(selRackDrones.entries()).map(([rackName, droneIndex]) => ({ rackName, droneIndex })),
-                launchFacing ?? 0,
-                launchableSeekerShuttles.filter(s => selSeekerShuttles.has(s.name)).map(s => ({ name: s.name, type: s.type })),
-                effectiveSeekerSpeed,
-              )}>
-              Launch ({totalSelected + totalSeekerShuttles})
-            </button>
-            <button className="secondary" onClick={onCancel}>Cancel</button>
-          </div>
-        </>
-      )}
-
-      {!target && (
-        <button className="secondary" style={{ marginTop: 6 }} onClick={onCancel}>Cancel</button>
-      )}
-
-      {error && <div className="fire-error">{error}</div>}
-    </div>
-  );
-}
-
-// ---- Shuttle launch panel ----
-
-const SEEKER_TYPES = new Set(['suicide', 'scatterpack']);
-
-/**
- * Prepared for a role, so not launchable as an ordinary shuttle. The server says which
- * role; the type check stays because a suicide shuttle and a scatter pack are their own
- * types, while a charged Wild Weasel is an ADMIN shuttle and looks exactly like the rest.
- */
-function preparedRole(s: { specialRole?: string | null; type: string }): string | null {
-  return s.specialRole ?? (SEEKER_TYPES.has(s.type) ? s.type : null);
-}
-
-function hasLaunchableShuttles(ship: ShipObject): boolean {
-  return (ship.shuttleBays ?? []).some(bay =>
-    bay.shuttles.some(s => !preparedRole(s) && s.canLaunch)
-  );
-}
-
-interface ShuttleLaunchPanelProps {
-  ship:     ShipObject;
-  onLaunch: (shuttleName: string, speed: number, facing: number) => void;
-  onCancel: () => void;
-  error:    string | null;
-}
-
-function ShuttleLaunchPanel({ ship, onLaunch, onCancel, error }: ShuttleLaunchPanelProps) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [speed,    setSpeed]    = useState(1);
-  const [facing,   setFacing]   = useState<number | null>(null);
-
-  const bays = (ship.shuttleBays ?? [])
-    .map(bay => ({
-      ...bay,
-      shuttles: bay.shuttles.filter(s => !preparedRole(s)),
-    }))
-    .filter(bay => bay.shuttles.length > 0);
-
-  // Shown, not silently dropped: a player who prepared a weasel wants to know where it is.
-  const prepared = (ship.shuttleBays ?? [])
-    .flatMap(bay => bay.shuttles)
-    .map(s => ({ name: s.name, role: preparedRole(s) }))
-    .filter((s): s is { name: string; role: string } => s.role != null);
-
-  const allShuttles = bays.flatMap(b => b.shuttles);
-  const selectedShuttle = allShuttles.find(s => s.name === selected);
-  const multiBay = bays.length > 1;
-
-  const typeLabel = (type: string) => {
-    if (type === 'gas')      return 'GAS';
-    if (type === 'hts')      return 'HTS';
-    if (type === 'stinger1') return 'Stinger-1';
-    if (type === 'stinger2') return 'Stinger-2';
-    if (type === 'stingerh') return 'Stinger-H';
-    return 'Admin';
-  };
-
-  return (
-    <div className="sidebar-section fire-panel">
-      <div className="sidebar-section-title fire-title" style={{ color: '#f0a050' }}>Launch Shuttle</div>
-
-      {prepared.length > 0 && (
-        <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: 4 }}>
-          {/* Not an error: it is where the shuttle went. Each has its own launch action,
-              and a prepared shuttle reverts only by not being held during allocation. */}
-          Held for a special role: {prepared.map(p => `${p.name} (${p.role})`).join(', ')}
-        </div>
-      )}
-
-      {allShuttles.length === 0 ? (
-        <div className="sidebar-stat-label" style={{ color: '#8b949e' }}>No shuttles ready to launch</div>
-      ) : (
-        <>
-          {bays.map((bay, bi) => (
-            <div key={bay.bayIndex}>
-              {multiBay && (
-                <div className="sidebar-stat-label" style={{ marginBottom: 2, marginTop: bi > 0 ? 6 : 0 }}>
-                  Bay {bay.bayIndex + 1}
-                  {bay.launchTubeCount > 0 && (
-                    <span className="ea-note-dim" style={{ marginLeft: 6 }}>
-                      {bay.availableTubes}/{bay.launchTubeCount} tube{bay.launchTubeCount !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-              )}
-              {bay.shuttles.map(s => {
-                const isSel = selected === s.name;
-                return (
-                  <div
-                    key={s.name}
-                    className={`launch-weapon-row${isSel ? ' selected' : ''}`}
-                    onClick={() => { if (s.canLaunch) { setSelected(s.name); setSpeed(s.maxSpeed); } }}
-                    style={{
-                      cursor: s.canLaunch ? 'pointer' : 'default',
-                      padding: '2px 4px', borderRadius: 4,
-                      background: isSel ? '#1f3a5a' : 'transparent',
-                      opacity: s.canLaunch ? 1 : 0.4,
-                    }}
-                  >
-                    <span style={{ fontWeight: isSel ? 'bold' : 'normal' }}>{s.name}</span>
-                    <span className="ea-note-dim" style={{ marginLeft: 6 }}>
-                      {typeLabel(s.type)} · max {s.maxSpeed}
-                      {!s.canLaunch && ' · cooldown'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-
-          {selected && (
-            <>
-              <div className="sidebar-divider" />
-              <div className="sidebar-stat-row">
-                <span className="sidebar-stat-label">Speed</span>
-                <input
-                  type="number" min={1} max={selectedShuttle?.maxSpeed ?? 6}
-                  value={speed}
-                  onChange={e => setSpeed(Math.max(1, Math.min(selectedShuttle?.maxSpeed ?? 6, Number(e.target.value))))}
-                  style={{ width: 52, background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
-                           borderRadius: 4, padding: '2px 4px', textAlign: 'center' }}
-                />
-              </div>
-              <FacingPicker value={facing} onChange={setFacing} label="Facing" />
-            </>
-          )}
-        </>
-      )}
-
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-        <button disabled={!selected || facing === null} onClick={() => selected && facing !== null && onLaunch(selected, speed, facing)}>Launch</button>
-        <button className="secondary" onClick={onCancel}>Cancel</button>
-      </div>
-
-      {error && <div className="fire-error">{error}</div>}
-    </div>
-  );
-}
-
-// ---- Wild Weasel launch panel ----
-
-function WwLaunchPanel({ ship, shuttleName, onLaunch, onCancel, error }: {
-  ship:         ShipObject;
-  shuttleName:  string;
-  onLaunch:     (shuttleName: string, speed: number, facing: number) => void;
-  onCancel:     () => void;
-  error:        string | null;
-}) {
-  const shuttle = (ship.shuttleBays ?? []).flatMap(b => b.shuttles).find(s => s.name === shuttleName);
-  const maxSpeed = shuttle?.maxSpeed ?? 6;
-  const [speed,  setSpeed]  = useState(maxSpeed);
-  const [facing, setFacing] = useState<number | null>(ship.facing ?? null);
-
-  return (
-    <div className="sidebar-section fire-panel">
-      <div className="sidebar-section-title fire-title" style={{ color: '#a78bfa' }}>
-        Launch Wild Weasel — {shuttleName}
-      </div>
-      <div className="sidebar-stat-row">
-        <span className="sidebar-stat-label">Speed (0–{maxSpeed})</span>
-        <input
-          type="number" min={0} max={maxSpeed} value={speed}
-          onChange={e => setSpeed(Math.max(0, Math.min(maxSpeed, Number(e.target.value))))}
-          style={{ width: 52, background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
-                   borderRadius: 4, padding: '2px 4px', textAlign: 'center' }}
-        />
-      </div>
-      <FacingPicker value={facing} onChange={setFacing} label="Course" />
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-        <button
-          disabled={facing === null}
-          onClick={() => facing !== null && onLaunch(shuttleName, speed, facing)}
-          style={{ borderColor: '#a78bfa', color: '#a78bfa' }}
-        >
-          Launch WW
-        </button>
-        <button className="secondary" onClick={onCancel}>Cancel</button>
-      </div>
-      {error && <div className="fire-error">{error}</div>}
-    </div>
-  );
-}
 
 // ---- Shuttle movement panel ----
 
@@ -970,13 +433,6 @@ interface SidebarProps {
     setSide:      (side: number) => void;
     fire:         () => void;
   };
-  // Launch
-  launchMode:      boolean;
-  launchTarget:    MapObject | null;
-  launchError:     string | null;
-  onStartLaunch:   () => void;
-  onClearLaunch:   () => void;
-  onLaunch:        (plasma: {name: string; pseudo: boolean; fastLoad?: boolean}[], racks: {rackName: string; droneIndex: number}[], facing: number) => void;
   // T-bomb (transporter)
   tBombMode:        boolean;
   tBombPendingHex:  {col: number; row: number} | null;
@@ -1022,17 +478,6 @@ interface SidebarProps {
   onCancelId:       () => void;
   onSetIdLabs:      (name: string, labs: number) => void;
   onSubmitId:       () => void;
-  // Shuttle launch
-  shuttleLaunchMode:  boolean;
-  shuttleLaunchError: string | null;
-  onStartShuttleLaunch:  () => void;
-  onCancelShuttleLaunch: () => void;
-  onLaunchShuttle: (shuttleName: string, speed: number, facing: number) => void;
-  wwLaunchShuttle:     string | null;
-  wwLaunchError:       string | null;
-  onStartWwLaunch:     (shuttleName: string) => void;
-  onCancelWwLaunch:    () => void;
-  onLaunchWildWeasel:  (shuttleName: string, speed: number, facing: number) => void;
   // Hit & Run
   harMode:      boolean;
   harTarget:    ShipObject | null;
@@ -1106,15 +551,12 @@ interface SidebarProps {
 function ShipSidebar({
   ship, isMine, canMove, phase, gameId, playerToken, onOpenSsd, hexFire, hexFireActions,
   onMove, onHet, onTacTurn, onCloak, onUncloak, onClose,
-  launchMode, launchTarget, launchError, onStartLaunch, onClearLaunch, onLaunch,
   tBombMode, tBombPendingHex, tBombShieldChoice, onStartTBomb, onCancelTBomb, onPlaceTBomb,
   dropMineMode, onToggleDropMine, onDropMine, onAnnounceEsg, onCancelEsg, onDeactivateEsg,
   friendlyShipNames, onLendEw, aim, aimError, onArmSeeker, onCancelAim, onOffensiveEw, onControlSeekers,
   boardingMode, boardingTarget, boardingNormal, boardingCommandos, boardingError,
   onStartBoarding, onCancelBoarding, onSetBoardingNormal, onSetBoardingCommandos, onSubmitBoarding,
   idMode, idSeekers, idLabs, idCommitted, idError, onStartId, onCancelId, onSetIdLabs, onSubmitId,
-  shuttleLaunchMode, shuttleLaunchError, onStartShuttleLaunch, onCancelShuttleLaunch, onLaunchShuttle,
-  wwLaunchShuttle, wwLaunchError, onStartWwLaunch, onCancelWwLaunch, onLaunchWildWeasel,
   harMode, harTarget, harOptions, harParties, harError, harLoading,
   onStartHar, onCancelHar, onSetHarParties, onSubmitHar,
   transportersOpen, onToggleTransporters,
@@ -1151,7 +593,6 @@ function ShipSidebar({
   const isFirePhase            = phase === 'Direct Fire';
   const isActivityPhase        = phase === 'Activity';
   const isInitialActivityPhase = phase === 'Initial Activity';
-  const canLaunch       = isActivityPhase && hasLaunchableWeapons(ship);
   const canTBomb        = isActivityPhase && isMine
                         && (ship.tBombs > 0 || ship.dummyTBombs > 0)
                         && (ship.availableTransporters ?? 0) > 0;
@@ -1354,35 +795,9 @@ function ShipSidebar({
           {phase === 'Activity' && (
             <>
               <div className="action-btn-row">
-                {hasLaunchableWeapons(ship) && (
-                  <button
-                    className={`action-strip-btn${launchMode ? ' active' : ''}`}
-                    onClick={launchMode ? onClearLaunch : onStartLaunch}
-                    title="Launch seekers"
-                  >
-                    Seekers
-                  </button>
-                )}
-                {hasLaunchableShuttles(ship) && (
-                  <button
-                    className={`action-strip-btn${shuttleLaunchMode ? ' active' : ''}`}
-                    onClick={shuttleLaunchMode ? onCancelShuttleLaunch : onStartShuttleLaunch}
-                    title="Launch shuttle"
-                  >
-                    Shuttle
-                  </button>
-                )}
-                {(ship.shuttleBays ?? []).flatMap(b => b.shuttles).filter(s => s.wwReady && s.canLaunch).map(s => (
-                  <button
-                    key={s.name}
-                    className={`action-strip-btn${wwLaunchShuttle === s.name ? ' active' : ''}`}
-                    onClick={() => wwLaunchShuttle === s.name ? onCancelWwLaunch() : onStartWwLaunch(s.name)}
-                    title={`Launch Wild Weasel ${s.name} — set course and speed`}
-                    style={{ borderColor: '#a78bfa', color: '#a78bfa' }}
-                  >
-                    WW {s.name}
-                  </button>
-                ))}
+                {/* Seekers, shuttles and weasels all launch from the Seeker Orders pad now,
+                    which is on screen for the whole segment. Three buttons that opened three
+                    panels are three ways to reach one thing. */}
                 {/* Erratic Maneuvers (C10.0) — announced in the Final Movement Actions
                     Stage, in force at the END of this impulse (C10.311), which is why an
                     announced-but-not-yet-active ship reads "EM announced". Only offered to
@@ -1988,36 +1403,6 @@ function ShipSidebar({
       <div className="sidebar-body">
 
       {/* ---- Active action detail ---- */}
-
-      {launchMode && (
-        <LaunchPanel
-          ship={ship}
-          target={launchTarget}
-          onLaunch={onLaunch}
-          onClearTarget={onClearLaunch}
-          onCancel={onClearLaunch}
-          error={launchError}
-        />
-      )}
-
-      {shuttleLaunchMode && (
-        <ShuttleLaunchPanel
-          ship={ship}
-          onLaunch={onLaunchShuttle}
-          onCancel={onCancelShuttleLaunch}
-          error={shuttleLaunchError}
-        />
-      )}
-
-      {wwLaunchShuttle && (
-        <WwLaunchPanel
-          ship={ship}
-          shuttleName={wwLaunchShuttle}
-          onLaunch={onLaunchWildWeasel}
-          onCancel={onCancelWwLaunch}
-          error={wwLaunchError}
-        />
-      )}
 
       {tractorMode && (
         <div className="sidebar-action-detail">
@@ -2735,14 +2120,8 @@ export default function GameBoard({ session, onLeave }: Props) {
   const myCommitted = committedRound === roundKey;
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
-  // Launch state
-  const [launchMode,        setLaunchMode]        = useState(false);
-  const [launchTarget,      setLaunchTarget]      = useState<MapObject | null>(null);
-  const [launchError,       setLaunchError]       = useState<string | null>(null);
-  const [shuttleLaunchMode, setShuttleLaunchMode] = useState(false);
-  const [shuttleLaunchError, setShuttleLaunchError] = useState<string | null>(null);
-  const [wwLaunchShuttle, setWwLaunchShuttle] = useState<string | null>(null);
-  const [wwLaunchError, setWwLaunchError]     = useState<string | null>(null);
+  // Launching is composed in the Seeker Orders pad now, which holds its own draft: there is
+  // no mode to be in and no half-built launch to keep here.
   // T-bomb placement state
   const [tBombMode,         setTBombMode]         = useState(false);
   const [tBombPendingHex,   setTBombPendingHex]   = useState<{col: number; row: number} | null>(null);
@@ -3089,10 +2468,6 @@ export default function GameBoard({ session, onLeave }: Props) {
       setCrewError(null);
       return;
     }
-    if (launchMode && liveShip && obj && canBeLaunchTarget(obj, myShips)) {
-      setLaunchTarget(obj);
-      return;
-    }
     // Clicking own fighter in Direct Fire phase makes it the attacker
     if (isFirePhase && obj?.type === 'SHUTTLE') {
       const shuttle = obj as ShuttleObject;
@@ -3115,16 +2490,11 @@ export default function GameBoard({ session, onLeave }: Props) {
     setSelected(obj);
     setSnapTo(obj ? { name: obj.name } : null);
     setFireTarget(null);
-    setLaunchMode(false);
-    setLaunchTarget(null);
-    setLaunchError(null);
-    setShuttleLaunchMode(false);
-    setShuttleLaunchError(null);
     setRotateMode(false);
     setRotateTarget(null);
     setRotateError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFirePhase, launchMode, boardingMode, harMode, crewMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
+  }, [isFirePhase, boardingMode, harMode, crewMode, liveShip, fighterAttacker, myShips, session.gameId, session.playerToken]);
 
   function addLog(text: string, kind: 'combat' | 'phase' | 'error' | 'info') {
     const turn    = gameState?.turn    ?? '?';
@@ -3471,40 +2841,12 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  function handleStartLaunch() {
-    setLaunchMode(true);
-    setLaunchTarget(null);
-    setLaunchError(null);
-    setTBombMode(false);
-    setTBombPendingHex(null);
-  }
-
-  function handleClearLaunch() {
-    setLaunchMode(false);
-    setLaunchTarget(null);
-    setLaunchError(null);
-  }
-
-  function handleStartShuttleLaunch() {
-    setShuttleLaunchMode(true);
-    setShuttleLaunchError(null);
-    setLaunchMode(false);
-    setLaunchTarget(null);
-  }
-
-  function handleCancelShuttleLaunch() {
-    setShuttleLaunchMode(false);
-    setShuttleLaunchError(null);
-  }
-
   function handleStartBoarding() {
     setBoardingMode(true);
     setBoardingTarget(null);
     setBoardingNormal(0);
     setBoardingCommandos(0);
     setBoardingError(null);
-    setLaunchMode(false);
-    setLaunchTarget(null);
     setTBombMode(false);
     setTBombPendingHex(null);
     setBeamObjectMode(false);
@@ -3514,7 +2856,6 @@ export default function GameBoard({ session, onLeave }: Props) {
     setBeamObjectMode(true);
     setBoardingMode(false);
     setTractorMode(false);
-    setLaunchMode(false);
     setTBombMode(false);
   }
 
@@ -3726,7 +3067,6 @@ export default function GameBoard({ session, onLeave }: Props) {
     setIdError(null);
     setBoardingMode(false);
     setBoardingTarget(null);
-    setLaunchMode(false);
     setTBombMode(false);
   }
 
@@ -3773,8 +3113,6 @@ export default function GameBoard({ session, onLeave }: Props) {
     setHarParties([null]);
     setHarError(null);
     setHarLoading(false);
-    setLaunchMode(false);
-    setLaunchTarget(null);
     setBoardingMode(false);
     setBoardingTarget(null);
     setTBombMode(false);
@@ -3864,8 +3202,6 @@ export default function GameBoard({ session, onLeave }: Props) {
   function handleStartTBomb() {
     setTBombMode(true);
     setTBombPendingHex(null);
-    setLaunchMode(false);
-    setLaunchTarget(null);
     cancelHexFire();
   }
 
@@ -3876,8 +3212,6 @@ export default function GameBoard({ session, onLeave }: Props) {
     setHexFireError(null);
     // Both read the same hex click, so only one may be listening.
     handleCancelTBomb();
-    setLaunchMode(false);
-    setLaunchTarget(null);
   }
 
   function handleCancelTBomb() {
@@ -4247,111 +3581,6 @@ export default function GameBoard({ session, onLeave }: Props) {
       }
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : 'Drop mine failed');
-    }
-  }
-
-  async function handleLaunch(
-    plasmaSelections: { name: string; pseudo: boolean; fastLoad?: boolean }[],
-    rackSelections: { rackName: string; droneIndex: number }[],
-    facing: number,
-    seekerShuttles: { name: string; type: string }[] = [],
-    seekerSpeed: number = 6,
-  ) {
-    if (!liveShip || !launchTarget) return;
-    setLaunchError(null);
-    let anyError = false;
-    for (const { name, pseudo, fastLoad } of plasmaSelections) {
-      try {
-        const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-          type: 'LAUNCH_PLASMA', shipName: liveShip.name,
-          targetName: launchTarget.name, weaponNames: [name], pseudo, fastLoad: fastLoad ?? false, facing,
-        });
-        if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
-        addLog(`${liveShip.name} launched plasma ${name} at ${launchTarget.name}`, 'combat');
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Launch failed';
-        setLaunchError(msg); anyError = true; break;
-      }
-    }
-    if (!anyError) {
-      for (const { rackName, droneIndex } of rackSelections) {
-        try {
-          const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-            type: 'LAUNCH_DRONE', shipName: liveShip.name,
-            targetName: launchTarget.name, weaponNames: [rackName], range: droneIndex, facing,
-          });
-          if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
-          addLog(`${liveShip.name} launched drone from ${rackName} at ${launchTarget.name}`, 'combat');
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Launch failed';
-          setLaunchError(msg); anyError = true; break;
-        }
-      }
-    }
-    if (!anyError) {
-      for (const { name, type } of seekerShuttles) {
-        const actionType = type === 'suicide' ? 'LAUNCH_SUICIDE_SHUTTLE' : 'LAUNCH_SCATTER_PACK';
-        try {
-          const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-            type: actionType, shipName: liveShip.name,
-            action: name, targetName: launchTarget!.name,
-            facing, speed: seekerSpeed,
-          });
-          if (!res.success) { setLaunchError(res.message); addLog(res.message, 'error'); anyError = true; break; }
-          const label = type === 'suicide' ? 'suicide shuttle' : 'scatter pack';
-          addLog(`${liveShip.name} launched ${label} ${name} at ${launchTarget!.name}`, 'combat');
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Launch failed';
-          setLaunchError(msg); anyError = true; break;
-        }
-      }
-    }
-    if (!anyError) handleClearLaunch();
-  }
-
-  async function handleLaunchShuttle(shuttleName: string, speed: number, facing: number) {
-    if (!liveShip) return;
-    setShuttleLaunchError(null);
-    try {
-      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-        type: 'LAUNCH_SHUTTLE', shipName: liveShip.name,
-        action: shuttleName, speed, range: facing,
-      });
-      if (!res.success) { setShuttleLaunchError(res.message); return; }
-      addLog(`${liveShip.name} launched shuttle ${shuttleName}`, 'combat');
-      setShuttleLaunchMode(false);
-      setShuttleLaunchError(null);
-    } catch (e: unknown) {
-      setShuttleLaunchError(e instanceof Error ? e.message : 'Launch failed');
-    }
-  }
-
-  function handleStartWwLaunch(shuttleName: string) {
-    setWwLaunchShuttle(shuttleName);
-    setWwLaunchError(null);
-  }
-
-  function handleCancelWwLaunch() {
-    setWwLaunchShuttle(null);
-    setWwLaunchError(null);
-  }
-
-  async function handleLaunchWildWeasel(shuttleName: string, speed: number, facing: number) {
-    if (!liveShip) return;
-    setWwLaunchError(null);
-    try {
-      const res = await gameApi.submitAction(session.gameId, session.playerToken, {
-        type: 'LAUNCH_WILD_WEASEL', shipName: liveShip.name, action: shuttleName,
-        speed, range: facing,
-      });
-      if (res.success) {
-        addLog(res.message, 'combat');
-        setWwLaunchShuttle(null);
-      } else {
-        setWwLaunchError(res.message);
-      }
-    } catch (e: unknown) {
-      setWwLaunchError(e instanceof Error ? e.message : 'WW launch failed');
     }
   }
 
@@ -4734,13 +3963,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onTacTurn={handleTacTurn}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
-            onClose={() => { setSelected(null); setFireTarget(null); handleClearLaunch(); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
-            launchMode={launchMode}
-            launchTarget={launchTarget}
-            launchError={launchError}
-            onStartLaunch={handleStartLaunch}
-            onClearLaunch={handleClearLaunch}
-            onLaunch={handleLaunch}
+            onClose={() => { setSelected(null); setFireTarget(null); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
             tBombMode={tBombMode}
             tBombPendingHex={tBombPendingHex}
             tBombShieldChoice={tBombShieldChoice}
@@ -4784,16 +4007,6 @@ export default function GameBoard({ session, onLeave }: Props) {
             onCancelId={handleCancelId}
             onSetIdLabs={handleSetIdLabs}
             onSubmitId={handleSubmitId}
-            shuttleLaunchMode={shuttleLaunchMode}
-            shuttleLaunchError={shuttleLaunchError}
-            onStartShuttleLaunch={handleStartShuttleLaunch}
-            onCancelShuttleLaunch={handleCancelShuttleLaunch}
-            onLaunchShuttle={handleLaunchShuttle}
-            wwLaunchShuttle={wwLaunchShuttle}
-            wwLaunchError={wwLaunchError}
-            onStartWwLaunch={handleStartWwLaunch}
-            onCancelWwLaunch={handleCancelWwLaunch}
-            onLaunchWildWeasel={handleLaunchWildWeasel}
             harMode={harMode}
             harTarget={harTarget}
             harOptions={harOptions}
