@@ -238,6 +238,55 @@ class GameSessionActivityDeclarationTest {
     }
 
     /**
+     * A heading belongs to the launch, not to the round.
+     *
+     * One impulse can send an admin shuttle one way and two plasmas two others, so every
+     * order on the wire carries its own facing and the reveal must keep them apart. The pad
+     * used to hold a single facing and apply it to whatever you sent next, which made this
+     * look like a UI preference rather than what it is — part of each order.
+     *
+     * Two racks, two directions, one commit: both drones leave on their own heading.
+     */
+    @Test
+    void eachOrderKeepsItsOwnHeading() {
+        klingon.setActiveFireControl(true);
+        klingon.addLockOn(fed);
+
+        List<String> racks = klingon.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.DroneRack)
+                .map(com.sfb.weapons.Weapon::getName)
+                .toList();
+        assertEquals(2, racks.size(), "premise: the D7 carries two racks");
+
+        session.executeAction(request("CALL_ACTIVITY_DECLARATION", P2));
+
+        // The Fed lies on bearing 13, so a seeker can leave on 9, 13 or 17 and still see it.
+        ActionRequest.ActivityOrder first = order("DRONE", "IKV Saber");
+        first.setTargetName("USS Enterprise");
+        first.setWeaponName(racks.get(0));
+        first.setFacing(9);
+
+        ActionRequest.ActivityOrder second = order("DRONE", "IKV Saber");
+        second.setTargetName("USS Enterprise");
+        second.setWeaponName(racks.get(1));
+        second.setFacing(17);
+
+        ActionRequest commit = request("COMMIT_ACTIVITY_DECLARATION", P2);
+        commit.setActivityOrders(List.of(first, second));
+        assertTrue(session.executeAction(commit).isSuccess());
+        assertTrue(session.executeAction(request("PASS_ACTIVITY_DECLARATION", HOST)).isSuccess());
+
+        List<Integer> facings = game.getSeekers().stream()
+                .filter(sk -> sk instanceof com.sfb.objects.Drone)
+                .map(sk -> ((com.sfb.objects.Drone) sk).getFacing())
+                .sorted()
+                .toList();
+        assertEquals(List.of(9, 17), facings,
+                "both drones launched, each on the heading its own order named: "
+                + String.join(" | ", session.drainCombatLog()));
+    }
+
+    /**
      * An order that turns out to be illegal fizzles with its reason and leaves the rest of
      * the round alone. This is what replaces the old loop of one request per launch, which
      * stopped at the first failure and left everything before it already away.

@@ -3,7 +3,7 @@ import type { ShipObject } from '../types/gameState';
 import { parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
-import { allowedFacingsFromMask, bearsOn } from '../hex/geometry';
+import { allowedFacingsFromMask, bearsOn, hexGetBearingBetween } from '../hex/geometry';
 import { FacingPicker } from './FacingPicker';
 
 /**
@@ -113,6 +113,28 @@ function rotateArcMask(mask: number, facing: number): number {
 
 const ALL_FACINGS = new Set(FACINGS);
 
+function intersect(a: Set<number>, b: Set<number>): Set<number> {
+  return new Set([...a].filter(x => b.has(x)));
+}
+
+/**
+ * Where a unit points if the player names no direction: the bearing to its target, snapped.
+ *
+ * A bearing is one of twenty-four; a facing is one of six. Core does this snap at launch —
+ * this is the preview of it, so a row can say which way "auto" would actually send a thing.
+ */
+function snapToFacing(bearing: number): number {
+  if (bearing <= 0) return 0;
+  let best = FACINGS[0];
+  let bestDist = 99;
+  for (const f of FACINGS) {
+    let d = Math.abs(bearing - f);
+    if (d > 12) d = 24 - d;                 // the short way round the circle
+    if (d < bestDist) { bestDist = d; best = f; }
+  }
+  return best;
+}
+
 const EMPTY_ROWS: LaunchCandidate[] = [];
 
 const PANEL: React.CSSProperties = {
@@ -179,8 +201,16 @@ export default function SeekerOrdersPad({
       attacker: string | null; rows: LaunchCandidate[]; error: string | null }>(
       { attacker: null, rows: [], error: null });
   const [collapsed, setCollapsed] = useState(false);
-  const [facing, setFacing] = useState<number>(0);        // 0 = straight at the target
-  const [pickerOpen, setPickerOpen] = useState(false);
+  /**
+   * A heading per launchable thing, keyed by its name; 0 (or absent) means "auto".
+   *
+   * One shared facing made the pad a mode you had to remember you were in. A ship can send an
+   * admin shuttle E and two plasmas F and E in the same impulse, and each of those is a
+   * separate order on the wire — so each is a separate answer here.
+   */
+  const [facings, setFacings] = useState<Record<string, number>>({});
+  /** Which row the graphical picker is open for, if any. */
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [speed, setSpeed] = useState<number>(6);
   const drag = useDraggable(savedPosition());
 
@@ -264,22 +294,12 @@ export default function SeekerOrdersPad({
   }
 
   /**
-   * The facings a seeker could actually leave on: ones whose forward arc still holds the
-   * target. A preview of the rule core applies, and the picker dims the rest.
-   *
-   * Per-tube launch directions are NOT folded in here, because they differ from one launcher
-   * to the next and this is one choice for the whole pad — each plasma row says for itself
-   * whether it can throw that way.
+   * The facings a seeker could leave on and still see its target: ones whose forward arc
+   * holds it. A preview of the rule core applies, and the picker dims the rest.
    */
-  const allowedFacings: Set<number> = target
+  const seekerFacings: Set<number> = target
     ? new Set(FACINGS.filter(canTrack))
     : ALL_FACINGS;
-
-  /** Whether this tube can throw one on the chosen facing (its launch directions, rotated). */
-  function tubeCanLaunchOn(mask: number, shipFacing: number, dir: number): boolean {
-    if (dir === 0 || !mask) return true;          // "auto", or a tube with no restriction
-    return allowedFacingsFromMask(rotateArcMask(mask, shipFacing)).has(dir);
-  }
 
   /**
    * The facing is taken AT THIS MOMENT, not at commit — so it goes in the label, where the
@@ -306,6 +326,94 @@ export default function SeekerOrdersPad({
   const fastestReady = [...weaselsReady, ...plainReady]
       .reduce((m, c) => Math.max(m, c.effectiveMaxSpeed), 0);
 
+  const shipFacing = ship?.facing ?? 1;
+
+  /**
+   * Which way "auto" sends something AIMED at the target: its bearing, snapped to one of six.
+   * Shown on the chip so a heading is never invisible, and used to check a tube can throw
+   * that way. What goes out with no target of its own leaves on its ship's heading instead,
+   * which is why the rows below carry an auto each rather than sharing this one.
+   */
+  const seekerAuto: number = (() => {
+    if (!attacker || !target) return shipFacing;
+    const from = parseLocation(attacker.ship.location);
+    const to   = parseLocation(target.location);
+    if (!from || !to) return shipFacing;
+    const snapped = snapToFacing(
+        hexGetBearingBetween({ col: from[0], row: from[1] }, { col: to[0], row: to[1] }));
+    return snapped || shipFacing;
+  })();
+
+  /**
+   * A tube's own launch directions, narrowed by the seeker's forward-arc rule.
+   *
+   * Two different constraints, and they are not the same arc: a Romulan KR's Plasma-G may
+   * TARGET anything in its firing arc but may only THROW one in direction A. The picker shows
+   * the intersection, so what it offers is what core will accept.
+   */
+  function tubeFacings(mask: number): Set<number> {
+    if (!mask) return seekerFacings;
+    return intersect(seekerFacings, allowedFacingsFromMask(rotateArcMask(mask, shipFacing)));
+  }
+
+  /**
+   * Every row's allowed set and its auto, by the name the row is keyed on.
+   *
+   * The two halves of "no target needed" both land here: a weasel may leave on any of six,
+   * and with nothing to aim at, auto is the ship's own heading.
+   */
+  const allowedByKey = new Map<string, Set<number>>();
+  const autoByKey    = new Map<string, number>();
+  function offer(key: string, allowed: Set<number>, auto: number) {
+    allowedByKey.set(key, allowed);
+    autoByKey.set(key, auto);
+  }
+  for (const w of plasma)
+    offer(w.name, tubeFacings(w.launchDirectionsMask || w.arcMask), seekerAuto);
+  for (const r of racks)        offer(r.name, seekerFacings, seekerAuto);
+  for (const c of suicideReady) offer(c.name, seekerFacings, seekerAuto);
+  for (const c of packsReady)   offer(c.name, seekerFacings, seekerAuto);
+  for (const c of weaselsReady) offer(c.name, ALL_FACINGS, shipFacing);
+  for (const c of plainReady)   offer(c.name, ALL_FACINGS, shipFacing);
+
+  function autoFor(key: string): number {
+    return autoByKey.get(key) ?? shipFacing;
+  }
+
+  /** The heading this row will launch on: what was picked, or where its auto points. */
+  function headingOf(key: string): number {
+    return facings[key] || autoFor(key);
+  }
+
+  function legalHeading(key: string): boolean {
+    return (allowedByKey.get(key) ?? ALL_FACINGS).has(headingOf(key));
+  }
+
+  /**
+   * One row's heading, as a button that opens the graphical picker for THAT row. The letter
+   * alone means nothing without the hex to read it against, which is what the picker draws.
+   */
+  function facingChip(key: string) {
+    const picked = facings[key] ?? 0;
+    const allowed = allowedByKey.get(key) ?? ALL_FACINGS;
+    const dead = allowed.size === 0;
+    const ok = legalHeading(key);
+    return (
+      <button className={picked === 0 ? 'secondary' : ''}
+              style={{ padding: '0 6px', minWidth: '3.6rem',
+                       borderColor: ok ? undefined : '#f85149' }}
+              disabled={dead}
+              title={dead ? 'no direction this could leave on and still track its target'
+                   : picked === 0
+                     ? `auto — ${FACING_LABEL[autoFor(key)]}; click to choose another`
+                     : `launches ${FACING_LABEL[picked]}; click to change`}
+              onClick={() => setPickerFor(k => (k === key ? null : key))}>
+        {picked === 0 ? `auto ${FACING_LABEL[autoFor(key)]} ▸`
+                      : `${FACING_LABEL[picked]} ▸`}
+      </button>
+    );
+  }
+
   const sealed = orders.length;
 
   return (
@@ -325,7 +433,10 @@ export default function SeekerOrdersPad({
         </button>
       </div>
 
-      {pickerOpen && !collapsed && (
+      {/* A picker left open on another ship's rack is closed by the rows themselves: a key
+          no row offers any more has no set to show. Target changes keep it open, with the
+          allowed set refreshed under it, which is what you want mid-choice. */}
+      {pickerFor && allowedByKey.has(pickerFor) && !collapsed && (
         <div style={{
           // The pad is draggable, so the right edge is not always where there is room. Flip
           // to the other side rather than let the picker hang off the screen.
@@ -337,14 +448,20 @@ export default function SeekerOrdersPad({
           padding: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.5)', zIndex: 1,
         }}>
           <FacingPicker
-            label="Launch direction"
-            value={facing === 0 ? null : facing}
-            onChange={f => { setFacing(f); setPickerOpen(false); }}
-            allowedFacings={allowedFacings}
+            label={`${pickerFor} launches`}
+            value={facings[pickerFor] || null}
+            onChange={f => {
+              setFacings(m => ({ ...m, [pickerFor]: f }));
+              setPickerFor(null);
+            }}
+            allowedFacings={allowedByKey.get(pickerFor) ?? ALL_FACINGS}
           />
           <button className="secondary" style={{ width: '100%', marginTop: 4 }}
-                  onClick={() => { setFacing(0); setPickerOpen(false); }}>
-            auto — straight at the target
+                  onClick={() => {
+                    setFacings(m => ({ ...m, [pickerFor]: 0 }));
+                    setPickerFor(null);
+                  }}>
+            auto — {FACING_LABEL[autoFor(pickerFor)]}
           </button>
         </div>
       )}
@@ -448,21 +565,9 @@ export default function SeekerOrdersPad({
 
             {attacker && target && (
               <>
-                {/* Facing. The letter is no use unless you can see which way it points, so
-                    the picker draws A-F round a hex; this row is just the current answer. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>Facing</span>
-                  <button className={facing === 0 ? '' : 'secondary'} style={{ padding: '0 6px' }}
-                          onClick={() => setFacing(0)} title="straight at the target">auto</button>
-                  <button className={facing === 0 ? 'secondary' : ''}
-                          style={{ padding: '0 8px' }}
-                          onClick={() => setPickerOpen(o => !o)}
-                          title="Choose a launch direction on the hex">
-                    {facing === 0 ? 'pick…' : `${FACING_LABEL[facing]} ▸`}
-                  </button>
-                  <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>
-                    — applies to what you send next
-                  </span>
+                {/* Each row says where its own launch goes; the button opens the picker. */}
+                <div style={{ fontSize: '0.72rem', color: '#8b949e', marginBottom: 4 }}>
+                  Each launch carries its own heading — the button on its row.
                 </div>
 
                 {plasma.length === 0 && racks.length === 0
@@ -473,14 +578,13 @@ export default function SeekerOrdersPad({
                 {plasma.map(w => {
                   const bears = target.plasmaLaunchers.includes(w.name);
                   const used = spent.has(w.name);
-                  // A tube's launch directions are its own and often narrower than its firing
-                  // arc — a Romulan KR's Plasma-G targets anything in FA but throws straight
-                  // ahead only — so the chosen facing has to be one THIS tube can use.
-                  const canThrow = tubeCanLaunchOn(
-                      w.launchDirectionsMask || w.arcMask, ship?.facing ?? 1, facing);
-                  const why = used ? 'already sent'
-                            : !bears ? 'out of arc'
-                            : !canThrow ? `cannot launch ${FACING_LABEL[facing]}` : null;
+                  // Whether the tube may send one at all, before any question of direction:
+                  // two separate answers, and only the second is one the player can fix here.
+                  const blocked = used ? 'already sent' : !bears ? 'out of arc' : null;
+                  const ok = legalHeading(w.name);
+                  const facing = facings[w.name] ?? 0;
+                  const why = blocked
+                            ?? (ok ? null : `cannot launch ${FACING_LABEL[headingOf(w.name)]}`);
                   return (
                     <div key={w.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
                       <span style={{ color: why ? '#8b949e' : '#e6edf3' }}>{w.name}</span>
@@ -488,10 +592,12 @@ export default function SeekerOrdersPad({
                         <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                       )}
                       {why && <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{why}</span>}
-                      {!why && (
-                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                      {!blocked && (
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                       alignItems: 'center' }}>
+                          {facingChip(w.name)}
                           {w.armed && (
-                            <button style={{ padding: '0 6px' }}
+                            <button style={{ padding: '0 6px' }} disabled={!ok}
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${w.name}`,
                                       kind: 'PLASMA', shipName: attacker.name,
@@ -500,6 +606,7 @@ export default function SeekerOrdersPad({
                           )}
                           {w.pseudoPlasmaReady && (
                             <button className="secondary" style={{ padding: '0 6px' }}
+                                    disabled={!ok}
                                     title="a bluff: no warhead, and bound by every rule a real one is"
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${w.name} (pseudo)`,
@@ -510,6 +617,7 @@ export default function SeekerOrdersPad({
                           )}
                           {w.canFastLoad && (
                             <button className="secondary" style={{ padding: '0 6px' }}
+                                    disabled={!ok}
                                     title="FP1.93 accelerated arming — 2 reserve power"
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${w.name} (fast)`,
@@ -532,15 +640,18 @@ export default function SeekerOrdersPad({
                       {used ? (
                         <span style={{ color: '#8b949e', fontSize: '0.9em' }}>already sent</span>
                       ) : (
-                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                       flexWrap: 'wrap', alignItems: 'center' }}>
+                          {facingChip(r.name)}
                           {r.drones.map((d, i) => (
                             <button key={i} className="secondary" style={{ padding: '0 6px' }}
+                                    disabled={!legalHeading(r.name)}
                                     title={`speed ${d.speed}, ${d.warheadDamage} damage`}
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${d.droneType}`,
                                       kind: 'DRONE', shipName: attacker.name,
                                       targetName: target.name, weaponName: r.name,
-                                      droneIndex: i, facing,
+                                      droneIndex: i, facing: facings[r.name] ?? 0,
                                     })}>{d.droneType}</button>
                           ))}
                         </span>
@@ -555,13 +666,18 @@ export default function SeekerOrdersPad({
                     <span style={{ color: '#ff6060', fontSize: '0.9em' }}>
                       suicide, {s.warheadDamage} dmg
                     </span>
-                    <button style={{ marginLeft: 'auto', padding: '0 6px' }}
-                            disabled={spent.has(s.name)}
-                            onClick={() => draft({
-                              label: `${attacker.name} → ${target.name}: ${s.name}`,
-                              kind: 'SUICIDE', shipName: attacker.name,
-                              targetName: target.name, shuttleName: s.name, facing,
-                            })}>send</button>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                   alignItems: 'center' }}>
+                      {facingChip(s.name)}
+                      <button style={{ padding: '0 6px' }}
+                              disabled={spent.has(s.name) || !legalHeading(s.name)}
+                              onClick={() => draft({
+                                label: `${attacker.name} → ${target.name}: ${s.name}`,
+                                kind: 'SUICIDE', shipName: attacker.name,
+                                targetName: target.name, shuttleName: s.name,
+                                facing: facings[s.name] ?? 0,
+                              })}>send</button>
+                    </span>
                   </div>
                 ))}
 
@@ -571,13 +687,18 @@ export default function SeekerOrdersPad({
                     <span style={{ color: '#f0c040', fontSize: '0.9em' }}>
                       pack, {s.payload?.length ?? 0} aboard
                     </span>
-                    <button style={{ marginLeft: 'auto', padding: '0 6px' }}
-                            disabled={spent.has(s.name)}
-                            onClick={() => draft({
-                              label: `${attacker.name} → ${target.name}: ${s.name}`,
-                              kind: 'SCATTER_PACK', shipName: attacker.name,
-                              targetName: target.name, shuttleName: s.name, facing,
-                            })}>send</button>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                   alignItems: 'center' }}>
+                      {facingChip(s.name)}
+                      <button style={{ padding: '0 6px' }}
+                              disabled={spent.has(s.name) || !legalHeading(s.name)}
+                              onClick={() => draft({
+                                label: `${attacker.name} → ${target.name}: ${s.name}`,
+                                kind: 'SCATTER_PACK', shipName: attacker.name,
+                                targetName: target.name, shuttleName: s.name,
+                                facing: facings[s.name] ?? 0,
+                              })}>send</button>
+                    </span>
                   </div>
                 ))}
               </>
@@ -615,14 +736,18 @@ export default function SeekerOrdersPad({
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>
                         at {at}{at < speed ? ` (max ${cap})` : ''}
                       </span>
-                      <button className="secondary"
-                              style={{ marginLeft: 'auto', padding: '0 6px' }}
-                              disabled={spent.has(craft.name)}
-                              onClick={() => draft({
-                                label: `${attacker.name}: ${craft.name} (speed ${at})`,
-                                kind: 'SHUTTLE', shipName: attacker.name,
-                                shuttleName: craft.name, facing: facing || undefined, speed: at,
-                              })}>launch</button>
+                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                     alignItems: 'center' }}>
+                        {facingChip(craft.name)}
+                        <button className="secondary" style={{ padding: '0 6px' }}
+                                disabled={spent.has(craft.name)}
+                                onClick={() => draft({
+                                  label: `${attacker.name}: ${craft.name} (speed ${at})`,
+                                  kind: 'SHUTTLE', shipName: attacker.name,
+                                  shuttleName: craft.name,
+                                  facing: facings[craft.name] || undefined, speed: at,
+                                })}>launch</button>
+                      </span>
                     </div>
                   );
                 })}
@@ -640,13 +765,18 @@ export default function SeekerOrdersPad({
                                  : undefined}>
                         at {at}{at < speed ? ` (max ${cap})` : ''}
                       </span>
-                      <button style={{ marginLeft: 'auto', padding: '0 6px' }}
-                              disabled={spent.has(craft.name)}
-                              onClick={() => draft({
-                                label: `${attacker.name}: ${craft.name} (weasel, speed ${at})`,
-                                kind: 'WEASEL', shipName: attacker.name,
-                                shuttleName: craft.name, facing: facing || undefined, speed: at,
-                              })}>launch</button>
+                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                     alignItems: 'center' }}>
+                        {facingChip(craft.name)}
+                        <button style={{ padding: '0 6px' }}
+                                disabled={spent.has(craft.name)}
+                                onClick={() => draft({
+                                  label: `${attacker.name}: ${craft.name} (weasel, speed ${at})`,
+                                  kind: 'WEASEL', shipName: attacker.name,
+                                  shuttleName: craft.name,
+                                  facing: facings[craft.name] || undefined, speed: at,
+                                })}>launch</button>
+                      </span>
                     </div>
                   );
                 })}
