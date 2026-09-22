@@ -14,6 +14,8 @@ import {
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
+import SeekerOrdersPad from './SeekerOrdersPad';
+import type { LaunchingUnit, LaunchOrder } from './SeekerOrdersPad';
 import type { FiringUnit } from './FireOrdersPad';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
@@ -2697,6 +2699,12 @@ export default function GameBoard({ session, onLeave }: Props) {
   const [hexFireWeapons, setHexFireWeapons] = useState<Set<string>>(new Set());
   const [hexFireSide,    setHexFireSide]    = useState(1);
   const [hexFireError,   setHexFireError]   = useState<string | null>(null);
+  // The launch round (Annex #2, 6B) — its own draft list and its own sealed state, because
+  // the server keeps the two rounds independent and the board must not blur them.
+  const [launchOrders, setLaunchOrders] = useState<LaunchOrder[]>([]);
+  const [launchTargetName, setLaunchTargetName] = useState<string | null>(null);
+  const [launchCommittedRound, setLaunchCommittedRound] = useState<string | null>(null);
+
   // Hover, both ways: a pad row rings its counter, a counter lights its rows.
   const [padHighlight, setPadHighlight] = useState<string | null>(null);
   const [hoveredUnits, setHoveredUnits] = useState<string[]>([]);
@@ -3122,6 +3130,82 @@ export default function GameBoard({ session, onLeave }: Props) {
     const turn    = gameState?.turn    ?? '?';
     const impulse = gameState?.impulse ?? '?';
     setLog(prev => [...prev, { stamp: `T${turn}I${impulse}`, text, kind }]);
+  }
+
+  /** Ships of mine with something to send: a plasma tube, a loaded rack, or a ready craft. */
+  const launchUnits: LaunchingUnit[] = (gameState?.mapObjects ?? []).flatMap(o => {
+    if (o.type !== 'SHIP' || !myShips.has(o.name))
+      return [];
+    const ship = o as ShipObject;
+    const hasPlasma = (ship.weapons ?? []).some(w => w.launcherType && w.functional);
+    const hasRack   = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0);
+    const hasCraft  = (ship.shuttleBays ?? []).some(b => b.shuttles.length > 0);
+    return hasPlasma || hasRack || hasCraft ? [{ name: ship.name, ship }] : [];
+  });
+
+  const isActivityPhase = phase === 'Activity';
+  const launchDeclarationOpen = gameState?.activityDeclarationOpen ?? false;
+  const launchCommitted = launchCommittedRound === roundKey;
+
+  /**
+   * Convene a launch round if one is not open (Annex #2, 6B). The launch twin of
+   * ensureDeclarationOpen, and deliberately a different round.
+   */
+  async function ensureLaunchRoundOpen(): Promise<boolean> {
+    if (launchDeclarationOpen) return true;
+    if (gameState?.activityDeclarationSpent) {
+      setActionError("This impulse's launch declaration has already resolved");
+      return false;
+    }
+    const call = await gameApi.submitAction(session.gameId, session.playerToken,
+        { type: 'CALL_ACTIVITY_DECLARATION' });
+    if (!call.success) {
+      setActionError(call.message);
+      addLog(call.message, 'error');
+      return false;
+    }
+    return true;
+  }
+
+  async function addLaunchOrder(order: LaunchOrder) {
+    if (launchCommitted) {
+      setActionError('Launch orders already sealed for this declaration');
+      return;
+    }
+    if (!(await ensureLaunchRoundOpen())) return;
+    setLaunchOrders(prev => [...prev, order]);
+  }
+
+  async function commitLaunchOrders() {
+    setActionError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'COMMIT_ACTIVITY_DECLARATION',
+      activityOrders: launchOrders.map(o => ({
+        kind: o.kind, shipName: o.shipName, targetName: o.targetName,
+        weaponName: o.weaponName, droneIndex: o.droneIndex ?? 0,
+        pseudo: o.pseudo ?? false, fastLoad: o.fastLoad ?? false,
+        facing: o.facing ?? 0, shuttleName: o.shuttleName, speed: o.speed ?? 0,
+      })),
+    });
+    if (!res.success) {
+      setActionError(res.message);
+      return;
+    }
+    setLaunchCommittedRound(roundKey);
+    setLaunchOrders([]);
+    setLaunchTargetName(null);
+  }
+
+  async function passLaunchRound() {
+    setActionError(null);
+    const res = await gameApi.submitAction(session.gameId, session.playerToken,
+        { type: 'PASS_ACTIVITY_DECLARATION' });
+    if (!res.success) {
+      setActionError(res.message);
+      return;
+    }
+    setLaunchCommittedRound(roundKey);
+    setLaunchOrders([]);
   }
 
   /**
@@ -4869,6 +4953,36 @@ export default function GameBoard({ session, onLeave }: Props) {
         })()}
 
       </div>
+
+      {/* The Seeker Orders pad (Annex #2, 6B) — launches, sealed and revealed together.
+          A separate round from the fire one below, in a different segment. */}
+      {isActivityPhase && !launchCommitted && (
+        <SeekerOrdersPad
+          gameId={session.gameId}
+          playerToken={session.playerToken}
+          turn={gameState?.turn ?? 0}
+          impulse={gameState?.impulse ?? 0}
+          units={launchUnits}
+          attackerName={liveShip?.name ?? null}
+          onSelectAttacker={(name: string) => {
+            const obj = (gameState?.mapObjects ?? []).find(o => o.name === name);
+            if (obj) setSelected(obj);
+          }}
+          targetName={launchTargetName}
+          onSelectTarget={setLaunchTargetName}
+          orders={launchOrders}
+          onAddOrder={addLaunchOrder}
+          onRemoveOrder={(idx: number) =>
+            setLaunchOrders(prev => prev.filter((_, j) => j !== idx))}
+          hoveredOnMap={hoveredUnits}
+          onHoverCandidate={setPadHighlight}
+          declarationOpen={launchDeclarationOpen}
+          onCall={() => { void ensureLaunchRoundOpen(); }}
+          onCommit={() => { void commitLaunchOrders(); }}
+          onPass={() => { void passLaunchRound(); }}
+          error={actionError}
+        />
+      )}
 
       {/* The Fire Orders pad (D6.315) — drafted orders + EW, sealed on commit.
           Shown for the whole segment, not only once a declaration is convened: otherwise

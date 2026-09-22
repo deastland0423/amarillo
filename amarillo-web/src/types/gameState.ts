@@ -440,6 +440,12 @@ export interface GameState {
   fireDeclarationCaller:    string | null;
   fireDeclarationResponded: string[];
   fireDeclarationSpent:     boolean;
+  // Launch declaration round (Annex #2, 6B) — a separate round from the fire one, with its
+  // own call. Only who has answered is public; the orders stay sealed server-side.
+  activityDeclarationOpen?:      boolean;
+  activityDeclarationCaller?:    string | null;
+  activityDeclarationResponded?: string[];
+  activityDeclarationSpent?:     boolean;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];

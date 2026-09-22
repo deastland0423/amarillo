@@ -1573,6 +1573,10 @@ public class GameController {
                 row.put("name", candidate.getName());
                 row.put("kind", candidateKind(candidate));
                 row.put("range", MapUtils.getRange(launcher, candidate));
+                // Where it is. Public — the map already draws it — and the pad needs it to
+                // show which launch facings could still track, which is a question about
+                // geometry rather than about the row.
+                row.put("location", candidate.getLocation().toString());
                 row.put("hasLockOn", launcher.hasLockOn(candidate));
                 row.put("plasmaLaunchers", plasmaLaunchersBearing(launcher, candidate));
                 out.add(row);

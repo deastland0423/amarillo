@@ -533,6 +533,22 @@ export const gameApi = {
     );
   },
 
+  /**
+   * Every unit this ship may send a seeking weapon at, with range, whether it holds a
+   * lock-on, and which plasma launchers bear on it. A drone rack has no arc, so a candidate
+   * with no launchers listed is still a perfectly good drone target.
+   */
+  getLaunchTargets(
+    gameId: string,
+    playerToken: string,
+    attacker: string,
+  ): Promise<import('../components/SeekerOrdersPad').LaunchCandidate[]> {
+    return request(
+      `/api/games/${gameId}/launch-targets?attacker=${encodeURIComponent(attacker)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
   getCoiData(scenarioId: string): Promise<CoiSideData[]> {
     return request(`/api/games/scenarios/${scenarioId}/coi-data`);
   },
