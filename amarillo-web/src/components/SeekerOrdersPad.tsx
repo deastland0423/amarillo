@@ -281,8 +281,14 @@ export default function SeekerOrdersPad({
     return allowedFacingsFromMask(rotateArcMask(mask, shipFacing)).has(dir);
   }
 
+  /**
+   * The facing is taken AT THIS MOMENT, not at commit — so it goes in the label, where the
+   * plan shows it back. Choosing a direction after pressing send changes nothing, and a
+   * playtest found that out the hard way: the order read "auto" and nobody could see it.
+   */
   function draft(order: LaunchOrder) {
-    onAddOrder(order);
+    const dir = order.facing ? FACING_LABEL[order.facing] : 'auto';
+    onAddOrder({ ...order, label: `${order.label} · ${dir}` });
   }
 
   const ship = attacker?.ship ?? null;
@@ -454,6 +460,9 @@ export default function SeekerOrdersPad({
                           title="Choose a launch direction on the hex">
                     {facing === 0 ? 'pick…' : `${FACING_LABEL[facing]} ▸`}
                   </button>
+                  <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>
+                    — applies to what you send next
+                  </span>
                 </div>
 
                 {plasma.length === 0 && racks.length === 0

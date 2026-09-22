@@ -133,7 +133,10 @@ class LaunchCoordinator {
         if (!foundShuttleBay.canLaunch(foundShuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay is not ready to launch");
 
-        int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
+        // Any of the 24 used to be accepted here; only six are directions a unit may face.
+        int wwFacing = craftFacing(ship, null, facing);
+        if (wwFacing == 0)
+            return badFacing(facing);
         // A weasel may move at anything up to the MAX SPEED OF THE SHUTTLE IT IS BUILT FROM.
         // This was a hardcoded 6 — an admin shuttle's figure — which J3.18 makes wrong the
         // moment anything else is charged: any non-fighter shuttle may serve, and they do not
@@ -198,6 +201,38 @@ class LaunchCoordinator {
      *
      * @return ActionResult describing success or reason for failure.
      */
+    /**
+     * The direction a launched CRAFT leaves on — shuttle, fighter, weasel, suicide shuttle
+     * or scatter pack.
+     *
+     * The same six-facings rule as a seeker, and it was missing here: every one of these
+     * paths handed its facing straight to ShuttleBay.launch, which sets it verbatim. A launch
+     * with no direction named therefore left the craft facing 0, which is not a direction at
+     * all and draws as a heading between F and A.
+     * <p>
+     * With none named, a craft that has a target points at it (snapped, since a bearing runs
+     * to 24 and a facing is one of six) and one that has none takes its mother ship's facing,
+     * which is what a weasel already did.
+     *
+     * @return the facing to use, or 0 if a named direction is not a legal facing
+     */
+    private int craftFacing(Ship launcher, Unit target, int named) {
+        if (named > 0)
+            return MapUtils.isFacing(named) ? named : 0;
+        if (target != null) {
+            int snapped = MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+            if (snapped > 0)
+                return snapped;
+        }
+        return launcher.getFacing();
+    }
+
+    /** Shared refusal, so all four craft launches say the same thing. */
+    private ActionResult badFacing(int named) {
+        return ActionResult.fail("Direction " + named + " is not one of the six a unit may"
+                + " face (1, 5, 9, 13, 17, 21)");
+    }
+
     /**
      * The direction a seeker is actually launched on.
      *
@@ -540,8 +575,11 @@ class LaunchCoordinator {
 
         // C10.13: a shuttle that has committed a point of speed to EM cannot launch above
         // the reduced maximum.
+        int shuttleFacing = craftFacing(launcher, null, facing);
+        if (shuttleFacing == 0)
+            return badFacing(facing);
         com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle,
-                Math.min(speed, shuttle.effectiveMaxSpeed()), facing, game.getAbsoluteImpulse());
+                Math.min(speed, shuttle.effectiveMaxSpeed()), shuttleFacing, game.getAbsoluteImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 
@@ -601,8 +639,11 @@ class LaunchCoordinator {
         // effectiveMaxSpeed, not getMaxSpeed: the same figure the plain shuttle launch uses,
         // so a suicide shuttle that has committed a point of speed to erratic maneuvers is
         // bounded like any other shuttle (C10.13).
+        int suicideFacing = craftFacing(launcher, target, facing);
+        if (suicideFacing == 0)
+            return badFacing(facing);
         bay.launch(shuttle, Math.max(0, Math.min(speed, shuttle.effectiveMaxSpeed())),
-                facing, game.getAbsoluteImpulse());
+                suicideFacing, game.getAbsoluteImpulse());
         shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
@@ -650,9 +691,13 @@ class LaunchCoordinator {
         if (!launcher.hasLockOn(target))
             return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
 
+        int packFacing = craftFacing(launcher, target, facing);
+        if (packFacing == 0)
+            return badFacing(facing);
+
         launcher.forceAcquireControl(pack);
 
-        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
+        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), packFacing, game.getAbsoluteImpulse());
         pack.setName(launchName(launcher, pack));
         pack.setLocation(launcher.getLocation());
         // Whose it is, and where it came from. launchShuttle has always set both; this

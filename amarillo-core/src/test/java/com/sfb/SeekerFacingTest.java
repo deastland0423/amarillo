@@ -131,6 +131,59 @@ public class SeekerFacingTest {
     }
 
     /**
+     * Found in a playtest: a scatter pack launched with no direction came out facing 0 — no
+     * direction at all, drawn as a heading between F and A. Every craft launch handed its
+     * facing straight to ShuttleBay.launch, which sets it verbatim, so the seeker fix had
+     * missed the whole shuttle family.
+     */
+    @Test
+    public void aCraftLaunchedWithNoDirection_pointsAtItsTarget() {
+        Ship fed = new Ship();
+        fed.init(com.sfb.samples.FederationShips.getFedCa());
+        fed.setName("USS Enterprise");
+        fed.setLocation(new Location(12, 6));
+        fed.setFacing(13);                       // D, as in the playtest
+        game.getShips().add(fed);
+        fed.setActiveFireControl(true);
+        fed.addLockOn(target);
+        target.setLocation(new Location(20, 9));
+
+        com.sfb.systemgroups.ShuttleBay bay = fed.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.ScatterPack pack = new com.sfb.objects.shuttles.ScatterPack(
+                new com.sfb.objects.shuttles.AdminShuttle());
+        pack.setName("SP-1");
+        pack.addDrone(new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI));
+        bay.replaceShuttle(bay.getInventory().get(0), pack);
+
+        ActionResult r = game.launchScatterPack(fed, bay, pack, target, 0, 6);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("a pack facing " + pack.getFacing() + " is facing nothing",
+                MapUtils.isFacing(pack.getFacing()));
+        assertEquals("with no direction named it points at its target",
+                MapUtils.snapToFacing(MapUtils.getBearing(fed, target)), pack.getFacing());
+    }
+
+    /** And a named direction that is not a facing is refused rather than used. */
+    @Test
+    public void aCraftLaunchedOnANonFacing_isRefused() {
+        Ship fed = new Ship();
+        fed.init(com.sfb.samples.FederationShips.getFedCa());
+        fed.setName("USS Enterprise");
+        fed.setLocation(new Location(12, 6));
+        fed.setFacing(13);
+        game.getShips().add(fed);
+
+        com.sfb.systemgroups.ShuttleBay bay = fed.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.Shuttle plain = bay.getInventory().get(0);
+
+        ActionResult r = game.launchShuttle(fed, bay, plain, 6, 3);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("not one of the six"));
+    }
+
+    /**
      * The one that was silently wrong: with no direction named, the facing came straight from
      * the bearing. Whatever hex the target is in, what launches must face one of six.
      */

@@ -2317,6 +2317,11 @@ public class GameSession {
                 r.setType("SUICIDE".equals(kind)
                         ? "LAUNCH_SUICIDE_SHUTTLE" : "LAUNCH_SCATTER_PACK");
                 r.setAction(o.getShuttleName());
+                // These two read facing and speed from their own named fields, unlike the
+                // shuttle and weasel launches above. Omitting them sent every pack out on
+                // facing 0 — no direction at all — whatever the player had chosen.
+                r.setFacing(o.getFacing());
+                r.setSpeed(o.getSpeed());
                 break;
             default:
                 r.setType("UNKNOWN_LAUNCH_KIND");
