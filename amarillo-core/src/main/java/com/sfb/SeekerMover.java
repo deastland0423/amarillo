@@ -464,22 +464,14 @@ class SeekerMover {
     // Private helpers
     // -------------------------------------------------------------------------
 
-    /** Snap a 1–24 bearing to the nearest cardinal (1, 5, 9, 13, 17, 21). */
+    /**
+     * Snap a 1-24 bearing to the nearest of the six facings.
+     *
+     * Delegates: this was a private copy of what MapUtils.snapToFacing now does for
+     * everybody, and a seeker's facing is the same kind of thing as anyone else's.
+     */
     private static int snapToCardinal(int bearing) {
-        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
-        int best = cardinals[0];
-        int bestDist = Integer.MAX_VALUE;
-        for (int c : cardinals) {
-            int diff = Math.abs(bearing - c);
-            // wrap around the 24-direction circle
-            if (diff > 12)
-                diff = 24 - diff;
-            if (diff < bestDist) {
-                bestDist = diff;
-                best = c;
-            }
-        }
-        return best;
+        return com.sfb.utilities.MapUtils.snapToFacing(bearing);
     }
 
     /**
@@ -487,7 +479,7 @@ class SeekerMover {
      * staying as close as possible to the ideal bearing toward the target.
      */
     private int chooseSeekerFacing(Unit seeker, int idealFacing) {
-        int[] cardinals = { 1, 5, 9, 13, 17, 21 };
+        int[] cardinals = com.sfb.utilities.MapUtils.FACINGS;
         int idealIdx = 0;
         for (int i = 0; i < cardinals.length; i++) {
             if (cardinals[i] == idealFacing) {

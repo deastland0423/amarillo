@@ -74,7 +74,7 @@ class ShuttleMover {
                 int curRange = MapUtils.getRange(shuttle.getLocation(), holder.getLocation());
                 Location best = null;
                 int bestRange = curRange;
-                for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+                for (int dir : com.sfb.utilities.MapUtils.FACINGS) {
                     Location cand = MapUtils.getAdjacentHex(shuttle.getLocation(), dir,
                             game.getMapCols(), game.getMapRows());
                     if (cand == null || game.isPlanetHex(cand) || game.isAsteroidHex(cand))
@@ -128,7 +128,7 @@ class ShuttleMover {
             if (!obj.getLocation().equals(holder.getLocation())) {
                 Location best = null;
                 int bestRange = MapUtils.getRange(obj.getLocation(), holder.getLocation());
-                for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+                for (int dir : com.sfb.utilities.MapUtils.FACINGS) {
                     Location cand = MapUtils.getAdjacentHex(obj.getLocation(), dir,
                             game.getMapCols(), game.getMapRows());
                     if (cand == null || game.isPlanetHex(cand))

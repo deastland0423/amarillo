@@ -775,6 +775,47 @@ public class MapUtils {
 
 	// Given the true (map-oriented) bearing and the facing of the source
 	// Give the relative bearing, with the front of the source as the "1" bearing.
+	/**
+	 * The six directions a unit may face. Bearings run 1-24; FACINGS are the subset a ship,
+	 * shuttle or seeking weapon can actually be pointed along - the hex sides, A to F.
+	 * <p>
+	 * Here because this is where bearings live, and because the array was written out by hand
+	 * in five separate files.
+	 */
+	public static final int[] FACINGS = { 1, 5, 9, 13, 17, 21 };
+
+	/** True if this is one of the six directions a unit may face. */
+	public static boolean isFacing(int direction) {
+		for (int f : FACINGS)
+			if (f == direction)
+				return true;
+		return false;
+	}
+
+	/**
+	 * The facing nearest to a bearing, wrapping round the 24-direction circle.
+	 *
+	 * A bearing is not a facing: a target may lie on any of 24 directions, but whatever is
+	 * pointed at it can only face one of six. Ties go to the lower-numbered facing, which
+	 * only arises for a bearing exactly between two - 3, 7, 11, 15, 19, 23.
+	 */
+	public static int snapToFacing(int bearing) {
+		if (bearing <= 0)
+			return 0;                      // no bearing exists; nothing to snap
+		int best = FACINGS[0];
+		int bestDist = Integer.MAX_VALUE;
+		for (int f : FACINGS) {
+			int diff = Math.abs(bearing - f);
+			if (diff > 12)
+				diff = 24 - diff;          // the short way round the circle
+			if (diff < bestDist) {
+				bestDist = diff;
+				best = f;
+			}
+		}
+		return best;
+	}
+
 	public static int getRelativeBearing(int trueBearing, int facing) {
 		if (facing == 1) {
 			return trueBearing;

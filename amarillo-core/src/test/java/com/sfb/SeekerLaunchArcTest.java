@@ -114,6 +114,8 @@ public class SeekerLaunchArcTest {
         int bearing = MapUtils.getBearing(kzinti, target);
         int away = ((bearing + 11) % 24) + 1;        // twelve directions round: dead opposite
 
+        assertTrue("premise: a legal facing, so the refusal under test is the arc and not"
+                + " the six-facings rule", MapUtils.isFacing(away));
         int relative = MapUtils.getRelativeBearing(bearing, away);
         assertFalse("premise: the target is outside the seeker's forward arc",
                 ArcUtils.inArc(relative, ArcUtils.FA));
@@ -133,6 +135,7 @@ public class SeekerLaunchArcTest {
         int bearing = MapUtils.getBearing(kzinti, target);
         int edge = ((bearing + 3) % 24) + 1;         // four directions off
 
+        assertTrue("premise: a legal facing", MapUtils.isFacing(edge));
         int relative = MapUtils.getRelativeBearing(bearing, edge);
         assertTrue("premise: four off is still inside FA",
                 ArcUtils.inArc(relative, ArcUtils.FA));

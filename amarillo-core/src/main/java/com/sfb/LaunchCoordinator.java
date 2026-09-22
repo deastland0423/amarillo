@@ -199,6 +199,22 @@ class LaunchCoordinator {
      * @return ActionResult describing success or reason for failure.
      */
     /**
+     * The direction a seeker is actually launched on.
+     *
+     * A unit may only face one of the six directions (MapUtils.FACINGS), seeking weapons
+     * included. A named direction must be one of them; with none named, the bearing to the
+     * target is SNAPPED, because a bearing answers in 24 directions and a facing is one of
+     * six - taking it raw created seekers pointed along directions nothing can face.
+     *
+     * @return the facing to use, or 0 if the named direction is not a legal facing
+     */
+    private int launchFacingFor(Unit launcher, Unit target, int named) {
+        if (named > 0)
+            return MapUtils.isFacing(named) ? named : 0;
+        return MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+    }
+
+    /**
      * A launched seeker must be able to see where it is going: with the facing it is launched
      * on, the target has to lie inside the seeker's OWN forward arc (ArcUtils.FA, the nine
      * directions 21-5).
@@ -297,7 +313,10 @@ class LaunchCoordinator {
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
         drone.setLocation(launcher.getLocation());
-        int droneFacing = facing > 0 ? facing : MapUtils.getBearing(launcher, target);
+        int droneFacing = launchFacingFor(launcher, target, facing);
+        if (droneFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
         ActionResult droneArc = seekerArcBlock(launcher, target, droneFacing, rack.getName());
         if (droneArc != null)
             return droneArc;
@@ -379,7 +398,10 @@ class LaunchCoordinator {
                         + facing + " — outside launcher arc");
         }
 
-        int torpFacing = facing > 0 ? facing : MapUtils.getBearing(launcher, target);
+        int torpFacing = launchFacingFor(launcher, target, facing);
+        if (torpFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
         ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, weapon.getName());
         if (torpArc != null)
             return torpArc;
@@ -459,7 +481,10 @@ class LaunchCoordinator {
                 return ActionResult.fail(weapon.getName() + " cannot launch in direction "
                         + facing + " — outside launcher arc");
         }
-        int pseudoFacing = facing > 0 ? facing : pseudoBearing;
+        int pseudoFacing = launchFacingFor(launcher, target, facing);
+        if (pseudoFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
         ActionResult pseudoArc = seekerArcBlock(launcher, target, pseudoFacing, weapon.getName());
         if (pseudoArc != null)
             return pseudoArc;

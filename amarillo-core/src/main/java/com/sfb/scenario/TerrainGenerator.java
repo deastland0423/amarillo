@@ -163,7 +163,8 @@ public final class TerrainGenerator {
     };
 
     /** A die face, in the order the six hex directions run: 1 = A, 6 = F. */
-    private static final int[] DIRECTIONS = { 1, 5, 9, 13, 17, 21 };
+    /** The six a unit may face; see MapUtils.FACINGS, which is where they live. */
+    private static final int[] DIRECTIONS = com.sfb.utilities.MapUtils.FACINGS;
 
     /** Every hex within this range of a counter is an asteroid hex (P3.12). */
     static final int FIELD_RADIUS = 2;
