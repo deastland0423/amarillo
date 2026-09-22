@@ -888,6 +888,20 @@ function shuttleTooltipLines(
   if ((hulls.maxHull ?? 0) > 0)
     lines.push(`Hull:     ${hulls.hull ?? 0} / ${hulls.maxHull}`
       + (hulls.crippled ? '  CRIPPLED' : ''));
+  // A suicide shuttle and a scatterpack are seeking weapons: they are chasing something,
+  // and their controller may see what, exactly as a drone's or a plasma's tooltip has always
+  // shown. The DTO carried it all along — only this tooltip never asked for it, so an owner
+  // could watch their own pack fly with no way to tell what it was flying at.
+  //
+  // No `isMine` test here on purpose. targetName only ever arrives on the full suicide or
+  // scatterpack DTO, which the server sends to the entitled alone — its controller, and
+  // everyone once a pack has released its drones. An enemy who may not know gets a plain
+  // ShuttleDto with no such field, so the presence of the value IS the entitlement, and a
+  // second guard here would be the client deciding a question the server already decided.
+  // (The identified-enemy case below is a different fact, bought with a lab: G4.233.)
+  const seekingAt = (shuttle as { targetName?: string | null }).targetName;
+  if (seekingAt)
+    lines.push(`Target:   ${seekingAt}`);
   // A destroyed weasel is not removed: it explodes for four impulses and keeps pulling
   // seekers in (J3.21), then leaves a spent pocket. Both states change what it is doing,
   // so say which one it is in.
