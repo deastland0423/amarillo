@@ -3,7 +3,8 @@ import type { ShipObject } from '../types/gameState';
 import { parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
-import { bearsOn } from '../hex/geometry';
+import { allowedFacingsFromMask, bearsOn } from '../hex/geometry';
+import { FacingPicker } from './FacingPicker';
 
 /**
  * The Seeker Orders pad — launches, sealed and revealed together (Annex #2, 6B).
@@ -97,6 +98,21 @@ const FA_MASK = [21, 22, 23, 24, 1, 2, 3, 4, 5]
 
 const JADE = '#3fb8a0';
 
+/**
+ * Turn a ship-relative arc mask into absolute hex directions.
+ *
+ * A weapon's arcs are written relative to the bow, so a forward tube on a ship facing D is
+ * pointed down the map. Recovered from the launch panel this pad replaced, where it fed the
+ * same picker.
+ */
+function rotateArcMask(mask: number, facing: number): number {
+  if (!mask || facing <= 1) return mask;
+  const shift = facing - 1;
+  return ((mask << shift) | (mask >>> (24 - shift))) & 0xFFFFFF;
+}
+
+const ALL_FACINGS = new Set(FACINGS);
+
 const EMPTY_ROWS: LaunchCandidate[] = [];
 
 const PANEL: React.CSSProperties = {
@@ -164,6 +180,7 @@ export default function SeekerOrdersPad({
       { attacker: null, rows: [], error: null });
   const [collapsed, setCollapsed] = useState(false);
   const [facing, setFacing] = useState<number>(0);        // 0 = straight at the target
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [speed, setSpeed] = useState<number>(6);
   const drag = useDraggable(savedPosition());
 
@@ -176,6 +193,11 @@ export default function SeekerOrdersPad({
   const loading    = !answered;
   const loadError  = answered ? loaded.error : null;
   const candidates = answered ? loaded.rows : EMPTY_ROWS;
+
+  // Panel width follows min(94vw, 820px); the picker needs about 170.
+  const viewport = typeof window === 'undefined' ? 1400 : window.innerWidth;
+  const panelWidth = Math.min(viewport * 0.94, 820);
+  const roomOnRight = drag.position.left + panelWidth + 170 < viewport;
 
   const attacker = units.find(u => u.name === attackerName) ?? null;
   const target   = candidates.find(c => c.name === targetName) ?? null;
@@ -241,6 +263,24 @@ export default function SeekerOrdersPad({
     return bearsOn({ col: from[0], row: from[1] }, dir, FA_MASK, { col: to[0], row: to[1] });
   }
 
+  /**
+   * The facings a seeker could actually leave on: ones whose forward arc still holds the
+   * target. A preview of the rule core applies, and the picker dims the rest.
+   *
+   * Per-tube launch directions are NOT folded in here, because they differ from one launcher
+   * to the next and this is one choice for the whole pad — each plasma row says for itself
+   * whether it can throw that way.
+   */
+  const allowedFacings: Set<number> = target
+    ? new Set(FACINGS.filter(canTrack))
+    : ALL_FACINGS;
+
+  /** Whether this tube can throw one on the chosen facing (its launch directions, rotated). */
+  function tubeCanLaunchOn(mask: number, shipFacing: number, dir: number): boolean {
+    if (dir === 0 || !mask) return true;          // "auto", or a tube with no restriction
+    return allowedFacingsFromMask(rotateArcMask(mask, shipFacing)).has(dir);
+  }
+
   function draft(order: LaunchOrder) {
     onAddOrder(order);
   }
@@ -278,6 +318,30 @@ export default function SeekerOrdersPad({
           {collapsed ? '▸' : '▾'}
         </button>
       </div>
+
+      {pickerOpen && !collapsed && (
+        <div style={{
+          // The pad is draggable, so the right edge is not always where there is room. Flip
+          // to the other side rather than let the picker hang off the screen.
+          position: 'absolute', top: 40,
+          ...(roomOnRight
+            ? { left: '100%', marginLeft: 8 }
+            : { right: '100%', marginRight: 8 }),
+          background: '#161b22', border: `1px solid ${JADE}`, borderRadius: 6,
+          padding: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.5)', zIndex: 1,
+        }}>
+          <FacingPicker
+            label="Launch direction"
+            value={facing === 0 ? null : facing}
+            onChange={f => { setFacing(f); setPickerOpen(false); }}
+            allowedFacings={allowedFacings}
+          />
+          <button className="secondary" style={{ width: '100%', marginTop: 4 }}
+                  onClick={() => { setFacing(0); setPickerOpen(false); }}>
+            auto — straight at the target
+          </button>
+        </div>
+      )}
 
       {!collapsed && (
       <div style={BODY}>
@@ -378,22 +442,18 @@ export default function SeekerOrdersPad({
 
             {attacker && target && (
               <>
-                {/* Facing: six only, and one that cannot track is not offered. */}
+                {/* Facing. The letter is no use unless you can see which way it points, so
+                    the picker draws A-F round a hex; this row is just the current answer. */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                   <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>Facing</span>
                   <button className={facing === 0 ? '' : 'secondary'} style={{ padding: '0 6px' }}
                           onClick={() => setFacing(0)} title="straight at the target">auto</button>
-                  {FACINGS.map(f => (
-                    <button key={f}
-                            className={facing === f ? '' : 'secondary'}
-                            style={{ padding: '0 6px' }}
-                            disabled={!canTrack(f)}
-                            title={canTrack(f) ? undefined
-                                 : 'the target would be outside the seeker’s forward arc'}
-                            onClick={() => setFacing(f)}>
-                      {FACING_LABEL[f]}
-                    </button>
-                  ))}
+                  <button className={facing === 0 ? 'secondary' : ''}
+                          style={{ padding: '0 8px' }}
+                          onClick={() => setPickerOpen(o => !o)}
+                          title="Choose a launch direction on the hex">
+                    {facing === 0 ? 'pick…' : `${FACING_LABEL[facing]} ▸`}
+                  </button>
                 </div>
 
                 {plasma.length === 0 && racks.length === 0
@@ -404,7 +464,14 @@ export default function SeekerOrdersPad({
                 {plasma.map(w => {
                   const bears = target.plasmaLaunchers.includes(w.name);
                   const used = spent.has(w.name);
-                  const why = used ? 'already sent' : !bears ? 'out of arc' : null;
+                  // A tube's launch directions are its own and often narrower than its firing
+                  // arc — a Romulan KR's Plasma-G targets anything in FA but throws straight
+                  // ahead only — so the chosen facing has to be one THIS tube can use.
+                  const canThrow = tubeCanLaunchOn(
+                      w.launchDirectionsMask || w.arcMask, ship?.facing ?? 1, facing);
+                  const why = used ? 'already sent'
+                            : !bears ? 'out of arc'
+                            : !canThrow ? `cannot launch ${FACING_LABEL[facing]}` : null;
                   return (
                     <div key={w.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
                       <span style={{ color: why ? '#8b949e' : '#e6edf3' }}>{w.name}</span>
