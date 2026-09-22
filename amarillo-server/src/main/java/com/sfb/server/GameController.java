@@ -1447,7 +1447,10 @@ public class GameController {
 
                 Map<String, Object> row = new java.util.LinkedHashMap<>();
                 row.put("name", candidate.getName());
-                row.put("kind", candidateKind(candidate));
+                String kind = candidateKind(candidate);
+                row.put("kind", kind);
+                if (!"SHIP".equals(kind))
+                    row.put("closingOn", closingOn(candidate, session, mine));
                 row.putAll(fireOptionsFor(session, attackerUnit, candidate));
                 out.add(row);
             }
@@ -1456,6 +1459,42 @@ public class GameController {
             out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
             return ResponseEntity.ok(out);
         });
+    }
+
+    /**
+     * Which of the caller's units this seeker is bearing down on, or null.
+     *
+     * An INFERENCE from the board, not a disclosure: it reads the seeker's position and
+     * facing, both of which every player can see, and the caller's own positions. It never
+     * consults the seeker's target — that is hidden until the seeker is identified (G4.2),
+     * and a pad that quietly leaked it would be worse than one that said nothing.
+     * <p>
+     * So the wording that goes with this is "closing on", never "targeting". A drone flying
+     * at your flagship may be aimed at something else entirely; what is true is where it is
+     * pointed. The test is a cone roughly 45 degrees either side of dead ahead, nearest unit
+     * first — the same judgement a player makes by eye.
+     */
+    private String closingOn(Unit seeker, GameSession session, java.util.Set<String> mine) {
+        if (seeker.getLocation() == null)
+            return null;
+        String best = null;
+        int bestRange = Integer.MAX_VALUE;
+        for (Ship ship : session.getGame().getShips()) {
+            if (!containsIgnoreCase(mine, ship.getName()) || ship.getLocation() == null)
+                continue;
+            int bearing = MapUtils.getBearing(seeker.getLocation(), ship.getLocation());
+            if (bearing == 0)
+                continue;                         // same hex: no bearing exists
+            int relative = MapUtils.getRelativeBearing(bearing, seeker.getFacing());
+            if (relative > 3 && relative < 22)
+                continue;                         // not ahead of it
+            int range = MapUtils.getRange(seeker.getLocation(), ship.getLocation());
+            if (range < bestRange) {
+                bestRange = range;
+                best = ship.getName();
+            }
+        }
+        return best;
     }
 
     /** A ship or an active shuttle/fighter by name - the things that can fire. */

@@ -31,6 +31,12 @@ export interface FireCandidate {
   adjustedRange: number;
   shieldNumber:  number;
   weaponsInArc:  string[];
+  /**
+   * Which of YOUR units this seeker is bearing down on, or null — inferred from its public
+   * position and facing, never from its target, which identification (G4.2) is the way to
+   * learn. Absent on ships.
+   */
+  closingOn?:    string | null;
   hasLockOn:     boolean;
   ecmPoints:     number;
   eccm:          number;
@@ -103,6 +109,12 @@ interface Props {
 
 /** One shared empty set, so deriving "nothing picked" does not allocate on every render. */
 const EMPTY_PICK: Set<string> = new Set();
+
+/**
+ * Likewise for "no candidates": a fresh [] changes identity on every render, which makes the
+ * grouping memo below re-run every time and defeats its own purpose.
+ */
+const EMPTY_ROWS: FireCandidate[] = [];
 
 const KIND_LABEL: Record<FireCandidate['kind'], string> = {
   SHIP:    'ship',
@@ -260,7 +272,7 @@ export default function FireOrdersPad({
   const loading   = !answered;
   const loadError = answered ? loaded.error : null;
 
-  const candidates = answered ? loaded.rows : [];
+  const candidates = answered ? loaded.rows : EMPTY_ROWS;
   const targetName = sel.attacker === attackerName ? sel.target : null;
   const picked     = sel.attacker === attackerName && sel.target === targetName
       ? sel.picked : EMPTY_PICK;
@@ -305,6 +317,47 @@ export default function FireOrdersPad({
     }
     return m;
   }, [orders]);
+
+  /**
+   * Ships first, then seekers gathered by which of your units they are CLOSING ON — the
+   * word matters: their real targets are hidden until identified (G4.2), and this is read
+   * off the board from where they are and where they point.
+   *
+   * Fifteen inbound drones as fifteen rows of names is unreadable; as "closing on Kongo (4)"
+   * it is a picture. Range order within each group is preserved from the server, which is
+   * the priority a player actually uses.
+   */
+  const groupedCandidates = useMemo(() => {
+    const ships = candidates.filter(c => c.kind === 'SHIP');
+    const seekers = candidates.filter(c => c.kind !== 'SHIP');
+    const groups: { label: string; rows: FireCandidate[] }[] = [];
+
+    // No ceremony when there is nothing to organise: one flat list reads better.
+    if (seekers.length === 0)
+      return [{ label: '', rows: ships }];
+
+    if (ships.length > 0) groups.push({ label: 'ships', rows: ships });
+
+    const byUnit = new Map<string, FireCandidate[]>();
+    const elsewhere: FireCandidate[] = [];
+    for (const c of seekers) {
+      if (c.closingOn) {
+        const rows = byUnit.get(c.closingOn) ?? [];
+        rows.push(c);
+        byUnit.set(c.closingOn, rows);
+      } else {
+        elsewhere.push(c);
+      }
+    }
+    // Most-threatened unit first: the group whose nearest seeker is nearest.
+    const units = [...byUnit.entries()].sort(
+      (a, b) => (a[1][0]?.range ?? 99) - (b[1][0]?.range ?? 99));
+    for (const [unit, rows] of units)
+      groups.push({ label: `closing on ${unit}`, rows });
+    if (elsewhere.length > 0)
+      groups.push({ label: 'elsewhere', rows: elsewhere });
+    return groups;
+  }, [candidates]);
 
   /** Weapons this attacker has already promised elsewhere this declaration. */
   const spokenFor = useMemo(() => {
@@ -417,7 +470,14 @@ export default function FireOrdersPad({
               Nothing bears. It can still change EW, or hold fire.
             </div>
           )}
-          {attacker && !loading && candidates.map(c => {
+          {attacker && !loading && groupedCandidates.map(group => (
+            <div key={group.label}>
+              {group.label && (
+                <div style={{ ...COL_TITLE, marginTop: 6, color: '#6e7681' }}>
+                  {group.label} ({group.rows.length})
+                </div>
+              )}
+              {group.rows.map(c => {
             const isSel = c.name === targetName;
             const already = orders.some(o => o.shipName === attacker.name && o.targetName === c.name);
             const worth = volleyEstimate(attacker.weapons, c.weaponsInArc, c.range, c.adjustedRange);
@@ -457,6 +517,8 @@ export default function FireOrdersPad({
               </button>
             );
           })}
+            </div>
+          ))}
           {attacker && attacker.isShip && (
             <button style={{ ...ROW, color: '#8b949e', marginTop: 4 }} onClick={onStartHexFire}>
               a hex on the map — clear a path or bombard (P3.25, P2.311)

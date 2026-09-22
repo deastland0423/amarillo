@@ -227,6 +227,61 @@ class FireTargetsEndpointTest {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // "Closing on": an inference from the board, never a disclosure
+    // -------------------------------------------------------------------------
+
+    /** A drone in the Klingon's hands, placed and pointed by the test. */
+    private com.sfb.objects.Drone drone(String name, int col, int row, int facing) {
+        com.sfb.objects.Drone d = new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI);
+        d.setName(name);
+        d.setLocation(new Location(col, row));
+        d.setFacing(facing);
+        d.setController(klingon);
+        d.setSeekerType(com.sfb.objects.Seeker.SeekerType.DRONE);
+        game.getSeekers().add(d);
+        return d;
+    }
+
+    @Test
+    void seekerPointedAtMyShip_isReportedAsClosingOnIt() {
+        // Two hexes north of the Enterprise (10,10) and pointed south, straight down at it.
+        drone("IKV Saber-Drone-1", 10, 8, 13);
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-1");
+
+        assertNotNull(row);
+        assertEquals("DRONE", row.get("kind"));
+        assertEquals("USS Enterprise", row.get("closingOn"));
+    }
+
+    @Test
+    void seekerPointedAway_isClosingOnNothingOfMine() {
+        drone("IKV Saber-Drone-2", 10, 8, 1);   // same hex, pointed north, away from me
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-2");
+
+        assertNotNull(row);
+        assertNull(row.get("closingOn"), "pointed away, so it is closing on nothing of mine");
+    }
+
+    /**
+     * The inference must stay an inference. A drone's real target is hidden until it is
+     * identified (G4.2), and the row must not carry it under any name — closingOn is computed
+     * from position and facing, which are public.
+     */
+    @Test
+    void closingOn_neverLeaksTheSeekersRealTarget() {
+        com.sfb.objects.Drone d = drone("IKV Saber-Drone-3", 10, 8, 13);
+        d.setTarget(fed);                        // it really is after the Enterprise
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-3");
+
+        assertNotNull(row);
+        assertFalse(row.containsKey("targetName"), "the real target is not the pad's to know");
+        assertFalse(row.containsKey("isIdentified"));
+    }
+
     @Test
     void attackerOffTheMap_hasNoTargets() {
         fed.setLocation(null);
