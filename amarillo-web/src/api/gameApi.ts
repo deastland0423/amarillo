@@ -517,6 +517,22 @@ export const gameApi = {
     );
   },
 
+  /**
+   * Every unit this attacker can fire at, with the figures /fire-options gives for one of
+   * them. One call per ship rather than one per candidate, so the pad can list targets by
+   * name instead of making the player find them on the map.
+   */
+  getFireTargets(
+    gameId: string,
+    playerToken: string,
+    attacker: string,
+  ): Promise<import('../components/FireOrdersPad').FireCandidate[]> {
+    return request(
+      `/api/games/${gameId}/fire-targets?attacker=${encodeURIComponent(attacker)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
   getCoiData(scenarioId: string): Promise<CoiSideData[]> {
     return request(`/api/games/scenarios/${scenarioId}/coi-data`);
   },

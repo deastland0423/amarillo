@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * The /fire-targets endpoint: one call answers "what can this ship shoot?" for a whole ship,
@@ -199,6 +200,86 @@ class FireTargetsEndpointTest {
 
         assertNull(row(targetsFor(HOST, "USS Enterprise"), "IKV Saber"),
                 "a planet in the way means no line of sight (P2.321)");
+    }
+
+    /**
+     * A drone rack bears like anything else, but resolveFire refuses it — it is a Launcher,
+     * not a direct-fire weapon. Offering one and then refusing it at the reveal is worse than
+     * not offering it, so the row filters on the same predicate the refusal uses.
+     * <p>
+     * A plasma launcher is NOT caught by this: it implements DirectFire and fires as a bolt.
+     */
+    @Test
+    void weaponsThatCannotFireDirectly_areNotOffered() {
+        List<String> notDirectFire = klingon.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> !(w instanceof com.sfb.weapons.DirectFire))
+                .map(com.sfb.weapons.Weapon::getName)
+                .toList();
+        assumeTrue(!notDirectFire.isEmpty(),
+                "the D7 needs a launcher for this to prove anything");
+
+        for (Map<String, Object> row : targetsFor(P2, "IKV Saber")) {
+            @SuppressWarnings("unchecked")
+            List<String> bearing = (List<String>) row.get("weaponsInArc");
+            for (String name : notDirectFire)
+                assertFalse(bearing.contains(name),
+                        "offered " + name + ", which could never fire");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // "Closing on": an inference from the board, never a disclosure
+    // -------------------------------------------------------------------------
+
+    /** A drone in the Klingon's hands, placed and pointed by the test. */
+    private com.sfb.objects.Drone drone(String name, int col, int row, int facing) {
+        com.sfb.objects.Drone d = new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI);
+        d.setName(name);
+        d.setLocation(new Location(col, row));
+        d.setFacing(facing);
+        d.setController(klingon);
+        d.setSeekerType(com.sfb.objects.Seeker.SeekerType.DRONE);
+        game.getSeekers().add(d);
+        return d;
+    }
+
+    @Test
+    void seekerPointedAtMyShip_isReportedAsClosingOnIt() {
+        // Two hexes north of the Enterprise (10,10) and pointed south, straight down at it.
+        drone("IKV Saber-Drone-1", 10, 8, 13);
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-1");
+
+        assertNotNull(row);
+        assertEquals("DRONE", row.get("kind"));
+        assertEquals("USS Enterprise", row.get("closingOn"));
+    }
+
+    @Test
+    void seekerPointedAway_isClosingOnNothingOfMine() {
+        drone("IKV Saber-Drone-2", 10, 8, 1);   // same hex, pointed north, away from me
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-2");
+
+        assertNotNull(row);
+        assertNull(row.get("closingOn"), "pointed away, so it is closing on nothing of mine");
+    }
+
+    /**
+     * The inference must stay an inference. A drone's real target is hidden until it is
+     * identified (G4.2), and the row must not carry it under any name — closingOn is computed
+     * from position and facing, which are public.
+     */
+    @Test
+    void closingOn_neverLeaksTheSeekersRealTarget() {
+        com.sfb.objects.Drone d = drone("IKV Saber-Drone-3", 10, 8, 13);
+        d.setTarget(fed);                        // it really is after the Enterprise
+
+        Map<String, Object> row = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber-Drone-3");
+
+        assertNotNull(row);
+        assertFalse(row.containsKey("targetName"), "the real target is not the pad's to know");
+        assertFalse(row.containsKey("isIdentified"));
     }
 
     @Test
