@@ -1433,17 +1433,7 @@ public class GameController {
                     me != null ? me.getShipNames() : java.util.List.<String>of());
 
             List<Map<String, Object>> out = new java.util.ArrayList<>();
-            for (Unit candidate : firePossibilities(session)) {
-                if (candidate == attackerUnit || candidate.getLocation() == null)
-                    continue;
-                if (ownedBy(candidate, mine))
-                    continue;
-                if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                    com.sfb.objects.shuttles.WildWeaselShuttle ww =
-                            (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
-                    if (ww.isExploding() || ww.isPostExplosion())
-                        continue;   // J3.21: the decoy is already spent
-                }
+            for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
                 if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
                     continue;       // P2.321
                 if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
@@ -1499,6 +1489,91 @@ public class GameController {
             }
         }
         return best;
+    }
+
+    /**
+     * Everything on the map this attacker could be pointed at, before the weapon-specific
+     * tests: on the map, not itself, not the caller's own, and not a wild weasel that is
+     * already exploding or spent (J3.21 - the decoy cannot be killed twice).
+     *
+     * Shared by both target endpoints so there is one notion of an attackable unit. What
+     * each of them adds is its own: line of sight and bearing weapons for direct fire, the
+     * tractor restriction for launches.
+     */
+    private List<Unit> attackableCandidates(GameSession session, Unit attackerUnit,
+            java.util.Set<String> mine) {
+        List<Unit> out = new java.util.ArrayList<>();
+        for (Unit candidate : firePossibilities(session)) {
+            if (candidate == attackerUnit || candidate.getLocation() == null)
+                continue;
+            if (ownedBy(candidate, mine))
+                continue;
+            if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                        (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
+                if (ww.isExploding() || ww.isPostExplosion())
+                    continue;
+            }
+            out.add(candidate);
+        }
+        return out;
+    }
+
+    /**
+     * What this ship may send a seeking weapon at.
+     *
+     * Simpler than {@code /fire-targets}: a seeker steers itself, so there is no arc and no
+     * shield facing to resolve. Two target-dependent rules shape the list.
+     * <p>
+     * A tractored ship may only launch seeking weapons at the ship holding it (G7.943, and
+     * G7.91 for plasma). That is unconditional, so a non-holder is not offered.
+     * <p>
+     * A lock-on is needed to launch at a target (D6.121) - EXCEPT that a self-guiding drone
+     * under passive fire control acquires its own after launch (D19.221). Whether the lock-on
+     * matters therefore depends on which seeker is chosen, not on the target, so
+     * {@code hasLockOn} is REPORTED rather than filtered on and core refuses at the reveal
+     * with the citation. Filtering here would hide a legal launch.
+     */
+    @GetMapping("/{id}/launch-targets")
+    public ResponseEntity<?> getLaunchTargets(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            Ship launcher = session.getGame().getShips().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(attacker))
+                    .findFirst().orElse(null);
+            if (launcher == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Ship not found: " + attacker));
+            if (launcher.getLocation() == null)
+                return ResponseEntity.ok(List.of());
+
+            GameSession.PlayerInfo me = session.getPlayers().get(token);
+            java.util.Set<String> mine = new java.util.HashSet<>(
+                    me != null ? me.getShipNames() : java.util.List.<String>of());
+
+            // G7.943: held in a beam, the holder is the only thing it may shoot at.
+            Unit holder = launcher.isTractored() ? launcher.getTractoringUnit() : null;
+
+            List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Unit candidate : attackableCandidates(session, launcher, mine)) {
+                if (holder != null && candidate != holder)
+                    continue;
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", candidate.getName());
+                row.put("kind", candidateKind(candidate));
+                row.put("range", MapUtils.getRange(launcher, candidate));
+                row.put("hasLockOn", launcher.hasLockOn(candidate));
+                out.add(row);
+            }
+            out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
+            return ResponseEntity.ok(out);
+        });
     }
 
     /** A ship or an active shuttle/fighter by name - the things that can fire. */
