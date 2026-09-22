@@ -61,6 +61,14 @@ public class ShipDtoPrivacyTest {
         // manoeuvre (C10.11 vs C10.0).
         "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable", "paidForEm",
         "scoutEwPool", "scoutEwRemaining",
+        // Seeker control channels. controlUsed alone would tell an opponent nothing — every
+        // seeker on the map names its controller, so it can be counted — but the LIMIT is not
+        // visible, and the pair together says how close a ship is to losing tracking on
+        // something already flying. Knowing an enemy sits at 7 of 8 is knowing that their
+        // next launch costs them a drone, which no rule hands over. The limit also carries
+        // the +6 a scout channel lends while it controls seekers (G24.24), and whether a
+        // scout has committed a channel is not an opponent's to know.
+        "controlUsed", "controlLimit",
         // Built empty for an enemy rather than blanked
         "droneRacks", "shuttleBays", "allocationNotes", "setupNotes"
     ));

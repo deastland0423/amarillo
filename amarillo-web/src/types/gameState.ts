@@ -260,6 +260,12 @@ export interface ShipObject extends MapObjectBase {
   tractorEnergy?:              number;    // total tractor energy allocated in EA this turn
   tractorEnergyRemaining?:     number;    // unspent tractor pool energy
   negativeTractorAccumulated?: number;    // cumulative negative-tractor spent this turn (G7.35)
+  /**
+   * Seeker control channels held and available. A launch past the limit does not fail —
+   * something already flying stops being tracked instead.
+   */
+  controlUsed?:                number;
+  controlLimit?:               number;
   availableTractors?:          number;    // number of undamaged tractor beams
   tractoredTargetNames?:       string[];  // names of ships this ship is currently tractoring
   fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown

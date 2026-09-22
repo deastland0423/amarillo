@@ -192,6 +192,25 @@ export default function SeekerOrdersPad({
     return () => { live = false; };
   }, [gameId, playerToken, attackerName, turn, impulse]);
 
+  /**
+   * Seeker control after this round: what a ship holds now, plus what it has drafted.
+   *
+   * A launch past the limit does not fail. Something already flying stops being tracked
+   * instead — first in, first dropped — so the cost of the ninth drone is paid by one of the
+   * eight already out there. That is a loss worth seeing before it happens rather than
+   * noticing afterwards, when the only evidence is a drone that stopped chasing.
+   *
+   * Only seekers occupy a channel: a weasel or an ordinary shuttle is not controlled.
+   */
+  function controlAfter(unitName: string): { used: number; limit: number; drafted: number } {
+    const u = units.find(x => x.name === unitName);
+    const used = u?.ship.controlUsed ?? 0;
+    const limit = u?.ship.controlLimit ?? 0;
+    const drafted = orders.filter(o => o.shipName === unitName
+        && (o.kind === 'PLASMA' || o.kind === 'DRONE' || o.kind === 'SCATTER_PACK')).length;
+    return { used, limit, drafted };
+  }
+
   /** How much of the fleet is already sending something at each target. */
   const aimedAt = useMemo(() => {
     const m = new Map<string, number>();
@@ -282,6 +301,21 @@ export default function SeekerOrdersPad({
                   <span style={{ fontWeight: 600, color: mine.length ? '#e6edf3' : '#f0c040' }}>
                     {u.name}
                   </span>
+                  {(() => {
+                    const c = controlAfter(u.name);
+                    if (c.limit === 0) return null;
+                    const after = c.used + c.drafted;
+                    const over = after > c.limit;
+                    return (
+                      <span style={{ color: over ? '#f85149' : '#8b949e', fontSize: '0.9em',
+                                     whiteSpace: 'nowrap' }}
+                            title={over
+                              ? `${after - c.limit} already flying would stop being tracked`
+                              : 'seeker control channels held, once this round is away'}>
+                        {after}/{c.limit}{over ? ' ⚠' : ''}
+                      </span>
+                    );
+                  })()}
                   <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
                     {mine.length === 0 ? 'launches nothing' : `${mine.length} ord`}
                   </span>
@@ -577,6 +611,19 @@ export default function SeekerOrdersPad({
                         : `${sealed} launch${sealed > 1 ? 'es' : ''} drafted.`}
         </div>
       )}
+
+      {(() => {
+        const over = units
+          .map(u => ({ name: u.name, ...controlAfter(u.name) }))
+          .filter(c => c.limit > 0 && c.used + c.drafted > c.limit);
+        if (over.length === 0) return null;
+        return (
+          <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>
+            ⚠ {over.map(c => `${c.name} would hold ${c.used + c.drafted} of ${c.limit}`).join('; ')}
+            {' '}— the excess stops being tracked, oldest first.
+          </div>
+        );
+      })()}
 
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}
 

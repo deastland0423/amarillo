@@ -311,6 +311,15 @@ public class GameStateDto {
         public double transporterEnergyCost;
         public int availableTractors;
         public int totalTractors;
+        /**
+         * Seeker control channels: how many this ship is holding, and how many it has. A
+         * launch past the limit does not fail — something already flying stops being tracked
+         * instead — which is a loss worth seeing coming rather than discovering. Both scale
+         * with the sensor track, so they move as sensors take damage, and the limit carries
+         * the +6 a scout channel lends while it controls seekers (G24.24).
+         */
+        public int controlUsed;
+        public int controlLimit;
         // Hull box damage state
         public int availableFhull;
         public int availableAhull;
@@ -1112,6 +1121,8 @@ public class GameStateDto {
         dto.availableTransporters = ship.getTransporters().getAvailableTrans();
         dto.totalTransporters = ship.getTransporters().fetchOriginalTotalBoxes();
         dto.transporterEnergyCost = com.sfb.constants.Constants.TRANS_ENERGY;
+        dto.controlUsed = ship.getControlUsed();
+        dto.controlLimit = ship.getControlLimit();
         dto.availableTractors = ship.getTractors().fetchRemainingTotalBoxes();
         dto.totalTractors = ship.getTractors().fetchOriginalTotalBoxes();
 
@@ -1542,6 +1553,13 @@ public class GameStateDto {
 
         // Who he has lock-on to.
         dto.lockOnTargets = new ArrayList<>();
+
+        // Seeker control. What he holds could be counted off the map — every seeker names its
+        // controller — but the LIMIT cannot, and the pair says how close he is to losing
+        // tracking on something already flying. The limit would also give away a scout
+        // channel committed to controlling seekers (G24.24).
+        dto.controlUsed = 0;
+        dto.controlLimit = 0;
 
         // Tactical manoeuvre budget, and the availability that would give it away.
         dto.tacBudget = 0;
