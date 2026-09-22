@@ -184,6 +184,12 @@ const WORK_COL: React.CSSProperties = { ...COL, flex: '2 1 26rem' };
  * level with the first line floats above the second — the heading governs the whole rack,
  * and a cell of the same height says so.
  */
+/** Names a control that sits inside a row, where a column heading cannot reach it. */
+const CONTROL_LABEL: React.CSSProperties = {
+  fontSize: '0.62rem', letterSpacing: '0.06em', textTransform: 'uppercase',
+  color: '#8b949e', lineHeight: 1.1,
+};
+
 const CELL: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
   border: '1px solid #21262d', borderRadius: 4, background: 'rgba(255,255,255,0.03)',
@@ -380,16 +386,21 @@ export default function LaunchOrdersPad({
     const cap = craft.effectiveMaxSpeed;
     const at  = speedOf(craft);
     const em  = cap < craft.maxSpeed;
+    // Three bare controls say nothing about what they set, and the column heading is too
+    // far above to reach a row halfway down, so the word sits on the group itself.
     return (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             title={em ? `up to ${cap}: a point of speed is committed to erratic maneuvers (C10.13)`
                       : `launch speed, up to ${cap}`}>
-        <button className="secondary" style={{ padding: '0 5px' }} disabled={at <= 0}
-                onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at - 1 }))}>−</button>
-        <span style={{ minWidth: 16, textAlign: 'center',
-                       color: em ? '#f0c040' : undefined }}>{at}</span>
-        <button className="secondary" style={{ padding: '0 5px' }} disabled={at >= cap}
-                onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at + 1 }))}>+</button>
+        <span style={CONTROL_LABEL}>speed</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button className="secondary" style={{ padding: '0 5px' }} disabled={at <= 0}
+                  onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at - 1 }))}>−</button>
+          <span style={{ minWidth: 16, textAlign: 'center',
+                         color: em ? '#f0c040' : undefined }}>{at}</span>
+          <button className="secondary" style={{ padding: '0 5px' }} disabled={at >= cap}
+                  onClick={() => setSpeeds(m => ({ ...m, [craft.name]: at + 1 }))}>+</button>
+        </span>
       </span>
     );
   }
@@ -466,19 +477,24 @@ export default function LaunchOrdersPad({
     const allowed = allowedByKey.get(key) ?? ALL_FACINGS;
     const dead = allowed.size === 0;
     const ok = legalHeading(key);
+    // Named like the speed stepper beside it: "auto D" is not self-explanatory, and the
+    // column heading is too far above a row halfway down the list to do the naming.
     return (
-      <button className={picked === 0 ? 'secondary' : ''}
-              style={{ padding: '0 6px', minWidth: '3.6rem',
-                       borderColor: ok ? undefined : '#f85149' }}
-              disabled={dead}
-              title={dead ? 'no direction this could leave on and still track its target'
-                   : picked === 0
-                     ? `auto — ${FACING_LABEL[autoFor(key)]}; click to choose another`
-                     : `launches ${FACING_LABEL[picked]}; click to change`}
-              onClick={() => setPickerFor(k => (k === key ? null : key))}>
-        {picked === 0 ? `auto ${FACING_LABEL[autoFor(key)]} ▸`
-                      : `${FACING_LABEL[picked]} ▸`}
-      </button>
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span style={CONTROL_LABEL}>heading</span>
+        <button className={picked === 0 ? 'secondary' : ''}
+                style={{ padding: '0 6px', minWidth: '3.6rem',
+                         borderColor: ok ? undefined : '#f85149' }}
+                disabled={dead}
+                title={dead ? 'no direction this could leave on and still track its target'
+                     : picked === 0
+                       ? `auto — ${FACING_LABEL[autoFor(key)]}; click to choose another`
+                       : `launches ${FACING_LABEL[picked]}; click to change`}
+                onClick={() => setPickerFor(k => (k === key ? null : key))}>
+          {picked === 0 ? `auto ${FACING_LABEL[autoFor(key)]} ▸`
+                        : `${FACING_LABEL[picked]} ▸`}
+        </button>
+      </span>
     );
   }
 
@@ -635,7 +651,7 @@ export default function LaunchOrdersPad({
               <>
                 {/* Each row says where its own launch goes; the button opens the picker. */}
                 <div style={{ fontSize: '0.72rem', color: '#8b949e', marginBottom: 4 }}>
-                  Each launch carries its own heading — the button on its row.
+                  Each launch carries its own heading and speed.
                 </div>
 
                 {plasma.length === 0 && racks.length === 0
