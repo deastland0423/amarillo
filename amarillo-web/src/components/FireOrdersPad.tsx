@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
+import WeaponDamageTooltip from './WeaponDamageTooltip';
 import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
 
 /**
@@ -244,6 +245,7 @@ export default function FireOrdersPad({
   const [sel, setSel] = useState<{ attacker: string | null; target: string | null; picked: Set<string> }>(
       { attacker: null, target: null, picked: new Set() });
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const drag = useDraggable(savedPosition());
 
   // Remembered across impulses: this panel reappears 32 times a turn, and one that keeps
@@ -494,10 +496,16 @@ export default function FireOrdersPad({
                   : w && w.isHeavy && !w.armed ? 'unarmed'
                   : w && !w.readyToFire ? 'on cooldown'
                   : null;
-                const rows = w ? previewFor(w, target.range, target.adjustedRange) : null;
-                const best = rows && rows.length ? Math.max(...rows.map(r => r.damage)) : null;
                 return (
-                  <label key={name} style={{ ...ROW, cursor: unavailable ? 'default' : 'pointer' }}>
+                  <label
+                    key={name}
+                    // position: relative anchors the tooltip, which places itself at the
+                    // bottom-left of whatever it sits in.
+                    style={{ ...ROW, position: 'relative',
+                             cursor: unavailable ? 'default' : 'pointer' }}
+                    onMouseEnter={() => setHoveredWeapon(name)}
+                    onMouseLeave={() => setHoveredWeapon(null)}
+                  >
                     <input
                       type="checkbox"
                       disabled={!!unavailable}
@@ -519,8 +527,18 @@ export default function FireOrdersPad({
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                     )}
                     <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
-                      {unavailable ?? (best != null ? `up to ${best}` : '')}
+                      {unavailable ?? ''}
                     </span>
+                    {/* The whole table, die by die — a single "up to N" was a worse
+                        summary of it than the thing itself. */}
+                    {hoveredWeapon === name && w && (
+                      <WeaponDamageTooltip
+                        w={w}
+                        range={target.range}
+                        adjustedRange={target.adjustedRange}
+                        directFire
+                      />
+                    )}
                   </label>
                 );
               })}

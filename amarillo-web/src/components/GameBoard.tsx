@@ -14,6 +14,7 @@ import {
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
+import WeaponDamageTooltip from './WeaponDamageTooltip';
 import type { FiringUnit } from './FireOrdersPad';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
@@ -22,7 +23,6 @@ import { BlindChoiceDialog } from './BlindChoiceDialog';
 import { AttractChoiceDialog } from './AttractChoiceDialog';
 import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
-import { getWeaponDamagePreview, getPlasmaBoltPreview } from '../weaponDamageTables';
 
 interface Props {
   session: LobbyResult;
@@ -930,57 +930,6 @@ interface FireOptions {
 }
 
 // ---- Weapon damage preview tooltip ----
-
-function WeaponDamageTooltip({
-  w, range, adjustedRange, directFire,
-}: {
-  w:             WeaponState;
-  range:         number;
-  adjustedRange: number;
-  directFire:    boolean;
-}) {
-  const rows = w.launcherType
-    ? getPlasmaBoltPreview(w.plasmaType, range)
-    : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, directFire);
-  if (!rows) return null;
-
-  const isRollTable = rows.length === 6;
-  const label       = w.launcherType
-    ? ` — ${w.plasmaType ?? w.launcherType} bolt`
-    : w.armingType && w.armingType !== 'STANDARD'
-      ? ` (${w.armingType.toLowerCase()})`
-      : '';
-
-  return (
-    <div className="dmg-tooltip">
-      <div className="dmg-tooltip-header">Range {range}{label}</div>
-      {isRollTable ? (
-        <table className="dmg-tooltip-table">
-          <thead>
-            <tr><th>Die</th><th>Dmg</th></tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.roll} className={r.damage === 0 ? 'dmg-zero' : ''}>
-                <td>{r.roll}</td>
-                <td>{r.damage}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="dmg-tooltip-rows">
-          {rows.map(r => (
-            <div key={r.roll} className={`dmg-tooltip-row ${r.damage === 0 ? 'dmg-zero' : ''}`}>
-              <span className="dmg-roll-label">{r.roll}</span>
-              <span className="dmg-val">{r.damage}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface FirePanelProps {
   attacker:        ShipObject;
