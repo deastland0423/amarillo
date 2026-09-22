@@ -1522,8 +1522,13 @@ public class GameController {
     /**
      * What this ship may send a seeking weapon at.
      *
-     * Simpler than {@code /fire-targets}: a seeker steers itself, so there is no arc and no
-     * shield facing to resolve. Two target-dependent rules shape the list.
+     * Simpler than {@code /fire-targets} but not arc-free. A drone rack sends one any way it
+     * likes, so for drones any candidate will do; a PLASMA LAUNCHER has an arc, and what the
+     * arc constrains is the launch direction (FP1.3) — which, when the player names no
+     * direction, is the bearing to the target. So each row reports the launchers that could
+     * actually send one that way, and a target dead astern comes back with none.
+     * <p>
+     * Two more target-dependent rules shape the list itself.
      * <p>
      * A tractored ship may only launch seeking weapons at the ship holding it (G7.943, and
      * G7.91 for plasma). That is unconditional, so a non-holder is not offered.
@@ -1569,11 +1574,38 @@ public class GameController {
                 row.put("kind", candidateKind(candidate));
                 row.put("range", MapUtils.getRange(launcher, candidate));
                 row.put("hasLockOn", launcher.hasLockOn(candidate));
+                row.put("plasmaLaunchers", plasmaLaunchersBearing(launcher, candidate));
                 out.add(row);
             }
             out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
             return ResponseEntity.ok(out);
         });
+    }
+
+    /**
+     * Plasma launchers that could send a torpedo toward this target.
+     *
+     * Tested against the launcher's FIRING arc, which is what limits what it may target -
+     * not against its launch directions, which are a different and often narrower thing. A
+     * Romulan KR's Plasma-G launches straight ahead only, yet may target anything in FA, so
+     * judging targets by the launch directions would wrongly rule out most of the arc.
+     * <p>
+     * Drone racks are absent by design: a rack has no arc, so every candidate is reachable
+     * and a list of them would say nothing.
+     */
+    private List<String> plasmaLaunchersBearing(Ship launcherShip, Unit target) {
+        List<String> out = new java.util.ArrayList<>();
+        int bearing = MapUtils.getBearing(launcherShip.getLocation(), target.getLocation());
+        if (bearing == 0)
+            return out;                       // same hex: no bearing exists to test
+        int relative = MapUtils.getRelativeBearing(bearing, launcherShip.getFacing());
+        for (com.sfb.weapons.Weapon w : launcherShip.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.PlasmaLauncher) || !w.isFunctional())
+                continue;
+            if (com.sfb.utilities.ArcUtils.inArc(relative, w.getArcs()))
+                out.add(w.getName());
+        }
+        return out;
     }
 
     /** A ship or an active shuttle/fighter by name - the things that can fire. */

@@ -18,8 +18,12 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * /launch-targets: what a ship may send a seeking weapon at.
  * <p>
- * Simpler than its direct-fire twin — a seeker steers, so there is no arc and no shield
- * facing. What is worth pinning is the split between the two target-dependent rules: the
+ * Simpler than its direct-fire twin, but not arc-free: a drone rack sends one any way it
+ * likes, while a plasma launcher has an arc, and what that arc constrains is the launch
+ * DIRECTION (FP1.3) — the bearing to the target, when no direction is named. So a target
+ * astern is still a candidate, with no launcher able to send one there.
+ * <p>
+ * What is also worth pinning is the split between the two target-dependent rules: the
  * tractor restriction (G7.943) is unconditional and so removes candidates, while the lock-on
  * requirement (D6.121) has an exception for a self-guiding drone under passive fire control
  * (D19.221) and so is only REPORTED. Filtering on the lock-on would hide a legal launch.
@@ -112,16 +116,48 @@ class LaunchTargetsEndpointTest {
     }
 
     /**
-     * No arc, so a target far outside every weapon's arc is still a legal launch — a seeker
-     * steers. This is the main way the launch list differs from the fire list.
+     * A target astern is still a CANDIDATE — a drone rack has no arc and will send one
+     * anywhere. What it is not is a plasma target: the Enterprise carries no launchers at
+     * all, and the point of the field is that a ship which does would show an empty list
+     * here. See plasmaLaunchers_listOnlyThoseThatCanSendOneThatWay.
      */
     @Test
-    void aTargetBehindTheShipIsStillACandidate() {
+    void aTargetAsternIsStillACandidateForADrone() {
         klingon.setLocation(new Location(10, 14));   // astern of a ship facing 1
 
         Map<String, Object> saber = row(targetsFor(HOST, "USS Enterprise"), "IKV Saber");
 
-        assertNotNull(saber, "a seeker does not need the target in an arc");
+        assertNotNull(saber, "a drone does not need the target in an arc");
+    }
+
+    /**
+     * A plasma launcher does have an arc, and it constrains the launch DIRECTION (FP1.3).
+     * The Romulan KR's Plasma-G launchers are set to direction 1 only — dead ahead — so a
+     * target ahead lists them and a target astern lists none, while remaining a candidate
+     * because a drone could still be sent.
+     */
+    @Test
+    void plasmaLaunchers_listOnlyThoseThatCanSendOneThatWay() {
+        Ship romulan = new Ship();
+        romulan.init(com.sfb.samples.RomulanShips.getRomKr());
+        romulan.setName("IRW Gauntlet");
+        romulan.setLocation(new Location(10, 10));
+        romulan.setFacing(1);
+        game.getShips().add(romulan);
+        session.getPlayers().get(HOST).getCorePlayer().getPlayerUnits().add(romulan);
+
+        klingon.setLocation(new Location(10, 6));     // dead ahead
+        @SuppressWarnings("unchecked")
+        List<String> ahead = (List<String>)
+                row(targetsFor(HOST, "IRW Gauntlet"), "IKV Saber").get("plasmaLaunchers");
+        assertFalse(ahead.isEmpty(), "forward launchers bear on something dead ahead");
+
+        klingon.setLocation(new Location(10, 14));    // dead astern
+        Map<String, Object> astern = row(targetsFor(HOST, "IRW Gauntlet"), "IKV Saber");
+        assertNotNull(astern, "still a candidate — a drone could go");
+        @SuppressWarnings("unchecked")
+        List<String> behind = (List<String>) astern.get("plasmaLaunchers");
+        assertTrue(behind.isEmpty(), "but no launcher can send one backwards: " + behind);
     }
 
     @Test

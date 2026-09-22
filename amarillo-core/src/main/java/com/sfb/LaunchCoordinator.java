@@ -313,14 +313,29 @@ class LaunchCoordinator {
         }
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
-        // Validate launch facing is within the launcher's allowed directions
-        // (ship-relative arc)
+        // TWO different constraints, and they are not the same arc.
+        //
+        // The TARGET must lie in the launcher's firing arc: a plasma launcher has one, unlike
+        // a drone rack, which will send one any way it likes. This test was missing entirely,
+        // so a forward launcher could target something dead astern.
+        int bearing = MapUtils.getBearing(launcher, target);
+        if (bearing > 0) {            // 0 = same hex, where no bearing exists
+            int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
+            if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
+                return ActionResult.fail(weapon.getName() + " cannot target "
+                        + target.getName() + " — outside launcher arc");
+        }
+        // The launch DIRECTION, separately, must be one the tube can use. Narrower than the
+        // firing arc on real ships: a Romulan KR's Plasma-G launches straight ahead only, yet
+        // may target anything in FA. So this is checked against launchDirections and only
+        // when a direction is actually named.
         if (facing > 0) {
-            int launchDirs = weapon.getLaunchDirections() != 0 ? weapon.getLaunchDirections() : weapon.getArcs();
+            int launchDirs = weapon.getLaunchDirections() != 0
+                    ? weapon.getLaunchDirections() : weapon.getArcs();
             int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
             if (!ArcUtils.inArc(relFacing, launchDirs))
-                return ActionResult
-                        .fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
+                return ActionResult.fail(weapon.getName() + " cannot launch in direction "
+                        + facing + " — outside launcher arc");
         }
 
         PlasmaTorpedo torpedo = weapon.launch();
