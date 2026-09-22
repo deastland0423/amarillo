@@ -8,8 +8,8 @@ import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
-import SeekerOrdersPad from './SeekerOrdersPad';
-import type { LaunchingUnit, LaunchOrder } from './SeekerOrdersPad';
+import LaunchOrdersPad from './LaunchOrdersPad';
+import type { LaunchingUnit, LaunchOrder } from './LaunchOrdersPad';
 import type { FiringUnit } from './FireOrdersPad';
 import EnergyAllocationDialog from './EnergyAllocationDialog';
 import { ReinforcementDialog } from './ReinforcementDialog';
@@ -69,7 +69,7 @@ function weaponLabel(w: WeaponState): string {
  * What a seeker may be LAUNCHED at.
  *
  * This is the last rules mirror in this file, and it is on borrowed time: the direct-fire
- * version of it became /fire-targets, and launching is due the same treatment (the seeker pad).
+ * version of it became /fire-targets, and launching is due the same treatment (the launch pad).
  * Until then it stays, because deleting it would silently change what a launch may target.
  * It carries J3.21 — a weasel already exploding or reduced to radiation cannot be attacked.
  */
@@ -795,7 +795,7 @@ function ShipSidebar({
           {phase === 'Activity' && (
             <>
               <div className="action-btn-row">
-                {/* Seekers, shuttles and weasels all launch from the Seeker Orders pad now,
+                {/* Seekers, shuttles and weasels all launch from the Launch Orders pad now,
                     which is on screen for the whole segment. Three buttons that opened three
                     panels are three ways to reach one thing. */}
                 {/* Erratic Maneuvers (C10.0) — announced in the Final Movement Actions
@@ -2120,7 +2120,7 @@ export default function GameBoard({ session, onLeave }: Props) {
   const myCommitted = committedRound === roundKey;
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
-  // Launching is composed in the Seeker Orders pad now, which holds its own draft: there is
+  // Launching is composed in the Launch Orders pad now, which holds its own draft: there is
   // no mode to be in and no half-built launch to keep here.
   // T-bomb placement state
   const [tBombMode,         setTBombMode]         = useState(false);
@@ -4167,10 +4167,10 @@ export default function GameBoard({ session, onLeave }: Props) {
 
       </div>
 
-      {/* The Seeker Orders pad (Annex #2, 6B) — launches, sealed and revealed together.
+      {/* The Launch Orders pad (Annex #2, 6B) — launches, sealed and revealed together.
           A separate round from the fire one below, in a different segment. */}
       {isActivityPhase && !launchCommitted && (
-        <SeekerOrdersPad
+        <LaunchOrdersPad
           gameId={session.gameId}
           playerToken={session.playerToken}
           turn={gameState?.turn ?? 0}

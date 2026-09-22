@@ -542,7 +542,7 @@ export const gameApi = {
     gameId: string,
     playerToken: string,
     attacker: string,
-  ): Promise<import('../components/SeekerOrdersPad').LaunchCandidate[]> {
+  ): Promise<import('../components/LaunchOrdersPad').LaunchCandidate[]> {
     return request(
       `/api/games/${gameId}/launch-targets?attacker=${encodeURIComponent(attacker)}`,
       { headers: { 'X-Player-Token': playerToken } },

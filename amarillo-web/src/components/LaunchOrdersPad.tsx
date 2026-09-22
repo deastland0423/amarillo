@@ -7,10 +7,16 @@ import { allowedFacingsFromMask, bearsOn, hexGetBearingBetween } from '../hex/ge
 import { FacingPicker } from './FacingPicker';
 
 /**
- * The Seeker Orders pad — launches, sealed and revealed together (Annex #2, 6B).
+ * The Launch Orders pad — launches, sealed and revealed together (Annex #2, 6B).
  *
  * The launch half of what the Fire Orders pad did for direct fire, and the same diagnosis:
  * a launch used to be composed by finding the ship, finding the rack, and clicking the map.
+ *
+ * Everything that leaves a ship is here: plasma and drones, but also suicide shuttles,
+ * scatterpacks, weasels, admin shuttles and fighters. It was called the Seeker Orders pad
+ * while it only sent seeking weapons — a name that then misdescribed the rows it grew, since
+ * a wild weasel is precisely NOT a seeker. Not "Activity orders" either: that is the
+ * segment's name, and the segment also holds tractors, transporters and labs.
  *
  * A separate round from the fire one, because it belongs to a different segment: seeking
  * weapons resolve in stage 6B6 and shuttles in 6B8, so in one impulse the drones are away
@@ -169,7 +175,9 @@ const ROW: React.CSSProperties = {
   font: 'inherit', fontSize: '0.85em', textAlign: 'left', cursor: 'pointer', width: '100%',
 };
 
-const POSITION_KEY = 'amarillo-seeker-pad-position';
+const POSITION_KEY = 'amarillo-launch-pad-position';
+/** What the key was called while the pad was the Seeker Orders pad. */
+const LEGACY_POSITION_KEY = 'amarillo-seeker-pad-position';
 
 function savedPosition(): { left: number; top: number } {
   const fallback = {
@@ -177,7 +185,8 @@ function savedPosition(): { left: number; top: number } {
     top: Math.max(60, (typeof window === 'undefined' ? 800 : window.innerHeight) - 470),
   };
   try {
-    const raw = localStorage.getItem(POSITION_KEY);
+    const raw = localStorage.getItem(POSITION_KEY)
+             ?? localStorage.getItem(LEGACY_POSITION_KEY);
     if (!raw) return fallback;
     const p = JSON.parse(raw) as { left?: number; top?: number };
     if (typeof p.left !== 'number' || typeof p.top !== 'number') return fallback;
@@ -190,7 +199,7 @@ function savedPosition(): { left: number; top: number } {
   }
 }
 
-export default function SeekerOrdersPad({
+export default function LaunchOrdersPad({
   gameId, playerToken, turn, impulse,
   units, attackerName, onSelectAttacker, targetName, onSelectTarget,
   orders, onAddOrder, onRemoveOrder,
@@ -453,7 +462,7 @@ export default function SeekerOrdersPad({
   return (
     <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top }}>
       <div style={HEADER} {...drag.handleProps} title="Drag to move">
-        <span style={{ color: JADE, fontWeight: 600 }}>☢ Seeker orders</span>
+        <span style={{ color: JADE, fontWeight: 600 }}>☢ Launch orders</span>
         <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
           turn {turn}, impulse {impulse} —{' '}
           {declarationOpen
