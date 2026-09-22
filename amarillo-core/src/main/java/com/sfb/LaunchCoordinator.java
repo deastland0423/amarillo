@@ -134,7 +134,12 @@ class LaunchCoordinator {
             return ActionResult.fail("Shuttle bay is not ready to launch");
 
         int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
-        int wwSpeed = Math.max(0, Math.min(6, speed));
+        // A weasel may move at anything up to the MAX SPEED OF THE SHUTTLE IT IS BUILT FROM.
+        // This was a hardcoded 6 — an admin shuttle's figure — which J3.18 makes wrong the
+        // moment anything else is charged: any non-fighter shuttle may serve, and they do not
+        // all move at six. effectiveMaxSpeed, like the plain shuttle path, so a point of
+        // speed committed to erratic maneuvers is honoured too (C10.13).
+        int wwSpeed = Math.max(0, Math.min(foundShuttle.effectiveMaxSpeed(), speed));
 
         // Built FROM the shuttle being charged, so it keeps that shuttle's hull, speed and
         // type rather than assuming an admin shuttle's (J3.18 allows any non-fighter).
@@ -568,7 +573,11 @@ class LaunchCoordinator {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
-        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
+        // effectiveMaxSpeed, not getMaxSpeed: the same figure the plain shuttle launch uses,
+        // so a suicide shuttle that has committed a point of speed to erratic maneuvers is
+        // bounded like any other shuttle (C10.13).
+        bay.launch(shuttle, Math.max(0, Math.min(speed, shuttle.effectiveMaxSpeed())),
+                facing, game.getAbsoluteImpulse());
         shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
