@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CAR+",
+  "typeName": "Heavy Cruiser",
   "line": "CA",
   "name": "USS Intrepid",
   "serviceYear": 165,

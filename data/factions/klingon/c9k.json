@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C9K",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "IKS Carnivorous",
   "serviceYear": 175,

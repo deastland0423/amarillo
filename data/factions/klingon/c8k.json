@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C8K",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "IKS Admiral Kang",
   "serviceYear": 168,

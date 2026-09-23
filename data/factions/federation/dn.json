@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DN",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "USS Federation",
   "serviceYear": 148,

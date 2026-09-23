@@ -1,6 +1,7 @@
 {
   "faction": "Tholian",
   "type": "PC+",
+  "typeName": "Improved Patrol Corvette",
   "line": "FF",
   "name": "TDFS Safeguard",
   "serviceYear": 98,

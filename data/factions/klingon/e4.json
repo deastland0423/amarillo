@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "E4",
+  "typeName": "E4 Escort",
   "line": "FF",
   "name": "IKS Adamant",
   "serviceYear": 121,

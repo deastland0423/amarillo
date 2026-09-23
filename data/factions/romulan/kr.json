@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "KR",
+  "typeName": "KR Cruiser",
   "line": "CA",
   "name": "RIS Talon",
   "serviceYear": 160,

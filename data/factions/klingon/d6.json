@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D6",
+  "typeName": "D6 Battlecruiser",
   "line": "CA",
   "name": "IKS Barbarous",
   "serviceYear": 122,

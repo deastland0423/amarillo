@@ -1,0 +1,86 @@
+{
+  "faction": "Kzinti",
+  "type": "SF+",
+  "typeName": "Scout Frigate",
+  "line": "FF",
+  "name": "#209",
+  "serviceYear": 127,
+  "bpv": 56,
+  "epv": 90,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 3,
+  "tokenArt": "kzinti/ff.png",
+  
+  "shields": [15, 12, 12, 12, 12, 12],
+  
+  "hullBoxes": {
+    "fhull": 3,
+    "ahull": 6
+  },
+  
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "centerWarp": 4,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 1, 4, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 18,
+    "boardingParties": 4,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]}
+
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 2,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 1 }
+    ],
+    "adds": []
+  }
+
+}

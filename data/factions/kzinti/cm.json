@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CM",
+  "typeName": "Medium Cruiser",
   "line": "CW",
   "name": "KHS Frenzy",
   "serviceYear": 170,

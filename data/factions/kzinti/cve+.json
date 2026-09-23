@@ -1,33 +1,33 @@
 {
   "faction": "Kzinti",
-  "type": "CVL",
-  "typeName": "Light Carrier",
-  "line": "CA",
-  "name": "KHS Tempest",
-  "serviceYear": 166,
-  "bpv": 117,
-  "turnMode": "C",
+  "type": "CVE+",
+  "typeName": "Escort Carrier",
+  "line": "CL",
+  "name": "KHS Starburst",
+  "serviceYear": 170,
+  "bpv": 101,
+  "turnMode": "B",
   "sizeClass": 3,
-  "moveCost": 1.0,
+  "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 8,
+  "commandRating": 6,
   "isTrueCarrier": true,
-  "tokenArt": "kzinti/bc.png",
+  "tokenArt": "kzinti/cl.png",
   
-  "shields": [24, 22, 22, 22, 22, 22],
+  "shields": [18, 16, 16, 16, 16, 16],
   
   "hullBoxes": {
     "fhull": 5,
-    "ahull": 12
+    "ahull": 8
   },
   
   "power": {
-    "leftWarp": 9,
-    "rightWarp": 9,
-    "centerWarp": 9,
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "centerWarp": 6,
     "impulse": 4,
-    "apr": 3,
+    "apr": 4,
     "battery": 3
   },
   
@@ -39,48 +39,47 @@
   },
 
   "tables": {
-    "damageControl": [4, 4, 2, 2, 2, 0],
+    "damageControl": [4, 2, 2, 2, 0],
     "sensor": [6, 6, 6, 4, 1, 0],
     "scanner": [0, 1, 2, 3, 5, 9],
-    "excess": 6
+    "excess": 5
   },
 
   "auxiliary": {
     "transporters": 3,
     "tractors": 2,
-    "labs": 2,
+    "labs": 1,
     "probes": 1,
     "derfacs": true
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
+    { "shuttles": ["admin", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
   ],
 
   "crewData": {
-    "totalCrew": 40,
-    "boardingParties": 15,
-    "deckCrews": 9,
+    "totalCrew": 30,
+    "boardingParties": 10,
+    "deckCrews": 6,
     "minCrew": 4
   },
 
   "weapons": [
-    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
-    { "type": "Phaser3", "designator": "7", "arcs": ["FULL"] },
-    { "type": "Phaser3", "designator": "8", "arcs": ["FULL"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
-    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA", "R"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
-
   ],
 
   "y175Upgrades": {

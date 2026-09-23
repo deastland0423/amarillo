@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "KRB",
+  "typeName": "KRB Cruiser",
   "line": "CA",
   "name": "RIS Talon",
   "serviceYear": 170,

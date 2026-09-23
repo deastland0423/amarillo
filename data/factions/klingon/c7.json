@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C7",
+  "typeName": "Heavy Battlecruiser",
   "line": "BCH",
   "name": "IKS War",
   "serviceYear": 177,

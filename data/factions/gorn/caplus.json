@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "CA+",
+  "typeName": "Heavy Cruiser",
   "line": "CA",
   "name": "GCS Serpenticon",
   "serviceYear": 170,

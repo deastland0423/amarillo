@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C8B",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "IKS Terror",
   "serviceYear": 168,

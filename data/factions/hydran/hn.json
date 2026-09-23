@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "HN",
+  "typeName": "Hunter Frigate",
   "line": "FF",
   "name": "HMS Faithful",
   "serviceYear": 134,

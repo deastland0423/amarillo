@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D5L",
+  "typeName": "War Cruiser Leader",
   "line": "CW",
   "name": "IKS Rogueslayer",
   "serviceYear": 175,

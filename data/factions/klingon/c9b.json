@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "C9B",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "IKS Atrocity",
   "serviceYear": 168,

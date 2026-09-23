@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "BC",
+  "typeName": "Battlecruiser",
   "line": "CA",
   "name": "GCS Reptilicon",
   "serviceYear": 175,

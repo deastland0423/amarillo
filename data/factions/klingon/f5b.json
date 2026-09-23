@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "F5B",
+  "typeName": "F5B Frigate",
   "line": "DD",
   "name": "IKS Ardent",
   "serviceYear": 165,

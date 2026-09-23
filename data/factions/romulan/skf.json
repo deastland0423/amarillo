@@ -1,11 +1,12 @@
 {
   "faction": "Romulan",
-  "type": "SKA",
-  "typeName": "Skyhawk Destroyer",
+  "type": "SKF",
+  "typeName": "Skyhawk Scout",
   "line": "DD",
   "name": "RIS Arrow",
   "serviceYear": 168,
-  "bpv": 102,
+  "bpv": 90,
+  "epv": 110,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.5,
@@ -26,7 +27,7 @@
     "rightWarp": 8,
     "impulse": 2,
     "apr": 3,
-    "battery": 6
+    "battery": 2
   },
   
   "control": {
@@ -46,13 +47,13 @@
   "auxiliary": {
     "transporters": 2,
     "tractors": 4,
-    "labs": 2,
+    "labs": 4,
     "probes": 1,
     "cloakCost": 6
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "admin"] }
+    { "shuttles": ["admin", "admin"] }
   ],
 
   "crewData": {
@@ -68,8 +69,10 @@
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
-    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "4" },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]

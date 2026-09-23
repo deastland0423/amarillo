@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CMC",
+  "typeName": "Commando Cruiser",
   "line": "CL",
   "name": "USS Nightingale",
   "serviceYear": 125,

@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "SPA",
+  "typeName": "Sparrowhawk Cruiser",
   "line": "CW",
   "name": "RIS Adversary",
   "serviceYear": 168,

@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "K5RB",
+  "typeName": "K5RB Frigate",
   "line": "DD",
   "name": "RIS Centaurii",
   "serviceYear": 170,

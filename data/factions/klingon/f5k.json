@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "F5K",
+  "typeName": "F5K Frigate",
   "line": "DD",
   "name": "IKS Blood Chariot",
   "serviceYear": 175,

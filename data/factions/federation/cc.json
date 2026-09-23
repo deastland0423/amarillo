@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CC",
+  "typeName": "Command Cruiser",
   "line": "CA",
   "name": "USS Kongo",
   "serviceYear": 130,

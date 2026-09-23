@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "WB+",
+  "typeName": "Warbird Cruiser",
   "line": "CA",
   "name": "RIS Avian Fury",
   "serviceYear": 140,

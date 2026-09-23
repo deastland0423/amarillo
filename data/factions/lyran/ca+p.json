@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "CA+p",
+  "typeName": "Tiger Heavy Cruiser",
   "line": "CA",
   "name": "Conciliator's Claw",
   "serviceYear": 168,

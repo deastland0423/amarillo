@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "L-Q",
+  "typeName": "Large Q-Ship",
   "line": "F-L",
   "name": "Ambush Predator",
   "serviceYear": 130,

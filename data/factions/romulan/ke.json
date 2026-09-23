@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "KE",
+  "typeName": "King Eagle Command Cruiser",
   "line": "CA",
   "name": "RIS Audax",
   "serviceYear": 169,

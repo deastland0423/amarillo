@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "F5C",
+  "typeName": "F5C Destroyer",
   "line": "DD",
   "name": "IKS Axe Lord",
   "serviceYear": 143,

@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "E4B",
+  "typeName": "E4B Escort",
   "line": "FF",
   "name": "IKS Guardian",
   "serviceYear": 165,

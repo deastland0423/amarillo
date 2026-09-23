@@ -1,0 +1,92 @@
+{
+  "faction": "Kzinti",
+  "type": "CVE",
+  "typeName": "Escort Carrier",
+  "line": "CL",
+  "name": "KHS Inferno",
+  "serviceYear": 166,
+  "bpv": 89,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "isTrueCarrier": true,
+  "tokenArt": "kzinti/cl.png",
+  
+  "shields": [18, 16, 16, 16, 16, 16],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 8
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "centerWarp": 6,
+    "impulse": 4,
+    "apr": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 4, 1, 0],
+    "scanner": [0, 1, 2, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 2,
+    "labs": 1,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
+  ],
+
+  "crewData": {
+    "totalCrew": 30,
+    "boardingParties": 10,
+    "deckCrews": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["RF", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 6,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 1 }
+    ],
+    "adds": [
+      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+    ]
+  }
+
+}

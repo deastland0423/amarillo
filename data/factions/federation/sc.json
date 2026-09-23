@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "SC",
+  "typeName": "Scout",
   "line": "DD",
   "name": "USS De Gama",
   "serviceYear": 130,

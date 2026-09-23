@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "CL",
+  "typeName": "Panther Light Cruiser",
   "line": "CL",
   "name": "Blood of Heroes",
   "serviceYear": 120,

@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "MEC",
+  "typeName": "Medium Escort Cruiser",
   "line": "CW",
   "name": "KHS Frenzy",
   "serviceYear": 170,

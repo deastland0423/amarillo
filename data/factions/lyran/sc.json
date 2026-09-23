@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "SC",
+  "typeName": "Ocelot Scout",
   "line": "DD",
   "name": "Bloodhound",
   "serviceYear": 120,

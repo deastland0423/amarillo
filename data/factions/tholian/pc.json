@@ -1,6 +1,7 @@
 {
   "faction": "Tholian",
   "type": "PC",
+  "typeName": "Patrol Corvette",
   "line": "FF",
   "name": "TDFS Avoidance",
   "serviceYear": 83,

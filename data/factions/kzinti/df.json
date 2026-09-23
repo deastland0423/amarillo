@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "DF",
+  "typeName": "Drone Frigate",
   "line": "FF",
   "name": "KHS #420",
   "serviceYear": 134,
