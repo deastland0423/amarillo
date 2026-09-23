@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CC",
+  "typeName": "Command Cruiser",
   "line": "CA",
   "name": "KHS White Dwarf",
   "serviceYear": 147,

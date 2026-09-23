@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CL",
+  "typeName": "Light Cruiser",
   "line": "CL",
   "name": "KHS Spectyr",
   "serviceYear": 122,

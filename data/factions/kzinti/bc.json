@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "BC",
+  "typeName": "Battle Cruiser",
   "line": "CA",
   "name": "KHS Comet",
   "serviceYear": 160,

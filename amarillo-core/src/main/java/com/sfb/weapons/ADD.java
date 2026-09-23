@@ -41,7 +41,19 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
     private int shots; // shots remaining in current load
     private int reloadsAvailable; // individual shots remaining in reserve
 
-    public ADD(AddType type, int numberOfReloads) {
+    /**
+     * E5.71: "All ships equipped with ADD racks have two complete sets of reloads for the
+     * rack." Two SETS, not two rounds — the rule's own example is the Y175 refit taking a
+     * ship from twelve reloads to 24, "a function of the larger rack" — so the reserve is
+     * two times whatever the rack holds, and it is the same two for every ship and every
+     * type. Nothing may set it per ship, because nothing in the game varies it.
+     *
+     * Not yet implemented: E5.71's second clause, where type-VI drones bought for ADD slots
+     * (E5.4) take a proportional share of the reloads.
+     */
+    public static final int RELOAD_SETS = 2;
+
+    public ADD(AddType type) {
         setDacHitLocaiton("drone");
         setType("ADD");
         setMinImpulseGap(1);
@@ -59,7 +71,7 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
                 break;
         }
         this.shots = capacity;
-        this.reloadsAvailable = numberOfReloads * capacity;
+        this.reloadsAvailable = RELOAD_SETS * capacity;
     }
 
     public AddType getAddType() { return addType; }

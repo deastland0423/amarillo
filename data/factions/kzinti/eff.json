@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "EFF",
+  "typeName": "Escort Frigate",
   "line": "FF",
   "name": "#315",
   "serviceYear": 168,
@@ -67,8 +68,8 @@
     { "type": "Phaser3", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12", "shots": 12 },
-    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12", "shots": 12 }
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
 
   ]
 

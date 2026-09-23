@@ -67,7 +67,7 @@
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
 
   ],
 

@@ -1,33 +1,33 @@
 {
   "faction": "Kzinti",
-  "type": "CV",
-  "typeName": "Carrier",
-  "line": "BCH",
-  "name": "KHS Sabre",
-  "serviceYear": 166,
-  "bpv": 147,
-  "turnMode": "E",
+  "type": "CV+",
+  "typeName": "Light Carrier",
+  "line": "CA",
+  "name": "KHS Rapier",
+  "serviceYear": 170,
+  "bpv": 142,
+  "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 9,
+  "commandRating": 8,
   "isTrueCarrier": true,
   
-  "shields": [34, 24, 24, 24, 24, 24],
+  "shields": [30, 28, 22, 22, 22, 28],
   
   "hullBoxes": {
     "fhull": 5,
-    "ahull": 16
+    "ahull": 12
   },
   
   "power": {
-    "leftWarp": 9,
-    "rightWarp": 9,
-    "centerWarp": 9,
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "centerWarp": 10,
     "impulse": 4,
     "apr": 3,
-    "battery": 5
+    "battery": 3
   },
   
   "control": {
@@ -38,28 +38,28 @@
   },
 
   "tables": {
-    "damageControl": [6, 4, 4, 2, 2, 2, 0],
-    "sensor": [6, 6, 6, 5, 3, 2, 1, 0],
-    "scanner": [0, 0, 1, 2, 3, 5, 9],
-    "excess": 8
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 4, 1, 0],
+    "scanner": [0, 1, 2, 3, 5, 9],
+    "excess": 6
   },
 
   "auxiliary": {
-    "transporters": 5,
-    "tractors": 3,
-    "labs": 6,
+    "transporters": 3,
+    "tractors": 2,
+    "labs": 2,
     "probes": 1,
     "derfacs": true
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
+    { "shuttles": ["admin", "admin", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
   ],
 
   "crewData": {
-    "totalCrew": 50,
-    "boardingParties": 20,
-    "deckCrews": 12,
+    "totalCrew": 40,
+    "boardingParties": 15,
+    "deckCrews": 9,
     "minCrew": 4
   },
 
@@ -70,13 +70,8 @@
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
-    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
-    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
-    { "type": "Phaser3", "designator": "10", "arcs": ["L", "LR"] },
-    { "type": "Phaser3", "designator": "11", "arcs": ["L", "LR"] },
-    { "type": "Phaser3", "designator": "12", "arcs": ["R", "RR"] },
-    { "type": "Phaser3", "designator": "13", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["FULL"] },
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["RF", "R"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
@@ -85,5 +80,18 @@
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
 
-  ]
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 6,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 0 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 0 },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ],
+    "adds": [
+      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+    ]
+  }
 }

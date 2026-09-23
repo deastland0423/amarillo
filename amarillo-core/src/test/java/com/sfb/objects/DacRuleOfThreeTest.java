@@ -241,9 +241,9 @@ public class DacRuleOfThreeTest {
     private static Ship buildDroneShip() {
         Ship ship = new Ship();
         Hellbore hellbore = new Hellbore(); hellbore.setDesignator("A");
-        ADD add1 = new ADD(ADD.AddType.ADD_6, 6); add1.setDesignator("1");
-        ADD add2 = new ADD(ADD.AddType.ADD_6, 6); add2.setDesignator("2");
-        ADD add3 = new ADD(ADD.AddType.ADD_6, 6); add3.setDesignator("3");
+        ADD add1 = new ADD(ADD.AddType.ADD_6); add1.setDesignator("1");
+        ADD add2 = new ADD(ADD.AddType.ADD_6); add2.setDesignator("2");
+        ADD add3 = new ADD(ADD.AddType.ADD_6); add3.setDesignator("3");
         ship.getWeapons().addWeapon(hellbore);
         ship.getWeapons().addWeapon(add1);
         ship.getWeapons().addWeapon(add2);
