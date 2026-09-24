@@ -1,32 +1,32 @@
 {
   "faction": "Romulan",
-  "type": "SPA",
-  "typeName": "Sparrowhawk Cruiser",
-  "line": "CW",
-  "name": "RIS Adversary",
-  "serviceYear": 168,
-  "bpv": 125,
-  "turnMode": "B",
+  "type": "FHA",
+  "typeName": "Firehawk Heavy Cruiser",
+  "line": "CA",
+  "name": "RIS Praetor Maximus",
+  "serviceYear": 171,
+  "bpv": 174,
+  "turnMode": "C",
   "sizeClass": 3,
-  "moveCost": 0.6666667,
+  "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 6,
-  "tokenArt": "romulan/sp.png",
+  "commandRating": 8,
+  "tokenArt": "romulan/fh.png",
 
-  "shields": [30, 24, 20, 20, 20, 24],
+  "shields": [34, 28, 24, 24, 24, 28],
   
   "hullBoxes": {
-    "fhull": 7,
-    "ahull": 8
+    "fhull": 8,
+    "ahull": 10
   },
   
   "power": {
     "leftWarp": 8,
     "rightWarp": 8,
-    "centerWarp": 8,
+    "centerWarp": 16,
     "impulse": 4,
-    "apr": 3,
+    "apr": 4,
     "battery": 5
   },
   
@@ -49,16 +49,16 @@
     "tractors": 2,
     "labs": 2,
     "probes": 1,
-    "cloakCost": 15
+    "cloakCost": 18
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin"] }
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
   ],
 
   "crewData": {
-    "totalCrew": 36,
-    "boardingParties": 10,
+    "totalCrew": 40,
+    "boardingParties": 12,
     "minCrew": 4
   },
 
@@ -72,8 +72,9 @@
     { "type": "Phaser3", "designator": "7", "arcs": ["L", "RA"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["R", "RA"] },
     { "type": "Phaser1", "designator": "9", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]
 }

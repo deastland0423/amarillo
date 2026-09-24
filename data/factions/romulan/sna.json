@@ -1,0 +1,67 @@
+{
+  "faction": "Romulan",
+  "type": "SNA",
+  "typeName": "Snipe-A Frigate",
+  "line": "FF",
+  "name": "RIS Corvus",
+  "serviceYear": 162,
+  "bpv": 65,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.25,
+  "breakdown": 5,
+  "bonusHets": 2,
+  "nimble": true,
+  "commandRating": 3,
+  "tokenArt": "romulan/sn.png",
+  
+  "shields": [20, 20, 20, 20, 20, 20],
+  
+  "hullBoxes": {
+    "chull": 3,
+    "armor": 3
+  },
+  
+  "power": {
+    "leftWarp": 3,
+    "rightWarp": 3,
+    "impulse": 1,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 4, 2, 0],
+    "scanner": [0, 0, 3, 6, 9],
+    "excess": 3
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "cloakCost": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 10,
+    "boardingParties": 4,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
+  ]
+}
