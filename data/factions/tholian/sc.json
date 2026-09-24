@@ -1,11 +1,12 @@
 {
   "faction": "Tholian",
-  "type": "PC+",
-  "typeName": "Improved Patrol Corvette",
+  "type": "SC",
+  "typeName": "Scout",
   "line": "FF",
-  "name": "TDFS Safeguard",
+  "name": "TDFS Prism",
   "serviceYear": 98,
-  "bpv": 65,
+  "bpv": 50,
+  "epv": 90,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,
@@ -22,7 +23,7 @@
   "power": {
     "leftWarp": 6,
     "rightWarp": 6,
-    "impulse": 3,
+    "impulse": 2,
     "battery": 2
   },
   
@@ -54,16 +55,16 @@
 
   "crewData": {
     "totalCrew": 12,
-    "boardingParties": 6,
+    "boardingParties": 4,
     "minCrew": 3
   },
 
   "weapons": [
-    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
-    { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
-    { "type": "Phaser1", "designator": "4", "arcs": ["FX"] },
-    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] }
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "4" },
+    { "type": "Phaser3", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["RS"] }
   ]
 }

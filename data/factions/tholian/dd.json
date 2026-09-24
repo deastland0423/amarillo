@@ -1,27 +1,27 @@
 {
   "faction": "Tholian",
-  "type": "PC+",
-  "typeName": "Improved Patrol Corvette",
-  "line": "FF",
-  "name": "TDFS Safeguard",
-  "serviceYear": 98,
-  "bpv": 65,
+  "type": "DD",
+  "typeName": "Destroyer",
+  "line": "DD",
+  "name": "TDFS Desolation",
+  "serviceYear": 115,
+  "bpv": 80,
   "turnMode": "A",
   "sizeClass": 4,
-  "moveCost": 0.3333333,
+  "moveCost": 0.5,
   "breakdown": 5,
   "bonusHets": 2,
-  "commandRating": 3,
+  "commandRating": 5,
   
-  "shields": [18, 18, 18, 18, 18, 18],
+  "shields": [27, 27, 27, 27, 27, 27],
   
   "hullBoxes": {
-    "chull": 7
+    "chull": 5
   },
   
   "power": {
-    "leftWarp": 6,
-    "rightWarp": 6,
+    "leftWarp": 8,
+    "rightWarp": 8,
     "impulse": 3,
     "battery": 2
   },
@@ -42,20 +42,21 @@
 
   "auxiliary": {
     "transporters": 1,
-    "tractors": 1,
+    "tractors": 2,
     "labs": 2,
     "probes": 1,
-    "nimble": true
+    "nimble": true,
+    "web": 2
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"] }
+    { "shuttles": ["admin", "admin"] }
   ],
 
   "crewData": {
-    "totalCrew": 12,
-    "boardingParties": 6,
-    "minCrew": 3
+    "totalCrew": 18,
+    "boardingParties": 8,
+    "minCrew": 4
   },
 
   "weapons": [
@@ -64,6 +65,8 @@
     { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FX"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] }
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] }
   ]
 }

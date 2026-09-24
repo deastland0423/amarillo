@@ -1,11 +1,11 @@
 {
   "faction": "Tholian",
-  "type": "PC+",
-  "typeName": "Improved Patrol Corvette",
+  "type": "DPC",
+  "typeName": "Disruptor-Armed Patrol Corvette",
   "line": "FF",
-  "name": "TDFS Safeguard",
-  "serviceYear": 98,
-  "bpv": 65,
+  "name": "TDFS Maze",
+  "serviceYear": 112,
+  "bpv": 59,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,
@@ -22,7 +22,7 @@
   "power": {
     "leftWarp": 6,
     "rightWarp": 6,
-    "impulse": 3,
+    "impulse": 2,
     "battery": 2
   },
   
@@ -45,7 +45,8 @@
     "tractors": 1,
     "labs": 2,
     "probes": 1,
-    "nimble": true
+    "nimble": true,
+    "web": 2
   },
 
   "shuttleBays": [
@@ -61,9 +62,6 @@
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
-    { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
-    { "type": "Phaser1", "designator": "4", "arcs": ["FX"] },
-    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] }
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] }
   ]
 }

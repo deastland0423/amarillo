@@ -43,12 +43,12 @@
     { "type": "gas",        "name": "General Assault Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 8, "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS" },
     { "type": "hts",        "name": "Heavy Transport Shuttle",   "kind": "shuttle",    "factions": ["any"],    "year": 125,   "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS" },
 
-    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
-    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
-    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false },
+    { "type": "stinger1",   "name": "Stinger-1",                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1" },
+    { "type": "stinger2",   "name": "Stinger-2",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-2" },
+    { "type": "stingerh",   "name": "Stinger-H",                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-H" },
 
-    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
-    { "type": "haas",       "name": "Heavy Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false },
-    { "type": "haas_e",     "name": "Heavy Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false }
+    { "type": "aas",        "name": "Advanced Attack Shuttle",   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "AAS" },
+    { "type": "haas",       "name": "Highly Advanced Attack Shuttle",      "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 8, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "HAAS" },
+    { "type": "haas_e",     "name": "Highly Advanced Attack Shuttle (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 173, "speed": 15, "hull": 11, "crippled": 8, "bpv": 10, "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "HAAS-E" }
   ]
 }

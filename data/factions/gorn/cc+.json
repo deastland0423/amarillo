@@ -1,22 +1,22 @@
 {
   "faction": "Gorn",
-  "type": "CA",
-  "typeName": "Heavy Cruiser",
+  "type": "CC+",
+  "typeName": "Command Cruiser",
   "line": "CA",
-  "name": "GCS Serpenticon",
-  "serviceYear": 121,
-  "bpv": 120,
+  "name": "GCS Tyranicon",
+  "serviceYear": 170,
+  "bpv": 150,
   "turnMode": "D",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 8,
+  "commandRating": 9,
 
   "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
-    "fhull": 5,
+    "fhull": 4,
     "ahull": 4,
     "chull": 8
   },
@@ -25,7 +25,7 @@
     "leftWarp": 16,
     "rightWarp": 16,
     "impulse": 4,
-    "apr": 2,
+    "apr": 4,
     "battery": 4
   },
   
@@ -33,6 +33,7 @@
     "bridge": 2,
     "emergency": 2,
     "auxCon": 2,
+    "flag": 2,
     "controlMod": 1.0
   },
 
@@ -68,9 +69,9 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "7", "arcs": ["L", "RA"] },
-    { "type": "Phaser1", "designator": "8", "arcs": ["R", "RA"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["L", "LF"], "launchDirections": ["21"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["R", "RF"], "launchDirections": ["5"] }
+    { "type": "Phaser1", "designator": "9", "arcs": ["L", "RA"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["R", "RA"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]
 }

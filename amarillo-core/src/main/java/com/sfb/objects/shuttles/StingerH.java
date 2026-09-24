@@ -17,7 +17,7 @@ import com.sfb.weapons.PhaserG;
 public class StingerH extends Fighter {
 
     public StingerH() {
-		setCatalogType("stingerh");
+        setCatalogType("stingerh");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(15);
         setCurrentSpeed(15);
@@ -34,7 +34,7 @@ public class StingerH extends Fighter {
         FighterHellbore hb = new FighterHellbore();
         hb.setDesignator("H");
         hb.setArcs(ArcUtils.FULL);
-        hb.setArcsFromJSON(List.of("FULL"));
+        hb.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(hb);
     }
 }

@@ -16,7 +16,7 @@
   "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
-    "fhull": 5,
+    "fhull": 4,
     "ahull": 4,
     "chull": 8
   },

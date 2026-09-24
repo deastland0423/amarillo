@@ -1,0 +1,84 @@
+{
+  "faction": "Gorn",
+  "type": "DNF",
+  "typeName": "Fleet Dreadnaught",
+  "line": "DN",
+  "name": "GCS Dragon of Three Stars",
+  "serviceYear": 175,
+  "bpv": 229,
+  "turnMode": "E",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 4,
+  "bonusHets": 1,
+  "commandRating": 10,
+
+  "shields": [47, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 4,
+    "chull": 10
+  },
+  
+  "power": {
+    "leftWarp": 24,
+    "rightWarp": 24,
+    "impulse": 6,
+    "apr": 4,
+    "battery": 6
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "flag": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0, 1, 2, 3, 4, 5, 9],
+    "excess": 15
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 3,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "gas"] },
+    { "shuttles": ["admin", "admin", "admin", "gas"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 66,
+    "boardingParties": 30,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["L", "RA"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["R", "RA"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9"] }
+  ]
+}

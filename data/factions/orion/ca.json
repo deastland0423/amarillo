@@ -1,0 +1,90 @@
+{
+  "faction": "Orion",
+  "type": "CA",
+  "typeName": "Heavy Cruiser",
+  "line": "CA",
+  "name": "Hammerfield",
+  "serviceYear": 132,
+  "bpv": 127,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "commandRating": 8,
+  "stealthBonus": 2,
+  "note": "Need to discuss how to handle OAKDISC with Claude Code. It's complicated.",
+  "tokenArt": "orion/ca.png",
+
+  "shields": [24, 22, 16, 14, 16, 22],
+  
+  "hullBoxes": {
+    "chull": 10,
+    "cargo": 6
+  },
+  
+  "power": {
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "centerWarp": 10,
+    "impulse": 4,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 2,
+    "auxCon": 2,
+    "controlMod": 1.0,
+    "oakdisc": false
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 6
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 30,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]}
+  ],
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FA"] },
+    { "position": "CENTERLINE", "designator": "B", "arcs": ["FA"] },
+    { "position": "WING",       "designator": "C", "arcs": ["LS"] },
+    { "position": "WING",       "designator": "D", "arcs": ["RS"] }
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 2,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 1 }
+    ],
+    "adds": []
+  }
+}
