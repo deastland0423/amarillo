@@ -1,11 +1,11 @@
 {
   "faction": "Federation",
-  "type": "NCL",
+  "type": "NCL+",
   "typeName": "New Light Cruiser",
   "line": "CW",
-  "name": "USS Kearsarge",
-  "serviceYear": 170,
-  "bpv": 116,
+  "name": "USS Strasbourg",
+  "serviceYear": 173,
+  "bpv": 120,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 0.6666667,
@@ -15,7 +15,7 @@
   "note": "War cruiser.",
   "tokenArt": "federation/ncl.png",
   
-  "shields": [24, 24, 24, 24, 24, 24],
+  "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
     "chull": 10
@@ -67,6 +67,8 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },

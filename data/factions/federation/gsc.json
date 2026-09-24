@@ -1,0 +1,81 @@
+{
+  "faction": "Federation",
+  "type": "GSC",
+  "typeName": "Galactic Survey Cruiser",
+  "line": "CA",
+  "name": "USS Byrd",
+  "serviceYear": 153,
+  "bpv": 122,
+  "epv": 142,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 8,
+  "note": "This is the true exploration ship of the Federation.",
+  "tokenArt": "federation/ca.png",
+  
+  "shields": [24, 24, 24, 24, 24, 24],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 4,
+    "cargo": 10
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 4,
+    "apr": 2,
+    "battery": 6
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 7,
+    "tractors": 2,
+    "labs": 10,
+    "probes": 2
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 45,
+    "boardingParties": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["L", "LF", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["L", "LF", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RF", "R", "13"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RF", "R", "13"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["FULL"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "4" },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]}
+  ]
+}

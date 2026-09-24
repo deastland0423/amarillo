@@ -1,18 +1,19 @@
 {
   "faction": "Federation",
-  "type": "NCL",
-  "typeName": "New Light Cruiser",
+  "type": "NSC",
+  "typeName": "New Scout Cruiser",
   "line": "CW",
-  "name": "USS Kearsarge",
-  "serviceYear": 170,
-  "bpv": 116,
+  "name": "USS Discovery",
+  "serviceYear": 176,
+  "bpv": 100,
+  "epv": 120,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 0.6666667,
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 6,
-  "note": "War cruiser.",
+  "note": "War cruiser scout.",
   "tokenArt": "federation/ncl.png",
   
   "shields": [24, 24, 24, 24, 24, 24],
@@ -55,7 +56,7 @@
   ],
 
   "crewData": {
-    "totalCrew": 36,
+    "totalCrew": 32,
     "boardingParties": 8,
     "minCrew": 4
   },
@@ -67,10 +68,10 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
-    { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]
 }

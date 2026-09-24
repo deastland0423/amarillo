@@ -18,9 +18,7 @@
   
   "hullBoxes": {
     "fhull": 12,
-    "ahull": 4,
-    "chull": 0,
-    "cargo": 0
+    "ahull": 4
   },
   
   "power": {
