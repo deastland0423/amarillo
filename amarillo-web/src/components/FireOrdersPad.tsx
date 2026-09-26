@@ -152,17 +152,24 @@ const EMPTY_ROWS: FireCandidate[] = [];
 /**
  * How a heavy weapon is armed, short enough to sit beside its name.
  *
- * STANDARD is deliberately absent: it is what most tubes are most of the time, and a badge
- * on every one of them would say nothing. A badge here means "this tube is not ordinary".
+ * STANDARD is included, and it was a mistake to leave it out: armingType is null on a weapon
+ * that does not arm at all, so with no badge for standard a phaser and a standard-armed
+ * disruptor looked identical — and one of them CAN be overloaded while the other cannot.
+ * Absence has to mean "this weapon has no modes", so every mode says its name.
  */
 const ARMING_LABEL: Record<string, string> = {
+  STANDARD: 'std',
   OVERLOAD: 'ovl',
   SPECIAL:  'spl',
   ROLLING:  'roll',
 };
 
-/** Overload changes what the shot is worth; the other two are quieter states. */
+/**
+ * Overload changes what the shot is worth, so it is the one that carries colour. Standard is
+ * the same grey as the arc label beside it: present, legible, and not asking for attention.
+ */
 const ARMING_COLOUR: Record<string, string> = {
+  STANDARD: '#8b949e',
   OVERLOAD: '#f0c040',
   SPECIAL:  '#79c0ff',
   ROLLING:  '#8b949e',
