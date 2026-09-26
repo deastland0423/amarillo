@@ -29,6 +29,10 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 		setMinRange(0);
 		setMaxRange(15);
 		setMaxShotsPerTurn(4);
+		// No gap between shots, ON PURPOSE: a gatling may put all four into a single
+		// impulse (owner's ruling 2026-09-26). This sits oddly beside the ADD's gap of 1,
+		// which exists to stop exactly that — so it is pinned by PhaserGRateOfFireTest
+		// rather than left looking like an oversight.
 		setMinImpulseGap(0);
 	}
 
@@ -43,7 +47,11 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 	public int fire(int range) throws TargetOutOfRangeException, CapacitorException, WeaponUnarmedException {
 
 		if (!canFire()) {
-			throw new WeaponUnarmedException("Phaser not ready — must wait 8 impulses between shots.");
+			// The only way a Ph-G runs out: four shots a turn, with no gap between them.
+			// The message used to describe a Ph-1's eight-impulse wait, which this weapon
+			// has never had.
+			throw new WeaponUnarmedException(getName() + " has fired all "
+					+ getMaxShotsPerTurn() + " of its shots this turn");
 		}
 
 		// If this phaser is mounted on a ship, drain the capacitor
