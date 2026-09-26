@@ -194,8 +194,14 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		return true;
 	}
 
-	/** Add N extra reload sets (for faction upgrades like Federation TYPE_G). */
-	public void addReloads(int count) {
+	/**
+	 * Add N extra reload SETS — the Federation Y175 refit gives a type-G a third
+	 * (FD3.72).
+	 *
+	 * Named apart from the addReloads FIELD, which counts anti-drone rounds held in
+	 * reserve. The two were one word for two things, six lines apart.
+	 */
+	public void addReloadSets(int count) {
 		this.numberOfReloads += count;
 	}
 
@@ -303,14 +309,26 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	}
 
 	/**
-	 * Set the rack's initial ammo and automatically build reload sets.
-	 * Each reload set is an identical copy of the initial ammo list.
-	 * The number of sets built equals numberOfReloads (set before calling this).
+	 * Set the rack's initial ammo and build the reload sets that come with it.
+	 *
+	 * Ordinarily every set is a copy of what is in the rack. A type-G is the exception:
+	 * FD3.72 gives it "two sets of reloads, ONE OF WHICH IS ENTIRELY ANTI-DRONES and the
+	 * other of which is identical to whatever is loaded in the rack itself", with the
+	 * Y175 refit adding a third that again matches the rack. So one of its sets is a
+	 * full magazine of anti-drone rounds and the rest mirror the load.
+	 *
+	 * The anti-drone set is counted in rounds rather than held as a list, because an
+	 * anti-drone is not a Drone — the same reason it is not in the ammo list.
 	 */
 	public void setAmmo(List<Drone> ammoList) {
 		this.ammoList = ammoList;
 		this.reloads = new ArrayList<>();
-		for (int i = 0; i < numberOfReloads; i++) {
+		int mirroredSets = numberOfReloads;
+		if (acceptsAntiDrones() && numberOfReloads > 0) {
+			mirroredSets = numberOfReloads - 1;
+			this.addReloads = fullAntiDroneSet();
+		}
+		for (int i = 0; i < mirroredSets; i++) {
 			List<Drone> set = new ArrayList<>();
 			for (Drone d : ammoList) {
 				if (d.getDroneType() != null)
@@ -319,6 +337,15 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 			if (!set.isEmpty())
 				this.reloads.add(set);
 		}
+	}
+
+	/**
+	 * How many anti-drone rounds fill the rack: FD3.72's "eight ADDs in the second
+	 * reload" is four spaces at half a space each, so the number follows the rack
+	 * rather than being written down.
+	 */
+	public int fullAntiDroneSet() {
+		return (int) Math.round(spaces / ANTI_DRONE_SPACE);
 	}
 
 	public int getNumberOfReloads() {

@@ -679,7 +679,7 @@ public class ScenarioLoader {
                     if (!ru.designator.equals(w.getDesignator())) continue;
                     DroneRack rack = (DroneRack) w;
                     rack.upgradeRackType(DroneRack.DroneRackType.valueOf(ru.upgradeTo));
-                    if (ru.extraReloads > 0) rack.addReloads(ru.extraReloads);
+                    if (ru.extraReloads > 0) rack.addReloadSets(ru.extraReloads);
                 }
             }
             for (ShipSpec.Y175AddUpgrade au : shipSpec.y175Upgrades.adds) {
@@ -709,7 +709,7 @@ public class ScenarioLoader {
                     if (w instanceof DroneRack) {
                         DroneRack rack = (DroneRack) w;
                         if (rack.getRackType() == DroneRack.DroneRackType.TYPE_G) {
-                            rack.addReloads(1);
+                            rack.addReloadSets(1);
                         }
                     }
                 }
