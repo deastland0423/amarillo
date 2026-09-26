@@ -85,6 +85,10 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	private void applyTypeStats(DroneRackType type) {
 		setMaxShotsPerTurn(1);
 		setMinImpulseGap(8);          // FD3.0: a quarter turn between launches
+		// A rack that only launches can do damage at no range at all, which is what keeps
+		// every other type out of the direct-fire bearing lists. A type-G reaches as far as
+		// the anti-drone it fires (E5.0), asked of ADD rather than written down twice.
+		setMaxRange(type == DroneRackType.TYPE_G ? ADD.maxRange() : 0);
 		switch (type) {
 			case TYPE_B:
 				this.spaces = 6;

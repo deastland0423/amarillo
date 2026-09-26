@@ -43,6 +43,15 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         return range > 0 && range < HIT_CHART.length && HIT_CHART[range] != 0;
     }
 
+    /** The longest range an anti-drone round reaches — read off the table, not repeated. */
+    public static int maxRange() {
+        int max = 0;
+        for (int r = 1; r < HIT_CHART.length; r++)
+            if (HIT_CHART[r] != 0)
+                max = r;
+        return max;
+    }
+
     /** Whether a die roll hits at that range: 1-2 at range 1, 1-3 at range 2, 1-4 at range 3. */
     public static boolean hitsAt(int range, int roll) {
         return engagesAt(range) && roll <= HIT_CHART[range];

@@ -20,12 +20,12 @@
       ]
     },
     {
-      "name": "Romulan Empire",
-      "faction": "Romulan",
+      "name": "Klingon Empire",
+      "faction": "Klingon",
       "ships": [
         {
-          "type": "KRB",
-          "shipName": "RIS Praetor",
+          "type": "D7B",
+          "shipName": "IKV Ambush",
           "startHex": "2109",
           "startHeading": "F",
           "startSpeed": 16,

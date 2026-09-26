@@ -129,8 +129,13 @@ public class Weapons implements Systems {
 			// Heavy weapons must be armed before they appear as fireable options.
 			boolean armed = !(weapon instanceof HeavyWeapon) || ((HeavyWeapon) weapon).isArmed();
 
-			// Impulse gap and shots-per-turn must be satisfied.
-			boolean gapOk = weapon.canFire();
+			// Impulse gap and shots-per-turn must be satisfied — but canFire() asks a drone
+			// rack whether it may LAUNCH, which is the wrong question here and answers false
+			// for the whole turn once a type-G has committed to firing anti-drones (FD3.71).
+			// Each weapon is asked what readiness means for it.
+			boolean gapOk = weapon instanceof com.sfb.weapons.DroneRack
+					? ((com.sfb.weapons.DroneRack) weapon).canFireAntiDrone()
+					: weapon.canFire();
 
 			// If it is in range AND in arc AND ready AND functional, add it to the list.
 			if (weapon.isFunctional() && inRange && inArc && armed && gapOk) {
