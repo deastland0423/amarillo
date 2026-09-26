@@ -246,6 +246,8 @@ public class GameStateDto {
     public static class ShipDto extends MapObjectDto {
         /** The SSD Type line, e.g. "CA+". Named shipType because Jackson owns "type" here. */
         public String shipType;
+        /** The same class written out, e.g. "Commando Cruiser". Null if the file names none. */
+        public String typeName;
         public String faction;
         public int facing;
         public int speed;
@@ -1035,6 +1037,7 @@ public class GameStateDto {
         dto.speed = ship.getSpeed();
         dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
         dto.shipType = ship.getType();
+        dto.typeName = ship.getTypeName();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
         dto.shields = new ArrayList<>();

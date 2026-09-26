@@ -75,7 +75,9 @@ public class ShipDtoPrivacyTest {
 
     private static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(
         // Identity and position
-        "name", "location", "shipType", "faction", "teamName", "ownerName",
+        // typeName sits beside shipType and is ruled the same way: a counter on the map
+        // announces its class, and "Commando Cruiser" says no more than "CMC" already does.
+        "name", "location", "shipType", "typeName", "faction", "teamName", "ownerName",
         "tokenArt", "leader", "escort", "trueCarrier", "bch", "commandRating", "skeleton",
         "captured", "disengaged", "tractoredBy",
         // Movement, which is watched

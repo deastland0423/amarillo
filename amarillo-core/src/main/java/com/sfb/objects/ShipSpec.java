@@ -45,6 +45,15 @@ public class ShipSpec {
     // --- Fleet-building classifications (S8.0 patrol scenarios). All default false. ---
     /** Leader variant (CWL, DWL, DDL, CC…): restricted by S8.36/S8.361 when fleet building. */
     public boolean isLeader;
+    /**
+     * The class written out, e.g. "Commando Cruiser" for type "CMC".
+     *
+     * {@link #type} is the SSD designation and is what the counter and the tooltip have
+     * always shown; this is the name a player would say out loud. Every ship file has
+     * carried it since the data was written — nothing read it until now.
+     */
+    public String typeName;
+
     /** Carrier escort: cannot be fielded except as part of a carrier group (S8.311). */
     public boolean isEscort;
     /**
@@ -237,6 +246,8 @@ public class ShipSpec {
             m.put("nimble", true);
         if (isLeader)
             m.put("isleader", true);
+        if (typeName != null)
+            m.put("typename", typeName);
         if (isEscort)
             m.put("isescort", true);
         if (isTrueCarrier)

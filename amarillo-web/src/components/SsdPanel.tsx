@@ -261,7 +261,8 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
         <div>
           <span style={{ fontWeight: 700, color: factionColor(ship.faction) }}>{ship.name}</span>
           <span style={{ color: '#888', marginLeft: 6, fontSize: '0.78rem' }}>
-            {ship.shipType}{isMine ? '' : ' (enemy)'}
+            {ship.shipType}{ship.typeName ? ` · ${ship.typeName}` : ''}
+            {isMine ? '' : ' (enemy)'}
           </span>
         </div>
         <button className="secondary" style={{ padding: '0 8px' }}
