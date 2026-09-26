@@ -2036,11 +2036,24 @@ function ShipSidebar({
                     ))}
                   </div>
                 ) : (
-                  <div style={{ paddingLeft: 12, fontSize: 11, color: '#8b949e' }}>empty</div>
+                  <div style={{ paddingLeft: 12, fontSize: 11, color: '#8b949e' }}>
+                    no drones
+                  </div>
                 )
               ) : (
                 <div style={{ paddingLeft: 12, fontSize: 11, color: '#8b949e' }}>
                   {r.drones.length} drone{r.drones.length !== 1 ? 's' : ''} loaded
+                </div>
+              )}
+              {/* A type-G carries anti-drone rounds beside its drones (FD3.70), and they
+                  are what lets it fire in the Direct Fire segment. Nothing showed them, so
+                  a rack with none looked exactly like a rack with eight. */}
+              {isMine && (r.antiDrones ?? 0) > 0 && (
+                <div className="sidebar-stat-row" style={{ fontSize: 11, paddingLeft: 12 }}>
+                  <span className="sidebar-stat-label">anti-drones</span>
+                  <span className="sidebar-stat-value" style={{ color: '#3fb8a0' }}>
+                    {r.antiDrones} round{r.antiDrones !== 1 ? 's' : ''}
+                  </span>
                 </div>
               )}
             </div>

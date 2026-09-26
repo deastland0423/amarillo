@@ -79,12 +79,6 @@ export interface ReloadPoolEntry {
   count:     number;   // how many available
 }
 
-/** One drone rack, as its owner sees it. */
-export interface DroneRackAmmoState {
-  antiDrones?:  number;   // type-G only (FD3.70): anti-drone rounds loaded, 1/2 space each
-  spacesFree?:  number;   // drones and anti-drones counted together
-}
-
 export interface ShuttleInBayState {
   name:                string;
   type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
@@ -135,6 +129,8 @@ export interface DroneRackState {
   reloadingThisTurn:    boolean;
   reloadPool:           ReloadPoolEntry[];
   launchDirectionsMask: number;  // valid launch facings bitmask; 0 = unrestricted
+  antiDrones?:          number;  // type-G only (FD3.70): anti-drone rounds, 1/2 space each
+  spacesFree?:          number;  // drones and anti-drones counted together
 }
 
 interface MapObjectBase {
