@@ -371,6 +371,52 @@ public class ActionRequest {
         public boolean isAtHex() { return hexCol >= 1 && hexRow >= 1; }
     }
 
+    /**
+     * One launch inside a sealed Activity-segment round (Annex #2, stages 6B6 and 6B8).
+     *
+     * Named fields throughout, unlike the individual launch actions, which grew up reusing
+     * whatever was to hand - the shuttle name in `action`, the facing in `range`, the drone
+     * index in `range` as well. The reveal maps these onto what each action reads, so the
+     * reuse is contained at that one boundary instead of spreading here.
+     */
+    public static class ActivityOrder {
+        /** PLASMA | DRONE | SHUTTLE | WEASEL | SUICIDE | SCATTER_PACK. */
+        private String  kind;
+        private String  shipName;
+        private String  targetName;
+        /** Launcher or rack name, for PLASMA and DRONE. */
+        private String  weaponName;
+        /** Which drone in the rack, for DRONE. */
+        private int     droneIndex;
+        private boolean pseudo;
+        private boolean fastLoad;
+        private int     facing;
+        /** Shuttle, weasel, suicide shuttle or pack name, for the 6B8 kinds. */
+        private String  shuttleName;
+        private int     speed;
+
+        public String  getKind()                    { return kind; }
+        public void    setKind(String k)            { this.kind = k; }
+        public String  getShipName()                { return shipName; }
+        public void    setShipName(String s)        { this.shipName = s; }
+        public String  getTargetName()              { return targetName; }
+        public void    setTargetName(String t)      { this.targetName = t; }
+        public String  getWeaponName()              { return weaponName; }
+        public void    setWeaponName(String w)      { this.weaponName = w; }
+        public int     getDroneIndex()              { return droneIndex; }
+        public void    setDroneIndex(int i)         { this.droneIndex = i; }
+        public boolean isPseudo()                   { return pseudo; }
+        public void    setPseudo(boolean b)         { this.pseudo = b; }
+        public boolean isFastLoad()                 { return fastLoad; }
+        public void    setFastLoad(boolean b)       { this.fastLoad = b; }
+        public int     getFacing()                  { return facing; }
+        public void    setFacing(int f)             { this.facing = f; }
+        public String  getShuttleName()             { return shuttleName; }
+        public void    setShuttleName(String s)     { this.shuttleName = s; }
+        public int     getSpeed()                   { return speed; }
+        public void    setSpeed(int s)              { this.speed = s; }
+    }
+
     public static class EwAdjustment {
         private String shipName;
         private int ecm;
@@ -386,6 +432,13 @@ public class ActionRequest {
 
     private List<FireOrder> fireOrders;
     private List<EwAdjustment> ewAdjustments;
+    /** COMMIT_ACTIVITY_DECLARATION: a sealed launch plan (Annex #2, 6B6 and 6B8). */
+    private List<ActivityOrder> activityOrders;
+
+    public List<ActivityOrder> getActivityOrders()                  { return activityOrders; }
+    public void setActivityOrders(List<ActivityOrder> activityOrders) {
+        this.activityOrders = activityOrders;
+    }
 
     public List<FireOrder> getFireOrders()                     { return fireOrders; }
     public void            setFireOrders(List<FireOrder> f)    { this.fireOrders = f; }

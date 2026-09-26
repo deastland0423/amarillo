@@ -1,6 +1,7 @@
 {
   "faction": "Lyran",
   "type": "CA",
+  "typeName": "Tiger Heavy Cruiser",
   "line": "CA",
   "name": "Azure",
   "serviceYear": 120,

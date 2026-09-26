@@ -64,6 +64,10 @@ public class GameController {
         dto.fireDeclarationCaller = session.getFireDeclarationCallerName();
         dto.fireDeclarationResponded = session.getFireDeclarationRespondedNames();
         dto.fireDeclarationSpent = session.isFireDeclarationSpent();
+        dto.activityDeclarationOpen = session.isActivityDeclarationOpen();
+        dto.activityDeclarationCaller = session.getActivityDeclarationCallerName();
+        dto.activityDeclarationResponded = session.getActivityDeclarationRespondedNames();
+        dto.activityDeclarationSpent = session.isActivityDeclarationSpent();
         return dto;
     }
 
@@ -889,12 +893,15 @@ public class GameController {
                                 defAmmo.add(d.getDroneType() != null ? d.getDroneType().name() : "TypeI");
                             }
                             dr.put("defaultAmmo", defAmmo);
-                            // Only TYPE_E, TYPE_G, and TYPE_H can load TypeVI variants
-                            com.sfb.weapons.DroneRack.DroneRackType rt = rack.getRackType();
+                            // Ask the rack, which is where FD2.51 and FD3.5 live. This used
+                            // to be a third copy of the E/G/H list, alongside core's and the
+                            // COI loader's.
                             dr.put("canLoadTypeVI",
-                                    rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_E
-                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_G
-                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_H);
+                                    rack.accepts(com.sfb.objects.DroneType.TypeVI));
+                            // FD3.70: only a type-G has the anti-drone targeting system.
+                            dr.put("canLoadAntiDrones", rack.acceptsAntiDrones());
+                            dr.put("antiDroneSpace",
+                                    com.sfb.weapons.DroneRack.ANTI_DRONE_SPACE);
                             drones.add(dr);
                         }
                     }
@@ -1384,8 +1391,12 @@ public class GameController {
                 // rather than direct-fire weapons — offering one only to refuse it at the
                 // reveal is a worse answer than not offering it. A plasma launcher IS
                 // DirectFire and stays: selected here it fires as a bolt.
-                .filter(w -> w instanceof com.sfb.weapons.DirectFire)
+                .filter(w -> w instanceof com.sfb.weapons.DirectFire
+                        && ((com.sfb.weapons.DirectFire) w).canBeFiredAtTarget())
+                // An anti-drone round only ever engages a drone or a shuttle, whether it
+                // comes from an ADD rack or from a type-G firing as one (FD3.70).
                 .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
+                .filter(w -> !(w instanceof com.sfb.weapons.DroneRack) || targetIsAddValid)
                 .map(w -> w.getName())
                 .collect(Collectors.toList());
     }
@@ -1429,17 +1440,7 @@ public class GameController {
                     me != null ? me.getShipNames() : java.util.List.<String>of());
 
             List<Map<String, Object>> out = new java.util.ArrayList<>();
-            for (Unit candidate : firePossibilities(session)) {
-                if (candidate == attackerUnit || candidate.getLocation() == null)
-                    continue;
-                if (ownedBy(candidate, mine))
-                    continue;
-                if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
-                    com.sfb.objects.shuttles.WildWeaselShuttle ww =
-                            (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
-                    if (ww.isExploding() || ww.isPostExplosion())
-                        continue;   // J3.21: the decoy is already spent
-                }
+            for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
                 if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
                     continue;       // P2.321
                 if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
@@ -1495,6 +1496,127 @@ public class GameController {
             }
         }
         return best;
+    }
+
+    /**
+     * Everything on the map this attacker could be pointed at, before the weapon-specific
+     * tests: on the map, not itself, not the caller's own, and not a wild weasel that is
+     * already exploding or spent (J3.21 - the decoy cannot be killed twice).
+     *
+     * Shared by both target endpoints so there is one notion of an attackable unit. What
+     * each of them adds is its own: line of sight and bearing weapons for direct fire, the
+     * tractor restriction for launches.
+     */
+    private List<Unit> attackableCandidates(GameSession session, Unit attackerUnit,
+            java.util.Set<String> mine) {
+        List<Unit> out = new java.util.ArrayList<>();
+        for (Unit candidate : firePossibilities(session)) {
+            if (candidate == attackerUnit || candidate.getLocation() == null)
+                continue;
+            if (ownedBy(candidate, mine))
+                continue;
+            if (candidate instanceof com.sfb.objects.shuttles.WildWeaselShuttle) {
+                com.sfb.objects.shuttles.WildWeaselShuttle ww =
+                        (com.sfb.objects.shuttles.WildWeaselShuttle) candidate;
+                if (ww.isExploding() || ww.isPostExplosion())
+                    continue;
+            }
+            out.add(candidate);
+        }
+        return out;
+    }
+
+    /**
+     * What this ship may send a seeking weapon at.
+     *
+     * Simpler than {@code /fire-targets} but not arc-free. A drone rack sends one any way it
+     * likes, so for drones any candidate will do; a PLASMA LAUNCHER has an arc, and what the
+     * arc constrains is the launch direction (FP1.3) — which, when the player names no
+     * direction, is the bearing to the target. So each row reports the launchers that could
+     * actually send one that way, and a target dead astern comes back with none.
+     * <p>
+     * Two more target-dependent rules shape the list itself.
+     * <p>
+     * A tractored ship may only launch seeking weapons at the ship holding it (G7.943, and
+     * G7.91 for plasma). That is unconditional, so a non-holder is not offered.
+     * <p>
+     * A lock-on is needed to launch at a target (D6.121) - EXCEPT that a self-guiding drone
+     * under passive fire control acquires its own after launch (D19.221). Whether the lock-on
+     * matters therefore depends on which seeker is chosen, not on the target, so
+     * {@code hasLockOn} is REPORTED rather than filtered on and core refuses at the reveal
+     * with the citation. Filtering here would hide a legal launch.
+     */
+    @GetMapping("/{id}/launch-targets")
+    public ResponseEntity<?> getLaunchTargets(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            Ship launcher = session.getGame().getShips().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(attacker))
+                    .findFirst().orElse(null);
+            if (launcher == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Ship not found: " + attacker));
+            if (launcher.getLocation() == null)
+                return ResponseEntity.ok(List.of());
+
+            GameSession.PlayerInfo me = session.getPlayers().get(token);
+            java.util.Set<String> mine = new java.util.HashSet<>(
+                    me != null ? me.getShipNames() : java.util.List.<String>of());
+
+            // G7.943: held in a beam, the holder is the only thing it may shoot at.
+            Unit holder = launcher.isTractored() ? launcher.getTractoringUnit() : null;
+
+            List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Unit candidate : attackableCandidates(session, launcher, mine)) {
+                if (holder != null && candidate != holder)
+                    continue;
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", candidate.getName());
+                row.put("kind", candidateKind(candidate));
+                row.put("range", MapUtils.getRange(launcher, candidate));
+                // Where it is. Public — the map already draws it — and the pad needs it to
+                // show which launch facings could still track, which is a question about
+                // geometry rather than about the row.
+                row.put("location", candidate.getLocation().toString());
+                row.put("hasLockOn", launcher.hasLockOn(candidate));
+                row.put("plasmaLaunchers", plasmaLaunchersBearing(launcher, candidate));
+                out.add(row);
+            }
+            out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    /**
+     * Plasma launchers that could send a torpedo toward this target.
+     *
+     * Tested against the launcher's FIRING arc, which is what limits what it may target -
+     * not against its launch directions, which are a different and often narrower thing. A
+     * Romulan KR's Plasma-G launches straight ahead only, yet may target anything in FA, so
+     * judging targets by the launch directions would wrongly rule out most of the arc.
+     * <p>
+     * Drone racks are absent by design: a rack has no arc, so every candidate is reachable
+     * and a list of them would say nothing.
+     */
+    private List<String> plasmaLaunchersBearing(Ship launcherShip, Unit target) {
+        List<String> out = new java.util.ArrayList<>();
+        int bearing = MapUtils.getBearing(launcherShip.getLocation(), target.getLocation());
+        if (bearing == 0)
+            return out;                       // same hex: no bearing exists to test
+        int relative = MapUtils.getRelativeBearing(bearing, launcherShip.getFacing());
+        for (com.sfb.weapons.Weapon w : launcherShip.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.PlasmaLauncher) || !w.isFunctional())
+                continue;
+            if (com.sfb.utilities.ArcUtils.inArc(relative, w.getArcs()))
+                out.add(w.getName());
+        }
+        return out;
     }
 
     /** A ship or an active shuttle/fighter by name - the things that can fire. */

@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "FF",
+  "typeName": "Frigate",
   "line": "FF",
   "name": "USS Churchill",
   "serviceYear": 127,

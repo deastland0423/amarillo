@@ -159,11 +159,33 @@ public class GameStateDto {
         public int maxShotsPerTurn; // how many times this weapon may fire per turn
         public int shotsThisTurn; // shots already fired this turn
         public int minImpulseGap; // minimum global impulses between shots (0 = same-impulse multi-shot ok)
-        public int chargesRemaining; // FighterFusion only: charges left (0-2); ignored for other weapons
+        /**
+         * FighterFusion only: charges left (0-2). NULL on every other weapon, and the type
+         * has to be Integer to say so.
+         *
+         * As a primitive it was 0 on everything, which Jackson sends rather than omits — so
+         * the client's "is this a fusion?" test (chargesRemaining !== undefined) was true for
+         * every weapon in the game, and the fusion's 1x/2x buttons appeared beside every
+         * phaser and photon in the Fire Orders panel, with 2x greyed out.
+         */
+        public Integer chargesRemaining;
         public boolean canFireDouble; // FighterFusion only: true when 2 charges remain
-        public int addShots; // ADD only: shots remaining in current load
-        public int addReloads; // ADD only: reserve shots remaining
-        public int addCapacity; // ADD only: shots per full load (6 or 12)
+        /**
+         * Anti-drone ammunition. NULL on any weapon that fires none — and Integer, not int,
+         * so it can say so.
+         *
+         * As primitives these were 0 on everything, which Jackson sends rather than omits,
+         * so the Fire Orders panel's "does this weapon carry anti-drones?" test
+         * (addCapacity != null) was true for every weapon in the game and each one wore an
+         * unexplained "0/0".
+         *
+         * An ADD rack fills all three. A type-G drone rack fires anti-drones too (FD3.70)
+         * but keeps them in a magazine it shares with its drones, so it reports the rounds
+         * it has and no capacity: there is no fixed number of them it could hold.
+         */
+        public Integer addShots;   // rounds in the current load
+        public Integer addReloads; // reserve rounds behind them
+        public Integer addCapacity; // rounds in a full load; null when there is no fixed one
     }
 
     public static class DroneInRackDto {
@@ -185,6 +207,14 @@ public class GameStateDto {
         public boolean functional;
         public boolean canFire;
         public List<DroneInRackDto> drones;
+        /** Anti-drone rounds loaded, type-G only (FD3.70). Half a space each. */
+        public int antiDrones;
+        /** Which way a type-G is committed this turn: UNDECIDED, DRONE or ANTI_DRONE. */
+        public String mode;
+        /** Whether an anti-drone round may be fired this impulse (FD3.71). */
+        public boolean canFireAntiDrone;
+        /** Spaces still free, drones and anti-drones counted together. */
+        public double spacesFree;
         public int reloadCount;
         public double reloadDeckCrewCost;
         public boolean reloadingThisTurn;
@@ -196,6 +226,12 @@ public class GameStateDto {
         public String name;
         public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
         public int maxSpeed;
+        /**
+         * The speed a launch is ACTUALLY capped at — maxSpeed less any point given to
+         * erratic maneuvers (C10.13). The launch uses this, so anything showing the raw
+         * maximum would promise a speed the game then quietly refuses.
+         */
+        public int effectiveMaxSpeed;
         public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
         // suicide only: arming has BEGUN (D12.123 counts a part-armed shuttle as armed).
         // Not the same as fully armed at three turns, which is what decides whether it owes
@@ -240,6 +276,8 @@ public class GameStateDto {
     public static class ShipDto extends MapObjectDto {
         /** The SSD Type line, e.g. "CA+". Named shipType because Jackson owns "type" here. */
         public String shipType;
+        /** The same class written out, e.g. "Commando Cruiser". Null if the file names none. */
+        public String typeName;
         public String faction;
         public int facing;
         public int speed;
@@ -305,6 +343,15 @@ public class GameStateDto {
         public double transporterEnergyCost;
         public int availableTractors;
         public int totalTractors;
+        /**
+         * Seeker control channels: how many this ship is holding, and how many it has. A
+         * launch past the limit does not fail — something already flying stops being tracked
+         * instead — which is a loss worth seeing coming rather than discovering. Both scale
+         * with the sensor track, so they move as sensors take damage, and the limit carries
+         * the +6 a scout channel lends while it controls seekers (G24.24).
+         */
+        public int controlUsed;
+        public int controlLimit;
         // Hull box damage state
         public int availableFhull;
         public int availableAhull;
@@ -573,6 +620,12 @@ public class GameStateDto {
     public String fireDeclarationCaller;
     public List<String> fireDeclarationResponded = new ArrayList<>();
     public boolean fireDeclarationSpent; // this impulse's round already resolved
+    // Launch declaration round (Annex #2, Impulse Activity Segment) — a separate round from
+    // the fire one above, with its own call, and the same secrecy: only WHO has answered.
+    public boolean activityDeclarationOpen;
+    public String activityDeclarationCaller;
+    public List<String> activityDeclarationResponded = new ArrayList<>();
+    public boolean activityDeclarationSpent;
     public List<String> combatLog = new ArrayList<>(); // fire/damage events since last broadcast
     public ScoreboardDto scoreboard; // live standings, present in every broadcast
     public List<PendingVolleyDto> pendingVolleys = new ArrayList<>(); // incoming fire queued for reinforcement
@@ -968,7 +1021,7 @@ public class GameStateDto {
             return "Drone (Type " + type + ")";
         }
         if (s instanceof com.sfb.objects.shuttles.ScatterPack)
-            return "Scatter Pack";
+            return "Scatterpack";
         if (s instanceof com.sfb.objects.shuttles.SuicideShuttle)
             return "Suicide Shuttle";
         return "Seeker";
@@ -1014,6 +1067,7 @@ public class GameStateDto {
         dto.speed = ship.getSpeed();
         dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
         dto.shipType = ship.getType();
+        dto.typeName = ship.getTypeName();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
         dto.shields = new ArrayList<>();
@@ -1100,6 +1154,8 @@ public class GameStateDto {
         dto.availableTransporters = ship.getTransporters().getAvailableTrans();
         dto.totalTransporters = ship.getTransporters().fetchOriginalTotalBoxes();
         dto.transporterEnergyCost = com.sfb.constants.Constants.TRANS_ENERGY;
+        dto.controlUsed = ship.getControlUsed();
+        dto.controlLimit = ship.getControlLimit();
         dto.availableTractors = ship.getTractors().fetchRemainingTotalBoxes();
         dto.totalTractors = ship.getTractors().fetchOriginalTotalBoxes();
 
@@ -1210,7 +1266,10 @@ public class GameStateDto {
             wd.arcMask = w.getArcs();
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
-            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.canFire();
+            // readyToFireAtTarget, not canFire: this field decides whether the Fire Orders
+            // panel lets a weapon be ticked, and a type-G in anti-drone mode answers false
+            // to canFire for the rest of the turn while being perfectly able to shoot.
+            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.readyToFireAtTarget();
             // Assigned for EVERY weapon, not only the ones that arm. It is a Boolean now,
             // where null means "not disclosed", so leaving it unset on a phaser made the
             // client treat the viewer's own weapons as an enemy's.
@@ -1301,6 +1360,12 @@ public class GameStateDto {
                 wd.addShots = add.getShots();
                 wd.addReloads = add.getReloadsAvailable();
                 wd.addCapacity = add.getCapacity();
+            } else if (w instanceof DroneRack
+                    && ((DroneRack) w).acceptsAntiDrones()) {
+                // A type-G shares one magazine between drones and anti-drones (FD3.70), so
+                // it has rounds but no capacity of its own — and no automatic reload either,
+                // which the same rule is explicit about.
+                wd.addShots = ((DroneRack) w).getAddAmmo();
             }
             dto.weapons.add(wd);
         }
@@ -1323,6 +1388,10 @@ public class GameStateDto {
             rd.name = rack.getName();
             rd.functional = rack.isFunctional();
             rd.canFire = rack.canFire();
+            rd.antiDrones = rack.getAddAmmo();
+            rd.mode = rack.getModeThisTurn().name();
+            rd.canFireAntiDrone = rack.canFireAntiDrone();
+            rd.spacesFree = rack.spacesFree();
             rd.drones = new ArrayList<>();
             for (Drone d : rack.getAmmo()) {
                 DroneInRackDto dd = new DroneInRackDto();
@@ -1382,6 +1451,7 @@ public class GameStateDto {
                     sd.name = s.getName();
                     sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
                     sd.maxSpeed = s.getMaxSpeed();
+                    sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
                     if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                         com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
@@ -1530,6 +1600,13 @@ public class GameStateDto {
         // Who he has lock-on to.
         dto.lockOnTargets = new ArrayList<>();
 
+        // Seeker control. What he holds could be counted off the map — every seeker names its
+        // controller — but the LIMIT cannot, and the pair says how close he is to losing
+        // tracking on something already flying. The limit would also give away a scout
+        // channel committed to controlling seekers (G24.24).
+        dto.controlUsed = 0;
+        dto.controlLimit = 0;
+
         // Tactical manoeuvre budget, and the availability that would give it away.
         dto.tacBudget = 0;
         dto.tacAvailable = 0;          // an int: earned TACs ready to use
@@ -1571,11 +1648,11 @@ public class GameStateDto {
                     wd.plasmaType = null;     // which torpedo is in the tube
                     wd.pseudoPlasmaReady = false;
                     wd.isRolling = false;
-                    wd.chargesRemaining = 0;
+                    wd.chargesRemaining = null;   // not disclosed, same as the rest here
                 }
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
-                wd.addShots = 0;
-                wd.addReloads = 0;      // addCapacity is on the SSD and stays
+                wd.addShots = null;
+                wd.addReloads = null;   // addCapacity is on the SSD and stays
             }
     }
 

@@ -164,6 +164,7 @@ public class Ship extends Unit implements DroneController {
 	// Other data
 	private int yearInService = 0; // The minimum year this ship can be deployed.
 	private String shipType = null; // The SSD's "Type" line (i.e. "CA", "FFG", "D7K", etc.)
+	private String typeName = null; // The class written out, e.g. "Commando Cruiser" for "CMC"
 	private String line = null;     // The family it serves in (S8.36), i.e. "CA" for a D7C
 	private String tokenArt = null; // Optional path to a PNG token image
 	private Faction faction = Faction.Federation; // The faction to which this ship belongs.
@@ -210,6 +211,7 @@ public class Ship extends Unit implements DroneController {
 		// Explicit Ship values
 		faction = values.get("faction") == null ? null : (Faction) values.get("faction");
 		shipType = values.get("type") == null ? null : (String) values.get("type");
+		typeName = values.get("typename") == null ? null : (String) values.get("typename");
 		line     = values.get("line") == null ? null : (String) values.get("line");
 		tokenArt = values.get("tokenart") == null ? null : (String) values.get("tokenart");
 		yearInService = values.get("serviceyear") == null ? 0 : (Integer) values.get("serviceyear");
@@ -711,6 +713,18 @@ public class Ship extends Unit implements DroneController {
 
 	public String getType() {
 		return this.shipType;
+	}
+
+	/**
+	 * The class written out, e.g. "Commando Cruiser" — what {@link #getType()} abbreviates.
+	 * Null for a ship built by a sample builder, which names no class.
+	 */
+	public String getTypeName() {
+		return this.typeName;
+	}
+
+	public void setTypeName(String typeName) {
+		this.typeName = typeName;
 	}
 
 	/**

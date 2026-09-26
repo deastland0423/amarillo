@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "DD+",
+  "typeName": "Destroyer",
   "line": "DD",
   "name": "GCS Talon",
   "serviceYear": 170,

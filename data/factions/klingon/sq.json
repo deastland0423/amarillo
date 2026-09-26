@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "S-Q",
+  "typeName": "Small Q-Ship",
   "line": "F-S",
   "name": "Patient Hunter",
   "serviceYear": 130,

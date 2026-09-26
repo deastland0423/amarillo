@@ -1,16 +1,18 @@
 {
   "faction": "Kzinti",
-  "type": "CL+",
+  "type": "CVE",
+  "typeName": "Escort Carrier",
   "line": "CL",
-  "name": "KHS Spectyr",
+  "name": "KHS Inferno",
   "serviceYear": 166,
-  "bpv": 96,
+  "bpv": 89,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
+  "isTrueCarrier": true,
   "tokenArt": "kzinti/cl.png",
   
   "shields": [18, 16, 16, 16, 16, 16],
@@ -24,8 +26,8 @@
     "leftWarp": 6,
     "rightWarp": 6,
     "centerWarp": 6,
-    "impulse": 3,
-    "apr": 4,
+    "impulse": 4,
+    "apr": 2,
     "battery": 3
   },
   
@@ -33,7 +35,7 @@
     "bridge": 3,
     "emergency": 1,
     "auxCon": 3,
-    "controlMod": 1.0
+    "controlMod": 2.0
   },
 
   "tables": {
@@ -46,18 +48,19 @@
   "auxiliary": {
     "transporters": 3,
     "tractors": 2,
-    "labs": 4,
+    "labs": 1,
     "probes": 1,
     "derfacs": true
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
   ],
 
   "crewData": {
     "totalCrew": 30,
     "boardingParties": 10,
+    "deckCrews": 6,
     "minCrew": 4
   },
 
@@ -65,28 +68,25 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
-    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
-    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["LF", "L"] },
-    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["RF", "R"] },
-    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["RF", "R"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
-
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
   ],
 
-    "y175Upgrades": {
-    "refitCost": 4,
+  "y175Upgrades": {
+    "refitCost": 6,
     "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 0 },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 0 },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C" }
     ],
-    "adds": []
+    "adds": [
+      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+    ]
   }
+
 }

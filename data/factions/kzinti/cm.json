@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CM",
+  "typeName": "Medium Cruiser",
   "line": "CW",
   "name": "KHS Frenzy",
   "serviceYear": 170,
@@ -76,17 +77,17 @@
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 },
-    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_6", "shots": 6 }
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_6" }
   ],
 
   "y175Upgrades": {
     "refitCost": 7,
     "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_C", "extraReloads": 0 },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_C", "extraReloads": 0 },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_B", "extraReloads": 1 },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B" }
     ],
     "adds": [
       { "designator": "ADD 1", "upgradeTo": "ADD_12"},

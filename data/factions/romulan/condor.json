@@ -1,0 +1,78 @@
+{
+  "faction": "Romulan",
+  "type": "CON",
+  "typeName": "Condor Dreadnought",
+  "line": "DN",
+  "name": "RIS Imperator",
+  "serviceYear": 170,
+  "bpv": 234,
+  "turnMode": "E",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "romulan/con.png",
+
+  "shields": [36, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 16
+  },
+  
+  "power": {
+    "leftWarp": 24,
+    "rightWarp": 24,
+    "impulse": 5,
+    "apr": 7,
+    "battery": 6
+  },
+  
+  "control": {
+    "bridge": 3,
+    "flag": 2,
+    "auxCon": 2,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0, 1, 3, 6, 9],
+    "excess": 10
+  },
+
+  "auxiliary": {
+    "transporters": 6,
+    "tractors": 4,
+    "probes": 1,
+    "cloakCost": 30
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 60,
+    "boardingParties": 20,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RF", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["L", "RA"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["R", "RA"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+  ]
+}

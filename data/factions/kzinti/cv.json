@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CV",
+  "typeName": "Carrier",
   "line": "BCH",
   "name": "KHS Sabre",
   "serviceYear": 166,
@@ -82,7 +83,7 @@
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
 
   ]
 }

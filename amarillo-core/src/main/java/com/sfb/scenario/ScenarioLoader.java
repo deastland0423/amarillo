@@ -298,7 +298,7 @@ public class ScenarioLoader {
         }
 
         // --- Drone rack loadouts (free; year/speed limits enforced) ---
-        if (!loadout.droneRackLoadouts.isEmpty()) {
+        if (!loadout.droneRackLoadouts.isEmpty() || !loadout.antiDroneLoadouts.isEmpty()) {
             Integer maxSpeed = spec.commanderOptions != null ? spec.commanderOptions.maxDroneSpeed : null;
             int year = spec.year;
 
@@ -307,19 +307,36 @@ public class ScenarioLoader {
                 if (w instanceof DroneRack) racks.add((DroneRack) w);
             }
 
-            for (Map.Entry<Integer, List<DroneType>> entry : loadout.droneRackLoadouts.entrySet()) {
-                int rackIndex = entry.getKey();
+            // Every rack either side of the two maps mentions, so a rack given only
+            // anti-drones is still visited.
+            java.util.Set<Integer> rackIndexes = new java.util.LinkedHashSet<>();
+            rackIndexes.addAll(loadout.droneRackLoadouts.keySet());
+            rackIndexes.addAll(loadout.antiDroneLoadouts.keySet());
+
+            for (Integer rackIndexBoxed : rackIndexes) {
+                int rackIndex = rackIndexBoxed;
                 if (rackIndex < 0 || rackIndex >= racks.size()) {
                     note(ship, "COI: drone rack index " + rackIndex + " out of range — skipped");
                     continue;
                 }
                 DroneRack rack = racks.get(rackIndex);
-                List<DroneType> requestedTypes = entry.getValue();
+                List<DroneType> requestedTypes =
+                        loadout.droneRackLoadouts.getOrDefault(rackIndex, java.util.List.of());
+                int antiDrones = loadout.antiDroneLoadouts.getOrDefault(rackIndex, 0);
+
+                if (antiDrones > 0 && !rack.acceptsAntiDrones()) {
+                    note(ship, "COI: rack " + rackIndex + " is a " + rack.getRackType()
+                            + " and carries no anti-drones (FD3.70) — anti-drones dropped");
+                    antiDrones = 0;
+                }
+                if (antiDrones > 0 && year > 0 && year < DroneRack.ANTI_DRONE_FIRST_YEAR) {
+                    note(ship, "COI: anti-drones are not available before Y"
+                            + DroneRack.ANTI_DRONE_FIRST_YEAR + " (FD3.72) — rack "
+                            + rackIndex + " anti-drones dropped");
+                    antiDrones = 0;
+                }
 
                 // Validate each type against year, speed cap, and rack capability
-                boolean canTypeVI = rack.getRackType() == DroneRack.DroneRackType.TYPE_E
-                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_G
-                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_H;
                 List<Drone> drones = new ArrayList<>();
                 double totalRackSize = 0;
                 boolean valid = true;
@@ -334,7 +351,7 @@ public class ScenarioLoader {
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
-                    if (dt.isTypeVI() && !canTypeVI) {
+                    if (!rack.accepts(dt)) {
                         note(ship, "COI: " + dt + " cannot be loaded in rack type "
                                 + rack.getRackType() + " — rack " + rackIndex + " skipped");
                         valid = false; break;
@@ -342,13 +359,26 @@ public class ScenarioLoader {
                     totalRackSize += dt.rack;
                 }
                 if (!valid) continue;
-                if (totalRackSize > rack.getSpaces()) {
+
+                // Every rack reached here was named in one map or the other, which means
+                // the player built a loadout for it — so what they built is what it
+                // carries, drones and anti-drones alike. A rack they never touched is not
+                // in either map and keeps the ammunition it arrived with.
+                //
+                // FD3.70: the two share one magazine, so they are budgeted together rather
+                // than each against the whole rack.
+                double totalWithAntiDrones =
+                        totalRackSize + antiDrones * DroneRack.ANTI_DRONE_SPACE;
+                if (totalWithAntiDrones > rack.getSpaces()) {
                     note(ship, "COI: loadout for rack " + rackIndex + " exceeds rack size ("
-                            + totalRackSize + " > " + rack.getSpaces() + ") — skipped");
+                            + totalWithAntiDrones + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
                 for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
                 rack.setAmmo(drones);
+                rack.setAddAmmo(0);
+                if (antiDrones > 0)
+                    rack.loadAntiDrones(antiDrones, year);
             }
         }
 
@@ -402,19 +432,19 @@ public class ScenarioLoader {
 
                 } else if ("scatterpack".equalsIgnoreCase(prep.type)) {
                     if (!foundShuttle.canBecomeScatterPack()) {
-                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatter pack — skipped");
+                        note(ship, "COI: " + prep.shuttleName + " cannot become a scatterpack — skipped");
                         continue;
                     }
                     ScatterPack sp = new ScatterPack(foundShuttle);
                     for (DroneType dt : prep.drones) {
                         // Pull one drone of this type from any rack's ammo, then reloads
                         if (!pullDroneFromRacks(ship, dt)) {
-                            note(ship, "COI: no " + dt + " available in racks for scatter pack "
+                            note(ship, "COI: no " + dt + " available in racks for scatterpack "
                                     + prep.shuttleName + " — drone skipped");
                             continue;
                         }
                         if (!sp.addDrone(new Drone(dt))) {
-                            note(ship, "COI: scatter pack " + prep.shuttleName
+                            note(ship, "COI: scatterpack " + prep.shuttleName
                                     + " payload full — remaining drones skipped");
                             break;
                         }
@@ -423,7 +453,7 @@ public class ScenarioLoader {
                         // Leave it a plain shuttle. An empty pack can never launch (the
                         // launch action wants a payload) and, being prepared, can no longer
                         // launch as an ordinary shuttle either — dead weight all battle.
-                        note(ship, "COI: scatter pack " + prep.shuttleName
+                        note(ship, "COI: scatterpack " + prep.shuttleName
                                 + " got no drones from the racks — left as a plain shuttle");
                         continue;
                     }

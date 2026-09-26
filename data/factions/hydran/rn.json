@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "RN",
+  "typeName": "Ranger Cruiser",
   "line": "CA",
   "name": "HMS Loyalty",
   "serviceYear": 134,

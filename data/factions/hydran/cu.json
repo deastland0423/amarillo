@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "CU",
+  "typeName": "Cuirassier Frigate",
   "line": "FF",
   "name": "HMS Hullcrusher",
   "serviceYear": 158,

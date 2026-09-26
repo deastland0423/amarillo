@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "CC+a",
+  "typeName": "Command Cruiser",
   "line": "CA",
   "name": "USS Lexington",
   "serviceYear": 170,
@@ -18,9 +19,7 @@
   
   "hullBoxes": {
     "fhull": 12,
-    "ahull": 4,
-    "chull": 0,
-    "cargo": 0
+    "ahull": 4
   },
   
   "power": {

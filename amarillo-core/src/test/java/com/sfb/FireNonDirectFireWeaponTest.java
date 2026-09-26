@@ -75,8 +75,13 @@ public class FireNonDirectFireWeaponTest {
         Weapon rack = firstDroneRack();
         assertNotNull("a D7 should carry a drone rack, and it should be in fetchAllWeapons()",
                 rack);
-        assertFalse("a rack launches seekers; it is not a direct-fire weapon",
+        // A rack IS a DirectFire since FD3.70 arrived — a type-G fires anti-drones through
+        // that interface. What keeps this D7's type-B rack out of a volley is the
+        // capability, which is the distinction this whole class exists to hold.
+        assertTrue("racks reach the fire path through DirectFire now",
                 rack instanceof DirectFire);
+        assertFalse("but a type-B has no anti-drones and cannot be fired at anything",
+                ((DirectFire) rack).canBeFiredAtTarget());
     }
 
     @Test

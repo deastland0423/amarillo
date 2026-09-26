@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "FF",
+  "typeName": "Frigate",
   "line": "FF",
   "name": "#175",
   "serviceYear": 122,

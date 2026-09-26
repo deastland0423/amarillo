@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CVS",
+  "typeName": "Strike Carrier",
   "line": "BCH",
   "name": "KHS Scimitar",
   "serviceYear": 170,
@@ -85,16 +86,16 @@
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6", "shots": 6 }
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
   ],
 
   "y175Upgrades": {
     "refitCost": 6,
     "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_C", "extraReloads": 1 },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_C", "extraReloads": 1 }
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 3", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 4", "upgradeTo": "TYPE_C" }
     ],
     "adds": [
       { "designator": "ADD 1", "upgradeTo": "ADD_12"}  

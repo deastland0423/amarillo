@@ -16,3 +16,8 @@ amarillo-web/dist/
 # Saved fleets are player data, not source. Tests that need one build it and
 # delete it again (FleetStorageEndpointTest), so nothing here is a fixture.
 data/fleets/
+
+# Rulebook PDFs. Kept on disk so they can be consulted while working, never
+# committed: they are ADB's copyrighted product, watermarked with the buyer's
+# name and order number, and this repo has a public remote.
+data/rules/

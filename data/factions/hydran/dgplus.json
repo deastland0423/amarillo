@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "DG+",
+  "typeName": "Dragoon Cruiser",
   "line": "CA",
   "name": "HMS Glorious",
   "serviceYear": 170,

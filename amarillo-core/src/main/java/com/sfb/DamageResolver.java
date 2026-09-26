@@ -433,7 +433,11 @@ class DamageResolver {
                 .append(attacker.getFacing()).append("):\n");
         int dealt = 0;
         for (Weapon w : selected) {
-            if (!(w instanceof com.sfb.weapons.DirectFire)) {
+            // A type-G is a DirectFire while it has anti-drones aboard, so a class
+            // test alone would now offer it a hex. An anti-drone round has no effect
+            // on a ship, let alone on terrain: a launcher stays out by what it IS.
+            if (w instanceof com.sfb.weapons.Launcher
+                    || !(w instanceof com.sfb.weapons.DirectFire)) {
                 log.append("  ").append(w.getName()).append(" — seeking weapons cannot bombard (P2.522, deferred)\n");
                 continue;
             }
@@ -512,7 +516,11 @@ class DamageResolver {
                 .append(", bearing ").append(trueBearing).append("):\n");
         int dealt = 0;
         for (Weapon w : selected) {
-            if (!(w instanceof com.sfb.weapons.DirectFire)) {
+            // A type-G is a DirectFire while it has anti-drones aboard, so a class
+            // test alone would now offer it a hex. An anti-drone round has no effect
+            // on a ship, let alone on terrain: a launcher stays out by what it IS.
+            if (w instanceof com.sfb.weapons.Launcher
+                    || !(w instanceof com.sfb.weapons.DirectFire)) {
                 log.append("  ").append(w.getName())
                         .append(" — seeking weapons aimed at a hex are not implemented (P3.252)\n");
                 continue;
@@ -686,7 +694,7 @@ class DamageResolver {
             // under FD3.7 — when that is built, the rack will be a DirectFire in that mode
             // and this guard will stop applying to it on its own, rather than standing in
             // the way as a hardcoded "racks cannot fire".
-            if (!(w instanceof DirectFire)) {
+            if (!(w instanceof DirectFire) || !((DirectFire) w).canBeFiredAtTarget()) {
                 log.append("  ").append(w.getName())
                         .append("  cannot be fired at a target — it launches seeking weapons\n");
                 continue;

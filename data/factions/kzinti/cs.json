@@ -1,6 +1,7 @@
 {
   "faction": "Kzinti",
   "type": "CS",
+  "typeName": "Strike Cruiser",
   "line": "CA",
   "name": "KHS Quasar",
   "serviceYear": 125,

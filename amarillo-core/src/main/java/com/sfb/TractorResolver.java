@@ -437,7 +437,7 @@ class TractorResolver {
         // this offset hex grid when the held unit sits in a different column parity.
         Location fromHex = target.getLocation();
         int rotationDir = -1;
-        for (int dir : new int[] { 1, 5, 9, 13, 17, 21 }) {
+        for (int dir : com.sfb.utilities.MapUtils.FACINGS) {
             if (destHex.equals(MapUtils.getAdjacentHex(fromHex, dir))) {
                 rotationDir = dir;
                 break;

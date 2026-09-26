@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "TUG",
+  "typeName": "Tug",
   "line": "TUG",
   "name": "USS Ptolemy",
   "serviceYear": 135,

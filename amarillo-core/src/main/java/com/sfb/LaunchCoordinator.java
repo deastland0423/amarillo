@@ -133,8 +133,16 @@ class LaunchCoordinator {
         if (!foundShuttleBay.canLaunch(foundShuttle, game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay is not ready to launch");
 
-        int wwFacing = (facing >= 1 && facing <= 24) ? facing : ship.getFacing();
-        int wwSpeed = Math.max(0, Math.min(6, speed));
+        // Any of the 24 used to be accepted here; only six are directions a unit may face.
+        int wwFacing = craftFacing(ship, null, facing);
+        if (wwFacing == 0)
+            return badFacing(facing);
+        // A weasel may move at anything up to the MAX SPEED OF THE SHUTTLE IT IS BUILT FROM.
+        // This was a hardcoded 6 — an admin shuttle's figure — which J3.18 makes wrong the
+        // moment anything else is charged: any non-fighter shuttle may serve, and they do not
+        // all move at six. effectiveMaxSpeed, like the plain shuttle path, so a point of
+        // speed committed to erratic maneuvers is honoured too (C10.13).
+        int wwSpeed = Math.max(0, Math.min(foundShuttle.effectiveMaxSpeed(), speed));
 
         // Built FROM the shuttle being charged, so it keeps that shuttle's hull, speed and
         // type rather than assuming an admin shuttle's (J3.18 allows any non-fighter).
@@ -193,6 +201,86 @@ class LaunchCoordinator {
      *
      * @return ActionResult describing success or reason for failure.
      */
+    /**
+     * The direction a launched CRAFT leaves on — shuttle, fighter, weasel, suicide shuttle
+     * or scatter pack.
+     *
+     * The same six-facings rule as a seeker, and it was missing here: every one of these
+     * paths handed its facing straight to ShuttleBay.launch, which sets it verbatim. A launch
+     * with no direction named therefore left the craft facing 0, which is not a direction at
+     * all and draws as a heading between F and A.
+     * <p>
+     * With none named, a craft that has a target points at it (snapped, since a bearing runs
+     * to 24 and a facing is one of six) and one that has none takes its mother ship's facing,
+     * which is what a weasel already did.
+     *
+     * @return the facing to use, or 0 if a named direction is not a legal facing
+     */
+    private int craftFacing(Ship launcher, Unit target, int named) {
+        if (named > 0)
+            return MapUtils.isFacing(named) ? named : 0;
+        if (target != null) {
+            int snapped = MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+            if (snapped > 0)
+                return snapped;
+        }
+        return launcher.getFacing();
+    }
+
+    /** Shared refusal, so all four craft launches say the same thing. */
+    private ActionResult badFacing(int named) {
+        return ActionResult.fail("Direction " + named + " is not one of the six a unit may"
+                + " face (1, 5, 9, 13, 17, 21)");
+    }
+
+    /**
+     * The direction a seeker is actually launched on.
+     *
+     * A unit may only face one of the six directions (MapUtils.FACINGS), seeking weapons
+     * included. A named direction must be one of them; with none named, the bearing to the
+     * target is SNAPPED, because a bearing answers in 24 directions and a facing is one of
+     * six - taking it raw created seekers pointed along directions nothing can face.
+     *
+     * @return the facing to use, or 0 if the named direction is not a legal facing
+     */
+    private int launchFacingFor(Unit launcher, Unit target, int named) {
+        if (named > 0)
+            return MapUtils.isFacing(named) ? named : 0;
+        return MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+    }
+
+    /**
+     * A launched seeker must be able to see where it is going: with the facing it is launched
+     * on, the target has to lie inside the seeker's OWN forward arc (ArcUtils.FA, the nine
+     * directions 21-5).
+     *
+     * A third constraint, distinct from the two on the launcher. A drone rack has no arc of
+     * its own and a plasma tube's arcs are about the ship; this one is about the seeker, and
+     * it is the only thing bounding a rack that launches in any direction at all.
+     * <p>
+     * It bites when a direction is NAMED that points away from the target. A launch with no
+     * direction aims straight at it, so the target sits at relative bearing 1 and is
+     * trivially inside its own forward arc.
+     * <p>
+     * Owner's ruling 2026-09-21; the F-section citation should be added when that page is to
+     * hand.
+     *
+     * @return a refusal, or null if the seeker can track from there
+     */
+    private ActionResult seekerArcBlock(Unit launcher, Unit target, int seekerFacing, String what) {
+        if (seekerFacing <= 0 || target == null)
+            return null;
+        int bearing = MapUtils.getBearing(launcher, target);
+        if (bearing == 0)
+            return null;               // same hex: no bearing exists to judge
+        int relative = MapUtils.getRelativeBearing(bearing, seekerFacing);
+        if (!ArcUtils.inArc(relative, ArcUtils.FA))
+            return ActionResult.fail(what + " launched on direction " + seekerFacing
+                    + " cannot track " + target.getName()
+                    + " — the target must lie in the seeker's forward arc");
+        return null;
+    }
+
     public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
@@ -260,7 +348,14 @@ class LaunchCoordinator {
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
         drone.setLocation(launcher.getLocation());
-        drone.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        int droneFacing = launchFacingFor(launcher, target, facing);
+        if (droneFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
+        ActionResult droneArc = seekerArcBlock(launcher, target, droneFacing, rack.getName());
+        if (droneArc != null)
+            return droneArc;
+        drone.setFacing(droneFacing);
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
         Unit droneTarget = target;
@@ -313,15 +408,38 @@ class LaunchCoordinator {
         }
         if (!weapon.isArmed())
             return ActionResult.fail(weapon.getName() + " is not armed");
-        // Validate launch facing is within the launcher's allowed directions
-        // (ship-relative arc)
+        // TWO different constraints, and they are not the same arc.
+        //
+        // The TARGET must lie in the launcher's firing arc: a plasma launcher has one, unlike
+        // a drone rack, which will send one any way it likes. This test was missing entirely,
+        // so a forward launcher could target something dead astern.
+        int bearing = MapUtils.getBearing(launcher, target);
+        if (bearing > 0) {            // 0 = same hex, where no bearing exists
+            int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
+            if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
+                return ActionResult.fail(weapon.getName() + " cannot target "
+                        + target.getName() + " — outside launcher arc");
+        }
+        // The launch DIRECTION, separately, must be one the tube can use. Narrower than the
+        // firing arc on real ships: a Romulan KR's Plasma-G launches straight ahead only, yet
+        // may target anything in FA. So this is checked against launchDirections and only
+        // when a direction is actually named.
         if (facing > 0) {
-            int launchDirs = weapon.getLaunchDirections() != 0 ? weapon.getLaunchDirections() : weapon.getArcs();
+            int launchDirs = weapon.getLaunchDirections() != 0
+                    ? weapon.getLaunchDirections() : weapon.getArcs();
             int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
             if (!ArcUtils.inArc(relFacing, launchDirs))
-                return ActionResult
-                        .fail(weapon.getName() + " cannot launch in direction " + facing + " — outside launcher arc");
+                return ActionResult.fail(weapon.getName() + " cannot launch in direction "
+                        + facing + " — outside launcher arc");
         }
+
+        int torpFacing = launchFacingFor(launcher, target, facing);
+        if (torpFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
+        ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, weapon.getName());
+        if (torpArc != null)
+            return torpArc;
 
         PlasmaTorpedo torpedo = weapon.launch();
         if (torpedo == null)
@@ -333,7 +451,7 @@ class LaunchCoordinator {
 
         torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq());
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(torpFacing);
         // J3.201: redirect to WW if target ship has an active/exploding WW (not
         // post-explosion)
         Unit torpTarget = target;
@@ -379,6 +497,33 @@ class LaunchCoordinator {
             return ActionResult.fail(weapon.getName() + " is destroyed");
         if (!weapon.canLaunchPseudo())
             return ActionResult.fail(weapon.getName() + " cannot launch pseudo plasma now");
+
+        // A pseudo must be bound by exactly what binds a real one, or the bluff gives itself
+        // away: a torpedo launched at an angle no real one could manage could only be pseudo.
+        // These three were all missing here, so a pseudo could be thrown anywhere at all.
+        int pseudoBearing = MapUtils.getBearing(launcher, target);
+        if (pseudoBearing > 0) {
+            int relBearing = MapUtils.getRelativeBearing(pseudoBearing, launcher.getFacing());
+            if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
+                return ActionResult.fail(weapon.getName() + " cannot target "
+                        + target.getName() + " — outside launcher arc");
+        }
+        if (facing > 0) {
+            int launchDirs = weapon.getLaunchDirections() != 0
+                    ? weapon.getLaunchDirections() : weapon.getArcs();
+            int relFacing = MapUtils.getRelativeBearing(facing, launcher.getFacing());
+            if (!ArcUtils.inArc(relFacing, launchDirs))
+                return ActionResult.fail(weapon.getName() + " cannot launch in direction "
+                        + facing + " — outside launcher arc");
+        }
+        int pseudoFacing = launchFacingFor(launcher, target, facing);
+        if (pseudoFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
+        ActionResult pseudoArc = seekerArcBlock(launcher, target, pseudoFacing, weapon.getName());
+        if (pseudoArc != null)
+            return pseudoArc;
+
         PlasmaTorpedo torpedo = weapon.launchPseudo();
         if (torpedo == null)
             return ActionResult.fail(weapon.getName() + " failed to launch pseudo plasma");
@@ -386,7 +531,7 @@ class LaunchCoordinator {
         torpedo.setName(launcher.getName() + "-Plasma-" + game.nextSeekerSeq()); // named like a real one — the name
                                                                                  // must not reveal pseudo status
         torpedo.setLocation(launcher.getLocation());
-        torpedo.setFacing(facing > 0 ? facing : MapUtils.getBearing(launcher, target));
+        torpedo.setFacing(pseudoFacing);
         torpedo.setTarget(target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
@@ -430,8 +575,11 @@ class LaunchCoordinator {
 
         // C10.13: a shuttle that has committed a point of speed to EM cannot launch above
         // the reduced maximum.
+        int shuttleFacing = craftFacing(launcher, null, facing);
+        if (shuttleFacing == 0)
+            return badFacing(facing);
         com.sfb.objects.shuttles.Shuttle launched = bay.launch(shuttle,
-                Math.min(speed, shuttle.effectiveMaxSpeed()), facing, game.getAbsoluteImpulse());
+                Math.min(speed, shuttle.effectiveMaxSpeed()), shuttleFacing, game.getAbsoluteImpulse());
         if (launched == null)
             return ActionResult.fail("Shuttle not found in bay");
 
@@ -488,7 +636,14 @@ class LaunchCoordinator {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
-        bay.launch(shuttle, Math.min(speed, shuttle.getMaxSpeed()), facing, game.getAbsoluteImpulse());
+        // effectiveMaxSpeed, not getMaxSpeed: the same figure the plain shuttle launch uses,
+        // so a suicide shuttle that has committed a point of speed to erratic maneuvers is
+        // bounded like any other shuttle (C10.13).
+        int suicideFacing = craftFacing(launcher, target, facing);
+        if (suicideFacing == 0)
+            return badFacing(facing);
+        bay.launch(shuttle, Math.max(0, Math.min(speed, shuttle.effectiveMaxSpeed())),
+                suicideFacing, game.getAbsoluteImpulse());
         shuttle.setName(launchName(launcher, shuttle));
                                                                                   // hidden
         shuttle.setLocation(launcher.getLocation());
@@ -530,15 +685,24 @@ class LaunchCoordinator {
         if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
         if (pack.getPayload().isEmpty())
-            return ActionResult.fail("Scatter pack has no drones loaded");
+            return ActionResult.fail("Scatterpack has no drones loaded");
         if (!bay.canLaunch(game.getAbsoluteImpulse()))
             return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
         if (!launcher.hasLockOn(target))
-            return ActionResult.fail("No lock-on to target — cannot launch scatter pack");
+            return ActionResult.fail("No lock-on to target — cannot launch scatterpack");
+
+        int packFacing = craftFacing(launcher, target, facing);
+        if (packFacing == 0)
+            return badFacing(facing);
 
         launcher.forceAcquireControl(pack);
 
-        bay.launch(pack, Math.min(speed, pack.getMaxSpeed()), facing, game.getAbsoluteImpulse());
+        // effectiveMaxSpeed, like the other three craft launches: a pack is built on a
+        // shuttle and carries that shuttle's speed limits, erratic maneuvers included
+        // (C10.13, owner's ruling 2026-09-21). The floor matters too — a negative speed
+        // asked for is a standing still, not a reverse.
+        bay.launch(pack, Math.max(0, Math.min(speed, pack.effectiveMaxSpeed())),
+                packFacing, game.getAbsoluteImpulse());
         pack.setName(launchName(launcher, pack));
         pack.setLocation(launcher.getLocation());
         // Whose it is, and where it came from. launchShuttle has always set both; this
@@ -553,7 +717,7 @@ class LaunchCoordinator {
         seekers.add(pack);
         List<String> lockLog = game.checkLockOnsForNewUnit(launcher, pack);
 
-        String msg = launcher.getName() + " launched scatter pack ("
+        String msg = launcher.getName() + " launched scatterpack ("
                 + pack.getPayload().size() + " drones) at " + target.getName();
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
@@ -583,7 +747,7 @@ class LaunchCoordinator {
                 || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
                 || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
             return ActionResult.fail(
-                    "Active suicide shuttles, scatter packs, and Wild Weasels cannot land aboard (J1.611)");
+                    "Active suicide shuttles, scatterpacks, and Wild Weasels cannot land aboard (J1.611)");
 
         String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
         String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;

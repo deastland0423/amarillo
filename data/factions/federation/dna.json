@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DNa",
+  "typeName": "Dreadnought",
   "line": "DN",
   "name": "USS Unity",
   "serviceYear": 148,

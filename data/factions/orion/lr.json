@@ -1,6 +1,7 @@
 {
   "faction": "Orion",
   "type": "LR",
+  "typeName": "Light Raider",
   "line": "FF",
   "name": "Lady Luck",
   "serviceYear": 129,

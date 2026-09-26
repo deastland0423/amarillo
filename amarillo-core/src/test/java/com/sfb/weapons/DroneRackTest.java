@@ -22,6 +22,11 @@ public class DroneRackTest {
         assertEquals("Drone", rack.getType());
     }
 
+    /**
+     * The reload count is a property of the RACK TYPE, not of the ship (owner's reading of
+     * the SSDs, 2026-09-25). Type-G is the only type a ship file may add to, because FD3.72
+     * gives it a third set at the Y175 refit.
+     */
     @Test
     public void typeConstructorSetsSpacesAndReloads() {
         DroneRack typeA = new DroneRack(DroneRackType.TYPE_A);
@@ -30,11 +35,33 @@ public class DroneRackTest {
 
         DroneRack typeB = new DroneRack(DroneRackType.TYPE_B);
         assertEquals(6, typeB.getSpaces());
-        assertEquals(1, typeB.getNumberOfReloads());
+        assertEquals("a B rack always carries two", 2, typeB.getNumberOfReloads());
+
+        DroneRack typeC = new DroneRack(DroneRackType.TYPE_C);
+        assertEquals(4, typeC.getSpaces());
+        assertEquals("and so does a C", 2, typeC.getNumberOfReloads());
+
+        DroneRack typeG = new DroneRack(DroneRackType.TYPE_G);
+        assertEquals(4, typeG.getSpaces());
+        assertEquals("FD3.72: two sets, one of them all anti-drones",
+                2, typeG.getNumberOfReloads());
 
         DroneRack typeD = new DroneRack(DroneRackType.TYPE_D);
         assertEquals(12, typeD.getSpaces());
         assertEquals(2, typeD.getNumberOfReloads());
+    }
+
+    /** An upgrade re-reads the table, so a refit cannot leave the old type's count behind. */
+    @Test
+    public void upgradingARackTakesTheNewTypesReloadCount() {
+        DroneRack rack = new DroneRack(DroneRackType.TYPE_A);
+        assertEquals(1, rack.getNumberOfReloads());
+
+        rack.upgradeRackType(DroneRackType.TYPE_B);
+
+        assertEquals(6, rack.getSpaces());
+        assertEquals("the B refit brings the B rack's two sets with it",
+                2, rack.getNumberOfReloads());
     }
 
     @Test

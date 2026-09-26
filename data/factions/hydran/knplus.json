@@ -1,6 +1,7 @@
 {
   "faction": "Hydran",
   "type": "KN+",
+  "typeName": "Knight Destroyer",
   "line": "DD",
   "name": "HMS Invulnerable",
   "serviceYear": 172,

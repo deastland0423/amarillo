@@ -15,7 +15,7 @@ import com.sfb.weapons.Phaser3;
 public class Stinger1 extends Fighter {
 
     public Stinger1() {
-		setCatalogType("stinger1");
+        setCatalogType("stinger1");
         setTurnMode(TurnMode.Shuttle);
         setMaxSpeed(12);
         setCurrentSpeed(12);
@@ -32,13 +32,13 @@ public class Stinger1 extends Fighter {
         FighterFusion fA = new FighterFusion();
         fA.setDesignator("A");
         fA.setArcs(ArcUtils.FULL);
-        fA.setArcsFromJSON(List.of("FULL"));
+        fA.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(fA);
 
         FighterFusion fB = new FighterFusion();
         fB.setDesignator("B");
         fB.setArcs(ArcUtils.FULL);
-        fB.setArcsFromJSON(List.of("FULL"));
+        fB.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(fB);
     }
 }

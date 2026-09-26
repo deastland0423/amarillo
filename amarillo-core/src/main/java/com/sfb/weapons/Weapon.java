@@ -222,6 +222,19 @@ public abstract class Weapon {
 	}
 
 	/**
+	 * Whether this weapon is ready to fire AT A TARGET this impulse.
+	 *
+	 * For almost everything that is {@link #canFire()} and nothing more. A drone rack is the
+	 * exception, because its canFire asks whether it may LAUNCH — a different question with a
+	 * different answer, and one that goes false for a whole turn the moment a type-G commits
+	 * to firing anti-drones (FD3.71). Anything deciding whether a weapon may be SHOT should
+	 * ask this instead.
+	 */
+	public boolean readyToFireAtTarget() {
+		return canFire();
+	}
+
+	/**
 	 * G24.1342: firing most weapons blinds one of the scout's powered channels (G24.13).
 	 * The exceptions (G24.1341) — phaser-3, ADD, and rack-launched drones / suicide /
 	 * scatter shuttles — override this to false.

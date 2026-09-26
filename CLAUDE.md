@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory.
+A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory — but look in `data/rules/` first, which holds PDFs already to hand (currently Annex #2, the Sequence of Play). Read them with `pdftotext -layout`; page rendering is unavailable on this machine. The directory is gitignored: these are ADB's watermarked product and must never be committed.
 
 ## Commands
 
@@ -38,6 +38,9 @@ Three tiers, strictly layered:
 - **amarillo-core** — the rules engine, plain Java, no Spring. All game logic lives here.
 - **amarillo-server** — Spring Boot wrapper: REST + STOMP WebSocket. `GameSession` maps `ActionRequest.type` strings to Game method calls and broadcasts a `GameStateDto` snapshot after every action. No rules logic here beyond request validation — but those validations encode rule limits and silently drift when a rule changes in core (a pre-G7.6 tractor-energy cap survived two revisions this way). When changing a rule, grep the system's name across **all three tiers**, and update `GameSessionAllocateTest` when touching an ALLOCATE validation.
 - **amarillo-web** — React/TypeScript frontend. A pure view: it renders the DTO and sends actions. It never computes rules outcomes (only mirrors them for previews, e.g. `weaponDamageTables.ts`, which must be updated whenever a new Java weapon class is added).
+
+  Two traps where the DTO meets TypeScript, both of which have shipped bugs:
+  a **primitive** Java field (`int`, `boolean`) is always serialized, so a field that applies to one weapon type arrives as `0` on every weapon — use `Integer`/`Boolean` so "not applicable" can be said. And Jackson serializes null as `"field": null` rather than omitting the key, so a client guard must be `!= null`, never `!== undefined`: `null !== undefined` is true.
 
 ### Game.java is the aggregate root
 

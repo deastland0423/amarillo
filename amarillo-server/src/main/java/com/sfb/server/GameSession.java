@@ -116,6 +116,18 @@ public class GameSession {
     private boolean declarationSpent = false; // this impulse's round already resolved
     private final Map<String, DeclarationCommit> declarationCommits = new LinkedHashMap<>();
 
+    // ---- Launch declaration round (Annex #2, Impulse Activity Segment) ----
+    // Deliberately INDEPENDENT of the fire round above: separate state, separate actions.
+    // Both could be open in the same impulse, and one set of fields doing double duty is how
+    // they would interfere. Same shape, because the table ritual is the same - somebody calls,
+    // everyone commits blind, all of it reveals together.
+
+    private boolean activityOpen = false;
+    private String activityCallerToken = null;
+    private int activityImpulse = -1;
+    private boolean activitySpent = false;
+    private final Map<String, List<ActionRequest.ActivityOrder>> activityCommits = new LinkedHashMap<>();
+
     /**
      * Combat events accumulated since the last broadcast; drained by
      * drainCombatLog().
@@ -739,6 +751,18 @@ public class GameSession {
                         return ActionResult.fail(getFireDeclarationCallerName()
                                 + " has declared fire — answer the declaration before the"
                                 + " phase can advance");
+                    }
+                }
+                // And an open launch declaration, the same way (Annex #2, 6B)
+                if (game.getCurrentPhase() == Game.ImpulsePhase.ACTIVITY) {
+                    refreshActivityState();
+                    if (activityOpen) {
+                        if (activityCommits.containsKey(token))
+                            return ActionResult.ok("WAITING:" + activityCommits.size()
+                                    + "/" + players.size());
+                        return ActionResult.fail(getActivityDeclarationCallerName()
+                                + " has called for launches — answer the declaration"
+                                + " before the phase can advance");
                     }
                 }
                 // During movement phase, reject ready if this player still has ships or
@@ -1667,7 +1691,7 @@ public class GameSession {
                         break;
                 }
                 if (foundBay == null || foundPack == null)
-                    return ActionResult.fail("Scatter pack not found: " + packName);
+                    return ActionResult.fail("Scatterpack not found: " + packName);
                 ActionResult spRes = game.launchScatterPack(launcher, foundBay, foundPack, target,
                         request.getFacing(), request.getSpeed());
                 if (spRes.isSuccess())
@@ -2128,6 +2152,70 @@ public class GameSession {
                 return ActionResult.ok("COMMITTED:" + declarationCommits.size() + "/" + players.size());
             }
 
+            case "CALL_ACTIVITY_DECLARATION": {
+                if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+                    return ActionResult.fail("Launches are declared in the Activity segment");
+                refreshActivityState();
+                if (activityOpen)
+                    return ActionResult.fail("A launch declaration is already open");
+                if (activitySpent)
+                    return ActionResult.fail("This impulse's launch declaration has already resolved");
+                PlayerInfo caller = players.get(request.getPlayerToken());
+                if (caller == null)
+                    return ActionResult.fail("Unknown player");
+                activityOpen = true;
+                activityCallerToken = request.getPlayerToken();
+                activityImpulse = game.getAbsoluteImpulse();
+                activityCommits.clear();
+                readyPlayers.clear();
+                appendCombatLog("\u2622 " + caller.getName()
+                        + " calls for launches \u2014 all players commit orders (Annex #2, 6B)");
+                return ActionResult.ok("ACTIVITY_DECLARATION_CALLED");
+            }
+
+            case "COMMIT_ACTIVITY_DECLARATION": {
+                refreshActivityState();
+                if (!activityOpen)
+                    return ActionResult.fail("No launch declaration is open");
+                String aToken = request.getPlayerToken();
+                PlayerInfo api = players.get(aToken);
+                if (api == null)
+                    return ActionResult.fail("Unknown player");
+                if (activityCommits.containsKey(aToken))
+                    return ActionResult.fail("Orders already committed \u2014 they are sealed");
+                List<String> aMine = api.getShipNames();
+                if (request.getActivityOrders() != null)
+                    for (ActionRequest.ActivityOrder o : request.getActivityOrders())
+                        if (!containsIgnoreCase(aMine, o.getShipName()))
+                            return ActionResult.fail("Cannot launch from another player's unit: "
+                                    + o.getShipName());
+                activityCommits.put(aToken, request.getActivityOrders() != null
+                        ? request.getActivityOrders() : List.of());
+                appendCombatLog(api.getName() + " has committed launch orders ("
+                        + activityCommits.size() + "/" + players.size() + ")");
+                if (activityCommits.size() >= players.size())
+                    resolveActivityRound();
+                return ActionResult.ok("COMMITTED:" + activityCommits.size() + "/" + players.size());
+            }
+
+            case "PASS_ACTIVITY_DECLARATION": {
+                refreshActivityState();
+                if (!activityOpen)
+                    return ActionResult.fail("No launch declaration is open");
+                String pToken = request.getPlayerToken();
+                PlayerInfo ppi = players.get(pToken);
+                if (ppi == null)
+                    return ActionResult.fail("Unknown player");
+                if (activityCommits.containsKey(pToken))
+                    return ActionResult.fail("Orders already committed \u2014 they are sealed");
+                activityCommits.put(pToken, List.of());
+                appendCombatLog(ppi.getName() + " has committed launch orders ("
+                        + activityCommits.size() + "/" + players.size() + ")");
+                if (activityCommits.size() >= players.size())
+                    resolveActivityRound();
+                return ActionResult.ok("COMMITTED:" + activityCommits.size() + "/" + players.size());
+            }
+
             case "PASS_FIRE_DECLARATION": {
                 refreshDeclarationState();
                 if (!declarationOpen)
@@ -2152,6 +2240,140 @@ public class GameSession {
     }
 
     // -------------------------------------------------------------------------
+    // ---- Launch declaration helpers (Annex #2, Impulse Activity Segment) ----
+
+    /** A stale round from a previous impulse evaporates; spent-flag resets too. */
+    private void refreshActivityState() {
+        if (activityImpulse != game.getAbsoluteImpulse()) {
+            activityOpen = false;
+            activityCallerToken = null;
+            activitySpent = false;
+            activityCommits.clear();
+            activityImpulse = game.getAbsoluteImpulse();
+        }
+    }
+
+    /**
+     * Which Annex #2 stage an order belongs to. Seeking weapons are 6B6, shuttles 6B8 - so
+     * in one impulse the drones are away before a weasel goes up, which is the whole reason
+     * the round exists rather than resolving on click.
+     * <p>
+     * Only the two stages this round collects. Sequencing all eleven would slow the game to
+     * a crawl for no gain; these are where the outcomes differ.
+     */
+    private static int activityStage(ActionRequest.ActivityOrder o) {
+        String kind = o.getKind() == null ? "" : o.getKind().toUpperCase();
+        switch (kind) {
+            case "PLASMA":
+            case "DRONE":
+                return 6;                 // 6B6 Seeking Weapons Stage
+            case "SHUTTLE":
+            case "WEASEL":
+            case "SUICIDE":
+            case "SCATTER_PACK":
+                return 8;                 // 6B8 Shuttle & PF Functions Stage
+            default:
+                return 9;                 // unknown: last, and it will fail with a reason
+        }
+    }
+
+    /**
+     * Turn a sealed order into the action that already knows how to perform it.
+     * <p>
+     * The individual launch actions grew up reusing fields - a shuttle's name arrives in
+     * `action`, its facing in `range`, a drone's index in `range` as well. ActivityOrder has
+     * properly named fields and this method is the single place that maps them onto what each
+     * action reads, so the reuse stays contained instead of spreading into the new round.
+     */
+    private ActionRequest activityOrderToAction(ActionRequest.ActivityOrder o, String token) {
+        ActionRequest r = new ActionRequest();
+        r.setPlayerToken(token);
+        r.setShipName(o.getShipName());
+        r.setTargetName(o.getTargetName());
+        String kind = o.getKind() == null ? "" : o.getKind().toUpperCase();
+        switch (kind) {
+            case "PLASMA":
+                r.setType("LAUNCH_PLASMA");
+                r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
+                r.setPseudo(o.isPseudo());
+                r.setFastLoad(o.isFastLoad());
+                r.setFacing(o.getFacing());
+                break;
+            case "DRONE":
+                r.setType("LAUNCH_DRONE");
+                r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
+                r.setRange(o.getDroneIndex());     // LAUNCH_DRONE reads the index from range
+                r.setFacing(o.getFacing());
+                break;
+            case "SHUTTLE":
+            case "WEASEL":
+                r.setType("WEASEL".equals(kind) ? "LAUNCH_WILD_WEASEL" : "LAUNCH_SHUTTLE");
+                r.setAction(o.getShuttleName());   // both read the name from action
+                r.setRange(o.getFacing());         // and the facing from range
+                r.setSpeed(o.getSpeed());
+                break;
+            case "SUICIDE":
+            case "SCATTER_PACK":
+                r.setType("SUICIDE".equals(kind)
+                        ? "LAUNCH_SUICIDE_SHUTTLE" : "LAUNCH_SCATTER_PACK");
+                r.setAction(o.getShuttleName());
+                // These two read facing and speed from their own named fields, unlike the
+                // shuttle and weasel launches above. Omitting them sent every pack out on
+                // facing 0 — no direction at all — whatever the player had chosen.
+                r.setFacing(o.getFacing());
+                r.setSpeed(o.getSpeed());
+                break;
+            default:
+                r.setType("UNKNOWN_LAUNCH_KIND");
+                break;
+        }
+        return r;
+    }
+
+    /**
+     * The reveal: every player has answered, so the collected launches happen.
+     *
+     * Sorted into Annex #2 stage order and otherwise left in the order they were drafted -
+     * List.sort is stable, so a player's own two drones still go in the order they chose.
+     * Each order is REPLAYED as the action that already performs it: those six launch cases
+     * are correct, and a resolver with its own copies of them would be two of each.
+     * <p>
+     * An order that turns out to be illegal fizzles with its reason in the log rather than
+     * rejecting the sealed round, the same way a fire order does.
+     */
+    private void resolveActivityRound() {
+        StringBuilder log = new StringBuilder("\u2014 Launch declaration resolves \u2014");
+        List<Map.Entry<String, ActionRequest.ActivityOrder>> all = new ArrayList<>();
+        for (Map.Entry<String, List<ActionRequest.ActivityOrder>> e : activityCommits.entrySet())
+            for (ActionRequest.ActivityOrder o : e.getValue())
+                all.add(new java.util.AbstractMap.SimpleEntry<>(e.getKey(), o));
+        all.sort(java.util.Comparator.comparingInt(e -> activityStage(e.getValue())));
+
+        // Closed before resolving: a launch can cascade back into executeAction (a weasel
+        // release voids tractors, for instance) and must not find the round still open.
+        activityOpen = false;
+        activitySpent = true;
+        activityCommits.clear();
+
+        for (Map.Entry<String, ActionRequest.ActivityOrder> e : all) {
+            ActionResult r = doExecuteAction(activityOrderToAction(e.getValue(), e.getKey()));
+            // Successes announce THEMSELVES, redacted: every launch handler appends its
+            // own "launched a drone" / "launched a shuttle" to the shared log, with the
+            // type deliberately withheld. The ActionResult here is the ACTOR's message
+            // and names the drone type, the plasma type and the target - repeating it here
+            // told the opponent exactly what was coming at them, which is what
+            // identification (G4.2) is supposed to cost a lab to learn.
+            //
+            // Failures are different: the round resolves when the LAST player commits, so
+            // there is no response left to carry the reason back, and an order that fizzled
+            // silently would leave its owner with no way to find out. A refusal is worth
+            // the little it discloses.
+            if (!r.isSuccess())
+                log.append("\n").append(r.getMessage());
+        }
+        appendCombatLog(log.toString());
+    }
+
     // Fire declaration round helpers (D6.315)
     // -------------------------------------------------------------------------
 
@@ -2283,14 +2505,15 @@ public class GameSession {
                 return ActionResult.fail("Weapon not found on attacker: " + wName);
             // fetchAllWeapons() includes drone racks, which are Launchers rather than
             // direct-fire weapons. Refuse here so the player gets a reason instead of core
-            // quietly dropping it from the volley. A G-rack firing as an ADD (FD3.7) is not
-            // built yet; when it is, the rack will be a DirectFire in that mode and this
-            // will let it through without changes.
-            if (!(w instanceof com.sfb.weapons.DirectFire))
+            // quietly dropping it from the volley. The test is a capability rather than a
+            // class: a type-G rack IS a DirectFire, and answers true only while it is in a
+            // position to fire anti-drones (FD3.70/FD3.71).
+            if (!(w instanceof com.sfb.weapons.DirectFire)
+                    || !((com.sfb.weapons.DirectFire) w).canBeFiredAtTarget())
                 return ActionResult.fail(w.getName()
-                        + " is a launcher, not a direct-fire weapon — launch it from the"
-                        + " Activity phase. (A G-rack firing as an ADD, FD3.7, is not"
-                        + " implemented yet.)");
+                        + " cannot be fired at a target — launch it from the Activity"
+                        + " phase. (A type-G rack fires anti-drones here instead, when it"
+                        + " has rounds aboard and has not launched a drone this turn.)");
             weapons.add(w);
         }
 
@@ -2325,6 +2548,31 @@ public class GameSession {
                 names.add(pi.getName());
         }
         return names;
+    }
+
+    public boolean isActivityDeclarationOpen() {
+        refreshActivityState();
+        return activityOpen;
+    }
+
+    public String getActivityDeclarationCallerName() {
+        PlayerInfo info = activityCallerToken != null ? players.get(activityCallerToken) : null;
+        return info != null ? info.getName() : null;
+    }
+
+    public List<String> getActivityDeclarationRespondedNames() {
+        List<String> names = new ArrayList<>();
+        for (String token : activityCommits.keySet()) {
+            PlayerInfo info = players.get(token);
+            if (info != null)
+                names.add(info.getName());
+        }
+        return names;
+    }
+
+    public boolean isActivityDeclarationSpent() {
+        refreshActivityState();
+        return activitySpent;
     }
 
     public boolean isFireDeclarationSpent() {

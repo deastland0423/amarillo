@@ -1,6 +1,7 @@
 {
   "faction": "Neutral",
   "type": "F-S",
+  "typeName": "Small Freighter",
   "line": "F-S",
   "name": "Weeping Somnambulist",
   "serviceYear": 120,

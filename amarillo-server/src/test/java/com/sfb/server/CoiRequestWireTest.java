@@ -39,6 +39,7 @@ class CoiRequestWireTest {
               "extraCommandoSquads": 1,
               "extraTBombs": 3,
               "droneRackLoadouts": { "0": ["TypeI", "TypeIV"] },
+              "antiDroneLoadouts": { "1": 4 },
               "weaponArmingModes": { "A": "OVERLOAD", "C": "STANDARD" },
               "photonOverload": { "A": 4.0, "B": 2.5 },
               "specialShuttlePrep": [
@@ -86,6 +87,8 @@ class CoiRequestWireTest {
         assertEquals(3, loadout.extraTBombs);
         assertEquals(List.of(DroneType.TypeI, DroneType.TypeIV),
                 loadout.droneRackLoadouts.get(0));
+        assertEquals(Integer.valueOf(4), loadout.antiDroneLoadouts.get(1),
+                "anti-drones travel on their own map (FD3.70) and must survive the wire");
         assertEquals(WeaponArmingType.OVERLOAD, loadout.weaponArmingModes.get("A"));
         assertEquals(WeaponArmingType.STANDARD, loadout.weaponArmingModes.get("C"));
         assertEquals("Ph-1", loadout.optionMounts.get("M1"));

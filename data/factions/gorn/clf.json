@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "CLF",
+  "typeName": "Fleet Light Cruiser",
   "line": "CL",
   "name": "GCS First Strike",
   "serviceYear": 175,

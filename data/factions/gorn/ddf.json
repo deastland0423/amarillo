@@ -1,6 +1,7 @@
 {
   "faction": "Gorn",
   "type": "DDF",
+  "typeName": "Fleet Destroyer",
   "line": "DD",
   "name": "GCS Fang",
   "serviceYear": 175,

@@ -257,10 +257,10 @@ public class KlingonShips {
         rack2.setAmmo(ShipDataUtils.makeDrones(4, DroneType.TypeI));
         weapons.add(rack2);
 
-        ADD add1 = new ADD(AddType.ADD_12, 2);
+        ADD add1 = new ADD(AddType.ADD_12);
         add1.setDesignator("ADD 1");
         weapons.add(add1);
-        ADD add2 = new ADD(AddType.ADD_12, 2);
+        ADD add2 = new ADD(AddType.ADD_12);
         add2.setDesignator("ADD 2");
         weapons.add(add2);
 

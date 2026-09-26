@@ -1,6 +1,7 @@
 {
   "faction": "Romulan",
   "type": "WER",
+  "typeName": "War Eagle Cruiser",
   "line": "CA",
   "name": "RIS Senator",
   "serviceYear": 172,

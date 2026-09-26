@@ -83,6 +83,8 @@ export interface ShuttleInBayState {
   name:                string;
   type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
   maxSpeed:            number;
+  /** What a launch is actually capped at: maxSpeed less any point given to EM (C10.13). */
+  effectiveMaxSpeed:   number;
   canLaunch:           boolean;  // hatch or tube available for this shuttle right now
   armed?:              boolean;  // suicide only
   armingTurnsComplete?: number; // suicide only
@@ -127,6 +129,10 @@ export interface DroneRackState {
   reloadingThisTurn:    boolean;
   reloadPool:           ReloadPoolEntry[];
   launchDirectionsMask: number;  // valid launch facings bitmask; 0 = unrestricted
+  antiDrones?:          number;  // type-G only (FD3.70): anti-drone rounds, 1/2 space each
+  mode?:                string;  // UNDECIDED | DRONE | ANTI_DRONE for the turn (FD3.71)
+  canFireAntiDrone?:    boolean; // an anti-drone round may go this impulse
+  spacesFree?:          number;  // drones and anti-drones counted together
 }
 
 interface MapObjectBase {
@@ -137,6 +143,7 @@ interface MapObjectBase {
 export interface ShipObject extends MapObjectBase {
   type:     'SHIP';    // map-object discriminator, not the ship's SSD type
   shipType: string;    // the SSD Type line, e.g. "CA+"
+  typeName?: string | null;  // the same class written out, e.g. "Commando Cruiser"
   faction: string;
   facing:  number;
   speed:   number;
@@ -258,6 +265,12 @@ export interface ShipObject extends MapObjectBase {
   tractorEnergy?:              number;    // total tractor energy allocated in EA this turn
   tractorEnergyRemaining?:     number;    // unspent tractor pool energy
   negativeTractorAccumulated?: number;    // cumulative negative-tractor spent this turn (G7.35)
+  /**
+   * Seeker control channels held and available. A launch past the limit does not fail —
+   * something already flying stops being tracked instead.
+   */
+  controlUsed?:                number;
+  controlLimit?:               number;
   availableTractors?:          number;    // number of undamaged tractor beams
   tractoredTargetNames?:       string[];  // names of ships this ship is currently tractoring
   fireControlActivating?: boolean; // true during 4-impulse D6.6 activation countdown
@@ -440,6 +453,12 @@ export interface GameState {
   fireDeclarationCaller:    string | null;
   fireDeclarationResponded: string[];
   fireDeclarationSpent:     boolean;
+  // Launch declaration round (Annex #2, 6B) — a separate round from the fire one, with its
+  // own call. Only who has answered is public; the orders stay sealed server-side.
+  activityDeclarationOpen?:      boolean;
+  activityDeclarationCaller?:    string | null;
+  activityDeclarationResponded?: string[];
+  activityDeclarationSpent?:     boolean;
   combatLog:          string[];   // fire/damage events since last broadcast; empty most of the time
   pendingVolleys:         PendingVolley[];
   pendingDacChoices:       PendingDacChoice[];

@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D7N",
+  "typeName": "Diplomatic Cruiser",
   "line": "CA",
   "name": "IKS Dictator",
   "serviceYear": 137,

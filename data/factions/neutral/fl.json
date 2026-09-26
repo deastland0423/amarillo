@@ -1,6 +1,7 @@
 {
   "faction": "Neutral",
   "type": "F-L",
+  "typeName": "Large Freighter",
   "line": "F-L",
   "name": "Red Dwarf",
   "serviceYear": 120,

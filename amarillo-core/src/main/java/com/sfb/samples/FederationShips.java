@@ -280,8 +280,8 @@ public class FederationShips {
         }
 
         DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_G);
-        rack.setSpaces(4);
-        rack.setNumberOfReloads(1);
+        // Spaces and reloads come from the type (FD3.7/FD3.72): four spaces, two
+        // reload sets. Setting them here overrode the table and gave the G one set.
         rack.setDesignator("Drone Rack");
         rack.setAmmo(ShipDataUtils.makeDrones(4, DroneType.TypeI));
         weapons.add(rack);
@@ -361,8 +361,8 @@ public class FederationShips {
         }
 
         DroneRack rack = new DroneRack(DroneRack.DroneRackType.TYPE_G);
-        rack.setSpaces(4);
-        rack.setNumberOfReloads(1);
+        // Spaces and reloads come from the type (FD3.7/FD3.72): four spaces, two
+        // reload sets. Setting them here overrode the table and gave the G one set.
         rack.setDesignator("Drone Rack");
         rack.setAmmo(ShipDataUtils.makeDrones(4, DroneType.TypeI));
         weapons.add(rack);

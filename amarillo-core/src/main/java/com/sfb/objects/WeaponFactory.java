@@ -131,7 +131,9 @@ public final class WeaponFactory {
             }
             case "ADD": {
                 AddType addType = ws.addType != null ? AddType.valueOf(ws.addType) : AddType.ADD_12;
-                ADD add = new ADD(addType, ws.shots > 0 ? ws.shots : 2);
+                // No reserve to read: E5.71 gives every ADD two full sets, so the rack
+                // is the only thing a ship file has to say.
+                ADD add = new ADD(addType);
                 add.setDesignator(ws.designator);
                 return add;
             }

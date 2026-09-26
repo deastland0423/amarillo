@@ -1,6 +1,7 @@
 {
   "faction": "Klingon",
   "type": "D6S",
+  "typeName": "Battlecruiser Scout",
   "line": "CA",
   "name": "IKS Peekaboo",
   "serviceYear": 160,

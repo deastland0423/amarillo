@@ -1,6 +1,7 @@
 {
   "faction": "Federation",
   "type": "DD",
+  "typeName": "Destroyer",
   "line": "DD",
   "name": "USS Saladin",
   "serviceYear": 130,

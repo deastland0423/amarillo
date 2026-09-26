@@ -170,7 +170,7 @@ public class BayShuttleDtoTest {
         pack.addDrone(new Drone(DroneType.TypeI));
         bay.getSpaces().get(0).setShuttle(pack);
 
-        assertEquals("scatter pack", inBay("IKV Vengeance-Admin-1").specialRole);
+        assertEquals("scatterpack", inBay("IKV Vengeance-Admin-1").specialRole);
 
         AdminShuttle charged = new AdminShuttle();
         charged.setName("IKV Vengeance-Admin-2");

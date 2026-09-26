@@ -129,8 +129,9 @@ public class Weapons implements Systems {
 			// Heavy weapons must be armed before they appear as fireable options.
 			boolean armed = !(weapon instanceof HeavyWeapon) || ((HeavyWeapon) weapon).isArmed();
 
-			// Impulse gap and shots-per-turn must be satisfied.
-			boolean gapOk = weapon.canFire();
+			// Impulse gap and shots-per-turn must be satisfied. Asked of the weapon, because
+			// canFire() asks a drone rack whether it may LAUNCH — the wrong question here.
+			boolean gapOk = weapon.readyToFireAtTarget();
 
 			// If it is in range AND in arc AND ready AND functional, add it to the list.
 			if (weapon.isFunctional() && inRange && inArc && armed && gapOk) {

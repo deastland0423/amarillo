@@ -61,13 +61,23 @@ public class ShipDtoPrivacyTest {
         // manoeuvre (C10.11 vs C10.0).
         "lockOnTargets", "tacBudget", "tacAvailable", "sublightTacAvailable", "paidForEm",
         "scoutEwPool", "scoutEwRemaining",
+        // Seeker control channels. controlUsed alone would tell an opponent nothing — every
+        // seeker on the map names its controller, so it can be counted — but the LIMIT is not
+        // visible, and the pair together says how close a ship is to losing tracking on
+        // something already flying. Knowing an enemy sits at 7 of 8 is knowing that their
+        // next launch costs them a drone, which no rule hands over. The limit also carries
+        // the +6 a scout channel lends while it controls seekers (G24.24), and whether a
+        // scout has committed a channel is not an opponent's to know.
+        "controlUsed", "controlLimit",
         // Built empty for an enemy rather than blanked
         "droneRacks", "shuttleBays", "allocationNotes", "setupNotes"
     ));
 
     private static final Set<String> SHIP_PUBLIC = new HashSet<>(Arrays.asList(
         // Identity and position
-        "name", "location", "shipType", "faction", "teamName", "ownerName",
+        // typeName sits beside shipType and is ruled the same way: a counter on the map
+        // announces its class, and "Commando Cruiser" says no more than "CMC" already does.
+        "name", "location", "shipType", "typeName", "faction", "teamName", "ownerName",
         "tokenArt", "leader", "escort", "trueCarrier", "bch", "commandRating", "skeleton",
         "captured", "disengaged", "tractoredBy",
         // Movement, which is watched
@@ -318,9 +328,10 @@ public class ShipDtoPrivacyTest {
                     + " truth rather than a concealment", w.armed);
                 assertFalse(w.name + " should not report itself armed", w.armed);
             }
-            // Ammunition is hidden whatever the weapon is.
-            assertEquals(w.name + " ADD shots", 0, w.addShots);
-            assertEquals(w.name + " ADD reloads", 0, w.addReloads);
+            // Ammunition is hidden whatever the weapon is — and NULL rather than 0, which
+            // says "not disclosed" instead of the plausible lie "none left".
+            assertNull(w.name + " ADD shots", w.addShots);
+            assertNull(w.name + " ADD reloads", w.addReloads);
         }
         assertTrue("fixture needs a heavy weapon", heavies > 0);
         assertTrue("and one that does not arm", light > 0);
@@ -425,5 +436,36 @@ public class ShipDtoPrivacyTest {
         if (value instanceof Collection) return ((Collection<?>) value).isEmpty();
         if (value instanceof String) return ((String) value).isEmpty();
         return false;
+    }
+
+    /**
+     * A weapon that is not a fighter's fusion says NOTHING about charges, rather than zero.
+     *
+     * Playtest 2026-09-26: chargesRemaining was a primitive int, so Jackson sent 0 on every
+     * weapon instead of omitting it. The Fire Orders panel decides "is this a fusion?" by
+     * asking whether the field is absent, so the fusion's 1x/2x buttons appeared beside
+     * every phaser and photon on the ship.
+     */
+    @Test
+    public void onlyAFightersFusionReportsCharges() {
+        // A Federation CA: phasers and photons, and not a fusion among them.
+        for (GameStateDto.WeaponDto w : ship(ownerView).weapons)
+            assertNull(w.name + " is not a fusion and must not report charges",
+                    w.chargesRemaining);
+    }
+
+    /**
+     * And the same for anti-drone ammunition, which had the same primitive-int fault: every
+     * weapon on the ship wore an unexplained "0/0" in the Fire Orders panel, because the
+     * panel asks whether the field is absent and 0 is not absent.
+     */
+    @Test
+    public void onlyAnAntiDroneWeaponReportsAntiDroneAmmunition() {
+        for (GameStateDto.WeaponDto w : ship(ownerView).weapons) {
+            assertNull(w.name + " fires no anti-drones and must not report a load",
+                    w.addShots);
+            assertNull(w.name + " fires no anti-drones and must not report a capacity",
+                    w.addCapacity);
+        }
     }
 }

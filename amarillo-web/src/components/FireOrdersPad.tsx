@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
+import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import WeaponDamageTooltip from './WeaponDamageTooltip';
 import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
 
@@ -148,6 +149,32 @@ const EMPTY_SEL: Sel = {
  */
 const EMPTY_ROWS: FireCandidate[] = [];
 
+/**
+ * How a heavy weapon is armed, short enough to sit beside its name.
+ *
+ * STANDARD is included, and it was a mistake to leave it out: armingType is null on a weapon
+ * that does not arm at all, so with no badge for standard a phaser and a standard-armed
+ * disruptor looked identical — and one of them CAN be overloaded while the other cannot.
+ * Absence has to mean "this weapon has no modes", so every mode says its name.
+ */
+const ARMING_LABEL: Record<string, string> = {
+  STANDARD: 'std',
+  OVERLOAD: 'ovl',
+  SPECIAL:  'spl',
+  ROLLING:  'roll',
+};
+
+/**
+ * Overload changes what the shot is worth, so it is the one that carries colour. Standard is
+ * the same grey as the arc label beside it: present, legible, and not asking for attention.
+ */
+const ARMING_COLOUR: Record<string, string> = {
+  STANDARD: '#8b949e',
+  OVERLOAD: '#f0c040',
+  SPECIAL:  '#79c0ff',
+  ROLLING:  '#8b949e',
+};
+
 const KIND_LABEL: Record<FireCandidate['kind'], string> = {
   SHIP:    'ship',
   DRONE:   'drone',
@@ -287,7 +314,7 @@ export default function FireOrdersPad({
       attacker: string | null; rows: FireCandidate[]; error: string | null }>(
       { attacker: null, rows: [], error: null });
   const [sel, setSel] = useState<Sel>(EMPTY_SEL);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useStickyCollapse('amarillo-fire-pad-collapsed');
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const drag = useDraggable(savedPosition());
 
@@ -435,7 +462,9 @@ export default function FireOrdersPad({
     });
     const shotModes: Record<string, string> = {};
     for (const name of picked)
-      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining !== undefined)
+      // != null, not !== undefined: a field the server has nothing to say about arrives as
+      // JSON null, not as an absent key, and null !== undefined is true.
+      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining != null)
         shotModes[name] = modes[name] ?? 'SINGLE';
 
     onAddOrder({
@@ -456,19 +485,30 @@ export default function FireOrdersPad({
   const sealed = orders.length;
 
   return (
-    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top }}>
+    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top,
+                  // At rest it is one line: let it be as wide as that line, not as
+                  // wide as the panel it becomes when opened.
+                  ...(collapsed ? { width: 'auto', maxWidth: '94vw' } : {}) }}>
       <div style={HEADER} {...drag.handleProps} title="Drag to move">
         <span style={{ color: '#a78bfa', fontWeight: 600 }}>⚔ Fire orders</span>
+        {/* Collapsed, this header IS the pad — so it says what is drafted rather than
+            explaining the segment, and the explanation returns when there is room. */}
         <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
-          turn {turn}, impulse {impulse} —{' '}
-          {declarationOpen
-            ? 'sealed together, revealed together (D6.315). Committing nothing is a legal bluff.'
-            : 'draft freely; nobody is waiting on you until a declaration is called.'}
+          {collapsed
+            ? <>impulse {impulse} — {sealed === 0
+                ? 'nothing drafted'
+                : `${sealed} order${sealed > 1 ? 's' : ''} from `
+                  + `${new Set(orders.map(o => o.shipName)).size} unit(s)`}
+                {declarationOpen ? ' · declaration open' : ''}</>
+            : <>turn {turn}, impulse {impulse} —{' '}
+                {declarationOpen
+                  ? 'sealed together, revealed together (D6.315). Committing nothing is a legal bluff.'
+                  : 'draft freely; nobody is waiting on you until a declaration is called.'}</>}
         </span>
         <button
           className="secondary"
           style={{ padding: '0 8px', marginLeft: 'auto' }}
-          onClick={() => setCollapsed(c => !c)}
+          onClick={() => setCollapsed(!collapsed)}
           title={collapsed ? 'Show the pad' : 'Collapse — Commit and Pass stay available'}
         >
           {collapsed ? '▸' : '▾'}
@@ -639,6 +679,15 @@ export default function FireOrdersPad({
                       onChange={() => toggle(name)}
                     />
                     <span style={{ color: unavailable ? '#8b949e' : '#e6edf3' }}>{name}</span>
+                    {w?.armingType && ARMING_LABEL[w.armingType] && (
+                      <span
+                        style={{ color: ARMING_COLOUR[w.armingType] ?? '#8b949e',
+                                 fontSize: '0.9em' }}
+                        title={`Armed: ${w.armingType}`}
+                      >
+                        {ARMING_LABEL[w.armingType]}
+                      </span>
+                    )}
                     {w?.launcherType && (
                       <span
                         style={{ color: '#f0a050', fontSize: '0.9em' }}
@@ -652,10 +701,17 @@ export default function FireOrdersPad({
                     {w?.arcLabel && (
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                     )}
-                    {w?.addCapacity != null && (
+                    {/* Anti-drone rounds. An ADD rack has a capacity to measure them
+                        against; a type-G keeps them in a magazine it shares with its drones
+                        (FD3.70), so it reports rounds and no capacity. */}
+                    {w?.addShots != null && (
                       <span style={{ color: '#50d0f0', fontSize: '0.9em', whiteSpace: 'nowrap' }}
-                            title="anti-drone shots loaded / capacity (reloads available)">
-                        {w.addShots}/{w.addCapacity}
+                            title={w.addCapacity != null
+                              ? 'anti-drone rounds loaded / capacity (reserve available)'
+                              : 'anti-drone rounds loaded'}>
+                        {w.addCapacity != null
+                          ? `${w.addShots}/${w.addCapacity}`
+                          : `${w.addShots} ad`}
                         {(w.addReloads ?? 0) > 0 ? ` (+${w.addReloads})` : ''}
                       </span>
                     )}
@@ -683,7 +739,9 @@ export default function FireOrdersPad({
                     )}
 
                     {/* A fighter's fusion may fire both charges at once (J-section). */}
-                    {w && picked.has(name) && w.chargesRemaining !== undefined && (
+                    {/* != null catches both the absent key and the JSON null Jackson
+                        sends for a field that does not apply to this weapon. */}
+                    {w && picked.has(name) && w.chargesRemaining != null && (
                       <span style={{ display: 'flex', gap: 3 }} onClick={e => e.preventDefault()}>
                         {(['SINGLE', 'DOUBLE'] as const).map(m => (
                           <button
@@ -812,15 +870,6 @@ export default function FireOrdersPad({
       </div>
       )}
 
-      {collapsed && (
-        <div style={{ fontSize: '0.85em', color: '#8b949e', marginBottom: 4 }}>
-          {sealed === 0
-            ? 'No orders drafted — every unit holds fire.'
-            : `${sealed} order${sealed > 1 ? 's' : ''} drafted across ` +
-              `${new Set(orders.map(o => o.shipName)).size} unit(s).`}
-        </div>
-      )}
-
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}
 
       <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -834,7 +883,7 @@ export default function FireOrdersPad({
             <button onClick={onCall}>Call for fire declaration</button>
             <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
               — everyone stops and commits. Adding an order calls one too; calling with
-              nothing drafted is a bluff, and spends the impulse for everybody.
+              nothing drafted is a bluff.
             </span>
           </>
         )}
