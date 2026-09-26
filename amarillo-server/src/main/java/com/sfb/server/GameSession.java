@@ -2357,7 +2357,19 @@ public class GameSession {
 
         for (Map.Entry<String, ActionRequest.ActivityOrder> e : all) {
             ActionResult r = doExecuteAction(activityOrderToAction(e.getValue(), e.getKey()));
-            log.append("\n").append(r.getMessage());
+            // Successes announce THEMSELVES, redacted: every launch handler appends its
+            // own "launched a drone" / "launched a shuttle" to the shared log, with the
+            // type deliberately withheld. The ActionResult here is the ACTOR's message
+            // and names the drone type, the plasma type and the target - repeating it here
+            // told the opponent exactly what was coming at them, which is what
+            // identification (G4.2) is supposed to cost a lab to learn.
+            //
+            // Failures are different: the round resolves when the LAST player commits, so
+            // there is no response left to carry the reason back, and an order that fizzled
+            // silently would leave its owner with no way to find out. A refusal is worth
+            // the little it discloses.
+            if (!r.isSuccess())
+                log.append("\n").append(r.getMessage());
         }
         appendCombatLog(log.toString());
     }

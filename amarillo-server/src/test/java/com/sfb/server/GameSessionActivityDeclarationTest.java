@@ -238,6 +238,48 @@ class GameSessionActivityDeclarationTest {
     }
 
     /**
+     * What the shared log may say about a launch, and what it may not.
+     *
+     * Found in a playtest: "IKV Ambush launched TypeIVM drone at USS Enterprise" appeared in
+     * the log the opponent reads. The drone type is exactly what a lab identification buys
+     * (G4.2), and the map view has always redacted it — but the declaration round put the
+     * ACTOR's message into the shared log, so the fog of war ended at the log pane.
+     *
+     * Each launch handler already announces itself redacted, which is the model
+     * GameSessionLaunchLogTest describes for direct launches. The round simply must not
+     * repeat the detailed one.
+     */
+    @Test
+    void theLogSaysADroneWasLaunched_neverWhichKind() {
+        klingon.setActiveFireControl(true);
+        klingon.addLockOn(fed);
+
+        String rack = klingon.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.DroneRack)
+                .map(com.sfb.weapons.Weapon::getName)
+                .findFirst().orElseThrow();
+
+        session.executeAction(request("CALL_ACTIVITY_DECLARATION", P2));
+        ActionRequest commit = request("COMMIT_ACTIVITY_DECLARATION", P2);
+        ActionRequest.ActivityOrder o = order("DRONE", "IKV Saber");
+        o.setTargetName("USS Enterprise");
+        o.setWeaponName(rack);
+        o.setFacing(13);
+        commit.setActivityOrders(List.of(o));
+        assertTrue(session.executeAction(commit).isSuccess());
+        assertTrue(session.executeAction(request("PASS_ACTIVITY_DECLARATION", HOST)).isSuccess());
+
+        String log = String.join(" | ", session.drainCombatLog());
+
+        assertTrue(log.contains("IKV Saber launched a drone"),
+                "the launch itself is public: " + log);
+        assertFalse(log.contains("TypeI"),
+                "the drone TYPE is what identification costs a lab (G4.2): " + log);
+        assertFalse(log.contains("launched TypeI"),
+                "and so is what it was sent at: " + log);
+    }
+
+    /**
      * A heading belongs to the launch, not to the round.
      *
      * One impulse can send an admin shuttle one way and two plasmas two others, so every
