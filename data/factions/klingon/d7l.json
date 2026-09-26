@@ -87,8 +87,8 @@
   "y175Upgrades": {
     "refitCost": 3,
     "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
     ],
     "adds": [
       { "designator": "ADD 1", "upgradeTo": "ADD_12"},

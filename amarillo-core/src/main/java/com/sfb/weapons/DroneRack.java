@@ -35,44 +35,57 @@ public class DroneRack extends Weapon implements Launcher {
 		this();
 		this.type = type;
 
+		applyTypeStats(type);
+	}
+
+	/**
+	 * The statistics a rack has by virtue of its type: capacity, reload sets, and the two
+	 * types that fire at a rate of their own.
+	 *
+	 * ONE table. The constructor and {@link #upgradeRackType} each used to carry a copy, and
+	 * they drifted — the type-B gained its second reload set in one and not the other, so a
+	 * ship that STARTED with a B rack carried two sets while a ship REFITTED to one carried
+	 * a single set. Same rack, different ammunition, depending on how it got there.
+	 *
+	 * Reload counts are fixed per type (owner's reading of the SSDs, 2026-09-25): A and F
+	 * one, B and C two, G two per FD3.72 — one of the G's being entirely anti-drones, with
+	 * the Y175 refit adding a third. Type-G is the only type a ship file may add to.
+	 */
+	private void applyTypeStats(DroneRackType type) {
+		setMaxShotsPerTurn(1);
+		setMinImpulseGap(8);          // FD3.0: a quarter turn between launches
 		switch (type) {
-			case TYPE_A:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
 			case TYPE_B:
 				this.spaces = 6;
-				this.numberOfReloads = 1;
+				this.numberOfReloads = 2;
 				break;
 			case TYPE_C:
+				// FD3.3: "rapid fire" — two per turn, and not within twelve impulses of
+				// each other, even on consecutive turns.
 				this.spaces = 4;
 				this.numberOfReloads = 2;
-				this.setMaxShotsPerTurn(2);
-				this.setMinImpulseGap(12);
+				setMaxShotsPerTurn(2);
+				setMinImpulseGap(12);
 				break;
 			case TYPE_D:
-				this.spaces = 12;
+				this.spaces = 12;     // three magazines of four (FD3.4)
 				this.numberOfReloads = 2;
-				break;
-			case TYPE_E:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_F:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
 				break;
 			case TYPE_G:
 				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_H:
-				this.spaces = 20;
 				this.numberOfReloads = 2;
 				break;
-			default: // Defaults to Type A if no type is specified.
+			case TYPE_H:
+				this.spaces = 20;     // five magazines (FD3.8)
+				this.numberOfReloads = 2;
+				break;
+			case TYPE_A:
+			case TYPE_E:
+			case TYPE_F:              // FD3.6: functionally a type-A
+			default:
 				this.spaces = 4;
 				this.numberOfReloads = 1;
+				break;
 		}
 	}
 
@@ -104,48 +117,7 @@ public class DroneRack extends Weapon implements Launcher {
 	 */
 	public void upgradeRackType(DroneRackType newType) {
 		this.type = newType;
-		setMaxShotsPerTurn(1);
-		setMinImpulseGap(8);
-		switch (newType) {
-			case TYPE_A:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_B:
-				this.spaces = 6;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_C:
-				this.spaces = 4;
-				this.numberOfReloads = 2;
-				setMaxShotsPerTurn(2);
-				setMinImpulseGap(12);
-				break;
-			case TYPE_D:
-				this.spaces = 12;
-				this.numberOfReloads = 2;
-				break;
-			case TYPE_E:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_F:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_G:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-			case TYPE_H:
-				this.spaces = 20;
-				this.numberOfReloads = 2;
-				break;
-			default:
-				this.spaces = 4;
-				this.numberOfReloads = 1;
-				break;
-		}
+		applyTypeStats(newType);
 		// Trim loaded ammo to new space limit
 		double usedSpaces = ammoList.stream().mapToDouble(d -> d.getRackSize()).sum();
 		while (usedSpaces > spaces && !ammoList.isEmpty()) {
@@ -344,7 +316,19 @@ public class DroneRack extends Weapon implements Launcher {
 
 	@Override
 	public void cleanUp() {
+		// FD3.0: "no drone rack can fire two drones within 1/4 turn of each other, EVEN IF
+		// ON DIFFERENT TURNS" — repeated for the type-C and type-E, and spelled out for the
+		// type-G at FD3.71: the delay "includes the last firing on one turn and the first
+		// firing on the next".
+		//
+		// So the per-turn shot COUNTER resets with the turn, but the timestamp the gap is
+		// measured from must not. Weapon.cleanUp clears that timestamp so an ordinary weapon
+		// starts each turn free — right for a phaser, which would otherwise be locked out of
+		// the first eight impulses after firing late in the turn before, and wrong for a
+		// rack, which was handing back a launch at every turn boundary.
+		int firedAt = getLastImpulseFired();
 		super.cleanUp();
+		setLastImpulseFired(firedAt);
 		// 8C: complete any pending reload before clearing the reloading flag
 		completePendingReload();
 		reloadingThisTurn = false;
