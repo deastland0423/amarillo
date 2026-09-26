@@ -279,7 +279,11 @@ function ShipCoiPanel({
         <div className="coi-section">
           <div className="coi-section-title">Drone Rack Loadouts</div>
           {ship.droneRacks.map(rack => {
-            const loadout = coi.droneRackLoadouts[rack.index] ?? [];
+            // What is actually in the rack: the player's choice if they have made one,
+            // otherwise the drones the ship arrives with. Showing an empty list for an
+            // untouched rack made a full rack of Type-I drones look like four free spaces,
+            // so the anti-drone stepper offered room that was not there.
+            const loadout = coi.droneRackLoadouts[rack.index] ?? rack.defaultAmmo;
             // FD3.70: drones and anti-drones share the one magazine, so the budget counts
             // both. The server adds them up the same way and refuses the loadout otherwise.
             const antiDrones = coi.antiDroneLoadouts[rack.index] ?? 0;
@@ -300,6 +304,7 @@ function ShipCoiPanel({
               const next = [...loadout, typeName];
               onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
             }
+            /** Drop a drone to make room — the only way to fit anti-drones in a full rack. */
             function removeDrone(idx: number) {
               const next = loadout.filter((_, i) => i !== idx);
               onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
@@ -320,7 +325,9 @@ function ShipCoiPanel({
                       </span>
                     );
                   })}
-                  {loadout.length === 0 && <span className="coi-note">Empty — using scenario defaults</span>}
+                  {loadout.length === 0 && (
+                    <span className="coi-note">No drones — the whole rack is free</span>
+                  )}
                 </div>
                 {remaining > 0 && (
                   <div className="coi-drone-add-row">
@@ -601,12 +608,11 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
     }
     for (const [shipName, coi] of Object.entries(coiMap)) {
       // Convert droneRackLoadouts: Record<number, string[]> → Record<string, string[]>
+      // Every rack the player TOUCHED, empty lists included. A rack emptied to make room
+      // for anti-drones has to arrive as "no drones" — dropping empty entries here made it
+      // arrive as "unchanged", and the server kept the drones that were in the way.
       const rackLoadouts = Object.keys(coi.droneRackLoadouts).length > 0
-        ? Object.fromEntries(
-            Object.entries(coi.droneRackLoadouts)
-              .filter(([, drones]) => drones.length > 0)
-              .map(([idx, drones]) => [idx, drones])
-          )
+        ? { ...coi.droneRackLoadouts }
         : undefined;
 
       // Anti-drones travel on their own map (FD3.70): they are not a drone type here or

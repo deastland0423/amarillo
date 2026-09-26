@@ -359,17 +359,27 @@ public class ScenarioLoader {
                     totalRackSize += dt.rack;
                 }
                 if (!valid) continue;
+
+                // A rack the player named no drones for keeps the ones it came with. Only
+                // the anti-drone count was chosen, so replacing the ammo with an empty list
+                // would silently strip a full rack of Type-I drones — which is exactly what
+                // a player asking for anti-drones and nothing else would have got.
+                boolean replacingDrones = loadout.droneRackLoadouts.containsKey(rackIndex);
+                double droneSpaces = replacingDrones ? totalRackSize : existingDroneSpaces(rack);
+
                 // FD3.70: drones and anti-drones share the one magazine, so they are
                 // budgeted together rather than each against the whole rack.
                 double totalWithAntiDrones =
-                        totalRackSize + antiDrones * DroneRack.ANTI_DRONE_SPACE;
+                        droneSpaces + antiDrones * DroneRack.ANTI_DRONE_SPACE;
                 if (totalWithAntiDrones > rack.getSpaces()) {
                     note(ship, "COI: loadout for rack " + rackIndex + " exceeds rack size ("
                             + totalWithAntiDrones + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
-                for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
-                rack.setAmmo(drones);
+                if (replacingDrones) {
+                    for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
+                    rack.setAmmo(drones);
+                }
                 rack.setAddAmmo(0);
                 if (antiDrones > 0)
                     rack.loadAntiDrones(antiDrones, year);
@@ -615,6 +625,14 @@ public class ScenarioLoader {
      * print to System.err and stop there, so a setup silently came out different from what
      * was chosen and the first sign of it was a missing option mid-battle.
      */
+    /** Spaces the drones already in a rack occupy, for a loadout that only names anti-drones. */
+    private static double existingDroneSpaces(DroneRack rack) {
+        double used = 0;
+        for (Drone d : rack.getAmmo())
+            used += d.getRackSize();
+        return used;
+    }
+
     private static void note(Ship ship, String message) {
         System.err.println(message);
         ship.addSetupNote(message);
