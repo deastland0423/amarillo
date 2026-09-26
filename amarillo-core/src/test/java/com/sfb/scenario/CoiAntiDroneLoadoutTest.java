@@ -52,7 +52,7 @@ public class CoiAntiDroneLoadoutTest {
         throw new AssertionError("fixture needs a drone rack");
     }
 
-    /** A loadout that leaves the rack's drones alone and only names anti-drones. */
+    /** The loadout the player built for rack 0: these drones, this many anti-drones. */
     private CoiLoadout loadoutOf(int antiDrones, DroneType... drones) {
         CoiLoadout out = new CoiLoadout();
         if (drones.length > 0)
@@ -62,27 +62,13 @@ public class CoiAntiDroneLoadoutTest {
         return out;
     }
 
-    /**
-     * A loadout where the player emptied the rack to make room, which is what the dialog
-     * sends as an explicit empty list. Distinct from naming no drones at all, which means
-     * "leave what is aboard alone".
-     */
-    private CoiLoadout emptiedRack(int antiDrones) {
-        CoiLoadout out = new CoiLoadout();
-        out.droneRackLoadouts.put(0, List.of());
-        out.antiDroneLoadouts.put(0, antiDrones);
-        return out;
-    }
-
     // ---------------------------------------------------------------- the choice lands
 
     @Test
     public void aTypeGIsLoadedWithTheAntiDronesAsked() {
         assertTrue("premise: the OCL's rack is a type-G", rack().acceptsAntiDrones());
 
-        // The OCL arrives with four Type-I drones filling all four spaces, so the player
-        // has to clear the rack to make room — which is the choice FD3.72 describes.
-        ScenarioLoader.applyCoi(ship, emptiedRack(6), spec);
+        ScenarioLoader.applyCoi(ship, loadoutOf(6), spec);
 
         assertEquals("six anti-drones, as FD3.72's Klingon-front example has it",
                 6, rack().getAddAmmo());
@@ -102,7 +88,7 @@ public class CoiAntiDroneLoadoutTest {
     /** A rack may be given anti-drones and no drones at all. */
     @Test
     public void aRackMayBeAllAntiDrones() {
-        ScenarioLoader.applyCoi(ship, emptiedRack(8), spec);
+        ScenarioLoader.applyCoi(ship, loadoutOf(8), spec);
 
         assertEquals(8, rack().getAddAmmo());
         assertTrue("no drones aboard", rack().getAmmo().isEmpty());
@@ -110,39 +96,32 @@ public class CoiAntiDroneLoadoutTest {
     }
 
     /**
-     * Found in a playtest the moment the feature met a real ship: a rack arrives from
-     * WeaponFactory already full of Type-I drones, and a player who asks for anti-drones
-     * without touching the drone list sends no droneRackLoadouts entry for that rack. The
-     * loader replaced the ammo with an empty list anyway and stripped the rack bare.
+     * A loadout the player built is the WHOLE loadout. Asking for four anti-drones and no
+     * drones means a rack of four anti-drones, not four anti-drones added to whatever the
+     * ship happened to arrive with — the COI dialog shows an empty rack being filled, and
+     * this is that same statement on the other side of the wire.
      */
     @Test
-    public void askingOnlyForAntiDronesKeepsTheDronesTheRackCameWith() {
-        rack().setAmmo(new java.util.ArrayList<>(List.of(
-                new com.sfb.objects.Drone(DroneType.TypeI),
-                new com.sfb.objects.Drone(DroneType.TypeI))));
-        assertEquals(2, rack().getAmmo().size());
+    public void aBuiltLoadoutReplacesWhatTheRackArrivedWith() {
+        assertEquals("premise: the OCL arrives with a full rack", 4, rack().getAmmo().size());
 
         ScenarioLoader.applyCoi(ship, loadoutOf(4), spec);
 
-        assertEquals("the drones it came with are still aboard", 2, rack().getAmmo().size());
-        assertEquals("and the anti-drones are in beside them", 4, rack().getAddAmmo());
-        assertEquals("two spaces of drones, two of anti-drones",
-                4.0, rack().spacesUsed(), 1e-9);
+        assertTrue("the Type-Is it came with are gone", rack().getAmmo().isEmpty());
+        assertEquals(4, rack().getAddAmmo());
+        assertEquals("two spaces of anti-drones, and two free", 2.0, rack().spacesUsed(), 1e-9);
     }
 
-    /** And the shared budget is measured against those drones, not against an empty rack. */
+    /** A rack the player never touched keeps what it came with, untouched. */
     @Test
-    public void theBudgetCountsDronesTheLoadoutDidNotMention() {
-        rack().setAmmo(new java.util.ArrayList<>(List.of(
-                new com.sfb.objects.Drone(DroneType.TypeI),
-                new com.sfb.objects.Drone(DroneType.TypeI),
-                new com.sfb.objects.Drone(DroneType.TypeI))));
+    public void aRackNotMentionedKeepsItsDefaultLoad() {
+        CoiLoadout other = new CoiLoadout();
+        other.antiDroneLoadouts.put(99, 4);      // a rack index this ship does not have
 
-        ScenarioLoader.applyCoi(ship, loadoutOf(4), spec);   // 3 + 2 spaces = 5 in a 4-rack
+        ScenarioLoader.applyCoi(ship, other, spec);
 
-        assertEquals("refused: it would not fit beside the drones already there",
-                0, rack().getAddAmmo());
-        assertEquals(3, rack().getAmmo().size());
+        assertEquals("still the four Type-I drones it arrived with", 4, rack().getAmmo().size());
+        assertEquals(0, rack().getAddAmmo());
     }
 
     // ---------------------------------------------------------------- and is bounded

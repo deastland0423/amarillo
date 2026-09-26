@@ -279,11 +279,11 @@ function ShipCoiPanel({
         <div className="coi-section">
           <div className="coi-section-title">Drone Rack Loadouts</div>
           {ship.droneRacks.map(rack => {
-            // What is actually in the rack: the player's choice if they have made one,
-            // otherwise the drones the ship arrives with. Showing an empty list for an
-            // untouched rack made a full rack of Type-I drones look like four free spaces,
-            // so the anti-drone stepper offered room that was not there.
-            const loadout = coi.droneRackLoadouts[rack.index] ?? rack.defaultAmmo;
+            // The rack you are BUILDING, which starts empty. Touch nothing and the ship
+            // keeps the loadout it arrived with; add anything and what you built is what
+            // it carries. Showing the default contents here instead was worse: it made the
+            // common case — load the drones I want — begin by deleting four chips.
+            const loadout = coi.droneRackLoadouts[rack.index] ?? [];
             // FD3.70: drones and anti-drones share the one magazine, so the budget counts
             // both. The server adds them up the same way and refuses the loadout otherwise.
             const antiDrones = coi.antiDroneLoadouts[rack.index] ?? 0;
@@ -304,7 +304,6 @@ function ShipCoiPanel({
               const next = [...loadout, typeName];
               onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
             }
-            /** Drop a drone to make room — the only way to fit anti-drones in a full rack. */
             function removeDrone(idx: number) {
               const next = loadout.filter((_, i) => i !== idx);
               onChange({ ...coi, droneRackLoadouts: { ...coi.droneRackLoadouts, [rack.index]: next } });
@@ -325,8 +324,11 @@ function ShipCoiPanel({
                       </span>
                     );
                   })}
-                  {loadout.length === 0 && (
-                    <span className="coi-note">No drones — the whole rack is free</span>
+                  {loadout.length === 0 && antiDrones === 0 && (
+                    <span className="coi-note">Empty — using scenario defaults</span>
+                  )}
+                  {loadout.length === 0 && antiDrones > 0 && (
+                    <span className="coi-note">No drones — anti-drones only</span>
                   )}
                 </div>
                 {remaining > 0 && (
