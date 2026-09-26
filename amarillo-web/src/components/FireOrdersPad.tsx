@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { WeaponState } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
+import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import WeaponDamageTooltip from './WeaponDamageTooltip';
 import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
 
@@ -287,7 +288,7 @@ export default function FireOrdersPad({
       attacker: string | null; rows: FireCandidate[]; error: string | null }>(
       { attacker: null, rows: [], error: null });
   const [sel, setSel] = useState<Sel>(EMPTY_SEL);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useStickyCollapse('amarillo-fire-pad-collapsed');
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const drag = useDraggable(savedPosition());
 
@@ -456,19 +457,30 @@ export default function FireOrdersPad({
   const sealed = orders.length;
 
   return (
-    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top }}>
+    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top,
+                  // At rest it is one line: let it be as wide as that line, not as
+                  // wide as the panel it becomes when opened.
+                  ...(collapsed ? { width: 'auto', maxWidth: '94vw' } : {}) }}>
       <div style={HEADER} {...drag.handleProps} title="Drag to move">
         <span style={{ color: '#a78bfa', fontWeight: 600 }}>⚔ Fire orders</span>
+        {/* Collapsed, this header IS the pad — so it says what is drafted rather than
+            explaining the segment, and the explanation returns when there is room. */}
         <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
-          turn {turn}, impulse {impulse} —{' '}
-          {declarationOpen
-            ? 'sealed together, revealed together (D6.315). Committing nothing is a legal bluff.'
-            : 'draft freely; nobody is waiting on you until a declaration is called.'}
+          {collapsed
+            ? <>impulse {impulse} — {sealed === 0
+                ? 'nothing drafted'
+                : `${sealed} order${sealed > 1 ? 's' : ''} from `
+                  + `${new Set(orders.map(o => o.shipName)).size} unit(s)`}
+                {declarationOpen ? ' · declaration open' : ''}</>
+            : <>turn {turn}, impulse {impulse} —{' '}
+                {declarationOpen
+                  ? 'sealed together, revealed together (D6.315). Committing nothing is a legal bluff.'
+                  : 'draft freely; nobody is waiting on you until a declaration is called.'}</>}
         </span>
         <button
           className="secondary"
           style={{ padding: '0 8px', marginLeft: 'auto' }}
-          onClick={() => setCollapsed(c => !c)}
+          onClick={() => setCollapsed(!collapsed)}
           title={collapsed ? 'Show the pad' : 'Collapse — Commit and Pass stay available'}
         >
           {collapsed ? '▸' : '▾'}
@@ -810,15 +822,6 @@ export default function FireOrdersPad({
       </div>
 
       </div>
-      )}
-
-      {collapsed && (
-        <div style={{ fontSize: '0.85em', color: '#8b949e', marginBottom: 4 }}>
-          {sealed === 0
-            ? 'No orders drafted — every unit holds fire.'
-            : `${sealed} order${sealed > 1 ? 's' : ''} drafted across ` +
-              `${new Set(orders.map(o => o.shipName)).size} unit(s).`}
-        </div>
       )}
 
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}

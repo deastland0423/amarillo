@@ -3,6 +3,7 @@ import type { ShipObject, ShuttleInBayState } from '../types/gameState';
 import { parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
+import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import { allowedFacingsFromMask, bearsOn, hexGetBearingBetween } from '../hex/geometry';
 import { FacingPicker } from './FacingPicker';
 
@@ -240,7 +241,7 @@ export default function LaunchOrdersPad({
   const [loaded, setLoaded] = useState<{
       attacker: string | null; rows: LaunchCandidate[]; error: string | null }>(
       { attacker: null, rows: [], error: null });
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useStickyCollapse('amarillo-launch-pad-collapsed');
   /**
    * A heading per launchable thing, keyed by its name; 0 (or absent) means "auto".
    *
@@ -501,17 +502,28 @@ export default function LaunchOrdersPad({
   const sealed = orders.length;
 
   return (
-    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top }}>
+    <div style={{ ...PANEL, left: drag.position.left, top: drag.position.top,
+                  // At rest it is one line: let it be as wide as that line, not as
+                  // wide as the panel it becomes when opened.
+                  ...(collapsed ? { width: 'auto', maxWidth: '94vw' } : {}) }}>
       <div style={HEADER} {...drag.handleProps} title="Drag to move">
         <span style={{ color: JADE, fontWeight: 600 }}>☢ Launch orders</span>
+        {/* Collapsed, this header IS the pad — so it says what is drafted rather than
+            explaining the segment, and the explanation returns when there is room. */}
         <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
-          turn {turn}, impulse {impulse} —{' '}
-          {declarationOpen
-            ? 'sealed together; seekers away (6B6) before shuttles launch (6B8).'
-            : 'draft freely; nobody is waiting on you until launches are called.'}
+          {collapsed
+            ? <>impulse {impulse} — {sealed === 0
+                ? 'nothing drafted'
+                : `${sealed} launch${sealed > 1 ? 'es' : ''} from `
+                  + `${new Set(orders.map(o => o.shipName)).size} ship(s)`}
+                {declarationOpen ? ' · declaration open' : ''}</>
+            : <>turn {turn}, impulse {impulse} —{' '}
+                {declarationOpen
+                  ? 'sealed together; seekers away (6B6) before shuttles launch (6B8).'
+                  : 'draft freely; nobody is waiting on you until launches are called.'}</>}
         </span>
         <button className="secondary" style={{ padding: '0 8px', marginLeft: 'auto' }}
-                onClick={() => setCollapsed(c => !c)}
+                onClick={() => setCollapsed(!collapsed)}
                 title={collapsed ? 'Show the pad' : 'Collapse — Commit and Pass stay available'}>
           {collapsed ? '▸' : '▾'}
         </button>
@@ -881,13 +893,6 @@ export default function LaunchOrdersPad({
           })}
         </div>
       </div>
-      )}
-
-      {collapsed && (
-        <div style={{ fontSize: '0.85em', color: '#8b949e', marginBottom: 4 }}>
-          {sealed === 0 ? 'Nothing drafted — every ship launches nothing.'
-                        : `${sealed} launch${sealed > 1 ? 'es' : ''} drafted.`}
-        </div>
       )}
 
       {(() => {
