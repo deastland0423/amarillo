@@ -209,6 +209,8 @@ public class GameStateDto {
         public List<DroneInRackDto> drones;
         /** Anti-drone rounds loaded, type-G only (FD3.70). Half a space each. */
         public int antiDrones;
+        /** Anti-drone rounds held in reserve for this rack (FD3.72). */
+        public int antiDroneReloads;
         /** Which way a type-G is committed this turn: UNDECIDED, DRONE or ANTI_DRONE. */
         public String mode;
         /** Whether an anti-drone round may be fired this impulse (FD3.71). */
@@ -216,7 +218,7 @@ public class GameStateDto {
         /** Spaces still free, drones and anti-drones counted together. */
         public double spacesFree;
         public int reloadCount;
-        public double reloadDeckCrewCost;
+
         public boolean reloadingThisTurn;
         public List<ReloadPoolEntryDto> reloadPool;
         public int launchDirectionsMask; // 0 = unrestricted
@@ -1389,6 +1391,7 @@ public class GameStateDto {
             rd.functional = rack.isFunctional();
             rd.canFire = rack.canFire();
             rd.antiDrones = rack.getAddAmmo();
+            rd.antiDroneReloads = rack.getAddReloads();
             rd.mode = rack.getModeThisTurn().name();
             rd.canFireAntiDrone = rack.canFireAntiDrone();
             rd.spacesFree = rack.spacesFree();
@@ -1403,8 +1406,6 @@ public class GameStateDto {
             }
             rd.reloadCount = rack.getNumberOfReloads();
             rd.reloadingThisTurn = rack.isReloadingThisTurn();
-            rd.reloadDeckCrewCost = rack.getReloads().isEmpty() ? 0
-                    : DroneRack.reloadCost(rack.getReloads().get(0));
             // Build flat pool: count available drones by type across all reload sets
             Map<String, ReloadPoolEntryDto> poolMap = new LinkedHashMap<>();
             for (List<Drone> set : rack.getReloads()) {
@@ -1419,6 +1420,15 @@ public class GameStateDto {
                     });
                     entry.count++;
                 }
+            }
+            // A type-G may spend its two spaces on anti-drones instead (FD2.42/FD3.72), so
+            // the reserve appears in the same pool the drones do, at half a space each.
+            if (rack.acceptsAntiDrones() && rack.getAddReloads() > 0) {
+                ReloadPoolEntryDto ad = new ReloadPoolEntryDto();
+                ad.droneType = DroneRack.ANTI_DRONE_POOL_KEY;
+                ad.rackSize = DroneRack.ANTI_DRONE_SPACE;
+                ad.count = rack.getAddReloads();
+                poolMap.put(ad.droneType, ad);
             }
             rd.reloadPool = new ArrayList<>(poolMap.values());
             dto.droneRacks.add(rd);

@@ -165,8 +165,12 @@ public class DroneRackTest {
 
         rack.completePendingReload(); // 8C — rack survived
 
-        assertEquals("Ammo should now contain the reloaded drones",
-                reloadSet.size(), rack.getAmmo().size());
+        // FD2.42 loads INTO the rack. The fixture holds two drones in a four-space rack,
+        // so a two-space load leaves four aboard — it does not replace the two that
+        // were already there, which is what the old expectation of "reloadSet.size()"
+        // was quietly describing.
+        assertEquals("the reloaded drones join the ones aboard",
+                4, rack.getAmmo().size());
         assertEquals("Reload set should be consumed",
                 reloadCountBefore - 1, rack.getReloads().size());
         assertNull("Pending set should be cleared", rack.getPendingReloadSet());
@@ -199,7 +203,7 @@ public class DroneRackTest {
 
         assertFalse("Reloading flag should be cleared after cleanUp", rack.isReloadingThisTurn());
         assertNull("Pending set should be cleared after cleanUp", rack.getPendingReloadSet());
-        assertEquals("Ammo should contain reloaded drones", reloadSet.size(), rack.getAmmo().size());
+        assertEquals("the reloaded drones join the ones aboard", 4, rack.getAmmo().size());
     }
 
     @Test

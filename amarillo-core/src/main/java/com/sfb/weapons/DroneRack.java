@@ -21,11 +21,21 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	private boolean reloadingThisTurn = false; // True if this rack is being reloaded this turn — blocks firing.
 	private List<Drone> pendingReloadSet = null; // Drones staged for reload — in transit until 8C.
 
+	/** Anti-drone rounds staged alongside them, in transit until 8C (FD2.42). */
+	private int pendingAntiDroneReload = 0;
+
 	/**
 	 * FD3.70: "Each anti-drone takes 1/2 space" — the same half space a dogfight drone
 	 * costs, out of the same four the rack has.
 	 */
 	public static final double ANTI_DRONE_SPACE = 0.5;
+
+	/**
+	 * How an anti-drone round is named in a reload pool, where every other entry is a
+	 * DroneType. Not a DroneType itself, so it needs a name of its own that no drone can
+	 * collide with.
+	 */
+	public static final String ANTI_DRONE_POOL_KEY = "ANTI_DRONE";
 
 	/**
 	 * FD3.72: "Anti-drones are not available prior to Y140 (E5.0), type-VI drones are used
@@ -489,7 +499,20 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	 * not removed from reloads yet. The rack is blocked from firing this turn.
 	 */
 	public void stagePendingReload(List<Drone> reloadSet) {
+		stagePendingReload(reloadSet, 0);
+	}
+
+	/**
+	 * Stage a reload of drones and/or anti-drone rounds.
+	 *
+	 * FD2.42 allows two SPACES a turn, and a type-G may spend them on either kind — a
+	 * drone is a space, an anti-drone half of one — so the two travel together.
+	 */
+	public void stagePendingReload(List<Drone> reloadSet, int antiDrones) {
 		this.pendingReloadSet = reloadSet;
+		// A rack with no anti-drone targeting system stages none, whatever it is asked
+		// for. The server checks too, but core should not depend on the caller.
+		this.pendingAntiDroneReload = acceptsAntiDrones() ? Math.max(0, antiDrones) : 0;
 		this.reloadingThisTurn = true;
 	}
 
@@ -500,22 +523,43 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	 * pending drones are returned to reloads so they are not lost.
 	 */
 	public void completePendingReload() {
-		if (pendingReloadSet == null)
+		if (pendingReloadSet == null && pendingAntiDroneReload == 0)
 			return;
 		if (isFunctional()) {
-			this.ammoList = new ArrayList<>(pendingReloadSet);
-			// For full-set reloads the list is reference-identical, so remove() finds it.
-			// For custom (partial) reloads the drones were already removed from their sets
-			// during staging, so remove() is a no-op; clean up any now-empty sets instead.
-			this.reloads.remove(pendingReloadSet);
-			this.reloads.removeIf(List::isEmpty);
-		} else {
+			// FD2.42 loads rounds INTO the rack; it does not replace what is aboard.
+			// Firing takes drones out one at a time, so a half-empty rack topped up by
+			// two spaces used to end the turn holding only those two, the rest thrown
+			// away. What will not fit is left in reserve rather than lost.
+			if (pendingReloadSet != null) {
+				List<Drone> didNotFit = new ArrayList<>();
+				for (Drone d : pendingReloadSet) {
+					if (d.getRackSize() <= spacesFree() + 1e-9)
+						this.ammoList.add(d);
+					else
+						didNotFit.add(d);
+				}
+				if (!didNotFit.isEmpty())
+					this.reloads.add(didNotFit);
+				// For full-set reloads the list is reference-identical, so remove() finds
+				// it. For partial ones the drones left their sets during staging, so
+				// remove() is a no-op; clean up any now-empty sets instead.
+				this.reloads.remove(pendingReloadSet);
+				this.reloads.removeIf(List::isEmpty);
+			}
+			if (pendingAntiDroneReload > 0) {
+				int fits = (int) Math.floor((spacesFree() + 1e-9) / ANTI_DRONE_SPACE);
+				int loaded = Math.min(pendingAntiDroneReload, fits);
+				this.addAmmo += loaded;
+				this.addReloads = Math.max(0, this.addReloads - loaded);
+			}
+		} else if (pendingReloadSet != null) {
 			// Rack was destroyed — return drones to reloads (they survive)
 			if (!this.reloads.contains(pendingReloadSet)) {
 				this.reloads.add(pendingReloadSet);
 			}
 		}
 		this.pendingReloadSet = null;
+		this.pendingAntiDroneReload = 0;
 	}
 
 	/**

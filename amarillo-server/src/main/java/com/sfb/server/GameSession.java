@@ -1159,10 +1159,21 @@ public class GameSession {
                         if (rack == null || !rack.isFunctional())
                             continue;
 
+                        // Anti-drone rounds ride the same selection map under a key that is
+                        // not a DroneType, and spend the same two spaces at half a space each
+                        // (FD2.42) — so a type-G's turn buys two drones, or four anti-drones,
+                        // or a mix.
+                        int antiDrones = 0;
+                        Integer askedAntiDrones = typeCountMap.get(DroneRack.ANTI_DRONE_POOL_KEY);
+                        if (askedAntiDrones != null && askedAntiDrones > 0 && rack.acceptsAntiDrones())
+                            antiDrones = Math.min(askedAntiDrones, rack.getAddReloads());
+
                         // Pass 1: collect candidate Drone objects by reference (without removing yet)
                         List<Drone> candidates = new ArrayList<>();
                         for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
                             String droneType = tc.getKey();
+                            if (DroneRack.ANTI_DRONE_POOL_KEY.equals(droneType))
+                                continue;
                             int needed = tc.getValue() != null ? tc.getValue() : 0;
                             outer: for (List<Drone> set : rack.getReloads()) {
                                 for (Drone d : set) {
@@ -1178,10 +1189,13 @@ public class GameSession {
                             }
                         }
 
-                        if (candidates.isEmpty())
+                        if (candidates.isEmpty() && antiDrones == 0)
                             continue;
-                        // Enforce max 2 rack spaces per rack per turn (FD2.421)
-                        if (DroneRack.reloadCost(candidates) > 2.0)
+                        // Enforce max 2 rack spaces per rack per turn (FD2.421), counting
+                        // both kinds against the one budget.
+                        double spaces = DroneRack.reloadCost(candidates)
+                                + antiDrones * DroneRack.ANTI_DRONE_SPACE;
+                        if (spaces > 2.0 + 1e-9)
                             continue;
 
                         // Pass 2: remove the chosen drones from their sets, then stage
@@ -1191,7 +1205,7 @@ public class GameSession {
                                     break;
                             }
                         }
-                        rack.stagePendingReload(candidates);
+                        rack.stagePendingReload(candidates, antiDrones);
                     }
                 }
 
