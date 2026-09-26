@@ -436,4 +436,20 @@ public class ShipDtoPrivacyTest {
         if (value instanceof String) return ((String) value).isEmpty();
         return false;
     }
+
+    /**
+     * A weapon that is not a fighter's fusion says NOTHING about charges, rather than zero.
+     *
+     * Playtest 2026-09-26: chargesRemaining was a primitive int, so Jackson sent 0 on every
+     * weapon instead of omitting it. The Fire Orders panel decides "is this a fusion?" by
+     * asking whether the field is absent, so the fusion's 1x/2x buttons appeared beside
+     * every phaser and photon on the ship.
+     */
+    @Test
+    public void onlyAFightersFusionReportsCharges() {
+        // A Federation CA: phasers and photons, and not a fusion among them.
+        for (GameStateDto.WeaponDto w : ship(ownerView).weapons)
+            assertNull(w.name + " is not a fusion and must not report charges",
+                    w.chargesRemaining);
+    }
 }

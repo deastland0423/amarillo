@@ -159,7 +159,16 @@ public class GameStateDto {
         public int maxShotsPerTurn; // how many times this weapon may fire per turn
         public int shotsThisTurn; // shots already fired this turn
         public int minImpulseGap; // minimum global impulses between shots (0 = same-impulse multi-shot ok)
-        public int chargesRemaining; // FighterFusion only: charges left (0-2); ignored for other weapons
+        /**
+         * FighterFusion only: charges left (0-2). NULL on every other weapon, and the type
+         * has to be Integer to say so.
+         *
+         * As a primitive it was 0 on everything, which Jackson sends rather than omits — so
+         * the client's "is this a fusion?" test (chargesRemaining !== undefined) was true for
+         * every weapon in the game, and the fusion's 1x/2x buttons appeared beside every
+         * phaser and photon in the Fire Orders panel, with 2x greyed out.
+         */
+        public Integer chargesRemaining;
         public boolean canFireDouble; // FighterFusion only: true when 2 charges remain
         public int addShots; // ADD only: shots remaining in current load
         public int addReloads; // ADD only: reserve shots remaining
@@ -1620,7 +1629,7 @@ public class GameStateDto {
                     wd.plasmaType = null;     // which torpedo is in the tube
                     wd.pseudoPlasmaReady = false;
                     wd.isRolling = false;
-                    wd.chargesRemaining = 0;
+                    wd.chargesRemaining = null;   // not disclosed, same as the rest here
                 }
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
                 wd.addShots = 0;
