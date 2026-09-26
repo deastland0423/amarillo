@@ -19,7 +19,19 @@ public class DroneRack extends Weapon implements Launcher {
 	private boolean reloadingThisTurn = false; // True if this rack is being reloaded this turn — blocks firing.
 	private List<Drone> pendingReloadSet = null; // Drones staged for reload — in transit until 8C.
 
-	private int addAmmo = 0; // The number of ADD shots in the drone rack.
+	/**
+	 * FD3.70: "Each anti-drone takes 1/2 space" — the same half space a dogfight drone
+	 * costs, out of the same four the rack has.
+	 */
+	public static final double ANTI_DRONE_SPACE = 0.5;
+
+	/**
+	 * FD3.72: "Anti-drones are not available prior to Y140 (E5.0), type-VI drones are used
+	 * prior to Y140."
+	 */
+	public static final int ANTI_DRONE_FIRST_YEAR = 140;
+
+	private int addAmmo = 0; // Anti-drone rounds loaded in the rack (1/2 space each).
 
 	private int addReloads = 0; // The number of ADD reloads available.
 
@@ -126,6 +138,10 @@ public class DroneRack extends Weapon implements Launcher {
 	public void upgradeRackType(DroneRackType newType) {
 		this.type = newType;
 		applyTypeStats(newType);
+		// A rack that is no longer a type-G has no targeting system for anti-drones, so
+		// whatever it was carrying goes with the refit.
+		if (!acceptsAntiDrones())
+			this.addAmmo = 0;
 		// Trim loaded ammo to new space limit
 		double usedSpaces = ammoList.stream().mapToDouble(d -> d.getRackSize()).sum();
 		while (usedSpaces > spaces && !ammoList.isEmpty()) {
@@ -181,6 +197,62 @@ public class DroneRack extends Weapon implements Launcher {
 
 	public void setSpaces(int spaces) {
 		this.spaces = spaces;
+	}
+
+	/**
+	 * How much of the rack is spoken for — drones and anti-drones together, because FD3.70
+	 * gives them one magazine of four spaces between them.
+	 *
+	 * One method so the two kinds cannot disagree about how full the rack is. Every space
+	 * question goes through here.
+	 */
+	public double spacesUsed() {
+		double used = 0;
+		for (Drone d : ammoList)
+			used += d.getRackSize();
+		return used + addAmmo * ANTI_DRONE_SPACE;
+	}
+
+	/** What is left, in spaces. */
+	public double spacesFree() {
+		return spaces - spacesUsed();
+	}
+
+	/**
+	 * Whether this rack may carry anti-drone rounds at all.
+	 *
+	 * Only the type-G: it is the one "equipped with targeting system for anti-drones"
+	 * (FD3.70). A type-D is told outright it may not (FD3.4), and the anti-drones on
+	 * starbases are a separate five-magazine launcher of their own (FD3.86/E5.53) rather
+	 * than something the type-H rack carries.
+	 */
+	public boolean acceptsAntiDrones() {
+		return type == DroneRackType.TYPE_G;
+	}
+
+	/**
+	 * Whether this rack could take {@code count} more anti-drone rounds in the given year.
+	 *
+	 * @param year the game year, for the Y140 gate; pass 0 to skip the check
+	 */
+	public boolean canLoadAntiDrones(int count, int year) {
+		if (count <= 0 || !acceptsAntiDrones())
+			return false;
+		if (year > 0 && year < ANTI_DRONE_FIRST_YEAR)
+			return false;
+		return count * ANTI_DRONE_SPACE <= spacesFree() + 1e-9;
+	}
+
+	/**
+	 * Load anti-drone rounds into the rack, up to what will fit.
+	 *
+	 * @return the number actually loaded, which is 0 if this rack cannot carry them
+	 */
+	public int loadAntiDrones(int count, int year) {
+		if (!canLoadAntiDrones(count, year))
+			return 0;
+		addAmmo += count;
+		return count;
 	}
 
 	public int getAddAmmo() {
@@ -240,7 +312,7 @@ public class DroneRack extends Weapon implements Launcher {
 	 * @return True if there is no ammo in the rack, false otherwise.
 	 */
 	public boolean isEmpty() {
-		return ammoList.size() == 0;
+		return ammoList.isEmpty() && addAmmo == 0;
 	}
 
 	/**

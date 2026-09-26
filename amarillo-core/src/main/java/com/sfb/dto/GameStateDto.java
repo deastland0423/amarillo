@@ -185,6 +185,10 @@ public class GameStateDto {
         public boolean functional;
         public boolean canFire;
         public List<DroneInRackDto> drones;
+        /** Anti-drone rounds loaded, type-G only (FD3.70). Half a space each. */
+        public int antiDrones;
+        /** Spaces still free, drones and anti-drones counted together. */
+        public double spacesFree;
         public int reloadCount;
         public double reloadDeckCrewCost;
         public boolean reloadingThisTurn;
@@ -1349,6 +1353,8 @@ public class GameStateDto {
             rd.name = rack.getName();
             rd.functional = rack.isFunctional();
             rd.canFire = rack.canFire();
+            rd.antiDrones = rack.getAddAmmo();
+            rd.spacesFree = rack.spacesFree();
             rd.drones = new ArrayList<>();
             for (Drone d : rack.getAmmo()) {
                 DroneInRackDto dd = new DroneInRackDto();
