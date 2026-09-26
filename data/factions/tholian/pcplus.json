@@ -8,6 +8,7 @@
   "bpv": 65,
   "turnMode": "A",
   "sizeClass": 4,
+  "nimble": true,
   "moveCost": 0.3333333,
   "breakdown": 5,
   "bonusHets": 2,
@@ -44,8 +45,7 @@
     "transporters": 1,
     "tractors": 1,
     "labs": 2,
-    "probes": 1,
-    "nimble": true
+    "probes": 1
   },
 
   "shuttleBays": [

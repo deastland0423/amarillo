@@ -46,6 +46,13 @@ public class ShipSpec {
     /** Leader variant (CWL, DWL, DDL, CC…): restricted by S8.36/S8.361 when fleet building. */
     public boolean isLeader;
     /**
+     * A remark for whoever reads the file. Never rendered, never a rule — it exists so a
+     * ship's oddities can be written down beside the ship. Declared rather than parked
+     * because it is permanent by design, not a system waiting to be built.
+     */
+    public String note;
+
+    /**
      * The class written out, e.g. "Commando Cruiser" for type "CMC".
      *
      * {@link #type} is the SSD designation and is what the counter and the tooltip have
