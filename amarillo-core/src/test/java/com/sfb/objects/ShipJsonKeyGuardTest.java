@@ -51,8 +51,12 @@ public class ShipJsonKeyGuardTest {
     private static final Map<String, String> PARKED = new LinkedHashMap<>();
     static {
         PARKED.put("control.oakdisc",
-                "Orion, 1 file. A special Orion system the owner flagged 2026-09-25 for "
-                + "later; purpose and rule number not yet established.");
+                "Orion, 1 file. OAKDISC (FD4.5), the Orion Advanced Killer Drone "
+                + "Improved System of Control: fires every rack at maximum rate every "
+                + "turn, lifting FD4.4's three-rack cap, and controls seeking weapons "
+                + "equal to DOUBLE the sensor rating. Rule known since 2026-09-25, "
+                + "wholly unbuilt — as is FD4.4 itself, so Orion ships currently "
+                + "enjoy half of OAKDISC for free.");
         PARKED.put("auxiliary.web",
                 "Tholian, 7 files. Web generators — the Sequence of Play cites web "
                 + "deceleration at (G10.59), so the system is G10 and wholly unbuilt.");

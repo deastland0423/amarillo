@@ -883,7 +883,7 @@ export default function FireOrdersPad({
             <button onClick={onCall}>Call for fire declaration</button>
             <span style={{ fontSize: '0.78em', color: '#8b949e' }}>
               — everyone stops and commits. Adding an order calls one too; calling with
-              nothing drafted is a bluff, and spends the impulse for everybody.
+              nothing drafted is a bluff.
             </span>
           </>
         )}
