@@ -2020,7 +2020,13 @@ function ShipSidebar({
               <div className="sidebar-stat-row">
                 <span className="sidebar-stat-label">{r.name}</span>
                 <span className={`sidebar-stat-value${r.functional ? '' : ' dmg'}`}>
-                  {r.functional ? (r.canFire ? 'ready' : 'cooling') : 'dmg'}
+                  {/* "cooling" is about LAUNCHING. A type-G that has fired anti-drones
+                      cannot launch for the rest of the turn (FD3.71) and reporting that
+                      as a cooldown reads like a fault. Say what it is doing instead. */}
+                  {!r.functional ? 'dmg'
+                    : r.mode === 'ANTI_DRONE'
+                      ? (r.canFireAntiDrone ? 'anti-drone' : 'anti-drone · spent')
+                      : r.canFire ? 'ready' : 'cooling'}
                 </span>
               </div>
               {isMine ? (

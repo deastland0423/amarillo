@@ -130,6 +130,8 @@ export interface DroneRackState {
   reloadPool:           ReloadPoolEntry[];
   launchDirectionsMask: number;  // valid launch facings bitmask; 0 = unrestricted
   antiDrones?:          number;  // type-G only (FD3.70): anti-drone rounds, 1/2 space each
+  mode?:                string;  // UNDECIDED | DRONE | ANTI_DRONE for the turn (FD3.71)
+  canFireAntiDrone?:    boolean; // an anti-drone round may go this impulse
   spacesFree?:          number;  // drones and anti-drones counted together
 }
 

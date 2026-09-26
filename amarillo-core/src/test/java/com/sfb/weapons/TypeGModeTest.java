@@ -171,6 +171,47 @@ public class TypeGModeTest {
                 rack.canFireAntiDrone());
     }
 
+    // ---------------------------------------------------------------- readiness to be SHOT
+
+    /**
+     * The playtest bug: fired on one impulse, "on cooldown" on the next, with three rounds
+     * still aboard.
+     *
+     * Both the Fire Orders panel and the bearing list decided readiness from canFire(),
+     * which asks a rack whether it may LAUNCH — and a rack committed to anti-drone mode
+     * answers no for the rest of the turn (FD3.71). readyToFireAtTarget is the question
+     * those callers actually mean.
+     */
+    @Test
+    public void aRackThatFiredLastImpulseIsReadyAgainOnTheNext() {
+        assertTrue(rack.recordAntiDroneFire());
+        assertFalse("premise: it may not launch a drone for the rest of the turn",
+                rack.canFire());
+        assertFalse("nor fire twice in one impulse", rack.readyToFireAtTarget());
+
+        impulses(1);
+
+        assertTrue("but the next impulse it may shoot again", rack.readyToFireAtTarget());
+        assertFalse("while still being unable to launch (FD3.71)", rack.canFire());
+    }
+
+    @Test
+    public void anOrdinaryWeaponAnswersTheSameToBothQuestions() {
+        Phaser1 phaser = new Phaser1();
+        phaser.setClock(clock);
+
+        assertEquals(phaser.canFire(), phaser.readyToFireAtTarget());
+    }
+
+    /** A rack out of rounds is not ready, whatever mode it is in. */
+    @Test
+    public void anEmptyRackIsNeverReadyToBeShot() {
+        while (rack.recordAntiDroneFire())
+            impulses(1);
+
+        assertFalse(rack.readyToFireAtTarget());
+    }
+
     // ---------------------------------------------------------------- other racks unaffected
 
     @Test

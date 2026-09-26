@@ -187,6 +187,10 @@ public class GameStateDto {
         public List<DroneInRackDto> drones;
         /** Anti-drone rounds loaded, type-G only (FD3.70). Half a space each. */
         public int antiDrones;
+        /** Which way a type-G is committed this turn: UNDECIDED, DRONE or ANTI_DRONE. */
+        public String mode;
+        /** Whether an anti-drone round may be fired this impulse (FD3.71). */
+        public boolean canFireAntiDrone;
         /** Spaces still free, drones and anti-drones counted together. */
         public double spacesFree;
         public int reloadCount;
@@ -1240,7 +1244,10 @@ public class GameStateDto {
             wd.arcMask = w.getArcs();
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
-            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.canFire();
+            // readyToFireAtTarget, not canFire: this field decides whether the Fire Orders
+            // panel lets a weapon be ticked, and a type-G in anti-drone mode answers false
+            // to canFire for the rest of the turn while being perfectly able to shoot.
+            wd.readyToFire = w.isFunctional() && armedIfNeeded && w.readyToFireAtTarget();
             // Assigned for EVERY weapon, not only the ones that arm. It is a Boolean now,
             // where null means "not disclosed", so leaving it unset on a phaser made the
             // client treat the viewer's own weapons as an enemy's.
@@ -1354,6 +1361,8 @@ public class GameStateDto {
             rd.functional = rack.isFunctional();
             rd.canFire = rack.canFire();
             rd.antiDrones = rack.getAddAmmo();
+            rd.mode = rack.getModeThisTurn().name();
+            rd.canFireAntiDrone = rack.canFireAntiDrone();
             rd.spacesFree = rack.spacesFree();
             rd.drones = new ArrayList<>();
             for (Drone d : rack.getAmmo()) {

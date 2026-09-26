@@ -413,6 +413,15 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		return fire(realRange);
 	}
 
+	/**
+	 * A rack is SHOT only as an anti-drone launcher, so its readiness to fire at a target is
+	 * exactly that question — not canFire(), which is about launching drones.
+	 */
+	@Override
+	public boolean readyToFireAtTarget() {
+		return canFireAntiDrone();
+	}
+
 	/** Which way this rack is committed for the turn; UNDECIDED until its first shot. */
 	public RackMode getModeThisTurn() {
 		return modeThisTurn;
