@@ -45,6 +45,15 @@ public class CoiLoadout {
     public Map<Integer, List<DroneType>> droneRackLoadouts = new LinkedHashMap<>();
 
     /**
+     * Rack index to anti-drone rounds loaded, type-G only (FD3.70).
+     *
+     * Its own map because an anti-drone is not a DroneType — it flies nothing and seeks
+     * nothing — and because the two share one four-space magazine, which is what the
+     * validation below has to add up.
+     */
+    public Map<Integer, Integer> antiDroneLoadouts = new LinkedHashMap<>();
+
+    /**
      * Pre-game conversion of an admin shuttle into a special weapon (WS-2: max 1, WS-3: max 2).
      * The named shuttle must be an admin shuttle in the ship's bay; it is replaced by the
      * converted type at game start.

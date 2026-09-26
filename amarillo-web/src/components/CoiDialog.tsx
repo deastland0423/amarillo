@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiShuttlePrepEntry, Cartel } from '../api/gameApi';
+import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 
 type Tier = 'HOME' | 'OPERATING' | 'OUTSIDE' | 'UNIVERSAL';
@@ -76,6 +76,7 @@ interface ShipCoi {
   weaponArmingModes:    Record<string, ArmMode>;
   photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
+  antiDroneLoadouts:    Record<number, number>;     // rackIndex → anti-drone rounds (FD3.70)
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
   optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
 }
@@ -89,6 +90,7 @@ function defaultShipCoi(): ShipCoi {
     weaponArmingModes:    {},
     photonOverload:       {},
     droneRackLoadouts:    {},
+    antiDroneLoadouts:    {},
     shuttlePrep:          {},
     optionMounts:         {},
   };
@@ -278,8 +280,19 @@ function ShipCoiPanel({
           <div className="coi-section-title">Drone Rack Loadouts</div>
           {ship.droneRacks.map(rack => {
             const loadout = coi.droneRackLoadouts[rack.index] ?? [];
-            const used    = droneSpaceUsed(loadout, ship.availableDroneTypes);
+            // FD3.70: drones and anti-drones share the one magazine, so the budget counts
+            // both. The server adds them up the same way and refuses the loadout otherwise.
+            const antiDrones = coi.antiDroneLoadouts[rack.index] ?? 0;
+            const adSpace    = rack.antiDroneSpace ?? 0.5;
+            const used    = droneSpaceUsed(loadout, ship.availableDroneTypes)
+                          + antiDrones * adSpace;
             const remaining = rack.spaces - used;
+
+            function setAntiDrones(n: number) {
+              const next = Math.max(0, n);
+              onChange({ ...coi, antiDroneLoadouts:
+                { ...coi.antiDroneLoadouts, [rack.index]: next } });
+            }
 
             function addDrone(typeName: string) {
               const dt = ship.availableDroneTypes.find(t => t.name === typeName);
@@ -320,6 +333,23 @@ function ShipCoiPanel({
                           + {dt.name} ({dt.rack}sp)
                         </button>
                       ))}
+                  </div>
+                )}
+                {/* FD3.70: only a type-G has the anti-drone targeting system, and its
+                    loading "must always be planned" — this is where that planning
+                    happens, since nothing reloads an ADD into it in play (E5.74). */}
+                {rack.canLoadAntiDrones && (
+                  <div className="coi-drone-add-row" style={{ alignItems: 'center' }}>
+                    <span className="coi-note" style={{ marginRight: 6 }}>
+                      Anti-drones ({adSpace}sp each)
+                    </span>
+                    <button className="secondary coi-drone-add-btn"
+                            disabled={antiDrones <= 0}
+                            onClick={() => setAntiDrones(antiDrones - 1)}>&minus;</button>
+                    <span style={{ minWidth: 18, textAlign: 'center' }}>{antiDrones}</span>
+                    <button className="secondary coi-drone-add-btn"
+                            disabled={adSpace > remaining}
+                            onClick={() => setAntiDrones(antiDrones + 1)}>+</button>
                   </div>
                 )}
               </div>
@@ -579,6 +609,13 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
           )
         : undefined;
 
+      // Anti-drones travel on their own map (FD3.70): they are not a drone type here or
+      // in core, and a rack may carry them with no drones at all.
+      const antiDrones = Object.entries(coi.antiDroneLoadouts ?? {})
+        .filter(([, n]) => n > 0);
+      const antiDroneLoadouts = antiDrones.length > 0
+        ? Object.fromEntries(antiDrones) : undefined;
+
       // Build specialShuttlePrep entries for selected shuttles
       const shuttlePrep: import('../api/gameApi').CoiShuttlePrepEntry[] = [];
       for (const [shuttleName, prep] of Object.entries(coi.shuttlePrep)) {
@@ -598,6 +635,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         extraCommandoSquads:  coi.extraCommandoSquads,
         extraTBombs:          coi.extraTBombs,
         droneRackLoadouts:    rackLoadouts,
+        antiDroneLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
                               ? coi.weaponArmingModes : undefined,
         photonOverload:       Object.values(coi.photonOverload ?? {}).some(v => v > 0)

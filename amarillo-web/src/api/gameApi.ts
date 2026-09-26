@@ -264,6 +264,8 @@ export interface CoiDroneRack {
   reloadCount:  number;
   defaultAmmo:  string[];  // drone type names before any COI loadout
   canLoadTypeVI: boolean;  // only TYPE_E, TYPE_G, TYPE_H
+  canLoadAntiDrones?: boolean; // FD3.70: only a type-G has the anti-drone targeting system
+  antiDroneSpace?:    number;  // spaces one anti-drone round costs (0.5)
 }
 
 export interface CoiDroneType {
@@ -334,6 +336,7 @@ export interface CoiSubmission {
     extraCommandoSquads?:  number;
     extraTBombs?:          number;
     droneRackLoadouts?:    Record<string, string[]>;
+    antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;
     photonOverload?:       Record<string, number>;  // free WS-III overload energy per tube (S4.32)
     specialShuttlePrep?:   CoiShuttlePrepEntry[];

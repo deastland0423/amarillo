@@ -23,6 +23,14 @@ public class CoiRequest {
     /** Rack index (as string key) → list of DroneType names. */
     public Map<String, List<String>> droneRackLoadouts = new LinkedHashMap<>();
 
+    /**
+     * Rack index (as string key) → anti-drone rounds to load, type-G only (FD3.70).
+     *
+     * Separate from droneRackLoadouts because an anti-drone is not a DroneType; they share
+     * the rack's four spaces, at half a space each, and the loader budgets them together.
+     */
+    public Map<String, Integer> antiDroneLoadouts = new LinkedHashMap<>();
+
     /** Weapon designator → arming mode name ("STANDARD", "OVERLOAD", "SPECIAL"). */
     public Map<String, String> weaponArmingModes = new LinkedHashMap<>();
 
@@ -67,6 +75,16 @@ public class CoiRequest {
                 catch (IllegalArgumentException e) { /* skip unknown types */ }
             }
             out.droneRackLoadouts.put(rackIndex, types);
+        }
+
+        if (antiDroneLoadouts != null) {
+            for (Map.Entry<String, Integer> entry : antiDroneLoadouts.entrySet()) {
+                if (entry.getValue() == null || entry.getValue() <= 0)
+                    continue;
+                try {
+                    out.antiDroneLoadouts.put(Integer.parseInt(entry.getKey()), entry.getValue());
+                } catch (NumberFormatException e) { /* skip unparsable rack keys */ }
+            }
         }
 
         for (Map.Entry<String, String> entry : weaponArmingModes.entrySet()) {

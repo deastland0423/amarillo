@@ -893,12 +893,15 @@ public class GameController {
                                 defAmmo.add(d.getDroneType() != null ? d.getDroneType().name() : "TypeI");
                             }
                             dr.put("defaultAmmo", defAmmo);
-                            // Only TYPE_E, TYPE_G, and TYPE_H can load TypeVI variants
-                            com.sfb.weapons.DroneRack.DroneRackType rt = rack.getRackType();
+                            // Ask the rack, which is where FD2.51 and FD3.5 live. This used
+                            // to be a third copy of the E/G/H list, alongside core's and the
+                            // COI loader's.
                             dr.put("canLoadTypeVI",
-                                    rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_E
-                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_G
-                                            || rt == com.sfb.weapons.DroneRack.DroneRackType.TYPE_H);
+                                    rack.accepts(com.sfb.objects.DroneType.TypeVI));
+                            // FD3.70: only a type-G has the anti-drone targeting system.
+                            dr.put("canLoadAntiDrones", rack.acceptsAntiDrones());
+                            dr.put("antiDroneSpace",
+                                    com.sfb.weapons.DroneRack.ANTI_DRONE_SPACE);
                             drones.add(dr);
                         }
                     }

@@ -298,7 +298,7 @@ public class ScenarioLoader {
         }
 
         // --- Drone rack loadouts (free; year/speed limits enforced) ---
-        if (!loadout.droneRackLoadouts.isEmpty()) {
+        if (!loadout.droneRackLoadouts.isEmpty() || !loadout.antiDroneLoadouts.isEmpty()) {
             Integer maxSpeed = spec.commanderOptions != null ? spec.commanderOptions.maxDroneSpeed : null;
             int year = spec.year;
 
@@ -307,14 +307,34 @@ public class ScenarioLoader {
                 if (w instanceof DroneRack) racks.add((DroneRack) w);
             }
 
-            for (Map.Entry<Integer, List<DroneType>> entry : loadout.droneRackLoadouts.entrySet()) {
-                int rackIndex = entry.getKey();
+            // Every rack either side of the two maps mentions, so a rack given only
+            // anti-drones is still visited.
+            java.util.Set<Integer> rackIndexes = new java.util.LinkedHashSet<>();
+            rackIndexes.addAll(loadout.droneRackLoadouts.keySet());
+            rackIndexes.addAll(loadout.antiDroneLoadouts.keySet());
+
+            for (Integer rackIndexBoxed : rackIndexes) {
+                int rackIndex = rackIndexBoxed;
                 if (rackIndex < 0 || rackIndex >= racks.size()) {
                     note(ship, "COI: drone rack index " + rackIndex + " out of range — skipped");
                     continue;
                 }
                 DroneRack rack = racks.get(rackIndex);
-                List<DroneType> requestedTypes = entry.getValue();
+                List<DroneType> requestedTypes =
+                        loadout.droneRackLoadouts.getOrDefault(rackIndex, java.util.List.of());
+                int antiDrones = loadout.antiDroneLoadouts.getOrDefault(rackIndex, 0);
+
+                if (antiDrones > 0 && !rack.acceptsAntiDrones()) {
+                    note(ship, "COI: rack " + rackIndex + " is a " + rack.getRackType()
+                            + " and carries no anti-drones (FD3.70) — anti-drones dropped");
+                    antiDrones = 0;
+                }
+                if (antiDrones > 0 && year > 0 && year < DroneRack.ANTI_DRONE_FIRST_YEAR) {
+                    note(ship, "COI: anti-drones are not available before Y"
+                            + DroneRack.ANTI_DRONE_FIRST_YEAR + " (FD3.72) — rack "
+                            + rackIndex + " anti-drones dropped");
+                    antiDrones = 0;
+                }
 
                 // Validate each type against year, speed cap, and rack capability
                 List<Drone> drones = new ArrayList<>();
@@ -339,13 +359,20 @@ public class ScenarioLoader {
                     totalRackSize += dt.rack;
                 }
                 if (!valid) continue;
-                if (totalRackSize > rack.getSpaces()) {
+                // FD3.70: drones and anti-drones share the one magazine, so they are
+                // budgeted together rather than each against the whole rack.
+                double totalWithAntiDrones =
+                        totalRackSize + antiDrones * DroneRack.ANTI_DRONE_SPACE;
+                if (totalWithAntiDrones > rack.getSpaces()) {
                     note(ship, "COI: loadout for rack " + rackIndex + " exceeds rack size ("
-                            + totalRackSize + " > " + rack.getSpaces() + ") — skipped");
+                            + totalWithAntiDrones + " > " + rack.getSpaces() + ") — skipped");
                     continue;
                 }
                 for (DroneType dt : requestedTypes) drones.add(new Drone(dt));
                 rack.setAmmo(drones);
+                rack.setAddAmmo(0);
+                if (antiDrones > 0)
+                    rack.loadAntiDrones(antiDrones, year);
             }
         }
 
