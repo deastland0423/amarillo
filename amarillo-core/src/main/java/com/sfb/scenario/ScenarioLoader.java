@@ -317,9 +317,6 @@ public class ScenarioLoader {
                 List<DroneType> requestedTypes = entry.getValue();
 
                 // Validate each type against year, speed cap, and rack capability
-                boolean canTypeVI = rack.getRackType() == DroneRack.DroneRackType.TYPE_E
-                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_G
-                        || rack.getRackType() == DroneRack.DroneRackType.TYPE_H;
                 List<Drone> drones = new ArrayList<>();
                 double totalRackSize = 0;
                 boolean valid = true;
@@ -334,7 +331,7 @@ public class ScenarioLoader {
                                 + " exceeds cap " + maxSpeed + " — rack " + rackIndex + " skipped");
                         valid = false; break;
                     }
-                    if (dt.isTypeVI() && !canTypeVI) {
+                    if (!rack.accepts(dt)) {
                         note(ship, "COI: " + dt + " cannot be loaded in rack type "
                                 + rack.getRackType() + " — rack " + rackIndex + " skipped");
                         valid = false; break;

@@ -79,8 +79,16 @@ public class DroneRack extends Weapon implements Launcher {
 				this.spaces = 20;     // five magazines (FD3.8)
 				this.numberOfReloads = 2;
 				break;
-			case TYPE_A:
 			case TYPE_E:
+				// FD3.5: eight dogfight drones — four spaces, since a type-VI is half a
+				// space each. Fires FOUR times per turn, but is still held to the ordinary
+				// quarter-turn gap, which is exactly what four launches in 32 impulses
+				// costs. One reload.
+				this.spaces = 4;
+				this.numberOfReloads = 1;
+				setMaxShotsPerTurn(4);
+				break;
+			case TYPE_A:
 			case TYPE_F:              // FD3.6: functionally a type-A
 			default:
 				this.spaces = 4;
@@ -124,6 +132,27 @@ public class DroneRack extends Weapon implements Launcher {
 			usedSpaces -= ammoList.remove(ammoList.size() - 1).getRackSize();
 		}
 		reloads.clear();
+	}
+
+	/**
+	 * Whether this rack may carry a drone of that type — both directions of the rule.
+	 *
+	 * FD2.51: dogfight (type-VI) drones "cannot be loaded on or fired by any drone racks
+	 * except E and G", with the type-H carrying a magazine of them too (FD3.81).
+	 * FD3.5, the other way about: the E rack holds dogfight drones and "can carry no other
+	 * types" — which nothing enforced, so a type-E would happily take a Type-I.
+	 *
+	 * One method because it is one question, and the COI loader is not the only place that
+	 * will ever ask it.
+	 */
+	public boolean accepts(com.sfb.objects.DroneType droneType) {
+		if (droneType == null)
+			return false;
+		if (type == DroneRackType.TYPE_E)
+			return droneType.isTypeVI();
+		if (droneType.isTypeVI())
+			return type == DroneRackType.TYPE_G || type == DroneRackType.TYPE_H;
+		return true;
 	}
 
 	/** Add N extra reload sets (for faction upgrades like Federation TYPE_G). */
