@@ -1,11 +1,11 @@
 {
   "faction": "Kzinti",
-  "type": "DF",
-  "typeName": "Drone Frigate",
+  "type": "SDF",
+  "typeName": "Scout Drone Frigate",
   "line": "FF",
-  "name": "KHS #420",
-  "serviceYear": 134,
-  "bpv": 74,
+  "name": "KHS #173",
+  "serviceYear": 160,
+  "bpv": 90,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,
@@ -57,17 +57,18 @@
   ],
 
   "crewData": {
-    "totalCrew": 21,
+    "totalCrew": 20,
     "boardingParties": 4,
     "minCrew": 4
   },
 
   "weapons": [
-    { "type": "Phaser1", "designator": "1", "arcs": ["FA"] },
-    { "type": "Phaser3", "designator": "2", "arcs": ["LS"] },
-    { "type": "Phaser3", "designator": "3", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
-    { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "Phaser3", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},

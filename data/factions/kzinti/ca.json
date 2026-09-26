@@ -1,11 +1,11 @@
 {
   "faction": "Kzinti",
-  "type": "BC",
-  "typeName": "Battlecruiser",
+  "type": "CA",
+  "typeName": "Heavy Cruiser",
   "line": "CA",
-  "name": "KHS Comet",
-  "serviceYear": 160,
-  "bpv": 135,
+  "name": "KHS Eclipse",
+  "serviceYear": 138,
+  "bpv": 126,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -14,7 +14,7 @@
   "commandRating": 8,
   "tokenArt": "kzinti/bc.png",
   
-  "shields": [30, 28, 22, 22, 22, 28],
+  "shields": [24, 22, 22, 22, 22, 22],
   
   "hullBoxes": {
     "fhull": 5,
@@ -22,9 +22,9 @@
   },
   
   "power": {
-    "leftWarp": 10,
-    "rightWarp": 10,
-    "centerWarp": 10,
+    "leftWarp": 9,
+    "rightWarp": 9,
+    "centerWarp": 9,
     "impulse": 3,
     "apr": 3,
     "battery": 5
@@ -48,8 +48,7 @@
     "transporters": 5,
     "tractors": 2,
     "labs": 6,
-    "probes": 1,
-    "derfacs": true
+    "probes": 1
   },
 
   "shuttleBays": [
@@ -63,8 +62,8 @@
   },
 
   "weapons": [
-    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
@@ -75,24 +74,14 @@
     { "type": "Phaser3", "designator": "10", "arcs": ["L", "LR"] },
     { "type": "Phaser3", "designator": "11", "arcs": ["R", "RR"] },
     { "type": "Phaser3", "designator": "12", "arcs": ["R", "RR"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "L"] },
-    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA", "L"] },
-    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA", "R"] },
-    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["LF", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["RF", "R"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
-  ],
+  ]
 
-  "y175Upgrades": {
-    "refitCost": 4,
-    "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_C" },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B" }
-    ],
-    "adds": []
-  }
 }
