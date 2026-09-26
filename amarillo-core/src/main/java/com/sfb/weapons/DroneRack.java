@@ -3,10 +3,12 @@ package com.sfb.weapons;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sfb.exceptions.TargetOutOfRangeException;
+import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.Drone;
 import com.sfb.utilities.ArcUtils;
 
-public class DroneRack extends Weapon implements Launcher {
+public class DroneRack extends Weapon implements Launcher, DirectFire {
 
 	private DroneRackType type = null; // The type of drone rack (A-H)
 
@@ -361,6 +363,50 @@ public class DroneRack extends Weapon implements Launcher {
 				&& addAmmo > 0
 				&& modeThisTurn != RackMode.DRONE
 				&& clock.getImpulse() > lastAntiDroneImpulse;
+	}
+
+	/**
+	 * Only a type-G with rounds aboard, in a turn it has not already given to drones.
+	 * Everything else this rack does is launching, which is not firing at a target.
+	 */
+	@Override
+	public boolean canBeFiredAtTarget() {
+		return canFireAntiDrone();
+	}
+
+	/**
+	 * Fire one anti-drone round (FD3.70, E5.0).
+	 *
+	 * The rack has "targeting system for anti-drones", so the shot IS an ADD's shot: the
+	 * same range band and the same to-hit table, asked of {@link ADD} rather than copied.
+	 * A hit answers {@link ADD#HIT}, which is what tells the damage code "an anti-drone
+	 * connected" as opposed to a number of damage points.
+	 */
+	@Override
+	public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+		if (!ADD.engagesAt(range))
+			throw new TargetOutOfRangeException(
+					getName() + " cannot fire an anti-drone at range " + range);
+		if (getAddAmmo() <= 0)
+			throw new WeaponUnarmedException(getName() + " has no anti-drone rounds loaded");
+		if (!canFireAntiDrone())
+			throw new WeaponUnarmedException(getModeThisTurn() == RackMode.DRONE
+					? getName() + " launched a drone this turn and cannot fire anti-drones"
+							+ " until the next (FD3.71)"
+					: getName() + " cannot fire an anti-drone this impulse");
+
+		recordAntiDroneFire();
+
+		int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+		setLastRoll(roll);
+		return ADD.hitsAt(range, roll) ? ADD.HIT : 0;
+	}
+
+	/** FD3.1: an anti-drone fires at REAL range — ECM and scanner shifts do not apply. */
+	@Override
+	public int fire(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException {
+		return fire(realRange);
 	}
 
 	/** Which way this rack is committed for the turn; UNDECIDED until its first shot. */

@@ -1388,8 +1388,12 @@ public class GameController {
                 // rather than direct-fire weapons — offering one only to refuse it at the
                 // reveal is a worse answer than not offering it. A plasma launcher IS
                 // DirectFire and stays: selected here it fires as a bolt.
-                .filter(w -> w instanceof com.sfb.weapons.DirectFire)
+                .filter(w -> w instanceof com.sfb.weapons.DirectFire
+                        && ((com.sfb.weapons.DirectFire) w).canBeFiredAtTarget())
+                // An anti-drone round only ever engages a drone or a shuttle, whether it
+                // comes from an ADD rack or from a type-G firing as one (FD3.70).
                 .filter(w -> !(w instanceof com.sfb.weapons.ADD) || targetIsAddValid)
+                .filter(w -> !(w instanceof com.sfb.weapons.DroneRack) || targetIsAddValid)
                 .map(w -> w.getName())
                 .collect(Collectors.toList());
     }

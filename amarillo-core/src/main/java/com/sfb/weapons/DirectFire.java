@@ -7,6 +7,23 @@ import com.sfb.exceptions.WeaponUnarmedException;
 public interface DirectFire {
 
 	/**
+	 * Whether this weapon can be fired AT a target on this impulse.
+	 *
+	 * Almost every direct-fire weapon simply is one, so the answer is yes and the usual
+	 * armed/arc/range checks decide the rest. The type-G drone rack is the exception: it is
+	 * a launcher that becomes an anti-drone weapon for a turn (FD3.71), so it answers for
+	 * itself and answers false whenever it is launching drones instead, out of rounds, or
+	 * not a type-G at all.
+	 *
+	 * Guards that used to read {@code instanceof DirectFire} ask this as well, which is what
+	 * lets a rack through without letting every rack through.
+	 */
+	default boolean canBeFiredAtTarget() {
+		return true;
+	}
+
+
+	/**
 	 * Fire the weapon, returning the damage done if a hit,
 	 * 0 if a miss, and -1 if the fire request was not legal.
 	 *

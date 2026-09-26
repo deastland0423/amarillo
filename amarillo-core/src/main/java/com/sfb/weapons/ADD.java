@@ -32,6 +32,22 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
     // range 4+ = can't fire
     private static final int[] HIT_CHART = { 0, 2, 3, 4, 0 };
 
+    /**
+     * Whether an anti-drone round can reach at all at this range (E5.0): 1 to 3, never 0
+     * and never 4 or more.
+     *
+     * Static, and public, because the type-G drone rack fires anti-drones through the same
+     * targeting system (FD3.70) and must not carry a second copy of this table.
+     */
+    public static boolean engagesAt(int range) {
+        return range > 0 && range < HIT_CHART.length && HIT_CHART[range] != 0;
+    }
+
+    /** Whether a die roll hits at that range: 1-2 at range 1, 1-3 at range 2, 1-4 at range 3. */
+    public static boolean hitsAt(int range, int roll) {
+        return engagesAt(range) && roll <= HIT_CHART[range];
+    }
+
     public enum AddType {
         ADD_6, ADD_12
     }
@@ -98,7 +114,7 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
 
     @Override
     public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
-        if (range == 0 || range >= HIT_CHART.length || HIT_CHART[range] == 0) {
+        if (!engagesAt(range)) {
             throw new TargetOutOfRangeException("ADD cannot fire at range " + range);
         }
         if (shots <= 0) {
@@ -110,7 +126,7 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
 
         int roll = new DiceRoller().rollOneDie();
         setLastRoll(roll);
-        return roll <= HIT_CHART[range] ? HIT : 0;
+        return hitsAt(range, roll) ? HIT : 0;
     }
 
     @Override

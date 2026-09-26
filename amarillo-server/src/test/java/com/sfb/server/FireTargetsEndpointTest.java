@@ -211,8 +211,13 @@ class FireTargetsEndpointTest {
      */
     @Test
     void weaponsThatCannotFireDirectly_areNotOffered() {
+        // The CAPABILITY, not the class. Since FD3.70 a drone rack implements DirectFire —
+        // a type-G fires anti-drones through it — so a class test finds nothing here and
+        // this assertion would pass by having nothing to check. The D7's type-B rack is
+        // still unfirable, and says so itself.
         List<String> notDirectFire = klingon.getWeapons().fetchAllWeapons().stream()
-                .filter(w -> !(w instanceof com.sfb.weapons.DirectFire))
+                .filter(w -> !(w instanceof com.sfb.weapons.DirectFire)
+                        || !((com.sfb.weapons.DirectFire) w).canBeFiredAtTarget())
                 .map(com.sfb.weapons.Weapon::getName)
                 .toList();
         assumeTrue(!notDirectFire.isEmpty(),
