@@ -8,6 +8,7 @@ import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import FireOrdersPad from './FireOrdersPad';
+import { movementPrompt } from '../game/movementQueue';
 import LaunchOrdersPad from './LaunchOrdersPad';
 import type { LaunchingUnit, LaunchOrder } from './LaunchOrdersPad';
 import type { FiringUnit } from './FireOrdersPad';
@@ -2204,8 +2205,13 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
-  const myMovablePending       = movableNow.filter(isMyMovable);
-  const opponentMovablePending = movableNow.filter(n => !isMyMovable(n));
+  // Everything of mine still to move, which is what gates the Ready button below: I may
+  // not end the phase while I owe the impulse a move, wherever my ships sit in the queue.
+  const myMovablePending = movableNow.filter(isMyMovable);
+  // Who the phase is actually waiting for. Only the HEAD of the queue may move, so this is
+  // a different question from "have I got anything pending" — which is what the banner used
+  // to ask, and why both players were told to move at once.
+  const movePrompt = movementPrompt(movableNow, isMyMovable);
 
   // Snap to my next ship when movableNow changes during movement phase
   const prevMovableKeyRef = useRef('');
@@ -3854,14 +3860,15 @@ export default function GameBoard({ session, onLeave }: Props) {
         </span>
         <div className="topbar-actions">
           {actionError && <span className="topbar-error">{actionError}</span>}
-          {isMovementPhase && myMovablePending.length > 0 && (
+          {isMovementPhase && movePrompt.kind === 'move' && (
             <span className="topbar-move-warn">
-              Move: <strong>{myMovablePending[0]}</strong>
+              Move: <strong>{movePrompt.ship}</strong>
             </span>
           )}
-          {isMovementPhase && myMovablePending.length === 0 && opponentMovablePending.length > 0 && (
+          {isMovementPhase && movePrompt.kind === 'wait' && (
             <span className="topbar-move-wait">
-              Waiting for: <strong>{opponentMovablePending[0]}</strong>
+              Waiting for: <strong>{movePrompt.ship}</strong>
+              {movePrompt.mineNext && <> — {movePrompt.mineNext} moves after</>}
             </span>
           )}
           {isFirePhase && declarationOpen && (
