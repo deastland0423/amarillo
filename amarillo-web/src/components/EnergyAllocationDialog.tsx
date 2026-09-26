@@ -1155,7 +1155,7 @@ export default function EnergyAllocationDialog({
             )
           );
           const wwCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
-            bay.shuttles.filter(s => s.type === 'admin' && s.wwChargeCount !== undefined)
+            bay.shuttles.filter(s => s.type === 'admin' && s.wwChargeCount != null)
           );
           const spEligible = (ship.shuttleBays ?? []).flatMap(bay =>
             bay.shuttles.filter(s => s.type === 'admin' || s.type === 'scatterpack')

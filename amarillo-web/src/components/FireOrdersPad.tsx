@@ -455,7 +455,9 @@ export default function FireOrdersPad({
     });
     const shotModes: Record<string, string> = {};
     for (const name of picked)
-      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining !== undefined)
+      // != null, not !== undefined: a field the server has nothing to say about arrives as
+      // JSON null, not as an absent key, and null !== undefined is true.
+      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining != null)
         shotModes[name] = modes[name] ?? 'SINGLE';
 
     onAddOrder({
@@ -730,7 +732,9 @@ export default function FireOrdersPad({
                     )}
 
                     {/* A fighter's fusion may fire both charges at once (J-section). */}
-                    {w && picked.has(name) && w.chargesRemaining !== undefined && (
+                    {/* != null catches both the absent key and the JSON null Jackson
+                        sends for a field that does not apply to this weapon. */}
+                    {w && picked.has(name) && w.chargesRemaining != null && (
                       <span style={{ display: 'flex', gap: 3 }} onClick={e => e.preventDefault()}>
                         {(['SINGLE', 'DOUBLE'] as const).map(m => (
                           <button
