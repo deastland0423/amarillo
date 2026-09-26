@@ -110,6 +110,43 @@ public class TypeGBearsOnDroneTest {
         assertFalse("no rounds, nothing to offer", rackBearsOnTarget());
     }
 
+    // ---------------------------------------------------------------- reach is for FIRING
+
+    /**
+     * The reach given to a type-G is the anti-drone's, and it must not touch launching.
+     *
+     * A drone flies itself for dozens of hexes; the rack that threw it has no say in how far.
+     * Nothing on the launch path reads getMaxRange today — every caller is a direct-fire one
+     * — and this test is here so that stays true, because the coupling would be invisible:
+     * launches would simply stop being offered past three hexes.
+     */
+    @Test
+    public void theRangeBandDoesNotLimitWhatTheRackCanLaunchAt() {
+        Ship distant = new Ship();
+        distant.init(com.sfb.samples.KlingonShips.getD7());
+        distant.setName("IKV Ambush");
+        distant.setLocation(new Location(10, 24));      // fourteen hexes away
+        distant.setFacing(13);
+        game.getShips().add(distant);
+        distant.attachClock(game.getClock());
+
+        assertTrue("premise: far outside the anti-drone band",
+                com.sfb.utilities.MapUtils.getRange(fed, distant) > ADD.maxRange());
+
+        rack().getAmmo().add(new Drone(DroneType.TypeI));
+        fed.setActiveFireControl(true);
+        fed.addLockOn(distant);
+        game.advancePhase();                            // MOVEMENT -> ACTIVITY
+
+        // Facing 0: point it at the target, since the seeker's own forward arc must hold
+        // the thing it is chasing. That rule is not this test's subject — range is.
+        Game.ActionResult r = game.launchDrone(
+                fed, distant, rack(), rack().getAmmo().get(0), 0);
+
+        assertTrue("a rack launches as far as the drone flies, not as far as it shoots: "
+                + r.getMessage(), r.isSuccess());
+    }
+
     // ---------------------------------------------------------------- readiness
 
     /**
