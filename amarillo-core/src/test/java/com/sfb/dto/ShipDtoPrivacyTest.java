@@ -328,9 +328,10 @@ public class ShipDtoPrivacyTest {
                     + " truth rather than a concealment", w.armed);
                 assertFalse(w.name + " should not report itself armed", w.armed);
             }
-            // Ammunition is hidden whatever the weapon is.
-            assertEquals(w.name + " ADD shots", 0, w.addShots);
-            assertEquals(w.name + " ADD reloads", 0, w.addReloads);
+            // Ammunition is hidden whatever the weapon is — and NULL rather than 0, which
+            // says "not disclosed" instead of the plausible lie "none left".
+            assertNull(w.name + " ADD shots", w.addShots);
+            assertNull(w.name + " ADD reloads", w.addReloads);
         }
         assertTrue("fixture needs a heavy weapon", heavies > 0);
         assertTrue("and one that does not arm", light > 0);
@@ -451,5 +452,20 @@ public class ShipDtoPrivacyTest {
         for (GameStateDto.WeaponDto w : ship(ownerView).weapons)
             assertNull(w.name + " is not a fusion and must not report charges",
                     w.chargesRemaining);
+    }
+
+    /**
+     * And the same for anti-drone ammunition, which had the same primitive-int fault: every
+     * weapon on the ship wore an unexplained "0/0" in the Fire Orders panel, because the
+     * panel asks whether the field is absent and 0 is not absent.
+     */
+    @Test
+    public void onlyAnAntiDroneWeaponReportsAntiDroneAmmunition() {
+        for (GameStateDto.WeaponDto w : ship(ownerView).weapons) {
+            assertNull(w.name + " fires no anti-drones and must not report a load",
+                    w.addShots);
+            assertNull(w.name + " fires no anti-drones and must not report a capacity",
+                    w.addCapacity);
+        }
     }
 }

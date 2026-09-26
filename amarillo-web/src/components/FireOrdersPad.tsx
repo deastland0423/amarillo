@@ -692,10 +692,17 @@ export default function FireOrdersPad({
                     {w?.arcLabel && (
                       <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
                     )}
-                    {w?.addCapacity != null && (
+                    {/* Anti-drone rounds. An ADD rack has a capacity to measure them
+                        against; a type-G keeps them in a magazine it shares with its drones
+                        (FD3.70), so it reports rounds and no capacity. */}
+                    {w?.addShots != null && (
                       <span style={{ color: '#50d0f0', fontSize: '0.9em', whiteSpace: 'nowrap' }}
-                            title="anti-drone shots loaded / capacity (reloads available)">
-                        {w.addShots}/{w.addCapacity}
+                            title={w.addCapacity != null
+                              ? 'anti-drone rounds loaded / capacity (reserve available)'
+                              : 'anti-drone rounds loaded'}>
+                        {w.addCapacity != null
+                          ? `${w.addShots}/${w.addCapacity}`
+                          : `${w.addShots} ad`}
                         {(w.addReloads ?? 0) > 0 ? ` (+${w.addReloads})` : ''}
                       </span>
                     )}

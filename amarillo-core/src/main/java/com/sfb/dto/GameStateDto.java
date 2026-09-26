@@ -170,9 +170,22 @@ public class GameStateDto {
          */
         public Integer chargesRemaining;
         public boolean canFireDouble; // FighterFusion only: true when 2 charges remain
-        public int addShots; // ADD only: shots remaining in current load
-        public int addReloads; // ADD only: reserve shots remaining
-        public int addCapacity; // ADD only: shots per full load (6 or 12)
+        /**
+         * Anti-drone ammunition. NULL on any weapon that fires none — and Integer, not int,
+         * so it can say so.
+         *
+         * As primitives these were 0 on everything, which Jackson sends rather than omits,
+         * so the Fire Orders panel's "does this weapon carry anti-drones?" test
+         * (addCapacity != null) was true for every weapon in the game and each one wore an
+         * unexplained "0/0".
+         *
+         * An ADD rack fills all three. A type-G drone rack fires anti-drones too (FD3.70)
+         * but keeps them in a magazine it shares with its drones, so it reports the rounds
+         * it has and no capacity: there is no fixed number of them it could hold.
+         */
+        public Integer addShots;   // rounds in the current load
+        public Integer addReloads; // reserve rounds behind them
+        public Integer addCapacity; // rounds in a full load; null when there is no fixed one
     }
 
     public static class DroneInRackDto {
@@ -1347,6 +1360,12 @@ public class GameStateDto {
                 wd.addShots = add.getShots();
                 wd.addReloads = add.getReloadsAvailable();
                 wd.addCapacity = add.getCapacity();
+            } else if (w instanceof DroneRack
+                    && ((DroneRack) w).acceptsAntiDrones()) {
+                // A type-G shares one magazine between drones and anti-drones (FD3.70), so
+                // it has rounds but no capacity of its own — and no automatic reload either,
+                // which the same rule is explicit about.
+                wd.addShots = ((DroneRack) w).getAddAmmo();
             }
             dto.weapons.add(wd);
         }
@@ -1632,8 +1651,8 @@ public class GameStateDto {
                     wd.chargesRemaining = null;   // not disclosed, same as the rest here
                 }
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
-                wd.addShots = 0;
-                wd.addReloads = 0;      // addCapacity is on the SSD and stays
+                wd.addShots = null;
+                wd.addReloads = null;   // addCapacity is on the SSD and stays
             }
     }
 
