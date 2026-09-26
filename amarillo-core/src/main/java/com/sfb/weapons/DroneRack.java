@@ -33,6 +33,23 @@ public class DroneRack extends Weapon implements Launcher {
 
 	private int addAmmo = 0; // Anti-drone rounds loaded in the rack (1/2 space each).
 
+	/**
+	 * Which way a type-G is working this turn (FD3.71).
+	 *
+	 * Nobody declares it. The rack is UNDECIDED until its first shot of the turn, and that
+	 * shot settles it: "The decision as to which mode to use is made the first time (each
+	 * turn) it is fired." Every other rack type stays UNDECIDED for ever, since it has only
+	 * one thing it can do.
+	 */
+	public enum RackMode {
+		UNDECIDED, DRONE, ANTI_DRONE
+	}
+
+	private RackMode modeThisTurn = RackMode.UNDECIDED;
+
+	/** The impulse an anti-drone round last went out on; -9 so the first shot is free. */
+	private int lastAntiDroneImpulse = -9;
+
 	private int addReloads = 0; // The number of ADD reloads available.
 
 	// Base constructor. Sets the arcs to full.
@@ -316,11 +333,39 @@ public class DroneRack extends Weapon implements Launcher {
 	}
 
 	/**
-	 * A rack cannot fire if it is being reloaded this turn.
+	 * Whether a DRONE may be launched now. The long-standing meaning of canFire for a rack,
+	 * and what every existing caller wants, so the name keeps it.
+	 *
+	 * FD3.71 adds one clause for the type-G: a rack that has already fired an anti-drone
+	 * this turn "cannot fire normal drones that turn".
 	 */
 	@Override
 	public boolean canFire() {
-		return !reloadingThisTurn && super.canFire();
+		return !reloadingThisTurn
+				&& modeThisTurn != RackMode.ANTI_DRONE
+				&& super.canFire();
+	}
+
+	/**
+	 * Whether an ANTI-DRONE round may be fired now — one per impulse, and no quarter-turn
+	 * gap between them (owner's ruling 2026-09-25, and FD3.71's own example of firing on
+	 * impulse 32 and continuing on impulse 1 "with no delay").
+	 *
+	 * The mode is the only thing that stops it: having launched a drone this turn, the rack
+	 * is in drone mode until the turn ends.
+	 */
+	public boolean canFireAntiDrone() {
+		return acceptsAntiDrones()
+				&& !reloadingThisTurn
+				&& isFunctional()
+				&& addAmmo > 0
+				&& modeThisTurn != RackMode.DRONE
+				&& clock.getImpulse() > lastAntiDroneImpulse;
+	}
+
+	/** Which way this rack is committed for the turn; UNDECIDED until its first shot. */
+	public RackMode getModeThisTurn() {
+		return modeThisTurn;
 	}
 
 	/**
@@ -328,7 +373,28 @@ public class DroneRack extends Weapon implements Launcher {
 	 * and 8-impulse cooldown timestamps.
 	 */
 	public void recordLaunch() {
+		modeThisTurn = RackMode.DRONE;
 		registerFire();
+	}
+
+	/**
+	 * Record an anti-drone round going out: it commits the rack to anti-drone mode for the
+	 * turn, spends a round, and stamps the shared launch timestamp.
+	 *
+	 * That last part is FD3.71's "ADD fire counts as a drone launch event for this purpose"
+	 * — so a rack that fires anti-drones to the end of a turn must still wait out the
+	 * quarter-turn gap before launching a drone in the next one.
+	 *
+	 * @return false if the rack had nothing to fire or was not free to fire it
+	 */
+	public boolean recordAntiDroneFire() {
+		if (!canFireAntiDrone())
+			return false;
+		modeThisTurn = RackMode.ANTI_DRONE;
+		addAmmo--;
+		lastAntiDroneImpulse = clock.getImpulse();
+		registerFire();
+		return true;
 	}
 
 	/**
@@ -430,6 +496,9 @@ public class DroneRack extends Weapon implements Launcher {
 		int firedAt = getLastImpulseFired();
 		super.cleanUp();
 		setLastImpulseFired(firedAt);
+		// FD3.71: the choice is made afresh each turn, so a new turn finds the rack
+		// undecided again — but the timestamps above, which span the boundary, do not move.
+		modeThisTurn = RackMode.UNDECIDED;
 		// 8C: complete any pending reload before clearing the reloading flag
 		completePendingReload();
 		reloadingThisTurn = false;
