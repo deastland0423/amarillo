@@ -149,6 +149,25 @@ const EMPTY_SEL: Sel = {
  */
 const EMPTY_ROWS: FireCandidate[] = [];
 
+/**
+ * How a heavy weapon is armed, short enough to sit beside its name.
+ *
+ * STANDARD is deliberately absent: it is what most tubes are most of the time, and a badge
+ * on every one of them would say nothing. A badge here means "this tube is not ordinary".
+ */
+const ARMING_LABEL: Record<string, string> = {
+  OVERLOAD: 'ovl',
+  SPECIAL:  'spl',
+  ROLLING:  'roll',
+};
+
+/** Overload changes what the shot is worth; the other two are quieter states. */
+const ARMING_COLOUR: Record<string, string> = {
+  OVERLOAD: '#f0c040',
+  SPECIAL:  '#79c0ff',
+  ROLLING:  '#8b949e',
+};
+
 const KIND_LABEL: Record<FireCandidate['kind'], string> = {
   SHIP:    'ship',
   DRONE:   'drone',
@@ -651,6 +670,15 @@ export default function FireOrdersPad({
                       onChange={() => toggle(name)}
                     />
                     <span style={{ color: unavailable ? '#8b949e' : '#e6edf3' }}>{name}</span>
+                    {w?.armingType && ARMING_LABEL[w.armingType] && (
+                      <span
+                        style={{ color: ARMING_COLOUR[w.armingType] ?? '#8b949e',
+                                 fontSize: '0.9em' }}
+                        title={`Armed: ${w.armingType}`}
+                      >
+                        {ARMING_LABEL[w.armingType]}
+                      </span>
+                    )}
                     {w?.launcherType && (
                       <span
                         style={{ color: '#f0a050', fontSize: '0.9em' }}
