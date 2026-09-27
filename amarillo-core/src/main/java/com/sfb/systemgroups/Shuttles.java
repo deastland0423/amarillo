@@ -173,8 +173,10 @@ public class Shuttles implements Systems {
      * posted to it (J4.811), and their work simply does not happen (J4.8174: interrupted is
      * cancelled, no partial credit).
      * <p>
-     * It also makes the posting a bet. A fighter its crews are working on cannot be launched
-     * without throwing that work away, which is the tension J4.8172 is describing.
+     * It also makes the posting a bet, twice over. Launching a fighter its crews are working
+     * on throws that work away (J4.8174), and the crews stay in the box regardless: a crew is
+     * standing in that bay for the turn whether or not its job is still there, so a hit that
+     * destroys the box kills them either way. Losing the job is not an escape from the bay.
      * <p>
      * Who gets them is first-come down the bays, the same order everything else uses, and a
      * real captain's choice that belongs to the player once the hangar panel can take it.

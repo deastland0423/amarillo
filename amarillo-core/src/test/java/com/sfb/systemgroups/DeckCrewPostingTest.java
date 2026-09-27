@@ -160,7 +160,7 @@ public class DeckCrewPostingTest {
     }
 
     @Test
-    public void aFighterThatLaunchesTakesItsCrewsOffTheJob() {
+    public void launchingTheFighterDoesNotGetItsCrewsOutOfTheBay() {
         ShuttleBay bay = rn.getShuttles().getBays().get(0);
         ShuttleSpace box = fighterBoxes().get(0);
         Shuttle fighter = box.getShuttle();
@@ -169,14 +169,30 @@ public class DeckCrewPostingTest {
 
         bay.launch(fighter, 12, 1, 6);   // off it goes on impulse 6
 
-        assertEquals("J4.8174 cancelled their action when their fighter left",
-                0, box.getDeckCrews());
+        // Their JOB left; they did not. A deck crew is standing in that bay for the turn,
+        // and J4.811 destroys the box with whoever is in it. Releasing them here would make
+        // launching a way to put crews beyond reach, which is a trick the rules never offer
+        // and exactly backwards — crews are most exposed when the carrier is in the thick of
+        // it, not least.
+        assertEquals("still in the bay", 2, box.getDeckCrews());
 
-        // And the empty box being shot off later kills nobody, because nobody was in it.
         int killed = box.getDeckCrews();
         box.destroy();
         rn.getCrew().killDeckCrews(killed);
-        assertEquals(before, rn.getCrew().getDeckCrews());
+        assertEquals("and they die with it", before - 2, rn.getCrew().getDeckCrews());
+    }
+
+    @Test
+    public void theirWorkStillDoesNotHappenWhenTheFighterHasGone() {
+        // The other half of J4.8174, which does still hold: the action is cancelled, so
+        // nothing is reloaded. It is the RISK that persists, not the credit.
+        ShuttleBay bay = rn.getShuttles().getBays().get(0);
+        Shuttle fighter = fighterBoxes().get(0).getShuttle();
+        bay.launch(fighter, 12, 1, 6);
+
+        rn.cleanUp();
+
+        assertEquals("it was not in its box to be loaded", 0, chargesOn(fighter));
     }
 
     @Test
