@@ -424,4 +424,47 @@ class GameSessionAllocateTest {
         assertFalse(result.isSuccess());
         assertTrue(result.getMessage().contains("at most"), result.getMessage());
     }
+
+    // -------------------------------------------------------------------------
+    // Deck crews (J4.81) — one pool, two jobs
+    // -------------------------------------------------------------------------
+
+    /**
+     * Loading a scatter pack has to BOOK the deck crews it uses (FD7.22).
+     * <p>
+     * The count was kept in a local, so nothing outside this method ever learned the crews
+     * were busy. That was invisible until fighter rearming arrived (J4.83), which spends the
+     * same pool at end of turn: a carrier could load two packs AND rearm its whole squadron
+     * with the crews it had once. J4.81 gives a ship one set of deck crews for every job.
+     */
+    @Test
+    void scatterPackLoading_booksTheDeckCrewsItUses() {
+        Ship kzinti = new Ship();
+        kzinti.init(com.sfb.samples.KzintiShips.getKzinBC());
+        kzinti.setName("KSS Bloodclaw");
+        kzinti.setLocation(new Location(20, 12));
+        kzinti.setFacing(1);
+        game.getShips().add(kzinti);
+        game.startTurn();
+
+        // Turn one of its admin shuttles into a pack, the way LOAD_SCATTER_PACK would.
+        com.sfb.systemgroups.ShuttleBay bay = kzinti.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.Shuttle admin = bay.getInventory().get(0);
+        com.sfb.objects.shuttles.ScatterPack pack = new com.sfb.objects.shuttles.ScatterPack(admin);
+        pack.setName("Pack-1");
+        assertTrue(bay.replaceShuttle(admin, pack), "the pack should take the admin's box");
+
+        int crewsBefore = kzinti.getCrew().getAvailableDeckCrews();
+        assertEquals(2, crewsBefore, "J4.814: two deck crews on a ship that is not a carrier");
+
+        ActionRequest req = allocate("KSS Bloodclaw");
+        req.setScatterPackLoading(java.util.Map.of("Pack-1", java.util.Map.of("TypeI", 2)));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertEquals(2, pack.getPendingSpaces(), "two drone spaces went into the pack");
+        assertEquals(0, kzinti.getCrew().getAvailableDeckCrews(),
+                "both crews spent the turn loading, so neither is free to rearm a fighter");
+    }
 }

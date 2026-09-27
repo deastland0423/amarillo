@@ -1307,6 +1307,11 @@ public class GameSession {
                             }
                         }
                     }
+                    // Book the crews as SPENT. They were only ever counted in a local, so a
+                    // ship could load two packs and still rearm its whole squadron at the end
+                    // of the turn with the same crews (J4.81: the same crews do both jobs).
+                    // Floored, because a crew with half its turn left is not another crew.
+                    ship.getCrew().setAvailableDeckCrews((int) Math.floor(deckCrewsLeft));
                 }
 
                 // Suicide shuttle arming — 1–3 energy per turn for 3 turns (energy from power
