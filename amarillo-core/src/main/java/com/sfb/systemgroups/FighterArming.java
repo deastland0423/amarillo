@@ -89,7 +89,7 @@ public final class FighterArming {
             else if (w instanceof FighterFusion)
                 half += FighterFusion.FULL_CHARGES * HALF_ACTIONS_PER_FUSION_CHARGE;
             else if (w instanceof DroneRail rail)
-                half += droneRailHalfActions(rail);
+                half += halfActionsFor(rail);
         }
         return half;
     }
@@ -103,7 +103,7 @@ public final class FighterArming {
             else if (w instanceof FighterFusion ff)
                 half += ff.chargesMissing() * HALF_ACTIONS_PER_FUSION_CHARGE;
             else if (w instanceof DroneRail rail)
-                half += rail.getDrone() == null ? droneRailHalfActions(rail) : 0;
+                half += rail.getDrone() == null ? halfActionsFor(rail) : 0;
         }
         return half;
     }
@@ -118,10 +118,24 @@ public final class FighterArming {
                 / HALF_ACTIONS_PER_ACTION;
     }
 
-    /** J4.82: an action a drone space, half an action for a half-space. */
-    private static int droneRailHalfActions(DroneRail rail) {
-        double spaces = rail.getRailType().capacity;
-        return (int) Math.round(spaces * HALF_ACTIONS_PER_DRONE_SPACE);
+    /**
+     * J4.82: an action a drone space, half an action for a half-space — measured on the DRONE
+     * being handled, not the rail it goes in (owner's ruling, 2026-09-27).
+     * <p>
+     * It matters because the two differ: a Type-VI is half a space and rides happily in a
+     * standard rail, and putting one there is half an action's work, not a whole one. So a
+     * TAAS loaded entirely with dogfight drones turns round in two actions where the same
+     * fighter loaded with Type-Is takes three.
+     */
+    private static int halfActionsFor(com.sfb.objects.Drone drone) {
+        return (int) Math.round(drone.getRackSize() * HALF_ACTIONS_PER_DRONE_SPACE);
+    }
+
+    /** What an empty rail would cost to fill with what it is designed to carry. */
+    private static int halfActionsFor(DroneRail rail) {
+        com.sfb.objects.DroneType design = rail.getDesignDrone();
+        return design == null ? 0
+                : (int) Math.round(design.rack * HALF_ACTIONS_PER_DRONE_SPACE);
     }
 
     // -------------------------------------------------------------------------
@@ -180,12 +194,15 @@ public final class FighterArming {
         for (DroneRail rail : railsOf(fighter)) {
             if (rail.getDrone() != null)
                 continue;
-            int cost = droneRailHalfActions(rail);
-            if (budget < cost)
-                break;
-            com.sfb.objects.Drone drone = rack.take();
+            // The drone has to fit the rail, and it is the drone that sets the price.
+            com.sfb.objects.Drone drone = rack.takeFor(rail);
             if (drone == null)
                 break;
+            int cost = halfActionsFor(drone);
+            if (budget < cost) {
+                rack.put(drone);   // not enough work left for this one; leave it in the rack
+                break;
+            }
             rail.loadDrone(drone);
             budget -= cost;
             loaded++;
@@ -296,7 +313,7 @@ public final class FighterArming {
             com.sfb.objects.Drone drone = rail.getDrone();
             if (drone == null)
                 continue;
-            int cost = droneRailHalfActions(rail);
+            int cost = halfActionsFor(drone);
             if (budget < cost)
                 break;
             if (!rack.put(drone))
@@ -384,9 +401,8 @@ public final class FighterArming {
             else if (w instanceof FighterFusion ff)
                 while (ff.loadCharge()) { /* to the top */ }
             else if (w instanceof DroneRail rail && rail.getDrone() == null
-                    && fighter instanceof com.sfb.objects.shuttles.Fighter f
-                    && f.getDefaultDroneType() != null)
-                rail.loadDrone(new com.sfb.objects.Drone(f.getDefaultDroneType()));
+                    && rail.getDesignDrone() != null)
+                rail.loadDrone(new com.sfb.objects.Drone(rail.getDesignDrone()));
         }
     }
 

@@ -348,7 +348,7 @@ export function HangarDrawer({
             {/* Both budgets, pinned: a row may spend either, and the totals have to stay
                 visible while the player works anywhere down the list. */}
             <span className="hangar-budget">
-              crews {crewsFree}/{crews}
+              deck crews {crewsFree}/{crews}
               <span className="ea-note-dim"> · </span>
               <span className={spent > total ? 'over' : ''}>{spent.toFixed(1)}/{total}</span>
             </span>

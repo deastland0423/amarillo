@@ -7,6 +7,7 @@ import java.util.List;
 import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Haas;
+import com.sfb.objects.shuttles.Taas;
 import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.GASShuttle;
@@ -22,11 +23,13 @@ import com.sfb.objects.Unit;
  *
  * Each bay has a fixed number of spaces (slots). Spaces can hold a shuttle,
  * a bay-mounted drone rack (D12.3), or nothing. Spaces can be permanently
- * destroyed by DAC hits. Chain reactions are confined to a single bay (D12.112).
+ * destroyed by DAC hits. Chain reactions are confined to a single bay
+ * (D12.112).
  *
  * Each bay has a standard hatch (one launch per 2 impulses) and optionally
  * one or more launch tubes (J1.54). Each tube has its own 2-impulse cooldown
- * and can only launch fighters. Recovery always uses the standard hatch (J1.541).
+ * and can only launch fighters. Recovery always uses the standard hatch
+ * (J1.541).
  */
 public class ShuttleBay {
 
@@ -102,8 +105,10 @@ public class ShuttleBay {
     /**
      * Seat a shuttle in the first empty space (or a new space if none).
      *
-     * The turn is recorded on the space because rearming asks how long the occupant has been
-     * sitting there (J4.8174): a fighter that arrived this turn has not been idle for a whole
+     * The turn is recorded on the space because rearming asks how long the occupant
+     * has been
+     * sitting there (J4.8174): a fighter that arrived this turn has not been idle
+     * for a whole
      * one, so no deck crew action on it could have finished.
      *
      * @param turn the turn the shuttle arrives in
@@ -183,7 +188,8 @@ public class ShuttleBay {
      */
     public Shuttle launch(Shuttle shuttle, int speed, int facing, int currentImpulse) {
         ShuttleSpace space = findSpace(shuttle);
-        if (space == null) return null;
+        if (space == null)
+            return null;
 
         space.setShuttle(null);
         shuttle.setSpeed(Math.min(speed, shuttle.getMaxSpeed()));
@@ -210,7 +216,8 @@ public class ShuttleBay {
      * space (null if empty), so the caller can check isArmed() for chain reaction.
      */
     public Shuttle destroySpace(int spaceIndex) {
-        if (spaceIndex < 0 || spaceIndex >= spaces.size()) return null;
+        if (spaceIndex < 0 || spaceIndex >= spaces.size())
+            return null;
         return spaces.get(spaceIndex).destroy();
     }
 
@@ -259,6 +266,9 @@ public class ShuttleBay {
             case "haas":
                 s = new Haas();
                 break;
+            case "taas":
+                s = new Taas();
+                break;
             case "haas_e":
                 s = new Haas_E();
                 break;
@@ -295,7 +305,10 @@ public class ShuttleBay {
     // Rearming (J4.83, Hydran subset)
     // -------------------------------------------------------------------------
 
-    /** What one bay's rearm pass did: a line per fighter worked on, and the crews it spent. */
+    /**
+     * What one bay's rearm pass did: a line per fighter worked on, and the crews it
+     * spent.
+     */
     public record RearmResult(List<String> log, int crewsUsed) {
         static final RearmResult NOTHING = new RearmResult(List.of(), 0);
     }
@@ -303,25 +316,39 @@ public class ShuttleBay {
     /**
      * Reload the fighters that spent a whole turn in their boxes (J4.83).
      *
-     * The rules run on deck crew ACTIONS of 32 consecutive impulses (J4.8171) which may start
-     * on any impulse and span turns. We run the ordinary case instead, and the arithmetic says
-     * the ordinary case is a turn: a Stinger-1 wants four fusion charges, at half an action
-     * each (J4.833) that is two actions, and the two deck crews J4.8172 allows on one fighter
-     * finish two actions in one turn. A hellbore charge is one full action (J4.834) - one crew,
+     * The rules run on deck crew ACTIONS of 32 consecutive impulses (J4.8171) which
+     * may start
+     * on any impulse and span turns. We run the ordinary case instead, and the
+     * arithmetic says
+     * the ordinary case is a turn: a Stinger-1 wants four fusion charges, at half
+     * an action
+     * each (J4.833) that is two actions, and the two deck crews J4.8172 allows on
+     * one fighter
+     * finish two actions in one turn. A hellbore charge is one full action (J4.834)
+     * - one crew,
      * one turn.
      *
-     * So: a fighter that was in its box at the start of the turn and is still there at the end
-     * is reloaded from that box's own capacitor (J4.881 - never straight from the ship), as far
-     * as the crews reach. A fighter that launched has nothing done to it: J4.8174 makes an
-     * interrupted action cancelled with no partial credit, and leaving early is the commonest
+     * So: a fighter that was in its box at the start of the turn and is still there
+     * at the end
+     * is reloaded from that box's own capacitor (J4.881 - never straight from the
+     * ship), as far
+     * as the crews reach. A fighter that launched has nothing done to it: J4.8174
+     * makes an
+     * interrupted action cancelled with no partial credit, and leaving early is the
+     * commonest
      * interruption there is.
      *
-     * Not modelled yet: crews assigned to a named bay (J4.813), a second crew joining a job at
-     * end of turn (J4.823), and the launch lockout on the impulse after a reload (J4.8172).
+     * Not modelled yet: crews assigned to a named bay (J4.813), a second crew
+     * joining a job at
+     * end of turn (J4.823), and the launch lockout on the impulse after a reload
+     * (J4.8172).
      *
-     * Each box works the crews POSTED to it at the start of the turn, rather than drawing on
-     * a pool now: J4.817's action runs for 32 consecutive impulses, so the crews were in that
-     * box the whole time. Which is what lets J4.811 kill them when the box is shot off, and
+     * Each box works the crews POSTED to it at the start of the turn, rather than
+     * drawing on
+     * a pool now: J4.817's action runs for 32 consecutive impulses, so the crews
+     * were in that
+     * box the whole time. Which is what lets J4.811 kill them when the box is shot
+     * off, and
      * what makes a destroyed box's work simply not happen (J4.8174).
      *
      * @param turn the turn that is ending
@@ -334,12 +361,13 @@ public class ShuttleBay {
             if (space.isDestroyed() || space.isEmpty())
                 continue;
             if (space.getDeckCrews() <= 0)
-                continue;   // nobody was posted here, or they died with an earlier hit
+                continue; // nobody was posted here, or they died with an earlier hit
             // Any occupant, not just a fighter: J4.818 mends shuttle damage, and an admin
             // shuttle with a hole in it is a job a deck crew can be posted to. Loading and
             // unloading simply find nothing to do on one.
             Shuttle occupant = space.getShuttle();
-            // It has to have sat the whole turn. A fighter recovered DURING this turn has not,
+            // It has to have sat the whole turn. A fighter recovered DURING this turn has
+            // not,
             // and neither has one that launched and came back.
             if (space.getOccupiedSinceTurn() >= turn)
                 continue;
@@ -354,17 +382,21 @@ public class ShuttleBay {
     }
 
     /**
-     * Rearm the fighter in one box as far as its capacitor and the loose crews allow.
+     * Rearm the fighter in one box as far as its capacitor and the loose crews
+     * allow.
      *
-     * The costs and the loading itself live in {@link FighterArming}, which the pre-game
-     * weapon status setup uses too — it differs only in the budget it brings. A crew working
-     * one turn completes one action, so the budget here is the crews it may put on this
+     * The costs and the loading itself live in {@link FighterArming}, which the
+     * pre-game
+     * weapon status setup uses too — it differs only in the budget it brings. A
+     * crew working
+     * one turn completes one action, so the budget here is the crews it may put on
+     * this
      * fighter, and the crews it SPENT are the actions that came back.
      */
     private RearmResult work(CrewTask task, ShuttleSpace space, Shuttle fighter, int crews) {
         int budget = Math.min(2, crews) * FighterArming.HALF_ACTIONS_PER_ACTION;
         FighterArming.Load load = switch (task) {
-            case LOAD   -> FighterArming.load(space, fighter, budget);
+            case LOAD -> FighterArming.load(space, fighter, budget);
             case UNLOAD -> FighterArming.unload(space, fighter, budget);
             case REPAIR -> FighterArming.repair(space, fighter, budget);
         };

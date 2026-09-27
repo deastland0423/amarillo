@@ -18,11 +18,15 @@ import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Weapon;
 
 /**
- * What arming a fighter costs a deck crew, and the invariant that keeps the books straight.
+ * What arming a fighter costs a deck crew, and the invariant that keeps the
+ * books straight.
  * <p>
- * The costs are wanted twice over — by the end-of-turn rearm pass, which spends the crews a
- * ship has loose, and by the pre-game weapon status setup, which spends two turns' work per
- * crew (S4.12) capped at four actions on any one fighter. Two budgets, one price list. This
+ * The costs are wanted twice over — by the end-of-turn rearm pass, which spends
+ * the crews a
+ * ship has loose, and by the pre-game weapon status setup, which spends two
+ * turns' work per
+ * crew (S4.12) capped at four actions on any one fighter. Two budgets, one
+ * price list. This
  * pins the price list, so the second caller cannot quietly invent its own.
  */
 public class FighterArmingTest {
@@ -44,8 +48,10 @@ public class FighterArmingTest {
 
     @Test
     public void theBudgetIsWhatBitesAFighterWithABigLoad() {
-        // Nothing we carry today needs more than two actions, so this is the guard for the
-        // advanced fighters that will: two crews reach four actions only by working both of
+        // Nothing we carry today needs more than two actions, so this is the guard for
+        // the
+        // advanced fighters that will: two crews reach four actions only by working
+        // both of
         // the two turns S4.12 allows (J4.8172 caps them at two crews per box).
         int stinger = FighterArming.actionsToFullyArm(new Stinger1());
         assertTrue("no fighter in the catalogue yet exceeds the two actions one crew-turn pair"
@@ -72,7 +78,8 @@ public class FighterArmingTest {
         assertTrue("built empty (J4.8223)", hellboreOf(sh).isSpent());
         assertEquals("so its box holds the charge", 1, box.getCapacitorCharges());
 
-        // J4.8174: an action that cannot be completed earns nothing, so half of one is wasted
+        // J4.8174: an action that cannot be completed earns nothing, so half of one is
+        // wasted
         // rather than banked.
         FighterArming.Load half = FighterArming.load(box, sh, 1);
         assertNull("no work was attempted", half.note());
@@ -143,7 +150,8 @@ public class FighterArmingTest {
     public void aDroneFighterIsArmedFromItsOwnReadyRack() {
         ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
 
-        // J4.822: a box built for a drone fighter has a rack. J4.8223: it starts full and
+        // J4.822: a box built for a drone fighter has a rack. J4.8223: it starts full
+        // and
         // the fighter starts empty.
         assertNotNull("the box has a ready rack", box.getReadyRack());
         assertEquals("one reload, not two — J4.8222 holds what the fighter carries",
@@ -197,10 +205,11 @@ public class FighterArmingTest {
 
     @Test
     public void unloadingStopsWhenTheRackIsFull() {
-        // A drone has to go somewhere: the rack is where it belongs (J4.822), and a full rack
+        // A drone has to go somewhere: the rack is where it belongs (J4.822), and a
+        // full rack
         // is not a place to put another. Nothing is destroyed to make room.
         ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
-        FighterArming.armFully(box.getShuttle());     // rails loaded without drawing the rack
+        FighterArming.armFully(box.getShuttle()); // rails loaded without drawing the rack
         assertEquals("rack full AND rails full — more drones than the box should hold",
                 2, box.getReadyRack().count());
 
@@ -215,8 +224,8 @@ public class FighterArmingTest {
     public void aRackWillNotServeAFighterItWasNotBuiltFor() {
         // J4.8222: each rack is designed for a specific type of fighter.
         ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
-        com.sfb.objects.shuttles.Haas stranger =
-                (com.sfb.objects.shuttles.Haas) named(new com.sfb.objects.shuttles.Haas(), "HAAS-1");
+        com.sfb.objects.shuttles.Taas stranger = (com.sfb.objects.shuttles.Taas) named(
+                new com.sfb.objects.shuttles.Taas(), "HAAS-1");
 
         FighterArming.Load load = FighterArming.load(box, stranger, 4);
 

@@ -176,9 +176,12 @@ public class ShuttleSpace {
         capacitorCharges = Math.max(0,
                 capacitorCapacity() - FighterArming.chargesCarriedBy(shuttle));
         if (readyRack != null) {
-            while (!readyRack.isFull())
-                readyRack.put(new com.sfb.objects.Drone(
-                        ((com.sfb.objects.shuttles.Fighter) shuttle).getDefaultDroneType()));
+            // Refill from the rails' own designs, so a mixed fighter's rack comes back
+            // with drones each of its rails can take.
+            for (com.sfb.weapons.Weapon w : shuttle.getWeapons().fetchAllWeapons())
+                if (w instanceof com.sfb.weapons.DroneRail rail && !readyRack.isFull()
+                        && rail.getDesignDrone() != null)
+                    readyRack.put(new com.sfb.objects.Drone(rail.getDesignDrone()));
             for (int i = FighterArming.dronesCarriedBy(shuttle); i > 0; i--)
                 readyRack.take();
         }

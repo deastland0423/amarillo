@@ -45,10 +45,6 @@ public class Haas_E extends Fighter implements DroneController {
         ph.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(ph);
 
-        // What its rails are FOR. The rails themselves start empty and the box's
-        // ready rack starts full (J4.8223); weapon status decides which way round
-        // they are when the scenario begins.
-        setDefaultDroneType(DroneType.TypeI);
 
         DroneRail railA = new DroneRail(DroneRail.DroneRailType.STANDARD);
         railA.setDesignator("A");

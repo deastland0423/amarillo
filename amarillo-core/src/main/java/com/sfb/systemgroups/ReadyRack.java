@@ -37,11 +37,11 @@ public class ReadyRack {
 
     private final List<Drone> drones = new ArrayList<>();
 
-    private ReadyRack(String servesFighterType, int capacity, DroneType stock) {
+    private ReadyRack(String servesFighterType, List<DroneType> stock) {
         this.servesFighterType = servesFighterType;
-        this.capacity = capacity;
-        for (int i = 0; i < capacity; i++)
-            drones.add(new Drone(stock));   // J4.8223/J4.886: racks start full
+        this.capacity = stock.size();
+        for (DroneType type : stock)
+            drones.add(new Drone(type));   // J4.8223/J4.886: racks start full
     }
 
     /**
@@ -51,17 +51,18 @@ public class ReadyRack {
     public static ReadyRack forFighter(Shuttle occupant) {
         if (!(occupant instanceof com.sfb.objects.shuttles.Fighter fighter))
             return null;   // only a fighter box gets a rack (J4.822)
-        int rails = 0;
-        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail)
-                rails++;
-        if (rails == 0)
-            return null;
 
-        DroneType stock = fighter.getDefaultDroneType();
-        if (stock == null)
+        // One drone per rail, of what THAT rail is designed to carry. Per rail rather than
+        // per fighter because a Kzinti TAAS has two standard rails and two light ones, and a
+        // Type-I will not go in a light rail at all — a rack stocked from one answer would
+        // hold two drones its own fighter cannot take.
+        List<DroneType> stock = new ArrayList<>();
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail && rail.getDesignDrone() != null)
+                stock.add(rail.getDesignDrone());
+        if (stock.isEmpty())
             return null;
-        return new ReadyRack(fighter.getClass().getSimpleName(), rails, stock);
+        return new ReadyRack(fighter.getClass().getSimpleName(), stock);
     }
 
     public String getServesFighterType() { return servesFighterType; }
@@ -82,6 +83,31 @@ public class ReadyRack {
     /** Take one drone out to load onto the fighter, or null if the rack is empty. */
     public Drone take() {
         return drones.isEmpty() ? null : drones.remove(drones.size() - 1);
+    }
+
+    /**
+     * Take a drone this rail can actually carry, largest first, or null if it holds none.
+     * <p>
+     * Needed even when the rack was stocked correctly: a standard rail will happily take a
+     * Type-VI, and if it does, the Type-I meant for it is left with only a light rail to go
+     * in. Serving the biggest drone that fits keeps the awkward ones moving first.
+     */
+    public Drone takeFor(DroneRail rail) {
+        Drone best = null;
+        for (Drone d : drones)
+            if (rail.accepts(d) && (best == null || d.getRackSize() > best.getRackSize()))
+                best = d;
+        if (best != null)
+            drones.remove(best);
+        return best;
+    }
+
+    /** Spaces the drones in here take up — what the fighter's load is measured in (FD7.211). */
+    public double spaces() {
+        double total = 0;
+        for (Drone d : drones)
+            total += d.getRackSize();
+        return total;
     }
 
     /** Put a drone back — unloading a fighter, or a deck crew refilling from stores. */

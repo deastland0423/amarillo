@@ -112,4 +112,33 @@ public class ShuttleCatalogTest {
         assertEquals("an uncatalogued key costs nothing rather than throwing",
                 0, ShuttleCatalog.bpvOf("no-such-type"));
     }
+
+    /**
+     * Every catalogued type builds to a DISTINCT class.
+     * <p>
+     * The bpv check next door compares a built shuttle against its catalogue entry, which
+     * catches a type that builds to the wrong thing only when the two happen to differ in
+     * cost. When the TAAS was added, case "haas" was given `new Taas()` by copy-paste: every
+     * Highly Advanced Attack Shuttle in the game was quietly a Tactically Advanced one, and
+     * "taas" had no case at all and fell through to an admin shuttle. Two fighters wrong,
+     * found only because their BPVs were 8 and 9 (2026-09-27).
+     */
+    @Test
+    public void everyTypeBuildsToAClassOfItsOwn() {
+        java.util.Map<String, String> byClass = new java.util.LinkedHashMap<>();
+        java.util.List<String> clashes = new java.util.ArrayList<>();
+
+        for (com.sfb.objects.ShuttleCatalog.Entry e : com.sfb.objects.ShuttleCatalog.all()) {
+            com.sfb.objects.shuttles.Shuttle built =
+                    com.sfb.systemgroups.ShuttleBay.buildShuttle(e.type, e.type);
+            String cls = built.getClass().getSimpleName();
+            String already = byClass.put(cls, e.type);
+            if (already != null)
+                clashes.add(already + " and " + e.type + " both build a " + cls);
+        }
+
+        assertTrue("two catalogued types cannot be the same class - one of them has the"
+                + " wrong case in ShuttleBay.buildShuttle: " + String.join(" | ", clashes),
+                clashes.isEmpty());
+    }
 }
