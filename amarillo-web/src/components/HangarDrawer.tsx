@@ -107,7 +107,8 @@ function jobRows(boxes: BoxRow[]): JobRow[] {
 }
 
 export function HangarDrawer({
-  ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings, spent, total,
+  ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings,
+  packLoading, onPackLoading, spent, total,
 }: {
   ship: ShipObject;
   anchor: { left: number; top: number };
@@ -115,6 +116,8 @@ export function HangarDrawer({
   onCapsByBox: (next: Record<string, number>) => void;
   crewPostings: Record<string, number>;
   onCrewPostings: (next: Record<string, number>) => void;
+  packLoading: Record<string, Record<string, number>>;
+  onPackLoading: (next: Record<string, Record<string, number>>) => void;
   spent: number;
   total: number;
 }) {
@@ -127,7 +130,26 @@ export function HangarDrawer({
   // The crews are their own budget — no energy, so nothing here touches the bar above.
   const crews = ship.availableDeckCrews ?? 0;
   const postedTotal = Object.values(crewPostings).reduce((a, b) => a + b, 0);
-  const crewsFree = Math.max(0, crews - postedTotal);
+
+  // What a scatter pack can be filled from: the reload sets the ship's drone racks carry.
+  const stockpile: Record<string, { rackSize: number; count: number }> = {};
+  for (const rack of ship.droneRacks ?? [])
+    for (const entry of rack.reloadPool ?? []) {
+      if (!stockpile[entry.droneType])
+        stockpile[entry.droneType] = { rackSize: entry.rackSize, count: 0 };
+      stockpile[entry.droneType].count += entry.count;
+    }
+  const packs = (ship.shuttleBays ?? []).flatMap(bay =>
+    (bay.shuttles ?? []).filter(s => s.type === 'admin' || s.type === 'scatterpack'));
+  const canLoadPacks = packs.length > 0 && Object.keys(stockpile).length > 0;
+
+  const spacesIn = (sel: Record<string, number>) =>
+    Object.entries(sel).reduce((sum, [dt, n]) => sum + (stockpile[dt]?.rackSize ?? 1) * n, 0);
+  // FD7.22: a crew per rack space. The same crews the jobs above want — which is the whole
+  // reason this table moved here from the energy column, where the two competed through a
+  // counter neither screen showed.
+  const packCrews = Object.values(packLoading ?? {}).reduce((a, sel) => a + spacesIn(sel), 0);
+  const crewsFree = Math.max(0, crews - postedTotal - packCrews);
 
   function post(jobKey: string, n: number) {
     const next = { ...crewPostings };
@@ -244,6 +266,60 @@ export function HangarDrawer({
                   })}
                 </tbody>
               </table>
+            )}
+
+            {canLoadPacks && (
+              <>
+                <div className="ea-section-title"
+                     style={{ color: '#79c0ff', marginTop: '0.6rem' }}>
+                  Scatter Packs
+                </div>
+                <div className="ea-note">
+                  A crew loads one rack space onto a pack (FD7.22), drawn from the drone racks'
+                  reload sets — so every drone here is a crew not reloading a fighter above,
+                  and a reload the racks will not have later.
+                </div>
+                {packs.map(pack => {
+                  const sel = packLoading?.[pack.name] ?? {};
+                  const max = pack.maxDroneSpaces ?? 6;
+                  const already = pack.committedSpaces ?? 0;
+                  const here = spacesIn(sel);
+                  return (
+                    <div key={pack.name} className="ea-weapon-alloc-block">
+                      <div className="ea-weapon-alloc-name">
+                        {pack.name.replace(`${ship.name}-`, '')}
+                        <span className="ea-note-dim">
+                          {' '}— {(already + here).toFixed(1)} / {max} spaces
+                        </span>
+                      </div>
+                      {Object.entries(stockpile).map(([dt, info]) => {
+                        const n = sel[dt] ?? 0;
+                        const roomOnPack = already + here + info.rackSize <= max;
+                        const canAdd = n < info.count && roomOnPack
+                            && info.rackSize <= crewsFree;
+                        return (
+                          <div key={dt} className="ea-stepper">
+                            <button className="ea-step-btn" disabled={n <= 0}
+                              onClick={() => onPackLoading({ ...packLoading,
+                                [pack.name]: { ...sel, [dt]: Math.max(0, n - 1) } })}>−</button>
+                            <span className="ea-step-value">{n}</span>
+                            <button className="ea-step-btn" disabled={!canAdd}
+                              onClick={() => onPackLoading({ ...packLoading,
+                                [pack.name]: { ...sel, [dt]: n + 1 } })}>+</button>
+                            <span className="ea-step-label">
+                              {dt.replace('Type', 'Type ')}
+                              <span className="ea-note-dim">
+                                {' '}({info.count} left, {info.rackSize} space
+                                {info.rackSize !== 1 ? 's' : ''} each)
+                              </span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </>
             )}
 
             <div className="ea-section-title" style={{ color: '#7ee0a8', marginTop: '0.6rem' }}>

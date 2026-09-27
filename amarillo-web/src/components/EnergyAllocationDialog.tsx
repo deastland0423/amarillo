@@ -463,7 +463,11 @@ export default function EnergyAllocationDialog({
     }
     const spSpaces = Object.values(a.scatterPackLoading ?? {}).reduce((sum, sel) =>
       sum + Object.entries(sel).reduce((ss, [dt, cnt]) => ss + (stockpile[dt] ?? 1) * cnt, 0), 0);
-    return spSpaces > (s.availableDeckCrews ?? 2);
+    // One pool, two claims on it (J4.81): packs to load and fighters to work on. Counting
+    // only the packs was fine while the jobs were posted automatically; now that the player
+    // posts them, both have to fit.
+    const posted = Object.values(a.crewPostings ?? {}).reduce((x, y) => x + y, 0);
+    return spSpaces + posted > (s.availableDeckCrews ?? 2);
   });
 
   function setPhotonArming(name: string, energy: number) {
@@ -1276,57 +1280,8 @@ export default function EnergyAllocationDialog({
                 </div>
               )}
 
-              {/* Scatter Pack Loading */}
-              {hasScatterPack && (() => {
-                const totalSpLoading = Object.values(alloc.scatterPackLoading ?? {}).reduce((sum, sel) =>
-                  sum + Object.entries(sel).reduce((s, [dt, cnt]) => s + (stockpile[dt]?.rackSize ?? 1) * cnt, 0), 0);
-                const deckCrewsAvail = ship.availableDeckCrews ?? 2;
-                const deckCrewsOver  = totalSpLoading > deckCrewsAvail;
-                return (
-                  <div className="ea-section">
-                    <div className="ea-section-title" style={{ color: '#79c0ff' }}>Scatterpack Loading</div>
-                    <div className={`ea-note${deckCrewsOver ? ' ea-budget-over' : ''}`}>
-                      Deck crews: {totalSpLoading.toFixed(1)} / {deckCrewsAvail} used{deckCrewsOver && ' — OVER LIMIT'}
-                    </div>
-                    {spEligible.map(s => {
-                      const sel = alloc.scatterPackLoading?.[s.name] ?? {};
-                      const shuttleMax = s.maxDroneSpaces ?? 6;
-                      const payloadNote = s.type === 'scatterpack'
-                        ? ` — ${(s.committedSpaces ?? 0).toFixed(1)} / ${shuttleMax} spaces used` : '';
-                      const thisShuttleSpaces = Object.entries(sel).reduce(
-                        (sum, [dt, cnt]) => sum + (stockpile[dt]?.rackSize ?? 1) * cnt, 0);
-                      const alreadyOnShuttle = s.committedSpaces ?? 0;
-                      return (
-                        <div key={s.name} className="ea-weapon-alloc-block">
-                          <div className="ea-weapon-alloc-name">
-                            {s.name}<span className="ea-note-dim">{payloadNote}</span>
-                          </div>
-                          {Object.entries(stockpile).map(([dt, info]) => {
-                            const count = sel[dt] ?? 0;
-                            const spaceIfAdd = totalSpLoading + info.rackSize;
-                            const shuttleSpaceIfAdd = alreadyOnShuttle + thisShuttleSpaces + info.rackSize;
-                            const canAdd = count < info.count && spaceIfAdd <= deckCrewsAvail && shuttleSpaceIfAdd <= shuttleMax;
-                            return (
-                              <div key={dt} className="ea-stepper">
-                                <button className="ea-step-btn"
-                                  onClick={() => setAlloc(a => ({ ...a, scatterPackLoading: { ...a.scatterPackLoading, [s.name]: { ...sel, [dt]: Math.max(0, count - 1) } } }))}
-                                  disabled={count <= 0}>−</button>
-                                <span className="ea-step-value">{count}</span>
-                                <button className="ea-step-btn"
-                                  onClick={() => setAlloc(a => ({ ...a, scatterPackLoading: { ...a.scatterPackLoading, [s.name]: { ...sel, [dt]: count + 1 } } }))}
-                                  disabled={!canAdd}>+</button>
-                                <span className="ea-step-label">
-                                  {dt.replace('Type', 'Type ')} <span className="ea-note-dim">({info.count} avail, {info.rackSize} space{info.rackSize !== 1 ? 's' : ''} each)</span>
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              {/* Scatter pack loading moved to Hangar Operations: it spends deck
+                  crews, so it belongs beside the jobs it competes with (FD7.22). */}
 
               {/* Active Shuttle / Fighter Speeds */}
               {myShuttles.length > 0 && (
@@ -1393,6 +1348,8 @@ export default function EnergyAllocationDialog({
       onCapsByBox={next => setAlloc(a => ({ ...a, capsByBox: next }))}
       crewPostings={alloc.crewPostings}
       onCrewPostings={next => setAlloc(a => ({ ...a, crewPostings: next }))}
+      packLoading={alloc.scatterPackLoading}
+      onPackLoading={next => setAlloc(a => ({ ...a, scatterPackLoading: next }))}
       spent={spent}
       total={total}
     />
