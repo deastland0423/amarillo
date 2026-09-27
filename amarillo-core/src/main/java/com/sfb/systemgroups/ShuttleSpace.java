@@ -24,8 +24,14 @@ public class ShuttleSpace {
     /** J4.832: a fusion charge costs the ship one point, so 8 fills a fusion box. */
     public static final int POWER_PER_FUSION_CHARGE = 1;
 
-    /** J4.834: the hellbore charge is dearer — two points, which is why it is banked. */
-    public static final int POWER_PER_HELLBORE_CHARGE = 2;
+    /**
+     * J4.834: the hellbore charge costs two points on each of two turns — four in all, and
+     * never fewer than two turns. Hence the banking: the first turn's points buy no charge.
+     */
+    public static final int POWER_PER_HELLBORE_CHARGE = 4;
+
+    /** The most a hellbore box will take in one turn, which is what makes it take two. */
+    public static final int HELLBORE_POWER_PER_TURN = 2;
 
     private Shuttle shuttle;
     private DroneRack droneRack;    // bay-mounted drone rack (D12.3)
@@ -36,9 +42,9 @@ public class ShuttleSpace {
      * The weapon capacitor built into this fighter box (J4.831/J4.834).
      *
      * A fusion box holds eight charges — two complete reloads for a two-weapon Stinger. A
-     * hellbore box holds one charge instead. Full at the start of a scenario (J4.886),
-     * destroyed with the box (J4.831), and able to reload only the fighter in THIS box
-     * (J4.881: never straight from the ship).
+     * hellbore box holds one charge instead. Full at the start of a scenario (J4.886) LESS
+     * whatever its fighter is already armed with, destroyed with the box (J4.831), and able
+     * to reload only the fighter in THIS box (J4.881: never straight from the ship).
      *
      * The SSD marks the box, not its occupant, so the capacity is learned from the first
      * fighter seated here and then KEPT: a Stinger that launches leaves an empty box, and
@@ -119,8 +125,11 @@ public class ShuttleSpace {
 
     public void setShuttle(Shuttle shuttle) {
         this.shuttle = shuttle;
-        if (capacitorCapacity < 0 && shuttle != null)
+        if (capacitorCapacity < 0 && shuttle != null) {
             capacitorCapacity = capacityFor(shuttle);
+            if (capacitorCharges < 0)
+                capacitorCharges = Math.max(0, capacitorCapacity - chargesCarriedBy(shuttle));
+        }
     }
 
     public DroneRack getDroneRack() { return droneRack; }
@@ -152,12 +161,26 @@ public class ShuttleSpace {
                 ? POWER_PER_HELLBORE_CHARGE : POWER_PER_FUSION_CHARGE;
     }
 
-    /** Power this box could still absorb, counting what is already banked towards a charge. */
+    /**
+     * Power this box could still absorb THIS TURN, counting what is already banked.
+     *
+     * A fusion box has no rate limit — J4.832 prices the charge and says nothing about how
+     * many a turn. A hellbore box does: two points a turn, which is what makes its single
+     * charge take the two turns J4.834 gives it. The limit lives here rather than in a
+     * per-turn counter because this is also what the allocation dialog offers and what the
+     * server bounds the line by, so a turn's allocation cannot exceed it in the first place.
+     */
     public int capacitorPowerWanted() {
         int missing = capacitorChargesMissing();
         if (missing == 0)
             return 0;
-        return missing * powerPerCapacitorCharge() - capacitorEnergyBanked;
+        int owed = missing * powerPerCapacitorCharge() - capacitorEnergyBanked;
+        return Math.min(owed, maxCapacitorPowerPerTurn());
+    }
+
+    private int maxCapacitorPowerPerTurn() {
+        return capacitorCapacity() == HELLBORE_CAPACITOR
+                ? HELLBORE_POWER_PER_TURN : Integer.MAX_VALUE;
     }
 
     /**
@@ -188,6 +211,29 @@ public class ShuttleSpace {
     public int getCapacitorEnergyBanked() { return capacitorEnergyBanked; }
 
     /**
+     * Charges the fighter is already holding, which came out of THIS box.
+     *
+     * J4.886 starts every capacitor full, and a fighter armed at the start of a scenario drew
+     * its charges from its own box rather than from nowhere (the owner's ruling, 2026-09-26):
+     * an armed Stinger carries four of its box's eight, leaving one reload behind, and an
+     * armed hellbore fighter carries the box's only charge, leaving it empty. A fighter that
+     * starts UNARMED — which is what Weapon Status will mean for most of them (J4.8224) —
+     * leaves its box full, and the same subtraction says so without being told.
+     */
+    private static int chargesCarriedBy(Shuttle occupant) {
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.FighterHellbore hb)
+                return hb.isSpent() ? 0 : 1;
+        }
+        int charges = 0;
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.FighterFusion ff)
+                charges += ff.getChargesRemaining();
+        }
+        return charges;
+    }
+
+    /**
      * The capacity the SSD would print for a box holding this fighter.
      *
      * Read off the fighter because we do not model the SSD's box markings: a box marked "="
@@ -206,11 +252,16 @@ public class ShuttleSpace {
         return 0;
     }
 
-    /** Charges in the capacitor. J4.886: full at the start of a scenario. */
+    /**
+     * Charges in the capacitor (J4.886: full at the start of a scenario, less whatever its
+     * fighter was already armed with).
+     *
+     * Settled when the box receives its first fighter, NOT lazily on the first read: a box
+     * asked about itself in the middle of a battle, after its fighter had spent everything,
+     * would otherwise have discovered a full capacitor at exactly the wrong moment.
+     */
     public int getCapacitorCharges() {
-        if (capacitorCharges < 0)
-            capacitorCharges = capacitorCapacity();
-        return Math.min(capacitorCharges, capacitorCapacity());
+        return Math.max(0, Math.min(capacitorCharges, capacitorCapacity()));
     }
 
     public void setCapacitorCharges(int charges) {

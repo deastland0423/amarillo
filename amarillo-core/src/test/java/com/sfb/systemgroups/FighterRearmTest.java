@@ -66,13 +66,39 @@ public class FighterRearmTest {
     // -------------------------------------------------------------------------
 
     @Test
-    public void aFusionBoxStartsWithTwoCompleteReloadsInIt() {
+    public void aFusionBoxHoldsTwoCompleteReloads() {
         ShuttleSpace box = bayOfStingers(1).getSpaces().get(0);
 
-        // J4.886: capacitors are assumed full at the start of a scenario.
-        assertEquals("a fusion box holds two reloads for a two-weapon Stinger (J4.831)",
+        assertEquals("eight charges is two reloads for a two-weapon Stinger (J4.831)",
                 8, box.capacitorCapacity());
-        assertEquals(8, box.getCapacitorCharges());
+    }
+
+    @Test
+    public void aFighterThatStartsArmedTookItsChargesOutOfItsOwnBox() {
+        // A freshly built Stinger-1 is armed: two charges in each of two fusions.
+        ShuttleSpace armed = bayOfStingers(1).getSpaces().get(0);
+        assertEquals(4, chargesOn(armed.getShuttle()));
+        assertEquals("J4.886 starts the box full, and the four charges the fighter is already"
+                + " holding came from it — one reload left behind, not two",
+                4, armed.getCapacitorCharges());
+
+        // A fighter that starts UNARMED, which is what Weapon Status will mean for most of
+        // them (J4.8224), leaves its box full.
+        Stinger1 unarmed = new Stinger1();
+        unarmed.setName("Unarmed");
+        spendEverything(unarmed);
+        ShuttleSpace box = new ShuttleSpace(unarmed);
+        assertEquals("nothing was drawn, so nothing is missing", 8, box.getCapacitorCharges());
+    }
+
+    @Test
+    public void anArmedHellboreFighterLeavesItsBoxEmpty() {
+        StingerH sh = new StingerH();
+        sh.setName("StingerH-1");
+        ShuttleSpace box = new ShuttleSpace(sh);
+
+        assertEquals("a hellbore box holds one charge (J4.834)", 1, box.capacitorCapacity());
+        assertEquals("and the armed fighter is carrying it", 0, box.getCapacitorCharges());
     }
 
     @Test
@@ -84,16 +110,17 @@ public class FighterRearmTest {
         ShuttleBay.RearmResult result = bay.rearmFighters(2, 2);
 
         assertEquals("both fusions back to two charges (J4.833)", 4, chargesOn(box.getShuttle()));
-        assertEquals("four charges came out of the box's own capacitor (J4.881)",
-                4, box.getCapacitorCharges());
+        assertEquals("the reload the armed fighter left behind, now spent too (J4.881)",
+                0, box.getCapacitorCharges());
         assertEquals("two deck crews, two half-actions each", 2, result.crewsUsed());
         assertEquals(1, result.log().size());
     }
 
     @Test
-    public void theCapacitorIsDryAfterTwoReloads() {
+    public void aToppedUpBoxIsDryAfterTwoReloads() {
         ShuttleBay bay = bayOfStingers(1);
         ShuttleSpace box = bay.getSpaces().get(0);
+        box.setCapacitorCharges(8);   // as if the ship had paid to fill it (J4.832)
 
         spendEverything(box.getShuttle());
         bay.rearmFighters(2, 2);
@@ -182,18 +209,24 @@ public class FighterRearmTest {
         hb.fireDirect(5);
         assertTrue("fired once, and spent until reloaded", hb.isSpent());
 
-        ShuttleBay.RearmResult first = bay.rearmFighters(2, 2);
-        assertFalse("reloaded from the box's own capacitor", hb.isSpent());
-        assertEquals("a hellbore charge is one whole action, so one crew (J4.834)",
-                1, first.crewsUsed());
-        assertEquals(0, box.getCapacitorCharges());
-
-        hb.fireDirect(5);
-        ShuttleBay.RearmResult second = bay.rearmFighters(3, 2);
-        assertTrue("the box holds one charge; the ship pays 2 power over two turns to"
-                + " replace it (J4.834): " + second.log(),
-                second.log().get(0).contains("capacitor empty"));
+        // It started armed, so its box was empty before it even fired: there is nothing for
+        // the deck crew to fetch until the ship has paid for a charge.
+        ShuttleBay.RearmResult dry = bay.rearmFighters(2, 2);
+        assertTrue("the empty box is reported rather than quietly ignored: " + dry.log(),
+                dry.log().get(0).contains("capacitor empty"));
         assertTrue(hb.isSpent());
+        assertEquals("and no crew was spent on it", 0, dry.crewsUsed());
+
+        // Two points on each of two turns (J4.834).
+        box.addCapacitorEnergy(2);
+        box.addCapacitorEnergy(2);
+        assertEquals(1, box.getCapacitorCharges());
+
+        ShuttleBay.RearmResult loaded = bay.rearmFighters(4, 2);
+        assertFalse("reloaded from the box's own capacitor (J4.881)", hb.isSpent());
+        assertEquals("a hellbore charge is one whole action, so one crew (J4.834)",
+                1, loaded.crewsUsed());
+        assertEquals("which empties the box again", 0, box.getCapacitorCharges());
     }
 
     @Test
@@ -230,23 +263,24 @@ public class FighterRearmTest {
     }
 
     @Test
-    public void aHellboreChargeCostsTwoPointsAndTheFirstOneBanks() {
+    public void aHellboreChargeCostsTwoPointsOnEachOfTwoTurns() {
         ShuttleBay bay = new ShuttleBay(null);
         StingerH sh = new StingerH();
         sh.setName("StingerH-1");
         bay.addSpace(new ShuttleSpace(sh));
-        ShuttleSpace box = bay.getSpaces().get(0);
-        box.setCapacitorCharges(0);
+        ShuttleSpace box = bay.getSpaces().get(0);   // armed fighter, so the box starts empty
 
-        assertEquals("J4.834 prices the hellbore charge at two points", 2,
-                box.capacitorPowerWanted());
-        box.addCapacitorEnergy(1);
-        assertEquals("one point is not yet a charge", 0, box.getCapacitorCharges());
-        assertEquals(1, box.getCapacitorEnergyBanked());
+        assertEquals("J4.834 takes two points a turn and no more", 2, box.capacitorPowerWanted());
+        assertEquals("a bigger allocation cannot rush it", 2, box.addCapacitorEnergy(4));
+        assertEquals("the first turn's points buy no charge", 0, box.getCapacitorCharges());
+        assertEquals(2, box.getCapacitorEnergyBanked());
 
-        box.addCapacitorEnergy(1);
-        assertEquals("the second point completes it", 1, box.getCapacitorCharges());
+        assertEquals("two more are owed on the second turn", 2, box.capacitorPowerWanted());
+        box.addCapacitorEnergy(2);
+        assertEquals("four points over two turns, and the charge is there",
+                1, box.getCapacitorCharges());
         assertEquals(0, box.getCapacitorEnergyBanked());
+        assertEquals("a full hellbore box wants nothing", 0, box.capacitorPowerWanted());
     }
 
     @Test
@@ -270,11 +304,22 @@ public class FighterRearmTest {
     @Test
     public void nothingIsSpentOnBoxesThatAreAlreadyFull() {
         Shuttles group = new Shuttles(null);
-        group.getBays().add(bayOfStingers(2));
+        ShuttleBay bay = bayOfStingers(2);
+        for (ShuttleSpace box : bay.getSpaces())
+            box.setCapacitorCharges(8);
+        group.getBays().add(bay);
 
-        assertEquals("they start full (J4.886), so there is nothing to buy", 0,
-                group.capacitorPowerWanted());
+        assertEquals("nothing left to buy", 0, group.capacitorPowerWanted());
         assertEquals(0, group.rechargeCapacitors(8));
+    }
+
+    @Test
+    public void anArmedSquadronStillHasOneReloadToBuyBack() {
+        Shuttles group = new Shuttles(null);
+        group.getBays().add(bayOfStingers(2));   // both fighters armed from their own boxes
+
+        assertEquals("each box gave away four of its eight (J4.886), so eight points buy"
+                + " the pair of them back up", 8, group.capacitorPowerWanted());
     }
 
     // -------------------------------------------------------------------------

@@ -1369,7 +1369,8 @@ export default function EnergyAllocationDialog({
           <div className="ea-section">
             <div className="ea-section-title" style={{ color: '#7ee0a8' }}>Fighter Capacitors</div>
             <div className="ea-note">
-              {figCapRoom} point(s) of room — 1 per fusion charge, 2 per hellbore charge.
+              {figCapRoom} point(s) of room this turn — 1 per fusion charge (J4.832); a
+              hellbore box takes 2 a turn and needs two turns for its one charge (J4.834).
               Fills one box at a time, so the points buy a fighter a full sortie.
             </div>
             <Stepper value={alloc.fighterCaps} min={0} max={figCapRoom}
