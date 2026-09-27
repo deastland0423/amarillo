@@ -2222,8 +2222,9 @@ h3 {
 .hangar-box {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.3rem 0.4rem;
+  gap: 0.3rem;
+  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.45rem;
   border-left: 2px solid #30363d;
   background: #0d1117;
   border-radius: 3px;
@@ -2258,6 +2259,7 @@ h3 {
   font-size: 0.72rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* Controls wrap rather than squeezing: a box may offer two crew jobs, a capacitor and a
@@ -2272,7 +2274,11 @@ h3 {
 .hangar-ctl {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid #21262d;
+  border-radius: 10px;
+  background: #161b22;
   font-size: 0.72rem;
   color: #8b949e;
 }

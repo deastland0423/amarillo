@@ -62,8 +62,10 @@ function stateLine(space: ShuttleSpaceState): string {
   const bits: string[] = [];
   const s = space.shuttle;
 
-  if ((space.capacitorCapacity ?? 0) > 0)
-    bits.push(`${space.chargesAboard ?? 0} charge(s)`);
+  if ((space.capacitorCapacity ?? 0) > 0) {
+    bits.push(`${space.chargesAboard ?? 0} aboard`);
+    bits.push(`box ${space.capacitorCharges ?? 0}/${space.capacitorCapacity}`);
+  }
   if (s.specialRole) bits.push(s.specialRole);
   const turns = s.armingTurnsComplete ?? 0;
   if (turns > 0)
@@ -221,7 +223,7 @@ export function HangarDrawer({
       out.push(
         <Stepper key={`${key}:cap`} value={bought} min={0} max={space.capacitorRoom ?? 0}
           onChange={n => buyCharges(key, n)}
-          label={`cap ${space.capacitorCharges ?? 0}/${space.capacitorCapacity}`} />);
+          label="buy charges" />);
     }
 
     // Suicide arming (1–3 energy a turn for three turns) or the 1-point hold once armed.

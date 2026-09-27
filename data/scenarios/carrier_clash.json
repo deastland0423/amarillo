@@ -1,0 +1,63 @@
+{
+  "id": "CARRIER_CLASH",
+  "name": "Carrier Clash",
+  "year": 175,
+  "description": "A battle between carriers in the neutral zone.",
+  "lengthCondition": "STANDARD",
+  "sides": [
+    {
+      "name": "Hydran Kingdom",
+      "faction": "Hydran",
+      "ships": [
+        {
+          "type": "RN+",
+          "shipName": "HMS Grit",
+          "startHex": "1201",
+          "startHeading": "D",
+          "startSpeed": 16,
+          "weaponStatus": 1
+        }
+      ]
+    },
+    {
+      "name": "Kzinti Hegemony",
+      "faction": "Kzinti",
+      "ships": [
+        {
+          "type": "CV",
+          "shipName": "KHS Longsword",
+          "startHex": "0812",
+          "startHeading": "A",
+          "startSpeed": 20,
+          "weaponStatus": 1        }
+      ]
+    }
+  ],
+  "terrain": [
+    { 
+      "type": "GAS_GIANT", 
+      "hex": "2116", 
+      "radius": 4, 
+      "name": "Proxima IV", 
+      "rings": [
+        {"inner": 7, "outer": 8}, 
+        {"inner": 10, "outer": 12}
+        ] 
+      }
+  ],
+  "victoryConditions": {
+    "type": "STANDARD"
+  },
+  "shuttleRules": {
+    "warpBoosterPacks": false,
+    "megapacks": false,
+    "mrsShuttles": true,
+    "pfs": false
+  },
+  "commanderOptions": {
+    "budgetPercent": 10,
+    "maxDroneSpeed": 20,
+    "allowTBombs": true,
+    "allowCommandos": true
+  }
+}
