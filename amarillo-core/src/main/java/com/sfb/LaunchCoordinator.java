@@ -784,7 +784,7 @@ class LaunchCoordinator {
         // Land: the hatch operation shares the launch cooldown (J1.50)
         bay.markUsed(impulse);
         String disembark = disembarkHold(ship, shuttle);
-        bay.addShuttle(shuttle);
+        bay.addShuttle(shuttle, game.getClock().getTurn());
         activeShuttles.remove(shuttle);
         shuttle.setLocation(null);
         shuttle.setParentShipName(ship.getName());
@@ -864,7 +864,7 @@ class LaunchCoordinator {
 
         bay.markUsed(impulse);
         String disembark = disembarkHold(ship, shuttle);
-        bay.addShuttle(shuttle);
+        bay.addShuttle(shuttle, game.getClock().getTurn());
         activeShuttles.remove(shuttle);
         if (ship.getTractors() != null && ship.getTractors().getTractoredUnits().contains(shuttle))
             ship.getTractors().releaseTractor(shuttle); // also clears beingRecovered

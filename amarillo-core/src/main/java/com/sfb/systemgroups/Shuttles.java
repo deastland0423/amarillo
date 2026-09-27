@@ -13,6 +13,12 @@ public class Shuttles implements Systems {
     private final List<ShuttleBay> bays = new ArrayList<>();
     private Unit owningUnit;
 
+    /** The owning game's clock, injected by Ship.attachClock(); rearming needs the turn. */
+    private com.sfb.TurnTracker clock;
+
+    /** What the end-of-turn rearm pass did, for the owner's own readout (J4.8175). */
+    private final List<String> lastRearmLog = new ArrayList<>();
+
     public Shuttles(Unit owner) {
         this.owningUnit = owner;
     }
@@ -103,10 +109,45 @@ public class Shuttles implements Systems {
                 }
             }
         }
+        rearmFighters();
     }
 
     @Override
     public Unit fetchOwningUnit() { return owningUnit; }
+
+    public void setClock(com.sfb.TurnTracker clock) { this.clock = clock; }
+
+    /**
+     * Lines from the most recent end-of-turn rearm pass.
+     * <p>
+     * Deliberately NOT fed to the shared combat log: how many charges an opponent's fighters
+     * are carrying is not something they get to announce to the enemy.
+     */
+    public List<String> getLastRearmLog() { return lastRearmLog; }
+
+    /**
+     * End-of-turn fighter rearming (J4.83), one pass over every bay.
+     * <p>
+     * The ship's deck crews are a single pool shared by the bays: J4.813 assigns each crew to
+     * one named bay, which we do not model, so the pool is spent first-come across the bays in
+     * order rather than pretending every bay has its own full complement.
+     */
+    private void rearmFighters() {
+        lastRearmLog.clear();
+        if (clock == null || !(owningUnit instanceof com.sfb.objects.Ship ship))
+            return;
+        // Crews still loose at end of turn — the ones that spent the turn loading a scatter
+        // pack are not available to also rearm a fighter.
+        int crewsLeft = ship.getCrew().getAvailableDeckCrews();
+        int turn = clock.getTurn();
+        for (ShuttleBay bay : bays) {
+            if (crewsLeft <= 0)
+                break;
+            ShuttleBay.RearmResult result = bay.rearmFighters(turn, crewsLeft);
+            lastRearmLog.addAll(result.log());
+            crewsLeft -= result.crewsUsed();
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Access

@@ -101,16 +101,27 @@ public class ShuttleBay {
     // Shuttle placement (used during init and landing)
     // -------------------------------------------------------------------------
 
-    /** Add a shuttle into the first available empty space (or a new space if none). */
-    public void addShuttle(Shuttle shuttle) {
+    /**
+     * Seat a shuttle in the first empty space (or a new space if none).
+     *
+     * The turn is recorded on the space because rearming asks how long the occupant has been
+     * sitting there (J4.8174): a fighter that arrived this turn has not been idle for a whole
+     * one, so no deck crew action on it could have finished.
+     *
+     * @param turn the turn the shuttle arrives in
+     */
+    public void addShuttle(Shuttle shuttle, int turn) {
         for (ShuttleSpace space : spaces) {
             if (space.isEmpty()) {
                 space.setShuttle(shuttle);
+                space.setOccupiedSinceTurn(turn);
                 return;
             }
         }
         // No empty space — add a new one (should only happen during init)
-        spaces.add(new ShuttleSpace(shuttle));
+        ShuttleSpace fresh = new ShuttleSpace(shuttle);
+        fresh.setOccupiedSinceTurn(turn);
+        spaces.add(fresh);
     }
 
     /**
@@ -304,5 +315,108 @@ public class ShuttleBay {
 
     private static boolean isLaunchTubeEligible(Shuttle shuttle) {
         return shuttle instanceof Fighter;
+    }
+
+    // -------------------------------------------------------------------------
+    // Rearming (J4.83, Hydran subset)
+    // -------------------------------------------------------------------------
+
+    /** What one bay's rearm pass did: a line per fighter worked on, and the crews it spent. */
+    public record RearmResult(List<String> log, int crewsUsed) {
+        static final RearmResult NOTHING = new RearmResult(List.of(), 0);
+    }
+
+    /**
+     * Reload the fighters that spent a whole turn in their boxes (J4.83).
+     *
+     * The rules run on deck crew ACTIONS of 32 consecutive impulses (J4.8171) which may start
+     * on any impulse and span turns. We run the ordinary case instead, and the arithmetic says
+     * the ordinary case is a turn: a Stinger-1 wants four fusion charges, at half an action
+     * each (J4.833) that is two actions, and the two deck crews J4.8172 allows on one fighter
+     * finish two actions in one turn. A hellbore charge is one full action (J4.834) - one crew,
+     * one turn.
+     *
+     * So: a fighter that was in its box at the start of the turn and is still there at the end
+     * is reloaded from that box's own capacitor (J4.881 - never straight from the ship), as far
+     * as the crews reach. A fighter that launched has nothing done to it: J4.8174 makes an
+     * interrupted action cancelled with no partial credit, and leaving early is the commonest
+     * interruption there is.
+     *
+     * Not modelled yet: crews assigned to a named bay (J4.813), a second crew joining a job at
+     * end of turn (J4.823), and the launch lockout on the impulse after a reload (J4.8172).
+     *
+     * @param turn           the turn that is ending
+     * @param crewsAvailable deck crews this bay may put to work
+     */
+    public RearmResult rearmFighters(int turn, int crewsAvailable) {
+        List<String> log = new ArrayList<>();
+        int crewsLeft = Math.max(0, crewsAvailable);
+
+        for (ShuttleSpace space : spaces) {
+            if (crewsLeft <= 0)
+                break;
+            if (space.isDestroyed() || space.isEmpty())
+                continue;
+            if (!(space.getShuttle() instanceof Fighter fighter))
+                continue;
+            // It has to have sat the whole turn. A fighter recovered DURING this turn has not,
+            // and neither has one that launched and came back.
+            if (space.getOccupiedSinceTurn() >= turn)
+                continue;
+
+            RearmResult one = rearmOne(space, fighter, crewsLeft);
+            log.addAll(one.log());
+            crewsLeft -= one.crewsUsed();
+        }
+        return new RearmResult(log, Math.max(0, crewsAvailable) - Math.max(0, crewsLeft));
+    }
+
+    /** Rearm the fighter in one box as far as its capacitor and the loose crews allow. */
+    private RearmResult rearmOne(ShuttleSpace space, Fighter fighter, int crewsLeft) {
+        FighterHellbore hellbore = null;
+        List<com.sfb.weapons.FighterFusion> fusions = new ArrayList<>();
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
+            if (w instanceof FighterHellbore hb)
+                hellbore = hb;
+            else if (w instanceof com.sfb.weapons.FighterFusion ff)
+                fusions.add(ff);
+        }
+
+        // A hellbore box holds one charge and reloading it is one whole action (J4.834).
+        if (hellbore != null) {
+            if (!hellbore.isSpent())
+                return RearmResult.NOTHING;
+            if (space.drawCharges(1) == 0)
+                return new RearmResult(List.of(fighter.getName()
+                        + ": hellbore capacitor empty, not reloaded (J4.834)"), 0);
+            hellbore.reload();
+            return new RearmResult(List.of(fighter.getName()
+                    + ": hellbore reloaded from the fighter box capacitor (J4.834)"), 1);
+        }
+
+        // Fusions: half an action a charge, so one crew loads two charges in a turn (J4.833).
+        int missing = 0;
+        for (com.sfb.weapons.FighterFusion ff : fusions)
+            missing += ff.chargesMissing();
+        if (missing == 0)
+            return RearmResult.NOTHING;
+
+        int crews = Math.min(Math.min(2, crewsLeft), (missing + 1) / 2);
+        int drawn = space.drawCharges(Math.min(missing, crews * 2));
+        if (drawn == 0)
+            return new RearmResult(List.of(fighter.getName()
+                    + ": fusion capacitor empty, not reloaded (J4.831)"), 0);
+
+        int loaded = 0;
+        for (com.sfb.weapons.FighterFusion ff : fusions)
+            while (loaded < drawn && ff.loadCharge())
+                loaded++;
+        // Anything the weapons would not take stays in the capacitor.
+        if (loaded < drawn)
+            space.setCapacitorCharges(space.getCapacitorCharges() + (drawn - loaded));
+
+        return new RearmResult(List.of(fighter.getName() + ": " + loaded + " fusion charge"
+                + (loaded == 1 ? "" : "s") + " loaded, " + space.getCapacitorCharges()
+                + " left in the box (J4.833)"), (loaded + 1) / 2);
     }
 }

@@ -1258,6 +1258,7 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public void attachClock(com.sfb.TurnTracker clock) {
 		getShields().setClock(clock);
+		getShuttles().setClock(clock);   // end-of-turn fighter rearming reads the turn (J4.83)
 		getTractors().setClock(clock);   // the damage pick reads the impulse (G7.13)
 		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
 			w.setClock(clock);

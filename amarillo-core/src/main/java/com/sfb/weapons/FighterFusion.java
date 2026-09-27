@@ -39,7 +39,10 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
     private static final int SINGLE_MAX_RANGE = 3;
     private static final int DOUBLE_MAX_RANGE = 10;
 
-    private int chargesRemaining = 2;
+    /** J4.831: "most of their fighters take two charges in each of two weapons". */
+    public static final int FULL_CHARGES = 2;
+
+    private int chargesRemaining = FULL_CHARGES;
     private ShotMode pendingShotMode = ShotMode.SINGLE;
 
     public FighterFusion() {
@@ -69,6 +72,23 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
     /** J1.3324: discharge all remaining charges when the fighter is crippled. */
     public void drainCharges() {
         chargesRemaining = 0;
+    }
+
+    /** How many charges this weapon is short of full (J4.831: two per weapon). */
+    public int chargesMissing() {
+        return Math.max(0, FULL_CHARGES - chargesRemaining);
+    }
+
+    /**
+     * Load one charge from the fighter box's capacitor (J4.833).
+     *
+     * @return true if a charge went in; false if the weapon was already full
+     */
+    public boolean loadCharge() {
+        if (chargesRemaining >= FULL_CHARGES)
+            return false;
+        chargesRemaining++;
+        return true;
     }
 
     @Override
