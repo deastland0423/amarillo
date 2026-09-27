@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "CV",
   "typeName": "Carrier",
+  "carrierClass": "CAPABLE",
   "line": "BCH",
   "name": "KHS Sabre",
   "serviceYear": 166,

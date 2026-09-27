@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "CVE+",
   "typeName": "Escort Carrier",
+  "carrierClass": "CAPABLE",
   "line": "CL",
   "name": "KHS Starburst",
   "serviceYear": 170,

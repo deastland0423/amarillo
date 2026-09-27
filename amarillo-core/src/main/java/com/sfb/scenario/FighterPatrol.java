@@ -70,6 +70,12 @@ public final class FighterPatrol {
         if (patrol == null || patrol.isEmpty())
             return problems;
 
+        if (!carrier.getCarrierClass().isCarrier()) {
+            problems.add(carrier.getName() + " is not a carrier (J4.61/J4.623) and cannot post"
+                    + " a Combat Space Patrol (S4.1)");
+            return problems;
+        }
+
         int allowed = maxDeployed(weaponStatus);
         if (allowed == 0)
             problems.add(carrier.getName() + " may not deploy fighters at WS-" + weaponStatus

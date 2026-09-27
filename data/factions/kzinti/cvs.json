@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "CVS",
   "typeName": "Strike Carrier",
+  "carrierClass": "CAPABLE",
   "line": "BCH",
   "name": "KHS Scimitar",
   "serviceYear": 170,

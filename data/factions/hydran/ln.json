@@ -2,6 +2,7 @@
   "faction": "Hydran",
   "type": "LN",
   "typeName": "Lancer Destroyer",
+  "carrierClass": "CAPABLE",
   "line": "DD",
   "name": "HMS Thought",
   "serviceYear": 134,

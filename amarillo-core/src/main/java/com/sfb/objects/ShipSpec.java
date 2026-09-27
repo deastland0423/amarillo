@@ -70,6 +70,14 @@ public class ShipSpec {
      */
     public boolean isTrueCarrier;
     /**
+     * What kind of carrier this is (J4.61/J4.62) — which decides capabilities, not fleet
+     * legality: extra deck crews, EW lent to fighters, and S4.1's weapon status provisions.
+     * Separate from isTrueCarrier because a Hydran fighter ship is a capable carrier that is
+     * fielded without escorts. Not inferable from bay contents: plenty of ships carry a few
+     * fighters without being carriers.
+     */
+    public String carrierClass;
+    /**
      * Heavy battlecruiser. No more than one may be in a battle force, though it needs no
      * squadron of followers and may be there alongside the one allowed size class 2 ship
      * (S8.333).
@@ -259,6 +267,8 @@ public class ShipSpec {
             m.put("isescort", true);
         if (isTrueCarrier)
             m.put("istruecarrier", true);
+        if (carrierClass != null)
+            m.put("carrierclass", carrierClass);
         if (isBCH)
             m.put("isbch", true);
         if (stealthBonus > 0)

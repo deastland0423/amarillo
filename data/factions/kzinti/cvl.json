@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "CVL",
   "typeName": "Light Carrier",
+  "carrierClass": "CAPABLE",
   "line": "CA",
   "name": "KHS Tempest",
   "serviceYear": 166,

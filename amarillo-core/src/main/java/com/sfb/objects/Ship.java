@@ -174,6 +174,8 @@ public class Ship extends Unit implements DroneController {
 	private boolean leader = false;      // leader variant (S8.36)
 	private boolean escort = false;      // carrier escort (S8.311)
 	private boolean trueCarrier = false; // true carrier rather than a hybrid (S8.321/S8.322)
+	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
+	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
@@ -221,6 +223,7 @@ public class Ship extends Unit implements DroneController {
 		leader      = Boolean.TRUE.equals(values.get("isleader"));
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
 		trueCarrier = Boolean.TRUE.equals(values.get("istruecarrier"));
+		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
 		bch         = Boolean.TRUE.equals(values.get("isbch"));
 
 		// Calculated Ship Values
@@ -813,6 +816,19 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean isTrueCarrier() {
 		return trueCarrier;
+	}
+
+	/**
+	 * What kind of carrier this is (J4.61/J4.62). Decides capabilities — extra deck crews,
+	 * EW lent to fighters, S4.1's weapon status provisions — never fleet legality.
+	 */
+	public com.sfb.properties.CarrierClass getCarrierClass() {
+		return carrierClass;
+	}
+
+	public void setCarrierClass(com.sfb.properties.CarrierClass carrierClass) {
+		this.carrierClass = carrierClass == null
+				? com.sfb.properties.CarrierClass.NONE : carrierClass;
 	}
 
 	/**

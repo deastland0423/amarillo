@@ -853,6 +853,12 @@ public class ScenarioLoader {
      * captain arms the ones about to launch — and it belongs to the player in the COI.
      */
     static void applyFighterWeaponStatus(Ship ship, int weaponStatus) {
+        // S4.1 extends these provisions to "fully capable carriers (J4.61) and most Hydran
+        // ships (J4.623)" — which is what CAPABLE means — and pointedly not to a casual
+        // carrier with a fighter or two aboard (J4.62).
+        if (!ship.getCarrierClass().isCarrier())
+            return;
+
         java.util.List<com.sfb.systemgroups.ShuttleSpace> boxes = new java.util.ArrayList<>();
         for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
             for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())

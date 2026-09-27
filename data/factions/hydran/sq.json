@@ -2,6 +2,7 @@
   "faction": "Hydran",
   "type": "S-Q",
   "typeName": "Small Q-Ship",
+  "carrierClass": "CAPABLE",
   "line": "F-S",
   "name": "Peekaboo",
   "serviceYear": 130,

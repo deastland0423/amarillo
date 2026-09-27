@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "CV+",
   "typeName": "Light Carrier",
+  "carrierClass": "CAPABLE",
   "line": "CA",
   "name": "KHS Hurricane",
   "serviceYear": 170,
