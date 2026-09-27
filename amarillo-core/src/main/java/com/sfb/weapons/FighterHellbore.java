@@ -12,13 +12,14 @@ import com.sfb.properties.WeaponArmingType;
  */
 public class FighterHellbore extends Hellbore {
 
-    private boolean spent = false;
+    /** Empty until something arms it — see FighterFusion.chargesRemaining (J4.8223). */
+    private boolean spent = true;
 
     public FighterHellbore() {
         setType("FighterHellbore");
         setMinRange(1);
         setMaxRange(10);
-        setArmed(true);
+        setArmed(false);
         setArmingTurn(2);
     }
 

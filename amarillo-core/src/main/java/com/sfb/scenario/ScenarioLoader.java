@@ -825,5 +825,77 @@ public class ScenarioLoader {
                 ship.setCapacitorsCharged(true);
                 ship.setActiveFireControl(true);
         }
+
+        applyFighterWeaponStatus(ship, weaponStatus);
     }
+
+    /**
+     * Weapon status for the fighters in the bays (S4.10-S4.13, J4.8224).
+     *
+     * Fighters are built empty and their boxes full, which is J4.8223's resting state for a
+     * carrier: racks loaded, fighters not. This decides how much of that has been moved onto
+     * the fighters before the scenario starts, and every charge or drone that moves comes out
+     * of that fighter's own box — so a carrier's total ammunition is the same at every weapon
+     * status, only its readiness differs.
+     *
+     * <ul>
+     *   <li>WS-0 and WS-1: two fighters armed (identical for fighter operations).</li>
+     *   <li>WS-2: two turns of work by every deck crew (S4.12), which is 2 actions each, and
+     *       J4.8172 caps any one fighter at 2 crews — so 4 actions is the most one can
+     *       receive. A Stinger-1 wants 2 and an AAS 2, so today's fighters are never short;
+     *       an advanced fighter with a heavier load would be only partly armed, which is the
+     *       point of spending a budget rather than setting a flag.</li>
+     *   <li>WS-3: everything loaded, racks and capacitors drawn down to pay for it
+     *       (J4.8224).</li>
+     * </ul>
+     *
+     * Which fighters get the work is first-come for now. It is a real choice — a carrier
+     * captain arms the ones about to launch — and it belongs to the player in the COI.
+     */
+    static void applyFighterWeaponStatus(Ship ship, int weaponStatus) {
+        java.util.List<com.sfb.systemgroups.ShuttleSpace> boxes = new java.util.ArrayList<>();
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                if (!box.isDestroyed()
+                        && box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter)
+                    boxes.add(box);
+        if (boxes.isEmpty())
+            return;
+
+        if (weaponStatus >= 3) {
+            for (com.sfb.systemgroups.ShuttleSpace box : boxes)
+                box.armOccupantFully();
+            return;
+        }
+
+        if (weaponStatus == 2) {
+            // S4.12: two turns of deck crew work before the scenario opens.
+            int halfActions = ship.getCrew().getDeckCrews() * WS2_TURNS
+                    * com.sfb.systemgroups.FighterArming.HALF_ACTIONS_PER_ACTION;
+            int perFighterCap = WS2_TURNS * MAX_CREWS_PER_FIGHTER
+                    * com.sfb.systemgroups.FighterArming.HALF_ACTIONS_PER_ACTION;
+            for (com.sfb.systemgroups.ShuttleSpace box : boxes) {
+                if (halfActions <= 0)
+                    break;
+                com.sfb.systemgroups.FighterArming.Load load =
+                        com.sfb.systemgroups.FighterArming.load(box, box.getShuttle(),
+                                Math.min(halfActions, perFighterCap));
+                halfActions -= load.halfActionsUsed();
+            }
+            return;
+        }
+
+        // WS-0 and WS-1: a couple of fighters ready on the deck, the rest cold.
+        for (int i = 0; i < Math.min(WS01_ARMED_FIGHTERS, boxes.size()); i++)
+            boxes.get(i).armOccupantFully();
+    }
+
+    /** S4.12: the carrier has had two turns of deck crew activity before the scenario. */
+    private static final int WS2_TURNS = 2;
+
+    /** J4.8172: two deck crews on one fighter, and no more. */
+    private static final int MAX_CREWS_PER_FIGHTER = 2;
+
+    /** S4.10/S4.11: two fighters may be armed and ready at the lowest weapon statuses. */
+    private static final int WS01_ARMED_FIGHTERS = 2;
 }

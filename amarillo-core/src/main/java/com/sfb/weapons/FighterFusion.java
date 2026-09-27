@@ -42,7 +42,15 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
     /** J4.831: "most of their fighters take two charges in each of two weapons". */
     public static final int FULL_CHARGES = 2;
 
-    private int chargesRemaining = FULL_CHARGES;
+    /**
+     * Empty until something arms it (J4.8223/J4.8224).
+     * <p>
+     * A fighter used to be born armed, which meant its charges came from nowhere: the box's
+     * capacitor was never debited, and a carrier fielded half again the ammunition the rules
+     * allow. Weapon status decides who starts loaded (S4.10-S4.13) and the charges come out of
+     * the fighter's own box, so the factory's job is to build the weapon, not to fill it.
+     */
+    private int chargesRemaining = 0;
     private ShotMode pendingShotMode = ShotMode.SINGLE;
 
     public FighterFusion() {

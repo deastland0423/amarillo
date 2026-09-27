@@ -66,6 +66,20 @@ public final class FighterArming {
         return charges;
     }
 
+    /**
+     * Drones this fighter is holding, in the units its own box's ready rack counts.
+     * <p>
+     * The drone twin of {@link #chargesCarriedBy}: a loaded fighter took these from its rack
+     * (J4.8224), so the fighter and its rack always account for exactly one reload.
+     */
+    public static int dronesCarriedBy(Shuttle fighter) {
+        int loaded = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail && rail.getDrone() != null)
+                loaded++;
+        return loaded;
+    }
+
     /** Half-actions to arm this fighter from empty — its full load, whatever it is armed with. */
     public static int halfActionsToFullyArm(Shuttle fighter) {
         int half = 0;
@@ -138,9 +152,61 @@ public final class FighterArming {
         if (hasFusions(fighter))
             return loadFusions(box, fighter, halfActionBudget);
 
-        // A drone-armed fighter: priced above, but there is no store or ready rack to draw
-        // from yet (J4.82). Silence rather than a log line — nothing was attempted.
+        if (dronesCarriedBy(fighter) < railsOf(fighter).size())
+            return loadDrones(box, fighter, halfActionBudget);
+
         return Load.NOTHING;
+    }
+
+    /**
+     * Fill this fighter's empty rails from its box's ready rack (J4.82).
+     * <p>
+     * A drone space is a whole action, so a budget short of one buys nothing for that rail —
+     * J4.8174 again. The rack is the only source: J4.881 forbids arming a fighter from the
+     * ship directly, and refilling the rack itself from the ship's stores is a separate job
+     * we do not model yet, so an empty rack simply says so.
+     */
+    private static Load loadDrones(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {
+        ReadyRack rack = box.getReadyRack();
+        if (rack == null)
+            return Load.NOTHING;
+        if (!rack.serves(fighter))
+            return new Load(0, 0, fighter.getName() + ": this box's ready rack services "
+                    + rack.getServesFighterType() + ", not " + fighter.getClass().getSimpleName()
+                    + " (J4.8222)");
+
+        int budget = halfActionBudget;
+        int loaded = 0;
+        for (DroneRail rail : railsOf(fighter)) {
+            if (rail.getDrone() != null)
+                continue;
+            int cost = droneRailHalfActions(rail);
+            if (budget < cost)
+                break;
+            com.sfb.objects.Drone drone = rack.take();
+            if (drone == null)
+                break;
+            rail.loadDrone(drone);
+            budget -= cost;
+            loaded++;
+        }
+
+        if (loaded == 0)
+            return rack.isEmpty()
+                    ? new Load(0, 0, fighter.getName() + ": ready rack empty, not reloaded (J4.822)")
+                    : Load.NOTHING;
+
+        return new Load(halfActionBudget - budget, loaded, fighter.getName() + ": " + loaded
+                + " drone" + (loaded == 1 ? "" : "s") + " loaded, " + rack.count()
+                + " left in the ready rack (J4.82)");
+    }
+
+    private static java.util.List<DroneRail> railsOf(Shuttle fighter) {
+        java.util.List<DroneRail> rails = new java.util.ArrayList<>();
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail)
+                rails.add(rail);
+        return rails;
     }
 
     private static Load loadHellbore(ShuttleSpace box, Shuttle fighter, FighterHellbore hellbore,
@@ -221,9 +287,49 @@ public final class FighterArming {
                 ff.drainCharges();
             }
         }
-        if (returned > 0)
+        if (returned > 0) {
             box.setCapacitorCharges(box.getCapacitorCharges() + returned);
+            return returned;
+        }
+
+        // Drones go back in the box's own ready rack (J4.8223: the resting state of a carrier
+        // is racks full and fighters unloaded), never on the floor.
+        ReadyRack rack = box.getReadyRack();
+        if (rack == null)
+            return 0;
+        for (DroneRail rail : railsOf(fighter)) {
+            com.sfb.objects.Drone drone = rail.getDrone();
+            if (drone == null || !rack.put(drone))
+                continue;
+            rail.setAmmo(new java.util.ArrayList<>());
+            returned++;
+        }
         return returned;
+    }
+
+    /**
+     * Fill a fighter's weapons outright, with no budget and no supply (S4.13, and test setup).
+     * <p>
+     * Weapon status is the one thing that arms a fighter without a deck crew action: at WS-3
+     * "the fighters are loaded but the weapons were taken from the ready racks" (J4.8224). The
+     * taking is the CALLER's job — {@link ShuttleSpace#armOccupantFully()} does it by
+     * re-deriving the box's contents around the armed fighter, which is the same subtraction
+     * that balances the books at every other weapon status.
+     * <p>
+     * Kept deliberately narrow: this is the only way into a fighter's weapons that does not go
+     * through a box, and it exists so that setup and tests need not invent a second one.
+     */
+    public static void armFully(Shuttle fighter) {
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
+            if (w instanceof FighterHellbore hb)
+                hb.reload();
+            else if (w instanceof FighterFusion ff)
+                while (ff.loadCharge()) { /* to the top */ }
+            else if (w instanceof DroneRail rail && rail.getDrone() == null
+                    && fighter instanceof com.sfb.objects.shuttles.Fighter f
+                    && f.getDefaultDroneType() != null)
+                rail.loadDrone(new com.sfb.objects.Drone(f.getDefaultDroneType()));
+        }
     }
 
     // -------------------------------------------------------------------------

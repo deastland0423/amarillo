@@ -74,21 +74,17 @@ public class FighterRearmTest {
     }
 
     @Test
-    public void aFighterThatStartsArmedTookItsChargesOutOfItsOwnBox() {
-        // A freshly built Stinger-1 is armed: two charges in each of two fusions.
-        ShuttleSpace armed = bayOfStingers(1).getSpaces().get(0);
-        assertEquals(4, chargesOn(armed.getShuttle()));
-        assertEquals("J4.886 starts the box full, and the four charges the fighter is already"
-                + " holding came from it — one reload left behind, not two",
-                4, armed.getCapacitorCharges());
+    public void aFighterAndItsBoxAccountForOneCapacitorBetweenThem() {
+        // J4.8223's resting state: the box full, the fighter empty.
+        ShuttleSpace box = bayOfStingers(1).getSpaces().get(0);
+        assertEquals(0, chargesOn(box.getShuttle()));
+        assertEquals("J4.886 starts the capacitor full", 8, box.getCapacitorCharges());
 
-        // A fighter that starts UNARMED, which is what Weapon Status will mean for most of
-        // them (J4.8224), leaves its box full.
-        Stinger1 unarmed = new Stinger1();
-        unarmed.setName("Unarmed");
-        spendEverything(unarmed);
-        ShuttleSpace box = new ShuttleSpace(unarmed);
-        assertEquals("nothing was drawn, so nothing is missing", 8, box.getCapacitorCharges());
+        // Arm it — weapon status, or a deck crew — and the charges come out of that box.
+        box.armOccupantFully();
+
+        assertEquals(4, chargesOn(box.getShuttle()));
+        assertEquals("one reload left behind, not two (J4.8224)", 4, box.getCapacitorCharges());
     }
 
     @Test
@@ -98,7 +94,10 @@ public class FighterRearmTest {
         ShuttleSpace box = new ShuttleSpace(sh);
 
         assertEquals("a hellbore box holds one charge (J4.834)", 1, box.capacitorCapacity());
-        assertEquals("and the armed fighter is carrying it", 0, box.getCapacitorCharges());
+        assertEquals("which starts in the box (J4.8223)", 1, box.getCapacitorCharges());
+
+        box.armOccupantFully();
+        assertEquals("and an armed fighter is carrying it", 0, box.getCapacitorCharges());
     }
 
     @Test
@@ -110,8 +109,8 @@ public class FighterRearmTest {
         ShuttleBay.RearmResult result = bay.rearmFighters(2, 2);
 
         assertEquals("both fusions back to two charges (J4.833)", 4, chargesOn(box.getShuttle()));
-        assertEquals("the reload the armed fighter left behind, now spent too (J4.881)",
-                0, box.getCapacitorCharges());
+        assertEquals("four of the box's eight went into it (J4.881)",
+                4, box.getCapacitorCharges());
         assertEquals("two deck crews, two half-actions each", 2, result.crewsUsed());
         assertEquals(1, result.log().size());
     }
@@ -175,6 +174,7 @@ public class FighterRearmTest {
     @Test
     public void aHalfEmptyStingerLeavesACrewForTheNextFighter() {
         ShuttleBay bay = bayOfStingers(2);
+        bay.getSpaces().get(0).armOccupantFully();
         fusionsOf(bay.getSpaces().get(0).getShuttle()).get(0).drainCharges();  // two short
         spendEverything(bay.getSpaces().get(1).getShuttle());                  // four short
 
@@ -206,27 +206,28 @@ public class FighterRearmTest {
             if (w instanceof FighterHellbore h)
                 hb = h;
         assertNotNull("a Stinger-H carries a hellbore", hb);
-        hb.fireDirect(5);
-        assertTrue("fired once, and spent until reloaded", hb.isSpent());
+        assertTrue("built empty, with its charge in the box (J4.8223)", hb.isSpent());
 
-        // It started armed, so its box was empty before it even fired: there is nothing for
-        // the deck crew to fetch until the ship has paid for a charge.
-        ShuttleBay.RearmResult dry = bay.rearmFighters(2, 2);
+        // A deck crew fetches that charge: one whole action, so one crew (J4.834).
+        ShuttleBay.RearmResult loaded = bay.rearmFighters(2, 2);
+        assertFalse("loaded from the box's own capacitor (J4.881)", hb.isSpent());
+        assertEquals(1, loaded.crewsUsed());
+        assertEquals("which empties the box", 0, box.getCapacitorCharges());
+
+        // Fire it and the box has nothing left to offer until the ship pays.
+        hb.fireDirect(5);
+        ShuttleBay.RearmResult dry = bay.rearmFighters(3, 2);
         assertTrue("the empty box is reported rather than quietly ignored: " + dry.log(),
                 dry.log().get(0).contains("capacitor empty"));
         assertTrue(hb.isSpent());
         assertEquals("and no crew was spent on it", 0, dry.crewsUsed());
 
-        // Two points on each of two turns (J4.834).
+        // Two points on each of two turns (J4.834), and the crew can work again.
         box.addCapacitorEnergy(2);
         box.addCapacitorEnergy(2);
         assertEquals(1, box.getCapacitorCharges());
-
-        ShuttleBay.RearmResult loaded = bay.rearmFighters(4, 2);
-        assertFalse("reloaded from the box's own capacitor (J4.881)", hb.isSpent());
-        assertEquals("a hellbore charge is one whole action, so one crew (J4.834)",
-                1, loaded.crewsUsed());
-        assertEquals("which empties the box again", 0, box.getCapacitorCharges());
+        bay.rearmFighters(4, 2);
+        assertFalse(hb.isSpent());
     }
 
     @Test
@@ -268,7 +269,8 @@ public class FighterRearmTest {
         StingerH sh = new StingerH();
         sh.setName("StingerH-1");
         bay.addSpace(new ShuttleSpace(sh));
-        ShuttleSpace box = bay.getSpaces().get(0);   // armed fighter, so the box starts empty
+        ShuttleSpace box = bay.getSpaces().get(0);
+        box.armOccupantFully();   // the charge moves to the fighter, leaving the box empty
 
         assertEquals("J4.834 takes two points a turn and no more", 2, box.capacitorPowerWanted());
         assertEquals("a bigger allocation cannot rush it", 2, box.addCapacitorEnergy(4));
@@ -316,9 +318,12 @@ public class FighterRearmTest {
     @Test
     public void anArmedSquadronStillHasOneReloadToBuyBack() {
         Shuttles group = new Shuttles(null);
-        group.getBays().add(bayOfStingers(2));   // both fighters armed from their own boxes
+        ShuttleBay bay = bayOfStingers(2);
+        for (ShuttleSpace box : bay.getSpaces())
+            box.armOccupantFully();              // as weapon status would
+        group.getBays().add(bay);
 
-        assertEquals("each box gave away four of its eight (J4.886), so eight points buy"
+        assertEquals("each box gave away four of its eight (J4.8224), so eight points buy"
                 + " the pair of them back up", 8, group.capacitorPowerWanted());
     }
 

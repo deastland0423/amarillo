@@ -51,12 +51,17 @@ public class FighterArmingTest {
         assertTrue("no fighter in the catalogue yet exceeds the two actions one crew-turn pair"
                 + " delivers", stinger <= 2);
 
-        Stinger1 half = new Stinger1();
-        fusionsOf(half).get(0).drainCharges();
-        assertEquals("two charges missing is one action of work", 2,
-                FighterArming.halfActionsOutstanding(half));
+        Stinger1 fresh = new Stinger1();
+        assertEquals("a fighter is built empty, so all of it is outstanding (J4.8223)", 4,
+                FighterArming.halfActionsOutstanding(fresh));
+
+        FighterArming.armFully(fresh);
         assertEquals("a full fighter costs nothing", 0,
-                FighterArming.halfActionsOutstanding(new Stinger1()));
+                FighterArming.halfActionsOutstanding(fresh));
+
+        fusionsOf(fresh).get(0).drainCharges();
+        assertEquals("two charges missing is one action of work", 2,
+                FighterArming.halfActionsOutstanding(fresh));
     }
 
     @Test
@@ -64,8 +69,8 @@ public class FighterArmingTest {
         StingerH sh = new StingerH();
         sh.setName("StingerH-1");
         ShuttleSpace box = new ShuttleSpace(sh);
-        hellboreOf(sh).fireDirect(5);
-        box.setCapacitorCharges(1);
+        assertTrue("built empty (J4.8223)", hellboreOf(sh).isSpent());
+        assertEquals("so its box holds the charge", 1, box.getCapacitorCharges());
 
         // J4.8174: an action that cannot be completed earns nothing, so half of one is wasted
         // rather than banked.
@@ -107,7 +112,9 @@ public class FighterArmingTest {
     @Test
     public void disarmingAFighterPutsItsChargesBackInTheBox() {
         ShuttleSpace box = new ShuttleSpace(named(new Stinger1(), "Stinger-1"));
-        assertEquals("armed at build, so one reload left behind", 4, box.getCapacitorCharges());
+        box.armOccupantFully();
+        assertEquals("armed from its own box, so one reload left behind",
+                4, box.getCapacitorCharges());
 
         int returned = FighterArming.disarm(box, box.getShuttle());
 
@@ -122,6 +129,7 @@ public class FighterArmingTest {
     @Test
     public void disarmingAHellboreFighterFillsItsOneChargeBox() {
         ShuttleSpace box = new ShuttleSpace(named(new StingerH(), "StingerH-1"));
+        box.armOccupantFully();
         assertEquals("the armed fighter is carrying the box's only charge",
                 0, box.getCapacitorCharges());
 
@@ -132,16 +140,65 @@ public class FighterArmingTest {
     }
 
     @Test
-    public void aDroneArmedFighterIsLeftAloneUntilItsReadyRackExists() {
+    public void aDroneFighterIsArmedFromItsOwnReadyRack() {
         ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
-        assertEquals("no capacitor behind a drone fighter", 0, box.capacitorCapacity());
 
-        // J4.82 moves drones stores → ready rack → fighter, and we model neither. Both
-        // directions refuse rather than inventing or discarding drones: dropping them is how
-        // an untracked supply becomes an infinite one.
-        assertNull(FighterArming.load(box, box.getShuttle(), 4).note());
-        assertEquals(0, FighterArming.disarm(box, box.getShuttle()));
-        assertEquals("its rails are still loaded", 2, loadedRails(box.getShuttle()));
+        // J4.822: a box built for a drone fighter has a rack. J4.8223: it starts full and
+        // the fighter starts empty.
+        assertNotNull("the box has a ready rack", box.getReadyRack());
+        assertEquals("one reload, not two — J4.8222 holds what the fighter carries",
+                2, box.getReadyRack().capacity());
+        assertEquals(2, box.getReadyRack().count());
+        assertEquals("rails empty until a strike is called", 0, loadedRails(box.getShuttle()));
+
+        // Two drone spaces at a whole action each (J4.82).
+        FighterArming.Load load = FighterArming.load(box, box.getShuttle(), 4);
+        assertEquals(2, load.chargesLoaded());
+        assertEquals(4, load.halfActionsUsed());
+        assertEquals(2, loadedRails(box.getShuttle()));
+        assertEquals("the rack paid for them", 0, box.getReadyRack().count());
+
+        // And an empty rack says so rather than inventing a drone.
+        assertTrue(FighterArming.load(box, box.getShuttle(), 4).note() == null
+                || FighterArming.load(box, box.getShuttle(), 4).note().contains("empty"));
+    }
+
+    @Test
+    public void unloadingADroneFighterPutsTheDronesBackInItsRack() {
+        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        FighterArming.load(box, box.getShuttle(), 4);
+        assertEquals(0, box.getReadyRack().count());
+
+        assertEquals(2, FighterArming.disarm(box, box.getShuttle()));
+
+        assertEquals("J4.8223's resting state: rack full, fighter unloaded",
+                2, box.getReadyRack().count());
+        assertEquals(0, loadedRails(box.getShuttle()));
+    }
+
+    @Test
+    public void aRackWillNotServeAFighterItWasNotBuiltFor() {
+        // J4.8222: each rack is designed for a specific type of fighter.
+        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        com.sfb.objects.shuttles.Haas stranger =
+                (com.sfb.objects.shuttles.Haas) named(new com.sfb.objects.shuttles.Haas(), "HAAS-1");
+
+        FighterArming.Load load = FighterArming.load(box, stranger, 4);
+
+        assertEquals("nothing loaded", 0, load.chargesLoaded());
+        assertTrue("and it says why: " + load.note(),
+                load.note() != null && load.note().contains("J4.8222"));
+        assertEquals("the AAS's drones are untouched", 2, box.getReadyRack().count());
+    }
+
+    @Test
+    public void aDestroyedBoxTakesItsReadyRackWithIt() {
+        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+
+        box.destroy();
+
+        assertEquals("stores die with the box, drones as well as charges (J4.831)",
+                0, box.getReadyRack().count());
     }
 
     // -------------------------------------------------------------------------

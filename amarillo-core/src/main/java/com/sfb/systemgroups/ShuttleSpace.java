@@ -35,7 +35,12 @@ public class ShuttleSpace {
 
     private Shuttle shuttle;
     private DroneRack droneRack;    // bay-mounted drone rack (D12.3)
-    private boolean hasReadyRack;   // ready service rack in this space
+    /**
+     * The drone ready rack built into this box (J4.822), or null if it was never a
+     * drone-fighter box. Learned from the first fighter seated, like the capacitor, and for
+     * the same reason: the SSD marks the BOX, so an empty box must not lose its stores.
+     */
+    private ReadyRack readyRack;
     private int deckCrews;          // crew currently working here; killed on destruction
 
     /**
@@ -109,6 +114,8 @@ public class ShuttleSpace {
         this.capacitorCharges = 0;
         this.capacitorCapacity = 0;
         this.capacitorEnergyBanked = 0;
+        if (readyRack != null)
+            readyRack.destroy();   // J4.831's rule for capacitors, applied to the stores
         destroyed = true;
         deckCrews = 0;
         droneRack = null;
@@ -131,13 +138,48 @@ public class ShuttleSpace {
                 capacitorCharges = Math.max(0,
                         capacitorCapacity - FighterArming.chargesCarriedBy(shuttle));
         }
+        // The drone half of the same idea (J4.822). A rack starts full and a fighter starts
+        // empty (J4.8223), so anything the fighter IS holding came out of this rack and is
+        // taken back off the top — the same books the capacitor keeps.
+        if (readyRack == null && !destroyed) {
+            readyRack = ReadyRack.forFighter(shuttle);
+            if (readyRack != null)
+                for (int i = FighterArming.dronesCarriedBy(shuttle); i > 0; i--)
+                    readyRack.take();
+        }
     }
 
     public DroneRack getDroneRack() { return droneRack; }
     public void setDroneRack(DroneRack droneRack) { this.droneRack = droneRack; }
 
-    public boolean isHasReadyRack() { return hasReadyRack; }
-    public void setHasReadyRack(boolean hasReadyRack) { this.hasReadyRack = hasReadyRack; }
+    /**
+     * Arm this box's fighter to the top and take what that cost out of the box's own stores
+     * (S4.13 / J4.8224).
+     * <p>
+     * The books are kept by re-deriving rather than by bookkeeping: a full capacitor less what
+     * the fighter now holds, a full rack less the drones now on its rails. Same rule as when
+     * the box was first stocked, so the invariant — fighter plus box equals one load — cannot
+     * drift apart from the thing that establishes it.
+     */
+    public void armOccupantFully() {
+        if (destroyed || shuttle == null)
+            return;
+        FighterArming.armFully(shuttle);
+        capacitorCharges = Math.max(0,
+                capacitorCapacity() - FighterArming.chargesCarriedBy(shuttle));
+        if (readyRack != null) {
+            while (!readyRack.isFull())
+                readyRack.put(new com.sfb.objects.Drone(
+                        ((com.sfb.objects.shuttles.Fighter) shuttle).getDefaultDroneType()));
+            for (int i = FighterArming.dronesCarriedBy(shuttle); i > 0; i--)
+                readyRack.take();
+        }
+    }
+
+    /** J4.822: this box was built for a drone-carrying fighter and has the rack to prove it. */
+    public boolean isHasReadyRack() { return readyRack != null; }
+
+    public ReadyRack getReadyRack() { return readyRack; }
 
     public int getDeckCrews() { return deckCrews; }
     public void setDeckCrews(int deckCrews) { this.deckCrews = deckCrews; }

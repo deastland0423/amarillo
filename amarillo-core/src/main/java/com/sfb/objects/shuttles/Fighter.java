@@ -24,8 +24,26 @@ public abstract class Fighter extends Shuttle {
     private boolean tacticalManeuverUsed = false;
     private boolean twoSeater = false; // True if this fighter has two seats (e.g. Kzinti AAS_E EW fighter)
 
+    /**
+     * The drone its rails are designed to carry, or null if it carries none.
+     * <p>
+     * A property of the DESIGN, not of what is loaded right now: it is what stocks the ready
+     * rack in this fighter's box (J4.8222, "the same drones that the fighter it is designed to
+     * service carries"). A player choosing a different loadout at setup will change the rack,
+     * not this.
+     */
+    private com.sfb.objects.DroneType defaultDroneType = null;
+
     public Fighter() {
         setChaffPacks(1); // D11.11: most fighters carry one chaff pack
+    }
+
+    public com.sfb.objects.DroneType getDefaultDroneType() {
+        return defaultDroneType;
+    }
+
+    public void setDefaultDroneType(com.sfb.objects.DroneType type) {
+        this.defaultDroneType = type;
     }
 
     public int getEcm() {
