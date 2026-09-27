@@ -319,18 +319,22 @@ public class ShuttleBay {
      * Not modelled yet: crews assigned to a named bay (J4.813), a second crew joining a job at
      * end of turn (J4.823), and the launch lockout on the impulse after a reload (J4.8172).
      *
-     * @param turn           the turn that is ending
-     * @param crewsAvailable deck crews this bay may put to work
+     * Each box works the crews POSTED to it at the start of the turn, rather than drawing on
+     * a pool now: J4.817's action runs for 32 consecutive impulses, so the crews were in that
+     * box the whole time. Which is what lets J4.811 kill them when the box is shot off, and
+     * what makes a destroyed box's work simply not happen (J4.8174).
+     *
+     * @param turn the turn that is ending
      */
-    public RearmResult rearmFighters(int turn, int crewsAvailable) {
+    public RearmResult rearmFighters(int turn) {
         List<String> log = new ArrayList<>();
-        int crewsLeft = Math.max(0, crewsAvailable);
+        int crewsUsed = 0;
 
         for (ShuttleSpace space : spaces) {
-            if (crewsLeft <= 0)
-                break;
             if (space.isDestroyed() || space.isEmpty())
                 continue;
+            if (space.getDeckCrews() <= 0)
+                continue;   // nobody was posted here, or they died with an earlier hit
             if (!(space.getShuttle() instanceof Fighter fighter))
                 continue;
             // It has to have sat the whole turn. A fighter recovered DURING this turn has not,
@@ -338,11 +342,11 @@ public class ShuttleBay {
             if (space.getOccupiedSinceTurn() >= turn)
                 continue;
 
-            RearmResult one = rearmOne(space, fighter, crewsLeft);
+            RearmResult one = rearmOne(space, fighter, space.getDeckCrews());
             log.addAll(one.log());
-            crewsLeft -= one.crewsUsed();
+            crewsUsed += one.crewsUsed();
         }
-        return new RearmResult(log, Math.max(0, crewsAvailable) - Math.max(0, crewsLeft));
+        return new RearmResult(log, crewsUsed);
     }
 
     /**

@@ -165,6 +165,54 @@ public class Shuttles implements Systems {
     }
 
     /**
+     * Post the ship's deck crews to the fighter boxes they will work in this turn (J4.817).
+     * <p>
+     * Done at the start of the turn, not the end, because that is when the rules have them
+     * start: an action is 32 consecutive impulses, so a crew is IN a box for the whole turn.
+     * Two consequences follow that could not before. A box shot off mid-turn kills the crews
+     * posted to it (J4.811), and their work simply does not happen (J4.8174: interrupted is
+     * cancelled, no partial credit).
+     * <p>
+     * It also makes the posting a bet. A fighter its crews are working on cannot be launched
+     * without throwing that work away, which is the tension J4.8172 is describing.
+     * <p>
+     * Who gets them is first-come down the bays, the same order everything else uses, and a
+     * real captain's choice that belongs to the player once the hangar panel can take it.
+     *
+     * @param available crews free after Energy Allocation took its share (scatter packs)
+     * @return crews left unposted
+     */
+    public int postDeckCrews(int available) {
+        int left = Math.max(0, available);
+        for (ShuttleBay bay : bays) {
+            for (ShuttleSpace box : bay.getSpaces()) {
+                box.setDeckCrews(0);
+                if (left <= 0 || box.isDestroyed() || box.isEmpty())
+                    continue;
+                if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
+                    continue;
+                int wanted = crewsWantedBy(fighter);
+                if (wanted == 0)
+                    continue;
+                int posted = Math.min(wanted, left);
+                box.setDeckCrews(posted);
+                left -= posted;
+            }
+        }
+        return left;
+    }
+
+    /** Crews this fighter's outstanding work could use, at most the two J4.8172 allows. */
+    private static int crewsWantedBy(com.sfb.objects.shuttles.Shuttle fighter) {
+        int half = FighterArming.halfActionsOutstanding(fighter);
+        if (half <= 0)
+            return 0;
+        int actions = (half + FighterArming.HALF_ACTIONS_PER_ACTION - 1)
+                / FighterArming.HALF_ACTIONS_PER_ACTION;
+        return Math.min(2, actions);
+    }
+
+    /**
      * End-of-turn fighter rearming (J4.83), one pass over every bay.
      * <p>
      * The ship's deck crews are a single pool shared by the bays: J4.813 assigns each crew to
@@ -173,19 +221,18 @@ public class Shuttles implements Systems {
      */
     private void rearmFighters() {
         lastRearmLog.clear();
-        if (clock == null || !(owningUnit instanceof com.sfb.objects.Ship ship))
+        if (clock == null)
             return;
-        // Crews still loose at end of turn — the ones that spent the turn loading a scatter
-        // pack are not available to also rearm a fighter.
-        int crewsLeft = ship.getCrew().getAvailableDeckCrews();
         int turn = clock.getTurn();
         for (ShuttleBay bay : bays) {
-            if (crewsLeft <= 0)
-                break;
-            ShuttleBay.RearmResult result = bay.rearmFighters(turn, crewsLeft);
+            ShuttleBay.RearmResult result = bay.rearmFighters(turn);
             lastRearmLog.addAll(result.log());
-            crewsLeft -= result.crewsUsed();
         }
+        // The posting lasted the turn; the crews stand down with it. J4.817 actions that span
+        // turns are the part of the rule we do not model — see ShuttleBay.rearmFighters.
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace box : bay.getSpaces())
+                box.setDeckCrews(0);
     }
 
     // -------------------------------------------------------------------------

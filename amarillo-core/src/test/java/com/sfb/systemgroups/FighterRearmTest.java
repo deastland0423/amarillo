@@ -54,6 +54,23 @@ public class FighterRearmTest {
             ff.drainCharges();
     }
 
+    /**
+     * Post crews to every box that wants work, as Ship.startTurn() does at the start of a
+     * turn. The tests that follow are about what the crews then DO, so they say how many the
+     * ship had and let the posting sort out where they went.
+     */
+    private static int post(ShuttleBay bay, int crews) {
+        Shuttles group = new Shuttles(null);
+        group.getBays().add(bay);
+        return group.postDeckCrews(crews);
+    }
+
+    /** Post the crews, then run the end-of-turn pass — one line, as a real turn does both. */
+    private static ShuttleBay.RearmResult postAndRearm(ShuttleBay bay, int turn, int crews) {
+        post(bay, crews);
+        return bay.rearmFighters(turn);
+    }
+
     private static int chargesOn(Shuttle f) {
         int total = 0;
         for (FighterFusion ff : fusionsOf(f))
@@ -106,7 +123,7 @@ public class FighterRearmTest {
         ShuttleSpace box = bay.getSpaces().get(0);
         spendEverything(box.getShuttle());
 
-        ShuttleBay.RearmResult result = bay.rearmFighters(2, 2);
+        ShuttleBay.RearmResult result = postAndRearm(bay, 2, 2);
 
         assertEquals("both fusions back to two charges (J4.833)", 4, chargesOn(box.getShuttle()));
         assertEquals("four of the box's eight went into it (J4.881)",
@@ -122,13 +139,13 @@ public class FighterRearmTest {
         box.setCapacitorCharges(8);   // as if the ship had paid to fill it (J4.832)
 
         spendEverything(box.getShuttle());
-        bay.rearmFighters(2, 2);
+        postAndRearm(bay, 2, 2);
         spendEverything(box.getShuttle());
-        bay.rearmFighters(3, 2);
+        postAndRearm(bay, 3, 2);
         assertEquals("that was the second of the two reloads", 0, box.getCapacitorCharges());
 
         spendEverything(box.getShuttle());
-        ShuttleBay.RearmResult third = bay.rearmFighters(4, 2);
+        ShuttleBay.RearmResult third = postAndRearm(bay, 4, 2);
 
         assertEquals("nothing left to load with — the ship must pay to refill it (J4.832)",
                 0, chargesOn(box.getShuttle()));
@@ -148,10 +165,10 @@ public class FighterRearmTest {
         bay.addShuttle(landed, 3);
 
         assertTrue("nothing is done to a fighter that only just landed (J4.8174)",
-                bay.rearmFighters(3, 2).log().isEmpty());
+                postAndRearm(bay, 3, 2).log().isEmpty());
         assertEquals(0, chargesOn(landed));
 
-        bay.rearmFighters(4, 2);
+        postAndRearm(bay, 4, 2);
         assertEquals("it sits out the turn it landed and is rearmed on the next",
                 4, chargesOn(landed));
     }
@@ -162,7 +179,7 @@ public class FighterRearmTest {
         for (ShuttleSpace box : bay.getSpaces())
             spendEverything(box.getShuttle());
 
-        ShuttleBay.RearmResult result = bay.rearmFighters(2, 2);
+        ShuttleBay.RearmResult result = postAndRearm(bay, 2, 2);
 
         assertEquals(4, chargesOn(bay.getSpaces().get(0).getShuttle()));
         assertEquals("a full Stinger reload is two actions, and a ship of two crews has"
@@ -178,7 +195,7 @@ public class FighterRearmTest {
         fusionsOf(bay.getSpaces().get(0).getShuttle()).get(0).drainCharges();  // two short
         spendEverything(bay.getSpaces().get(1).getShuttle());                  // four short
 
-        ShuttleBay.RearmResult result = bay.rearmFighters(2, 2);
+        ShuttleBay.RearmResult result = postAndRearm(bay, 2, 2);
 
         assertEquals("one crew covers two charges", 4,
                 chargesOn(bay.getSpaces().get(0).getShuttle()));
@@ -209,14 +226,14 @@ public class FighterRearmTest {
         assertTrue("built empty, with its charge in the box (J4.8223)", hb.isSpent());
 
         // A deck crew fetches that charge: one whole action, so one crew (J4.834).
-        ShuttleBay.RearmResult loaded = bay.rearmFighters(2, 2);
+        ShuttleBay.RearmResult loaded = postAndRearm(bay, 2, 2);
         assertFalse("loaded from the box's own capacitor (J4.881)", hb.isSpent());
         assertEquals(1, loaded.crewsUsed());
         assertEquals("which empties the box", 0, box.getCapacitorCharges());
 
         // Fire it and the box has nothing left to offer until the ship pays.
         hb.fireDirect(5);
-        ShuttleBay.RearmResult dry = bay.rearmFighters(3, 2);
+        ShuttleBay.RearmResult dry = postAndRearm(bay, 3, 2);
         assertTrue("the empty box is reported rather than quietly ignored: " + dry.log(),
                 dry.log().get(0).contains("capacitor empty"));
         assertTrue(hb.isSpent());
@@ -226,7 +243,7 @@ public class FighterRearmTest {
         box.addCapacitorEnergy(2);
         box.addCapacitorEnergy(2);
         assertEquals(1, box.getCapacitorCharges());
-        bay.rearmFighters(4, 2);
+        postAndRearm(bay, 4, 2);
         assertFalse(hb.isSpent());
     }
 
@@ -368,6 +385,7 @@ public class FighterRearmTest {
         game.getShips().add(rn);
         game.startTurn();               // attaches the clock the rearm pass reads
         game.getClock().nextImpulse();  // and put it on the first impulse of turn 0
+        rn.startTurn();                 // as beginImpulses() does: the crews take their posts
 
         List<Shuttle> stingers = new ArrayList<>();
         for (ShuttleBay bay : rn.getShuttles().getBays())

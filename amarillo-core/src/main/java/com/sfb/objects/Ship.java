@@ -465,6 +465,10 @@ public class Ship extends Unit implements DroneController {
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
 
+		// Deck crews take up their posts for the turn (J4.817). After the allocation, so the
+		// crews that spent it loading a scatter pack are already spoken for.
+		crew.setAvailableDeckCrews(shuttles.postDeckCrews(crew.getAvailableDeckCrews()));
+
 		// Fighter box capacitors (J4.832): the ship buys charges back into the boxes, and
 		// only a box can arm the fighter sitting in it (J4.881).
 		if (energyAllocated.getFighterCapacitors() > 0) {
