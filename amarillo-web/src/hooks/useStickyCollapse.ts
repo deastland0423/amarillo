@@ -34,15 +34,19 @@ function browserStore(): FlagStore | null {
  * storage, a value written by some older version — reads as "never been set", which is
  * collapsed.
  */
-export function readCollapsed(key: string, store: FlagStore | null = browserStore()): boolean {
-  if (store === null) return true;
+export function readCollapsed(
+  key: string,
+  store: FlagStore | null = browserStore(),
+  whenUnset = true,
+): boolean {
+  if (store === null) return whenUnset;
   try {
     const raw = store.getItem(key);
     if (raw === 'true') return true;
     if (raw === 'false') return false;
-    return true;
+    return whenUnset;
   } catch {
-    return true;
+    return whenUnset;
   }
 }
 
@@ -55,8 +59,16 @@ export function writeCollapsed(
   catch { /* storage blocked; the panel forgets its size */ }
 }
 
-export function useStickyCollapse(storageKey: string): [boolean, (next: boolean) => void] {
-  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsed(storageKey));
+/**
+ * @param whenUnset how it starts before anyone has chosen — collapsed for a panel nobody
+ *                  has touched, but a section that IS the point of its panel may start open.
+ */
+export function useStickyCollapse(
+  storageKey: string,
+  whenUnset = true,
+): [boolean, (next: boolean) => void] {
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => readCollapsed(storageKey, browserStore(), whenUnset));
 
   useEffect(() => { writeCollapsed(storageKey, collapsed); }, [storageKey, collapsed]);
 

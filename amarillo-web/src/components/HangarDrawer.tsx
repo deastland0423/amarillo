@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { ShipObject } from '../types/gameState';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 
@@ -106,6 +107,34 @@ function jobRows(boxes: BoxRow[]): JobRow[] {
   return rows;
 }
 
+/**
+ * One section of the panel, remembered open or closed.
+ *
+ * The summary is the point: a closed section has to say whether it was worth opening, or the
+ * player pays for the tidiness by checking each one every turn. Same reason the tab carries a
+ * count.
+ */
+function Section({ title, colour, summary, storageKey, startOpen = false, children }: {
+  title: string;
+  colour: string;
+  summary?: string;
+  storageKey: string;
+  startOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [collapsed, setCollapsed] = useStickyCollapse(storageKey, !startOpen);
+  return (
+    <div className="hangar-section">
+      <button className="hangar-section-head" style={{ color: colour }}
+        onClick={() => setCollapsed(!collapsed)}>
+        <span>{collapsed ? '▶' : '▼'} {title}</span>
+        {summary && <span className="hangar-section-summary">{summary}</span>}
+      </button>
+      {!collapsed && <div className="hangar-section-body">{children}</div>}
+    </div>
+  );
+}
+
 export function HangarDrawer({
   ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings,
   packLoading, onPackLoading, suicideArming, suicideHold, onSuicide,
@@ -164,6 +193,25 @@ export function HangarDrawer({
   // counter neither screen showed.
   const packCrews = Object.values(packLoading ?? {}).reduce((a, sel) => a + spacesIn(sel), 0);
   const crewsFree = Math.max(0, crews - postedTotal - packCrews);
+
+  // What each closed section says about itself. A section that cannot tell you whether it was
+  // worth opening costs the player a click every turn to find out.
+  const capsShort = capacitorBoxes.filter(b => b.charges < b.capacity).length;
+  const suicideSummary = (() => {
+    const armed = suicideCandidates.filter(s => (s.armingTurnsComplete ?? 0) >= 3).length;
+    const arming = suicideCandidates.filter(
+      s => (s.armingTurnsComplete ?? 0) > 0 && (s.armingTurnsComplete ?? 0) < 3).length;
+    if (armed > 0) return `${armed} armed`;
+    if (arming > 0) return `${arming} arming`;
+    return `${suicideCandidates.length} available`;
+  })();
+  const wwSummary = (() => {
+    const ready = wwCandidates.filter(s => s.wwReady).length;
+    const priming = wwCandidates.filter(s => !s.wwReady && (s.wwChargeCount ?? 0) > 0).length;
+    if (ready > 0) return `${ready} ready`;
+    if (priming > 0) return `${priming} priming`;
+    return 'none charged';
+  })();
 
   function post(jobKey: string, n: number) {
     const next = { ...crewPostings };
@@ -235,9 +283,8 @@ export function HangarDrawer({
 
           <div className="hangar-drawer-body">
             {/* ---- Deck crews (J4.817) ---- */}
-            <div className="ea-section-title" style={{ color: '#f0c040' }}>
-              Deck Crews — {crewsFree} of {crews} free
-            </div>
+            <Section title="Deck Crews" colour="#f0c040" storageKey="hangar-crews" startOpen
+              summary={`${crewsFree} of ${crews} free`}>
             <div className="ea-note">
               A crew posted to a job works it all turn: two crews reload a Stinger, one a
               hellbore (J4.833/J4.834). Two may work the same fighter at different jobs, but
@@ -282,12 +329,11 @@ export function HangarDrawer({
               </table>
             )}
 
+            </Section>
+
             {canLoadPacks && (
-              <>
-                <div className="ea-section-title"
-                     style={{ color: '#79c0ff', marginTop: '0.6rem' }}>
-                  Scatter Packs
-                </div>
+              <Section title="Scatter Packs" colour="#79c0ff" storageKey="hangar-packs"
+                summary={packCrews > 0 ? `${packCrews} crew(s) loading` : `${packs.length} aboard`}>
                 <div className="ea-note">
                   A crew loads one rack space onto a pack (FD7.22), drawn from the drone racks'
                   reload sets — so every drone here is a crew not reloading a fighter above,
@@ -333,13 +379,13 @@ export function HangarDrawer({
                     </div>
                   );
                 })}
-              </>
+              </Section>
             )}
 
           {/* Suicide Shuttle Arming */}
           {suicideCandidates.length > 0 && (
-            <div className="ea-section">
-              <div className="ea-section-title" style={{ color: '#ff6060' }}>Suicide Shuttle Arming</div>
+            <Section title="Suicide Shuttle Arming" colour="#ff6060" storageKey="hangar-suicide"
+              summary={suicideSummary}>
               <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
               {suicideCandidates.map(s => {
                 const turns = s.armingTurnsComplete ?? 0;
@@ -384,13 +430,13 @@ export function HangarDrawer({
                   );
                 }
               })}
-            </div>
+            </Section>
           )}
 
           {/* Wild Weasel Charging */}
           {wwCandidates.length > 0 && (
-            <div className="ea-section">
-              <div className="ea-section-title" style={{ color: '#a78bfa' }}>Wild Weasel Charging</div>
+            <Section title="Wild Weasel Charging" colour="#a78bfa" storageKey="hangar-ww"
+              summary={wwSummary}>
               <div className="ea-note">Pay 1 energy/turn for 2 consecutive turns to ready a WW decoy (J3.12).</div>
               {wwCandidates.map(s => {
                 const charge = s.wwChargeCount ?? 0;
@@ -428,12 +474,11 @@ export function HangarDrawer({
                   </div>
                 );
               })}
-            </div>
+            </Section>
           )}
 
-            <div className="ea-section-title" style={{ color: '#7ee0a8', marginTop: '0.6rem' }}>
-              Weapon Capacitors
-            </div>
+            <Section title="Weapon Capacitors" colour="#7ee0a8" storageKey="hangar-caps"
+              summary={capsShort > 0 ? `${capsShort} box(es) short` : 'all full'}>
             <div className="ea-note">
               Each box has its own capacitor and can only arm the fighter in it (J4.881), so
               buy them one at a time. A fusion charge is a point (J4.832); a hellbore box takes
@@ -475,6 +520,7 @@ export function HangarDrawer({
                 )}
               </tbody>
             </table>
+            </Section>
 
             <div className="ea-note hangar-todo">
               Still to come in the crew table: repairing a damaged shuttle (J4.818), loading

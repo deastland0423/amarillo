@@ -60,3 +60,27 @@ describe('sticky collapse', () => {
     expect(() => writeCollapsed('pad', false, null)).not.toThrow();
   });
 });
+
+describe('a section that starts open', () => {
+  it('opens before anyone has chosen, and remembers a choice either way', () => {
+    const store = fakeStore();
+
+    // The panel's main section: open until someone closes it.
+    expect(readCollapsed('crews', store, false)).toBe(false);
+
+    writeCollapsed('crews', true, store);
+    expect(readCollapsed('crews', store, false)).toBe(true);
+
+    writeCollapsed('crews', false, store);
+    expect(readCollapsed('crews', store, false)).toBe(false);
+  });
+
+  it('still starts collapsed where nothing says otherwise', () => {
+    expect(readCollapsed('caps', fakeStore())).toBe(true);
+  });
+
+  it('falls back to the caller default when there is no storage at all', () => {
+    expect(readCollapsed('crews', null, false)).toBe(false);
+    expect(readCollapsed('caps', null)).toBe(true);
+  });
+});

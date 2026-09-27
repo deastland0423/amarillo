@@ -2171,3 +2171,49 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+/* ---- Hangar sections: each collapses, and says what is behind it ---- */
+.hangar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hangar-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  border-top: 1px solid #21262d;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: left;
+}
+
+.hangar-section-head:hover {
+  filter: brightness(1.25);
+}
+
+/* The summary is the reason a closed section is still useful. */
+.hangar-section-summary {
+  color: #8b949e;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hangar-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.3rem;
+}
