@@ -261,6 +261,9 @@ public class GameStateDto {
         public boolean empty;
         public boolean armed;
         public ShuttleInBayDto shuttle; // null if empty or destroyed
+        /** J4.831: charges in this fighter box's capacitor, and what it holds when full. */
+        public int capacitorCharges;
+        public int capacitorCapacity;
     }
 
     public static class ShuttleBayDto {
@@ -291,6 +294,8 @@ public class GameStateDto {
         public double phaserCapacitor;
         public double phaserCapacitorMax;
         public boolean capacitorsCharged;
+        /** J4.832: power the fighter box capacitors could still absorb; 0 = nothing to buy. */
+        public int fighterCapacitorRoom;
         public boolean activeFireControl;
         public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
         public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
@@ -1100,6 +1105,7 @@ public class GameStateDto {
         dto.phaserCapacitor = ship.getWeapons().getPhaserCapacitorEnergy();
         dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged = ship.isCapacitorsCharged();
+        dto.fighterCapacitorRoom = ship.getShuttles().capacitorPowerWanted();
         dto.activeFireControl = ship.isActiveFireControl();
         dto.usingEm = ship.isUsingEm();
         dto.erraticCost = ship.getPerformanceData().getErraticCost();
@@ -1455,6 +1461,8 @@ public class GameStateDto {
                 spaceDto.spaceIndex = j;
                 spaceDto.destroyed = space.isDestroyed();
                 spaceDto.empty = space.isEmpty();
+                spaceDto.capacitorCharges = space.getCapacitorCharges();
+                spaceDto.capacitorCapacity = space.capacitorCapacity();
                 com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
                 if (s != null) {
                     ShuttleInBayDto sd = new ShuttleInBayDto();
@@ -1597,6 +1605,7 @@ public class GameStateDto {
         dto.reserveWarp = 0;
         dto.phaserCapacitor = 0;          // the SSD maximum stays public
         dto.capacitorsCharged = false;
+        dto.fighterCapacitorRoom = 0;     // how spent his fighters are is his business
 
         // Having BOUGHT Erratic Maneuvers is an intention; using them is a manoeuvre
         // everyone can see (C10.11 versus C10.0), so usingEm and the announcement stay.

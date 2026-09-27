@@ -209,8 +209,103 @@ public class FighterRearmTest {
     }
 
     // -------------------------------------------------------------------------
+    // Refilling the capacitors from ship power (J4.832)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void theShipBuysChargesBackIntoTheBoxAtAPointEach() {
+        ShuttleBay bay = bayOfStingers(1);
+        ShuttleSpace box = bay.getSpaces().get(0);
+        box.setCapacitorCharges(0);
+
+        assertEquals("eight points would refill a fusion box (J4.832)", 8,
+                box.capacitorPowerWanted());
+        assertEquals("took what was offered", 3, box.addCapacitorEnergy(3));
+        assertEquals(3, box.getCapacitorCharges());
+        assertEquals(5, box.capacitorPowerWanted());
+
+        assertEquals("a full box takes nothing more", 5, box.addCapacitorEnergy(9));
+        assertEquals(8, box.getCapacitorCharges());
+        assertEquals(0, box.capacitorPowerWanted());
+    }
+
+    @Test
+    public void aHellboreChargeCostsTwoPointsAndTheFirstOneBanks() {
+        ShuttleBay bay = new ShuttleBay(null);
+        StingerH sh = new StingerH();
+        sh.setName("StingerH-1");
+        bay.addSpace(new ShuttleSpace(sh));
+        ShuttleSpace box = bay.getSpaces().get(0);
+        box.setCapacitorCharges(0);
+
+        assertEquals("J4.834 prices the hellbore charge at two points", 2,
+                box.capacitorPowerWanted());
+        box.addCapacitorEnergy(1);
+        assertEquals("one point is not yet a charge", 0, box.getCapacitorCharges());
+        assertEquals(1, box.getCapacitorEnergyBanked());
+
+        box.addCapacitorEnergy(1);
+        assertEquals("the second point completes it", 1, box.getCapacitorCharges());
+        assertEquals(0, box.getCapacitorEnergyBanked());
+    }
+
+    @Test
+    public void theAllocationFillsOneBoxBeforeStartingTheNext() {
+        Shuttles group = new Shuttles(null);
+        ShuttleBay bay = bayOfStingers(2);
+        for (ShuttleSpace box : bay.getSpaces())
+            box.setCapacitorCharges(0);
+        group.getBays().add(bay);
+
+        assertEquals("two empty fusion boxes want sixteen points", 16,
+                group.capacitorPowerWanted());
+        assertEquals(10, group.rechargeCapacitors(10));
+
+        assertEquals("a player paying for charges wants one fighter able to fly a full"
+                + " sortie, not two half-loaded ones",
+                8, bay.getSpaces().get(0).getCapacitorCharges());
+        assertEquals(2, bay.getSpaces().get(1).getCapacitorCharges());
+    }
+
+    @Test
+    public void nothingIsSpentOnBoxesThatAreAlreadyFull() {
+        Shuttles group = new Shuttles(null);
+        group.getBays().add(bayOfStingers(2));
+
+        assertEquals("they start full (J4.886), so there is nothing to buy", 0,
+                group.capacitorPowerWanted());
+        assertEquals(0, group.rechargeCapacitors(8));
+    }
+
+    // -------------------------------------------------------------------------
     // The end-of-turn pass on a real ship
     // -------------------------------------------------------------------------
+
+    @Test
+    public void theEnergyAllocationLineReachesTheFighterBoxes() throws Exception {
+        Ship rn = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/hydran/rn.json")));
+        List<ShuttleSpace> boxes = new ArrayList<>();
+        for (ShuttleBay bay : rn.getShuttles().getBays())
+            for (ShuttleSpace box : bay.getSpaces())
+                if (box.capacitorCapacity() > 0) {
+                    box.setCapacitorCharges(0);
+                    boxes.add(box);
+                }
+        assertEquals("nine fighter boxes, each emptied", 9, boxes.size());
+        assertEquals("nine empty fusion boxes want 72 points (J4.832)",
+                72, rn.getShuttles().capacitorPowerWanted());
+
+        Energy allocation = new Energy();
+        allocation.setFighterCapacitors(9);
+        rn.allocateEnergy(allocation);
+        rn.startTurn();
+
+        assertEquals("the first box took a full eight", 8, boxes.get(0).getCapacitorCharges());
+        assertEquals("and the ninth point started the next one",
+                1, boxes.get(1).getCapacitorCharges());
+        assertEquals(63, rn.getShuttles().capacitorPowerWanted());
+    }
 
     @Test
     public void aHydranCarrierRearmsItsFightersAtTheTurnBoundary() throws Exception {

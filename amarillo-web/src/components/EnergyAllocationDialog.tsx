@@ -59,6 +59,7 @@ interface ShipAlloc {
   suicideArming:        Record<string, number>;   // shuttleName → energy (1–3); 0 = not arming
   suicideHold:          Record<string, boolean>;  // shuttleName → paying hold this turn
   transUses:            number;
+  fighterCaps:          number;   // J4.832: points into the fighter box capacitors
   cloakPaid:            boolean;
   doubleLwarp:          boolean;   // G15.2 engine doubling
   doubleRwarp:          boolean;
@@ -146,6 +147,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
       )
     ),
     transUses:       0,
+    fighterCaps:     0,
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     doubleLwarp:     false,
     doubleRwarp:     false,
@@ -211,6 +213,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const specReinf = alloc.specificReinf.reduce((a, b) => a + b, 0);
   const transCost = ship.transporterEnergyCost ?? 0.2;
   const trans     = alloc.transUses * transCost;
+  const figCaps   = alloc.fighterCaps;        // 1 point a charge (J4.832)
   const cloak     = alloc.cloakPaid ? (ship.cloakCost ?? 0) : 0;
   const recharge  = alloc.batteryRecharge;
   const het       = alloc.hetEnergy;
@@ -228,7 +231,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const esg = Object.values(alloc.esgEnergy).reduce((a, b) => a + b, 0);  // ESG generator charging (G23.21)
   // scout channels: 1 energy per powered channel (G24.14) + the ship's EW-lending pool (G24.211)
   const channels = alloc.poweredChannels.length + alloc.scoutEwPoints;
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels + figCaps;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -430,6 +433,7 @@ export default function EnergyAllocationDialog({
 
   const heavy    = (ship.weapons ?? []).filter(w => w.isHeavy && w.functional);
   const hasTrans = (ship.availableTransporters ?? 0) > 0;
+  const figCapRoom = ship.fighterCapacitorRoom ?? 0;   // J4.832
   // One circuit per point of sensor rating (D6.312), capped at the six points a ship may
   // generate in total (D6.310). A scout's lending pool is separate and not bound by this (G24.31).
   const ewLimit  = Math.min(ship.sensorRating ?? 0, 6);
@@ -505,6 +509,7 @@ export default function EnergyAllocationDialog({
           weaponArming:          a.weaponArming,
           photonArming:          Object.keys(a.photonArming).length > 0 ? a.photonArming : undefined,
           transUses:             a.transUses,
+          fighterCapacitorEnergy: a.fighterCaps,
           cloakPaid:             a.cloakPaid,
           doubleLwarp:           a.doubleLwarp,
           doubleRwarp:           a.doubleRwarp,
@@ -1356,6 +1361,20 @@ export default function EnergyAllocationDialog({
             <Stepper value={alloc.transUses} min={0} max={ship.availableTransporters ?? 0}
               onChange={v => setAlloc(a => ({ ...a, transUses: v }))}
               label={`use(s) — cost ${(alloc.transUses * (ship.transporterEnergyCost ?? 0.2)).toFixed(1)}`} />
+          </div>
+        )}
+
+        {/* ---- Fighter Box Capacitors (J4.832) ---- */}
+        {figCapRoom > 0 && (
+          <div className="ea-section">
+            <div className="ea-section-title" style={{ color: '#7ee0a8' }}>Fighter Capacitors</div>
+            <div className="ea-note">
+              {figCapRoom} point(s) of room — 1 per fusion charge, 2 per hellbore charge.
+              Fills one box at a time, so the points buy a fighter a full sortie.
+            </div>
+            <Stepper value={alloc.fighterCaps} min={0} max={figCapRoom}
+              onChange={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
+              label={`point(s) into the fighter boxes`} />
           </div>
         )}
 

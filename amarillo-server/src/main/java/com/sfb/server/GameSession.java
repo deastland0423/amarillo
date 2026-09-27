@@ -1094,6 +1094,18 @@ public class GameSession {
 
                 e.setCloakPaid(request.isCloakPaid());
 
+                // Fighter box capacitors (J4.832): 1 point a fusion charge, 2 a hellbore one
+                // (J4.834). Bounded by what the boxes can still hold, so a client that asks
+                // for more cannot burn energy into nothing.
+                if (request.getFighterCapacitorEnergy() > 0) {
+                    int room = ship.getShuttles().capacitorPowerWanted();
+                    if (room <= 0)
+                        return ActionResult.fail(ship.getName()
+                                + " has no fighter box capacitor that needs charges (J4.832)");
+                    e.setFighterCapacitors(
+                            Math.min(request.getFighterCapacitorEnergy(), room));
+                }
+
                 // Transporter energy
                 if (request.getTransUses() > 0) {
                     e.setTransporters(request.getTransUses()

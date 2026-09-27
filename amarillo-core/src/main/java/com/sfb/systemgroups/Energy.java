@@ -58,6 +58,8 @@ public class Energy {
 	// Operations
 	private double transporters;
 	private int damageControl;
+	/** J4.832: points put into fighter box capacitors this turn (1 per fusion charge). */
+	private int fighterCapacitors;
 	private boolean cloakPaid;      // true if the player paid the cloak cost this turn
 	private boolean energizeCaps;   // true if the player paid 1 pt to energize uncharged capacitors (WS-0)
 
@@ -272,6 +274,14 @@ public class Energy {
 
 	public void setCloakPaid(boolean cloakPaid) {
 		this.cloakPaid = cloakPaid;
+	}
+
+	public int getFighterCapacitors() {
+		return fighterCapacitors;
+	}
+
+	public void setFighterCapacitors(int fighterCapacitors) {
+		this.fighterCapacitors = Math.max(0, fighterCapacitors);
 	}
 
 	public boolean isEnergizeCaps() {

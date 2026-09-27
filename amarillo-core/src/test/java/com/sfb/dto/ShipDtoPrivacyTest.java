@@ -54,6 +54,9 @@ public class ShipDtoPrivacyTest {
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
         "phaserCapacitor", "capacitorsCharged",
+        // How spent the fighters in his bays are, by way of what their box capacitors
+        // still have room for (J4.832)
+        "fighterCapacitorRoom",
         "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",

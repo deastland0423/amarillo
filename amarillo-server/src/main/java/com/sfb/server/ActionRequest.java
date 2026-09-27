@@ -41,6 +41,7 @@ public class ActionRequest {
     private Map<String, String> weaponArming;           // weapon name → "STANDARD", "OVERLOAD", "SKIP", "ROLL", "FINISH", "EPT"
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
+    private int                 fighterCapacitorEnergy; // J4.832: points into fighter box capacitors
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
     private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
@@ -126,6 +127,9 @@ public class ActionRequest {
 
     public boolean isCloakPaid()                   { return cloakPaid; }
     public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
+
+    public int     getFighterCapacitorEnergy()             { return fighterCapacitorEnergy; }
+    public void    setFighterCapacitorEnergy(int e)        { this.fighterCapacitorEnergy = e; }
 
     public boolean isEnergizeCaps()                        { return energizeCaps; }
     public void    setEnergizeCaps(boolean energizeCaps)   { this.energizeCaps = energizeCaps; }

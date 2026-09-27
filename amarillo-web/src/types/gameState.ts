@@ -105,6 +105,10 @@ export interface ShuttleSpaceState {
   empty:      boolean;
   armed:      boolean;
   shuttle:    ShuttleInBayState | null;
+  // J4.831: the fighter box capacitor — charges held, and what it holds when full.
+  // 0 capacity means this box is not a Hydran fighter box.
+  capacitorCharges?:  number;
+  capacitorCapacity?: number;
 }
 
 export interface ShuttleBayState {
@@ -156,6 +160,8 @@ export interface ShipObject extends MapObjectBase {
   phaserCapacitor:    number;
   phaserCapacitorMax: number;
   capacitorsCharged:  boolean;
+  // J4.832: power the fighter box capacitors could still take. 0 = nothing to buy.
+  fighterCapacitorRoom?: number;
   // Power
   availableLWarp:   number;
   availableRWarp:   number;

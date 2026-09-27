@@ -126,6 +126,45 @@ public class Shuttles implements Systems {
     public List<String> getLastRearmLog() { return lastRearmLog; }
 
     /**
+     * Power the ship's fighter box capacitors could still absorb this turn (J4.832).
+     * <p>
+     * The ceiling on the Energy Allocation line: a fusion box takes a point per charge and a
+     * hellbore box two, and neither takes anything once full.
+     */
+    public int capacitorPowerWanted() {
+        int wanted = 0;
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace box : bay.getSpaces())
+                wanted += box.capacitorPowerWanted();
+        return wanted;
+    }
+
+    /**
+     * Spend allocated power refilling fighter box capacitors (J4.832).
+     * <p>
+     * Boxes are filled in order, each to the top before the next is touched, because a player
+     * paying for charges wants a fighter that can fly a full sortie rather than a squadron of
+     * half-loaded ones. J4.881 keeps this indirect: the ship fills the box, and only the box
+     * can arm the fighter.
+     *
+     * @return points actually taken (a short allocation leaves the rest unspent)
+     */
+    public int rechargeCapacitors(int power) {
+        int left = Math.max(0, power);
+        int used = 0;
+        for (ShuttleBay bay : bays) {
+            for (ShuttleSpace box : bay.getSpaces()) {
+                if (left <= 0)
+                    return used;
+                int took = box.addCapacitorEnergy(left);
+                left -= took;
+                used += took;
+            }
+        }
+        return used;
+    }
+
+    /**
      * End-of-turn fighter rearming (J4.83), one pass over every bay.
      * <p>
      * The ship's deck crews are a single pool shared by the bays: J4.813 assigns each crew to

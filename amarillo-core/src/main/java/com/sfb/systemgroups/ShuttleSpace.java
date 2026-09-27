@@ -21,6 +21,12 @@ public class ShuttleSpace {
     /** J4.834: a hellbore box carries one hellbore charge instead. */
     public static final int HELLBORE_CAPACITOR = 1;
 
+    /** J4.832: a fusion charge costs the ship one point, so 8 fills a fusion box. */
+    public static final int POWER_PER_FUSION_CHARGE = 1;
+
+    /** J4.834: the hellbore charge is dearer — two points, which is why it is banked. */
+    public static final int POWER_PER_HELLBORE_CHARGE = 2;
+
     private Shuttle shuttle;
     private DroneRack droneRack;    // bay-mounted drone rack (D12.3)
     private boolean hasReadyRack;   // ready service rack in this space
@@ -41,6 +47,15 @@ public class ShuttleSpace {
      */
     private int capacitorCapacity = -1;  // -1 = no fighter has sat here yet
     private int capacitorCharges = -1;   // -1 = not yet filled (J4.886)
+
+    /**
+     * Power paid towards the NEXT charge but not yet worth one (J4.834).
+     *
+     * Only hellbore boxes ever bank anything: their single charge costs two points, and the
+     * rule spreads that over two turns, so the first point has to sit somewhere. A fusion
+     * charge costs one point and lands immediately.
+     */
+    private int capacitorEnergyBanked;
 
     /**
      * The turn this space last received its occupant; a fighter must sit a whole one before
@@ -87,6 +102,7 @@ public class ShuttleSpace {
     public Shuttle destroy() {
         this.capacitorCharges = 0;
         this.capacitorCapacity = 0;
+        this.capacitorEnergyBanked = 0;
         destroyed = true;
         deckCrews = 0;
         droneRack = null;
@@ -124,6 +140,52 @@ public class ShuttleSpace {
     public int capacitorCapacity() {
         return Math.max(0, capacitorCapacity);
     }
+
+    /** Charges this box's capacitor is short of full. */
+    public int capacitorChargesMissing() {
+        return Math.max(0, capacitorCapacity() - getCapacitorCharges());
+    }
+
+    /** What a charge costs this box: J4.832 for a fusion box, J4.834 for a hellbore one. */
+    public int powerPerCapacitorCharge() {
+        return capacitorCapacity() == HELLBORE_CAPACITOR
+                ? POWER_PER_HELLBORE_CHARGE : POWER_PER_FUSION_CHARGE;
+    }
+
+    /** Power this box could still absorb, counting what is already banked towards a charge. */
+    public int capacitorPowerWanted() {
+        int missing = capacitorChargesMissing();
+        if (missing == 0)
+            return 0;
+        return missing * powerPerCapacitorCharge() - capacitorEnergyBanked;
+    }
+
+    /**
+     * Put allocated power into this box's capacitor (J4.832).
+     *
+     * A fusion charge is a point, so the charges appear as the points go in. A hellbore
+     * charge is two points and J4.834 spreads them over two consecutive turns, so a lone
+     * point banks and the charge appears when the second arrives. We do not enforce the
+     * "consecutive" part: a banked point waits rather than lapsing.
+     *
+     * @param power points offered
+     * @return points actually taken
+     */
+    public int addCapacitorEnergy(int power) {
+        int wanted = Math.min(Math.max(0, power), capacitorPowerWanted());
+        if (wanted == 0)
+            return 0;
+        capacitorEnergyBanked += wanted;
+        int price = powerPerCapacitorCharge();
+        int charges = capacitorEnergyBanked / price;
+        if (charges > 0) {
+            capacitorEnergyBanked -= charges * price;
+            setCapacitorCharges(getCapacitorCharges() + charges);
+        }
+        return wanted;
+    }
+
+    public int getCapacitorEnergyBanked() { return capacitorEnergyBanked; }
 
     /**
      * The capacity the SSD would print for a box holding this fighter.
