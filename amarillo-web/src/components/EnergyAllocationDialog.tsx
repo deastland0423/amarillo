@@ -434,6 +434,16 @@ export default function EnergyAllocationDialog({
   const heavy    = (ship.weapons ?? []).filter(w => w.isHeavy && w.functional);
   const hasTrans = (ship.availableTransporters ?? 0) > 0;
   const figCapRoom = ship.fighterCapacitorRoom ?? 0;   // J4.832
+  // Every box with a capacitor behind it, in the order rechargeCapacitors() fills them.
+  const figCapBoxes = (ship.shuttleBays ?? []).flatMap(bay =>
+    (bay.spaces ?? [])
+      .filter(sp => (sp.capacitorCapacity ?? 0) > 0)
+      .map(sp => ({
+        key:      `${bay.bayIndex}-${sp.spaceIndex}`,
+        label:    `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
+        charges:  sp.capacitorCharges ?? 0,
+        capacity: sp.capacitorCapacity ?? 0,
+      })));
   // One circuit per point of sensor rating (D6.312), capped at the six points a ship may
   // generate in total (D6.310). A scout's lending pool is separate and not bound by this (G24.31).
   const ewLimit  = Math.min(ship.sensorRating ?? 0, 6);
@@ -1365,18 +1375,32 @@ export default function EnergyAllocationDialog({
         )}
 
         {/* ---- Fighter Box Capacitors (J4.832) ---- */}
-        {figCapRoom > 0 && (
-          <div className="ea-section">
-            <div className="ea-section-title" style={{ color: '#7ee0a8' }}>Fighter Capacitors</div>
+        {/* Collapsed by default like the drone reloads beside it: a carrier player wants it
+            every turn, everyone else never does. Ready-rack loading (J4.82) belongs in here
+            too when drone-armed fighters get their supply. */}
+        {figCapBoxes.length > 0 && (
+          <Collapsible title="Fighter Capacitors" color="#7ee0a8">
             <div className="ea-note">
-              {figCapRoom} point(s) of room this turn — 1 per fusion charge (J4.832); a
-              hellbore box takes 2 a turn and needs two turns for its one charge (J4.834).
-              Fills one box at a time, so the points buy a fighter a full sortie.
+              {figCapRoom > 0
+                ? `${figCapRoom} point(s) of room this turn — 1 per fusion charge (J4.832); a`
+                  + ' hellbore box takes 2 a turn and needs two turns for its one charge (J4.834).'
+                  + ' Boxes fill in the order below, so the points buy one fighter a full sortie.'
+                : 'Every fighter box is full — nothing to buy this turn.'}
             </div>
-            <Stepper value={alloc.fighterCaps} min={0} max={figCapRoom}
-              onChange={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
-              label={`point(s) into the fighter boxes`} />
-          </div>
+            {figCapRoom > 0 && (
+              <Stepper value={alloc.fighterCaps} min={0} max={figCapRoom}
+                onChange={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
+                label={`point(s) into the fighter boxes`} />
+            )}
+            <div className="ea-note" style={{ marginTop: '0.4rem' }}>
+              {figCapBoxes.map(b => (
+                <div key={b.key} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {b.label} — {b.charges}/{b.capacity}
+                  {b.charges < b.capacity ? '' : ' (full)'}
+                </div>
+              ))}
+            </div>
+          </Collapsible>
         )}
 
         {/* ---- Cloaking Device ---- */}
