@@ -446,6 +446,41 @@ public abstract class Shuttle extends Unit {
 		return sb.toString();
 	}
 
+	/**
+	 * Mend damage (J4.818): one point per deck crew action.
+	 * <p>
+	 * The point of it is the threshold. A fighter is crippled by accumulated damage (J1.33),
+	 * so a single point of repair can carry it back under the line and give it its speed and
+	 * its weapons again — which is why a crew is sometimes better spent here than loading.
+	 * What it cannot give back is what the crippling SPENT: J1.3324 discharged the fusion
+	 * capacitors, and those charges are gone until a crew reloads them.
+	 *
+	 * @return a line describing what changed, or null if there was nothing to mend
+	 */
+	public String repairDamage(int points) {
+		int damage = getHull() - getCurrentHull();
+		if (points <= 0 || damage <= 0)
+			return null;
+		int mended = Math.min(points, damage);
+		setCurrentHull(getCurrentHull() + mended);
+
+		StringBuilder sb = new StringBuilder(getName() + ": " + mended + " point"
+				+ (mended == 1 ? "" : "s") + " of damage repaired (J4.818)");
+		if (crippled && crippledHull > 0 && (getHull() - getCurrentHull()) < crippledHull) {
+			uncripple();
+			sb.append(" — back under the crippling threshold and fully operational (J1.33)");
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Undo what crippling did, short of what it spent. Subclasses override to give back the
+	 * weapons J1.332 took away.
+	 */
+	public void uncripple() {
+		crippled = false;
+	}
+
 	public String getParentShipName() {
 		return parentShipName;
 	}

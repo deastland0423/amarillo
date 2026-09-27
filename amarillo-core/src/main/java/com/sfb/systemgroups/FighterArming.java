@@ -256,6 +256,26 @@ public final class FighterArming {
     // -------------------------------------------------------------------------
 
     /**
+     * Mend the occupant, one damage point per whole action (J4.818).
+     * <p>
+     * Half an action buys nothing, the same as everywhere else: J4.8174 gives no credit for
+     * an action that did not finish.
+     */
+    public static Load repair(ShuttleSpace box, Shuttle occupant, int halfActionBudget) {
+        int points = halfActionBudget / HALF_ACTIONS_PER_ACTION;
+        if (points <= 0)
+            return Load.NOTHING;
+        int damage = occupant.getHull() - occupant.getCurrentHull();
+        if (damage <= 0)
+            return Load.NOTHING;
+        int mended = Math.min(points, damage);
+        String note = occupant.repairDamage(mended);
+        if (note == null)
+            return Load.NOTHING;
+        return new Load(mended * HALF_ACTIONS_PER_ACTION, mended, note);
+    }
+
+    /**
      * Take drones back off a fighter, as far as the budget and the rack's room allow (J4.82).
      * <p>
      * The deck crew job behind CrewTask.UNLOAD. A ready rack holds one reload of one drone

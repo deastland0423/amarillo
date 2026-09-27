@@ -97,20 +97,32 @@ public class DeckCrewOrdersTest {
     }
 
     @Test
-    public void repairIsNotOfferedUntilJ4818Exists() {
-        // The task exists so the panel can offer it the day shuttle damage tracks repair.
-        // Until then nobody is posted to it — a crew standing about is a crew that can be
-        // killed for nothing.
-        Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(CrewTask.REPAIR.keyFor(Shuttles.boxId(0, 3)), 2);
+    public void repairIsOfferedOnlyWhereThereIsDamage() {
+        String box = Shuttles.boxId(0, 3);
+        assertFalse("an undamaged fighter is not a repair job",
+                rn.getShuttles().crewJobsAvailable().containsKey(CrewTask.REPAIR.keyFor(box)));
 
+        ShuttleSpace space = rn.getShuttles().getBays().get(0).getSpaces().get(3);
+        space.getShuttle().setCurrentHull(space.getShuttle().getHull() - 2);
+
+        assertEquals("two points of damage, two crews' worth of mending (J4.818)",
+                Integer.valueOf(2),
+                rn.getShuttles().crewJobsAvailable().get(CrewTask.REPAIR.keyFor(box)));
+
+        Map<String, Integer> order = new LinkedHashMap<>();
+        order.put(CrewTask.REPAIR.keyFor(box), 1);
+        order.put(CrewTask.LOAD.keyFor(box), 1);
         postWith(order);
 
-        assertEquals(0,
-                rn.getShuttles().getBays().get(0).getSpaces().get(3).getDeckCrews());
-        assertFalse("and it is not in what the panel is offered",
-                rn.getShuttles().crewJobsAvailable().containsKey(
-                        CrewTask.REPAIR.keyFor(Shuttles.boxId(0, 3))));
+        assertEquals("one crew mending", 1, space.getCrews(CrewTask.REPAIR));
+        assertEquals("one crew loading, on the same fighter", 1, space.getCrews(CrewTask.LOAD));
+
+        rn.cleanUp();
+
+        assertEquals("the mender got a point back",
+                space.getShuttle().getHull() - 1, space.getShuttle().getCurrentHull());
+        assertEquals("and the loader got two charges in", 2,
+                com.sfb.systemgroups.FighterArming.chargesCarriedBy(space.getShuttle()));
     }
 
     @Test

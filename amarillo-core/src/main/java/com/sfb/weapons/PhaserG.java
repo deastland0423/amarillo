@@ -13,6 +13,9 @@ import com.sfb.objects.Ship;
  */
 public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserWeapon {
 
+	/** A gatling phaser fires four times a turn, and all four may be in one impulse. */
+	public static final int SHOTS_PER_TURN = 4;
+
 	// Range bands: [0] 0, [1] 1, [2] 2, [3] 3, [4] 4-8, [5] 9-15 (identical to Phaser3)
 	private static final int[][] bandHitChart = {
 			{ 4, 4, 4, 3, 1, 1 }, // Roll 1
@@ -28,7 +31,7 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 		setType("PhaserG");
 		setMinRange(0);
 		setMaxRange(15);
-		setMaxShotsPerTurn(4);
+		setMaxShotsPerTurn(SHOTS_PER_TURN);
 		// No gap between shots, ON PURPOSE: a gatling may put all four into a single
 		// impulse (owner's ruling 2026-09-26). This sits oddly beside the ADD's gap of 1,
 		// which exists to stop exactly that — so it is pinned by PhaserGRateOfFireTest
@@ -96,5 +99,13 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 
 	public boolean isReducedToPhaserThree() {
 		return getMaxShotsPerTurn() == 1;
+	}
+
+	/**
+	 * Give it back its four shots — the reverse of J1.3321, for a fighter repaired out of its
+	 * crippled state (J4.818).
+	 */
+	public void restoreFromPhaserThree() {
+		setMaxShotsPerTurn(SHOTS_PER_TURN);
 	}
 }

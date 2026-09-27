@@ -335,15 +335,17 @@ public class ShuttleBay {
                 continue;
             if (space.getDeckCrews() <= 0)
                 continue;   // nobody was posted here, or they died with an earlier hit
-            if (!(space.getShuttle() instanceof Fighter fighter))
-                continue;
+            // Any occupant, not just a fighter: J4.818 mends shuttle damage, and an admin
+            // shuttle with a hole in it is a job a deck crew can be posted to. Loading and
+            // unloading simply find nothing to do on one.
+            Shuttle occupant = space.getShuttle();
             // It has to have sat the whole turn. A fighter recovered DURING this turn has not,
             // and neither has one that launched and came back.
             if (space.getOccupiedSinceTurn() >= turn)
                 continue;
 
             for (java.util.Map.Entry<CrewTask, Integer> job : space.getCrewTasks().entrySet()) {
-                RearmResult one = work(job.getKey(), space, fighter, job.getValue());
+                RearmResult one = work(job.getKey(), space, occupant, job.getValue());
                 log.addAll(one.log());
                 crewsUsed += one.crewsUsed();
             }
@@ -359,14 +361,12 @@ public class ShuttleBay {
      * one turn completes one action, so the budget here is the crews it may put on this
      * fighter, and the crews it SPENT are the actions that came back.
      */
-    private RearmResult work(CrewTask task, ShuttleSpace space, Fighter fighter, int crews) {
+    private RearmResult work(CrewTask task, ShuttleSpace space, Shuttle fighter, int crews) {
         int budget = Math.min(2, crews) * FighterArming.HALF_ACTIONS_PER_ACTION;
         FighterArming.Load load = switch (task) {
             case LOAD   -> FighterArming.load(space, fighter, budget);
             case UNLOAD -> FighterArming.unload(space, fighter, budget);
-            // J4.818 is one damage point an action, and shuttle damage does not yet track
-            // repair. The task exists so the panel can offer it the day it does.
-            case REPAIR -> FighterArming.Load.NOTHING;
+            case REPAIR -> FighterArming.repair(space, fighter, budget);
         };
         if (load.note() == null)
             return RearmResult.NOTHING;

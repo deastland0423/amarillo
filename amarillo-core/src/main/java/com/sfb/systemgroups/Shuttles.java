@@ -324,9 +324,10 @@ public class Shuttles implements Systems {
             // the drones belong in this box's own ready rack (J4.822).
             case UNLOAD -> box.getReadyRack() == null || box.getReadyRack().isFull()
                     ? 0 : FighterArming.dronesCarriedBy(fighter) * 2;
-            // J4.818 is not built: shuttle damage does not track repair yet, so offering the
-            // job would be posting crews to stand about.
-            case REPAIR -> 0;
+            // J4.818: one damage point an action. A single point can carry a fighter back
+            // under its crippling threshold, so this competes with loading for a reason.
+            case REPAIR -> (fighter.getHull() - fighter.getCurrentHull())
+                    * FighterArming.HALF_ACTIONS_PER_ACTION;
         };
         if (half <= 0)
             return 0;
@@ -348,10 +349,8 @@ public class Shuttles implements Systems {
                 ShuttleSpace box = spaces.get(i);
                 if (box.isDestroyed() || box.isEmpty())
                     continue;
-                if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
-                    continue;
                 for (CrewTask task : CrewTask.values()) {
-                    int n = crewsWantedFor(task, box, fighter);
+                    int n = crewsWantedFor(task, box, box.getShuttle());
                     if (n > 0)
                         jobs.put(task.keyFor(boxId(b, i)), n);
                 }

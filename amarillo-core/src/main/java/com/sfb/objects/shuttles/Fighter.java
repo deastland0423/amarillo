@@ -124,6 +124,21 @@ public abstract class Fighter extends Shuttle {
     }
 
     /**
+     * Give back what J1.332 took: the Ph-G's four shots and the non-phaser weapons it put
+     * offline. NOT the fusion charges — J1.3324 discharged those, and discharged is spent.
+     */
+    @Override
+    public void uncripple() {
+        super.uncripple();
+        for (Weapon w : getWeapons().fetchAllWeapons()) {
+            if (w instanceof PhaserG phaserG)
+                phaserG.restoreFromPhaserThree();
+            else if (!(w instanceof Phaser1 || w instanceof Phaser2 || w instanceof Phaser3))
+                w.repair();
+        }
+    }
+
+    /**
      * True if this fighter has been on the map long enough to fire direct-fire
      * weapons (8 impulses).
      */
