@@ -110,18 +110,20 @@ export function HangarDrawer({
       ? anchor.left - TAB_WIDTH_PX - DRAWER_WIDTH_PX
       : rightEdge + TAB_WIDTH_PX;
 
-  // What is waiting: fighters that could use a crew, since that is the decision most
-  // likely to be missed. Capacitor points are visible in the drawer itself.
-  const pending = workBoxes.length > 0 ? ` · ${workBoxes.length}` : '';
+  // Boxes wanting attention of either kind — a crew, or charges to buy back. Counting only
+  // the crew work left a WS-3 carrier with a silent tab and 36 points of capacity unbought,
+  // which is exactly the case the badge exists for.
+  const needy = boxes.filter(b => b.crewsWanted > 0 || b.charges < b.capacity).length;
+  const pending = needy > 0 ? ` · ${needy}` : '';
 
   return (
     <>
       <button
         className={flip ? 'hangar-tab flip' : 'hangar-tab'}
         style={{ left: tabLeft, top: anchor.top + 56 }}
-        title={room > 0
-          ? `${room} point(s) of fighter capacitor capacity to buy`
-          : 'Hangar operations'}
+        title={needy > 0
+          ? `${needy} fighter box(es) want attention — ${room} point(s) of capacitor capacity`
+          : 'Hangar operations — everything aboard is ready'}
         onClick={() => setCollapsed(!collapsed)}
       >
         <span className="hangar-tab-text">HANGAR OPERATIONS{pending}</span>
@@ -150,7 +152,10 @@ export function HangarDrawer({
             </div>
 
             {workBoxes.length === 0 ? (
-              <div className="ea-note">Every fighter aboard is ready — no work to post.</div>
+              <div className="ea-note">
+                Every fighter aboard is armed, so the crews have nothing to do until one
+                spends its charges. They cost nothing to leave idle.
+              </div>
             ) : (
               <table className="hangar-table">
                 <thead>
