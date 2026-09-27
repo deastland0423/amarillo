@@ -2217,3 +2217,94 @@ h3 {
   gap: 0.35rem;
   padding-bottom: 0.3rem;
 }
+
+/* ---- Hangar bay rows: the panel laid out like the SSD ---- */
+.hangar-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border-left: 2px solid #30363d;
+  background: #0d1117;
+  border-radius: 3px;
+}
+
+/* A box with something outstanding — the ones the header is counting. */
+.hangar-box.wants {
+  border-left-color: #f0c040;
+}
+
+/* A shot-off box is information the SSD gives you, so it is shown rather than hidden. */
+.hangar-box.destroyed {
+  border-left-color: #f85149;
+  opacity: 0.55;
+}
+
+.hangar-box-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.hangar-box-name {
+  color: #c9d1d9;
+  font-weight: 600;
+}
+
+.hangar-box-state {
+  color: #8b949e;
+  font-size: 0.72rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Controls wrap rather than squeezing: a box may offer two crew jobs, a capacitor and a
+   weasel checkbox, and which ones depend entirely on what is sitting in it. */
+.hangar-box-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+}
+
+.hangar-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: #8b949e;
+}
+
+.hangar-ctl-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.hangar-check {
+  cursor: pointer;
+}
+
+.hangar-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #79c0ff;
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.hangar-expand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+  padding: 0.35rem 0.4rem;
+  border-left: 2px solid #79c0ff;
+  background: #161b22;
+}
+
+.hangar-budget .over {
+  color: #f85149;
+}

@@ -1,23 +1,28 @@
+import { useState } from 'react';
 import type React from 'react';
-import type { ShipObject } from '../types/gameState';
+import type { ShipObject, ShuttleBayState, ShuttleSpaceState } from '../types/gameState';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 
 /**
- * Hangar operations: the wide half of Energy Allocation, in a drawer off its right edge.
+ * Hangar operations: everything done to the craft in a ship's bays at allocation time.
  *
- * Everything here is one row per object — a fighter box, a shuttle, a ready rack — while the
- * EA column is one number per ship. A Kzinti CV's twelve fighter boxes need a table, and the
- * EA dialog is 300px wide; that mismatch is why this is a drawer rather than another section.
+ * Laid out like the SSD — a section per bay, a row per box — because that is what the player
+ * is already looking at, and because a bay is a real object in the rules rather than a
+ * grouping we invented: its own hatch and cooldown, its own launch tubes, chain reactions
+ * confined to it (D12.112). Arranging the panel any other way means translating.
  *
- * A drawer and not a separate window because the two are genuinely one form. Capacitor
- * charges are bought out of the same power budget as everything in EA and submitted in the
- * same ALLOCATE, so the budget bar and the Commit button have to stay in the same object the
- * drawer is attached to. Dragging EA takes the drawer with it for the same reason.
+ * It also puts everything about one box in one place. Ask "what about that Stinger" and the
+ * answer is one row: what it holds, what it is short, who is working on it, what its
+ * capacitor has. The previous arrangement scattered those across three sections.
  *
- * Still to come, once the server can take the orders: assigning deck crews to load a fighter
- * (J4.83), repair a shuttle (J4.818), load a scatter pack (FD7.22) or fill a ready rack
- * (J4.82). Those spend a pool of crews rather than power, which is why they will be a table
- * of their own rather than more rows in this one.
+ * Two budgets run through the panel and neither belongs to a section, so both are pinned to
+ * the header: deck crews (J4.81) for loading, unloading and repairing, and ship energy for
+ * capacitors, suicide arming and weasel charging. A row may spend either, and the totals stay
+ * visible while the player works anywhere down the list.
+ *
+ * A drawer rather than a window of its own because it and Energy Allocation are one form: the
+ * energy comes out of the same budget and goes up in the same ALLOCATE, so the Commit button
+ * has to stay attached to the thing spending from it.
  */
 
 /** Must match the width of .ea-dialog in App.css — the drawer is positioned off its edge. */
@@ -26,60 +31,8 @@ export const EA_WIDTH_PX = 300;
 const DRAWER_WIDTH_PX = 540;
 const TAB_WIDTH_PX = 28;
 
-/**
- * One fighter box. The id is what the server calls it — bay index and space index, the same
- * pair Shuttles.boxId() builds — so an order can name it.
- */
-interface BoxRow {
-  key: string;
-  label: string;
-  charges: number;
-  capacity: number;
-  room: number;
-  crewsWanted: number;
-  work: number;
-  jobs: Record<string, number>;
-}
-
-/** One deck crew job: a box, a verb, and the crews it could take. */
-interface JobRow {
-  key: string;          // "1-3:LOAD" — what the order names
-  boxKey: string;
-  boxLabel: string;
-  task: string;
-  maxCrews: number;
-  detail: string;
-}
-
-function boxRows(ship: ShipObject): BoxRow[] {
-  return (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.spaces ?? []).map(sp => ({
-      key:         `${bay.bayIndex}-${sp.spaceIndex}`,
-      // The ship's name prefixes every shuttle aboard it, and every row here is the same
-      // ship — six wasted characters a row on a panel that wants the width for a job column.
-      label:       `Bay ${bay.bayIndex + 1} · `
-                   + (sp.shuttle?.name ?? 'empty box').replace(`${ship.name}-`, ''),
-      charges:     sp.capacitorCharges ?? 0,
-      capacity:    sp.capacitorCapacity ?? 0,
-      room:        sp.capacitorRoom ?? 0,
-      crewsWanted: sp.crewsWanted ?? 0,
-      work:        sp.workOutstanding ?? 0,
-      jobs:        sp.crewJobs ?? {},
-    })));
-}
-
-/**
- * What a job would do, in the units a player thinks in. Work is counted in half-actions — a
- * fusion charge is one, a drone space two (J4.833/J4.82) — which is the right currency for
- * the crews and the wrong one for a label.
- */
-function jobDetail(box: BoxRow, task: string): string {
-  if (task === 'UNLOAD') return 'drones aboard';
-  if (task === 'REPAIR') return 'damaged';
-  if (box.capacity === 1) return 'hellbore empty';
-  if (box.capacity === 0) return `${Math.round(box.work / 2)} drone(s) short`;
-  return `${box.work} charge(s) short`;
-}
+/** J4.8172: two deck crews on one fighter and no more, however many jobs they split between. */
+const MAX_CREWS_PER_BOX = 2;
 
 const TASK_LABEL: Record<string, string> = {
   LOAD:   'load',
@@ -87,33 +40,56 @@ const TASK_LABEL: Record<string, string> = {
   REPAIR: 'repair',
 };
 
-/** Every job on the ship, in bay order, so a box's jobs sit together under its name. */
-function jobRows(boxes: BoxRow[]): JobRow[] {
-  const rows: JobRow[] = [];
-  for (const box of boxes) {
-    let first = true;
-    for (const [task, maxCrews] of Object.entries(box.jobs)) {
-      rows.push({
-        key:      `${box.key}:${task}`,
-        boxKey:   box.key,
-        boxLabel: first ? box.label : '',
-        task:     TASK_LABEL[task] ?? task.toLowerCase(),
-        maxCrews,
-        detail:   jobDetail(box, task),
-      });
-      first = false;
-    }
-  }
-  return rows;
+/** The box's id on the wire — bay index and space index, as Shuttles.boxId() builds it. */
+function boxId(bay: ShuttleBayState, space: ShuttleSpaceState): string {
+  return `${bay.bayIndex}-${space.spaceIndex}`;
 }
 
 /**
- * One section of the panel, remembered open or closed.
- *
- * The summary is the point: a closed section has to say whether it was worth opening, or the
- * player pays for the tidiness by checking each one every turn. Same reason the tab carries a
- * count.
+ * What is in the box, in one phrase. An empty box and a destroyed one are different things
+ * and a player needs to tell them apart at a glance.
  */
+function occupantLine(space: ShuttleSpaceState, shipName: string): string {
+  if (space.destroyed) return 'destroyed';
+  const s = space.shuttle;
+  if (!s) return 'empty';
+  return s.name.replace(`${shipName}-`, '');
+}
+
+/** What state it is in: charges aboard, damage, and any special role it is playing. */
+function stateLine(space: ShuttleSpaceState): string {
+  if (space.destroyed || !space.shuttle) return '';
+  const bits: string[] = [];
+  const s = space.shuttle;
+
+  if ((space.capacitorCapacity ?? 0) > 0)
+    bits.push(`${space.chargesAboard ?? 0} charge(s)`);
+  if (s.specialRole) bits.push(s.specialRole);
+  const turns = s.armingTurnsComplete ?? 0;
+  if (turns > 0)
+    bits.push(turns >= 3 ? `armed, dmg ${s.warheadDamage ?? 0}` : `arming ${turns}/3`);
+  if (s.wwChargeCount != null && s.wwChargeCount > 0)
+    bits.push(s.wwReady ? 'weasel ready' : `weasel ${s.wwChargeCount}/2`);
+  if ((space.damage ?? 0) > 0) bits.push(`${space.damage} damage`);
+  return bits.join(', ');
+}
+
+function Stepper({ value, onChange, min, max, label }: {
+  value: number; onChange: (n: number) => void; min: number; max: number; label: string;
+}) {
+  return (
+    <span className="hangar-ctl">
+      <span className="hangar-ctl-label">{label}</span>
+      <button className="ea-step-btn" disabled={value <= min}
+        onClick={() => onChange(value - 1)}>−</button>
+      <span className="hangar-posted">{value}</span>
+      <button className="ea-step-btn" disabled={value >= max}
+        onClick={() => onChange(value + 1)}>+</button>
+    </span>
+  );
+}
+
+/** One section of the panel, remembered open or closed, saying what is behind it when shut. */
 function Section({ title, colour, summary, storageKey, startOpen = false, children }: {
   title: string;
   colour: string;
@@ -157,14 +133,9 @@ export function HangarDrawer({
   total: number;
 }) {
   const [collapsed, setCollapsed] = useStickyCollapse('hangar-drawer-collapsed');
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  const boxes = boxRows(ship);
-  const capacitorBoxes = boxes.filter(b => b.capacity > 0);
-  const jobs = jobRows(boxes);
-
-  // The crews are their own budget — no energy, so nothing here touches the bar above.
-  const crews = ship.availableDeckCrews ?? 0;
-  const postedTotal = Object.values(crewPostings).reduce((a, b) => a + b, 0);
+  const bays = ship.shuttleBays ?? [];
 
   // What a scatter pack can be filled from: the reload sets the ship's drone racks carry.
   const stockpile: Record<string, { rackSize: number; count: number }> = {};
@@ -174,89 +145,184 @@ export function HangarDrawer({
         stockpile[entry.droneType] = { rackSize: entry.rackSize, count: 0 };
       stockpile[entry.droneType].count += entry.count;
     }
-  const packs = (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.shuttles ?? []).filter(s => s.type === 'admin' || s.type === 'scatterpack'));
-  // Energy going into a craft in a box, the same as a point into a capacitor — which is why
-  // these live here rather than in the energy column. Their cost is in the panel header's
-  // total, as everything bought with power is.
-  const suicideCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.shuttles ?? []).filter(s => s.type === 'suicide'
-      || s.type === 'admin'));
-  const wwCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.shuttles ?? []).filter(s => s.type === 'admin' && s.wwChargeCount != null));
-  const canLoadPacks = packs.length > 0 && Object.keys(stockpile).length > 0;
-
   const spacesIn = (sel: Record<string, number>) =>
     Object.entries(sel).reduce((sum, [dt, n]) => sum + (stockpile[dt]?.rackSize ?? 1) * n, 0);
-  // FD7.22: a crew per rack space. The same crews the jobs above want — which is the whole
-  // reason this table moved here from the energy column, where the two competed through a
-  // counter neither screen showed.
+
+  // One pool, several claims: FD7.22's pack loading and J4.817's postings draw on the same
+  // deck crews, which is why both totals live in the header rather than in their own sections.
+  const crews = ship.availableDeckCrews ?? 0;
+  const postedTotal = Object.values(crewPostings).reduce((a, b) => a + b, 0);
   const packCrews = Object.values(packLoading ?? {}).reduce((a, sel) => a + spacesIn(sel), 0);
   const crewsFree = Math.max(0, crews - postedTotal - packCrews);
 
-  // What each closed section says about itself. A section that cannot tell you whether it was
-  // worth opening costs the player a click every turn to find out.
-  const capsShort = capacitorBoxes.filter(b => b.charges < b.capacity).length;
-  const suicideSummary = (() => {
-    const armed = suicideCandidates.filter(s => (s.armingTurnsComplete ?? 0) >= 3).length;
-    const arming = suicideCandidates.filter(
-      s => (s.armingTurnsComplete ?? 0) > 0 && (s.armingTurnsComplete ?? 0) < 3).length;
-    if (armed > 0) return `${armed} armed`;
-    if (arming > 0) return `${arming} arming`;
-    return `${suicideCandidates.length} available`;
-  })();
-  const wwSummary = (() => {
-    const ready = wwCandidates.filter(s => s.wwReady).length;
-    const priming = wwCandidates.filter(s => !s.wwReady && (s.wwChargeCount ?? 0) > 0).length;
-    if (ready > 0) return `${ready} ready`;
-    if (priming > 0) return `${priming} priming`;
-    return 'none charged';
-  })();
+  const wantsAttention = (sp: ShuttleSpaceState) =>
+    Object.keys(sp.crewJobs ?? {}).length > 0
+    || (sp.capacitorCharges ?? 0) < (sp.capacitorCapacity ?? 0);
 
-  function post(jobKey: string, n: number) {
+  // The tab's count: whether the panel is worth opening at all.
+  const needy = bays.flatMap(b => b.spaces ?? []).filter(wantsAttention).length;
+
+  if (bays.length === 0)
+    return null;
+
+  // useDraggable lets a panel hang off the right edge, so the drawer would open into nothing
+  // there. Flip it to EA's left when the room is on that side instead.
+  const viewport = typeof window === 'undefined' ? 1920 : window.innerWidth;
+  const rightEdge = anchor.left + EA_WIDTH_PX;
+  const flip = rightEdge + TAB_WIDTH_PX + DRAWER_WIDTH_PX > viewport
+      && anchor.left - DRAWER_WIDTH_PX > 0;
+  const tabLeft = flip ? anchor.left - TAB_WIDTH_PX : rightEdge;
+  const drawerLeft = flip
+      ? anchor.left - TAB_WIDTH_PX - DRAWER_WIDTH_PX
+      : rightEdge + TAB_WIDTH_PX;
+
+  function postCrews(jobKey: string, n: number) {
     const next = { ...crewPostings };
     if (n <= 0) delete next[jobKey];
     else next[jobKey] = n;
     onCrewPostings(next);
   }
 
-  /** J4.8172 caps the FIGHTER at two crews, however many jobs are running in its box. */
-  function crewsInBox(boxKey: string): number {
-    return jobs.filter(j => j.boxKey === boxKey)
-      .reduce((sum, j) => sum + (crewPostings[j.key] ?? 0), 0);
-  }
-
-  function buy(boxKey: string, n: number) {
+  function buyCharges(key: string, n: number) {
     const next = { ...capsByBox };
-    if (n <= 0) delete next[boxKey];
-    else next[boxKey] = n;
+    if (n <= 0) delete next[key];
+    else next[key] = n;
     onCapsByBox(next);
   }
 
-  // A ship with no bay has no hangar to operate. Everything else gets the strip, even a
-  // cruiser whose hangar work is one admin shuttle — the tab is thin and says how much
-  // there is to do.
-  if ((ship.shuttleBays ?? []).length === 0)
-    return null;
+  function crewsInBox(key: string): number {
+    return Object.entries(crewPostings)
+      .filter(([k]) => k.startsWith(`${key}:`))
+      .reduce((sum, [, n]) => sum + n, 0);
+  }
 
-  // useDraggable lets a panel hang off the right edge, so the drawer would open into
-  // nothing there. Flip it to EA's left when the room is on that side instead.
-  const viewport = typeof window === 'undefined' ? 1920 : window.innerWidth;
-  const rightEdge = anchor.left + EA_WIDTH_PX;
-  const flip = rightEdge + TAB_WIDTH_PX + DRAWER_WIDTH_PX > viewport
-      && anchor.left - DRAWER_WIDTH_PX > 0;
+  /** The controls a box offers, which depend entirely on what is sitting in it. */
+  function controlsFor(bay: ShuttleBayState, space: ShuttleSpaceState) {
+    const key = boxId(bay, space);
+    const s = space.shuttle;
+    const out: React.ReactNode[] = [];
+    if (space.destroyed || !s) return out;
 
-  const tabLeft = flip ? anchor.left - TAB_WIDTH_PX : rightEdge;
-  const drawerLeft = flip
-      ? anchor.left - TAB_WIDTH_PX - DRAWER_WIDTH_PX
-      : rightEdge + TAB_WIDTH_PX;
+    // Deck crew jobs (J4.817) — one control each, capped together at two on a fighter.
+    for (const [task, maxCrews] of Object.entries(space.crewJobs ?? {})) {
+      const jobKey = `${key}:${task}`;
+      const posted = crewPostings[jobKey] ?? 0;
+      const boxRoom = MAX_CREWS_PER_BOX - crewsInBox(key) + posted;
+      out.push(
+        <Stepper key={jobKey} value={posted} min={0}
+          max={Math.min(maxCrews, boxRoom, posted + crewsFree)}
+          onChange={n => postCrews(jobKey, n)}
+          label={TASK_LABEL[task] ?? task.toLowerCase()} />);
+    }
 
-  // Boxes wanting attention of either kind — a crew, or charges to buy back. Counting only
-  // the crew work left a WS-3 carrier with a silent tab and 36 points of capacity unbought,
-  // which is exactly the case the badge exists for.
-  const needy = boxes.filter(
-    b => Object.keys(b.jobs).length > 0 || b.charges < b.capacity).length;
-  const pending = needy > 0 ? ` · ${needy}` : '';
+    // The box's own capacitor (J4.832), which serves only the fighter in it (J4.881).
+    if ((space.capacitorCapacity ?? 0) > 0) {
+      const bought = capsByBox[key] ?? 0;
+      out.push(
+        <Stepper key={`${key}:cap`} value={bought} min={0} max={space.capacitorRoom ?? 0}
+          onChange={n => buyCharges(key, n)}
+          label={`cap ${space.capacitorCharges ?? 0}/${space.capacitorCapacity}`} />);
+    }
+
+    // Suicide arming (1–3 energy a turn for three turns) or the 1-point hold once armed.
+    const turns = s.armingTurnsComplete ?? 0;
+    if (s.type === 'suicide' || s.type === 'admin') {
+      if (turns >= 3) {
+        const holding = suicideHold?.[s.name] ?? false;
+        out.push(
+          <label key={`${key}:hold`} className="hangar-ctl hangar-check">
+            <input type="checkbox" checked={holding}
+              onChange={e => onSuicide(suicideArming,
+                { ...suicideHold, [s.name]: e.target.checked })} />
+            hold (1)
+          </label>);
+      } else {
+        const energy = suicideArming?.[s.name] ?? 0;
+        out.push(
+          <Stepper key={`${key}:arm`} value={energy} min={0} max={3}
+            onChange={n => onSuicide({ ...suicideArming, [s.name]: n }, suicideHold)}
+            label="arm" />);
+      }
+    }
+
+    // Wild weasel charging: a point a turn for two consecutive turns (J3.12).
+    if (s.wwChargeCount != null) {
+      const paying = wwCharge.has(s.name);
+      out.push(
+        <label key={`${key}:ww`} className="hangar-ctl hangar-check">
+          <input type="checkbox" checked={paying}
+            onChange={e => {
+              const next = new Set(wwCharge);
+              if (e.target.checked) next.add(s.name); else next.delete(s.name);
+              onWwCharge(next);
+            }} />
+          {s.wwReady ? 'keep weasel (1)' : 'charge weasel (1)'}
+        </label>);
+    }
+
+    // Loading a pack is a drone-type picker, not a number, so it opens in place rather than
+    // trying to live on the row.
+    if ((s.type === 'admin' || s.type === 'scatterpack') && Object.keys(stockpile).length > 0) {
+      const here = spacesIn(packLoading?.[s.name] ?? {});
+      out.push(
+        <button key={`${key}:pack`} className="hangar-link"
+          onClick={() => setExpanded(expanded === key ? null : key)}>
+          {expanded === key ? 'close' : 'load pack'}{here > 0 ? ` (${here})` : ''}
+        </button>);
+    }
+    return out;
+  }
+
+  /** The drone picker for one pack, shown under its row while it is open. */
+  function packPicker(space: ShuttleSpaceState) {
+    const s = space.shuttle;
+    if (!s) return null;
+    const sel = packLoading?.[s.name] ?? {};
+    const max = s.maxDroneSpaces ?? 6;
+    const already = s.committedSpaces ?? 0;
+    const here = spacesIn(sel);
+    return (
+      <div className="hangar-expand">
+        <div className="ea-note">
+          A crew loads one rack space onto a pack (FD7.22), drawn from the drone racks' reload
+          sets — so every drone here is a crew not working a fighter, and a reload the racks
+          will not have later. {(already + here).toFixed(1)} / {max} spaces.
+        </div>
+        {Object.entries(stockpile).map(([dt, info]) => {
+          const n = sel[dt] ?? 0;
+          const roomOnPack = already + here + info.rackSize <= max;
+          const canAdd = n < info.count && roomOnPack && info.rackSize <= crewsFree;
+          return (
+            <div key={dt} className="ea-stepper">
+              <button className="ea-step-btn" disabled={n <= 0}
+                onClick={() => onPackLoading({ ...packLoading,
+                  [s.name]: { ...sel, [dt]: Math.max(0, n - 1) } })}>−</button>
+              <span className="ea-step-value">{n}</span>
+              <button className="ea-step-btn" disabled={!canAdd}
+                onClick={() => onPackLoading({ ...packLoading,
+                  [s.name]: { ...sel, [dt]: n + 1 } })}>+</button>
+              <span className="ea-step-label">
+                {dt.replace('Type', 'Type ')}
+                <span className="ea-note-dim">
+                  {' '}({info.count} left, {info.rackSize} space
+                  {info.rackSize !== 1 ? 's' : ''} each)
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /** What a bay's header says when it is shut: what it holds, and whether its hatch is free. */
+  function baySummary(bay: ShuttleBayState): string {
+    const busy = (bay.spaces ?? []).filter(wantsAttention).length;
+    const hatch = bay.canLaunch ? 'hatch ready' : 'hatch cooling';
+    const tubes = bay.launchTubeCount > 0
+      ? ` · ${bay.availableTubes}/${bay.launchTubeCount} tubes` : '';
+    return `${busy > 0 ? `${busy} want attention · ` : ''}${hatch}${tubes}`;
+  }
 
   return (
     <>
@@ -268,264 +334,57 @@ export function HangarDrawer({
           : 'Hangar operations — everything aboard is ready'}
         onClick={() => setCollapsed(!collapsed)}
       >
-        <span className="hangar-tab-text">HANGAR OPERATIONS{pending}</span>
+        <span className="hangar-tab-text">
+          HANGAR OPERATIONS{needy > 0 ? ` · ${needy}` : ''}
+        </span>
       </button>
 
       {!collapsed && (
         <div className="hangar-drawer" style={{ left: drawerLeft, top: anchor.top }}>
           <div className="hangar-drawer-head">
             <span>Hangar Operations — {ship.name}</span>
-            {/* The same budget the EA bar shows: the points spent here come out of it. */}
-            <span className={spent > total ? 'hangar-budget over' : 'hangar-budget'}>
-              {spent.toFixed(1)} / {total}
+            {/* Both budgets, pinned: a row may spend either, and the totals have to stay
+                visible while the player works anywhere down the list. */}
+            <span className="hangar-budget">
+              crews {crewsFree}/{crews}
+              <span className="ea-note-dim"> · </span>
+              <span className={spent > total ? 'over' : ''}>{spent.toFixed(1)}/{total}</span>
             </span>
           </div>
 
           <div className="hangar-drawer-body">
-            {/* ---- Deck crews (J4.817) ---- */}
-            <Section title="Deck Crews" colour="#f0c040" storageKey="hangar-crews" startOpen
-              summary={`${crewsFree} of ${crews} free`}>
-            <div className="ea-note">
-              A crew posted to a job works it all turn: two crews reload a Stinger, one a
-              hellbore (J4.833/J4.834). Two may work the same fighter at different jobs, but
-              never more than two on one fighter (J4.8172). They are killed if that box is
-              destroyed (J4.811), and launching the fighter they are on wastes the work
-              (J4.8174). Post nobody and the ship decides for itself, top down.
-            </div>
-
-            {jobs.length === 0 ? (
-              <div className="ea-note">
-                Every fighter aboard is armed, so the crews have nothing to do until one
-                spends its charges. They cost nothing to leave idle.
-              </div>
-            ) : (
-              <table className="hangar-table">
-                <thead>
-                  <tr>
-                    <th>Box</th><th>Job</th><th></th><th className="hangar-num">Crews</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.map(j => {
-                    const posted = crewPostings[j.key] ?? 0;
-                    const boxFull = crewsInBox(j.boxKey) >= 2;
-                    return (
-                      <tr key={j.key} className={posted > 0 ? 'hangar-row-posted' : ''}>
-                        <td>{j.boxLabel}</td>
-                        <td className="hangar-task">{j.task}</td>
-                        <td>{j.detail}</td>
-                        <td className="hangar-num">
-                          <button className="ea-step-btn" disabled={posted <= 0}
-                            onClick={() => post(j.key, posted - 1)}>−</button>
-                          <span className="hangar-posted">{posted}</span>
-                          <button className="ea-step-btn"
-                            disabled={posted >= j.maxCrews || crewsFree <= 0 || boxFull}
-                            onClick={() => post(j.key, posted + 1)}>+</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-
-            </Section>
-
-            {canLoadPacks && (
-              <Section title="Scatter Packs" colour="#79c0ff" storageKey="hangar-packs"
-                summary={packCrews > 0 ? `${packCrews} crew(s) loading` : `${packs.length} aboard`}>
-                <div className="ea-note">
-                  A crew loads one rack space onto a pack (FD7.22), drawn from the drone racks'
-                  reload sets — so every drone here is a crew not reloading a fighter above,
-                  and a reload the racks will not have later.
-                </div>
-                {packs.map(pack => {
-                  const sel = packLoading?.[pack.name] ?? {};
-                  const max = pack.maxDroneSpaces ?? 6;
-                  const already = pack.committedSpaces ?? 0;
-                  const here = spacesIn(sel);
+            {bays.map(bay => (
+              <Section key={bay.bayIndex} title={`Bay ${bay.bayIndex + 1}`} colour="#f0c040"
+                storageKey={`hangar-bay-${bay.bayIndex}`} startOpen
+                summary={baySummary(bay)}>
+                {(bay.spaces ?? []).map(space => {
+                  const key = boxId(bay, space);
+                  const controls = controlsFor(bay, space);
                   return (
-                    <div key={pack.name} className="ea-weapon-alloc-block">
-                      <div className="ea-weapon-alloc-name">
-                        {pack.name.replace(`${ship.name}-`, '')}
-                        <span className="ea-note-dim">
-                          {' '}— {(already + here).toFixed(1)} / {max} spaces
+                    <div key={key}
+                      className={'hangar-box'
+                        + (space.destroyed ? ' destroyed' : '')
+                        + (wantsAttention(space) ? ' wants' : '')}>
+                      <div className="hangar-box-line">
+                        <span className="hangar-box-name">
+                          {occupantLine(space, ship.name)}
                         </span>
+                        <span className="hangar-box-state">{stateLine(space)}</span>
                       </div>
-                      {Object.entries(stockpile).map(([dt, info]) => {
-                        const n = sel[dt] ?? 0;
-                        const roomOnPack = already + here + info.rackSize <= max;
-                        const canAdd = n < info.count && roomOnPack
-                            && info.rackSize <= crewsFree;
-                        return (
-                          <div key={dt} className="ea-stepper">
-                            <button className="ea-step-btn" disabled={n <= 0}
-                              onClick={() => onPackLoading({ ...packLoading,
-                                [pack.name]: { ...sel, [dt]: Math.max(0, n - 1) } })}>−</button>
-                            <span className="ea-step-value">{n}</span>
-                            <button className="ea-step-btn" disabled={!canAdd}
-                              onClick={() => onPackLoading({ ...packLoading,
-                                [pack.name]: { ...sel, [dt]: n + 1 } })}>+</button>
-                            <span className="ea-step-label">
-                              {dt.replace('Type', 'Type ')}
-                              <span className="ea-note-dim">
-                                {' '}({info.count} left, {info.rackSize} space
-                                {info.rackSize !== 1 ? 's' : ''} each)
-                              </span>
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {controls.length > 0 && (
+                        <div className="hangar-box-controls">{controls}</div>
+                      )}
+                      {expanded === key && packPicker(space)}
                     </div>
                   );
                 })}
               </Section>
-            )}
-
-          {/* Suicide Shuttle Arming */}
-          {suicideCandidates.length > 0 && (
-            <Section title="Suicide Shuttle Arming" colour="#ff6060" storageKey="hangar-suicide"
-              summary={suicideSummary}>
-              <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
-              {suicideCandidates.map(s => {
-                const turns = s.armingTurnsComplete ?? 0;
-                const armed = turns >= 3;
-                const dmg   = s.warheadDamage ?? 0;
-                if (armed) {
-                  const holding = suicideHold?.[s.name] ?? false;
-                  return (
-                    <div key={s.name} className="ea-weapon-alloc-block">
-                      <div className="ea-weapon-alloc-name">
-                        {s.name.replace(`${ship.name}-`, '')}<span className="ea-note-dim"> — Armed (dmg {dmg})</span>
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={holding}
-                          onChange={e => onSuicide(suicideArming, { ...suicideHold, [s.name]: e.target.checked })} />
-                        Hold (1 energy) — uncheck to release
-                      </label>
-                    </div>
-                  );
-                } else {
-                  const energy = suicideArming?.[s.name] ?? 0;
-                  return (
-                    <div key={s.name} className="ea-weapon-alloc-block">
-                      <div className="ea-weapon-alloc-name">
-                        {s.name.replace(`${ship.name}-`, '')}
-                        <span className="ea-note-dim">
-                            {' '}— turn {turns}/3
-                            {energy > 0 && `, warhead ${((s.warheadDamage ?? 0) / 2 + energy) * 2}`}
-                          </span>
-                      </div>
-                      <div className="ea-stepper">
-                        <button className="ea-step-btn"
-                          onClick={() => onSuicide({ ...suicideArming, [s.name]: Math.max(0, energy - 1) }, suicideHold)}
-                          disabled={energy <= 0}>−</button>
-                        <span className="ea-step-value">{energy}</span>
-                        <button className="ea-step-btn"
-                          onClick={() => onSuicide({ ...suicideArming, [s.name]: Math.min(3, energy + 1) }, suicideHold)}
-                          disabled={energy >= 3 || turns === 0 && s.type !== 'admin'}>+</button>
-                        <span className="ea-step-label">energy this turn <span className="ea-note-dim">(1–3)</span></span>
-                      </div>
-                    </div>
-                  );
-                }
-              })}
-            </Section>
-          )}
-
-          {/* Wild Weasel Charging */}
-          {wwCandidates.length > 0 && (
-            <Section title="Wild Weasel Charging" colour="#a78bfa" storageKey="hangar-ww"
-              summary={wwSummary}>
-              <div className="ea-note">Pay 1 energy/turn for 2 consecutive turns to ready a WW decoy (J3.12).</div>
-              {wwCandidates.map(s => {
-                const charge = s.wwChargeCount ?? 0;
-                const ready  = s.wwReady ?? false;
-                const paying = wwCharge.has(s.name);
-                const label  = ready ? 'Ready to launch!' : charge === 1 ? 'Primed (1/2)' : 'Uncharged';
-                return (
-                  <div key={s.name} className="ea-weapon-alloc-block">
-                    <div className="ea-weapon-alloc-name">
-                      {s.name.replace(`${ship.name}-`, '')}
-                      <span className="ea-note-dim"> — {label}</span>
-                    </div>
-                    {!ready && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={paying}
-                          onChange={e => (() => {
-                            const next = new Set(wwCharge);
-                            if (e.target.checked) next.add(s.name); else next.delete(s.name);
-                            onWwCharge(next);
-                          })()} />
-                        Charge WW (1 energy) — turn {charge + (paying ? 1 : 0)}/2
-                      </label>
-                    )}
-                    {ready && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={paying}
-                          onChange={e => (() => {
-                            const next = new Set(wwCharge);
-                            if (e.target.checked) next.add(s.name); else next.delete(s.name);
-                            onWwCharge(next);
-                          })()} />
-                        Maintain WW ready (1 energy) — uncheck to cancel
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </Section>
-          )}
-
-            <Section title="Weapon Capacitors" colour="#7ee0a8" storageKey="hangar-caps"
-              summary={capsShort > 0 ? `${capsShort} box(es) short` : 'all full'}>
-            <div className="ea-note">
-              Each box has its own capacitor and can only arm the fighter in it (J4.881), so
-              buy them one at a time. A fusion charge is a point (J4.832); a hellbore box takes
-              2 a turn and needs two turns for its single charge (J4.834). Four points into one
-              box is a fighter's next sortie; one point into four boxes is nothing yet.
-            </div>
-
-            <table className="hangar-table">
-              <thead>
-                <tr><th>Box</th><th className="hangar-num">Capacitor</th><th className="hangar-num">Buy</th></tr>
-              </thead>
-              <tbody>
-                {capacitorBoxes.map(b => {
-                  const bought = capsByBox[b.key] ?? 0;
-                  return (
-                    <tr key={b.key} className={b.charges < b.capacity ? 'hangar-row-short' : ''}>
-                      <td>{b.label}</td>
-                      <td className="hangar-num">
-                        {b.charges}/{b.capacity}{b.charges >= b.capacity ? ' (full)' : ''}
-                      </td>
-                      <td className="hangar-num">
-                        {b.room > 0 ? (
-                          <>
-                            <button className="ea-step-btn" disabled={bought <= 0}
-                              onClick={() => buy(b.key, bought - 1)}>−</button>
-                            <span className="hangar-posted">{bought}</span>
-                            <button className="ea-step-btn" disabled={bought >= b.room}
-                              onClick={() => buy(b.key, bought + 1)}>+</button>
-                          </>
-                        ) : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {capacitorBoxes.length === 0 && (
-                  <tr><td colSpan={3} className="ea-note">
-                    No weapon capacitors aboard — this ship carries no Hydran fighters.
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
-            </Section>
+            ))}
 
             <div className="ea-note hangar-todo">
-              Still to come in the crew table: repairing a damaged shuttle (J4.818), loading
-              a scatter pack (FD7.22, which spends these same crews), and filling a ready
-              rack once the ship has drone stores to fill it from (J4.82).
+              Filling a ready rack needs the ship's drone stores, which are not modelled yet
+              (J4.82). Launching stays in the Launch Orders pad — this panel is what a bay
+              does between turns, not during one.
             </div>
           </div>
         </div>

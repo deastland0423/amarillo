@@ -278,6 +278,9 @@ public class GameStateDto {
         public java.util.Map<String, Integer> crewJobs = new java.util.LinkedHashMap<>();
         /** Half-actions of work its fighter still needs — what the panel says it is short. */
         public int workOutstanding;
+        /** What the occupant is holding and how hurt it is, so a bay row can say so. */
+        public int chargesAboard;
+        public int damage;
     }
 
     public static class ShuttleBayDto {
@@ -1485,6 +1488,12 @@ public class GameStateDto {
                 spaceDto.capacitorCapacity = space.capacitorCapacity();
                 spaceDto.postedCrews = space.getDeckCrews();
                 spaceDto.capacitorRoom = space.capacitorPowerWanted();
+                if (space.getShuttle() != null) {
+                    spaceDto.chargesAboard =
+                            com.sfb.systemgroups.FighterArming.chargesCarriedBy(space.getShuttle());
+                    spaceDto.damage = space.getShuttle().getHull()
+                            - space.getShuttle().getCurrentHull();
+                }
                 if (space.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
                     spaceDto.workOutstanding = com.sfb.systemgroups.FighterArming
                             .halfActionsOutstanding(space.getShuttle());

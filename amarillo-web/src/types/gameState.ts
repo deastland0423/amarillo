@@ -114,6 +114,9 @@ export interface ShuttleSpaceState {
   crewsWanted?:     number;
   /** J4.817: deck crew jobs available in this box — task name to crews each could use. */
   crewJobs?:        Record<string, number>;
+  /** What the occupant holds, and the damage it has taken. */
+  chargesAboard?:   number;
+  damage?:          number;
   // J4.832: points THIS capacitor can still take. Never summed across boxes.
   capacitorRoom?:   number;
   postedCrews?:     number;
