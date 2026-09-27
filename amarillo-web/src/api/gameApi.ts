@@ -308,6 +308,9 @@ export interface CoiShipData {
   maxExtraDeckCrews?:  number;
   deckCrews?:          number;
   extraDeckCrewCost?:  number;
+  /** S4.10-S4.12: the fighters aboard, and how many may start ready (-1 = a crew budget). */
+  fighters?:           { name: string; type: string }[];
+  maxArmedFighters?:   number;
   maxDroneSpeed:       number | null;
   heavyWeapons:        CoiHeavyWeapon[];
   droneRacks:          CoiDroneRack[];
@@ -340,6 +343,7 @@ export interface CoiSubmission {
     extraCommandoSquads?:  number;
     extraTBombs?:          number;
     extraDeckCrews?:       number;
+    armedFighters?:        string[];
     droneRackLoadouts?:    Record<string, string[]>;
     antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;

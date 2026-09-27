@@ -954,6 +954,20 @@ public class GameController {
                             ? com.sfb.scenario.CoiLoadout.MAX_EXTRA_DECK_CREWS : 0);
                     s.put("deckCrews", ship.getCrew().getDeckCrews());
                     s.put("extraDeckCrewCost", com.sfb.scenario.CoiLoadout.COST_EXTRA_DECK_CREW);
+
+                    // S4.10-S4.12: which fighters may start ready, and how many. Nothing to
+                    // choose at WS-3, where S4.13 arms the lot.
+                    java.util.List<java.util.Map<String, Object>> fighters = new ArrayList<>();
+                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                        for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                            if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
+                                java.util.Map<String, Object> f = new java.util.LinkedHashMap<>();
+                                f.put("name", box.getShuttle().getName());
+                                f.put("type", box.getShuttle().getClass().getSimpleName());
+                                fighters.add(f);
+                            }
+                    s.put("fighters", fighters);
+                    s.put("maxArmedFighters", ws >= 3 ? fighters.size() : ws == 2 ? -1 : 2);
                     s.put("maxDroneSpeed", spec.commanderOptions != null
                             ? spec.commanderOptions.maxDroneSpeed
                             : null);

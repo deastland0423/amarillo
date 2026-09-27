@@ -49,6 +49,18 @@ public class CoiLoadout {
     public int extraDeckCrews = 0;
 
     /**
+     * Which fighters start ready, in the player's order of preference (S4.10-S4.12).
+     * <p>
+     * Free: readiness is what the weapon status already bought, not something else to buy.
+     * At WS-0 and WS-1 the first two named are armed; at WS-2 the deck crews' budget is spent
+     * down the list. Empty means no preference, and the first-come pass stands.
+     * <p>
+     * It only matters on a mixed squadron — but a Hydran Ranger refit carries Stinger-2s and
+     * Stinger-Hs in one bay, and which two are hot when the shooting starts is a real choice.
+     */
+    public List<String> armedFighters = new ArrayList<>();
+
+    /**
      * Drone loadout per rack, keyed by the rack's index in the ship's weapon list
      * (counting only DroneRack entries). Value is the list of DroneType to load into
      * that rack. If a rack index is absent, the rack keeps its default ammo.

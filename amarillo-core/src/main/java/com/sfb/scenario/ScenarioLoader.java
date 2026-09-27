@@ -268,6 +268,11 @@ public class ScenarioLoader {
             note(ship, "COI: skipping " + conversions + " BP→commando conversions — over budget");
         }
 
+        // --- Which fighters are ready (S4.10-S4.12) ---
+        // Before the crews are hired, because it costs nothing and cannot fail: it only
+        // re-arranges what the weapon status already granted.
+        applyFighterReadiness(ship, loadout.armedFighters);
+
         // --- Extra deck crews (S3.2/J4.816) ---
         // Only a fully capable carrier may hire them. A casual carrier, or a ship with no
         // fighters at all, has nowhere to put them — so the request is refused rather than
@@ -761,6 +766,7 @@ public class ScenarioLoader {
      * Apply weapon status initial conditions to a ship (S4.10–S4.13).
      */
     static void applyWeaponStatus(Ship ship, int weaponStatus) {
+        ship.setWeaponStatus(weaponStatus);
         switch (weaponStatus) {
             case 0:
                 // WS-0: phasers not energized — caps cannot hold energy yet
@@ -866,8 +872,10 @@ public class ScenarioLoader {
      *       (J4.8224).</li>
      * </ul>
      *
-     * Which fighters get the work is first-come for now. It is a real choice — a carrier
-     * captain arms the ones about to launch — and it belongs to the player in the COI.
+     * Which fighters get the work is first-come unless the player said otherwise in the
+     * Commander's Options — see {@link #applyFighterReadiness}. On a squadron of one type it
+     * makes no difference; on a mixed one it is a real decision, and the Hydran Ranger refit
+     * carries Stinger-2s and Stinger-Hs in the same bay.
      */
     static void applyFighterWeaponStatus(Ship ship, int weaponStatus) {
         // S4.1 extends these provisions to "fully capable carriers (J4.61) and most Hydran
@@ -921,4 +929,67 @@ public class ScenarioLoader {
 
     /** S4.10/S4.11: two fighters may be armed and ready at the lowest weapon statuses. */
     private static final int WS01_ARMED_FIGHTERS = 2;
+
+    /**
+     * Re-do the fighter readiness around the player's choice (Commander's Options).
+     * <p>
+     * Runs after the weapon status has already armed whichever fighters came first, because
+     * the options are chosen later — so it strips the squadron back and arms the named ones
+     * instead. Stripping is not a loss: J4.886's charges go back into the box they came from,
+     * which is the same accounting every other route uses.
+     * <p>
+     * Named fighters beyond what the status allows are ignored rather than refused; the
+     * server holds the list to the allowance before it ever gets here.
+     */
+    static void applyFighterReadiness(Ship ship, java.util.List<String> armedFighters) {
+        if (armedFighters == null || armedFighters.isEmpty())
+            return;
+        int ws = ship.getWeaponStatus();
+        if (ws >= 3)
+            return;   // S4.13 arms everything; there is nothing to choose between
+
+        java.util.List<com.sfb.systemgroups.ShuttleSpace> boxes = new java.util.ArrayList<>();
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                if (!box.isDestroyed()
+                        && box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter)
+                    boxes.add(box);
+        if (boxes.isEmpty())
+            return;
+
+        for (com.sfb.systemgroups.ShuttleSpace box : boxes)
+            com.sfb.systemgroups.FighterArming.disarm(box, box.getShuttle());
+
+        int allowed = ws == 2
+                ? boxes.size()   // WS-2 is bounded by the crews' budget, not by a count
+                : WS01_ARMED_FIGHTERS;
+        int halfActions = ws == 2
+                ? ship.getCrew().getDeckCrews() * WS2_TURNS
+                        * com.sfb.systemgroups.FighterArming.HALF_ACTIONS_PER_ACTION
+                : Integer.MAX_VALUE;
+        int perFighterCap = WS2_TURNS * MAX_CREWS_PER_FIGHTER
+                * com.sfb.systemgroups.FighterArming.HALF_ACTIONS_PER_ACTION;
+
+        int armed = 0;
+        for (String name : armedFighters) {
+            if (armed >= allowed)
+                break;
+            for (com.sfb.systemgroups.ShuttleSpace box : boxes) {
+                if (!box.getShuttle().getName().equalsIgnoreCase(name))
+                    continue;
+                if (ws == 2) {
+                    if (halfActions <= 0)
+                        break;
+                    com.sfb.systemgroups.FighterArming.Load load =
+                            com.sfb.systemgroups.FighterArming.load(box, box.getShuttle(),
+                                    Math.min(halfActions, perFighterCap));
+                    halfActions -= load.halfActionsUsed();
+                } else {
+                    box.armOccupantFully();
+                }
+                armed++;
+                break;
+            }
+        }
+    }
 }

@@ -15,7 +15,7 @@
           "startHex": "1201",
           "startHeading": "D",
           "startSpeed": 16,
-          "weaponStatus": 3
+          "weaponStatus": 1
         }
       ]
     },
@@ -29,7 +29,7 @@
           "startHex": "1212",
           "startHeading": "A",
           "startSpeed": 20,
-          "weaponStatus": 3        }
+          "weaponStatus": 1        }
       ]
     }
   ],

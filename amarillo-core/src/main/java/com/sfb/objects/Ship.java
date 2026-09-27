@@ -174,6 +174,14 @@ public class Ship extends Unit implements DroneController {
 	private boolean leader = false;      // leader variant (S8.36)
 	private boolean escort = false;      // carrier escort (S8.311)
 	private boolean requiresEscort = false; // cannot be fielded without escorts (S8.315)
+	/**
+	 * The weapon status this ship began the scenario at (S4.1), or -1 if none was applied.
+	 * <p>
+	 * Kept because the Commander's Options are chosen AFTER the status is applied and have to
+	 * know what it allows: how many fighters may be ready, how many may fly as a patrol.
+	 */
+	private int weaponStatus = -1;
+
 	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
 	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
@@ -837,6 +845,14 @@ public class Ship extends Unit implements DroneController {
 	 * What kind of carrier this is (J4.61/J4.62). Decides capabilities — extra deck crews,
 	 * EW lent to fighters, S4.1's weapon status provisions — never fleet legality.
 	 */
+	public int getWeaponStatus() {
+		return weaponStatus;
+	}
+
+	public void setWeaponStatus(int weaponStatus) {
+		this.weaponStatus = weaponStatus;
+	}
+
 	public com.sfb.properties.CarrierClass getCarrierClass() {
 		return carrierClass;
 	}

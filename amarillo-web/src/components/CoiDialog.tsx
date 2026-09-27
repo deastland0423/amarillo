@@ -74,6 +74,7 @@ interface ShipCoi {
   extraCommandoSquads:  number;
   extraTBombs:          number;
   extraDeckCrews:       number;
+  armedFighters:        string[];
   weaponArmingModes:    Record<string, ArmMode>;
   photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
@@ -89,6 +90,7 @@ function defaultShipCoi(): ShipCoi {
     extraCommandoSquads:  0,
     extraTBombs:          0,
     extraDeckCrews:       0,
+    armedFighters:        [],
     weaponArmingModes:    {},
     photonOverload:       {},
     droneRackLoadouts:    {},
@@ -291,6 +293,46 @@ function ShipCoiPanel({
               Math.min(ship.maxExtraDeckCrews ?? 0, parseInt(e.target.value) || 0))} />
         </div>
       )}
+
+      {/* Fighter readiness (S4.10–S4.12). Free — the weapon status already granted it; this
+          only says who gets it. Absent at WS-3, where S4.13 arms the whole squadron, and
+          pointless on a squadron of one type, so it appears only where there is a choice. */}
+      {(ship.fighters?.length ?? 0) > 1 && (ship.maxArmedFighters ?? 0) !== (ship.fighters?.length ?? 0)
+        && new Set((ship.fighters ?? []).map(f => f.type)).size > 1 && (() => {
+        const max = ship.maxArmedFighters ?? 0;
+        const chosen = coi.armedFighters;
+        const budgeted = max < 0;   // WS-2: the deck crews' budget decides, not a count
+        return (
+          <div className="coi-section">
+            <div className="coi-section-title">
+              Fighters Ready {budgeted
+                ? '(WS-2: worked in this order, as far as the crews reach)'
+                : `(pick up to ${max})`}
+            </div>
+            <div className="coi-note">
+              Which fighters are armed when the scenario opens. Free — it is what the weapon
+              status already allows; unchosen fighters keep their charges in their boxes.
+            </div>
+            {(ship.fighters ?? []).map(f => {
+              const picked = chosen.includes(f.name);
+              const full = !budgeted && !picked && chosen.length >= max;
+              return (
+                <label key={f.name} className="coi-label coi-check">
+                  <input type="checkbox" checked={picked} disabled={full}
+                    onChange={e => onChange({
+                      ...coi,
+                      armedFighters: e.target.checked
+                        ? [...coi.armedFighters, f.name]
+                        : coi.armedFighters.filter(n => n !== f.name),
+                    })} />
+                  {f.name.replace(`${ship.shipName}-`, '')}
+                  <span className="coi-note"> — {f.type}</span>
+                </label>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Drone rack loadouts */}
       {ship.droneRacks.length > 0 && ship.availableDroneTypes.length > 0 && (
@@ -661,6 +703,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         extraCommandoSquads:  coi.extraCommandoSquads,
         extraTBombs:          coi.extraTBombs,
         extraDeckCrews:       coi.extraDeckCrews,
+        armedFighters:        coi.armedFighters,
         droneRackLoadouts:    rackLoadouts,
         antiDroneLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
