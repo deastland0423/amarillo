@@ -264,6 +264,11 @@ public class GameStateDto {
         /** J4.831: charges in this fighter box's capacitor, and what it holds when full. */
         public int capacitorCharges;
         public int capacitorCapacity;
+        /** J4.817: deck crews this box could use this turn, and how many are posted to it. */
+        public int crewsWanted;
+        public int postedCrews;
+        /** Half-actions of work its fighter still needs — what the panel says it is short. */
+        public int workOutstanding;
     }
 
     public static class ShuttleBayDto {
@@ -1463,6 +1468,13 @@ public class GameStateDto {
                 spaceDto.empty = space.isEmpty();
                 spaceDto.capacitorCharges = space.getCapacitorCharges();
                 spaceDto.capacitorCapacity = space.capacitorCapacity();
+                spaceDto.postedCrews = space.getDeckCrews();
+                if (space.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
+                    spaceDto.workOutstanding = com.sfb.systemgroups.FighterArming
+                            .halfActionsOutstanding(space.getShuttle());
+                    spaceDto.crewsWanted = Math.min(2,
+                            (spaceDto.workOutstanding + 1) / 2);
+                }
                 com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
                 if (s != null) {
                     ShuttleInBayDto sd = new ShuttleInBayDto();

@@ -62,6 +62,7 @@ interface ShipAlloc {
   suicideHold:          Record<string, boolean>;  // shuttleName → paying hold this turn
   transUses:            number;
   fighterCaps:          number;   // J4.832: points into the fighter box capacitors
+  crewPostings:         Record<string, number>;   // J4.817: box id → deck crews posted
   cloakPaid:            boolean;
   doubleLwarp:          boolean;   // G15.2 engine doubling
   doubleRwarp:          boolean;
@@ -150,6 +151,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ),
     transUses:       0,
     fighterCaps:     0,
+    crewPostings:    {},
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     doubleLwarp:     false,
     doubleRwarp:     false,
@@ -498,6 +500,7 @@ export default function EnergyAllocationDialog({
           photonArming:          Object.keys(a.photonArming).length > 0 ? a.photonArming : undefined,
           transUses:             a.transUses,
           fighterCapacitorEnergy: a.fighterCaps,
+          deckCrewPostings:       a.crewPostings,
           cloakPaid:             a.cloakPaid,
           doubleLwarp:           a.doubleLwarp,
           doubleRwarp:           a.doubleRwarp,
@@ -1384,6 +1387,8 @@ export default function EnergyAllocationDialog({
       anchor={drag.position}
       fighterCaps={alloc.fighterCaps}
       onFighterCaps={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
+      crewPostings={alloc.crewPostings}
+      onCrewPostings={next => setAlloc(a => ({ ...a, crewPostings: next }))}
       spent={spent}
       total={total}
     />

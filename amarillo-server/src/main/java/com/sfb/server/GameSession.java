@@ -1094,6 +1094,28 @@ public class GameSession {
 
                 e.setCloakPaid(request.isCloakPaid());
 
+                // Deck crew postings (J4.817). Crews cost no energy — they are their own
+                // budget — but they are ordered here and take their posts when the turn
+                // starts. Held to what each box can actually use and to the crews the ship
+                // has left after loading scatter packs, so an order cannot conjure people.
+                Map<String, Integer> postings = request.getDeckCrewPostings();
+                if (postings != null && !postings.isEmpty()) {
+                    Map<String, Integer> wanted = ship.getShuttles().crewsWantedByBox();
+                    Map<String, Integer> clean = new java.util.LinkedHashMap<>();
+                    int crewsLeft = ship.getCrew().getAvailableDeckCrews();
+                    for (Map.Entry<String, Integer> post : postings.entrySet()) {
+                        Integer cap = wanted.get(post.getKey());
+                        if (cap == null || post.getValue() == null)
+                            continue;   // no work in that box; silently not posted
+                        int n = Math.min(Math.max(0, post.getValue()), Math.min(cap, crewsLeft));
+                        if (n > 0) {
+                            clean.put(post.getKey(), n);
+                            crewsLeft -= n;
+                        }
+                    }
+                    e.setDeckCrewPostings(clean);
+                }
+
                 // Fighter box capacitors (J4.832): 1 point a fusion charge, 2 a hellbore one
                 // (J4.834). Bounded by what the boxes can still hold, so a client that asks
                 // for more cannot burn energy into nothing.

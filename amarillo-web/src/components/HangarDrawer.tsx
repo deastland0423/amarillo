@@ -26,40 +26,71 @@ export const EA_WIDTH_PX = 300;
 const DRAWER_WIDTH_PX = 460;
 const TAB_WIDTH_PX = 28;
 
-/** One fighter box, in the order the ship fills them (Shuttles.rechargeCapacitors). */
+/**
+ * One fighter box. The id is what the server calls it — bay index and space index, the same
+ * pair Shuttles.boxId() builds — so an order can name it.
+ */
 interface BoxRow {
   key: string;
   label: string;
   charges: number;
   capacity: number;
+  crewsWanted: number;
+  work: number;
 }
 
-function capacitorBoxes(ship: ShipObject): BoxRow[] {
+function boxRows(ship: ShipObject): BoxRow[] {
   return (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.spaces ?? [])
-      .filter(sp => (sp.capacitorCapacity ?? 0) > 0)
-      .map(sp => ({
-        key:      `${bay.bayIndex}-${sp.spaceIndex}`,
-        label:    `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
-        charges:  sp.capacitorCharges ?? 0,
-        capacity: sp.capacitorCapacity ?? 0,
-      })));
+    (bay.spaces ?? []).map(sp => ({
+      key:         `${bay.bayIndex}-${sp.spaceIndex}`,
+      label:       `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
+      charges:     sp.capacitorCharges ?? 0,
+      capacity:    sp.capacitorCapacity ?? 0,
+      crewsWanted: sp.crewsWanted ?? 0,
+      work:        sp.workOutstanding ?? 0,
+    })));
+}
+
+/**
+ * What a box is short, in the units a player thinks in. Work is counted in half-actions —
+ * a fusion charge is one, a drone space two (J4.833/J4.82) — which is the right currency for
+ * the crews and the wrong one for the label.
+ */
+function shortfall(box: BoxRow): string {
+  if (box.work <= 0) return 'ready';
+  return box.capacity === 1 ? 'hellbore empty' : `${box.work} charge(s) short`;
 }
 
 export function HangarDrawer({
-  ship, anchor, fighterCaps, onFighterCaps, spent, total,
+  ship, anchor, fighterCaps, onFighterCaps, crewPostings, onCrewPostings, spent, total,
 }: {
   ship: ShipObject;
   anchor: { left: number; top: number };
   fighterCaps: number;
   onFighterCaps: (points: number) => void;
+  crewPostings: Record<string, number>;
+  onCrewPostings: (next: Record<string, number>) => void;
   spent: number;
   total: number;
 }) {
   const [collapsed, setCollapsed] = useStickyCollapse('hangar-drawer-collapsed');
 
-  const boxes = capacitorBoxes(ship);
+  const boxes = boxRows(ship);
+  const capacitorBoxes = boxes.filter(b => b.capacity > 0);
+  const workBoxes = boxes.filter(b => b.crewsWanted > 0);
   const room = ship.fighterCapacitorRoom ?? 0;
+
+  // The crews are their own budget — no energy, so nothing here touches the bar above.
+  const crews = ship.availableDeckCrews ?? 0;
+  const postedTotal = Object.values(crewPostings).reduce((a, b) => a + b, 0);
+  const crewsFree = Math.max(0, crews - postedTotal);
+
+  function post(boxKey: string, n: number) {
+    const next = { ...crewPostings };
+    if (n <= 0) delete next[boxKey];
+    else next[boxKey] = n;
+    onCrewPostings(next);
+  }
 
   // A ship with no bay has no hangar to operate. Everything else gets the strip, even a
   // cruiser whose hangar work is one admin shuttle — the tab is thin and says how much
@@ -79,7 +110,9 @@ export function HangarDrawer({
       ? anchor.left - TAB_WIDTH_PX - DRAWER_WIDTH_PX
       : rightEdge + TAB_WIDTH_PX;
 
-  const pending = room > 0 ? ` · ${room}` : '';
+  // What is waiting: fighters that could use a crew, since that is the decision most
+  // likely to be missed. Capacitor points are visible in the drawer itself.
+  const pending = workBoxes.length > 0 ? ` · ${workBoxes.length}` : '';
 
   return (
     <>
@@ -105,7 +138,47 @@ export function HangarDrawer({
           </div>
 
           <div className="hangar-drawer-body">
-            <div className="ea-section-title" style={{ color: '#7ee0a8' }}>
+            {/* ---- Deck crews (J4.817) ---- */}
+            <div className="ea-section-title" style={{ color: '#f0c040' }}>
+              Deck Crews — {crewsFree} of {crews} free
+            </div>
+            <div className="ea-note">
+              A crew posted to a box works there all turn: two crews reload a Stinger, one a
+              hellbore (J4.833/J4.834). They are killed if that box is destroyed (J4.811), and
+              launching the fighter they are working on wastes the work (J4.8174). Post
+              nobody and the ship decides for itself, top down.
+            </div>
+
+            {workBoxes.length === 0 ? (
+              <div className="ea-note">Every fighter aboard is ready — no work to post.</div>
+            ) : (
+              <table className="hangar-table">
+                <thead>
+                  <tr><th>Box</th><th>Needs</th><th className="hangar-num">Crews</th></tr>
+                </thead>
+                <tbody>
+                  {workBoxes.map(b => {
+                    const posted = crewPostings[b.key] ?? 0;
+                    return (
+                      <tr key={b.key} className={posted > 0 ? 'hangar-row-posted' : ''}>
+                        <td>{b.label}</td>
+                        <td>{shortfall(b)}</td>
+                        <td className="hangar-num">
+                          <button className="ea-step-btn" disabled={posted <= 0}
+                            onClick={() => post(b.key, posted - 1)}>−</button>
+                          <span className="hangar-posted">{posted}</span>
+                          <button className="ea-step-btn"
+                            disabled={posted >= b.crewsWanted || crewsFree <= 0}
+                            onClick={() => post(b.key, posted + 1)}>+</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+
+            <div className="ea-section-title" style={{ color: '#7ee0a8', marginTop: '0.6rem' }}>
               Weapon Capacitors
             </div>
             <div className="ea-note">
@@ -127,7 +200,7 @@ export function HangarDrawer({
                 <tr><th>Box</th><th>Capacitor</th></tr>
               </thead>
               <tbody>
-                {boxes.map(b => (
+                {capacitorBoxes.map(b => (
                   <tr key={b.key} className={b.charges < b.capacity ? 'hangar-row-short' : ''}>
                     <td>{b.label}</td>
                     <td className="hangar-num">
@@ -135,7 +208,7 @@ export function HangarDrawer({
                     </td>
                   </tr>
                 ))}
-                {boxes.length === 0 && (
+                {capacitorBoxes.length === 0 && (
                   <tr><td colSpan={2} className="ea-note">
                     No weapon capacitors aboard — this ship carries no Hydran fighters.
                   </td></tr>
@@ -144,9 +217,9 @@ export function HangarDrawer({
             </table>
 
             <div className="ea-note hangar-todo">
-              Deck crew orders — load a fighter, repair a shuttle, load a scatter pack, fill a
-              ready rack — will live here too. They spend crews rather than power, so they get
-              their own table.
+              Still to come in the crew table: repairing a damaged shuttle (J4.818), loading
+              a scatter pack (FD7.22, which spends these same crews), and filling a ready
+              rack once the ship has drone stores to fill it from (J4.82).
             </div>
           </div>
         </div>

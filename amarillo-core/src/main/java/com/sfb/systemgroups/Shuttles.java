@@ -185,9 +185,29 @@ public class Shuttles implements Systems {
      * @return crews left unposted
      */
     public int postDeckCrews(int available) {
+        return postDeckCrews(available, null);
+    }
+
+    /**
+     * As above, but the player said where.
+     * <p>
+     * An ORDER, not a hint: when a posting map is given it is the whole instruction, and a box
+     * not named in it gets nobody — the same rule the COI drone loadouts follow, so a player
+     * who deliberately leaves crews idle is not overruled by the automatic pass. An absent or
+     * empty map means nobody gave an order, and the first-come pass runs as before, so a
+     * player who never opens the hangar panel loses nothing.
+     *
+     * @param requested box id ({@link #boxId}) to crews, as ordered at Energy Allocation
+     */
+    public int postDeckCrews(int available, java.util.Map<String, Integer> requested) {
         int left = Math.max(0, available);
-        for (ShuttleBay bay : bays) {
-            for (ShuttleSpace box : bay.getSpaces()) {
+        boolean ordered = requested != null && !requested.isEmpty();
+
+        for (int b = 0; b < bays.size(); b++) {
+            ShuttleBay bay = bays.get(b);
+            java.util.List<ShuttleSpace> spaces = bay.getSpaces();
+            for (int i = 0; i < spaces.size(); i++) {
+                ShuttleSpace box = spaces.get(i);
                 box.setDeckCrews(0);
                 if (left <= 0 || box.isDestroyed() || box.isEmpty())
                     continue;
@@ -195,13 +215,48 @@ public class Shuttles implements Systems {
                     continue;
                 int wanted = crewsWantedBy(fighter);
                 if (wanted == 0)
+                    continue;   // no work here, so nobody stands in this box to be shot
+
+                int asked = wanted;
+                if (ordered) {
+                    Integer order = requested.get(boxId(b, i));
+                    asked = order == null ? 0 : Math.max(0, Math.min(order, wanted));
+                }
+                int posted = Math.min(asked, left);
+                if (posted <= 0)
                     continue;
-                int posted = Math.min(wanted, left);
                 box.setDeckCrews(posted);
                 left -= posted;
             }
         }
         return left;
+    }
+
+    /** How the wire names a box: its bay's index and its own, as the DTO sends them. */
+    public static String boxId(int bayIndex, int spaceIndex) {
+        return bayIndex + "-" + spaceIndex;
+    }
+
+    /**
+     * Crews each box could use this turn, by box id — what the hangar panel offers, and the
+     * ceiling the server holds an order to. Zero-work boxes are absent rather than zero.
+     */
+    public java.util.Map<String, Integer> crewsWantedByBox() {
+        java.util.Map<String, Integer> wanted = new java.util.LinkedHashMap<>();
+        for (int b = 0; b < bays.size(); b++) {
+            java.util.List<ShuttleSpace> spaces = bays.get(b).getSpaces();
+            for (int i = 0; i < spaces.size(); i++) {
+                ShuttleSpace box = spaces.get(i);
+                if (box.isDestroyed() || box.isEmpty())
+                    continue;
+                if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
+                    continue;
+                int n = crewsWantedBy(fighter);
+                if (n > 0)
+                    wanted.put(boxId(b, i), n);
+            }
+        }
+        return wanted;
     }
 
     /** Crews this fighter's outstanding work could use, at most the two J4.8172 allows. */

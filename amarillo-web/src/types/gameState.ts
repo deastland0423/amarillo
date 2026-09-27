@@ -109,6 +109,11 @@ export interface ShuttleSpaceState {
   // 0 capacity means this box is not a Hydran fighter box.
   capacitorCharges?:  number;
   capacitorCapacity?: number;
+  // J4.817: deck crews this box could use this turn, how many are posted, and how much work
+  // its fighter still needs (in half-actions — a fusion charge is one, a drone space two).
+  crewsWanted?:     number;
+  postedCrews?:     number;
+  workOutstanding?: number;
 }
 
 export interface ShuttleBayState {

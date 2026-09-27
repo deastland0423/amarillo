@@ -60,6 +60,14 @@ public class Energy {
 	private int damageControl;
 	/** J4.832: points put into fighter box capacitors this turn (1 per fusion charge). */
 	private int fighterCapacitors;
+
+	/**
+	 * J4.817: which fighter boxes the deck crews work in this turn, by box id.
+	 * <p>
+	 * Costs no energy — crews are their own budget — but it is decided at Energy Allocation
+	 * with everything else and applied when the turn starts, so it rides in with the rest.
+	 */
+	private java.util.Map<String, Integer> deckCrewPostings = new java.util.LinkedHashMap<>();
 	private boolean cloakPaid;      // true if the player paid the cloak cost this turn
 	private boolean energizeCaps;   // true if the player paid 1 pt to energize uncharged capacitors (WS-0)
 
@@ -282,6 +290,15 @@ public class Energy {
 
 	public void setFighterCapacitors(int fighterCapacitors) {
 		this.fighterCapacitors = Math.max(0, fighterCapacitors);
+	}
+
+	public java.util.Map<String, Integer> getDeckCrewPostings() {
+		return deckCrewPostings;
+	}
+
+	public void setDeckCrewPostings(java.util.Map<String, Integer> postings) {
+		this.deckCrewPostings = postings == null
+				? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(postings);
 	}
 
 	public boolean isEnergizeCaps() {

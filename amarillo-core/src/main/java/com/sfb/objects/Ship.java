@@ -467,7 +467,8 @@ public class Ship extends Unit implements DroneController {
 
 		// Deck crews take up their posts for the turn (J4.817). After the allocation, so the
 		// crews that spent it loading a scatter pack are already spoken for.
-		crew.setAvailableDeckCrews(shuttles.postDeckCrews(crew.getAvailableDeckCrews()));
+		crew.setAvailableDeckCrews(shuttles.postDeckCrews(crew.getAvailableDeckCrews(),
+				energyAllocated.getDeckCrewPostings()));
 
 		// Fighter box capacitors (J4.832): the ship buys charges back into the boxes, and
 		// only a box can arm the fighter sitting in it (J4.881).

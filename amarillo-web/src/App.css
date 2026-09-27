@@ -2151,3 +2151,15 @@ h3 {
   padding-top: 0.5rem;
   font-style: italic;
 }
+
+/* A box with crews posted to it — the ones that will actually be worked on. */
+.hangar-row-posted td {
+  color: #f0c040;
+}
+
+.hangar-posted {
+  display: inline-block;
+  min-width: 1.4rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
