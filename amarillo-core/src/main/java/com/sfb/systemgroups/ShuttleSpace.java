@@ -299,6 +299,16 @@ public class ShuttleSpace {
      * Read off the fighter because we do not model the SSD's box markings: a box marked "="
      * carries a fusion fighter and one marked "+" a hellbore one, so asking the occupant
      * gives the same answer everywhere it matters.
+     * <p>
+     * It knows fusions and hellbores and nothing else, so J4.84's disruptor fighters, J4.85's
+     * photon fighters and J4.86's plasma-F ones all fall through to zero — no capacitor at
+     * all, silently. That is a gap waiting for those fighters rather than a ruling about them,
+     * and the first one to arrive needs a case here.
+     * <p>
+     * Note a box may have a capacitor AND a ready rack: they are separate fields set by
+     * separate tests, because a fighter can carry a capacitor weapon and drones at once — a
+     * Federation photon fighter with drone rails being the case to expect. Nothing in the
+     * catalogue does yet, which is why nothing exercises it.
      */
     private static int capacityFor(Shuttle occupant) {
         for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
