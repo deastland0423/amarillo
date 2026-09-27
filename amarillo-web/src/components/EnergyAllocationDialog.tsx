@@ -1156,132 +1156,23 @@ export default function EnergyAllocationDialog({
           </Collapsible>
         )}
 
-        {/* ---- Shuttles (collapsible) ---- */}
+        {/* ---- Shuttle speeds (collapsible) ---- */}
         {(() => {
-          const suicideCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
-            bay.shuttles.filter(s =>
-              s.type === 'suicide' ||
-              (s.type === 'admin' && (s as any).canBecomeSuicide !== false)
-            )
-          );
-          const wwCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
-            bay.shuttles.filter(s => s.type === 'admin' && s.wwChargeCount != null)
-          );
-          const spEligible = (ship.shuttleBays ?? []).flatMap(bay =>
-            bay.shuttles.filter(s => s.type === 'admin' || s.type === 'scatterpack')
-          );
-          const stockpile: Record<string, { rackSize: number; count: number }> = {};
-          for (const r of ship.droneRacks ?? [])
-            for (const e of r.reloadPool ?? []) {
-              if (!stockpile[e.droneType]) stockpile[e.droneType] = { rackSize: e.rackSize, count: 0 };
-              stockpile[e.droneType].count += e.count;
-            }
-          const hasScatterPack = spEligible.length > 0 && Object.keys(stockpile).length > 0;
+          // Only the craft already FLYING. Everything done to the ones in the bays — crews,
+          // charges, suicide arming, weasel charging — is Hangar Operations; this is a
+          // movement order that happens to be set at allocation.
           const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
-          if (suicideCandidates.length === 0 && wwCandidates.length === 0 && !hasScatterPack && myShuttles.length === 0) return null;
+          if (myShuttles.length === 0) return null;
 
           const shortName = (s: ShuttleObject) =>
             s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
           return (
-            <Collapsible title="Shuttles" color="#f0c040" defaultOpen={false}>
+            <Collapsible title="Shuttle Speeds" color="#f0c040" defaultOpen={false}>
 
-              {/* Suicide Shuttle Arming */}
-              {suicideCandidates.length > 0 && (
-                <div className="ea-section">
-                  <div className="ea-section-title" style={{ color: '#ff6060' }}>Suicide Shuttle Arming</div>
-                  <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
-                  {suicideCandidates.map(s => {
-                    const turns = (s as any).armingTurnsComplete ?? 0;
-                    const armed = turns >= 3;
-                    const dmg   = (s as any).warheadDamage ?? 0;
-                    if (armed) {
-                      const holding = alloc.suicideHold?.[s.name] ?? false;
-                      return (
-                        <div key={s.name} className="ea-weapon-alloc-block">
-                          <div className="ea-weapon-alloc-name">
-                            {s.name}<span className="ea-note-dim"> — Armed (dmg {dmg})</span>
-                          </div>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={holding}
-                              onChange={e => setAlloc(a => ({
-                                ...a,
-                                suicideHold: { ...a.suicideHold, [s.name]: e.target.checked },
-                              }))} />
-                            Hold (1 energy) — uncheck to release
-                          </label>
-                        </div>
-                      );
-                    } else {
-                      const energy = alloc.suicideArming?.[s.name] ?? 0;
-                      return (
-                        <div key={s.name} className="ea-weapon-alloc-block">
-                          <div className="ea-weapon-alloc-name">
-                            {s.name}
-                            <span className="ea-note-dim"> — Turn {turns}/3{energy > 0 ? `, dmg will be ${(((s as any).totalEnergy ?? 0) + energy) * 2}` : ''}</span>
-                          </div>
-                          <div className="ea-stepper">
-                            <button className="ea-step-btn"
-                              onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.max(0, energy - 1) } }))}
-                              disabled={energy <= 0}>−</button>
-                            <span className="ea-step-value">{energy}</span>
-                            <button className="ea-step-btn"
-                              onClick={() => setAlloc(a => ({ ...a, suicideArming: { ...a.suicideArming, [s.name]: Math.min(3, energy + 1) } }))}
-                              disabled={energy >= 3 || turns === 0 && s.type !== 'admin'}>+</button>
-                            <span className="ea-step-label">energy this turn <span className="ea-note-dim">(1–3)</span></span>
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              )}
-
-              {/* Wild Weasel Charging */}
-              {wwCandidates.length > 0 && (
-                <div className="ea-section">
-                  <div className="ea-section-title" style={{ color: '#a78bfa' }}>Wild Weasel Charging</div>
-                  <div className="ea-note">Pay 1 energy/turn for 2 consecutive turns to ready a WW decoy (J3.12).</div>
-                  {wwCandidates.map(s => {
-                    const charge = s.wwChargeCount ?? 0;
-                    const ready  = s.wwReady ?? false;
-                    const paying = alloc.wwCharge.has(s.name);
-                    const label  = ready ? 'Ready to launch!' : charge === 1 ? 'Primed (1/2)' : 'Uncharged';
-                    return (
-                      <div key={s.name} className="ea-weapon-alloc-block">
-                        <div className="ea-weapon-alloc-name">
-                          {s.name}
-                          <span className="ea-note-dim"> — {label}</span>
-                        </div>
-                        {!ready && (
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={paying}
-                              onChange={e => setAlloc(a => {
-                                const next = new Set(a.wwCharge);
-                                if (e.target.checked) next.add(s.name); else next.delete(s.name);
-                                return { ...a, wwCharge: next };
-                              })} />
-                            Charge WW (1 energy) — turn {charge + (paying ? 1 : 0)}/2
-                          </label>
-                        )}
-                        {ready && (
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={paying}
-                              onChange={e => setAlloc(a => {
-                                const next = new Set(a.wwCharge);
-                                if (e.target.checked) next.add(s.name); else next.delete(s.name);
-                                return { ...a, wwCharge: next };
-                              })} />
-                            Maintain WW ready (1 energy) — uncheck to cancel
-                          </label>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Scatter pack loading moved to Hangar Operations: it spends deck
-                  crews, so it belongs beside the jobs it competes with (FD7.22). */}
+              {/* What craft in the BAYS get — crews, charges, arming — is Hangar
+                  Operations. What is left here is the speed of the ones already
+                  flying, which is a movement order that happens to be set at
+                  allocation. */}
 
               {/* Active Shuttle / Fighter Speeds */}
               {myShuttles.length > 0 && (
@@ -1350,6 +1241,12 @@ export default function EnergyAllocationDialog({
       onCrewPostings={next => setAlloc(a => ({ ...a, crewPostings: next }))}
       packLoading={alloc.scatterPackLoading}
       onPackLoading={next => setAlloc(a => ({ ...a, scatterPackLoading: next }))}
+      suicideArming={alloc.suicideArming}
+      suicideHold={alloc.suicideHold}
+      onSuicide={(arming, hold) =>
+        setAlloc(a => ({ ...a, suicideArming: arming, suicideHold: hold }))}
+      wwCharge={alloc.wwCharge}
+      onWwCharge={next => setAlloc(a => ({ ...a, wwCharge: next }))}
       spent={spent}
       total={total}
     />

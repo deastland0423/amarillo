@@ -108,7 +108,8 @@ function jobRows(boxes: BoxRow[]): JobRow[] {
 
 export function HangarDrawer({
   ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings,
-  packLoading, onPackLoading, spent, total,
+  packLoading, onPackLoading, suicideArming, suicideHold, onSuicide,
+  wwCharge, onWwCharge, spent, total,
 }: {
   ship: ShipObject;
   anchor: { left: number; top: number };
@@ -118,6 +119,11 @@ export function HangarDrawer({
   onCrewPostings: (next: Record<string, number>) => void;
   packLoading: Record<string, Record<string, number>>;
   onPackLoading: (next: Record<string, Record<string, number>>) => void;
+  suicideArming: Record<string, number>;
+  suicideHold: Record<string, boolean>;
+  onSuicide: (arming: Record<string, number>, hold: Record<string, boolean>) => void;
+  wwCharge: Set<string>;
+  onWwCharge: (next: Set<string>) => void;
   spent: number;
   total: number;
 }) {
@@ -141,6 +147,14 @@ export function HangarDrawer({
     }
   const packs = (ship.shuttleBays ?? []).flatMap(bay =>
     (bay.shuttles ?? []).filter(s => s.type === 'admin' || s.type === 'scatterpack'));
+  // Energy going into a craft in a box, the same as a point into a capacitor — which is why
+  // these live here rather than in the energy column. Their cost is in the panel header's
+  // total, as everything bought with power is.
+  const suicideCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
+    (bay.shuttles ?? []).filter(s => s.type === 'suicide'
+      || s.type === 'admin'));
+  const wwCandidates = (ship.shuttleBays ?? []).flatMap(bay =>
+    (bay.shuttles ?? []).filter(s => s.type === 'admin' && s.wwChargeCount != null));
   const canLoadPacks = packs.length > 0 && Object.keys(stockpile).length > 0;
 
   const spacesIn = (sel: Record<string, number>) =>
@@ -321,6 +335,101 @@ export function HangarDrawer({
                 })}
               </>
             )}
+
+          {/* Suicide Shuttle Arming */}
+          {suicideCandidates.length > 0 && (
+            <div className="ea-section">
+              <div className="ea-section-title" style={{ color: '#ff6060' }}>Suicide Shuttle Arming</div>
+              <div className="ea-note">Arming: 1–3 energy/turn for 3 turns. Hold: 1 energy/turn once armed.</div>
+              {suicideCandidates.map(s => {
+                const turns = s.armingTurnsComplete ?? 0;
+                const armed = turns >= 3;
+                const dmg   = s.warheadDamage ?? 0;
+                if (armed) {
+                  const holding = suicideHold?.[s.name] ?? false;
+                  return (
+                    <div key={s.name} className="ea-weapon-alloc-block">
+                      <div className="ea-weapon-alloc-name">
+                        {s.name.replace(`${ship.name}-`, '')}<span className="ea-note-dim"> — Armed (dmg {dmg})</span>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={holding}
+                          onChange={e => onSuicide(suicideArming, { ...suicideHold, [s.name]: e.target.checked })} />
+                        Hold (1 energy) — uncheck to release
+                      </label>
+                    </div>
+                  );
+                } else {
+                  const energy = suicideArming?.[s.name] ?? 0;
+                  return (
+                    <div key={s.name} className="ea-weapon-alloc-block">
+                      <div className="ea-weapon-alloc-name">
+                        {s.name.replace(`${ship.name}-`, '')}
+                        <span className="ea-note-dim">
+                            {' '}— turn {turns}/3
+                            {energy > 0 && `, warhead ${((s.warheadDamage ?? 0) / 2 + energy) * 2}`}
+                          </span>
+                      </div>
+                      <div className="ea-stepper">
+                        <button className="ea-step-btn"
+                          onClick={() => onSuicide({ ...suicideArming, [s.name]: Math.max(0, energy - 1) }, suicideHold)}
+                          disabled={energy <= 0}>−</button>
+                        <span className="ea-step-value">{energy}</span>
+                        <button className="ea-step-btn"
+                          onClick={() => onSuicide({ ...suicideArming, [s.name]: Math.min(3, energy + 1) }, suicideHold)}
+                          disabled={energy >= 3 || turns === 0 && s.type !== 'admin'}>+</button>
+                        <span className="ea-step-label">energy this turn <span className="ea-note-dim">(1–3)</span></span>
+                      </div>
+                    </div>
+                  );
+                }
+              })}
+            </div>
+          )}
+
+          {/* Wild Weasel Charging */}
+          {wwCandidates.length > 0 && (
+            <div className="ea-section">
+              <div className="ea-section-title" style={{ color: '#a78bfa' }}>Wild Weasel Charging</div>
+              <div className="ea-note">Pay 1 energy/turn for 2 consecutive turns to ready a WW decoy (J3.12).</div>
+              {wwCandidates.map(s => {
+                const charge = s.wwChargeCount ?? 0;
+                const ready  = s.wwReady ?? false;
+                const paying = wwCharge.has(s.name);
+                const label  = ready ? 'Ready to launch!' : charge === 1 ? 'Primed (1/2)' : 'Uncharged';
+                return (
+                  <div key={s.name} className="ea-weapon-alloc-block">
+                    <div className="ea-weapon-alloc-name">
+                      {s.name.replace(`${ship.name}-`, '')}
+                      <span className="ea-note-dim"> — {label}</span>
+                    </div>
+                    {!ready && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={paying}
+                          onChange={e => (() => {
+                            const next = new Set(wwCharge);
+                            if (e.target.checked) next.add(s.name); else next.delete(s.name);
+                            onWwCharge(next);
+                          })()} />
+                        Charge WW (1 energy) — turn {charge + (paying ? 1 : 0)}/2
+                      </label>
+                    )}
+                    {ready && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={paying}
+                          onChange={e => (() => {
+                            const next = new Set(wwCharge);
+                            if (e.target.checked) next.add(s.name); else next.delete(s.name);
+                            onWwCharge(next);
+                          })()} />
+                        Maintain WW ready (1 energy) — uncheck to cancel
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
             <div className="ea-section-title" style={{ color: '#7ee0a8', marginTop: '0.6rem' }}>
               Weapon Capacitors
