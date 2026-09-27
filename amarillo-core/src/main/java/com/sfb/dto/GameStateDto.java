@@ -251,8 +251,16 @@ public class GameStateDto {
          * can leave it out: a prepared shuttle cannot launch as an ordinary one.
          */
         public String specialRole;
-        public int wwChargeCount; // admin only: 0=uncharged, 1=primed, 2=ready to launch
-        public boolean wwReady; // admin only: true when wwChargeCount >= 2
+        /**
+         * Wild weasel charge, on the shuttles that can become one (J3.18) and NOBODY else.
+         * <p>
+         * Integer and Boolean, not int and boolean: a primitive is always serialized, so an
+         * int here sent "wwChargeCount: 0" on every Stinger in the bay and a client asking
+         * "does this craft have a weasel charge" got yes. A fighter cannot be charged as a
+         * weasel at all, and the DTO has to be able to say so rather than say zero.
+         */
+        public Integer wwChargeCount; // 0=uncharged, 1=primed, 2=ready; null = cannot weasel
+        public Boolean wwReady;
     }
 
     public static class ShuttleSpaceDto {

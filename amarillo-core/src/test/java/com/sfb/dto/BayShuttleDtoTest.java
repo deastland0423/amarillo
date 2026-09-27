@@ -79,8 +79,8 @@ public class BayShuttleDtoTest {
         assertNotNull("a pack with no payload cannot be launched, so this must be sent",
                 sd.payload);
         assertEquals(2, sd.payload.size());
-        assertEquals("and it is a pack, not a weasel waiting to be charged",
-                0, sd.wwChargeCount);
+        assertNull("and it is a pack, not a weasel waiting to be charged",
+                sd.wwChargeCount);
     }
 
     /**
@@ -129,7 +129,7 @@ public class BayShuttleDtoTest {
         assertNotNull(sd);
         assertEquals("admin", sd.type);
         assertEquals("the branch that was stealing the pack's still works for a shuttle",
-                1, sd.wwChargeCount);
+                Integer.valueOf(1), sd.wwChargeCount);
     }
 
     /**
@@ -183,5 +183,42 @@ public class BayShuttleDtoTest {
         bay.getSpaces().get(0).setShuttle(plain);
         assertNull("an ordinary shuttle is spoken for by nobody",
                 inBay("IKV Vengeance-Admin-3").specialRole);
+    }
+
+    /**
+     * A fighter is not a weasel candidate, and the DTO has to say so rather than say zero.
+     * <p>
+     * J3.18 admits the shuttles the catalogue marks, and a Stinger is not one. The Java side
+     * always knew — it only fills these fields when canBecomeWildWeasel() — but the fields
+     * were primitives, so Jackson sent "wwChargeCount: 0" on every fighter in the bay and a
+     * client asking "can this be charged?" got an answer meaning "yes, at zero". The hangar
+     * panel duly offered a charge-weasel checkbox on nine Stingers (owner, 2026-09-27).
+     */
+    @Test
+    public void aFighterIsNotAWeaselWaitingToBeCharged() throws Exception {
+        com.sfb.objects.Ship rn = com.sfb.objects.ShipLibrary.createShip(
+                com.sfb.objects.ShipSpec.fromJson(
+                        new java.io.File("../data/factions/hydran/rn.json")));
+        rn.setName("HMS Loyalty");
+        rn.setLocation(new com.sfb.properties.Location(10, 10));
+        com.sfb.Game game = new com.sfb.Game();
+        game.getShips().add(rn);
+
+        GameStateDto dto = new GameStateDto(game, null);
+        int fighters = 0;
+        for (GameStateDto.MapObjectDto o : dto.mapObjects) {
+            if (!(o instanceof GameStateDto.ShipDto sd) || sd.shuttleBays == null)
+                continue;
+            for (GameStateDto.ShuttleBayDto bd : sd.shuttleBays)
+                for (GameStateDto.ShuttleInBayDto in : bd.shuttles) {
+                    if (!in.type.startsWith("stinger"))
+                        continue;
+                    fighters++;
+                    assertNull(in.name + " cannot be charged as a weasel, and 0 is not the way"
+                            + " to say so", in.wwChargeCount);
+                    assertNull(in.name + ": nor is false", in.wwReady);
+                }
+        }
+        assertEquals("the Ranger's nine Stingers", 9, fighters);
     }
 }
