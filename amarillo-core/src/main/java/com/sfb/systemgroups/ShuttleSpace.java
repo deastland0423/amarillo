@@ -131,6 +131,12 @@ public class ShuttleSpace {
     public Shuttle getShuttle() { return shuttle; }
 
     public void setShuttle(Shuttle shuttle) {
+        // The occupant leaving ends whatever was being done to it (J4.8174), so the crews
+        // posted here are no longer working here — they are idle for the rest of the turn,
+        // and a hit on this box after the fighter has launched kills nobody. Deck crews are
+        // a pool sent where there is work; an empty box is not work.
+        if (shuttle == null)
+            this.deckCrews = 0;
         this.shuttle = shuttle;
         if (capacitorCapacity < 0 && shuttle != null) {
             capacitorCapacity = capacityFor(shuttle);

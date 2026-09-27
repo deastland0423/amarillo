@@ -142,6 +142,44 @@ public class DeckCrewPostingTest {
     }
 
     @Test
+    public void aBoxWhoseFighterIsFullGetsNoCrewsAndLosesNone() {
+        // Crews are a pool sent where there is work. A fighter that needs nothing is not
+        // work, so nobody is standing in that box to be killed.
+        ShuttleSpace box = fighterBoxes().get(0);
+        box.armOccupantFully();
+        rn.startTurn();          // re-post, now that this one has nothing outstanding
+
+        assertEquals("nothing to do here", 0, box.getDeckCrews());
+        int before = rn.getCrew().getDeckCrews();
+
+        int killed = box.getDeckCrews();
+        box.destroy();
+        rn.getCrew().killDeckCrews(killed);
+
+        assertEquals("the box is lost, the crews are not", before, rn.getCrew().getDeckCrews());
+    }
+
+    @Test
+    public void aFighterThatLaunchesTakesItsCrewsOffTheJob() {
+        ShuttleBay bay = rn.getShuttles().getBays().get(0);
+        ShuttleSpace box = fighterBoxes().get(0);
+        Shuttle fighter = box.getShuttle();
+        assertEquals(2, box.getDeckCrews());
+        int before = rn.getCrew().getDeckCrews();
+
+        bay.launch(fighter, 12, 1, 6);   // off it goes on impulse 6
+
+        assertEquals("J4.8174 cancelled their action when their fighter left",
+                0, box.getDeckCrews());
+
+        // And the empty box being shot off later kills nobody, because nobody was in it.
+        int killed = box.getDeckCrews();
+        box.destroy();
+        rn.getCrew().killDeckCrews(killed);
+        assertEquals(before, rn.getCrew().getDeckCrews());
+    }
+
+    @Test
     public void thePostingsStandDownAtTheEndOfTheTurn() {
         rn.cleanUp();
 
