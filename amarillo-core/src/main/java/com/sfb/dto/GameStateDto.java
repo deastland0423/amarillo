@@ -270,6 +270,12 @@ public class GameStateDto {
         /** J4.817: deck crews this box could use this turn, and how many are posted to it. */
         public int crewsWanted;
         public int postedCrews;
+        /**
+         * The deck crew jobs available in this box, task name to the crews each could use.
+         * One row apiece in the hangar panel: two crews on one fighter need not be doing the
+         * same thing, so the job is the unit, not the box.
+         */
+        public java.util.Map<String, Integer> crewJobs = new java.util.LinkedHashMap<>();
         /** Half-actions of work its fighter still needs — what the panel says it is short. */
         public int workOutstanding;
     }
@@ -1484,6 +1490,13 @@ public class GameStateDto {
                             .halfActionsOutstanding(space.getShuttle());
                     spaceDto.crewsWanted = Math.min(2,
                             (spaceDto.workOutstanding + 1) / 2);
+                    for (com.sfb.systemgroups.CrewTask task
+                            : com.sfb.systemgroups.CrewTask.values()) {
+                        int n = com.sfb.systemgroups.Shuttles.crewsWantedFor(
+                                task, space, space.getShuttle());
+                        if (n > 0)
+                            spaceDto.crewJobs.put(task.name(), n);
+                    }
                 }
                 com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
                 if (s != null) {

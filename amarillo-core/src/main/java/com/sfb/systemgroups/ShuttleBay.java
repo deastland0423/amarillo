@@ -342,9 +342,11 @@ public class ShuttleBay {
             if (space.getOccupiedSinceTurn() >= turn)
                 continue;
 
-            RearmResult one = rearmOne(space, fighter, space.getDeckCrews());
-            log.addAll(one.log());
-            crewsUsed += one.crewsUsed();
+            for (java.util.Map.Entry<CrewTask, Integer> job : space.getCrewTasks().entrySet()) {
+                RearmResult one = work(job.getKey(), space, fighter, job.getValue());
+                log.addAll(one.log());
+                crewsUsed += one.crewsUsed();
+            }
         }
         return new RearmResult(log, crewsUsed);
     }
@@ -357,10 +359,15 @@ public class ShuttleBay {
      * one turn completes one action, so the budget here is the crews it may put on this
      * fighter, and the crews it SPENT are the actions that came back.
      */
-    private RearmResult rearmOne(ShuttleSpace space, Fighter fighter, int crewsLeft) {
-        int crews = Math.min(2, crewsLeft);   // J4.8172: two crews on one fighter, no more
-        FighterArming.Load load = FighterArming.load(space, fighter,
-                crews * FighterArming.HALF_ACTIONS_PER_ACTION);
+    private RearmResult work(CrewTask task, ShuttleSpace space, Fighter fighter, int crews) {
+        int budget = Math.min(2, crews) * FighterArming.HALF_ACTIONS_PER_ACTION;
+        FighterArming.Load load = switch (task) {
+            case LOAD   -> FighterArming.load(space, fighter, budget);
+            case UNLOAD -> FighterArming.unload(space, fighter, budget);
+            // J4.818 is one damage point an action, and shuttle damage does not yet track
+            // repair. The task exists so the panel can offer it the day it does.
+            case REPAIR -> FighterArming.Load.NOTHING;
+        };
         if (load.note() == null)
             return RearmResult.NOTHING;
 

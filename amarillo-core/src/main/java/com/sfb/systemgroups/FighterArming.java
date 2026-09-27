@@ -256,6 +256,44 @@ public final class FighterArming {
     // -------------------------------------------------------------------------
 
     /**
+     * Take drones back off a fighter, as far as the budget and the rack's room allow (J4.82).
+     * <p>
+     * The deck crew job behind CrewTask.UNLOAD. A ready rack holds one reload of one drone
+     * type, so this is how a commander changes their mind about what a fighter carries:
+     * unload now, load something else once the rack has been refilled. Costs what loading
+     * costs — the drones have to be handled either way.
+     *
+     * @return what was done; note() is null when there was nothing to take off
+     */
+    public static Load unload(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {
+        ReadyRack rack = box.getReadyRack();
+        if (rack == null || halfActionBudget <= 0)
+            return Load.NOTHING;
+
+        int budget = halfActionBudget;
+        int taken = 0;
+        for (DroneRail rail : railsOf(fighter)) {
+            com.sfb.objects.Drone drone = rail.getDrone();
+            if (drone == null)
+                continue;
+            int cost = droneRailHalfActions(rail);
+            if (budget < cost)
+                break;
+            if (!rack.put(drone))
+                break;          // nowhere to put it; the rack is where they belong (J4.822)
+            rail.setAmmo(new java.util.ArrayList<>());
+            budget -= cost;
+            taken++;
+        }
+
+        if (taken == 0)
+            return Load.NOTHING;
+        return new Load(halfActionBudget - budget, taken, fighter.getName() + ": " + taken
+                + " drone" + (taken == 1 ? "" : "s") + " returned to the ready rack, "
+                + rack.count() + " in it now (J4.82)");
+    }
+
+    /**
      * Take a fighter's charges off it and put them back in its box (S4.10/S4.11).
      * <p>
      * For the weapon status setup, which starts from fighters that are armed because that is

@@ -243,25 +243,42 @@ public class Shuttles implements Systems {
             java.util.List<ShuttleSpace> spaces = bay.getSpaces();
             for (int i = 0; i < spaces.size(); i++) {
                 ShuttleSpace box = spaces.get(i);
-                box.setDeckCrews(0);
+                box.clearCrews();
                 if (left <= 0 || box.isDestroyed() || box.isEmpty())
                     continue;
                 if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
                     continue;
                 int wanted = crewsWantedBy(fighter);
-                if (wanted == 0)
+                if (!ordered && wanted == 0)
                     continue;   // no work here, so nobody stands in this box to be shot
 
-                int asked = wanted;
-                if (ordered) {
-                    Integer order = requested.get(boxId(b, i));
-                    asked = order == null ? 0 : Math.max(0, Math.min(order, wanted));
-                }
-                int posted = Math.min(asked, left);
-                if (posted <= 0)
+                if (!ordered) {
+                    int posted = Math.min(wanted, left);
+                    if (posted <= 0)
+                        continue;
+                    box.setDeckCrews(posted);   // the obvious job, first come
+                    left -= posted;
                     continue;
-                box.setDeckCrews(posted);
-                left -= posted;
+                }
+
+                // An order names jobs, not boxes: "1-3:LOAD" and "1-3:REPAIR" can both be on
+                // the same fighter, held together to J4.8172's two crews. Each job is checked
+                // on its own — a box with nothing to load is still somewhere to unload.
+                int inThisBox = 0;
+                for (CrewTask task : CrewTask.values()) {
+                    Integer order = requested.get(task.keyFor(boxId(b, i)));
+                    if (order == null || order <= 0)
+                        continue;
+                    if (crewsWantedFor(task, box, fighter) <= 0)
+                        continue;
+                    int room = Math.min(2 - inThisBox, left);
+                    int posted = Math.min(order, room);
+                    if (posted <= 0)
+                        continue;
+                    box.postCrews(task, posted);
+                    inThisBox += posted;
+                    left -= posted;
+                }
             }
         }
         return left;
@@ -294,6 +311,55 @@ public class Shuttles implements Systems {
         return wanted;
     }
 
+    /**
+     * Crews this one job could use, at most the two J4.8172 allows on a fighter — and zero
+     * when there is no such job here, which keeps people out of boxes where nothing is
+     * happening, and so out of the way of J4.811.
+     */
+    public static int crewsWantedFor(CrewTask task, ShuttleSpace box,
+            com.sfb.objects.shuttles.Shuttle fighter) {
+        int half = switch (task) {
+            case LOAD -> FighterArming.halfActionsOutstanding(fighter);
+            // Worth a crew only if there is something to take off AND somewhere to put it:
+            // the drones belong in this box's own ready rack (J4.822).
+            case UNLOAD -> box.getReadyRack() == null || box.getReadyRack().isFull()
+                    ? 0 : FighterArming.dronesCarriedBy(fighter) * 2;
+            // J4.818 is not built: shuttle damage does not track repair yet, so offering the
+            // job would be posting crews to stand about.
+            case REPAIR -> 0;
+        };
+        if (half <= 0)
+            return 0;
+        int actions = (half + FighterArming.HALF_ACTIONS_PER_ACTION - 1)
+                / FighterArming.HALF_ACTIONS_PER_ACTION;
+        return Math.min(2, actions);
+    }
+
+    /**
+     * Every job a deck crew could be posted to right now, keyed as the wire names them, with
+     * the crews each could use. The hangar panel draws its rows from this and the server holds
+     * an order to it — so a job the panel cannot show is a job nobody can order.
+     */
+    public java.util.Map<String, Integer> crewJobsAvailable() {
+        java.util.Map<String, Integer> jobs = new java.util.LinkedHashMap<>();
+        for (int b = 0; b < bays.size(); b++) {
+            java.util.List<ShuttleSpace> spaces = bays.get(b).getSpaces();
+            for (int i = 0; i < spaces.size(); i++) {
+                ShuttleSpace box = spaces.get(i);
+                if (box.isDestroyed() || box.isEmpty())
+                    continue;
+                if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
+                    continue;
+                for (CrewTask task : CrewTask.values()) {
+                    int n = crewsWantedFor(task, box, fighter);
+                    if (n > 0)
+                        jobs.put(task.keyFor(boxId(b, i)), n);
+                }
+            }
+        }
+        return jobs;
+    }
+
     /** Crews this fighter's outstanding work could use, at most the two J4.8172 allows. */
     private static int crewsWantedBy(com.sfb.objects.shuttles.Shuttle fighter) {
         int half = FighterArming.halfActionsOutstanding(fighter);
@@ -324,7 +390,7 @@ public class Shuttles implements Systems {
         // turns are the part of the rule we do not model — see ShuttleBay.rearmFighters.
         for (ShuttleBay bay : bays)
             for (ShuttleSpace box : bay.getSpaces())
-                box.setDeckCrews(0);
+                box.clearCrews();
     }
 
     // -------------------------------------------------------------------------

@@ -1100,7 +1100,7 @@ public class GameSession {
                 // has left after loading scatter packs, so an order cannot conjure people.
                 Map<String, Integer> postings = request.getDeckCrewPostings();
                 if (postings != null && !postings.isEmpty()) {
-                    Map<String, Integer> wanted = ship.getShuttles().crewsWantedByBox();
+                    Map<String, Integer> wanted = ship.getShuttles().crewJobsAvailable();
                     Map<String, Integer> clean = new java.util.LinkedHashMap<>();
                     int crewsLeft = ship.getCrew().getAvailableDeckCrews();
                     for (Map.Entry<String, Integer> post : postings.entrySet()) {

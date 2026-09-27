@@ -61,9 +61,69 @@ public class DeckCrewOrdersTest {
     }
 
     @Test
-    public void theBoxIdIsTheOneTheDtoSends() {
+    public void aJobIsNamedByItsBoxAndWhatIsBeingDoneThere() {
         assertEquals("bay index and space index, as ShuttleBayDto/ShuttleSpaceDto number them",
                 "2-1", Shuttles.boxId(2, 1));
+        assertEquals("and the task, because two crews on one fighter need not be doing the"
+                + " same thing (J4.8172)", "2-1:LOAD", CrewTask.LOAD.keyFor("2-1"));
+        assertEquals(CrewTask.UNLOAD, CrewTask.fromKey("2-1:UNLOAD"));
+        assertEquals("a key naming only a box means the obvious job",
+                CrewTask.LOAD, CrewTask.fromKey("2-1"));
+        assertEquals("2-1", CrewTask.boxOfKey("2-1:REPAIR"));
+    }
+
+    @Test
+    public void twoCrewsOnOneFighterCanBeDoingDifferentThings() {
+        // A half-loaded drone fighter is the case: one crew finishing the load, another
+        // taking a drone back off, both on the same fighter and both legal (J4.8172).
+        Shuttles group = new Shuttles(null);
+        ShuttleBay bay = new ShuttleBay(null);
+        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+        aas.setName("AAS-1");
+        ShuttleSpace box = new ShuttleSpace(aas);
+        bay.addSpace(box);
+        group.getBays().add(bay);
+        FighterArming.load(box, aas, 2);   // one rail of two
+
+        Map<String, Integer> order = new LinkedHashMap<>();
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 0)), 1);
+        order.put(CrewTask.UNLOAD.keyFor(Shuttles.boxId(0, 0)), 1);
+        group.postDeckCrews(4, order);
+
+        assertEquals(1, box.getCrews(CrewTask.LOAD));
+        assertEquals(1, box.getCrews(CrewTask.UNLOAD));
+        assertEquals("and the box holds two people for J4.811 to kill",
+                2, box.getDeckCrews());
+    }
+
+    @Test
+    public void repairIsNotOfferedUntilJ4818Exists() {
+        // The task exists so the panel can offer it the day shuttle damage tracks repair.
+        // Until then nobody is posted to it — a crew standing about is a crew that can be
+        // killed for nothing.
+        Map<String, Integer> order = new LinkedHashMap<>();
+        order.put(CrewTask.REPAIR.keyFor(Shuttles.boxId(0, 3)), 2);
+
+        postWith(order);
+
+        assertEquals(0,
+                rn.getShuttles().getBays().get(0).getSpaces().get(3).getDeckCrews());
+        assertFalse("and it is not in what the panel is offered",
+                rn.getShuttles().crewJobsAvailable().containsKey(
+                        CrewTask.REPAIR.keyFor(Shuttles.boxId(0, 3))));
+    }
+
+    @Test
+    public void thetwoCrewLimitHoldsAcrossTheJobsInOneBox() {
+        Map<String, Integer> order = new LinkedHashMap<>();
+        String box = Shuttles.boxId(0, 3);
+        order.put(CrewTask.LOAD.keyFor(box), 2);
+        order.put(CrewTask.REPAIR.keyFor(box), 2);
+
+        postWith(order);
+
+        assertEquals("J4.8172 caps the FIGHTER, not each job on it",
+                2, rn.getShuttles().getBays().get(0).getSpaces().get(3).getDeckCrews());
     }
 
     @Test
@@ -82,9 +142,9 @@ public class DeckCrewOrdersTest {
         // Bay 3's Stingers are the ones this captain means to launch. Its boxes are spaces
         // 0-2 of bay 2, which the Ranger's file gives three of.
         Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(Shuttles.boxId(2, 0), 2);
-        order.put(Shuttles.boxId(2, 1), 2);
-        order.put(Shuttles.boxId(2, 2), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(2, 0)), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(2, 1)), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(2, 2)), 2);
 
         postWith(order);
 
@@ -100,7 +160,7 @@ public class DeckCrewOrdersTest {
     @Test
     public void aBoxLeftOutOfTheOrderGetsNobody() {
         Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(Shuttles.boxId(0, 3), 2);   // exactly one box named
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 3)), 2);   // exactly one box named
 
         postWith(order);
 
@@ -117,7 +177,7 @@ public class DeckCrewOrdersTest {
     @Test
     public void anOrderCannotPutMoreCrewsOnAFighterThanTheRulesAllow() {
         Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(Shuttles.boxId(0, 3), 6);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 3)), 6);
 
         postWith(order);
 
@@ -130,9 +190,9 @@ public class DeckCrewOrdersTest {
         rn.getCrew().killDeckCrews(6);   // three left
 
         Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(Shuttles.boxId(0, 3), 2);
-        order.put(Shuttles.boxId(0, 4), 2);
-        order.put(Shuttles.boxId(0, 5), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 3)), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 4)), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 5)), 2);
         postWith(order);
 
         int posted = 0;
@@ -147,7 +207,7 @@ public class DeckCrewOrdersTest {
         full.armOccupantFully();
 
         Map<String, Integer> order = new LinkedHashMap<>();
-        order.put(Shuttles.boxId(0, 3), 2);
+        order.put(CrewTask.LOAD.keyFor(Shuttles.boxId(0, 3)), 2);
         postWith(order);
 
         assertEquals("no work, so nobody stands there to be shot", 0, full.getDeckCrews());

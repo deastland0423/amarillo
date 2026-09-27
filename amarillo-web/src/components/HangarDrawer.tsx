@@ -22,7 +22,7 @@ import { useStickyCollapse } from '../hooks/useStickyCollapse';
 /** Must match the width of .ea-dialog in App.css — the drawer is positioned off its edge. */
 export const EA_WIDTH_PX = 300;
 
-const DRAWER_WIDTH_PX = 460;
+const DRAWER_WIDTH_PX = 540;
 const TAB_WIDTH_PX = 28;
 
 /**
@@ -37,29 +37,73 @@ interface BoxRow {
   room: number;
   crewsWanted: number;
   work: number;
+  jobs: Record<string, number>;
+}
+
+/** One deck crew job: a box, a verb, and the crews it could take. */
+interface JobRow {
+  key: string;          // "1-3:LOAD" — what the order names
+  boxKey: string;
+  boxLabel: string;
+  task: string;
+  maxCrews: number;
+  detail: string;
 }
 
 function boxRows(ship: ShipObject): BoxRow[] {
   return (ship.shuttleBays ?? []).flatMap(bay =>
     (bay.spaces ?? []).map(sp => ({
       key:         `${bay.bayIndex}-${sp.spaceIndex}`,
-      label:       `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
+      // The ship's name prefixes every shuttle aboard it, and every row here is the same
+      // ship — six wasted characters a row on a panel that wants the width for a job column.
+      label:       `Bay ${bay.bayIndex + 1} · `
+                   + (sp.shuttle?.name ?? 'empty box').replace(`${ship.name}-`, ''),
       charges:     sp.capacitorCharges ?? 0,
       capacity:    sp.capacitorCapacity ?? 0,
       room:        sp.capacitorRoom ?? 0,
       crewsWanted: sp.crewsWanted ?? 0,
       work:        sp.workOutstanding ?? 0,
+      jobs:        sp.crewJobs ?? {},
     })));
 }
 
 /**
- * What a box is short, in the units a player thinks in. Work is counted in half-actions —
- * a fusion charge is one, a drone space two (J4.833/J4.82) — which is the right currency for
- * the crews and the wrong one for the label.
+ * What a job would do, in the units a player thinks in. Work is counted in half-actions — a
+ * fusion charge is one, a drone space two (J4.833/J4.82) — which is the right currency for
+ * the crews and the wrong one for a label.
  */
-function shortfall(box: BoxRow): string {
-  if (box.work <= 0) return 'ready';
-  return box.capacity === 1 ? 'hellbore empty' : `${box.work} charge(s) short`;
+function jobDetail(box: BoxRow, task: string): string {
+  if (task === 'UNLOAD') return 'drones aboard';
+  if (task === 'REPAIR') return 'damaged';
+  if (box.capacity === 1) return 'hellbore empty';
+  if (box.capacity === 0) return `${Math.round(box.work / 2)} drone(s) short`;
+  return `${box.work} charge(s) short`;
+}
+
+const TASK_LABEL: Record<string, string> = {
+  LOAD:   'load',
+  UNLOAD: 'unload',
+  REPAIR: 'repair',
+};
+
+/** Every job on the ship, in bay order, so a box's jobs sit together under its name. */
+function jobRows(boxes: BoxRow[]): JobRow[] {
+  const rows: JobRow[] = [];
+  for (const box of boxes) {
+    let first = true;
+    for (const [task, maxCrews] of Object.entries(box.jobs)) {
+      rows.push({
+        key:      `${box.key}:${task}`,
+        boxKey:   box.key,
+        boxLabel: first ? box.label : '',
+        task:     TASK_LABEL[task] ?? task.toLowerCase(),
+        maxCrews,
+        detail:   jobDetail(box, task),
+      });
+      first = false;
+    }
+  }
+  return rows;
 }
 
 export function HangarDrawer({
@@ -78,18 +122,24 @@ export function HangarDrawer({
 
   const boxes = boxRows(ship);
   const capacitorBoxes = boxes.filter(b => b.capacity > 0);
-  const workBoxes = boxes.filter(b => b.crewsWanted > 0);
+  const jobs = jobRows(boxes);
 
   // The crews are their own budget — no energy, so nothing here touches the bar above.
   const crews = ship.availableDeckCrews ?? 0;
   const postedTotal = Object.values(crewPostings).reduce((a, b) => a + b, 0);
   const crewsFree = Math.max(0, crews - postedTotal);
 
-  function post(boxKey: string, n: number) {
+  function post(jobKey: string, n: number) {
     const next = { ...crewPostings };
-    if (n <= 0) delete next[boxKey];
-    else next[boxKey] = n;
+    if (n <= 0) delete next[jobKey];
+    else next[jobKey] = n;
     onCrewPostings(next);
+  }
+
+  /** J4.8172 caps the FIGHTER at two crews, however many jobs are running in its box. */
+  function crewsInBox(boxKey: string): number {
+    return jobs.filter(j => j.boxKey === boxKey)
+      .reduce((sum, j) => sum + (crewPostings[j.key] ?? 0), 0);
   }
 
   function buy(boxKey: string, n: number) {
@@ -120,7 +170,8 @@ export function HangarDrawer({
   // Boxes wanting attention of either kind — a crew, or charges to buy back. Counting only
   // the crew work left a WS-3 carrier with a silent tab and 36 points of capacity unbought,
   // which is exactly the case the badge exists for.
-  const needy = boxes.filter(b => b.crewsWanted > 0 || b.charges < b.capacity).length;
+  const needy = boxes.filter(
+    b => Object.keys(b.jobs).length > 0 || b.charges < b.capacity).length;
   const pending = needy > 0 ? ` · ${needy}` : '';
 
   return (
@@ -152,13 +203,14 @@ export function HangarDrawer({
               Deck Crews — {crewsFree} of {crews} free
             </div>
             <div className="ea-note">
-              A crew posted to a box works there all turn: two crews reload a Stinger, one a
-              hellbore (J4.833/J4.834). They are killed if that box is destroyed (J4.811), and
-              launching the fighter they are working on wastes the work (J4.8174). Post
-              nobody and the ship decides for itself, top down.
+              A crew posted to a job works it all turn: two crews reload a Stinger, one a
+              hellbore (J4.833/J4.834). Two may work the same fighter at different jobs, but
+              never more than two on one fighter (J4.8172). They are killed if that box is
+              destroyed (J4.811), and launching the fighter they are on wastes the work
+              (J4.8174). Post nobody and the ship decides for itself, top down.
             </div>
 
-            {workBoxes.length === 0 ? (
+            {jobs.length === 0 ? (
               <div className="ea-note">
                 Every fighter aboard is armed, so the crews have nothing to do until one
                 spends its charges. They cost nothing to leave idle.
@@ -166,22 +218,26 @@ export function HangarDrawer({
             ) : (
               <table className="hangar-table">
                 <thead>
-                  <tr><th>Box</th><th>Needs</th><th className="hangar-num">Crews</th></tr>
+                  <tr>
+                    <th>Box</th><th>Job</th><th></th><th className="hangar-num">Crews</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {workBoxes.map(b => {
-                    const posted = crewPostings[b.key] ?? 0;
+                  {jobs.map(j => {
+                    const posted = crewPostings[j.key] ?? 0;
+                    const boxFull = crewsInBox(j.boxKey) >= 2;
                     return (
-                      <tr key={b.key} className={posted > 0 ? 'hangar-row-posted' : ''}>
-                        <td>{b.label}</td>
-                        <td>{shortfall(b)}</td>
+                      <tr key={j.key} className={posted > 0 ? 'hangar-row-posted' : ''}>
+                        <td>{j.boxLabel}</td>
+                        <td className="hangar-task">{j.task}</td>
+                        <td>{j.detail}</td>
                         <td className="hangar-num">
                           <button className="ea-step-btn" disabled={posted <= 0}
-                            onClick={() => post(b.key, posted - 1)}>−</button>
+                            onClick={() => post(j.key, posted - 1)}>−</button>
                           <span className="hangar-posted">{posted}</span>
                           <button className="ea-step-btn"
-                            disabled={posted >= b.crewsWanted || crewsFree <= 0}
-                            onClick={() => post(b.key, posted + 1)}>+</button>
+                            disabled={posted >= j.maxCrews || crewsFree <= 0 || boxFull}
+                            onClick={() => post(j.key, posted + 1)}>+</button>
                         </td>
                       </tr>
                     );

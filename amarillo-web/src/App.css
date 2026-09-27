@@ -2069,7 +2069,7 @@ h3 {
 .hangar-drawer {
   position: fixed;
   z-index: 1000;
-  width: 460px;
+  width: 540px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -2162,4 +2162,12 @@ h3 {
   min-width: 1.4rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+/* The verb column: short, quiet, and the same width down the table. */
+.hangar-task {
+  color: #8b949e;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }

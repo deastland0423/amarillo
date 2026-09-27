@@ -177,6 +177,41 @@ public class FighterArmingTest {
     }
 
     @Test
+    public void unloadingTakesDronesBackAtAWholeActionASpace() {
+        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        FighterArming.load(box, box.getShuttle(), 4);
+        assertEquals(2, loadedRails(box.getShuttle()));
+        assertEquals(0, box.getReadyRack().count());
+
+        // Half the work buys half the job — one drone space is a whole action (J4.82).
+        FighterArming.Load half = FighterArming.unload(box, box.getShuttle(), 2);
+        assertEquals(1, half.chargesLoaded());
+        assertEquals(1, loadedRails(box.getShuttle()));
+        assertEquals("and it went back where it came from", 1, box.getReadyRack().count());
+
+        FighterArming.unload(box, box.getShuttle(), 2);
+        assertEquals("J4.8223's resting state, reached the long way round",
+                2, box.getReadyRack().count());
+        assertEquals(0, loadedRails(box.getShuttle()));
+    }
+
+    @Test
+    public void unloadingStopsWhenTheRackIsFull() {
+        // A drone has to go somewhere: the rack is where it belongs (J4.822), and a full rack
+        // is not a place to put another. Nothing is destroyed to make room.
+        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        FighterArming.armFully(box.getShuttle());     // rails loaded without drawing the rack
+        assertEquals("rack full AND rails full — more drones than the box should hold",
+                2, box.getReadyRack().count());
+
+        FighterArming.Load nothing = FighterArming.unload(box, box.getShuttle(), 4);
+
+        assertNull(nothing.note());
+        assertEquals("the rails keep them", 2, loadedRails(box.getShuttle()));
+        assertEquals(2, box.getReadyRack().count());
+    }
+
+    @Test
     public void aRackWillNotServeAFighterItWasNotBuiltFor() {
         // J4.8222: each rack is designed for a specific type of fighter.
         ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));

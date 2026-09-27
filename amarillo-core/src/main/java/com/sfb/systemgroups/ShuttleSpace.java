@@ -41,7 +41,15 @@ public class ShuttleSpace {
      * the same reason: the SSD marks the BOX, so an empty box must not lose its stores.
      */
     private ReadyRack readyRack;
-    private int deckCrews;          // crew currently working here; killed on destruction
+    /**
+     * Crews working here this turn, by what they are doing (J4.817).
+     * <p>
+     * Per task rather than a single number because two crews on one fighter need not be doing
+     * the same thing — one loading while the other repairs. The TOTAL is what J4.811 kills
+     * when the box is destroyed; the breakdown is what the end-of-turn pass acts on.
+     */
+    private final java.util.Map<CrewTask, Integer> crewTasks =
+            new java.util.EnumMap<>(CrewTask.class);
 
     /**
      * The weapon capacitor built into this fighter box (J4.831/J4.834).
@@ -117,7 +125,7 @@ public class ShuttleSpace {
         if (readyRack != null)
             readyRack.destroy();   // J4.831's rule for capacitors, applied to the stores
         destroyed = true;
-        deckCrews = 0;
+        crewTasks.clear();
         droneRack = null;
         Shuttle was = shuttle;
         shuttle = null;
@@ -181,8 +189,40 @@ public class ShuttleSpace {
 
     public ReadyRack getReadyRack() { return readyRack; }
 
-    public int getDeckCrews() { return deckCrews; }
-    public void setDeckCrews(int deckCrews) { this.deckCrews = deckCrews; }
+    /** Everyone working in this box, whatever they are doing — what a hit here kills. */
+    public int getDeckCrews() {
+        int total = 0;
+        for (int n : crewTasks.values())
+            total += n;
+        return total;
+    }
+
+    /** Post crews to the obvious job. Shorthand for the common case and for older callers. */
+    public void setDeckCrews(int deckCrews) {
+        crewTasks.clear();
+        if (deckCrews > 0)
+            crewTasks.put(CrewTask.LOAD, deckCrews);
+    }
+
+    /** Post crews to one particular job; zero takes them off it. */
+    public void postCrews(CrewTask task, int crews) {
+        if (crews <= 0)
+            crewTasks.remove(task);
+        else
+            crewTasks.put(task, crews);
+    }
+
+    public int getCrews(CrewTask task) {
+        return crewTasks.getOrDefault(task, 0);
+    }
+
+    public java.util.Map<CrewTask, Integer> getCrewTasks() {
+        return java.util.Collections.unmodifiableMap(crewTasks);
+    }
+
+    public void clearCrews() {
+        crewTasks.clear();
+    }
 
     /**
      * How many charges this box's capacitor holds when full: eight for a fusion box, one for
