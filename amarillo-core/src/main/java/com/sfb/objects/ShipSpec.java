@@ -67,9 +67,11 @@ public class ShipSpec {
      * Cannot be fielded without an escort group (S8.315): a size class 2 ship of this kind
      * needs three escorts, class 3 two, class 4 one, at least one of them size class 4.
      * <p>
-     * Named for the constraint rather than for carriers, because that is what it enforces and
-     * nothing says only a carrier can carry it. What a ship may DO as a carrier is
-     * {@link #carrierClass} — a Hydran fighter ship is a capable carrier and sets this false.
+     * Also decides S8.321's fighter limit — a true carrier's fighters count against the battle
+     * force's allowance, a hybrid's do not (S8.322) — which is unimplemented but will read
+     * this flag, not carrierClass: a Hydran Ranger is a CAPABLE carrier whose Stingers do NOT
+     * count. Named for the escort constraint because that is what it enforces today and
+     * nothing says only a carrier can need escorts.
      */
     public boolean requiresEscort;
     /**

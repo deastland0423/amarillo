@@ -811,8 +811,16 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
-	 * True carrier rather than a hybrid. Its fighters count against the battle force's fighter
-	 * limit (S8.321); a hybrid's do not (S8.322). Carrying fighters does not make a ship one.
+	 * A purpose-built carrier in the fleet-building sense, with TWO consequences in S8.3:
+	 * <ul>
+	 *   <li>it cannot be fielded without an escort group (S8.315) — the rule this is named
+	 *       for, since that is the constraint it enforces;</li>
+	 *   <li>its fighters count against the battle force's fighter limit (S8.321), where a
+	 *       hybrid's do not (S8.322). NOT yet implemented; this is the flag it will read.</li>
+	 * </ul>
+	 * Both follow the same set of ships — the Kzinti CVs — and neither follows from carrying
+	 * fighters: a Hydran Ranger is every inch a carrier ({@link #getCarrierClass()} says
+	 * CAPABLE), needs no escorts, and its nine Stingers do not count against the limit.
 	 */
 	public boolean requiresEscort() {
 		return requiresEscort;
