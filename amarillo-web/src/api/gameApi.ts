@@ -62,7 +62,7 @@ export interface CatalogShip {
   isScout:       boolean;
   isLeader:      boolean;
   isEscort:      boolean;
-  isTrueCarrier: boolean;
+  requiresEscort: boolean;   // S8.315: cannot be fielded without escorts
   isBCH:         boolean;
 }
 

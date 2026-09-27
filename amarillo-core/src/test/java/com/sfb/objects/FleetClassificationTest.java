@@ -23,13 +23,13 @@ public class FleetClassificationTest {
         ShipSpec spec = minimalSpec();
         spec.isLeader = true;
         spec.isEscort = true;
-        spec.isTrueCarrier = true;
+        spec.requiresEscort = true;
         spec.isBCH = true;
 
         Map<String, Object> values = spec.toInitMap();
         assertEquals("spec must put the key Ship reads", Boolean.TRUE, values.get("isleader"));
         assertEquals(Boolean.TRUE, values.get("isescort"));
-        assertEquals(Boolean.TRUE, values.get("istruecarrier"));
+        assertEquals(Boolean.TRUE, values.get("requiresescort"));
         assertEquals(Boolean.TRUE, values.get("isbch"));
     }
 
@@ -41,7 +41,7 @@ public class FleetClassificationTest {
 
         assertFalse(ship.isLeader());
         assertFalse(ship.isEscort());
-        assertFalse(ship.isTrueCarrier());
+        assertFalse(ship.requiresEscort());
         assertFalse(ship.isBCH());
     }
 
@@ -49,14 +49,14 @@ public class FleetClassificationTest {
     public void setFlagsReadBackFromTheShip() {
         Map<String, Object> values = new HashMap<>();
         values.put("isleader", true);
-        values.put("istruecarrier", true);
+        values.put("requiresescort", true);
 
         Ship ship = new Ship();
         ship.init(values);
 
         assertTrue(ship.isLeader());
         assertFalse("only what was set", ship.isEscort());
-        assertTrue(ship.isTrueCarrier());
+        assertTrue(ship.requiresEscort());
     }
 
     /**
@@ -68,13 +68,13 @@ public class FleetClassificationTest {
         ShipSpec spec = minimalSpec();
         spec.isLeader = true;
         spec.isEscort = true;
-        spec.isTrueCarrier = true;
+        spec.requiresEscort = true;
         spec.isBCH = true;
         Map<String, Object> values = spec.toInitMap();
 
         assertTrue("data/factions JSON uses \"isLeader\"", values.containsKey("isleader"));
         assertTrue("data/factions JSON uses \"isEscort\"", values.containsKey("isescort"));
-        assertTrue("data/factions JSON uses \"isTrueCarrier\"", values.containsKey("istruecarrier"));
+        assertTrue("data/factions JSON uses \"requiresEscort\"", values.containsKey("requiresescort"));
         assertTrue("data/factions JSON uses \"isBCH\"", values.containsKey("isbch"));
     }
 
@@ -84,7 +84,7 @@ public class FleetClassificationTest {
         Ship ship = new Ship();
         ship.init(new HashMap<>());
         assertFalse("a hybrid carries fighters and is still not a true carrier (S8.322)",
-                ship.isTrueCarrier());
+                ship.requiresEscort());
     }
 
     /** toInitMap needs the enum-valued fields populated; these are a real ship's. */

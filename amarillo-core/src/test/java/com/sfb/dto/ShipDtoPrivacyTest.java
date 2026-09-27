@@ -81,7 +81,7 @@ public class ShipDtoPrivacyTest {
         // typeName sits beside shipType and is ruled the same way: a counter on the map
         // announces its class, and "Commando Cruiser" says no more than "CMC" already does.
         "name", "location", "shipType", "typeName", "faction", "teamName", "ownerName",
-        "tokenArt", "leader", "escort", "trueCarrier", "bch", "commandRating", "skeleton",
+        "tokenArt", "leader", "escort", "requiresEscort", "bch", "commandRating", "skeleton",
         "captured", "disengaged", "tractoredBy",
         // Movement, which is watched
         "facing", "speed", "tractorTrueSpeed", "turnMode", "turnHexes", "hexesUntilTurn",

@@ -64,15 +64,18 @@ public class ShipSpec {
     /** Carrier escort: cannot be fielded except as part of a carrier group (S8.311). */
     public boolean isEscort;
     /**
-     * A true carrier rather than a hybrid. Its fighters count against the battle force's
-     * fighter limit (S8.321); hybrids' do not (S8.322). Not inferable from bay contents —
-     * plenty of ships carry a few fighters without being carriers.
+     * Cannot be fielded without an escort group (S8.315): a size class 2 ship of this kind
+     * needs three escorts, class 3 two, class 4 one, at least one of them size class 4.
+     * <p>
+     * Named for the constraint rather than for carriers, because that is what it enforces and
+     * nothing says only a carrier can carry it. What a ship may DO as a carrier is
+     * {@link #carrierClass} — a Hydran fighter ship is a capable carrier and sets this false.
      */
-    public boolean isTrueCarrier;
+    public boolean requiresEscort;
     /**
      * What kind of carrier this is (J4.61/J4.62) — which decides capabilities, not fleet
      * legality: extra deck crews, EW lent to fighters, and S4.1's weapon status provisions.
-     * Separate from isTrueCarrier because a Hydran fighter ship is a capable carrier that is
+     * Separate from requiresEscort because a Hydran fighter ship is a capable carrier that is
      * fielded without escorts. Not inferable from bay contents: plenty of ships carry a few
      * fighters without being carriers.
      */
@@ -265,8 +268,8 @@ public class ShipSpec {
             m.put("typename", typeName);
         if (isEscort)
             m.put("isescort", true);
-        if (isTrueCarrier)
-            m.put("istruecarrier", true);
+        if (requiresEscort)
+            m.put("requiresescort", true);
         if (carrierClass != null)
             m.put("carrierclass", carrierClass);
         if (isBCH)

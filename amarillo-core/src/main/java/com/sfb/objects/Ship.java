@@ -173,7 +173,7 @@ public class Ship extends Unit implements DroneController {
 	// Fleet-building classifications (S8.0). Used when a force is assembled, not in play.
 	private boolean leader = false;      // leader variant (S8.36)
 	private boolean escort = false;      // carrier escort (S8.311)
-	private boolean trueCarrier = false; // true carrier rather than a hybrid (S8.321/S8.322)
+	private boolean requiresEscort = false; // cannot be fielded without escorts (S8.315)
 	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
 	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
@@ -222,7 +222,7 @@ public class Ship extends Unit implements DroneController {
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 		leader      = Boolean.TRUE.equals(values.get("isleader"));
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
-		trueCarrier = Boolean.TRUE.equals(values.get("istruecarrier"));
+		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
 		bch         = Boolean.TRUE.equals(values.get("isbch"));
 
@@ -814,8 +814,8 @@ public class Ship extends Unit implements DroneController {
 	 * True carrier rather than a hybrid. Its fighters count against the battle force's fighter
 	 * limit (S8.321); a hybrid's do not (S8.322). Carrying fighters does not make a ship one.
 	 */
-	public boolean isTrueCarrier() {
-		return trueCarrier;
+	public boolean requiresEscort() {
+		return requiresEscort;
 	}
 
 	/**

@@ -79,7 +79,7 @@ class ShipCatalogEndpointTest {
 
         assertTrue((Integer) cv.get("fighterBpv") > 0, cv.toString());
         assertEquals((Integer) cv.get("bpv") + (Integer) cv.get("fighterBpv"), cv.get("cost"));
-        assertEquals(Boolean.TRUE, cv.get("isTrueCarrier"));
+        assertEquals(Boolean.TRUE, cv.get("requiresEscort"));
     }
 
     /** A scout is shelved at the economic value it is actually bought for (G24.35). */

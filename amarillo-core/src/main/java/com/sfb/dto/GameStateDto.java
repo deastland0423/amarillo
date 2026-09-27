@@ -323,7 +323,7 @@ public class GameStateDto {
         public String ecmSources;
         public boolean leader;       // leader variant (S8.36)
         public boolean escort;       // carrier escort, needs a carrier group (S8.311)
-        public boolean trueCarrier;  // fighters count against the force's limit (S8.321)
+        public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
         public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
         public int scoutEwLent;      // of the pool, how many are currently lent out (G24.2111)
@@ -1120,7 +1120,7 @@ public class GameStateDto {
             dto.setupNotes = new ArrayList<>(ship.getSetupNotes());
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
-        dto.trueCarrier = ship.isTrueCarrier();
+        dto.requiresEscort = ship.requiresEscort();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
         // Totals computed here rather than re-added in the UI: the panel used to sum

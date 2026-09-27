@@ -475,7 +475,7 @@ public final class FleetValidator {
      * legal purchase.
      */
     private static void checkCarrierGroups(Fleet fleet, List<Violation> out) {
-        List<Ship> carriers = fleet.ships.stream().filter(Ship::isTrueCarrier).toList();
+        List<Ship> carriers = fleet.ships.stream().filter(Ship::requiresEscort).toList();
         List<Ship> escorts = new ArrayList<>(fleet.ships.stream().filter(Ship::isEscort).toList());
 
         if (carriers.isEmpty()) {

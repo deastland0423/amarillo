@@ -61,7 +61,7 @@ public class FleetValidatorTest {
         v.put("sizeclass", sizeClass);
         v.put("serviceyear", 100);
         v.put("commandrating", 8);
-        v.put("istruecarrier", true);
+        v.put("requiresescort", true);
         Ship s = new Ship();
         s.init(v);
         s.setName(name);

@@ -20,7 +20,7 @@ function badgesFor(ship: CatalogShip): string[] {
   const out: string[] = [];
   if (ship.isLeader)      out.push('leader');
   if (ship.isEscort)      out.push('escort');
-  if (ship.isTrueCarrier) out.push('carrier');
+  if (ship.requiresEscort) out.push('needs escorts');
   if (ship.isBCH)         out.push('BCH');
   if (ship.isScout)       out.push('scout');
   return out;

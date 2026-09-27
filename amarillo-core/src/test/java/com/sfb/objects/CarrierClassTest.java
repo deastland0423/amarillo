@@ -22,7 +22,7 @@ import com.sfb.systemgroups.ShuttleBay;
  * asks something else entirely: must this ship be bought with escorts? The Hydrans are the
  * case that forces them apart. A Ranger has a full carrier's apparatus and needs no escort
  * group, so one flag serving both questions had to lie about one of them — and did, until
- * 2026-09-27: `isTrueCarrier` was the escort test, and the weapon status code, having nothing
+ * 2026-09-27: `requiresEscort` was the escort test, and the weapon status code, having nothing
  * else to ask, keyed off "is there a fighter in a box".
  */
 public class CarrierClassTest {
@@ -83,7 +83,7 @@ public class CarrierClassTest {
         assertEquals("J4.623: most Hydran ships with fighters are carriers in full",
                 CarrierClass.CAPABLE, rn.getCarrierClass());
         assertTrue(rn.getCarrierClass().isCarrier());
-        assertFalse("but it is fielded without an escort group (S8.315)", rn.isTrueCarrier());
+        assertFalse("but it is fielded without an escort group (S8.315)", rn.requiresEscort());
     }
 
     @Test
@@ -91,7 +91,7 @@ public class CarrierClassTest {
         Ship cv = shipAt("kzinti/cv.json");
 
         assertEquals(CarrierClass.CAPABLE, cv.getCarrierClass());
-        assertTrue("a purpose-built carrier needs its escorts (S8.315)", cv.isTrueCarrier());
+        assertTrue("a purpose-built carrier needs its escorts (S8.315)", cv.requiresEscort());
     }
 
     @Test
@@ -100,7 +100,7 @@ public class CarrierClassTest {
 
         assertEquals(CarrierClass.NONE, ca.getCarrierClass());
         assertFalse(ca.getCarrierClass().isCarrier());
-        assertFalse(ca.isTrueCarrier());
+        assertFalse(ca.requiresEscort());
     }
 
     @Test

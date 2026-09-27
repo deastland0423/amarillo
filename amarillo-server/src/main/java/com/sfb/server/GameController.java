@@ -173,7 +173,7 @@ public class GameController {
             row.put("isScout", ship.isScout());
             row.put("isLeader", spec.isLeader);
             row.put("isEscort", spec.isEscort);
-            row.put("isTrueCarrier", spec.isTrueCarrier);
+            row.put("requiresEscort", spec.requiresEscort);
             row.put("isBCH", spec.isBCH);
             out.add(row);
         }

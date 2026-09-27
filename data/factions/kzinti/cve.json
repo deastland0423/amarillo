@@ -13,7 +13,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
-  "isTrueCarrier": true,
+  "requiresEscort": true,
   "tokenArt": "kzinti/cl.png",
   
   "shields": [18, 16, 16, 16, 16, 16],
