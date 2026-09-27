@@ -1,0 +1,79 @@
+{
+  "faction": "Lyran",
+  "type": "TGP+",
+  "typeName": "Puma Transport Tug",
+  "line": "TUG",
+  "name": "Gehenna",
+  "serviceYear": 166,
+  "bpv": 102,
+  "epv": 121,
+  "turnMode": "D",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "lyran/tug.png",
+  
+  "shields": [33, 22, 22, 22, 22, 22],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 5,
+    "cargo": 8
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 3,
+    "apr": 4,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 5,
+    "labs": 4,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] },
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 34,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "ESG", "designator": "1"},
+    { "type": "ESG", "designator": "2"}
+  ]
+}

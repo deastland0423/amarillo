@@ -1,0 +1,95 @@
+{
+  "faction": "Lyran",
+  "type": "DNB",
+  "typeName": "Lion Dreadnought",
+  "line": "DN",
+  "name": "Thunderclaw",
+  "serviceYear": 169,
+  "bpv": 228,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "lyran/dn.png",
+  
+  "shields": [42, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 8,
+    "ahull": 8,
+    "chull": 8,
+    "cargo": 4
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 6,
+    "apr": 8,
+    "battery": 7
+  },
+  
+  "control": {
+    "bridge": 4,
+    "flag": 3,
+    "emergency": 2,
+    "auxCon": 3,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 1, 2, 3, 4, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 6,
+    "tractors": 6,
+    "labs": 6,
+    "probes": 2,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] },
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 62,
+    "boardingParties": 22,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "12", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "13", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "14", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "E", "range": 30, "arcs": ["FX"] },
+    { "type": "Disruptor",  "designator": "F", "range": 30, "arcs": ["FX"] },
+    { "type": "ESG", "designator": "1"},
+    { "type": "ESG", "designator": "2"},
+    { "type": "ESG", "designator": "3"},
+    { "type": "ESG", "designator": "4"}
+  ]
+}
