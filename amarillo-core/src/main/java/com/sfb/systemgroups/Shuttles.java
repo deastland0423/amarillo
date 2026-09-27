@@ -149,6 +149,41 @@ public class Shuttles implements Systems {
      *
      * @return points actually taken (a short allocation leaves the rest unspent)
      */
+    public int rechargeCapacitors(java.util.Map<String, Integer> byBox) {
+        if (byBox == null || byBox.isEmpty())
+            return 0;
+        int used = 0;
+        for (int b = 0; b < bays.size(); b++) {
+            java.util.List<ShuttleSpace> spaces = bays.get(b).getSpaces();
+            for (int i = 0; i < spaces.size(); i++) {
+                Integer points = byBox.get(boxId(b, i));
+                if (points != null && points > 0)
+                    used += spaces.get(i).addCapacitorEnergy(points);
+            }
+        }
+        return used;
+    }
+
+    /**
+     * Power each box could still take this turn, by box id — what the hangar panel offers.
+     * <p>
+     * Per box and never summed: these are separate capacitors wired to separate boxes, and a
+     * total across them would name a quantity nobody can spend. Eight points of room in one
+     * box is a fighter's full sortie; one point in each of eight is nothing at all.
+     */
+    public java.util.Map<String, Integer> capacitorPowerWantedByBox() {
+        java.util.Map<String, Integer> wanted = new java.util.LinkedHashMap<>();
+        for (int b = 0; b < bays.size(); b++) {
+            java.util.List<ShuttleSpace> spaces = bays.get(b).getSpaces();
+            for (int i = 0; i < spaces.size(); i++) {
+                int n = spaces.get(i).capacitorPowerWanted();
+                if (n > 0)
+                    wanted.put(boxId(b, i), n);
+            }
+        }
+        return wanted;
+    }
+
     public int rechargeCapacitors(int power) {
         int left = Math.max(0, power);
         int used = 0;

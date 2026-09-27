@@ -1,6 +1,5 @@
 import type { ShipObject } from '../types/gameState';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
-import { Stepper } from './Stepper';
 
 /**
  * Hangar operations: the wide half of Energy Allocation, in a drawer off its right edge.
@@ -35,6 +34,7 @@ interface BoxRow {
   label: string;
   charges: number;
   capacity: number;
+  room: number;
   crewsWanted: number;
   work: number;
 }
@@ -46,6 +46,7 @@ function boxRows(ship: ShipObject): BoxRow[] {
       label:       `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
       charges:     sp.capacitorCharges ?? 0,
       capacity:    sp.capacitorCapacity ?? 0,
+      room:        sp.capacitorRoom ?? 0,
       crewsWanted: sp.crewsWanted ?? 0,
       work:        sp.workOutstanding ?? 0,
     })));
@@ -62,12 +63,12 @@ function shortfall(box: BoxRow): string {
 }
 
 export function HangarDrawer({
-  ship, anchor, fighterCaps, onFighterCaps, crewPostings, onCrewPostings, spent, total,
+  ship, anchor, capsByBox, onCapsByBox, crewPostings, onCrewPostings, spent, total,
 }: {
   ship: ShipObject;
   anchor: { left: number; top: number };
-  fighterCaps: number;
-  onFighterCaps: (points: number) => void;
+  capsByBox: Record<string, number>;
+  onCapsByBox: (next: Record<string, number>) => void;
   crewPostings: Record<string, number>;
   onCrewPostings: (next: Record<string, number>) => void;
   spent: number;
@@ -78,7 +79,6 @@ export function HangarDrawer({
   const boxes = boxRows(ship);
   const capacitorBoxes = boxes.filter(b => b.capacity > 0);
   const workBoxes = boxes.filter(b => b.crewsWanted > 0);
-  const room = ship.fighterCapacitorRoom ?? 0;
 
   // The crews are their own budget — no energy, so nothing here touches the bar above.
   const crews = ship.availableDeckCrews ?? 0;
@@ -90,6 +90,13 @@ export function HangarDrawer({
     if (n <= 0) delete next[boxKey];
     else next[boxKey] = n;
     onCrewPostings(next);
+  }
+
+  function buy(boxKey: string, n: number) {
+    const next = { ...capsByBox };
+    if (n <= 0) delete next[boxKey];
+    else next[boxKey] = n;
+    onCapsByBox(next);
   }
 
   // A ship with no bay has no hangar to operate. Everything else gets the strip, even a
@@ -122,7 +129,7 @@ export function HangarDrawer({
         className={flip ? 'hangar-tab flip' : 'hangar-tab'}
         style={{ left: tabLeft, top: anchor.top + 56 }}
         title={needy > 0
-          ? `${needy} fighter box(es) want attention — ${room} point(s) of capacitor capacity`
+          ? `${needy} fighter box(es) want attention`
           : 'Hangar operations — everything aboard is ready'}
         onClick={() => setCollapsed(!collapsed)}
       >
@@ -187,34 +194,41 @@ export function HangarDrawer({
               Weapon Capacitors
             </div>
             <div className="ea-note">
-              {room > 0
-                ? '1 point a fusion charge (J4.832); a hellbore box takes 2 a turn and needs'
-                  + ' two turns for its one charge (J4.834). Boxes fill top down, so the'
-                  + ' points buy one fighter a full sortie rather than a squadron half a one.'
-                : 'Every fighter box is full — nothing to buy this turn.'}
+              Each box has its own capacitor and can only arm the fighter in it (J4.881), so
+              buy them one at a time. A fusion charge is a point (J4.832); a hellbore box takes
+              2 a turn and needs two turns for its single charge (J4.834). Four points into one
+              box is a fighter's next sortie; one point into four boxes is nothing yet.
             </div>
-
-            {room > 0 && (
-              <Stepper value={fighterCaps} min={0} max={room}
-                onChange={onFighterCaps}
-                label="point(s) into the fighter boxes" />
-            )}
 
             <table className="hangar-table">
               <thead>
-                <tr><th>Box</th><th>Capacitor</th></tr>
+                <tr><th>Box</th><th className="hangar-num">Capacitor</th><th className="hangar-num">Buy</th></tr>
               </thead>
               <tbody>
-                {capacitorBoxes.map(b => (
-                  <tr key={b.key} className={b.charges < b.capacity ? 'hangar-row-short' : ''}>
-                    <td>{b.label}</td>
-                    <td className="hangar-num">
-                      {b.charges}/{b.capacity}{b.charges >= b.capacity ? ' (full)' : ''}
-                    </td>
-                  </tr>
-                ))}
+                {capacitorBoxes.map(b => {
+                  const bought = capsByBox[b.key] ?? 0;
+                  return (
+                    <tr key={b.key} className={b.charges < b.capacity ? 'hangar-row-short' : ''}>
+                      <td>{b.label}</td>
+                      <td className="hangar-num">
+                        {b.charges}/{b.capacity}{b.charges >= b.capacity ? ' (full)' : ''}
+                      </td>
+                      <td className="hangar-num">
+                        {b.room > 0 ? (
+                          <>
+                            <button className="ea-step-btn" disabled={bought <= 0}
+                              onClick={() => buy(b.key, bought - 1)}>−</button>
+                            <span className="hangar-posted">{bought}</span>
+                            <button className="ea-step-btn" disabled={bought >= b.room}
+                              onClick={() => buy(b.key, bought + 1)}>+</button>
+                          </>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {capacitorBoxes.length === 0 && (
-                  <tr><td colSpan={2} className="ea-note">
+                  <tr><td colSpan={3} className="ea-note">
                     No weapon capacitors aboard — this ship carries no Hydran fighters.
                   </td></tr>
                 )}

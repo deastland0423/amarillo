@@ -264,6 +264,9 @@ public class GameStateDto {
         /** J4.831: charges in this fighter box's capacitor, and what it holds when full. */
         public int capacitorCharges;
         public int capacitorCapacity;
+        /** J4.832: points THIS capacitor could still take this turn. Never summed across
+         *  boxes: they are separate capacitors and a total names nothing anyone can spend. */
+        public int capacitorRoom;
         /** J4.817: deck crews this box could use this turn, and how many are posted to it. */
         public int crewsWanted;
         public int postedCrews;
@@ -299,7 +302,13 @@ public class GameStateDto {
         public double phaserCapacitor;
         public double phaserCapacitorMax;
         public boolean capacitorsCharged;
-        /** J4.832: power the fighter box capacitors could still absorb; 0 = nothing to buy. */
+        /**
+         * J4.832: power the fighter box capacitors could still absorb, summed.
+         * <p>
+         * A price, not a pool: these are separate capacitors wired to separate boxes and
+         * nobody can spend the total. The hangar panel buys per box from ShuttleSpaceDto
+         * .capacitorRoom; this stays only as a cheap "is there anything to buy at all".
+         */
         public int fighterCapacitorRoom;
         public boolean activeFireControl;
         public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
@@ -1469,6 +1478,7 @@ public class GameStateDto {
                 spaceDto.capacitorCharges = space.getCapacitorCharges();
                 spaceDto.capacitorCapacity = space.capacitorCapacity();
                 spaceDto.postedCrews = space.getDeckCrews();
+                spaceDto.capacitorRoom = space.capacitorPowerWanted();
                 if (space.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
                     spaceDto.workOutstanding = com.sfb.systemgroups.FighterArming
                             .halfActionsOutstanding(space.getShuttle());

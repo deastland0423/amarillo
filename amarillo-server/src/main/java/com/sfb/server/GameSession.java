@@ -1119,7 +1119,22 @@ public class GameSession {
                 // Fighter box capacitors (J4.832): 1 point a fusion charge, 2 a hellbore one
                 // (J4.834). Bounded by what the boxes can still hold, so a client that asks
                 // for more cannot burn energy into nothing.
-                if (request.getFighterCapacitorEnergy() > 0) {
+                Map<String, Integer> capsByBox = request.getFighterCapacitorsByBox();
+                if (capsByBox != null && !capsByBox.isEmpty()) {
+                    // Each capacitor is its own: bounded by what THAT box can take, never by
+                    // a total across boxes, which would be a quantity nobody can spend.
+                    Map<String, Integer> room = ship.getShuttles().capacitorPowerWantedByBox();
+                    Map<String, Integer> clean = new java.util.LinkedHashMap<>();
+                    for (Map.Entry<String, Integer> ask : capsByBox.entrySet()) {
+                        Integer cap = room.get(ask.getKey());
+                        if (cap == null || ask.getValue() == null)
+                            continue;
+                        int n = Math.min(Math.max(0, ask.getValue()), cap);
+                        if (n > 0)
+                            clean.put(ask.getKey(), n);
+                    }
+                    e.setFighterCapacitorsByBox(clean);
+                } else if (request.getFighterCapacitorEnergy() > 0) {
                     int room = ship.getShuttles().capacitorPowerWanted();
                     if (room <= 0)
                         return ActionResult.fail(ship.getName()

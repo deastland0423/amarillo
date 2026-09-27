@@ -68,6 +68,15 @@ public class Energy {
 	 * with everything else and applied when the turn starts, so it rides in with the rest.
 	 */
 	private java.util.Map<String, Integer> deckCrewPostings = new java.util.LinkedHashMap<>();
+
+	/**
+	 * J4.832: points bought into each fighter box capacitor, by box id.
+	 * <p>
+	 * Per box because that is what a capacitor is — one per box, serving only its own fighter.
+	 * The older single figure still works and fills the boxes top down; it is what a ship with
+	 * nobody giving orders does.
+	 */
+	private java.util.Map<String, Integer> fighterCapacitorsByBox = new java.util.LinkedHashMap<>();
 	private boolean cloakPaid;      // true if the player paid the cloak cost this turn
 	private boolean energizeCaps;   // true if the player paid 1 pt to energize uncharged capacitors (WS-0)
 
@@ -290,6 +299,15 @@ public class Energy {
 
 	public void setFighterCapacitors(int fighterCapacitors) {
 		this.fighterCapacitors = Math.max(0, fighterCapacitors);
+	}
+
+	public java.util.Map<String, Integer> getFighterCapacitorsByBox() {
+		return fighterCapacitorsByBox;
+	}
+
+	public void setFighterCapacitorsByBox(java.util.Map<String, Integer> byBox) {
+		this.fighterCapacitorsByBox = byBox == null
+				? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(byBox);
 	}
 
 	public java.util.Map<String, Integer> getDeckCrewPostings() {

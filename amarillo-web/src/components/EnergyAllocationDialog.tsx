@@ -63,6 +63,7 @@ interface ShipAlloc {
   transUses:            number;
   fighterCaps:          number;   // J4.832: points into the fighter box capacitors
   crewPostings:         Record<string, number>;   // J4.817: box id → deck crews posted
+  capsByBox:            Record<string, number>;   // J4.832: box id → points into its capacitor
   cloakPaid:            boolean;
   doubleLwarp:          boolean;   // G15.2 engine doubling
   doubleRwarp:          boolean;
@@ -152,6 +153,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     transUses:       0,
     fighterCaps:     0,
     crewPostings:    {},
+    capsByBox:       {},
     cloakPaid:       (ship.cloakCost ?? 0) > 0,
     doubleLwarp:     false,
     doubleRwarp:     false,
@@ -217,7 +219,9 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const specReinf = alloc.specificReinf.reduce((a, b) => a + b, 0);
   const transCost = ship.transporterEnergyCost ?? 0.2;
   const trans     = alloc.transUses * transCost;
-  const figCaps   = alloc.fighterCaps;        // 1 point a charge (J4.832)
+  // One capacitor per box, so the cost is the sum of what was bought for each — the total
+  // is a price, never a pool anyone could spend.
+  const figCaps   = Object.values(alloc.capsByBox).reduce((a, b) => a + b, 0);
   const cloak     = alloc.cloakPaid ? (ship.cloakCost ?? 0) : 0;
   const recharge  = alloc.batteryRecharge;
   const het       = alloc.hetEnergy;
@@ -499,7 +503,7 @@ export default function EnergyAllocationDialog({
           weaponArming:          a.weaponArming,
           photonArming:          Object.keys(a.photonArming).length > 0 ? a.photonArming : undefined,
           transUses:             a.transUses,
-          fighterCapacitorEnergy: a.fighterCaps,
+          fighterCapacitorsByBox: a.capsByBox,
           deckCrewPostings:       a.crewPostings,
           cloakPaid:             a.cloakPaid,
           doubleLwarp:           a.doubleLwarp,
@@ -1385,8 +1389,8 @@ export default function EnergyAllocationDialog({
     <HangarDrawer
       ship={ship}
       anchor={drag.position}
-      fighterCaps={alloc.fighterCaps}
-      onFighterCaps={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
+      capsByBox={alloc.capsByBox}
+      onCapsByBox={next => setAlloc(a => ({ ...a, capsByBox: next }))}
       crewPostings={alloc.crewPostings}
       onCrewPostings={next => setAlloc(a => ({ ...a, crewPostings: next }))}
       spent={spent}

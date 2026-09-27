@@ -472,7 +472,9 @@ public class Ship extends Unit implements DroneController {
 
 		// Fighter box capacitors (J4.832): the ship buys charges back into the boxes, and
 		// only a box can arm the fighter sitting in it (J4.881).
-		if (energyAllocated.getFighterCapacitors() > 0) {
+		if (!energyAllocated.getFighterCapacitorsByBox().isEmpty()) {
+			shuttles.rechargeCapacitors(energyAllocated.getFighterCapacitorsByBox());
+		} else if (energyAllocated.getFighterCapacitors() > 0) {
 			shuttles.rechargeCapacitors(energyAllocated.getFighterCapacitors());
 		}
 

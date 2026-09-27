@@ -112,6 +112,8 @@ export interface ShuttleSpaceState {
   // J4.817: deck crews this box could use this turn, how many are posted, and how much work
   // its fighter still needs (in half-actions — a fusion charge is one, a drone space two).
   crewsWanted?:     number;
+  // J4.832: points THIS capacitor can still take. Never summed across boxes.
+  capacitorRoom?:   number;
   postedCrews?:     number;
   workOutstanding?: number;
 }

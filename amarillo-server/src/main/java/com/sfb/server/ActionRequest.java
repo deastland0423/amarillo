@@ -44,6 +44,8 @@ public class ActionRequest {
     private int                 fighterCapacitorEnergy; // J4.832: points into fighter box capacitors
     /** J4.817: box id ("bay-space") to deck crews posted there this turn. */
     private Map<String, Integer> deckCrewPostings;
+    /** J4.832: box id to points bought into that box's capacitor. */
+    private Map<String, Integer> fighterCapacitorsByBox;
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
     private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
@@ -129,6 +131,9 @@ public class ActionRequest {
 
     public boolean isCloakPaid()                   { return cloakPaid; }
     public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
+
+    public Map<String, Integer> getFighterCapacitorsByBox()   { return fighterCapacitorsByBox; }
+    public void    setFighterCapacitorsByBox(Map<String, Integer> m) { this.fighterCapacitorsByBox = m; }
 
     public Map<String, Integer> getDeckCrewPostings()      { return deckCrewPostings; }
     public void    setDeckCrewPostings(Map<String, Integer> p) { this.deckCrewPostings = p; }

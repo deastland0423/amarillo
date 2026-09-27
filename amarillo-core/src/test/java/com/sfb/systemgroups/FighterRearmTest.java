@@ -349,6 +349,51 @@ public class FighterRearmTest {
     // -------------------------------------------------------------------------
 
     @Test
+    public void theAllocationCanNameWhichBoxGetsThePoints() throws Exception {
+        // Each capacitor serves only the fighter in its own box (J4.881), so buying charges
+        // is buying them for a named fighter — not into a ship-wide pool that anything could
+        // be drawn from.
+        Ship rn = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/hydran/rn.json")));
+        List<ShuttleSpace> boxes = new ArrayList<>();
+        for (ShuttleBay bay : rn.getShuttles().getBays())
+            for (ShuttleSpace box : bay.getSpaces())
+                if (box.capacitorCapacity() > 0) {
+                    box.setCapacitorCharges(0);
+                    boxes.add(box);
+                }
+
+        Energy allocation = new Energy();
+        allocation.setFighterCapacitorsByBox(java.util.Map.of(
+                Shuttles.boxId(2, 2), 8));   // the last Stinger in the third bay, and only it
+        rn.allocateEnergy(allocation);
+        rn.startTurn();
+
+        assertEquals("the box the player named is full", 8,
+                rn.getShuttles().getBays().get(2).getSpaces().get(2).getCapacitorCharges());
+        assertEquals("and the first box, which top-down filling would have taken, is untouched",
+                0, boxes.get(0).getCapacitorCharges());
+    }
+
+    @Test
+    public void whatThePanelOffersPerBoxIsWhatThatBoxCanTake() throws Exception {
+        Ship rn = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/hydran/rn.json")));
+        assertTrue("a full box is not offered",
+                rn.getShuttles().capacitorPowerWantedByBox().isEmpty());
+
+        for (ShuttleBay bay : rn.getShuttles().getBays())
+            for (ShuttleSpace box : bay.getSpaces())
+                if (box.capacitorCapacity() > 0)
+                    box.armOccupantFully();
+
+        java.util.Map<String, Integer> room = rn.getShuttles().capacitorPowerWantedByBox();
+        assertEquals("nine boxes, each a reload short", 9, room.size());
+        assertEquals("and each wants four points of its own", Integer.valueOf(4),
+                room.get(Shuttles.boxId(0, 3)));
+    }
+
+    @Test
     public void theEnergyAllocationLineReachesTheFighterBoxes() throws Exception {
         Ship rn = ShipLibrary.createShip(
                 ShipSpec.fromJson(new File("../data/factions/hydran/rn.json")));
