@@ -1110,7 +1110,12 @@ export default function EnergyAllocationDialog({
                   </div>
                   {r.reloadPool.map(entry => {
                     const count = sel[entry.droneType] ?? 0;
-                    const label = entry.droneType.replace('TYPE_', 'Type ').replace(/_/g, ' ');
+                    // The pool holds drone types and, for a type-G, anti-drone rounds
+                    // (FD2.42) — which are not a drone type and would otherwise read
+                    // as "ANTI DRONE".
+                    const label = entry.droneType === 'ANTI_DRONE'
+                      ? 'Anti-drone'
+                      : entry.droneType.replace('TYPE_', 'Type ').replace(/_/g, ' ');
                     const spacesIfAdd = spacesUsed - (count * entry.rackSize) + ((count + 1) * entry.rackSize);
                     const canAdd = count < entry.count && spacesIfAdd <= 2;
                     return (
