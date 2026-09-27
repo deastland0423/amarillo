@@ -948,6 +948,12 @@ public class GameController {
                     s.put("allowCommandos", spec.commanderOptions == null
                             || spec.commanderOptions.allowCommandos);
                     s.put("maxTBombs", com.sfb.constants.Constants.MAX_TBOMBS[ship.getSizeClass()]);
+                    // S3.2/J4.816: a fully capable carrier may hire deck crews; nobody else
+                    // may, so the option is offered rather than refused after the fact.
+                    s.put("maxExtraDeckCrews", ship.getCarrierClass().isCarrier()
+                            ? com.sfb.scenario.CoiLoadout.MAX_EXTRA_DECK_CREWS : 0);
+                    s.put("deckCrews", ship.getCrew().getDeckCrews());
+                    s.put("extraDeckCrewCost", com.sfb.scenario.CoiLoadout.COST_EXTRA_DECK_CREW);
                     s.put("maxDroneSpeed", spec.commanderOptions != null
                             ? spec.commanderOptions.maxDroneSpeed
                             : null);

@@ -117,6 +117,20 @@ public class Crew implements Systems {
 	}
 
 	/**
+	 * Hire more deck crews before the battle (S3.2, J4.816 — capable carriers only).
+	 * <p>
+	 * Raises the permanent complement, so cleanUp() hands them back every turn like the
+	 * rest. Bought crews are available from turn one: J4.813's "unavailable the turn of
+	 * transfer" is about moving between bays, not about arriving with the ship.
+	 */
+	public void addDeckCrews(int count) {
+		if (count <= 0)
+			return;
+		deckCrews          += count;
+		availableDeckCrews += count;
+	}
+
+	/**
 	 * Permanently kill deck crew members (e.g. shuttle bay space destroyed with
 	 * crew inside). Reduces both the permanent total and the current available
 	 * count so cleanUp() never restores them.

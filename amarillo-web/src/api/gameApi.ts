@@ -304,6 +304,10 @@ export interface CoiShipData {
   allowTBombs:         boolean;
   allowCommandos:      boolean;
   maxTBombs:           number;
+  /** S3.2/J4.816: extra deck crews this ship may hire; 0 unless it is a capable carrier. */
+  maxExtraDeckCrews?:  number;
+  deckCrews?:          number;
+  extraDeckCrewCost?:  number;
   maxDroneSpeed:       number | null;
   heavyWeapons:        CoiHeavyWeapon[];
   droneRacks:          CoiDroneRack[];
@@ -335,6 +339,7 @@ export interface CoiSubmission {
     convertBpToCommando?:  number;
     extraCommandoSquads?:  number;
     extraTBombs?:          number;
+    extraDeckCrews?:       number;
     droneRackLoadouts?:    Record<string, string[]>;
     antiDroneLoadouts?:    Record<string, number>;   // rackIndex -> anti-drone rounds (FD3.70)
     weaponArmingModes?:    Record<string, 'STANDARD' | 'OVERLOAD' | 'SPECIAL' | 'ROLLING'>;

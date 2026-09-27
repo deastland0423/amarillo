@@ -18,6 +18,7 @@ import java.util.Map;
  *   Convert BP → commando:  0.5 BPV each,  limit 2
  *   Extra commando squad:   1.0 BPV each,  limit 2
  *   T-bomb:                 4.0 BPV each,  no hard cap (+ 1 free dummy per purchased)
+ *   Extra deck crew:        0.5 BPV each,  limit 4, capable carriers only (J4.816)
  *   Drone type selection:   free, within year + speed limits
  */
 public class CoiLoadout {
@@ -36,6 +37,16 @@ public class CoiLoadout {
 
     /** Extra T-bombs to purchase. Each costs 4.0 BPV; each includes 1 free dummy T-bomb. */
     public int extraTBombs = 0;
+
+    /**
+     * Extra deck crews (S3.2). Half a point each, four at most, and only a fully capable
+     * carrier may hire them (J4.816): a casual carrier with a fighter or two aboard has not
+     * the facilities, whatever its budget.
+     * <p>
+     * What they buy is turnaround. Rearming spends one crew per two fusion charges (J4.833),
+     * so a Ranger's nine reload four Stingers a turn and thirteen would reload six.
+     */
+    public int extraDeckCrews = 0;
 
     /**
      * Drone loadout per rack, keyed by the rack's index in the ship's weapon list
@@ -113,17 +124,20 @@ public class CoiLoadout {
     public static final double COST_CONVERT_TO_COMMANDO = 0.5;
     public static final double COST_EXTRA_COMMANDO     = 1.0;
     public static final double COST_TBOMB              = 4.0;
+    public static final double COST_EXTRA_DECK_CREW    = 0.5;
 
     public static final int MAX_EXTRA_BP              = 10;
     public static final int MAX_CONVERT_TO_COMMANDO   = 2;
     public static final int MAX_EXTRA_COMMANDOS       = 2;
+    public static final int MAX_EXTRA_DECK_CREWS      = 4;
 
     /** Total BPV cost of this loadout. */
     public double totalCost() {
         return extraBoardingParties * COST_EXTRA_BP
              + convertBpToCommando  * COST_CONVERT_TO_COMMANDO
              + extraCommandoSquads  * COST_EXTRA_COMMANDO
-             + extraTBombs          * COST_TBOMB;
+             + extraTBombs          * COST_TBOMB
+             + extraDeckCrews       * COST_EXTRA_DECK_CREW;
     }
 
     /**

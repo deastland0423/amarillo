@@ -268,6 +268,23 @@ public class ScenarioLoader {
             note(ship, "COI: skipping " + conversions + " BP→commando conversions — over budget");
         }
 
+        // --- Extra deck crews (S3.2/J4.816) ---
+        // Only a fully capable carrier may hire them. A casual carrier, or a ship with no
+        // fighters at all, has nowhere to put them — so the request is refused rather than
+        // charged for, and the player is told while there is still time to spend it elsewhere.
+        int extraCrews = Math.min(loadout.extraDeckCrews, CoiLoadout.MAX_EXTRA_DECK_CREWS);
+        if (extraCrews > 0 && !ship.getCarrierClass().isCarrier()) {
+            note(ship, "COI: only a fully capable carrier may hire deck crews (J4.816)");
+        } else if (extraCrews > 0) {
+            double crewCost = extraCrews * CoiLoadout.COST_EXTRA_DECK_CREW;
+            if (spent + crewCost <= budget) {
+                ship.getCrew().addDeckCrews(extraCrews);
+                spent += crewCost;
+            } else {
+                note(ship, "COI: skipping " + extraCrews + " extra deck crews — over budget");
+            }
+        }
+
         // --- Extra commando squads ---
         int extraCommandos = Math.min(loadout.extraCommandoSquads, CoiLoadout.MAX_EXTRA_COMMANDOS);
         double cmdCost = extraCommandos * CoiLoadout.COST_EXTRA_COMMANDO;

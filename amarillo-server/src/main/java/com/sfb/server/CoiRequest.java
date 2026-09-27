@@ -19,6 +19,7 @@ public class CoiRequest {
     public int    convertBpToCommando  = 0;
     public int    extraCommandoSquads  = 0;
     public int    extraTBombs          = 0;
+    public int    extraDeckCrews       = 0;   // S3.2/J4.816: capable carriers only
 
     /** Rack index (as string key) → list of DroneType names. */
     public Map<String, List<String>> droneRackLoadouts = new LinkedHashMap<>();
@@ -64,6 +65,7 @@ public class CoiRequest {
         out.convertBpToCommando  = convertBpToCommando;
         out.extraCommandoSquads  = extraCommandoSquads;
         out.extraTBombs          = extraTBombs;
+        out.extraDeckCrews       = extraDeckCrews;
 
         for (Map.Entry<String, List<String>> entry : droneRackLoadouts.entrySet()) {
             int rackIndex;

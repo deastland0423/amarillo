@@ -73,6 +73,7 @@ interface ShipCoi {
   convertBpToCommando:  number;
   extraCommandoSquads:  number;
   extraTBombs:          number;
+  extraDeckCrews:       number;
   weaponArmingModes:    Record<string, ArmMode>;
   photonOverload:       Record<string, number>;   // free WS-III overload energy per tube (S4.32)
   droneRackLoadouts:    Record<number, string[]>;   // rackIndex → drone type names
@@ -87,6 +88,7 @@ function defaultShipCoi(): ShipCoi {
     convertBpToCommando:  0,
     extraCommandoSquads:  0,
     extraTBombs:          0,
+    extraDeckCrews:       0,
     weaponArmingModes:    {},
     photonOverload:       {},
     droneRackLoadouts:    {},
@@ -100,7 +102,8 @@ function coiCost(c: ShipCoi): number {
   return c.extraBoardingParties * 0.5
        + c.convertBpToCommando  * 0.5
        + c.extraCommandoSquads  * 1.0
-       + c.extraTBombs          * 4.0;
+       + c.extraTBombs          * 4.0
+       + c.extraDeckCrews       * 0.5;
 }
 
 function droneSpaceUsed(drones: string[], allTypes: CoiDroneType[]): number {
@@ -271,6 +274,21 @@ function ShipCoiPanel({
           <label className="coi-label">T-bombs (4.0 ea, +1 free dummy each, max {ship.maxTBombs})</label>
           <input type="number" min={0} max={ship.maxTBombs} value={coi.extraTBombs}
             onChange={e => setNum('extraTBombs', Math.min(ship.maxTBombs, parseInt(e.target.value) || 0))} />
+        </div>
+      )}
+
+      {/* Extra deck crews (S3.2/J4.816) — offered only to a fully capable carrier, which
+          is why the server sends a maximum of 0 for everyone else. What they buy is
+          turnaround: two crews reload one fighter a turn (J4.833). */}
+      {(ship.maxExtraDeckCrews ?? 0) > 0 && (
+        <div className="coi-row">
+          <label className="coi-label">
+            Deck crews ({(ship.extraDeckCrewCost ?? 0.5).toFixed(1)} ea, max{' '}
+            {ship.maxExtraDeckCrews}; has {ship.deckCrews})
+          </label>
+          <input type="number" min={0} max={ship.maxExtraDeckCrews} value={coi.extraDeckCrews}
+            onChange={e => setNum('extraDeckCrews',
+              Math.min(ship.maxExtraDeckCrews ?? 0, parseInt(e.target.value) || 0))} />
         </div>
       )}
 
@@ -642,6 +660,7 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         convertBpToCommando:  coi.convertBpToCommando,
         extraCommandoSquads:  coi.extraCommandoSquads,
         extraTBombs:          coi.extraTBombs,
+        extraDeckCrews:       coi.extraDeckCrews,
         droneRackLoadouts:    rackLoadouts,
         antiDroneLoadouts,
         weaponArmingModes:    Object.keys(coi.weaponArmingModes).length > 0
