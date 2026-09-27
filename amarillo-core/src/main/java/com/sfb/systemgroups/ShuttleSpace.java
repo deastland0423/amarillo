@@ -128,7 +128,8 @@ public class ShuttleSpace {
         if (capacitorCapacity < 0 && shuttle != null) {
             capacitorCapacity = capacityFor(shuttle);
             if (capacitorCharges < 0)
-                capacitorCharges = Math.max(0, capacitorCapacity - chargesCarriedBy(shuttle));
+                capacitorCharges = Math.max(0,
+                        capacitorCapacity - FighterArming.chargesCarriedBy(shuttle));
         }
     }
 
@@ -209,29 +210,6 @@ public class ShuttleSpace {
     }
 
     public int getCapacitorEnergyBanked() { return capacitorEnergyBanked; }
-
-    /**
-     * Charges the fighter is already holding, which came out of THIS box.
-     *
-     * J4.886 starts every capacitor full, and a fighter armed at the start of a scenario drew
-     * its charges from its own box rather than from nowhere (the owner's ruling, 2026-09-26):
-     * an armed Stinger carries four of its box's eight, leaving one reload behind, and an
-     * armed hellbore fighter carries the box's only charge, leaving it empty. A fighter that
-     * starts UNARMED — which is what Weapon Status will mean for most of them (J4.8224) —
-     * leaves its box full, and the same subtraction says so without being told.
-     */
-    private static int chargesCarriedBy(Shuttle occupant) {
-        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
-            if (w instanceof com.sfb.weapons.FighterHellbore hb)
-                return hb.isSpent() ? 0 : 1;
-        }
-        int charges = 0;
-        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
-            if (w instanceof com.sfb.weapons.FighterFusion ff)
-                charges += ff.getChargesRemaining();
-        }
-        return charges;
-    }
 
     /**
      * The capacity the SSD would print for a box holding this fighter.

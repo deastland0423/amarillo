@@ -25,7 +25,20 @@ public class FighterHellbore extends Hellbore {
     /** True if this hellbore has not been fired since last reload. */
     public boolean isSpent() { return spent; }
 
-    /** Called when the fighter docks at its carrier bay. */
+    /**
+     * Take the charge back off it (S4.10/S4.11): a fighter that is not armed at the start of
+     * a scenario has none aboard, which is the same state as having fired it — no charge, and
+     * one owed to the box's capacitor.
+     */
+    public void unload() {
+        spent = true;
+    }
+
+    /**
+     * Put a charge in it (J4.834). Called by the end-of-turn rearm pass, which has already
+     * drawn that charge out of the fighter box capacitor — NOT by docking: landing reloads
+     * nothing, or the deck crews and the capacitor would both be for show.
+     */
     public void reload() {
         spent = false;
         setArmed(true);

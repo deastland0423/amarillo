@@ -16,8 +16,6 @@ import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.objects.shuttles.Stinger2;
 import com.sfb.objects.shuttles.StingerH;
 import com.sfb.objects.Unit;
-import com.sfb.weapons.FighterHellbore;
-import com.sfb.weapons.Weapon;
 
 /**
  * A single shuttle bay on a ship.
@@ -204,30 +202,6 @@ public class ShuttleBay {
     }
 
     // -------------------------------------------------------------------------
-    // Landing
-    // -------------------------------------------------------------------------
-
-    public boolean land(Shuttle shuttle) {
-        shuttle.setCurrentSpeed(0);
-        shuttle.setLocation(null);
-        shuttle.setFacing(0);
-        if (shuttle instanceof Fighter) {
-            for (Weapon w : shuttle.getWeapons().fetchAllWeapons()) {
-                if (w instanceof FighterHellbore)
-                    ((FighterHellbore) w).reload();
-            }
-        }
-        // Place in first empty undestroyed space
-        for (ShuttleSpace space : spaces) {
-            if (space.isEmpty()) {
-                space.setShuttle(shuttle);
-                return true;
-            }
-        }
-        return false; // no room
-    }
-
-    // -------------------------------------------------------------------------
     // DAC damage
     // -------------------------------------------------------------------------
 
@@ -371,52 +345,23 @@ public class ShuttleBay {
         return new RearmResult(log, Math.max(0, crewsAvailable) - Math.max(0, crewsLeft));
     }
 
-    /** Rearm the fighter in one box as far as its capacitor and the loose crews allow. */
+    /**
+     * Rearm the fighter in one box as far as its capacitor and the loose crews allow.
+     *
+     * The costs and the loading itself live in {@link FighterArming}, which the pre-game
+     * weapon status setup uses too — it differs only in the budget it brings. A crew working
+     * one turn completes one action, so the budget here is the crews it may put on this
+     * fighter, and the crews it SPENT are the actions that came back.
+     */
     private RearmResult rearmOne(ShuttleSpace space, Fighter fighter, int crewsLeft) {
-        FighterHellbore hellbore = null;
-        List<com.sfb.weapons.FighterFusion> fusions = new ArrayList<>();
-        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
-            if (w instanceof FighterHellbore hb)
-                hellbore = hb;
-            else if (w instanceof com.sfb.weapons.FighterFusion ff)
-                fusions.add(ff);
-        }
-
-        // A hellbore box holds one charge and reloading it is one whole action (J4.834).
-        if (hellbore != null) {
-            if (!hellbore.isSpent())
-                return RearmResult.NOTHING;
-            if (space.drawCharges(1) == 0)
-                return new RearmResult(List.of(fighter.getName()
-                        + ": hellbore capacitor empty, not reloaded (J4.834)"), 0);
-            hellbore.reload();
-            return new RearmResult(List.of(fighter.getName()
-                    + ": hellbore reloaded from the fighter box capacitor (J4.834)"), 1);
-        }
-
-        // Fusions: half an action a charge, so one crew loads two charges in a turn (J4.833).
-        int missing = 0;
-        for (com.sfb.weapons.FighterFusion ff : fusions)
-            missing += ff.chargesMissing();
-        if (missing == 0)
+        int crews = Math.min(2, crewsLeft);   // J4.8172: two crews on one fighter, no more
+        FighterArming.Load load = FighterArming.load(space, fighter,
+                crews * FighterArming.HALF_ACTIONS_PER_ACTION);
+        if (load.note() == null)
             return RearmResult.NOTHING;
 
-        int crews = Math.min(Math.min(2, crewsLeft), (missing + 1) / 2);
-        int drawn = space.drawCharges(Math.min(missing, crews * 2));
-        if (drawn == 0)
-            return new RearmResult(List.of(fighter.getName()
-                    + ": fusion capacitor empty, not reloaded (J4.831)"), 0);
-
-        int loaded = 0;
-        for (com.sfb.weapons.FighterFusion ff : fusions)
-            while (loaded < drawn && ff.loadCharge())
-                loaded++;
-        // Anything the weapons would not take stays in the capacitor.
-        if (loaded < drawn)
-            space.setCapacitorCharges(space.getCapacitorCharges() + (drawn - loaded));
-
-        return new RearmResult(List.of(fighter.getName() + ": " + loaded + " fusion charge"
-                + (loaded == 1 ? "" : "s") + " loaded, " + space.getCapacitorCharges()
-                + " left in the box (J4.833)"), (loaded + 1) / 2);
+        int crewsUsed = (load.halfActionsUsed() + FighterArming.HALF_ACTIONS_PER_ACTION - 1)
+                / FighterArming.HALF_ACTIONS_PER_ACTION;
+        return new RearmResult(List.of(load.note()), crewsUsed);
     }
 }
