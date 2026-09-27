@@ -3,6 +3,8 @@ import type { ShipObject, ShuttleObject, WeaponState } from '../types/gameState'
 import { gameApi } from '../api/gameApi';
 import type { GuardOptions } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
+import { Stepper } from './Stepper';
+import { HangarDrawer } from './HangarDrawer';
 
 // Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
 const TURN_MODE_TABLES: Record<string, number[]> = {
@@ -267,19 +269,6 @@ function armingStatus(w: WeaponState): string {
 
 // ---- Stepper component ----
 
-function Stepper({
-  value, min, max, step = 1, onChange, label,
-}: { value: number; min: number; max: number; step?: number; onChange: (n: number) => void; label: string }) {
-  return (
-    <div className="ea-stepper">
-      <button className="ea-step-btn" onClick={() => onChange(Math.max(min, value - step))} disabled={value <= min}>−</button>
-      <span className="ea-step-value">{value}</span>
-      <button className="ea-step-btn" onClick={() => onChange(Math.min(max, value + step))} disabled={value >= max}>+</button>
-      <span className="ea-step-label">{label}</span>
-    </div>
-  );
-}
-
 // ---- Collapsible section ----
 
 function Collapsible({ title, color, children, defaultOpen = false }: { title: string; color: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -433,17 +422,6 @@ export default function EnergyAllocationDialog({
 
   const heavy    = (ship.weapons ?? []).filter(w => w.isHeavy && w.functional);
   const hasTrans = (ship.availableTransporters ?? 0) > 0;
-  const figCapRoom = ship.fighterCapacitorRoom ?? 0;   // J4.832
-  // Every box with a capacitor behind it, in the order rechargeCapacitors() fills them.
-  const figCapBoxes = (ship.shuttleBays ?? []).flatMap(bay =>
-    (bay.spaces ?? [])
-      .filter(sp => (sp.capacitorCapacity ?? 0) > 0)
-      .map(sp => ({
-        key:      `${bay.bayIndex}-${sp.spaceIndex}`,
-        label:    `Bay ${bay.bayIndex + 1} · ${sp.shuttle?.name ?? 'empty box'}`,
-        charges:  sp.capacitorCharges ?? 0,
-        capacity: sp.capacitorCapacity ?? 0,
-      })));
   // One circuit per point of sensor rating (D6.312), capped at the six points a ship may
   // generate in total (D6.310). A scout's lending pool is separate and not bound by this (G24.31).
   const ewLimit  = Math.min(ship.sensorRating ?? 0, 6);
@@ -579,6 +557,7 @@ export default function EnergyAllocationDialog({
   const effectiveMaxWarp = Math.min(maxWarpSpeed, accelCap);
 
   return (
+    <>
     <div className="ea-dialog" style={{ left: drag.position.left, top: drag.position.top }}>
 
       {/* Title bar */}
@@ -1374,35 +1353,6 @@ export default function EnergyAllocationDialog({
           </div>
         )}
 
-        {/* ---- Fighter Box Capacitors (J4.832) ---- */}
-        {/* Collapsed by default like the drone reloads beside it: a carrier player wants it
-            every turn, everyone else never does. Ready-rack loading (J4.82) belongs in here
-            too when drone-armed fighters get their supply. */}
-        {figCapBoxes.length > 0 && (
-          <Collapsible title="Fighter Capacitors" color="#7ee0a8">
-            <div className="ea-note">
-              {figCapRoom > 0
-                ? `${figCapRoom} point(s) of room this turn — 1 per fusion charge (J4.832); a`
-                  + ' hellbore box takes 2 a turn and needs two turns for its one charge (J4.834).'
-                  + ' Boxes fill in the order below, so the points buy one fighter a full sortie.'
-                : 'Every fighter box is full — nothing to buy this turn.'}
-            </div>
-            {figCapRoom > 0 && (
-              <Stepper value={alloc.fighterCaps} min={0} max={figCapRoom}
-                onChange={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
-                label={`point(s) into the fighter boxes`} />
-            )}
-            <div className="ea-note" style={{ marginTop: '0.4rem' }}>
-              {figCapBoxes.map(b => (
-                <div key={b.key} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {b.label} — {b.charges}/{b.capacity}
-                  {b.charges < b.capacity ? '' : ' (full)'}
-                </div>
-              ))}
-            </div>
-          </Collapsible>
-        )}
-
         {/* ---- Cloaking Device ---- */}
         {hasCloak && (
           <div className="ea-section">
@@ -1425,6 +1375,19 @@ export default function EnergyAllocationDialog({
         </button>
       </div>
     </div>
+
+    {/* Hangar operations: the wide, one-row-per-object half of this form. A drawer off the
+        right edge rather than a window of its own, because its points come out of the same
+        budget and go up in the same ALLOCATE — so it travels with the dialog it belongs to. */}
+    <HangarDrawer
+      ship={ship}
+      anchor={drag.position}
+      fighterCaps={alloc.fighterCaps}
+      onFighterCaps={v => setAlloc(a => ({ ...a, fighterCaps: v }))}
+      spent={spent}
+      total={total}
+    />
+    </>
   );
 }
 

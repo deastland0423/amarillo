@@ -2018,3 +2018,136 @@ h3 {
 .deploy-say-act { color: #f0c040; }
 .deploy-ship-name { display: block; font-weight: 600; }
 .deploy-ship { line-height: 1.3; }
+
+/* ---- Hangar operations drawer (J4.8) ------------------------------------ */
+/* The wide half of Energy Allocation. Positioned in the same fixed coordinate
+   space as .ea-dialog rather than nested inside it: that dialog sets
+   overflow:hidden to keep its own body scrolling, which would clip anything
+   hanging off its edge. Both read their left/top from the same drag position,
+   so the pair moves as one object. */
+
+.hangar-tab {
+  position: fixed;
+  z-index: 1001;
+  width: 28px;
+  height: 300px;
+  padding: 0;
+  background: #161b22;
+  color: #7ee0a8;
+  border: 1px solid #f0c040;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.hangar-tab:hover {
+  background: #1f2630;
+}
+
+/* Dragged to the right of the screen, the drawer opens leftward instead; the tab is a
+   flap on whichever edge it hangs from, so its open side follows. */
+.hangar-tab.flip {
+  border-left: 1px solid #f0c040;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  box-shadow: -4px 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Letters stacked upright down the strip, not rotated on their sides: at this size a
+   rotated word is a smear, and upright reads at a glance from the corner of the eye. */
+.hangar-tab-text {
+  display: inline-block;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: nowrap;
+}
+
+.hangar-drawer {
+  position: fixed;
+  z-index: 1000;
+  width: 460px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #161b22;
+  border: 1px solid #f0c040;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  user-select: none;
+}
+
+.hangar-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid #30363d;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f0c040;
+}
+
+/* The EA budget, repeated: points bought in here come out of it. */
+.hangar-budget {
+  font-variant-numeric: tabular-nums;
+  color: #f0c040;
+  font-weight: 700;
+}
+
+.hangar-budget.over {
+  color: #f85149;
+}
+
+/* Its own scroll, so a twelve-box carrier never pushes the EA submit button
+   off the bottom of the screen. */
+.hangar-drawer-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.hangar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.hangar-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8b949e;
+  font-weight: 600;
+  padding: 0.2rem 0.3rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.hangar-table td {
+  padding: 0.22rem 0.3rem;
+  border-bottom: 1px solid #21262d;
+  color: #c9d1d9;
+}
+
+.hangar-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A box short of a full capacitor is the one the player is deciding about. */
+.hangar-row-short td {
+  color: #f0c040;
+}
+
+.hangar-todo {
+  border-top: 1px dashed #30363d;
+  padding-top: 0.5rem;
+  font-style: italic;
+}
