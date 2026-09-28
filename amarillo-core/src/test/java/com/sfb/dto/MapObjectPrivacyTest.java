@@ -79,7 +79,11 @@ public class MapObjectPrivacyTest {
             "personnelCapacity", "isIdentified",
             // Damage is visible, and so is the hull behind it: unlike a drone, the craft
             // type is public ("Admin Shuttle"), so its hull was never secret.
-            "hull", "maxHull", "damageTaken", "launchImpulse");
+            "hull", "maxHull", "damageTaken", "launchImpulse",
+            // How long it must still wait before firing (J1.342) and before using seeking
+            // weapons (J1.341). Public because launchImpulse is: anyone watching the launch
+            // could do the subtraction, so sending the answer gives nothing away.
+            "fireDelayRemaining", "seekerDelayRemaining");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
             // What it is CARRYING: G4.233 gives the seeking course and stops there. How
             // much it could carry is a property of the craft and is public, below.

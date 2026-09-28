@@ -161,4 +161,53 @@ public class LaunchFireDelayTest {
         assertFalse("the phaser is past its own wait and must not be caught by J1.341: "
                 + phaserResult, phaserResult.contains("J1.341"));
     }
+
+    // -------------------------------------------------------------------------
+    // The countdown the readout shows
+    // -------------------------------------------------------------------------
+
+    /**
+     * The pad says HOW LONG, not merely that it cannot — and the number comes from here,
+     * because how long a craft must wait is a rules answer and a view does not decide those.
+     */
+    @Test
+    public void theCountdownRunsDownToZeroAndStops() {
+        Aas aas = launchedAt(5);
+
+        assertEquals("the impulse it launched on", 8, aas.impulsesUntilDirectFire(5));
+        assertEquals(1, aas.impulsesUntilDirectFire(12));
+        assertEquals("free, and it does not go negative", 0, aas.impulsesUntilDirectFire(13));
+        assertEquals(0, aas.impulsesUntilDirectFire(40));
+    }
+
+    @Test
+    public void theSeekerCountdownIsTwiceAsLongAndOutlastsTheOther() {
+        Aas aas = launchedAt(5);
+
+        assertEquals(16, aas.impulsesUntilSeekers(5));
+        assertEquals("phasers free, drones eight impulses off",
+                0, aas.impulsesUntilDirectFire(13));
+        assertEquals(8, aas.impulsesUntilSeekers(13));
+        assertEquals(0, aas.impulsesUntilSeekers(21));
+    }
+
+    @Test
+    public void theCountdownAgreesWithTheGuardItIsDrawnFrom() {
+        Aas aas = launchedAt(5);
+
+        for (int impulse = 5; impulse <= 25; impulse++) {
+            assertEquals("direct fire at impulse " + impulse,
+                    aas.impulsesUntilDirectFire(impulse) == 0, aas.canFireDirect(impulse));
+            assertEquals("seekers at impulse " + impulse,
+                    aas.impulsesUntilSeekers(impulse) == 0, aas.canLaunchSeeker(impulse));
+        }
+    }
+
+    @Test
+    public void aCraftInItsBayIsCountingDownNothing() {
+        Aas aas = new Aas();
+
+        assertEquals(0, aas.impulsesUntilDirectFire(1));
+        assertEquals(0, aas.impulsesUntilSeekers(1));
+    }
 }

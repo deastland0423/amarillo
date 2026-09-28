@@ -2619,9 +2619,16 @@ export default function GameBoard({ session, onLeave }: Props) {
       const sh = o as ShuttleObject;
       if (!myShips.has(sh.parentShipName ?? '') || (sh.weapons?.length ?? 0) === 0)
         return [];
+      // J1.342/J1.341: a craft still serving its launch delay says so on the row, so the
+      // order is never drafted and sealed only to be refused at reveal.
+      const fireDelay = sh.fireDelayRemaining ?? 0;
+      const notes = ['fighter'];
+      if (sh.crippled) notes.push('crippled');
+      if (fireDelay > 0) notes.push(`cannot fire for ${fireDelay} more`);
       return [{
         name: sh.name, isShip: false, weapons: sh.weapons ?? [],
-        note: sh.crippled ? 'fighter, crippled' : 'fighter',
+        note: notes.join(', '),
+        fireDelay, seekerDelay: sh.seekerDelayRemaining ?? 0,
       }];
     }
     return [];

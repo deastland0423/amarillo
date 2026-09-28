@@ -54,6 +54,17 @@ export interface FiringUnit {
   uimFunctional?: boolean;
   /** Shown beside the name so a fighter reads as a fighter, not as a ship. */
   note:    string | null;
+  /**
+   * J1.342/J1.341: impulses a just-launched craft must still serve before its direct-fire
+   * weapons, and before its seeking weapons. Both 0 for a ship, and for any craft that has
+   * been out long enough.
+   *
+   * Here because core refuses the shot either way, and a pad that let the order be DRAFTED
+   * and SEALED would spring the refusal at reveal — by which time the impulse's fire is
+   * resolved and the declaration is spent.
+   */
+  fireDelay?:   number;
+  seekerDelay?: number;
 }
 
 export interface DraftOrder {
@@ -657,8 +668,17 @@ export default function FireOrdersPad({
               {target.weaponsInArc.map(name => {
                 const w = attacker.weapons.find(x => x.name === name);
                 const elsewhere = spokenFor.get(name);
+                // The launch delays come first because they shut a weapon that is otherwise
+                // perfectly ready, and the reason is invisible from the weapon itself: a
+                // craft may be past its quarter turn and free to fire phasers while its
+                // seeking weapons wait out the half turn (J1.342, then J1.341).
+                const fireDelay = attacker.fireDelay ?? 0;
+                const seekerDelay = attacker.seekerDelay ?? 0;
                 const unavailable = elsewhere
                   ? `→ ${elsewhere}`
+                  : fireDelay > 0 ? `launched, ${fireDelay} more`
+                  : w && w.seekingWeapon && seekerDelay > 0
+                    ? `launched, ${seekerDelay} more`
                   : w && w.isHeavy && !w.armed ? 'unarmed'
                   : w && !w.readyToFire ? 'on cooldown'
                   : null;

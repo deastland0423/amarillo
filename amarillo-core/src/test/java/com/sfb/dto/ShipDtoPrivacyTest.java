@@ -145,6 +145,9 @@ public class ShipDtoPrivacyTest {
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",
         "eptCost", "rollingCost", "canFireDouble",
+        // Whether firing it puts a seeker on the map rather than resolving damage. What a
+        // hull carries is printed on its SSD, and a launch is watched by everyone anyway.
+        "seekingWeapon",
         // What a full ADD load holds is on the SSD; what is left in it is not
         "addCapacity",
         // Scout channels: what a channel is doing and lending is public by ruling

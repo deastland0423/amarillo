@@ -551,6 +551,23 @@ public abstract class Shuttle extends Unit {
 	}
 
 	/**
+	 * Impulses still to serve before this craft may use direct-fire weapons (J1.342), or
+	 * zero if it may already. The countdown rather than the boolean, so a readout can say
+	 * how long instead of only that it cannot — and so the client is never the thing
+	 * subtracting impulses to work out a rules answer.
+	 */
+	public int impulsesUntilDirectFire(int currentImpulse) {
+		return Math.max(0, DIRECT_FIRE_DELAY - (currentImpulse - getLaunchImpulse()));
+	}
+
+	/** The same for seeking weapons (J1.341), which wait twice as long. */
+	public int impulsesUntilSeekers(int currentImpulse) {
+		if (this instanceof ScatterPack)
+			return 0;   // FD7.33 instead; isReadyToRelease holds a pack to its quarter turn
+		return Math.max(0, SEEKER_DELAY - (currentImpulse - getLaunchImpulse()));
+	}
+
+	/**
 	 * J1.341: a shuttle cannot launch or guide seeking weapons until half a turn — sixteen
 	 * impulses — after its most recent launch. Twice the direct-fire wait, and the gap
 	 * between the two is real: a fighter that may fire its phasers on impulse 13 still may

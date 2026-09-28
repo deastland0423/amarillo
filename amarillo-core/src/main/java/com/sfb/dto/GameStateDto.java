@@ -117,6 +117,19 @@ public class GameStateDto {
         public boolean functional;
         public String plasmaType; // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
         public String launcherType; // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
+        /**
+         * Whether firing this puts a SEEKING weapon on the map rather than resolving damage
+         * — drone racks and rails, plasma launchers (J1.341's "seeking weapons").
+         * <p>
+         * Sent because the client cannot tell from anything else it has: a DroneRail answers
+         * direct-fire like a phaser and is fired down the same path. Matching on the weapon's
+         * NAME would be the alternative, and would drift the first time one is renamed. The
+         * predicate here is the same `instanceof Launcher` the fire guard uses, so the pad
+         * and the rule cannot disagree about which weapons a launch delay shuts.
+         * <p>
+         * No secret: which weapons a hull carries is printed on its SSD.
+         */
+        public boolean seekingWeapon;
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
@@ -567,6 +580,20 @@ public class GameStateDto {
         public int maxHull;      // hull the craft starts with
         public int damageTaken;
         public int launchImpulse; // when it left the bay; a launch is watched by everyone
+        /**
+         * J1.342/J1.341: impulses this craft must still serve before it may fire direct-fire
+         * weapons, and before it may use seeking weapons. Zero means it may.
+         * <p>
+         * Sent, rather than left to the client to work out from launchImpulse, because how
+         * long a craft must wait is a rules answer and the view does not decide those. No
+         * secret either way: the launch was watched by everyone, so the arithmetic was always
+         * available to an opponent with a pencil.
+         * <p>
+         * Two numbers and not one, because they run to different lengths and a craft spends
+         * eight impulses in between with its phasers free and its rails shut.
+         */
+        public int fireDelayRemaining;
+        public int seekerDelayRemaining;
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
         // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
         public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
@@ -936,7 +963,8 @@ public class GameStateDto {
                 // Only released packs live here — the release was visible to all
                 mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
-                mapObjects.add(fromShuttle(shuttle, hiddenFrom(viewerTeam, shuttle.getOwner())));
+                mapObjects.add(fromShuttle(shuttle, hiddenFrom(viewerTeam, shuttle.getOwner()),
+                        game.getAbsoluteImpulse()));
         }
 
         for (Seeker seeker : game.getSeekers()) {
@@ -956,7 +984,7 @@ public class GameStateDto {
                 // course and target added once it has. This used to open the whole DTO on
                 // identification, handing over the warhead and the arming turns.
                 if (hiddenFrom(viewerTeam, ss.getOwner()))
-                    mapObjects.add(fromShuttle(ss, true));
+                    mapObjects.add(fromShuttle(ss, true, game.getAbsoluteImpulse()));
                 else
                     mapObjects.add(fromSuicideShuttle(ss));
             } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
@@ -964,7 +992,7 @@ public class GameStateDto {
                 // G4.233 again: "not if it is carrying drones". Releasing them is what makes
                 // a pack public, not being identified.
                 if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isReleased())
-                    mapObjects.add(fromShuttle(pack, true));
+                    mapObjects.add(fromShuttle(pack, true, game.getAbsoluteImpulse()));
                 else
                     mapObjects.add(fromScatterPack(pack));
             }
@@ -1665,7 +1693,7 @@ public class GameStateDto {
      *                    whether it is seeking, and stops there.
      */
     private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle,
-            boolean hideSecrets) {
+            boolean hideSecrets, int absoluteImpulse) {
         ShuttleDto dto = new ShuttleDto();
         dto.name = shuttle.getName();
         dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
@@ -1682,6 +1710,8 @@ public class GameStateDto {
         dto.maxHull = shuttle.getHull();
         dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
         dto.launchImpulse = shuttle.getLaunchImpulse();
+        dto.fireDelayRemaining = shuttle.impulsesUntilDirectFire(absoluteImpulse);
+        dto.seekerDelayRemaining = shuttle.impulsesUntilSeekers(absoluteImpulse);
         dto.tractoredBy = holderName(shuttle);
         // Every shuttle's weapons, not just a fighter's. An admin shuttle builds itself a
         // 360-degree Ph-3, and both core and the fire endpoint have always been willing to
@@ -1839,6 +1869,8 @@ public class GameStateDto {
             wd.arcLabel = w.getArcLabel();
             wd.arcMask = w.getArcs();
             wd.readyToFire = w.isFunctional() && w.canFire();
+            // The same predicate the launch-delay guard uses, so the pad and the rule agree.
+            wd.seekingWeapon = w instanceof com.sfb.weapons.Launcher;
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
             wd.minImpulseGap = w.getMinImpulseGap();

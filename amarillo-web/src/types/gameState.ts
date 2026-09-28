@@ -26,6 +26,8 @@ export interface WeaponState {
   functional:        boolean;
   plasmaType:        string | null;   // currently arming torpedo type, or null
   launcherType:      string | null;   // fixed launcher type: "F" | "G" | "S" | "R" | null
+  /** Firing it puts a seeker on the map rather than resolving damage (J1.341). */
+  seekingWeapon?:    boolean;
   pseudoPlasmaReady: boolean;
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)
@@ -357,6 +359,13 @@ export interface ShuttleObject extends MapObjectBase {
   maxHull?:       number;    // hull the craft starts with
   damageTaken?:   number;
   launchImpulse?: number;    // when it left the bay
+  /**
+   * J1.342/J1.341: impulses this craft must still serve after launch before it may fire
+   * direct-fire weapons, and before it may use seeking weapons. 0 means it may. Decided in
+   * core — never recomputed here from launchImpulse.
+   */
+  fireDelayRemaining?:   number;
+  seekerDelayRemaining?: number;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
   landingPhase?:      string;        // NONE | DESCENDING | LANDED | CLIMBING (P2.4)
   landedHexSide?:     number;        // 1..6 (A..F) when landed on a planet
