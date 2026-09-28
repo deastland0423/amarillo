@@ -136,21 +136,49 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     /** J4.431: a fighter launches at most one drone per turn, whatever it carries. */
     private boolean dronesFiredThisTurn = false;
 
+    /** J4.43: a two-seat fighter, and the EW fighters built from them, guide twelve. */
+    public static final int TWO_SEAT_CONTROL = 12;
+
+    /** J4.25: a drone-carrying fighter guides at least two, however few it carries. */
+    public static final int MINIMUM_CONTROL = 2;
+
     /**
-     * How many seekers this fighter can guide at once: its own drones and no more.
+     * How many seeking weapons this fighter can guide at once (J4.25, J4.43).
      * <p>
-     * Counted from the RAILS rather than declared per class, which is what four identical
-     * copies of this code got wrong by degrees — an AAS said 2, a TAAS said 4, and both were
-     * just counting their own rails the long way. A fighter guides what it carries (J4.431);
-     * it is not a scout.
+     * J4.25: "a number of drones equal to the number of non-DFDs (non-dogfight drones, i.e.,
+     * drones other than type-VI) in its nominal load exclusive of variants, if any (or two
+     * drones, whichever is greater)." Three things in that sentence are easy to lose:
+     * <ul>
+     *   <li>Type-VIs do NOT count. A TAAS carries two type-Is and two type-VIs and guides
+     *       TWO, not four — which is what its hand-written constant of 4 got wrong.</li>
+     *   <li>NOMINAL load, not what is aboard. Counted off the rail's design drone, so
+     *       substituting a type-VI for a type-I does not shrink the capacity — the rule
+     *       says "exclusive of variants" and J4.25's own F-15 example turns on it.</li>
+     *   <li>A floor of two, so a one-rail fighter still guides a pair.</li>
+     * </ul>
+     * A fighter carrying no drones at all guides nothing — the floor is for fighters the
+     * rule is talking about, and a Stinger is not one.
      */
     @Override
     public int getControlCapacity() {
+        // J4.43: two-seaters guide twelve and can take over their squadron's seekers. The
+        // taking-over half is not built; see the squadron work.
+        if (isTwoSeater())
+            return TWO_SEAT_CONTROL;
+
         int rails = 0;
-        for (Weapon w : getWeapons().fetchAllWeapons())
-            if (w instanceof com.sfb.weapons.DroneRail)
-                rails++;
-        return rails;
+        int nonDogfight = 0;
+        for (Weapon w : getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.DroneRail rail))
+                continue;
+            rails++;
+            com.sfb.objects.DroneType design = rail.getDesignDrone();
+            if (design != null && !design.isDogfightDrone())
+                nonDogfight++;
+        }
+        if (rails == 0)
+            return 0;   // carries no drones; J4.25 is not about it
+        return Math.max(MINIMUM_CONTROL, nonDogfight);
     }
 
     @Override
