@@ -117,19 +117,6 @@ public class GameStateDto {
         public boolean functional;
         public String plasmaType; // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
         public String launcherType; // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
-        /**
-         * Whether firing this puts a SEEKING weapon on the map rather than resolving damage
-         * — drone racks and rails, plasma launchers (J1.341's "seeking weapons").
-         * <p>
-         * Sent because the client cannot tell from anything else it has: a DroneRail answers
-         * direct-fire like a phaser and is fired down the same path. Matching on the weapon's
-         * NAME would be the alternative, and would drift the first time one is renamed. The
-         * predicate here is the same `instanceof Launcher` the fire guard uses, so the pad
-         * and the rule cannot disagree about which weapons a launch delay shuts.
-         * <p>
-         * No secret: which weapons a hull carries is printed on its SSD.
-         */
-        public boolean seekingWeapon;
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
@@ -1869,8 +1856,6 @@ public class GameStateDto {
             wd.arcLabel = w.getArcLabel();
             wd.arcMask = w.getArcs();
             wd.readyToFire = w.isFunctional() && w.canFire();
-            // The same predicate the launch-delay guard uses, so the pad and the rule agree.
-            wd.seekingWeapon = w instanceof com.sfb.weapons.Launcher;
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
             wd.minImpulseGap = w.getMinImpulseGap();

@@ -26,8 +26,6 @@ export interface WeaponState {
   functional:        boolean;
   plasmaType:        string | null;   // currently arming torpedo type, or null
   launcherType:      string | null;   // fixed launcher type: "F" | "G" | "S" | "R" | null
-  /** Firing it puts a seeker on the map rather than resolving damage (J1.341). */
-  seekingWeapon?:    boolean;
   pseudoPlasmaReady: boolean;
   isHeavy:           boolean;
   // Energy allocation helpers (heavy weapons only)

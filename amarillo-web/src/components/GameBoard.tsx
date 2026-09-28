@@ -2621,14 +2621,21 @@ export default function GameBoard({ session, onLeave }: Props) {
         return [];
       // J1.342/J1.341: a craft still serving its launch delay says so on the row, so the
       // order is never drafted and sealed only to be refused at reveal.
+      //
+      // Both waits, because they run to different lengths and the eight impulses between
+      // them are a real state: phasers live, seeking weapons still shut. The seeker half is
+      // shown rather than enforced HERE — this pad only ever offers direct fire — so that a
+      // player deciding whether a fighter is worth sending can see when its drones wake up.
       const fireDelay = sh.fireDelayRemaining ?? 0;
+      const seekerDelay = sh.seekerDelayRemaining ?? 0;
       const notes = ['fighter'];
       if (sh.crippled) notes.push('crippled');
-      if (fireDelay > 0) notes.push(`cannot fire for ${fireDelay} more`);
+      if (fireDelay > 0) notes.push(`no fire for ${fireDelay}`);
+      if (seekerDelay > 0) notes.push(`no seekers for ${seekerDelay}`);
       return [{
         name: sh.name, isShip: false, weapons: sh.weapons ?? [],
         note: notes.join(', '),
-        fireDelay, seekerDelay: sh.seekerDelayRemaining ?? 0,
+        fireDelay,
       }];
     }
     return [];
