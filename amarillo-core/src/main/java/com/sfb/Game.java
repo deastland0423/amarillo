@@ -2873,6 +2873,12 @@ public class Game {
         return launchCoordinator.launchDrone(launcher, target, rack, drone, facing);
     }
 
+    /** A fighter launches one of its own drones (J1.31, J4.431). */
+    public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
+            Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterDrone(fighter, target, rail, facing);
+    }
+
     /** Launch an armed plasma torpedo (FP1.0). */
     public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
         return launchCoordinator.launchPlasma(launcher, target, weapon, fastLoad, facing);

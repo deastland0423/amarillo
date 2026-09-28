@@ -120,6 +120,55 @@ class LockOnResolver {
                 rollLockOn(ship, shuttle, sensorRating, dice);
             }
         }
+
+        rollFighterLockOns();
+    }
+
+    /**
+     * Lock-on for drone-armed fighters (D6.121, J4.431).
+     * <p>
+     * A fighter cannot launch a drone at something it has no lock-on to, and until now
+     * nothing filled a fighter's lock-on set — so its drones were unlaunchable whatever
+     * else was wired up.
+     * <p>
+     * Only the fighters that can guide a drone are swept. A Stinger has no rails, nothing
+     * it does needs a lock-on of its own, and rolling for it would put a dozen lines of
+     * noise in the log for a result nothing reads.
+     * <p>
+     * J1.31 gives every shuttle a sensor rating of SIX, which by D6.11 is automatic — so
+     * these never actually fail, and the roll is skipped rather than dressed up. What can
+     * still stop one is the same thing that stops a ship's: a planet in the way (P2.322).
+     * <p>
+     * Fire control is not tested. J1.344 has a shuttle launch with ACTIVE fire control
+     * unless its owner says otherwise, and we do not model the passive-launch declaration,
+     * so every fighter here is an active-fire-control one by construction.
+     */
+    private void rollFighterLockOns() {
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles) {
+            if (!(craft instanceof com.sfb.objects.shuttles.Fighter fighter))
+                continue;
+            if (fighter.getControlCapacity() <= 0)
+                continue;   // carries no drones; nothing it does needs its own lock-on
+            fighter.getLockOns().clear();
+
+            for (Ship target : ships)
+                acquireFighterLockOn(fighter, target);
+            for (com.sfb.objects.shuttles.Shuttle target : activeShuttles)
+                if (target != fighter)
+                    acquireFighterLockOn(fighter, target);
+        }
+    }
+
+    /** Sensor rating six is automatic (D6.11); only line of sight can refuse it. */
+    private void acquireFighterLockOn(com.sfb.objects.shuttles.Fighter fighter, Unit target) {
+        if (fighter.getLocation() == null || target.getLocation() == null)
+            return;
+        if (game.losBlocked(fighter.getLocation(), target.getLocation())) {
+            lastLockOnLog.add(fighter.getName() + " cannot acquire lock-on to "
+                    + target.getName() + " — planet blocks line of sight (P2.322)");
+            return;
+        }
+        fighter.addLockOn(target);
     }
 
     /**

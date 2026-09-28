@@ -344,6 +344,23 @@ class LaunchCoordinator {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
+        return placeLaunchedDrone(launcher, target, rack, drone, facing);
+    }
+
+    /**
+     * Everything a launched drone needs once its launcher has been cleared to launch it:
+     * off the rack, named, placed, faced, aimed, controlled, and onto the map.
+     * <p>
+     * Shared because a fighter launching from a rail does all of this identically to a ship
+     * launching from a rack. The two differ entirely in what they must satisfy BEFORE the
+     * launch — a ship's breakdown lockout and cloak against a fighter's one-per-turn limit
+     * — and not at all in what a drone then is. The preconditions stay in the two front
+     * doors; this is the part that was worth having once.
+     *
+     * @param launcher the unit that fired it, which becomes its controller
+     */
+    private ActionResult placeLaunchedDrone(Unit launcher, Unit target, DroneRack rack,
+            Drone drone, int facing) {
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
@@ -371,7 +388,9 @@ class LaunchCoordinator {
         drone.setLaunchImpulse(game.getAbsoluteImpulse());
         drone.setSeekerType(Seeker.SeekerType.DRONE);
         seekers.add(drone);
-        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, drone);
+        List<String> lockLog = launcher instanceof Ship s
+                ? game.checkLockOnsForNewUnit(s, drone)
+                : java.util.Collections.emptyList();
 
         String msg = launcher.getName() + " launched " + drone.getDroneType()
                 + " drone at " + target.getName();
@@ -379,6 +398,53 @@ class LaunchCoordinator {
             msg += "\n" + String.join("\n", lockLog);
         game.checkControlOverflow();
         return ActionResult.ok(msg);
+    }
+
+    /**
+     * A fighter launches one of its own drones (J1.31, J4.431).
+     * <p>
+     * A separate door from the ship's because the gates differ, not because the drone does:
+     * a fighter has no breakdown lockout and no cloak, and has instead a limit of ONE drone
+     * a turn however many rails it carries (J4.431), and the half-turn wait after its own
+     * launch (J1.341) that a ship never serves.
+     */
+    public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
+            Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        if (target == null)
+            return ActionResult.fail("No target");
+        if (fighter.isCrippled())
+            return ActionResult.fail(fighter.getName()
+                    + " is crippled - external weapons are dropped (J1.332)");
+        // J1.341: half a turn after its OWN launch before it may release a seeking weapon.
+        int wait = fighter.impulsesUntilSeekers(game.getAbsoluteImpulse());
+        if (wait > 0)
+            return ActionResult.fail(fighter.getName() + " cannot launch seeking weapons for "
+                    + wait + " more impulse" + (wait == 1 ? "" : "s")
+                    + " - half a turn since launch (J1.341)");
+        if (fighter.isDronesFiredThisTurn())
+            return ActionResult.fail(fighter.getName()
+                    + " has already launched a drone this turn (J4.431)");
+        if (rail == null || !rail.isFunctional())
+            return ActionResult.fail("That rail is destroyed");
+        Drone drone = rail.getDrone();
+        if (drone == null)
+            return ActionResult.fail(rail.getName() + " is empty");
+        // D6.121: a drone goes at something the launcher has a lock-on to. A fighter holds
+        // its own (J1.31 gives it a sensor rating of six); a self-guiding drone finds its
+        // own way and needs none.
+        if (!drone.isSelfGuiding() && !fighter.hasLockOn(target))
+            return ActionResult.fail(fighter.getName() + " has no lock-on to "
+                    + target.getName() + " - cannot launch seeking weapons (D6.121)");
+        if (!drone.isSelfGuiding() && !fighter.acquireControl(drone))
+            return ActionResult.fail(fighter.getName() + " is already guiding all the drones"
+                    + " it can (" + fighter.getControlCapacity() + ", J4.431)");
+
+        ActionResult result = placeLaunchedDrone(fighter, target, rail, drone, facing);
+        if (result.isSuccess())
+            fighter.recordDroneFired();
+        return result;
     }
 
     /**

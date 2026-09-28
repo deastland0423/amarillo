@@ -98,7 +98,10 @@ public class DroneRail extends DroneRack {
                     drone.getDroneType() + " (size " + drone.getRackSize()
                             + ") does not fit a " + railType + " rail (capacity " + railType.capacity + ")");
         }
-        setAmmo(List.of(drone));
+        // A MUTABLE list: a launch takes the drone off the rack with getAmmo().remove(),
+        // the same way it does for a ship's rack, and List.of refused it. The rail was only
+        // ever loaded and emptied wholesale before, so nothing had asked.
+        setAmmo(new java.util.ArrayList<>(List.of(drone)));
     }
 
     /** The drone currently loaded, or null if empty. */

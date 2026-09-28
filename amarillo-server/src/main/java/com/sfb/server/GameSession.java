@@ -1872,6 +1872,34 @@ public class GameSession {
             }
 
             case "LAUNCH_DRONE": {
+                // A fighter launches from its own rail, and by different rules: one drone a
+                // turn (J4.431), its own lock-on, and the half-turn wait since it launched
+                // (J1.341). Checked before findShip, which would never find it.
+                com.sfb.objects.shuttles.Shuttle craft =
+                        findLaunchedShuttle(request.getShipName());
+                if (craft instanceof com.sfb.objects.shuttles.Fighter fighter) {
+                    Unit fTarget = findUnit(request.getTargetName());
+                    if (fTarget == null)
+                        return ActionResult.fail("Target not found: " + request.getTargetName());
+                    String railName = request.getWeaponNames() != null
+                            && !request.getWeaponNames().isEmpty()
+                            ? request.getWeaponNames().get(0) : null;
+                    com.sfb.weapons.DroneRail rail = null;
+                    for (com.sfb.weapons.Weapon w : fighter.getWeapons().fetchAllWeapons())
+                        if (w instanceof com.sfb.weapons.DroneRail dr
+                                && (railName == null || w.getName().equalsIgnoreCase(railName))
+                                && dr.getDrone() != null && rail == null)
+                            rail = dr;
+                    if (rail == null)
+                        return ActionResult.fail(fighter.getName() + " has no loaded rail"
+                                + (railName == null ? "" : " called " + railName));
+                    ActionResult fRes = game.launchFighterDrone(
+                            fighter, fTarget, rail, request.getFacing());
+                    if (fRes.isSuccess())
+                        appendCombatLog(fighter.getName() + " launched a drone");
+                    return fRes;
+                }
+
                 Ship attacker = findShip(request.getShipName());
                 if (attacker == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
@@ -2669,6 +2697,15 @@ public class GameSession {
     }
 
     /** Find any Unit (ship, active shuttle, or seeker) by name. */
+    /** A launched shuttle or fighter by name, or null — findShip will never see one. */
+    private Shuttle findLaunchedShuttle(String name) {
+        if (name == null)
+            return null;
+        return game.getActiveShuttles().stream()
+                .filter(s -> name.equalsIgnoreCase(s.getName()))
+                .findFirst().orElse(null);
+    }
+
     private Unit findUnit(String name) {
         if (name == null)
             return null;
