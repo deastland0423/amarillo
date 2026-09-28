@@ -109,11 +109,12 @@ public class EwPodTest {
     }
 
     /**
-     * An EW fighter's four (J4.964) come out as two on its rails and two slung extra —
-     * which is exactly J4.9621's limit of two extras. The two rules meet at four.
+     * A HAAS-E has only two standard rails, so reaching J4.964's four means two on the
+     * rails and two slung extra. That is this airframe's arithmetic, NOT a general rule:
+     * a fighter with four standard rails carries all four on them — see below.
      */
     @Test
-    public void anEwFightersFourArePodsOnRailsPlusTheTwoExtras() {
+    public void aTwoRailEwFighterReachesFourOnlyWithExtras() {
         Haas_E ew = ewFighter();
 
         assertEquals(4, ew.maxEwPods());
@@ -305,5 +306,53 @@ public class EwPodTest {
         for (DroneRail rail : railsOf(taas))
             if (rail.hasEwPod())
                 assertEquals(DroneRail.DroneRailType.STANDARD, rail.getRailType());
+    }
+
+    /**
+     * The general case, which the HAAS-E's two rails hide: a fighter with four standard
+     * rails carries J4.964's full four ON them. No extras, so no speed or dogfight
+     * penalty (J4.9621) — the cost is four drones instead.
+     */
+    @Test
+    public void aFourRailEwFighterCarriesAllFourOnItsRails() {
+        Fighter wide = new Fighter() {
+            {
+                setTwoSeater(true);          // J4.964's exception: four pods
+                setMaxSpeed(12);
+                for (char tag = 'A'; tag < 'E'; tag++) {
+                    DroneRail rail = new DroneRail(DroneRail.DroneRailType.STANDARD);
+                    rail.setDesignator(String.valueOf(tag));
+                    getWeapons().addWeapon(rail);
+                }
+            }
+        };
+        int clean = wide.effectiveMaxSpeed();
+
+        assertEquals("four standard rails", 4, railsOf(wide).size());
+        assertEquals("all four pods go on rails", 4, wide.fitEwPods(4));
+        assertEquals(4, wide.getEwPods());
+        assertEquals("none are extras", 0, wide.getExtraEwPods());
+        assertEquals("so no speed is given up (J4.9621 never applies)",
+                clean, wide.effectiveMaxSpeed());
+        assertEquals("eight points, the most J4.941 allows",
+                8, wide.getEwPods() * Fighter.POINTS_PER_EW_POD);
+    }
+
+    /** J4.964 still holds an ORDINARY fighter to two, however many rails it has. */
+    @Test
+    public void railsDoNotRaiseAnOrdinaryFightersLimit() {
+        Fighter wide = new Fighter() {
+            {
+                setMaxSpeed(12);             // not a two-seater
+                for (char tag = 'A'; tag < 'E'; tag++) {
+                    DroneRail rail = new DroneRail(DroneRail.DroneRailType.STANDARD);
+                    rail.setDesignator(String.valueOf(tag));
+                    getWeapons().addWeapon(rail);
+                }
+            }
+        };
+
+        assertEquals(4, railsOf(wide).size());
+        assertEquals("J4.964: two for an ordinary fighter", 2, wide.fitEwPods(4));
     }
 }
