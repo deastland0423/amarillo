@@ -279,4 +279,61 @@ public class BayShuttleDtoTest {
                 + " is empty\" are different facts and the row shows them differently",
                 sd.rails);
     }
+
+    // -------------------------------------------------------------------------
+    // Who may be loaded as a scatter pack (FD7.11)
+    // -------------------------------------------------------------------------
+
+    /**
+     * An UNCONVERTED admin shuttle has to report its pack capacity, because loading it is
+     * how it becomes a pack. This was the bug that made scatter packs unloadable on a Kzinti
+     * CVL+: maxDroneSpaces was a primitive int set only inside the ScatterPack branch, so an
+     * admin shuttle sent 0, the client's `?? 6` never fired (0 being neither null nor
+     * undefined), and the picker computed room for nothing and disabled every button.
+     */
+    @Test
+    public void anUnconvertedAdminShuttleReportsThePackCapacityItWouldHave() {
+        AdminShuttle admin = new AdminShuttle();
+        admin.setName("IKV Vengeance-Admin-7");
+        bay.getSpaces().get(0).setShuttle(admin);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-Admin-7");
+
+        assertNotNull(sd);
+        assertNotNull("an admin shuttle is exactly the craft you load to MAKE a pack,"
+                + " so it must say how much it holds", sd.maxDroneSpaces);
+        assertEquals("FD7.21 gives an admin shuttle six spaces",
+                Integer.valueOf(6), sd.maxDroneSpaces);
+    }
+
+    /** FD7.11: fighters qualify too, and at their own smaller capacity. */
+    @Test
+    public void aFighterReportsItsOwnSmallerPackCapacity() {
+        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+        aas.setName("IKV Vengeance-AAS-1");
+        bay.getSpaces().get(0).setShuttle(aas);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-AAS-1");
+
+        assertNotNull(sd);
+        assertEquals("an AAS carries two spaces, not an admin shuttle's six",
+                Integer.valueOf(2), sd.maxDroneSpaces);
+    }
+
+    /**
+     * And a craft that may NOT be a pack says nothing at all, rather than saying zero — the
+     * distinction the primitive could not draw. A GAS may weasel but not scatter-pack.
+     */
+    @Test
+    public void aCraftThatCannotBeAPackSendsNoCapacity() {
+        com.sfb.objects.shuttles.GASShuttle gas = new com.sfb.objects.shuttles.GASShuttle();
+        gas.setName("IKV Vengeance-GAS-1");
+        bay.getSpaces().get(0).setShuttle(gas);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-GAS-1");
+
+        assertNotNull(sd);
+        assertNull("null is how the DTO says \"not eligible\"; 0 reads as a full pack",
+                sd.maxDroneSpaces);
+    }
 }

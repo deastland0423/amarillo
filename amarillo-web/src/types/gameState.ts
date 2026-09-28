@@ -92,7 +92,16 @@ export interface ShuttleInBayState {
   warheadDamage?:      number;  // suicide only
   payload?:            string[]; // scatterpack only: live drone type names
   pendingPayload?:     string[]; // scatterpack only: staged for end-of-turn loading
-  maxDroneSpaces?:     number;   // scatterpack only: max rack spaces (default 6)
+  /**
+   * FD7.11: rack spaces this craft may carry as a scatter pack, or ABSENT if it may not be
+   * one. Sent for any craft that qualifies, not just one already converted — loading an
+   * admin shuttle is how it becomes a pack.
+   *
+   * Test with != null and never with `?? 6`: this used to be a primitive on the Java side
+   * and arrived as 0 on every craft, which `??` does not catch, so the picker offered room
+   * for nothing and disabled itself.
+   */
+  maxDroneSpaces?:     number;
   committedSpaces?:    number;   // scatterpack only: payload + pending spaces already used
   specialRole?:        string | null;  // "Wild Weasel", "suicide shuttle", "scatter pack"
   wwChargeCount?:      number;   // admin only: 0=uncharged, 1=primed, 2=ready

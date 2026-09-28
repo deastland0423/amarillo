@@ -347,7 +347,10 @@ export function HangarDrawer({
 
     // Loading a pack is a drone-type picker, not a number, so it opens in place rather than
     // trying to live on the row.
-    if ((s.type === 'admin' || s.type === 'scatterpack') && Object.keys(stockpile).length > 0) {
+    // Anything that MAY be a pack (FD7.11 says so by sending a capacity), given there is
+    // something in the racks to put in it. Not a list of type names: that list said admin
+    // and scatterpack, and quietly excluded every fighter the rule allows.
+    if (s.maxDroneSpaces != null && Object.keys(stockpile).length > 0) {
       const here = spacesIn(packLoading?.[s.name] ?? {});
       out.push(
         <button key={`${key}:pack`} className="hangar-link"
@@ -363,7 +366,11 @@ export function HangarDrawer({
     const s = space.shuttle;
     if (!s) return null;
     const sel = packLoading?.[s.name] ?? {};
-    const max = s.maxDroneSpaces ?? 6;
+    // The craft says its own capacity (FD7.11); a craft that cannot be a pack says nothing,
+    // and there is nothing to draw. Never defaulted to a number — a guessed six is how a
+    // capacity that belongs to the type became a constant in the client.
+    if (s.maxDroneSpaces == null) return null;
+    const max = s.maxDroneSpaces;
     const already = s.committedSpaces ?? 0;
     const here = spacesIn(sel);
     return (

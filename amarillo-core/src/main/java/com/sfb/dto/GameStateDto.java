@@ -244,7 +244,19 @@ public class GameStateDto {
         public int warheadDamage; // suicide only: totalEnergy * 2
         public List<String> payload; // scatterpack only: live drone type names (e.g. "TypeIM")
         public List<String> pendingPayload; // scatterpack only: drones staged for end-of-turn loading
-        public int maxDroneSpaces; // scatterpack only: max rack spaces (default 6)
+        /**
+         * FD7.11: rack spaces of drones this craft may carry as a scatter pack, or null if
+         * it may not be one at all.
+         * <p>
+         * Integer, not int, and sent for any craft that QUALIFIES rather than only for one
+         * already converted — both halves were bugs. A primitive is always serialized, so an
+         * admin shuttle reported "maxDroneSpaces": 0 and the client's `?? 6` fallback never
+         * fired, 0 being neither null nor undefined: the picker computed room for zero
+         * spaces and disabled every button. And an admin shuttle is exactly the craft you
+         * load, because loading is HOW it becomes a pack — asking only converted packs what
+         * they hold answers the question too late to be useful.
+         */
+        public Integer maxDroneSpaces;
         public double committedSpaces; // scatterpack only: payload + pending spaces already used
         /**
          * The special role this shuttle is prepared for, or null. Sent so the launch list
@@ -1611,12 +1623,19 @@ public class GameStateDto {
                         sd.pendingPayload = sp.getPendingPayload().stream()
                                 .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
                                 .collect(java.util.stream.Collectors.toList());
-                        sd.maxDroneSpaces = sp.getMaxDroneSpaces();
                         sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
                     } else if (s.canBecomeWildWeasel()) {
                         sd.wwChargeCount = s.getWwChargeCount();
                         sd.wwReady = s.isWwReady();
                     }
+                    // FD7.11, for any craft that qualifies — an unconverted admin shuttle
+                    // included, since loading it is how it becomes a pack. A converted pack
+                    // answers for itself, its capacity belonging to the type it was built
+                    // from rather than to the role.
+                    if (s instanceof com.sfb.objects.shuttles.ScatterPack pack)
+                        sd.maxDroneSpaces = pack.getMaxDroneSpaces();
+                    else if (s.canBecomeScatterPack())
+                        sd.maxDroneSpaces = s.scatterPackSpaces();
                     sd.specialRole = s.specialRole();
                     spaceDto.armed = s.isArmed();
                     spaceDto.shuttle = sd;
