@@ -164,8 +164,11 @@ class LockOnResolver {
      * otherwise.
      */
     void sweepFighterLockOns(com.sfb.objects.shuttles.Fighter fighter) {
-        if (fighter.getControlCapacity() <= 0)
-            return;   // carries no drones; nothing it does needs a lock-on of its own
+        // Every fighter sweeps, drone rails or not. This used to skip a fighter with no
+        // control capacity on the grounds that nothing it did needed a lock-on of its own
+        // — true when seeker guidance was the only use, and false since J4.921, which lets
+        // a fighter receive lent EW only from a source "that has a lock-on to". A fusion
+        // Stinger would have sat inside three hexes of its squadron EWF and got nothing.
         fighter.getLockOns().clear();
 
         for (Ship target : ships)

@@ -321,6 +321,42 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     /** J4.91: "six points each of ECM and ECCM, not six total points." */
     public static final int MAX_USABLE_EW = 6;
 
+    /**
+     * G24.2174: "a fighter cannot receive more than four points of ECM or four points of
+     * ECCM." Per category, like J4.91's six, and reached exactly by a four-pod EWF.
+     */
+    public static final int MAX_LENT_RECEIVED = 4;
+
+    /** J4.922: "It can change the source it is receiving from every eight impulses." */
+    public static final int LENT_EW_SOURCE_INTERVAL = 8;
+
+    /**
+     * The single outside unit this fighter is receiving lent EW from (J4.922), or null.
+     * <p>
+     * Held as the SOURCE rather than as a number of points, because J4.922 makes the
+     * arrangement outlive its usefulness: a fighter whose EWF has drifted to four hexes is
+     * still "receiving" from it and may not switch, so the points have to be recomputed
+     * from the source every time they are asked for rather than banked here.
+     */
+    private com.sfb.objects.Unit lentEwSource;
+
+    /** The absolute impulse the current source was designated on, for J4.922's eight. */
+    private int lentEwSourceImpulse = -LENT_EW_SOURCE_INTERVAL;
+
+    public com.sfb.objects.Unit getLentEwSource() { return lentEwSource; }
+
+    public int getLentEwSourceImpulse() { return lentEwSourceImpulse; }
+
+    /**
+     * Record a lending source. Package-visible reasoning: the rules that decide WHETHER
+     * this is allowed live in {@code SquadronEwResolver}, which needs the game clock and
+     * the rest of the squadron to judge J4.921 and J4.922 — a fighter can see neither.
+     */
+    public void setLentEwSource(com.sfb.objects.Unit source, int impulse) {
+        this.lentEwSource = source;
+        this.lentEwSourceImpulse = impulse;
+    }
+
     /** The squadron this fighter belongs to (J4.46), or null if it is unassigned. */
     private com.sfb.objects.Squadron squadron;
 

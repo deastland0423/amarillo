@@ -186,6 +186,7 @@ public class Game {
     private final EsgResolver esgResolver = new EsgResolver(this, ships, seekers, activeShuttles, mines, prevLocations);
     private final SeekerControl seekerControl = new SeekerControl(this, ships, seekers);
     private final LockOnResolver lockOnResolver = new LockOnResolver(this, ships, seekers, activeShuttles);
+    private final SquadronEwResolver squadronEw = new SquadronEwResolver(this, activeShuttles);
     private final ShipMover shipMover = new ShipMover(this, ships, seekers, activeShuttles,
             movedThisImpulse, prevLocations, movedShuttlesThisImpulse, destroyedShips,
             destructionEdgesByTeam, pendingInternalDamage, tractorResolver, seekerMover);
@@ -724,12 +725,18 @@ public class Game {
             builtIn = t.getStealthEcm();          // Orion G15.8
             lent = t.getLentEcmTotal();           // scouts AND any weasel, capped at six
         } else if (target instanceof com.sfb.objects.shuttles.Fighter f) {
-            // J4.47's two points plus whatever its EW pods are making (J4.96), held to
-            // J4.91's six. Both land in BUILT-IN: neither is paid for out of allocated
-            // power (a fighter has no allocation form at all, J1.1), and D6.3146 lets a
-            // friendly unit disregard them alike. J4.965 keeps pod points apart from
-            // built-in ones for LENDING, which is a different question from this sum.
+            // J4.47's two points plus whatever its EW pods are making (J4.96). Both land in
+            // BUILT-IN: neither is paid for out of allocated power (a fighter has no
+            // allocation form at all, J1.1), and D6.3146 lets a friendly unit disregard
+            // them alike. J4.965 keeps pod points apart from built-in ones for LENDING,
+            // which is a different question from this sum.
             builtIn = f.totalOwnEcm();
+            // J4.92: and whatever a squadron-mate EWF is lending it. J4.91 caps the three
+            // together rather than each separately - the J4.93 example has a fighter on
+            // 2 built-in + 2 pod + 4 lent using six of the eight - so the loan is what
+            // gets trimmed, topping the fighter up to six rather than displacing its own.
+            lent = Math.max(0, Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
+                    f.getEcm() + f.getPodEcm() + squadronEw.loanTo(f).ecm()) - builtIn);
         }
         // A probe canister, a drone and an admin shuttle have no EW of their own at all.
         return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
@@ -747,7 +754,11 @@ public class Game {
             return ship.isActiveFireControl()
                     ? ship.getEccmAllocated() + ship.getLentEccm() : 0;
         if (actor instanceof com.sfb.objects.shuttles.Fighter fighter)
-            return fighter.totalOwnEccm();  // J4.47's two, plus its pods (J4.96)
+            // J4.47's two, its pods (J4.96), and a squadron-mate's loan (J4.92), the three
+            // of them held to J4.91's six together.
+            return Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
+                    fighter.getEccm() + fighter.getPodEccm()
+                            + squadronEw.loanTo(fighter).eccm());
         return 0;
     }
 
@@ -2339,7 +2350,34 @@ public class Game {
      * drone guided from inside a shuttle bay is a drone guided by nobody.
      */
     List<String> orphanSeekersOf(com.sfb.objects.shuttles.Shuttle departed) {
-        return seekerControl.orphanSeekersOf(departed);
+        List<String> log = seekerControl.orphanSeekersOf(departed);
+        // A craft that has left space is no longer a J4.921 lending source either.
+        squadronEw.releaseSource(departed);
+        return log;
+    }
+
+    /**
+     * The points a squadron-mate is lending {@code fighter} right now (J4.92/J4.93).
+     * <p>
+     * Empty rather than absent where the designated source has drifted out of range or
+     * been crippled: J4.922 keeps the arrangement and stops the points.
+     */
+    public com.sfb.properties.EwLoan lentEwTo(com.sfb.objects.shuttles.Fighter fighter) {
+        return squadronEw.loanTo(fighter);
+    }
+
+    /** Units {@code fighter} could take lent EW from at this instant (J4.921). */
+    public List<Unit> ewLendingCandidates(com.sfb.objects.shuttles.Fighter fighter) {
+        return squadronEw.lendingCandidates(fighter);
+    }
+
+    /**
+     * Designate which single unit {@code fighter} receives lent EW from, or null to stop
+     * (J4.922). @return the refusal, or null if the designation was made.
+     */
+    public String designateLentEwSource(com.sfb.objects.shuttles.Fighter fighter,
+            Unit source) {
+        return squadronEw.designateSource(fighter, source);
     }
 
     List<String> releaseOrphanedDrones() {
