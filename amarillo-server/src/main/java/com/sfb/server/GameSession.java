@@ -1323,6 +1323,14 @@ public class GameSession {
                                 if (pack.getPayloadSpaces() + pack.getPendingSpaces() + dt.rack
                                         > pack.getMaxDroneSpaces())
                                     break;
+                                // J4.8172: two deck crews to a box, one space each, so two
+                                // spaces onto this pack this turn whatever the ship has
+                                // spare. The pack refuses beyond it as well — this is the
+                                // early exit, not the guard.
+                                if (pack.getPendingSpaces() + dt.rack
+                                        > com.sfb.objects.shuttles.ScatterPack
+                                                .MAX_SPACES_LOADED_PER_TURN)
+                                    break;
                                 // Pull from reload stockpile (any rack's reload sets)
                                 boolean pulled = false;
                                 spOuter: for (DroneRack rack : allRacks) {
@@ -1330,8 +1338,13 @@ public class GameSession {
                                         for (java.util.Iterator<Drone> it = set.iterator(); it.hasNext();) {
                                             Drone d = it.next();
                                             if (d.getDroneType() == dt) {
+                                                // Offer it BEFORE taking it out of the rack.
+                                                // The other order took the drone out and
+                                                // dropped it if the pack said no, destroying
+                                                // ordnance to enforce a limit.
+                                                if (!pack.addPendingDrone(d))
+                                                    break spOuter;
                                                 it.remove();
-                                                pack.addPendingDrone(d);
                                                 deckCrewsLeft -= dt.rack;
                                                 pulled = true;
                                                 break spOuter;

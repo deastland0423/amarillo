@@ -42,6 +42,13 @@ const MAX_CREWS_PER_BOX = 2;
  */
 const RACK_TASKS = new Set(['REFILL']);
 
+/**
+ * J4.8172 once more: two crews to a box, one drone space each (FD7.22), so two SPACES of
+ * drones onto a scatter pack in a turn — however many crews the ship has idle. Mirrors
+ * ScatterPack.MAX_SPACES_LOADED_PER_TURN, which is what actually enforces it.
+ */
+const PACK_SPACES_PER_TURN = 2;
+
 const TASK_LABEL: Record<string, string> = {
   LOAD:   'load',
   UNLOAD: 'unload',
@@ -378,12 +385,16 @@ export function HangarDrawer({
         <div className="ea-note">
           A crew loads one rack space onto a pack (FD7.22), drawn from the drone racks' reload
           sets — so every drone here is a crew not working a fighter, and a reload the racks
-          will not have later. {(already + here).toFixed(1)} / {max} spaces.
+          will not have later. Two crews to a box is two spaces a turn (J4.8172), so a full
+          admin shuttle takes three. {(already + here).toFixed(1)} / {max} spaces,
+          {' '}{here.toFixed(1)} / {PACK_SPACES_PER_TURN} this turn.
         </div>
         {Object.entries(stockpile).map(([dt, info]) => {
           const n = sel[dt] ?? 0;
           const roomOnPack = already + here + info.rackSize <= max;
-          const canAdd = n < info.count && roomOnPack && info.rackSize <= crewsFree;
+          const roomThisTurn = here + info.rackSize <= PACK_SPACES_PER_TURN;
+          const canAdd = n < info.count && roomOnPack && roomThisTurn
+            && info.rackSize <= crewsFree;
           return (
             <div key={dt} className="ea-stepper">
               <button className="ea-step-btn" disabled={n <= 0}

@@ -76,13 +76,36 @@ public class ScatterPack extends Shuttle implements Seeker {
     public List<Drone> getPayload() { return payload; }
 
     /**
+     * J4.8172: two deck crews may work one shuttle box and no more, and a crew action moves
+     * one drone space (FD7.22) — so a pack takes at most two SPACES of drones in a turn,
+     * however many crews the ship has standing idle.
+     * <p>
+     * Spaces, not drones: four type-VIs at half a space each is a legal turn's work, and
+     * three type-Is is not. A six-space admin shuttle therefore takes three turns to fill,
+     * which is the constraint that makes a scatter pack something you plan rather than
+     * something you produce on demand.
+     */
+    public static final double MAX_SPACES_LOADED_PER_TURN = 2.0;
+
+    /**
      * Stage a drone to be loaded onto this scatter pack at end of turn.
-     * @return false if total committed spaces (payload + pending) would exceed max.
+     * <p>
+     * Two limits, and they are different things: how much the pack HOLDS (FD7.21, the whole
+     * scenario) and how much its deck crews can move in one turn (J4.8172). The per-turn one
+     * lives here rather than in the server's request validation because a rule enforced only
+     * where the wire happens to touch it is a rule that drifts the first time anything else
+     * loads a pack.
+     *
+     * @return false if it would exceed either the pack's capacity or this turn's two spaces
      */
     public boolean addPendingDrone(Drone drone) {
-        double committed = getPayloadSpaces()
-                + pendingPayload.stream().mapToDouble(Drone::getRackSize).sum();
-        if (committed + drone.getRackSize() > maxDroneSpaces) return false;
+        if (drone == null)
+            return false;
+        double committed = getPayloadSpaces() + getPendingSpaces();
+        if (committed + drone.getRackSize() > maxDroneSpaces)
+            return false;
+        if (getPendingSpaces() + drone.getRackSize() > MAX_SPACES_LOADED_PER_TURN)
+            return false;   // J4.8172: two crews, two actions, two spaces
         pendingPayload.add(drone);
         return true;
     }

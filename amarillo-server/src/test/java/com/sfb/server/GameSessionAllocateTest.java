@@ -467,4 +467,62 @@ class GameSessionAllocateTest {
         assertEquals(0, kzinti.getCrew().getAvailableDeckCrews(),
                 "both crews spent the turn loading, so neither is free to rearm a fighter");
     }
+
+    /**
+     * J4.8172 caps a shuttle box at two deck crews, and a crew action moves one drone space
+     * (FD7.22), so two spaces reach a pack in a turn however many crews are idle. Asking for
+     * three gets two.
+     * <p>
+     * And the third drone must still EXIST. The pull loop took the drone out of the rack and
+     * then offered it to the pack, so the moment anything refused one it was dropped on the
+     * floor — a limit enforced by destroying ordnance. It is offered first now.
+     */
+    @Test
+    void scatterPackLoading_stopsAtTwoSpacesAndKeepsTheDroneItCannotLoad() {
+        Ship kzinti = new Ship();
+        kzinti.init(com.sfb.samples.KzintiShips.getKzinBC());
+        kzinti.setName("KSS Ripper");
+        kzinti.setLocation(new Location(21, 12));
+        kzinti.setFacing(1);
+        game.getShips().add(kzinti);
+        game.startTurn();
+
+        com.sfb.systemgroups.ShuttleBay bay = kzinti.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.Shuttle admin = bay.getInventory().get(0);
+        com.sfb.objects.shuttles.ScatterPack pack =
+                new com.sfb.objects.shuttles.ScatterPack(admin);
+        pack.setName("Pack-2");
+        assertTrue(bay.replaceShuttle(admin, pack));
+
+        // A carrier's worth of deck crews, so the CREW budget is not what stops the loading.
+        // With the BC's own two, the two limits coincide at two spaces and the per-turn rule
+        // is never reached — which is exactly how a carrier with nine crews slipped past it.
+        kzinti.getCrew().addDeckCrews(7);
+        assertTrue(kzinti.getCrew().getAvailableDeckCrews() >= 4,
+                "the crews must not be the binding limit here");
+
+        int dronesBefore = reloadDronesOn(kzinti);
+        assertTrue(dronesBefore >= 3, "fixture needs reloads to draw from");
+
+        ActionRequest req = allocate("KSS Ripper");
+        req.setScatterPackLoading(java.util.Map.of("Pack-2", java.util.Map.of("TypeI", 3)));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertEquals(2.0, pack.getPendingSpaces(),
+                "two spaces is a turn's work for one box (J4.8172)");
+        assertEquals(dronesBefore - 2, reloadDronesOn(kzinti),
+                "exactly two drones left the racks; the third was never taken out");
+    }
+
+    /** Every drone sitting in any of this ship's rack reload sets. */
+    private static int reloadDronesOn(Ship ship) {
+        int n = 0;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRack rack)
+                for (java.util.List<com.sfb.objects.Drone> set : rack.getReloads())
+                    n += set.size();
+        return n;
+    }
 }
