@@ -361,6 +361,20 @@ public class ShuttleBay {
     // Helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Whether this craft may go out through a launch tube (J1.542).
+     * <p>
+     * Fighters only: "administrative shuttles (including their variants such as MRS, HTS,
+     * GAS, MSS, etc.) and heavy fighters cannot be launched through launch tubes." The admin
+     * half falls out of the type test — none of those are Fighters — so a Hydran bay of
+     * three tubes and a door puts three Stingers and ONE admin shuttle out in an impulse,
+     * the shuttle going through the door because nothing else will take it.
+     * <p>
+     * The heavy-fighter half is NOT enforced, because no heavy fighter exists in the game
+     * data yet (J10.0; the Federation A-20 and F-111 are the usual ones). A flag for a craft
+     * nobody can build would be untestable furniture — but a heavy fighter IS a Fighter, so
+     * whoever adds the first one must exclude it here or it will wrongly take a tube.
+     */
     private static boolean isLaunchTubeEligible(Shuttle shuttle) {
         return shuttle instanceof Fighter;
     }
