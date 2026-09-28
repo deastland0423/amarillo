@@ -33,25 +33,43 @@ class SeekerControl {
     }
 
     /**
+     * J4.221: which non-ships may accept a transfer of control, and from whom.
+     * <p>
+     * "A normal fighter cannot accept transfer (F3.5) of control of a seeking weapon from
+     * another unit. An EW fighter (R1.F7) or two-seat fighter (J4.43) can accept such
+     * transfers, but only from fighters in their own squadron (J4.46). MRS (J8.0) and
+     * SWAC (J9.0) shuttles also can accept transfers of control from any unit. Heavy
+     * fighters (J10.44) can accept transfers of control."
+     * <p>
+     * So the two-seater's licence is doubly narrow: it must be a two-seater, and the
+     * seeker must be coming FROM a fighter of its own squadron. A drone a ship was
+     * guiding may not be handed down to it, however free its twelve channels are.
+     * <p>
+     * MRS, SWAC and heavy fighters are the other three doors and none of those craft
+     * exist yet, so each would be a branch nothing could reach.
+     */
+    private boolean mayAcceptTransfer(Unit candidate, Unit formerController) {
+        if (!(candidate instanceof com.sfb.objects.shuttles.Fighter receiver))
+            return false;
+        if (!receiver.isTwoSeater())
+            return false;   // J4.221: a normal fighter accepts nothing
+        return formerController instanceof com.sfb.objects.shuttles.Fighter giver
+                && receiver.sharesSquadronWith(giver);
+    }
+
+    /**
      * Whether this candidate may take over a seeker its current controller is losing.
      * <p>
-     * The owner's ruling (2026-09-28): a SHIP may always assume control of an allied
-     * seeker, whatever launched it, so long as it has a free channel — and D6.121's
-     * lock-on, which is what lets it guide the thing at all.
-     * <p>
-     * A FIGHTER may not, with one exception this does not yet cover: J4.43 lets a two-seat
-     * (EW) fighter "assume control of such weapons launched by other fighters of its
-     * squadron". Squadron membership is J4.46 and unmodelled, so the exception has nowhere
-     * to stand yet and every fighter is refused here. The refusal is deliberate and
-     * narrow — widening the TYPE of a controller must not widen the POLICY of who may
-     * take over, or an EW fighter would silently start inheriting ships' drones, which no
-     * rule allows.
+     * The owner's ruling (2026-09-28), which J4.221 bears out: a SHIP may always assume
+     * control of an allied seeker, whatever launched it, so long as it has a free channel
+     * — and D6.121's lock-on, which is what lets it guide the thing at all. Anything else
+     * has to earn it through J4.221.
      */
     private boolean eligibleSuccessor(Seeker seeker, Unit formerController, Unit candidate) {
         if (!(candidate instanceof DroneController dc) || candidate == formerController)
             return false;
-        if (!(candidate instanceof Ship))
-            return false;   // J4.43's squadron EW fighter: pending J4.46
+        if (!(candidate instanceof Ship) && !mayAcceptTransfer(candidate, formerController))
+            return false;
         Unit target = seeker.getTarget();
         return target != null
                 && game.isSameTeam(candidate, formerController)

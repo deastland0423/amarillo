@@ -156,6 +156,31 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      */
     private int lastDroneLaunchImpulse = -DRONE_LAUNCH_SPACING;
 
+    /** The squadron this fighter belongs to (J4.46), or null if it is unassigned. */
+    private com.sfb.objects.Squadron squadron;
+
+    public com.sfb.objects.Squadron getSquadron() { return squadron; }
+
+    public void setSquadron(com.sfb.objects.Squadron squadron) { this.squadron = squadron; }
+
+    /** J4.221/J4.46: whether these two fly together, which decides who may take a handoff. */
+    public boolean sharesSquadronWith(Fighter other) {
+        return squadron != null && other != null && other.getSquadron() == squadron;
+    }
+
+    /**
+     * J4.462: how much of a squadron's twelve this fighter spends.
+     * <p>
+     * One for an ordinary size-1 fighter. "Heavy fighters, medium bombers, and heavy
+     * bombers count as two size-1 fighters for purposes of organizing squadrons" — so
+     * those override this to two, and a squadron of them maxes out at six. None exist yet;
+     * the method is here because J4.462 cannot be stated without it, and a squadron that
+     * assumed every craft was worth one would be wrong the day a heavy arrives.
+     */
+    public int squadronSlots() {
+        return 1;
+    }
+
     /** J4.24: two drones may not leave the same fighter within a quarter turn. */
     public static final int DRONE_LAUNCH_SPACING = 8;
 

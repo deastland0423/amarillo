@@ -22,6 +22,18 @@ public class Shuttles implements Systems {
     /** The carrier's supply of spare drones for its fighters (J4.7); null if it carries none. */
     private DroneStore droneStore;
 
+    /** This carrier's fighter squadrons (J4.46). Empty on anything that carries none. */
+    private final List<com.sfb.objects.Squadron> squadrons = new ArrayList<>();
+
+    /**
+     * Fighters this ship was DESIGNED to carry, which is not the same as how many it has.
+     * <p>
+     * J4.463 hangs the EW-fighter allowance on the design: "this ability to operate two
+     * EWFs remains even if combat casualties reduce the total number of fighters during
+     * the scenario (or even during a campaign)." Counted once at init and never reduced.
+     */
+    private int designedFighterComplement;
+
     public Shuttles(Unit owner) {
         this.owningUnit = owner;
     }
@@ -81,6 +93,82 @@ public class Shuttles implements Systems {
         }
 
         stockDroneStore(values.get("dronestoragespaces"));
+        organiseSquadrons();
+    }
+
+    // -------------------------------------------------------------------------
+    // Squadrons (J4.46)
+    // -------------------------------------------------------------------------
+
+    public List<com.sfb.objects.Squadron> getSquadrons() { return squadrons; }
+
+    /** Fighters this ship was designed to carry (J4.463), however many survive. */
+    public int getDesignedFighterComplement() { return designedFighterComplement; }
+
+    /**
+     * J4.463: how many EW fighters this carrier may field, from the complement it was
+     * DESIGNED for — under eight, none at all; under sixteen, one; sixteen to
+     * twenty-four, two; twenty-five or more, three.
+     */
+    public int allowedEwFighters() {
+        int designed = designedFighterComplement;
+        if (designed < 8)
+            return 0;
+        if (designed < 16)
+            return 1;
+        return designed <= 24 ? 2 : 3;
+    }
+
+    /** EW and two-seat fighters this carrier currently has, across every squadron. */
+    public int ewFightersAboard() {
+        int n = 0;
+        for (com.sfb.objects.Squadron sq : squadrons)
+            n += sq.ewFighterCount();
+        return n;
+    }
+
+    /**
+     * Sort this carrier's fighters into squadrons (J4.461: "The carrier must organize its
+     * fighters into the minimum number of squadrons").
+     * <p>
+     * The minimum, so twelve fighters make ONE squadron of twelve rather than two of six,
+     * and eighteen make two — of twelve and six, which is the very case J4.463 describes
+     * when it allows the smaller one an EW fighter anyway.
+     * <p>
+     * Done at init so a carrier always has a legal organisation without anyone declaring
+     * one; J4.46 lets the player reorganise before the scenario, and J4.465 during it.
+     */
+    private void organiseSquadrons() {
+        squadrons.clear();
+        List<com.sfb.objects.shuttles.Fighter> fighters = new ArrayList<>();
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace box : bay.getSpaces())
+                if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter f)
+                    fighters.add(f);
+        designedFighterComplement = fighters.size();
+        if (fighters.isEmpty())
+            return;
+
+        // EW fighters first, so each lands in a squadron of its own rather than piling
+        // into the first one and tripping J4.463's one-per-squadron limit.
+        fighters.sort((a, b) -> Boolean.compare(b.isTwoSeater(), a.isTwoSeater()));
+
+        int slots = 0;
+        for (com.sfb.objects.shuttles.Fighter f : fighters)
+            slots += f.squadronSlots();
+        int needed = Math.max(1,
+                (slots + com.sfb.objects.Squadron.MAX_SLOTS - 1)
+                        / com.sfb.objects.Squadron.MAX_SLOTS);
+        String ship = owningUnit == null ? "" : owningUnit.getName();
+        for (int i = 0; i < needed; i++)
+            squadrons.add(new com.sfb.objects.Squadron(
+                    (ship.isEmpty() ? "" : ship + " ") + "Squadron " + (i + 1),
+                    owningUnit instanceof com.sfb.objects.Ship sh ? sh : null));
+
+        for (com.sfb.objects.shuttles.Fighter f : fighters)
+            for (com.sfb.objects.Squadron sq : squadrons)
+                if (sq.add(f) == null)
+                    break;
     }
 
     /**

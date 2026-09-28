@@ -157,8 +157,65 @@ public class FighterControlHandoffTest {
      * that exists no fighter may inherit anything, and the refusal must be deliberate —
      * widening who CAN control must not widen who may TAKE OVER.
      */
+    /**
+     * J4.221, the reason squadrons exist: "An EW fighter (R1.F7) or two-seat fighter
+     * (J4.43) can accept such transfers, but only from fighters in their own squadron."
+     */
     @Test
-    public void noFighterInheritsADroneYet() {
+    public void anEwFighterInheritsFromItsOwnSquadron() {
+        carrier.removeLockOn(enemy);   // so the ship cannot simply take it instead
+
+        com.sfb.objects.shuttles.Haas_E ew = new com.sfb.objects.shuttles.Haas_E();
+        ew.setName("HAAS-E-1");
+        ew.setLocation(new Location(10, 10));
+        ew.setFacing(1);
+        ew.setOwner(carrier.getOwner());
+        game.getActiveShuttles().add(ew);
+        ew.addLockOn(enemy);
+        // Same squadron as the craft that launched the drone.
+        com.sfb.objects.Squadron squad = flier.getSquadron();
+        assertNotNull("the flier was organised into one at init (J4.461)", squad);
+        // The CV's twelve fill the squadron exactly (J4.462), so one stands down to make
+        // room for the EW fighter — which is what a real carrier's roster would do.
+        for (com.sfb.objects.shuttles.Fighter member : new java.util.ArrayList<>(
+                squad.getFighters()))
+            if (member != flier) {
+                squad.remove(member);
+                break;
+            }
+        assertNull(squad.add(ew));
+
+        Game.ActionResult landed = game.landShuttle(carrier, flier.getName());
+
+        assertTrue(landed.getMessage(), landed.isSuccess());
+        assertTrue("the drone is still flying", game.getSeekers().contains(drone));
+        assertSame("the EW fighter took it (J4.221)", ew, drone.getController());
+        assertEquals(1, ew.getControlUsed());
+    }
+
+    /** J4.221 again: the licence is its OWN squadron, not any squadron. */
+    @Test
+    public void anEwFighterInAnotherSquadronInheritsNothing() {
+        carrier.removeLockOn(enemy);
+
+        com.sfb.objects.shuttles.Haas_E stranger = new com.sfb.objects.shuttles.Haas_E();
+        stranger.setName("HAAS-E-OTHER");
+        stranger.setLocation(new Location(10, 10));
+        stranger.setFacing(1);
+        stranger.setOwner(carrier.getOwner());
+        game.getActiveShuttles().add(stranger);
+        stranger.addLockOn(enemy);
+        new com.sfb.objects.Squadron("Some Other Squadron", null).add(stranger);
+
+        game.landShuttle(carrier, flier.getName());
+
+        assertEquals("not its squadron, so not its drone", 0, stranger.getControlUsed());
+        assertFalse(game.getSeekers().contains(drone));
+    }
+
+    /** J4.221: a NORMAL fighter accepts nothing, squadron-mate or not. */
+    @Test
+    public void anOrdinaryWingmanInheritsNothing() {
         carrier.removeLockOn(enemy);
 
         // A wingman already in space, with a free channel and lock-on to the same target.
@@ -177,7 +234,7 @@ public class FighterControlHandoffTest {
         Game.ActionResult landed = game.landShuttle(carrier, flier.getName());
         assertTrue(landed.getMessage(), landed.isSuccess());
 
-        assertEquals("no fighter may take it over until J4.46 exists",
+        assertEquals("a normal fighter cannot accept a transfer (J4.221)",
                 0, wingman.getControlUsed());
         assertFalse("so the drone is let go instead", game.getSeekers().contains(drone));
     }
