@@ -112,6 +112,11 @@ export interface ShuttleInBayState {
    * things, so the guard is != null.
    */
   rails?:              FighterRail[];
+  /**
+   * READY | PARTIAL | EMPTY, or absent when the craft has nothing to arm. Decided in core
+   * (FighterArming.armingState) — never re-derived here.
+   */
+  armingState?:        string;
 }
 
 /** One drone rail on a fighter: what fits in it, and what is in it (J4.82, FD7.211). */

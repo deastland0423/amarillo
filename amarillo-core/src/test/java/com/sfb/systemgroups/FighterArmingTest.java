@@ -274,4 +274,58 @@ public class FighterArmingTest {
                 loaded++;
         return loaded;
     }
+
+    // -------------------------------------------------------------------------
+    // What a launch list needs to know: can this thing fly a mission?
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void anAdminShuttleHasNoArmingStateBecauseItHasNothingToArm() {
+        assertNull("null is not the same as unarmed; a dot on this row would invent a"
+                + " distinction the rules do not draw",
+                FighterArming.armingState(new com.sfb.objects.shuttles.AdminShuttle()));
+    }
+
+    @Test
+    public void aFighterBuiltEmptyReadsEmpty() {
+        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+
+        assertEquals("fighters are built empty (J4.8223)",
+                "EMPTY", FighterArming.armingState(aas));
+    }
+
+    @Test
+    public void aFullyLoadedFighterReadsReady() {
+        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Aas());
+        FighterArming.load(box, box.getShuttle(), 8);
+
+        assertEquals("both rails filled from its own ready rack",
+                "READY", FighterArming.armingState(box.getShuttle()));
+    }
+
+    /**
+     * PARTIAL is its own answer, not a rounding of EMPTY. A fighter with one of two rails
+     * loaded CAN launch and CAN fire; only the captain can say whether that is worth a
+     * sortie, so the state has to reach them rather than be decided for them.
+     */
+    @Test
+    public void aHalfLoadedFighterReadsPartial() {
+        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Aas());
+        // Two half-actions buys one drone space, so one rail of the two.
+        FighterArming.load(box, box.getShuttle(), 2);
+
+        assertEquals(1, FighterArming.dronesCarriedBy(box.getShuttle()));
+        assertEquals("PARTIAL", FighterArming.armingState(box.getShuttle()));
+    }
+
+    /** It answers for energy-armed fighters too, not just drone ones. */
+    @Test
+    public void aStingerReadsTheSameWayFromItsCapacitor() {
+        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Stinger1());
+        com.sfb.objects.shuttles.Shuttle stinger = box.getShuttle();
+
+        assertEquals("EMPTY", FighterArming.armingState(stinger));
+        FighterArming.load(box, stinger, 64);
+        assertEquals("READY", FighterArming.armingState(stinger));
+    }
 }

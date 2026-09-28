@@ -285,6 +285,15 @@ public class GameStateDto {
          * carrying is not something a scan reveals.
          */
         public List<FighterRailDto> rails;
+        /**
+         * READY, PARTIAL, EMPTY, or null when this craft has nothing to arm (J4.82/J4.83).
+         * <p>
+         * Sent on the craft rather than on its box, because the LAUNCH pad reads the craft
+         * list and the hangar reads the boxes, and "which of these can fly a mission" is the
+         * same question in both. Computed in core: a client deciding it would be a view
+         * working out a rules outcome.
+         */
+        public String armingState;
     }
 
     /** One drone rail on a fighter: what it can take, and what is in it (J4.82, FD7.211). */
@@ -1590,6 +1599,7 @@ public class GameStateDto {
                     sd.maxSpeed = s.getMaxSpeed();
                     sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
+                    sd.armingState = com.sfb.systemgroups.FighterArming.armingState(s);
                     for (com.sfb.weapons.Weapon fw : s.getWeapons().fetchAllWeapons()) {
                         if (!(fw instanceof com.sfb.weapons.DroneRail rail))
                             continue;

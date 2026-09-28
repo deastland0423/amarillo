@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ShipObject, ShuttleInBayState } from '../types/gameState';
+import { armingOf, ARMING_WORD, ARMING_COLOUR, droneSummary, railDetail }
+  from './armingStatus';
+import { ArmingDot } from './ArmingDot';
 import { parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
@@ -823,8 +826,21 @@ export default function LaunchOrdersPad({
                 <div style={{ ...COL_TITLE, marginTop: 8 }}>No target needed</div>
                 {plainReady.map(craft => (
                   <div key={craft.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
-                    <span>{craft.name}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      {armingOf(craft) && <ArmingDot state={armingOf(craft)!} />}
+                      {craft.name}
+                    </span>
                     <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
+                    {/* Which of these is worth sending this impulse — the whole reason a
+                        player opens this pad on impulse 1 with a bay full of fighters. */}
+                    {armingOf(craft) && (
+                      <span title={railDetail(craft) || undefined}
+                            style={{ fontSize: '0.9em',
+                                     color: ARMING_COLOUR[armingOf(craft)!] }}>
+                        {ARMING_WORD[armingOf(craft)!]}
+                        {droneSummary(craft) && ` · ${droneSummary(craft)}`}
+                      </span>
+                    )}
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
                                    alignItems: 'center' }}>
                       {facingChip(craft.name)}

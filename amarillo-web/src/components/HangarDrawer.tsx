@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type React from 'react';
-import type { ShipObject, ShuttleBayState, ShuttleInBayState, ShuttleSpaceState }
-  from '../types/gameState';
+import type { ShipObject, ShuttleBayState, ShuttleSpaceState } from '../types/gameState';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
+import { armingOf, ARMING_TITLE, droneSummary, railDetail } from './armingStatus';
 
 /**
  * Hangar operations: everything done to the craft in a ship's bays at allocation time.
@@ -70,53 +70,6 @@ function occupantLine(space: ShuttleSpaceState, shipName: string): string {
   const s = space.shuttle;
   if (!s) return 'empty';
   return s.name.replace(`${shipName}-`, '');
-}
-
-/**
- * How near this craft is to being ready to fly a mission — the thing a carrier captain is
- * scanning the list for, and the reason the row carries a coloured dot.
- * <p>
- * Null means the question does not apply: an admin shuttle has nothing to arm, and a dot on
- * it would be inventing a distinction the rules do not draw.
- */
-function readiness(space: ShuttleSpaceState): 'ready' | 'partial' | 'empty' | null {
-  const s = space.shuttle;
-  if (!s || space.destroyed) return null;
-  const rails = s.rails ?? [];
-  const capacity = space.capacitorCapacity ?? 0;
-  if (rails.length === 0 && capacity === 0) return null;   // nothing to arm
-
-  const loaded = (space.chargesAboard ?? 0) + rails.filter(r => r.drone).length;
-  if (loaded === 0) return 'empty';
-  return (space.workOutstanding ?? 0) === 0 ? 'ready' : 'partial';
-}
-
-const READY_TITLE: Record<string, string> = {
-  ready:   'Armed and ready',
-  partial: 'Partly armed — deck crew work outstanding',
-  empty:   'Unarmed',
-};
-
-/** What is on the rails, grouped: "2x TypeI". Empty string when it carries no drones. */
-function droneSummary(s: ShuttleInBayState): string {
-  const loaded = (s.rails ?? []).filter(r => r.drone);
-  if (loaded.length === 0) return '';
-  const byType = new Map<string, number>();
-  for (const r of loaded) byType.set(r.drone!, (byType.get(r.drone!) ?? 0) + 1);
-  return [...byType].map(([t, n]) => (n > 1 ? `${n}x ${t}` : t)).join(', ');
-}
-
-/**
- * Rail by rail, for the tooltip — the detail the summary folds away. Shows the EMPTY rails
- * too, and what size they are, because "which slot is still open and what will go in it" is
- * the question a half-loaded fighter actually raises.
- */
-function railDetail(s: ShuttleInBayState): string {
-  const rails = s.rails ?? [];
-  if (rails.length === 0) return '';
-  return rails
-    .map(r => `${(r.railType ?? '?').toLowerCase()}: ${r.drone ?? 'empty'}`)
-    .join('\n');
 }
 
 /** What state it is in: charges aboard, damage, and any special role it is playing. */
@@ -472,7 +425,7 @@ export function HangarDrawer({
                 {(bay.spaces ?? []).map(space => {
                   const key = boxId(bay, space);
                   const controls = controlsFor(bay, space);
-                  const ready = readiness(space);
+                  const ready = space.destroyed ? null : armingOf(space.shuttle);
                   return (
                     <div key={key}
                       className={'hangar-box'
@@ -480,8 +433,8 @@ export function HangarDrawer({
                         + (wantsAttention(space) ? ' wants' : '')}>
                       <div className="hangar-box-line">
                         <span className="hangar-box-name">
-                          {ready && <span className={`hangar-dot ${ready}`}
-                            title={READY_TITLE[ready]} />}
+                          {ready && <span className={`hangar-dot ${ready.toLowerCase()}`}
+                            title={ARMING_TITLE[ready]} />}
                           {occupantLine(space, ship.name)}
                         </span>
                         <span className="hangar-box-state"

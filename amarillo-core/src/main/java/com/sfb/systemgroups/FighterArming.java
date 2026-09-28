@@ -93,6 +93,29 @@ public final class FighterArming {
         return half;
     }
 
+    /**
+     * How near this craft is to flying a mission: READY, PARTIAL, EMPTY, or null when the
+     * question does not apply because it has nothing to arm.
+     * <p>
+     * Computed here rather than in the client, and once rather than per panel. The hangar
+     * asks it to colour a row and the launch pad asks it to say which two fighters can go
+     * this impulse; both are the same question, and a view that works it out for itself is a
+     * view deciding a rules outcome.
+     * <p>
+     * PARTIAL is a real and separate state, not a rounding of EMPTY: a Stinger with one
+     * fusion charge of four CAN launch and CAN fire, it just cannot do it four times. Only
+     * the captain can say whether that is worth a sortie, so the DTO must not answer for
+     * them by folding it into "not ready".
+     */
+    public static String armingState(Shuttle craft) {
+        if (craft == null || halfActionsToFullyArm(craft) <= 0)
+            return null;   // an admin shuttle has nothing to arm; it is not "unarmed"
+        int loaded = chargesCarriedBy(craft) + dronesCarriedBy(craft);
+        if (loaded == 0)
+            return "EMPTY";
+        return halfActionsOutstanding(craft) == 0 ? "READY" : "PARTIAL";
+    }
+
     /** Half-actions to finish arming this fighter from where it is now. */
     public static int halfActionsOutstanding(Shuttle fighter) {
         int half = 0;
