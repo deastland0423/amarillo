@@ -10,7 +10,6 @@ import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.shuttles.AdminShuttle;
-import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
 
 /**
@@ -158,16 +157,46 @@ public class TunnelDeckTest {
                 2, launchedInOneImpulse(bay, 10));
     }
 
-    /** A Hydran bay keeps its tubes and gains no doors: it is not a tunnel deck. */
+    /** A Hydran bay keeps its tubes and gains no second door: it is not a tunnel deck. */
     @Test
     public void aHydranBayIsUnchanged() throws Exception {
         ShuttleBay bay = bayOf("../data/factions/hydran/rn.json");
 
         assertEquals("one door", 1, bay.getHatchCount());
         assertEquals("three tubes (J1.54)", 3, bay.getLaunchTubeCount());
-        int out = launchedInOneImpulse(bay, 10);
-        assertTrue("three tubes and a door: " + out, out >= 3);
-        assertTrue("the fighters that went out are gone",
-                bay.getInventory().stream().filter(s -> s instanceof Fighter).count() >= 0);
+        assertEquals("three tubes and the door, all on one impulse",
+                4, launchedInOneImpulse(bay, 10));
+    }
+
+    /**
+     * The two launch systems compared at SHIP scale, which is the only scale a player cares
+     * about and the one that is easy to misread off a single bay.
+     * <p>
+     * A Ranger has THREE bays of three tubes and a door; a Kzinti CV has ONE bay of two
+     * doors. So the Ranger puts its whole group up in an impulse or two while the CV, even
+     * with both hatches working, needs a dozen impulses for twelve fighters. That gap is the
+     * rules' own — J1.54 tubes against J1.58 doors — and not an artefact of this code, but
+     * it is large enough to be worth having written down.
+     */
+    @Test
+    public void aRangerEmptiesItsBaysWhileACarrierIsStillStarting() throws Exception {
+        Ship ranger = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/hydran/rn.json")));
+        Ship cv = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/kzinti/cv.json")));
+
+        assertEquals("a Ranger has three bays", 3, ranger.getShuttles().getBays().size());
+        assertEquals("a CV has one", 1, cv.getShuttles().getBays().size());
+
+        assertEquals("three bays, tubes and doors together", 10, shipWideInOneImpulse(ranger));
+        assertEquals("one bay, two doors (J1.58)", 2, shipWideInOneImpulse(cv));
+    }
+
+    /** Everything this ship can put out on one impulse, across every bay it has. */
+    private static int shipWideInOneImpulse(Ship ship) {
+        int total = 0;
+        for (ShuttleBay bay : ship.getShuttles().getBays())
+            total += launchedInOneImpulse(bay, 10);
+        return total;
     }
 }
