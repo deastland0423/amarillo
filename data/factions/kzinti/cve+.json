@@ -14,6 +14,8 @@
   "bonusHets": 1,
   "commandRating": 6,
   "requiresEscort": true,
+
+  "droneStorageSpaces": 75,
   "tokenArt": "kzinti/cl.png",
   
   "shields": [18, 16, 16, 16, 16, 16],

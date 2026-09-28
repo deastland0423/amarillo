@@ -1,6 +1,6 @@
 {
   "faction": "Kzinti",
-  "type": "CV+",
+  "type": "CVL+",
   "typeName": "Light Carrier",
   "carrierClass": "CAPABLE",
   "line": "CA",
@@ -14,6 +14,8 @@
   "bonusHets": 1,
   "commandRating": 8,
   "requiresEscort": true,
+
+  "droneStorageSpaces": 100,
   "tokenArt": "kzinti/bc.png",
   
   "shields": [30, 28, 22, 22, 22, 28],

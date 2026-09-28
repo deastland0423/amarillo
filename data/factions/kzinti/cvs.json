@@ -14,6 +14,8 @@
   "bonusHets": 1,
   "commandRating": 9,
   "requiresEscort": true,
+
+  "droneStorageSpaces": 150,
   
   "shields": [34, 24, 24, 24, 24, 24],
   
@@ -55,7 +57,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
+    { "shuttles": ["admin", "admin", "admin", "haas", "haas", "haas", "haas", "haas", "haas", "haas", "haas", "haas", "haas", "haas", "haas_e"], "type": "tunnel" }
   ],
 
   "crewData": {
