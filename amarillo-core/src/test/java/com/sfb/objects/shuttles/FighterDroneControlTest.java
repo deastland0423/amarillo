@@ -73,14 +73,39 @@ public class FighterDroneControlTest {
         assertEquals(0, new Stinger1().getControlCapacity());
     }
 
-    /** The type-VI family is the DFD family, and only it. */
+    /**
+     * The owner's worked example: every rail that is not a LIGHT one is a channel, because
+     * the light rail is the one built for dogfight drones (J4.232). Two standard, two heavy
+     * and two light rails guide four.
+     */
     @Test
-    public void onlyTheTypeSixFamilyAreDogfightDrones() {
-        assertTrue(DroneType.TypeVI.isDogfightDrone());
-        assertTrue(DroneType.TypeVIM.isDogfightDrone());
-        assertTrue(DroneType.TypeVIF.isDogfightDrone());
-        assertFalse(DroneType.TypeI.isDogfightDrone());
-        assertFalse(DroneType.TypeIV.isDogfightDrone());
-        assertFalse("self-guiding is a different question", DroneType.TypeIII.isDogfightDrone());
+    public void everyRailThatIsNotALightOneIsAChannel() {
+        Fighter mixed = new Fighter() {
+            {
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.STANDARD, "A");
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.STANDARD, "B");
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.HEAVY, "C");
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.HEAVY, "D");
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.LIGHT, "E");
+                addRail(com.sfb.weapons.DroneRail.DroneRailType.LIGHT, "F");
+            }
+
+            private void addRail(com.sfb.weapons.DroneRail.DroneRailType type, String tag) {
+                com.sfb.weapons.DroneRail rail = new com.sfb.weapons.DroneRail(type);
+                rail.setDesignator(tag);
+                getWeapons().addWeapon(rail);
+            }
+        };
+
+        assertEquals("four non-light rails, four channels", 4, mixed.getControlCapacity());
+    }
+
+    /** A special rail carries a type-I or type-III (J4.233), so it is a channel too. */
+    @Test
+    public void aSpecialRailCountsAsWell() {
+        com.sfb.weapons.DroneRail special =
+                new com.sfb.weapons.DroneRail(com.sfb.weapons.DroneRail.DroneRailType.SPECIAL);
+        assertNotEquals("a special rail is not a light one",
+                com.sfb.weapons.DroneRail.DroneRailType.LIGHT, special.getRailType());
     }
 }

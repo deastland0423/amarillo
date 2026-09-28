@@ -147,38 +147,40 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * <p>
      * J4.25: "a number of drones equal to the number of non-DFDs (non-dogfight drones, i.e.,
      * drones other than type-VI) in its nominal load exclusive of variants, if any (or two
-     * drones, whichever is greater)." Three things in that sentence are easy to lose:
-     * <ul>
-     *   <li>Type-VIs do NOT count. A TAAS carries two type-Is and two type-VIs and guides
-     *       TWO, not four — which is what its hand-written constant of 4 got wrong.</li>
-     *   <li>NOMINAL load, not what is aboard. Counted off the rail's design drone, so
-     *       substituting a type-VI for a type-I does not shrink the capacity — the rule
-     *       says "exclusive of variants" and J4.25's own F-15 example turns on it.</li>
-     *   <li>A floor of two, so a one-rail fighter still guides a pair.</li>
-     * </ul>
-     * A fighter carrying no drones at all guides nothing — the floor is for fighters the
-     * rule is talking about, and a Stinger is not one.
+     * drones, whichever is greater)."
+     * <p>
+     * Counted off the RAILS, and specifically off each rail's TYPE: every rail that is not a
+     * light one is a control channel, because a light rail is the one built for dogfight
+     * drones (J4.232) and a type-VI is what J4.25 declines to count. So a fighter of two
+     * standard, two heavy and two light rails guides four.
+     * <p>
+     * The rail rather than the drone nominally on it, and that is the whole of "exclusive of
+     * variants": J4.2311 lets a player drop a type-VI onto a standard rail freely, and doing
+     * so must not cost a channel. A rail's type changes only in a refit (J4.232), which is a
+     * real change to the fighter; what is loaded into it changes every sortie.
+     * <p>
+     * A fighter carrying no drones at all guides nothing — the floor of two is for the
+     * fighters J4.25 is talking about, and a Stinger is not one.
      */
     @Override
     public int getControlCapacity() {
         // J4.43: two-seaters guide twelve and can take over their squadron's seekers. The
-        // taking-over half is not built; see the squadron work.
+        // taking-over half is not built; it needs squadron organisation (J4.46).
         if (isTwoSeater())
             return TWO_SEAT_CONTROL;
 
         int rails = 0;
-        int nonDogfight = 0;
+        int channels = 0;
         for (Weapon w : getWeapons().fetchAllWeapons()) {
             if (!(w instanceof com.sfb.weapons.DroneRail rail))
                 continue;
             rails++;
-            com.sfb.objects.DroneType design = rail.getDesignDrone();
-            if (design != null && !design.isDogfightDrone())
-                nonDogfight++;
+            if (rail.getRailType() != com.sfb.weapons.DroneRail.DroneRailType.LIGHT)
+                channels++;
         }
         if (rails == 0)
             return 0;   // carries no drones; J4.25 is not about it
-        return Math.max(MINIMUM_CONTROL, nonDogfight);
+        return Math.max(MINIMUM_CONTROL, channels);
     }
 
     @Override

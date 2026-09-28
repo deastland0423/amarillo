@@ -41,18 +41,6 @@ public enum DroneType {
   TypeVIM(32, 20, 8, 0.5, 3, true, true, 165),
   TypeVIF(32, 32, 8, 0.5, 3, true, true, 178);
 
-  /**
-   * J4.25's "DFD": a dogfight drone, which is the type-VI family and nothing else.
-   * <p>
-   * Named because a rule turns on it — a fighter's drone control capacity counts the
-   * NON-dogfight drones in its nominal load — and "warpSeeker" is a statement about how the
-   * thing flies (FD2.56), not about what it counts as. The two happen to coincide on the
-   * type-VIs and there is no reason to assume they always will.
-   */
-  public boolean isDogfightDrone() {
-    return warpSeeker;
-  }
-
   public final int endurance, speed, damage, hull, availableFromYear;
   public final double rack;
   public final boolean selfGuiding;
