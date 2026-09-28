@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.sfb.Game.ActionResult;
 import com.sfb.objects.Drone;
+import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
@@ -401,11 +402,11 @@ class LaunchCoordinator {
     }
 
     /**
-     * A fighter launches one of its own drones (J1.31, J4.431).
+     * A fighter launches one of its own drones (J1.31, J4.24).
      * <p>
      * A separate door from the ship's because the gates differ, not because the drone does:
      * a fighter has no breakdown lockout and no cloak, and has instead a limit of ONE drone
-     * a turn however many rails it carries (J4.431), and the half-turn wait after its own
+     * a turn however many rails it carries (J4.24), and the half-turn wait after its own
      * launch (J1.341) that a ship never serves.
      */
     public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
@@ -431,7 +432,16 @@ class LaunchCoordinator {
                     + " - half a turn since launch (J1.341)");
         if (fighter.isDronesFiredThisTurn())
             return ActionResult.fail(fighter.getName()
-                    + " has already launched a drone this turn (J4.431)");
+                    + " has already launched a drone this turn (J4.24)");
+        // J4.24's other half, which the per-turn flag cannot see: two drones may not leave
+        // the same fighter within a quarter turn, and that reaches back ACROSS the turn
+        // boundary where the flag resets.
+        int spacing = fighter.impulsesUntilNextDrone(game.getAbsoluteImpulse());
+        if (spacing > 0)
+            return ActionResult.fail(fighter.getName() + " launched a drone "
+                    + (Fighter.DRONE_LAUNCH_SPACING - spacing) + " impulse"
+                    + (Fighter.DRONE_LAUNCH_SPACING - spacing == 1 ? "" : "s")
+                    + " ago - two may not leave within a quarter turn (J4.24)");
         if (rail == null || !rail.isFunctional())
             return ActionResult.fail("That rail is destroyed");
         Drone drone = rail.getDrone();
@@ -445,11 +455,11 @@ class LaunchCoordinator {
                     + target.getName() + " - cannot launch seeking weapons (D6.121)");
         if (!drone.isSelfGuiding() && !fighter.acquireControl(drone))
             return ActionResult.fail(fighter.getName() + " is already guiding all the drones"
-                    + " it can (" + fighter.getControlCapacity() + ", J4.431)");
+                    + " it can (" + fighter.getControlCapacity() + ", J4.25)");
 
         ActionResult result = placeLaunchedDrone(fighter, target, rail, drone, facing);
         if (result.isSuccess())
-            fighter.recordDroneFired();
+            fighter.recordDroneFired(game.getAbsoluteImpulse());
         return result;
     }
 

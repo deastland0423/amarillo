@@ -125,7 +125,7 @@ class LockOnResolver {
     }
 
     /**
-     * Lock-on for drone-armed fighters (D6.121, J4.431).
+     * Lock-on for drone-armed fighters (D6.121, J1.31).
      * <p>
      * A fighter cannot launch a drone at something it has no lock-on to, and until now
      * nothing filled a fighter's lock-on set — so its drones were unlaunchable whatever

@@ -108,4 +108,48 @@ public class FighterDroneControlTest {
         assertNotEquals("a special rail is not a light one",
                 com.sfb.weapons.DroneRail.DroneRailType.LIGHT, special.getRailType());
     }
+
+    // -------------------------------------------------------------------------
+    // J4.24: how OFTEN, as opposed to how many
+    // -------------------------------------------------------------------------
+
+    /**
+     * "A fighter can always launch one drone per turn... but cannot launch two drones on
+     * consecutive turns within 1/4 turn (eight impulses) of each other."
+     * <p>
+     * Two limits, and the per-turn flag only catches one. A flag that resets at the turn
+     * boundary lets a fighter fire on impulse 30 and again on impulse 2 — four impulses
+     * apart, across the very boundary the flag is watching.
+     */
+    @Test
+    public void twoDronesMayNotLeaveWithinAQuarterTurn() {
+        Aas aas = new Aas();
+
+        aas.recordDroneFired(30);
+
+        assertEquals("eight impulses from the launch", 8, aas.impulsesUntilNextDrone(30));
+        assertEquals("four impulses later, across a turn boundary, four still to wait",
+                4, aas.impulsesUntilNextDrone(34));
+        assertEquals(0, aas.impulsesUntilNextDrone(38));
+    }
+
+    @Test
+    public void aFighterThatHasNeverLaunchedIsNotWaiting() {
+        assertEquals(0, new Aas().impulsesUntilNextDrone(1));
+    }
+
+    /** The per-turn flag still clears at the turn boundary; the spacing does not. */
+    @Test
+    public void theTurnFlagClearsButTheSpacingOutlivesIt() {
+        Aas aas = new Aas();
+        aas.recordDroneFired(30);
+        assertTrue(aas.isDronesFiredThisTurn());
+
+        aas.startTurn();
+
+        assertFalse("a new turn, a new launch allowed by the per-turn rule",
+                aas.isDronesFiredThisTurn());
+        assertEquals("but the quarter turn is measured from the launch, not the turn",
+                4, aas.impulsesUntilNextDrone(34));
+    }
 }

@@ -14,7 +14,7 @@ import java.util.List;
  * Weapons: 2× Ph-3 (FA), 2× Standard DroneRail (one 1-space drone each),
  * 2× Light DroneRail (one dogfight drone each).
  * Built-in 2 ECM + 2 ECCM. Controls its own drones only (capacity 4).
- * Must have lock-on to target in FA arc to launch drones (J4.431).
+ * Must have lock-on to a target in the FA arc of the rail to launch drones (D6.121).
  */
 public class Taas extends Fighter {
 

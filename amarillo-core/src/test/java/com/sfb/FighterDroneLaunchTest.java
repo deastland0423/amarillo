@@ -14,7 +14,7 @@ import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
 
 /**
- * A drone-armed fighter putting its own drones on the map (J1.31, J4.431).
+ * A drone-armed fighter putting its own drones on the map (J1.31, J4.24).
  * <p>
  * Until now it could not: every seeker-launch path was typed to Ship and the server resolved
  * its launcher with findShip, so an AAS carried two Type-Is it had no way to release. The
@@ -22,7 +22,7 @@ import com.sfb.weapons.Weapon;
  * and simply had nothing wired to it, including anything that ever filled the lock-ons.
  * <p>
  * A fighter is not a small ship, and the gates differ: no breakdown lockout and no cloak, but
- * one drone a turn (J4.431) and the half-turn wait after its own launch (J1.341).
+ * one drone a turn (J4.24) and the half-turn wait after its own launch (J1.341).
  */
 public class FighterDroneLaunchTest {
 
@@ -105,11 +105,11 @@ public class FighterDroneLaunchTest {
         launch();
 
         com.sfb.objects.Seeker drone = game.getSeekers().get(game.getSeekers().size() - 1);
-        assertSame("J4.431: a fighter guides its own", aas, drone.getController());
+        assertSame("J4.25: a fighter guides its own", aas, drone.getController());
         assertEquals(1, aas.getControlUsed());
     }
 
-    /** J4.431: one drone a turn, however many rails it is carrying. */
+    /** J4.24: one drone a turn, however many rails it is carrying. */
     @Test
     public void onlyOneDroneLeavesInATurn() {
         assertTrue(launch().isSuccess());
@@ -117,7 +117,7 @@ public class FighterDroneLaunchTest {
         Game.ActionResult second = game.launchFighterDrone(aas, enemy, rails().get(1), 0);
 
         assertFalse(second.isSuccess());
-        assertTrue(second.getMessage(), second.getMessage().contains("J4.431"));
+        assertTrue(second.getMessage(), second.getMessage().contains("J4.24"));
         assertNotNull("the second drone stays on its rail", rails().get(1).getDrone());
     }
 

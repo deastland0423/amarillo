@@ -125,7 +125,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     }
 
     // -------------------------------------------------------------------------
-    // Guiding its own drones (DroneController, J4.431)
+    // Guiding its own drones (DroneController, J4.25)
     // -------------------------------------------------------------------------
 
     private final java.util.Set<com.sfb.objects.Seeker> controlledSeekers =
@@ -133,8 +133,22 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     private final java.util.Set<com.sfb.objects.Unit> lockOns =
             new java.util.LinkedHashSet<>();
 
-    /** J4.431: a fighter launches at most one drone per turn, whatever it carries. */
+    /** J4.24: a fighter launches at most one drone per turn, whatever it carries. */
     private boolean dronesFiredThisTurn = false;
+
+    /**
+     * The absolute impulse this fighter last let a drone go, or far in the past.
+     * <p>
+     * Kept alongside the per-turn flag because J4.24 sets TWO limits and the flag only
+     * catches one: "a fighter can always launch one drone per turn... but cannot launch two
+     * drones on consecutive turns within 1/4 turn (eight impulses) of each other." A flag
+     * that resets at the turn boundary lets a fighter fire on impulse 30 and again on
+     * impulse 2, four impulses apart and across the boundary the flag is watching.
+     */
+    private int lastDroneLaunchImpulse = -DRONE_LAUNCH_SPACING;
+
+    /** J4.24: two drones may not leave the same fighter within a quarter turn. */
+    public static final int DRONE_LAUNCH_SPACING = 8;
 
     /** J4.43: a two-seat fighter, and the EW fighters built from them, guide twelve. */
     public static final int TWO_SEAT_CONTROL = 12;
@@ -224,13 +238,24 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         return lockOns;
     }
 
-    /** J4.431: whether this fighter has already spent its one drone launch this turn. */
+    /** J4.24: whether this fighter has already spent its one drone launch this turn. */
     public boolean isDronesFiredThisTurn() {
         return dronesFiredThisTurn;
     }
 
-    public void recordDroneFired() {
+    /**
+     * Impulses still to wait before this fighter may let another drone go (J4.24), or zero.
+     * Separate from the per-turn limit and outlives it: the spacing is measured from the
+     * last launch, so it reaches back across the turn boundary that clears the flag.
+     */
+    public int impulsesUntilNextDrone(int currentImpulse) {
+        return Math.max(0,
+                DRONE_LAUNCH_SPACING - (currentImpulse - lastDroneLaunchImpulse));
+    }
+
+    public void recordDroneFired(int currentImpulse) {
         dronesFiredThisTurn = true;
+        lastDroneLaunchImpulse = currentImpulse;
     }
 
     @Override

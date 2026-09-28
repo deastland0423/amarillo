@@ -13,7 +13,7 @@ import java.util.List;
  * Year Y164. Speed 8. Hull 8, crippled at 6 damage. BPV 6.
  * Weapons: 1× Ph-3 (FA), 2× DroneRail (one standard drone each).
  * Built-in 2 ECM + 2 ECCM. Controls its own drones only (capacity 2).
- * Must have lock-on to target in FA arc to launch drones (J4.431).
+ * Must have lock-on to a target in the FA arc of the rail to launch drones (D6.121).
  */
 public class Aas extends Fighter {
 
