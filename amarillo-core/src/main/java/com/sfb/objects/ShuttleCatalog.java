@@ -41,6 +41,16 @@ public final class ShuttleCatalog {
          * from outside).
          */
         public final String shortName;
+        /**
+         * The SSD designation — "AAS", "Stinger-1", "HAAS-E". What the craft is CALLED, at
+         * the length a list can afford to print.
+         * <p>
+         * Distinct from {@link #shortName}, which is tuned for a map counter and is terser
+         * still ("St-1"): a counter has a few pixels, a hangar row has a line and the name
+         * is the headline of it. Falls back to shortName, then to the display name, so a
+         * catalogue entry that does not bother saying still names the craft sensibly.
+         */
+        public final String designation;
         public final String kind;          // "fighter" (costs BPV) or "shuttle" (carried free)
         public final List<String> factions;
         public final int year;             // first year of service
@@ -67,8 +77,10 @@ public final class ShuttleCatalog {
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
               boolean canWeasel, boolean canSuicide, int scatterPackSize,
-              String shortName) {
+              String shortName, String designation) {
             this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
+            this.designation = designation == null || designation.isBlank()
+                    ? this.shortName : designation;
             this.canWeasel = canWeasel;
             this.canSuicide = canSuicide;
             this.scatterPackSize = scatterPackSize;
@@ -138,7 +150,8 @@ public final class ShuttleCatalog {
                     n.path("canWeasel").asBoolean(false),
                     n.path("canSuicide").asBoolean(false),
                     n.path("scatterPackSize").asInt(0),
-                    n.path("shortName").asText(null));
+                    n.path("shortName").asText(null),
+                    n.path("designation").asText(null));
             registry.put(e.type.toLowerCase(), e);
         }
         loaded = true;

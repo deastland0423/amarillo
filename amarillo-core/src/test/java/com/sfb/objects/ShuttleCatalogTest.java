@@ -141,4 +141,70 @@ public class ShuttleCatalogTest {
                 + " wrong case in ShuttleBay.buildShuttle: " + String.join(" | ", clashes),
                 clashes.isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // What a craft is CALLED
+    // -------------------------------------------------------------------------
+
+    /**
+     * The hangar panel and the map counter must call one fighter one thing.
+     * <p>
+     * They did not: LaunchCoordinator read the catalogue, while the bay used a hardcoded
+     * switch in Shuttles that predated the Kzinti fighters. A craft sat in its box as
+     * "Aas-1" and launched as "AAS-7" — the same fighter, a case apart.
+     */
+    @Test
+    public void aBayNamesACraftByTheSameCatalogueTheLaunchDoes() throws Exception {
+        Ship cv = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/kzinti/cv.json")));
+
+        boolean sawFighter = false;
+        for (com.sfb.objects.shuttles.Shuttle s : cv.getShuttles().getAllShuttles()) {
+            String designation = s.getName().replaceAll("-[0-9]+$", "");
+            if (!"AAS".equals(designation))
+                continue;
+            sawFighter = true;
+        }
+        assertTrue("a CV's fighters should be named AAS-n, not Aas-n", sawFighter);
+    }
+
+    @Test
+    public void everyCataloguedTypeCarriesADesignation() {
+        for (ShuttleCatalog.Entry e : ShuttleCatalog.all()) {
+            assertNotNull(e.type, e.designation);
+            assertFalse("a blank designation would name a craft nothing",
+                    e.designation.isBlank());
+            assertFalse("an underscore is a JSON key showing through, not a designation: "
+                    + e.type + " -> " + e.designation, e.designation.contains("_"));
+        }
+    }
+
+    /**
+     * The acronym types are the ones the old switch got wrong, so they are the ones pinned.
+     * A designation is what the SSD prints, and the SSD does not print "Haas_e".
+     */
+    @Test
+    public void theAcronymFightersAreNotTitleCased() {
+        assertEquals("AAS", ShuttleCatalog.get("aas").designation);
+        assertEquals("HAAS", ShuttleCatalog.get("haas").designation);
+        assertEquals("HAAS-E", ShuttleCatalog.get("haas_e").designation);
+        assertEquals("TAAS", ShuttleCatalog.get("taas").designation);
+    }
+
+    /**
+     * Designation and shortName are different jobs and are allowed to differ: a map counter
+     * has a few pixels ("St-1"), a hangar row has a line ("Stinger-1"). Neither may be blank.
+     */
+    @Test
+    public void designationMayBeLongerThanTheCounterLabel() {
+        assertEquals("St-1", ShuttleCatalog.get("stinger1").shortName);
+        assertEquals("Stinger-1", ShuttleCatalog.get("stinger1").designation);
+    }
+
+    /** An entry that says nothing still names the craft, rather than naming it null. */
+    @Test
+    public void designationFallsBackRatherThanGoingBlank() {
+        for (ShuttleCatalog.Entry e : ShuttleCatalog.all())
+            assertNotNull("every entry resolves to something printable", e.designation);
+    }
 }

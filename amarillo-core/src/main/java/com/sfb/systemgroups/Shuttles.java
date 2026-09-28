@@ -535,16 +535,26 @@ public class Shuttles implements Systems {
     }
 
     /** Map shuttle type strings to display-friendly names. */
+    /**
+     * What to call a craft of this type in the name a bay gives it.
+     * <p>
+     * The catalogue answers this, because the catalogue is where the craft's own designation
+     * lives (`data/shuttles/shuttles.json`). It used to be a switch here, and the switch was
+     * written when the only fighters were Hydran Stingers: every Kzinti type fell through to
+     * a default that capitalised the first letter and nothing else, so a bay called its
+     * fighters "Aas-1" while the same craft launched onto the map as "AAS-7" — LaunchCoordinator
+     * having read the catalogue all along. Two names for one fighter, a case apart.
+     * <p>
+     * The fallback survives for the types the catalogue deliberately does NOT carry: suicide
+     * shuttles and scatter packs are ROLES an admin shuttle takes on, not stock anyone holds.
+     */
     private static String displayName(String type) {
+        com.sfb.objects.ShuttleCatalog.Entry e = com.sfb.objects.ShuttleCatalog.get(type);
+        if (e != null)
+            return e.designation;
         switch (type.toLowerCase()) {
-            case "admin":       return "Admin";
-            case "gas":         return "GAS";
-            case "hts":         return "HTS";
             case "suicide":     return "Suicide";
             case "scatterpack": return "ScatterPack";
-            case "stinger1":    return "Stinger1";
-            case "stinger2":    return "Stinger2";
-            case "stingerh":    return "StingerH";
             default:
                 // Capitalize first letter for unknown types
                 return Character.toUpperCase(type.charAt(0)) + type.substring(1);

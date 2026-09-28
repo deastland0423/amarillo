@@ -125,7 +125,7 @@ public class FighterPatrolTest {
     @Test
     public void aFighterThatIsNotAboardCannotBePutUp() {
         List<FighterPatrol.Posting> stranger = List.of(
-                new FighterPatrol.Posting("Some Other Ship-Stinger1-1", new Location(20, 21)));
+                new FighterPatrol.Posting("Some Other Ship-Stinger-1-1", new Location(20, 21)));
 
         List<String> problems = FighterPatrol.check(rn, stranger, 3, 40, 40);
 
