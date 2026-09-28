@@ -355,4 +355,38 @@ public class EwPodTest {
         assertEquals(4, railsOf(wide).size());
         assertEquals("J4.964: two for an ordinary fighter", 2, wide.fitEwPods(4));
     }
+
+    /**
+     * A podded rail carries no drone, so the box behind it stocks no reload for one (J4.822,
+     * J4.962). A HAAS-E with both rails podded needs no ready rack at all — and previously
+     * got one holding two Type-Is it could never load, charging its carrier two spaces of
+     * Annex #7G stores for drones nobody could reach.
+     */
+    @Test
+    public void aPoddedRailGetsNoReadyRackReload() {
+        Haas_E ewf = new Haas_E();
+        assertEquals("both rails podded", 2, ewf.getEwPods());
+        assertNull("nothing left to reload",
+                com.sfb.systemgroups.ReadyRack.forFighter(ewf));
+
+        Haas plain = new Haas();
+        com.sfb.systemgroups.ReadyRack rack =
+                com.sfb.systemgroups.ReadyRack.forFighter(plain);
+        assertNotNull("the drone-armed model still gets one", rack);
+        assertEquals("one reload per rail (J4.822)", 2, rack.capacity());
+    }
+
+    /** Take a pod off and the rail wants its reload back. */
+    @Test
+    public void clearingThePodRestoresTheReload() {
+        Haas_E ewf = new Haas_E();
+        for (com.sfb.weapons.Weapon w : ewf.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail)
+                rail.clearEwPod();
+
+        com.sfb.systemgroups.ReadyRack rack =
+                com.sfb.systemgroups.ReadyRack.forFighter(ewf);
+        assertNotNull(rack);
+        assertEquals(2, rack.capacity());
+    }
 }

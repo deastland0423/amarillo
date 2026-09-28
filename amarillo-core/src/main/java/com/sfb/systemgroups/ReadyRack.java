@@ -66,9 +66,16 @@ public class ReadyRack {
         // per fighter because a Kzinti TAAS has two standard rails and two light ones, and a
         // Type-I will not go in a light rail at all — a rack stocked from one answer would
         // hold two drones its own fighter cannot take.
+        //
+        // A rail carrying an EW pod is skipped. J4.962: "An EWP replaces one drone carried by
+        // the fighter" — so that rail has no drone to reload, and a rack that stocked one
+        // anyway would show a HAAS-E holding two Type-Is it can never load and charge its
+        // carrier two spaces of stores for them. A fighter whose every rail is podded needs
+        // no rack at all, which falls out of the empty check below.
         List<DroneType> stock = new ArrayList<>();
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail && rail.getDesignDrone() != null)
+            if (w instanceof DroneRail rail && rail.getDesignDrone() != null
+                    && !rail.hasEwPod())
                 stock.add(rail.getDesignDrone());
         if (stock.isEmpty())
             return null;
