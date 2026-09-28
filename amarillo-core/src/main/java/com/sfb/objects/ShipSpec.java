@@ -172,6 +172,16 @@ public class ShipSpec {
     public static class ShuttleBaySpec {
         public List<String> shuttles;  // e.g. ["admin", "admin", "gas"]
         public int          launchTubes; // J1.54 — 0 means standard hatch only
+        /**
+         * J1.58: "tunnel" for a bay with doors at both ends, each hatch working
+         * independently at the full J1.50 rate. The Kzinti CV, CVS, CVL, MCV and CVE are
+         * built this way, as is the Federation CVS. Absent means an ordinary one-hatch bay.
+         * <p>
+         * A hatch is not a launch tube: a tube cannot recover a shuttle (J1.541) and will
+         * not pass an administrative shuttle or a heavy fighter (J1.542). A second hatch
+         * has no such limits, which is why a tunnel deck is counted here and not as tubes.
+         */
+        public String       type;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -384,10 +394,13 @@ public class ShipSpec {
             List<Object> bayList = new ArrayList<>();
             for (ShuttleBaySpec bay : shuttleBays) {
                 List<String> shuttles = bay.shuttles != null ? bay.shuttles : new ArrayList<>();
-                if (bay.launchTubes > 0) {
+                if (bay.launchTubes > 0 || bay.type != null) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
-                    bayMap.put("launchTubes", bay.launchTubes);
+                    if (bay.launchTubes > 0)
+                        bayMap.put("launchTubes", bay.launchTubes);
+                    if (bay.type != null)
+                        bayMap.put("type", bay.type);
                     bayList.add(bayMap);
                 } else {
                     bayList.add(shuttles);

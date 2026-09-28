@@ -48,6 +48,12 @@ public class Shuttles implements Systems {
                     Object tubesObj = bayObj.get("launchTubes");
                     if (tubesObj instanceof Number)
                         bay.setLaunchTubeCount(((Number) tubesObj).intValue());
+                    // J1.58: a tunnel deck has a door at each end of the bay, and each
+                    // works independently at the full J1.50 rate. Counted as hatches
+                    // rather than tubes because a hatch can also RECOVER (J1.541) and will
+                    // take an admin shuttle, which a tube will not (J1.542).
+                    if ("tunnel".equalsIgnoreCase(String.valueOf(bayObj.get("type"))))
+                        bay.setHatchCount(ShuttleBay.TUNNEL_DECK_HATCHES);
                 } else {
                     shuttleTypes = (List<String>) rawBay;
                 }

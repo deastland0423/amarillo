@@ -65,10 +65,6 @@ public class ShipJsonKeyGuardTest {
                 + "exceed. Our movement applies no such cap.");
         PARKED.put("auxiliary.slow",
                 "2 files, the large Q-ships. Companion to maxAccel; unbuilt.");
-        PARKED.put("shuttleBays[].type",
-                "6 Kzinti carriers, always \"tunnel\". A kind of bay, distinct from the "
-                + "ordinary hangar ShuttleBaySpec assumes. Parked by PATH: a stray \"type\" "
-                + "anywhere else in a ship file still fails, which is the point.");
     }
 
     private static final File SHIP_DIR = new File("../data/factions");

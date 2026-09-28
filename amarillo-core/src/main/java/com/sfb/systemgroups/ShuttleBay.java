@@ -35,9 +35,29 @@ public class ShuttleBay {
 
     private static final int LAUNCH_COOLDOWN = 2;
 
+    /**
+     * J1.58: a tunnel deck has doors at both ends of the bay, and "each hatch operates
+     * independently at the full rate in (J1.50)". The Kzinti CV, CVS, CVL, MCV and CVE are
+     * built this way, as is the Federation CVS.
+     */
+    public static final int TUNNEL_DECK_HATCHES = 2;
+
     private final Unit owner;
     private final List<ShuttleSpace> spaces = new ArrayList<>();
-    private int lastLaunchImpulse = -LAUNCH_COOLDOWN;
+
+    /**
+     * When each hatch was last used, one entry per hatch (J1.50, J1.58).
+     * <p>
+     * An array rather than a single impulse because a hatch is the thing the rule limits,
+     * not the bay: a tunnel deck has two and they are independent, so a carrier can put two
+     * fighters out on the same impulse and neither hatch is free again for two.
+     * <p>
+     * Distinct from a launch TUBE, which is not a hatch: J1.541 lets tubes launch fighters
+     * but never recover them, and J1.542 bars administrative shuttles and heavy fighters
+     * from them entirely. A hatch has none of those restrictions and is what a recovery
+     * always uses (J1.543).
+     */
+    private int[] lastHatchImpulse = { -LAUNCH_COOLDOWN };
 
     // Launch tubes (J1.54) — each has its own cooldown
     private int launchTubeCount = 0;
@@ -168,8 +188,49 @@ public class ShuttleBay {
     // Launch
     // -------------------------------------------------------------------------
 
+    /** How many hatches this bay has: one ordinarily, two for a tunnel deck (J1.58). */
+    public int getHatchCount() {
+        return lastHatchImpulse.length;
+    }
+
+    /**
+     * Set the number of hatches, keeping whatever cooldowns are already running. Called
+     * when a bay is built from a ship file that declares a tunnel deck.
+     */
+    public void setHatchCount(int hatches) {
+        int n = Math.max(1, hatches);
+        int[] next = new int[n];
+        java.util.Arrays.fill(next, -LAUNCH_COOLDOWN);
+        System.arraycopy(lastHatchImpulse, 0, next, 0,
+                Math.min(lastHatchImpulse.length, n));
+        lastHatchImpulse = next;
+    }
+
+    /** Hatches free to be used this impulse (J1.50). */
+    public int getAvailableHatchCount(int currentImpulse) {
+        int free = 0;
+        for (int used : lastHatchImpulse)
+            if (currentImpulse - used >= LAUNCH_COOLDOWN)
+                free++;
+        return free;
+    }
+
     public boolean canLaunch(int currentImpulse) {
-        return (currentImpulse - lastLaunchImpulse) >= LAUNCH_COOLDOWN;
+        return getAvailableHatchCount(currentImpulse) > 0;
+    }
+
+    /**
+     * Claim a free hatch, or return false if every one of them is still cooling. Recovery
+     * uses this too: J1.50 limits a hatch to one launch OR one recovery per two impulses.
+     */
+    public boolean claimHatch(int currentImpulse) {
+        for (int i = 0; i < lastHatchImpulse.length; i++) {
+            if (currentImpulse - lastHatchImpulse[i] >= LAUNCH_COOLDOWN) {
+                lastHatchImpulse[i] = currentImpulse;
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean canLaunch(Shuttle shuttle, int currentImpulse) {
@@ -178,8 +239,9 @@ public class ShuttleBay {
         return canLaunch(currentImpulse);
     }
 
+    /** Book a hatch as used — a launch or a recovery, which J1.50 treats alike. */
     public void markUsed(int currentImpulse) {
-        lastLaunchImpulse = currentImpulse;
+        claimHatch(currentImpulse);
     }
 
     /**
@@ -195,6 +257,8 @@ public class ShuttleBay {
         shuttle.setSpeed(Math.min(speed, shuttle.getMaxSpeed()));
         shuttle.setFacing(facing);
 
+        // A tube first where one will serve, so the hatches stay free for the recoveries and
+        // the admin shuttles that J1.541/J1.542 will not let through a tube.
         if (isLaunchTubeEligible(shuttle)) {
             for (int i = 0; i < launchTubeCount; i++) {
                 if (currentImpulse - lastTubeImpulse[i] >= LAUNCH_COOLDOWN) {
@@ -203,7 +267,7 @@ public class ShuttleBay {
                 }
             }
         }
-        lastLaunchImpulse = currentImpulse;
+        claimHatch(currentImpulse);
         return shuttle;
     }
 
