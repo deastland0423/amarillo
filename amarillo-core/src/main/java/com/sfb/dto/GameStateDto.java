@@ -284,6 +284,14 @@ public class GameStateDto {
          * same thing, so the job is the unit, not the box.
          */
         public java.util.Map<String, Integer> crewJobs = new java.util.LinkedHashMap<>();
+        /**
+         * J4.822: drones in this box's ready rack, and what it holds when full. The drone
+         * fighter's answer to capacitorCharges/capacitorCapacity, and null on a box that
+         * never had a rack — a primitive would report "0 of 0" on every Hydran fusion box
+         * and read as a rack that had been emptied.
+         */
+        public Integer readyRackCount;
+        public Integer readyRackCapacity;
         /** Half-actions of work its fighter still needs — what the panel says it is short. */
         public int workOutstanding;
         /** What the occupant is holding and how hurt it is, so a bay row can say so. */
@@ -327,6 +335,16 @@ public class GameStateDto {
          * .capacitorRoom; this stays only as a cheap "is there anything to buy at all".
          */
         public int fighterCapacitorRoom;
+        /**
+         * J4.7: spaces of spare drones this carrier holds for its fighters, and how much of
+         * that supply is still in the hold. Both null on a ship that declares no storage,
+         * which is not the same as a carrier that has run dry.
+         * <p>
+         * The owner's, not the enemy's: it says how many more strikes he can mount, and
+         * G4.233 keeps even the drone TYPES aboard from being read off a scan.
+         */
+        public Double droneStorageSpaces;
+        public Double droneStorageHeld;
         public boolean activeFireControl;
         public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
         public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
@@ -1137,6 +1155,11 @@ public class GameStateDto {
         dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged = ship.isCapacitorsCharged();
         dto.fighterCapacitorRoom = ship.getShuttles().capacitorPowerWanted();
+        com.sfb.systemgroups.DroneStore droneStore = ship.getShuttles().getDroneStore();
+        if (droneStore != null) {
+            dto.droneStorageSpaces = droneStore.capacitySpaces();
+            dto.droneStorageHeld = droneStore.spacesHeld();
+        }
         dto.activeFireControl = ship.isActiveFireControl();
         dto.usingEm = ship.isUsingEm();
         dto.erraticCost = ship.getPerformanceData().getErraticCost();
@@ -1502,15 +1525,25 @@ public class GameStateDto {
                     spaceDto.damage = space.getShuttle().getHull()
                             - space.getShuttle().getCurrentHull();
                 }
+                if (space.getReadyRack() != null) {
+                    spaceDto.readyRackCount = space.getReadyRack().count();
+                    spaceDto.readyRackCapacity = space.getReadyRack().capacity();
+                }
                 if (space.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
                     spaceDto.workOutstanding = com.sfb.systemgroups.FighterArming
                             .halfActionsOutstanding(space.getShuttle());
                     spaceDto.crewsWanted = Math.min(2,
                             (spaceDto.workOutstanding + 1) / 2);
+                }
+                // Offered for an EMPTY box too, and only because of REFILL: J4.8223 has the
+                // crews restock the racks while the fighters are away, so the box whose
+                // fighter just launched is exactly the one with work in it.
+                if (space.getShuttle() instanceof com.sfb.objects.shuttles.Fighter
+                        || space.getReadyRack() != null) {
                     for (com.sfb.systemgroups.CrewTask task
                             : com.sfb.systemgroups.CrewTask.values()) {
                         int n = com.sfb.systemgroups.Shuttles.crewsWantedFor(
-                                task, space, space.getShuttle());
+                                task, space, space.getShuttle(), droneStore);
                         if (n > 0)
                             spaceDto.crewJobs.put(task.name(), n);
                     }
@@ -1658,6 +1691,9 @@ public class GameStateDto {
         dto.phaserCapacitor = 0;          // the SSD maximum stays public
         dto.capacitorsCharged = false;
         dto.fighterCapacitorRoom = 0;     // how spent his fighters are is his business
+        // How many more strikes he can mount (J4.7), and G4.233 for what is in the crates.
+        dto.droneStorageSpaces = null;
+        dto.droneStorageHeld = null;
 
         // Having BOUGHT Erratic Maneuvers is an intention; using them is a manoeuvre
         // everyone can see (C10.11 versus C10.0), so usingEm and the announcement stay.

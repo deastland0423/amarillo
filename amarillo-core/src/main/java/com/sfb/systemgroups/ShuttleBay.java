@@ -354,11 +354,19 @@ public class ShuttleBay {
      * @param turn the turn that is ending
      */
     public RearmResult rearmFighters(int turn) {
+        return rearmFighters(turn, null);
+    }
+
+    /**
+     * As above, with the ship's drone supply so {@link CrewTask#REFILL} has somewhere to
+     * fetch from (J4.7). A bay given no store simply finds no refilling to do.
+     */
+    public RearmResult rearmFighters(int turn, DroneStore store) {
         List<String> log = new ArrayList<>();
         int crewsUsed = 0;
 
         for (ShuttleSpace space : spaces) {
-            if (space.isDestroyed() || space.isEmpty())
+            if (space.isDestroyed())
                 continue;
             if (space.getDeckCrews() <= 0)
                 continue; // nobody was posted here, or they died with an earlier hit
@@ -369,11 +377,17 @@ public class ShuttleBay {
             // It has to have sat the whole turn. A fighter recovered DURING this turn has
             // not,
             // and neither has one that launched and came back.
-            if (space.getOccupiedSinceTurn() >= turn)
+            //
+            // An EMPTY box is exempt, and deliberately: J4.8223 has the crews refill the
+            // racks while the fighters are away, so the box whose fighter left this turn is
+            // exactly the one that wants the work. There is no occupant to have sat still.
+            if (occupant != null && space.getOccupiedSinceTurn() >= turn)
                 continue;
 
             for (java.util.Map.Entry<CrewTask, Integer> job : space.getCrewTasks().entrySet()) {
-                RearmResult one = work(job.getKey(), space, occupant, job.getValue());
+                if (occupant == null && job.getKey() != CrewTask.REFILL)
+                    continue;
+                RearmResult one = work(job.getKey(), space, occupant, job.getValue(), store);
                 log.addAll(one.log());
                 crewsUsed += one.crewsUsed();
             }
@@ -393,12 +407,14 @@ public class ShuttleBay {
      * this
      * fighter, and the crews it SPENT are the actions that came back.
      */
-    private RearmResult work(CrewTask task, ShuttleSpace space, Shuttle fighter, int crews) {
+    private RearmResult work(CrewTask task, ShuttleSpace space, Shuttle fighter, int crews,
+            DroneStore store) {
         int budget = Math.min(2, crews) * FighterArming.HALF_ACTIONS_PER_ACTION;
         FighterArming.Load load = switch (task) {
             case LOAD -> FighterArming.load(space, fighter, budget);
             case UNLOAD -> FighterArming.unload(space, fighter, budget);
             case REPAIR -> FighterArming.repair(space, fighter, budget);
+            case REFILL -> FighterArming.refill(space, store, budget);
         };
         if (load.note() == null)
             return RearmResult.NOTHING;

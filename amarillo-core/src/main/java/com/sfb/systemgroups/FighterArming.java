@@ -25,12 +25,11 @@ import com.sfb.weapons.Weapon;
  * </ul>
  * One crew working one turn is one action, so two half-actions.
  *
- * <h2>What it will not do yet</h2>
- * Drone-armed fighters are PRICED here but not loaded: J4.82 moves drones from the ship's
- * stores to a ready rack and from there onto the fighter, and we model neither store nor rack
- * (the rack is still a bare boolean on {@link ShuttleSpace}). Pricing them now is what lets
- * the weapon status budget be right when the racks arrive; loading them would mean inventing
- * drones out of nothing, so it refuses instead.
+ * <h2>The two legs of a drone's journey</h2>
+ * J4.82 moves a drone from the ship's stores to the box's ready rack, and from the rack onto
+ * the fighter. J4.821 prices BOTH at one action per space, so a type-I costs two actions to
+ * get from the hold onto a rail. {@link #refill} is the first leg and {@link #load} the
+ * second; {@link DroneStore} and {@link ReadyRack} are the two places it rests.
  */
 public final class FighterArming {
 
@@ -268,6 +267,63 @@ public final class FighterArming {
                 + box.getCapacitorCharges() + " left in the box (J4.833)");
     }
 
+    /**
+     * Move drones from the ship's stores up into this box's ready rack (J4.82, J4.821).
+     * <p>
+     * The first leg of the journey, and the one that decides whether a carrier is still a
+     * carrier on turn four. J4.821 prices it at "one action (per space)" — the same rate as
+     * loading a fighter from the rack, so the hold-to-rail round trip is two actions a space.
+     * <p>
+     * What goes in is what this rack was built to hold: the rack knows its own shape from the
+     * rails of the fighter it services (J4.8222), so a slot that wants a type-VI is offered a
+     * type-VI and not the type-I sitting next to it in the hold.
+     *
+     * @param box               the fighter box whose rack is being filled
+     * @param store             the ship's supply (J4.7); null or empty means nothing to fetch
+     * @param halfActionBudget  crew work available for THIS rack
+     * @return what was done; {@link Load#note()} is null when there was nothing to do
+     */
+    public static Load refill(ShuttleSpace box, DroneStore store, int halfActionBudget) {
+        ReadyRack rack = box.getReadyRack();
+        if (rack == null || store == null || halfActionBudget <= 0 || rack.isFull())
+            return Load.NOTHING;
+        if (store.isEmpty())
+            return new Load(0, 0, box.getShuttle() == null ? null
+                    : box.getShuttle().getName() + ": drone stores empty, ready rack not"
+                            + " refilled (J4.7)");
+
+        int budget = halfActionBudget;
+        int moved = 0;
+        // The rack's shape is the shape of the fighter it serves, so ask for the slots it is
+        // short of, largest first — the awkward ones are the ones a part-filled hold runs out
+        // of, and a type-I fetched for a light rail would be a wasted trip.
+        for (com.sfb.objects.DroneType want : rack.slotsMissing()) {
+            com.sfb.objects.Drone drone = store.take(want);
+            if (drone == null)
+                drone = store.take();       // stores hold something else; it still beats empty
+            if (drone == null)
+                break;                      // hold is empty
+            int cost = halfActionsFor(drone);
+            if (budget < cost || !rack.put(drone)) {
+                store.put(drone);           // back in the hold; it never left the ship
+                break;
+            }
+            budget -= cost;
+            moved++;
+        }
+
+        if (moved == 0)
+            return Load.NOTHING;
+        return new Load(halfActionBudget - budget, moved, rackOwnerName(box) + ": " + moved
+                + " drone" + (moved == 1 ? "" : "s") + " moved from stores to the ready rack, "
+                + rack.count() + "/" + rack.capacity() + " in it now (J4.821)");
+    }
+
+    /** What to call a box in the log when its fighter is away and cannot name it. */
+    private static String rackOwnerName(ShuttleSpace box) {
+        return box.getShuttle() == null ? "Ready rack" : box.getShuttle().getName();
+    }
+
     // -------------------------------------------------------------------------
     // The other direction
     // -------------------------------------------------------------------------
@@ -339,9 +395,9 @@ public final class FighterArming {
      * never anywhere else (J4.886), and the box plus its fighter have to keep accounting for
      * exactly one capacitor.
      * <p>
-     * A drone-armed fighter is untouched: its drones would have to go back to the ship's
-     * stores, which J4.82 defines and we do not model, and dropping them on the floor is how
-     * a supply that is not tracked becomes a supply that is infinite.
+     * A drone-armed fighter puts its drones back in its own box's ready rack instead, which
+     * is where J4.8223 says they rest; they are never dropped on the floor, because a supply
+     * that is not tracked is a supply that is infinite.
      *
      * @return charges returned to the box
      */

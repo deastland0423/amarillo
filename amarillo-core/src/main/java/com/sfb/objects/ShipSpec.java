@@ -83,6 +83,17 @@ public class ShipSpec {
      */
     public String carrierClass;
     /**
+     * Spaces of spare drones this carrier holds for its fighters (J4.7).
+     * <p>
+     * Per ship, out of Annex #7G, and declared rather than derived: the rulebook prints only
+     * the Kzinti CV's 150 and there is no formula behind the rest. J4.72 makes this the TOTAL
+     * — the ready racks and the fighters' own loads come out of it, not on top of it.
+     * <p>
+     * Zero means no supply, which is the honest answer for every hull whose Annex #7G line we
+     * have not read: its racks hold what they hold and cannot be refilled.
+     */
+    public double droneStorageSpaces;
+    /**
      * Heavy battlecruiser. No more than one may be in a battle force, though it needs no
      * squadron of followers and may be there alongside the one allowed size class 2 ship
      * (S8.333).
@@ -274,6 +285,8 @@ public class ShipSpec {
             m.put("requiresescort", true);
         if (carrierClass != null)
             m.put("carrierclass", carrierClass);
+        if (droneStorageSpaces > 0)
+            m.put("dronestoragespaces", droneStorageSpaces);
         if (isBCH)
             m.put("isbch", true);
         if (stealthBonus > 0)

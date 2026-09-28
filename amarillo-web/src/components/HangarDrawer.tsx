@@ -34,10 +34,18 @@ const TAB_WIDTH_PX = 28;
 /** J4.8172: two deck crews on one fighter and no more, however many jobs they split between. */
 const MAX_CREWS_PER_BOX = 2;
 
+/**
+ * J4.8172 again: "two MORE deck crews can load the ready rack in that box". Refilling has
+ * its own pair and does not eat into the two working the fighter, so the box's ceiling is
+ * counted twice over — once for fighter work, once for the rack.
+ */
+const RACK_TASKS = new Set(['REFILL']);
+
 const TASK_LABEL: Record<string, string> = {
   LOAD:   'load',
   UNLOAD: 'unload',
   REPAIR: 'repair',
+  REFILL: 'refill rack',
 };
 
 /** The box's id on the wire — bay index and space index, as Shuttles.boxId() builds it. */
@@ -58,10 +66,19 @@ function occupantLine(space: ShuttleSpaceState, shipName: string): string {
 
 /** What state it is in: charges aboard, damage, and any special role it is playing. */
 function stateLine(space: ShuttleSpaceState): string {
-  if (space.destroyed || !space.shuttle) return '';
+  if (space.destroyed) return '';
+  // An empty box is not a blank row: its ready rack is still there and still stockable
+  // while the fighter is away (J4.8223), which is the whole point of the refill job.
+  if (!space.shuttle) {
+    return space.readyRackCapacity != null
+      ? `ready rack ${space.readyRackCount ?? 0}/${space.readyRackCapacity}`
+      : '';
+  }
   const bits: string[] = [];
   const s = space.shuttle;
 
+  if (space.readyRackCapacity != null)
+    bits.push(`ready rack ${space.readyRackCount ?? 0}/${space.readyRackCapacity}`);
   if ((space.capacitorCapacity ?? 0) > 0) {
     bits.push(`${space.chargesAboard ?? 0} loaded`);
     bits.push(`capacitor ${space.capacitorCharges ?? 0}/${space.capacitorCapacity}`);
@@ -159,7 +176,8 @@ export function HangarDrawer({
 
   const wantsAttention = (sp: ShuttleSpaceState) =>
     Object.keys(sp.crewJobs ?? {}).length > 0
-    || (sp.capacitorCharges ?? 0) < (sp.capacitorCapacity ?? 0);
+    || (sp.capacitorCharges ?? 0) < (sp.capacitorCapacity ?? 0)
+    || (sp.readyRackCapacity != null && (sp.readyRackCount ?? 0) < sp.readyRackCapacity);
 
   // The tab's count: whether the panel is worth opening at all.
   const needy = bays.flatMap(b => b.spaces ?? []).filter(wantsAttention).length;
@@ -192,9 +210,14 @@ export function HangarDrawer({
     onCapsByBox(next);
   }
 
-  function crewsInBox(key: string): number {
+  /**
+   * Crews posted in this box to one KIND of work — J4.8172 gives the fighter two and the
+   * ready rack two more, so they are counted against separate ceilings.
+   */
+  function crewsInBox(key: string, rackWork: boolean): number {
     return Object.entries(crewPostings)
-      .filter(([k]) => k.startsWith(`${key}:`))
+      .filter(([k]) => k.startsWith(`${key}:`)
+          && RACK_TASKS.has(k.slice(key.length + 1)) === rackWork)
       .reduce((sum, [, n]) => sum + n, 0);
   }
 
@@ -203,19 +226,27 @@ export function HangarDrawer({
     const key = boxId(bay, space);
     const s = space.shuttle;
     const out: React.ReactNode[] = [];
-    if (space.destroyed || !s) return out;
+    // A destroyed box is finished with. An EMPTY one is not: its rack can still be restocked
+    // while its fighter is on its mission (J4.8223), and the server offers that job.
+    if (space.destroyed || (!s && space.readyRackCapacity == null)) return out;
 
-    // Deck crew jobs (J4.817) — one control each, capped together at two on a fighter.
+    // Deck crew jobs (J4.817) — one control each, capped at two on the fighter and two more
+    // on the rack (J4.8172).
     for (const [task, maxCrews] of Object.entries(space.crewJobs ?? {})) {
       const jobKey = `${key}:${task}`;
       const posted = crewPostings[jobKey] ?? 0;
-      const boxRoom = MAX_CREWS_PER_BOX - crewsInBox(key) + posted;
+      const boxRoom =
+        MAX_CREWS_PER_BOX - crewsInBox(key, RACK_TASKS.has(task)) + posted;
       out.push(
         <Stepper key={jobKey} value={posted} min={0}
           max={Math.min(maxCrews, boxRoom, posted + crewsFree)}
           onChange={n => postCrews(jobKey, n)}
           label={TASK_LABEL[task] ?? task.toLowerCase()} />);
     }
+
+    // Everything below needs something sitting in the box. Refilling the rack was the one
+    // job that did not, and it is already on the list.
+    if (!s) return out;
 
     // The box's own capacitor (J4.832), which serves only the fighter in it (J4.881).
     if ((space.capacitorCapacity ?? 0) > 0) {
@@ -349,6 +380,15 @@ export function HangarDrawer({
                 visible while the player works anywhere down the list. */}
             <span className="hangar-budget">
               deck crews {crewsFree}/{crews}
+              {/* J4.7: the ship's own supply of spare drones, in spaces. Pinned beside the
+                  crews because it is the other thing a refill spends, and the one that does
+                  not come back — it says how many more strikes this carrier can mount. */}
+              {ship.droneStorageSpaces != null && (<>
+                <span className="ea-note-dim"> · </span>
+                <span title="J4.7: spaces of spare drones still in the hold">
+                  drones {(ship.droneStorageHeld ?? 0)}/{ship.droneStorageSpaces}
+                </span>
+              </>)}
               <span className="ea-note-dim"> · </span>
               <span className={spent > total ? 'over' : ''}>{spent.toFixed(1)}/{total}</span>
             </span>

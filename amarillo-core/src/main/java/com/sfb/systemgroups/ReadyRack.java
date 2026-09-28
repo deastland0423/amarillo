@@ -35,11 +35,21 @@ public class ReadyRack {
     /** How many drones a full rack holds: one reload for the fighter it serves. */
     private final int capacity;
 
+    /**
+     * The shape of a full rack — one entry per slot, of what that slot was built to hold.
+     * <p>
+     * Kept because a part-empty rack has to be able to say WHAT it is short of, not just how
+     * many: a TAAS rack missing a light slot and a standard one wants a type-VI and a type-I,
+     * and a refill that fetched two type-Is would bring one the fighter cannot load.
+     */
+    private final List<DroneType> design;
+
     private final List<Drone> drones = new ArrayList<>();
 
     private ReadyRack(String servesFighterType, List<DroneType> stock) {
         this.servesFighterType = servesFighterType;
         this.capacity = stock.size();
+        this.design = List.copyOf(stock);
         for (DroneType type : stock)
             drones.add(new Drone(type));   // J4.8223/J4.886: racks start full
     }
@@ -100,6 +110,26 @@ public class ReadyRack {
         if (best != null)
             drones.remove(best);
         return best;
+    }
+
+    /** One entry per slot, of what a full rack of this shape holds (J4.8222). */
+    public List<DroneType> design() {
+        return design;
+    }
+
+    /**
+     * The slots this rack is short of, largest first — what a refill should go and fetch.
+     * <p>
+     * A multiset difference rather than a count: a rack holding a spare type-VI where a
+     * type-I belongs is short of the type-I, however full it looks. Largest first because
+     * those are the ones a part-stocked hold runs out of.
+     */
+    public List<DroneType> slotsMissing() {
+        List<DroneType> missing = new ArrayList<>(design);
+        for (Drone held : drones)
+            missing.remove(held.getDroneType());   // removes one matching slot, not all
+        missing.sort((a, b) -> Double.compare(b.rack, a.rack));
+        return missing;
     }
 
     /** Spaces the drones in here take up — what the fighter's load is measured in (FD7.211). */

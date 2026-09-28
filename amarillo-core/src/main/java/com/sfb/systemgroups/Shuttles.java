@@ -19,6 +19,9 @@ public class Shuttles implements Systems {
     /** What the end-of-turn rearm pass did, for the owner's own readout (J4.8175). */
     private final List<String> lastRearmLog = new ArrayList<>();
 
+    /** The carrier's supply of spare drones for its fighters (J4.7); null if it carries none. */
+    private DroneStore droneStore;
+
     public Shuttles(Unit owner) {
         this.owningUnit = owner;
     }
@@ -70,7 +73,72 @@ public class Shuttles implements Systems {
                 bays.add(bay);
             }
         }
+
+        stockDroneStore(values.get("dronestoragespaces"));
     }
+
+    /**
+     * Build the carrier's drone supply (J4.7) from the spaces its ship file declares.
+     * <p>
+     * The number is per ship, out of Annex #7G — the rulebook prints only the Kzinti CV's 150
+     * — so it is declared in the ship file rather than derived. A ship that declares none has
+     * no supply: its racks hold what they hold and no more, which is the honest answer for
+     * every hull whose Annex #7G line we have not read.
+     * <p>
+     * J4.72 decides how much goes in the hold: drones in the ready racks and on the fighters
+     * "count as part of the ship's storage", so the declared figure is the TOTAL and what is
+     * already forward is deducted. Racks start full (J4.886), so a twelve-AAS carrier has
+     * around two dozen of its spaces committed before the scenario opens.
+     */
+    private void stockDroneStore(Object declared) {
+        if (!(declared instanceof Number n) || n.doubleValue() <= 0)
+            return;
+        droneStore = new DroneStore(n.doubleValue());
+        List<com.sfb.objects.DroneType> pattern = droneLoadoutPattern();
+        if (pattern.isEmpty())
+            return;   // nothing aboard that takes drones; the hold stays empty
+        droneStore.stock(pattern, droneStore.capacitySpaces() - spacesCommittedForward());
+    }
+
+    /**
+     * What the ship's drone fighters are built around — one entry per rail, of what that rail
+     * is designed to carry. The quartermaster's stocking list, and the proportions a mixed
+     * squadron actually needs.
+     */
+    private List<com.sfb.objects.DroneType> droneLoadoutPattern() {
+        List<com.sfb.objects.DroneType> pattern = new ArrayList<>();
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace box : bay.getSpaces())
+                if (box.getReadyRack() != null)
+                    pattern.addAll(box.getReadyRack().design());
+        return pattern;
+    }
+
+    /**
+     * Spaces of the ship's storage already moved forward — in the ready racks and on the
+     * fighters themselves (J4.72). Deducted from the declared total, never added to it.
+     */
+    public double spacesCommittedForward() {
+        double committed = 0;
+        for (ShuttleBay bay : bays) {
+            for (ShuttleSpace box : bay.getSpaces()) {
+                if (box.isDestroyed())
+                    continue;
+                if (box.getReadyRack() != null)
+                    committed += box.getReadyRack().spaces();
+                Shuttle occupant = box.getShuttle();
+                if (occupant == null)
+                    continue;
+                for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
+                    if (w instanceof com.sfb.weapons.DroneRail rail && rail.getDrone() != null)
+                        committed += rail.getDrone().getRackSize();
+            }
+        }
+        return committed;
+    }
+
+    /** The carrier's drone supply (J4.7), or null if this ship declares none. */
+    public DroneStore getDroneStore() { return droneStore; }
 
     @Override
     public int fetchOriginalTotalBoxes() {
@@ -244,18 +312,22 @@ public class Shuttles implements Systems {
             for (int i = 0; i < spaces.size(); i++) {
                 ShuttleSpace box = spaces.get(i);
                 box.clearCrews();
-                if (left <= 0 || box.isDestroyed() || box.isEmpty())
+                if (left <= 0 || box.isDestroyed())
                     continue;
-                if (!(box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter fighter))
+                // An empty box is not an idle one: its rack can still be refilled while its
+                // fighter is away (J4.8223), which is the only job that does not need an
+                // occupant. Everything else wants a fighter to work on.
+                boolean hasFighter =
+                        box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter;
+                if (!hasFighter && !(ordered && box.getReadyRack() != null))
                     continue;
-                int wanted = crewsWantedBy(fighter);
-                if (!ordered && wanted == 0)
-                    continue;   // no work here, so nobody stands in this box to be shot
+                com.sfb.objects.shuttles.Shuttle fighter = box.getShuttle();
 
                 if (!ordered) {
+                    int wanted = crewsWantedBy(fighter);
                     int posted = Math.min(wanted, left);
                     if (posted <= 0)
-                        continue;
+                        continue;   // no work here, so nobody stands in this box to be shot
                     box.setDeckCrews(posted);   // the obvious job, first come
                     left -= posted;
                     continue;
@@ -264,19 +336,29 @@ public class Shuttles implements Systems {
                 // An order names jobs, not boxes: "1-3:LOAD" and "1-3:REPAIR" can both be on
                 // the same fighter, held together to J4.8172's two crews. Each job is checked
                 // on its own — a box with nothing to load is still somewhere to unload.
-                int inThisBox = 0;
+                //
+                // Refilling the rack is the exception J4.8172 spells out: "two MORE deck crews
+                // can load the ready rack in that box", so it carries its own allowance of two
+                // rather than competing with the pair working the fighter.
+                int onFighter = 0;
+                int onRack = 0;
                 for (CrewTask task : CrewTask.values()) {
                     Integer order = requested.get(task.keyFor(boxId(b, i)));
                     if (order == null || order <= 0)
                         continue;
-                    if (crewsWantedFor(task, box, fighter) <= 0)
+                    if (crewsWantedFor(task, box, fighter, droneStore) <= 0)
                         continue;
-                    int room = Math.min(2 - inThisBox, left);
+                    int used = task.isFighterWork() ? onFighter : onRack;
+                    int room = Math.min(2 - used, left);
                     int posted = Math.min(order, room);
                     if (posted <= 0)
                         continue;
-                    box.postCrews(task, posted);
-                    inThisBox += posted;
+                    if (!box.postCrews(task, posted))
+                        continue;   // J4.8172 will not have this one beside what is posted
+                    if (task.isFighterWork())
+                        onFighter += posted;
+                    else
+                        onRack += posted;
                     left -= posted;
                 }
             }
@@ -318,6 +400,22 @@ public class Shuttles implements Systems {
      */
     public static int crewsWantedFor(CrewTask task, ShuttleSpace box,
             com.sfb.objects.shuttles.Shuttle fighter) {
+        return crewsWantedFor(task, box, fighter, null);
+    }
+
+    /**
+     * As above, with the ship's drone supply, which only {@link CrewTask#REFILL} needs: with
+     * no store there is nothing to fetch, so the job is not offered at all.
+     */
+    public static int crewsWantedFor(CrewTask task, ShuttleSpace box,
+            com.sfb.objects.shuttles.Shuttle fighter, DroneStore store) {
+        // J4.8172: a rack cannot be filled and drawn from in the same turn, so a job that
+        // conflicts with one already posted here is not on offer either.
+        if (!box.canPost(task))
+            return 0;
+        // An empty box has no fighter to load, unload or mend; only its rack can be worked on.
+        if (fighter == null && task != CrewTask.REFILL)
+            return 0;
         int half = switch (task) {
             case LOAD -> FighterArming.halfActionsOutstanding(fighter);
             // Worth a crew only if there is something to take off AND somewhere to put it:
@@ -328,6 +426,10 @@ public class Shuttles implements Systems {
             // under its crippling threshold, so this competes with loading for a reason.
             case REPAIR -> (fighter.getHull() - fighter.getCurrentHull())
                     * FighterArming.HALF_ACTIONS_PER_ACTION;
+            // J4.821 prices the trip from the hold at one action a space, and there has to be
+            // both a gap in the rack and something in the hold to put in it.
+            case REFILL -> store == null || store.isEmpty() || box.getReadyRack() == null
+                    ? 0 : refillHalfActionsWanted(box, store);
         };
         if (half <= 0)
             return 0;
@@ -347,16 +449,34 @@ public class Shuttles implements Systems {
             java.util.List<ShuttleSpace> spaces = bays.get(b).getSpaces();
             for (int i = 0; i < spaces.size(); i++) {
                 ShuttleSpace box = spaces.get(i);
-                if (box.isDestroyed() || box.isEmpty())
+                if (box.isDestroyed())
                     continue;
                 for (CrewTask task : CrewTask.values()) {
-                    int n = crewsWantedFor(task, box, box.getShuttle());
+                    // An EMPTY box still has work: J4.8223 has the crews refill the racks
+                    // "while the fighters are on their mission so that the fighters can be
+                    // reloaded quickly when they return". That is the whole point of the job,
+                    // so it is the one task an empty box still offers.
+                    if (box.isEmpty() && task != CrewTask.REFILL)
+                        continue;
+                    int n = crewsWantedFor(task, box, box.getShuttle(), droneStore);
                     if (n > 0)
                         jobs.put(task.keyFor(boxId(b, i)), n);
                 }
             }
         }
         return jobs;
+    }
+
+    /**
+     * Half-actions the gap in this rack would take to close, at J4.821's action a space,
+     * bounded by what the hold can actually supply.
+     */
+    private static int refillHalfActionsWanted(ShuttleSpace box, DroneStore store) {
+        double spaces = 0;
+        for (com.sfb.objects.DroneType want : box.getReadyRack().slotsMissing())
+            spaces += want.rack;
+        spaces = Math.min(spaces, store.spacesHeld());
+        return (int) Math.round(spaces * FighterArming.HALF_ACTIONS_PER_ACTION);
     }
 
     /** Crews this fighter's outstanding work could use, at most the two J4.8172 allows. */
@@ -382,7 +502,7 @@ public class Shuttles implements Systems {
             return;
         int turn = clock.getTurn();
         for (ShuttleBay bay : bays) {
-            ShuttleBay.RearmResult result = bay.rearmFighters(turn);
+            ShuttleBay.RearmResult result = bay.rearmFighters(turn, droneStore);
             lastRearmLog.addAll(result.log());
         }
         // The posting lasted the turn; the crews stand down with it. J4.817 actions that span

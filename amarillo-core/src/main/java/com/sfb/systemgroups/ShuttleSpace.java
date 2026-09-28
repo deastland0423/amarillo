@@ -207,12 +207,34 @@ public class ShuttleSpace {
             crewTasks.put(CrewTask.LOAD, deckCrews);
     }
 
-    /** Post crews to one particular job; zero takes them off it. */
-    public void postCrews(CrewTask task, int crews) {
-        if (crews <= 0)
+    /**
+     * Post crews to one particular job; zero takes them off it.
+     * <p>
+     * Refuses a job J4.8172 will not let run beside one already posted here — filling the
+     * ready rack while it is being drawn from to arm the fighter. The refusal is here rather
+     * than at the end-of-turn pass so an impossible order is rejected when it is given,
+     * while the player can still give a different one.
+     *
+     * @return false if the posting was refused as conflicting; true otherwise
+     */
+    public boolean postCrews(CrewTask task, int crews) {
+        if (crews <= 0) {
             crewTasks.remove(task);
-        else
-            crewTasks.put(task, crews);
+            return true;
+        }
+        for (CrewTask posted : crewTasks.keySet())
+            if (task.conflictsWith(posted))
+                return false;   // J4.8172: not both on the same rack in the same turn
+        crewTasks.put(task, crews);
+        return true;
+    }
+
+    /** Whether J4.8172 would let this job be posted here alongside what is already posted. */
+    public boolean canPost(CrewTask task) {
+        for (CrewTask posted : crewTasks.keySet())
+            if (task.conflictsWith(posted))
+                return false;
+        return true;
     }
 
     public int getCrews(CrewTask task) {

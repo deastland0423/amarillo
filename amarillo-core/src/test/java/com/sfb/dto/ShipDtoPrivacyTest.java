@@ -57,6 +57,10 @@ public class ShipDtoPrivacyTest {
         // How spent the fighters in his bays are, by way of what their box capacitors
         // still have room for (J4.832)
         "fighterCapacitorRoom",
+        // The carrier's drone supply (J4.7) and what is left of it. How many more strikes he
+        // can mount is exactly the thing a carrier duel turns on, and G4.233 keeps even the
+        // types in the crates off a scan.
+        "droneStorageSpaces", "droneStorageHeld",
         "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",

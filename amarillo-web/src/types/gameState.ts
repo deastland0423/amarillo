@@ -121,6 +121,11 @@ export interface ShuttleSpaceState {
   capacitorRoom?:   number;
   postedCrews?:     number;
   workOutstanding?: number;
+  // J4.822: drones in this box's ready rack and what it holds full — the drone fighter's
+  // answer to the capacitor. Absent (not 0) on a box that never had a rack, so the guard
+  // is != null: a rack emptied by a strike really does read 0.
+  readyRackCount?:    number;
+  readyRackCapacity?: number;
 }
 
 export interface ShuttleBayState {
@@ -174,6 +179,13 @@ export interface ShipObject extends MapObjectBase {
   capacitorsCharged:  boolean;
   // J4.832: power the fighter box capacitors could still take. 0 = nothing to buy.
   fighterCapacitorRoom?: number;
+  /**
+   * J4.7: spaces of spare drones this carrier holds for its fighters, and how much is still
+   * in the hold. Absent on a ship that declares no storage — which is not a carrier that has
+   * run dry, so test with != null.
+   */
+  droneStorageSpaces?: number;
+  droneStorageHeld?:   number;
   // Power
   availableLWarp:   number;
   availableRWarp:   number;
