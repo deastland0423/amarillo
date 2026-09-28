@@ -669,6 +669,11 @@ class LaunchCoordinator {
         // The Wild Weasel launch deliberately does NOT do this: J3.132 turns the
         // launcher's fire control off and clears its lock-ons, and this would undo that.
         java.util.List<String> lockLog = game.checkLockOnsForNewUnit(launcher, launched);
+        // ...and the other direction, which the line above does not cover: what the new
+        // craft can see. A drone fighter needs its own lock-on to launch anything
+        // (D6.121), and the turn-start sweep has already been and gone.
+        if (launched instanceof com.sfb.objects.shuttles.Fighter fighter)
+            game.acquireFighterLockOns(fighter);
         String msg = launcher.getName() + " launched shuttle " + launched.getName();
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);

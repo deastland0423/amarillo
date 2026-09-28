@@ -144,19 +144,35 @@ class LockOnResolver {
      * so every fighter here is an active-fire-control one by construction.
      */
     private void rollFighterLockOns() {
-        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles) {
-            if (!(craft instanceof com.sfb.objects.shuttles.Fighter fighter))
-                continue;
-            if (fighter.getControlCapacity() <= 0)
-                continue;   // carries no drones; nothing it does needs its own lock-on
-            fighter.getLockOns().clear();
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles)
+            if (craft instanceof com.sfb.objects.shuttles.Fighter fighter)
+                sweepFighterLockOns(fighter);
+    }
 
-            for (Ship target : ships)
+    /**
+     * Give one fighter its lock-ons, clearing what it held first.
+     * <p>
+     * Public because the turn-start sweep is not the only moment one is needed. A fighter
+     * launched mid-turn is not on the map when that sweep runs, so without this it would
+     * hold nothing until the NEXT turn began — and J1.341 clears it to launch a drone
+     * sixteen impulses after it left the bay, which is usually still the same turn. Launch
+     * on impulse 5, be told on impulse 21 that you have no lock-on to anything.
+     * <p>
+     * There is no roll to defer: J1.31 gives a shuttle sensor rating six, automatic under
+     * D6.11, so acquiring at launch is not the fighter getting a favour. J1.344 agrees on
+     * the timing — a shuttle launches WITH active fire control unless its owner says
+     * otherwise.
+     */
+    void sweepFighterLockOns(com.sfb.objects.shuttles.Fighter fighter) {
+        if (fighter.getControlCapacity() <= 0)
+            return;   // carries no drones; nothing it does needs a lock-on of its own
+        fighter.getLockOns().clear();
+
+        for (Ship target : ships)
+            acquireFighterLockOn(fighter, target);
+        for (com.sfb.objects.shuttles.Shuttle target : activeShuttles)
+            if (target != fighter)
                 acquireFighterLockOn(fighter, target);
-            for (com.sfb.objects.shuttles.Shuttle target : activeShuttles)
-                if (target != fighter)
-                    acquireFighterLockOn(fighter, target);
-        }
     }
 
     /** Sensor rating six is automatic (D6.11); only line of sight can refuse it. */

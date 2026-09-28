@@ -180,4 +180,71 @@ public class FighterDroneLaunchTest {
 
         assertFalse(result.isSuccess());
     }
+
+    // -------------------------------------------------------------------------
+    // Lock-on at the moment of launch
+    // -------------------------------------------------------------------------
+
+    /**
+     * A fighter takes its lock-ons as it leaves the bay, not at the next turn boundary.
+     * <p>
+     * The turn-start sweep runs once, in startTurn, and a fighter still in its bay is not
+     * on the map to be swept. So a craft launched on impulse 5 held nothing until the next
+     * turn began — while J1.341 clears it to launch a drone on impulse 21, which is usually
+     * the SAME turn. Launch on 5, be refused on 21 for want of a lock-on, with nothing
+     * having gone wrong.
+     * <p>
+     * There is no roll being skipped: J1.31 gives a shuttle sensor rating six, automatic
+     * under D6.11, and J1.344 has it launch with active fire control unless its owner says
+     * otherwise.
+     */
+    @Test
+    public void aFighterHasItsLockOnsTheImpulseItLaunches() {
+        Game g = new Game();
+        Player kz = new Player();
+        kz.setTeamName("Kzinti");
+        Player fed = new Player();
+        fed.setTeamName("Federation");
+
+        Ship carrier;
+        try {
+            carrier = com.sfb.objects.ShipLibrary.createShip(
+                    com.sfb.objects.ShipSpec.fromJson(
+                            new java.io.File("../data/factions/kzinti/cv.json")));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+        carrier.setName("KHS Sabre");
+        carrier.setLocation(new Location(10, 10));
+        carrier.setFacing(1);
+        carrier.setOwner(kz);
+        g.getShips().add(carrier);
+
+        Ship victim = new Ship();
+        victim.init(com.sfb.samples.FederationShips.getFedCa());
+        victim.setName("USS Bystander");
+        victim.setLocation(new Location(13, 10));
+        victim.setFacing(13);
+        victim.setOwner(fed);
+        g.getShips().add(victim);
+
+        g.startTurn();   // the one lock-on sweep of the turn happens HERE, bay still shut
+
+        com.sfb.systemgroups.ShuttleBay bay = carrier.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.Shuttle craft = null;
+        for (com.sfb.objects.shuttles.Shuttle sh : bay.getInventory())
+            if (craft == null && sh instanceof Aas)
+                craft = sh;
+        assertNotNull("fixture needs a fighter in the bay", craft);
+
+        while (g.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            g.advancePhase();
+
+        Game.ActionResult launched = g.launchShuttle(carrier, bay, craft, 8, 1);
+        assertTrue(launched.getMessage(), launched.isSuccess());
+
+        Aas flier = (Aas) craft;
+        assertTrue("it must hold a lock-on the moment it is on the map, not next turn",
+                flier.hasLockOn(victim));
+    }
 }

@@ -488,6 +488,11 @@ public class Game {
     }
 
     /** Lock-on acquisition for a newly launched seeker (D6.121/D6.113). */
+    /** A fighter just off the deck takes its own lock-ons at once (J1.31, J1.344). */
+    void acquireFighterLockOns(com.sfb.objects.shuttles.Fighter fighter) {
+        lockOnResolver.sweepFighterLockOns(fighter);
+    }
+
     List<String> checkLockOnsForNewUnit(Ship launcher, Unit newUnit) {
         return lockOnResolver.checkLockOnsForNewUnit(launcher, newUnit);
     }
