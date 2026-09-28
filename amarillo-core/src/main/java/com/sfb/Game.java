@@ -687,14 +687,15 @@ public class Game {
      * sources of D6.314 so that rules which discriminate between them — D6.3146 above all
      * — can do so without re-deriving the sum.
      */
-    public com.sfb.properties.EwBreakdown ewAgainst(Ship actor, com.sfb.objects.Marker target) {
+    public com.sfb.properties.EwBreakdown ewAgainst(Unit actor, com.sfb.objects.Marker target) {
         // D6.3143: asteroid and ring hexes on the line (P3.33, P2.223). The other natural
         // sources D6.3143 names - Erratic Maneuvers, atmospheres, small target modifiers -
         // are not modelled yet; when they are, they belong here.
         int natural = terrainEcmAlongLine(actor.getLocation(), target.getLocation());
         // D6.3145: an enemy scout's O-EW degrades the ACTOR's systems (G24.219), so it
-        // counts whatever the actor points them at.
-        int offensive = actor.getOffensiveEw();
+        // counts whatever the actor points them at. Only ships are jammed that way; a
+        // fighter is not a scout's target for it.
+        int offensive = actor instanceof Ship s ? s.getOffensiveEw() : 0;
 
         // C10.41/C10.412: Erratic Maneuvers produce four points of ECM, and C10.412 is
         // explicit that they count as a NATURAL source (D6.3143) rather than against the
@@ -727,6 +728,22 @@ public class Game {
         }
         // A probe canister, a drone and an admin shuttle have no EW of their own at all.
         return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
+    }
+
+    /**
+     * The ECCM {@code actor} can bring to bear (D6.32: none at all without fire control).
+     * <p>
+     * A ship's is allocated and lent; a fighter's is the two points J4.47 builds in, and
+     * it has no fire control to lose — J1.344 launches it with active fire control unless
+     * its owner says otherwise, and the passive-launch declaration is not modelled.
+     */
+    public int eccmOf(Unit actor) {
+        if (actor instanceof Ship ship)
+            return ship.isActiveFireControl()
+                    ? ship.getEccmAllocated() + ship.getLentEccm() : 0;
+        if (actor instanceof com.sfb.objects.shuttles.Fighter fighter)
+            return fighter.getEccm();       // J4.47, two points built in
+        return 0;
     }
 
     /**
@@ -2511,11 +2528,8 @@ public class Game {
      * floor(sqrt(target ECM − attacker ECCM)), including offensive EW jamming the attacker
      * (G24.219). Mirrors the fire math in DamageResolver; usable for fire previews.
      */
-    public int fireEcmShift(Ship attacker, Ship target) {
-        int targetEcm = ewAgainst(attacker, target).total();
-        int attackerEccm = attacker.isActiveFireControl()
-                ? attacker.getEccmAllocated() + attacker.getLentEccm() : 0;
-        return netEcmShift(targetEcm - attackerEccm);
+    public int fireEcmShift(Unit attacker, com.sfb.objects.Marker target) {
+        return netEcmShift(ewAgainst(attacker, target).total() - eccmOf(attacker));
     }
 
     // -------------------------------------------------------------------------

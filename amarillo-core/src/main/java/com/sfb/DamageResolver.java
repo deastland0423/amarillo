@@ -676,25 +676,21 @@ class DamageResolver {
         // P3.33: asteroid/ring hexes on the line of fire add natural ECM to the
         // target (asteroid 1, ring ½), counted by ECCM like any other ECM.
         Ship targetShip = target instanceof Ship ? (Ship) target : null;
-        // D6.3144: lent ECM includes a Wild Weasel's six points (J3.23), capped across all
-        // lending sources. Direct fire used to ignore the weasel entirely, which made a
-        // weaselled ship harder to tractor than to shoot at.
-        int allocatedEcm = targetShip != null
-                ? targetShip.getEcmAllocated() + targetShip.getLentEcmTotal() : 0;
-        int stealthEcm = targetShip != null ? targetShip.getStealthEcm() : 0; // Orion G15.8
-        int terrainEcm = game.terrainEcmAlongLine(attacker.getLocation(), target.getLocation());
-        // Offensive EW jamming the attacker (G24.219) degrades its fire — it counts as ECM for
-        // every target it shoots at, on top of the target's own EW.
-        int offensiveEw = attackerShip != null ? attackerShip.getOffensiveEw() : 0;
-        int targetEcm = allocatedEcm + stealthEcm + terrainEcm + offensiveEw;
-        int attackerEccm = attackerShip != null && attackerShip.isActiveFireControl()
-                ? attackerShip.getEccmAllocated() + attackerShip.getLentEccm()
-                : 0;
+        // One EW calculation, not two. This used to assemble its own sum from the target's
+        // allocated, stealth and terrain ECM — which quietly omitted Erratic Maneuvers
+        // (C10.413/C10.414, four NATURAL points) and every scrap of a fighter's EW, while
+        // Game.fireEcmShift next door computed the preview correctly through ewAgainst. A
+        // player was shown one number and shot with another.
+        com.sfb.properties.EwBreakdown ew = game.ewAgainst(attacker, target);
+        int targetEcm = ew.total();
+        int attackerEccm = game.eccmOf(attacker);
         int netEcm = Math.max(0, targetEcm - attackerEccm);
         int ecmShift = Game.netEcmShift(netEcm);
         if (ecmShift > 0)
-            log.append("  ECM shift: +").append(ecmShift).append(" (target ECM ").append(allocatedEcm)
-                    .append(terrainEcm > 0 ? " +" + terrainEcm + " terrain" : "")
+            log.append("  ECM shift: +").append(ecmShift)
+                    .append(" (target ECM ").append(ew.generated() + ew.builtIn() + ew.lent())
+                    .append(ew.natural() > 0 ? " +" + ew.natural() + " natural" : "")
+                    .append(ew.offensive() > 0 ? " +" + ew.offensive() + " jamming" : "")
                     .append(", attacker ECCM ").append(attackerEccm).append(")\n");
 
         for (Weapon w : selected) {
