@@ -21,3 +21,9 @@ data/fleets/
 # committed: they are ADB's copyrighted product, watermarked with the buyer's
 # name and order number, and this repo has a public remote.
 data/rules/
+
+# ...and a rulebook dropped anywhere else. The directory rule above only guards one
+# folder, and the thing we must never publish is the FILE, wherever it lands. The repo
+# tracks no PDFs at all, so this un-tracks nothing. If you ever do want one in the repo,
+# `git add -f <file>` still works.
+*.pdf
