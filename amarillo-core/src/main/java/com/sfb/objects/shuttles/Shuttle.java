@@ -24,7 +24,6 @@ public abstract class Shuttle extends Unit {
 	private boolean crippled = false;
 	private int crippledHull = 0;   // damage that cripples it; 0 = no crippled state (J1.33)
 	private int chaffPacks = 0;
-	private int ewPods = 0; // Number of EW pods carried by the shuttle
 	// True once an enemy scout has identified this shuttle (G24.25). Every shuttle can be
 	// identified — a plain shuttle looks just like a disguised seeker until then. Seeking
 	// shuttles satisfy the Seeker interface's identify()/isIdentified() through these.
@@ -43,13 +42,7 @@ public abstract class Shuttle extends Unit {
 
 	public void setClaimedAttractedTo(String scoutName) { this.claimedAttractedTo = scoutName; }
 
-	public int getEwPods() {
-		return ewPods;
-	}
 
-	public void setEwPods(int ewPods) {
-		this.ewPods = ewPods;
-	}
 
 	private int chaffLockoutUntilImpulse = -999; // impulse through which chaff lockout is active (-999 = none)
 
@@ -341,7 +334,15 @@ public abstract class Shuttle extends Unit {
 	 * speed" for G7.55, even though it is one below its rating.
 	 */
 	public int effectiveMaxSpeed() {
-		return Math.max(0, maxSpeed - (emSpeedCommitted ? 1 : 0));
+		return Math.max(0, maxSpeed - (emSpeedCommitted ? 1 : 0) - speedPenalty());
+	}
+
+	/**
+	 * Speed given up for equipment bolted on rather than carried in place of something.
+	 * Zero for a plain shuttle; J4.9621 charges a fighter a point for each EXTRA EW pod.
+	 */
+	protected int speedPenalty() {
+		return 0;
 	}
 
 	public int getMaxSpeed() {

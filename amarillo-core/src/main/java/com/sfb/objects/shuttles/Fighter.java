@@ -156,6 +156,144 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      */
     private int lastDroneLaunchImpulse = -DRONE_LAUNCH_SPACING;
 
+    // -------------------------------------------------------------------------
+    // Electronic warfare pods (J4.96)
+    // -------------------------------------------------------------------------
+
+    /** J4.964: two pods for an ordinary fighter, four for an EW or heavy fighter. */
+    public static final int MAX_EW_PODS = 2;
+    public static final int MAX_EW_PODS_EW_FIGHTER = 4;
+
+    /** J4.9621: at most two of the pods may be "extra" ones carried beyond the drones. */
+    public static final int MAX_EXTRA_EW_PODS = 2;
+
+    /** J4.961: "Each EWP can provide two points of either ECM or ECCM, or one of each." */
+    public static final int POINTS_PER_EW_POD = 2;
+
+    private int ewPods;
+    private int extraEwPods;
+    private int podEcm;
+    private int podEccm;
+    private boolean podsActive = true;
+
+    /** J4.964: how many pods this fighter may carry at all. */
+    public int maxEwPods() {
+        return isTwoSeater() ? MAX_EW_PODS_EW_FIGHTER : MAX_EW_PODS;
+    }
+
+    public int getEwPods() { return ewPods; }
+
+    /**
+     * Fit pods, up to what J4.964 allows. Any allocation already made is re-spread, since
+     * the points available have changed and J4.961 re-declares them every turn anyway.
+     *
+     * @return the number actually fitted
+     */
+    public int setEwPods(int pods) {
+        ewPods = Math.max(0, Math.min(pods, maxEwPods()));
+        extraEwPods = Math.min(extraEwPods, ewPods);
+        spreadPodPointsEvenly();
+        return ewPods;
+    }
+
+    /**
+     * J4.9621: pods carried WITHOUT giving up a drone. Each costs a point of speed and a
+     * point of dogfight rating, and no fighter may carry more than two of them.
+     */
+    public int getExtraEwPods() { return extraEwPods; }
+
+    public int setExtraEwPods(int extra) {
+        extraEwPods = Math.max(0, Math.min(Math.min(extra, MAX_EXTRA_EW_PODS), ewPods));
+        return extraEwPods;
+    }
+
+    /**
+     * J4.9622: throw an extra pod overboard to get the speed and rating back. "The pod
+     * cannot be recovered" — so this destroys it rather than returning it to the rack.
+     *
+     * @return true if one was dropped
+     */
+    public boolean dropExtraEwPod() {
+        if (extraEwPods <= 0)
+            return false;
+        extraEwPods--;
+        ewPods--;
+        spreadPodPointsEvenly();   // J4.9622: "the EW situation must be rebalanced"
+        return true;
+    }
+
+    /**
+     * J4.9621: "for each extra one carried (to a maximum of two), reduce the speed (with
+     * or without warp packs) and the dogfight rating (J7.62) of the fighter by one."
+     * Pods that REPLACED a drone cost nothing: J4.962 says so outright.
+     */
+    @Override
+    protected int speedPenalty() {
+        return extraEwPods;
+    }
+
+    /** J4.967: "A fighter can turn off its EWPs during any Lock-On Stage." */
+    public boolean arePodsActive() { return podsActive; }
+
+    public void setPodsActive(boolean active) { this.podsActive = active; }
+
+    /**
+     * J4.961: declare how this turn's pod points are split. Each pod gives two points as
+     * ECM, as ECCM, or one of each — so any split of twice the pod count is reachable,
+     * and the only real constraint is the total.
+     *
+     * @return false if the split does not spend exactly the points the pods produce
+     */
+    public boolean allocatePodEw(int ecm, int eccm) {
+        if (ecm < 0 || eccm < 0 || ecm + eccm != ewPods * POINTS_PER_EW_POD)
+            return false;
+        podEcm = ecm;
+        podEccm = eccm;
+        return true;
+    }
+
+    private void spreadPodPointsEvenly() {
+        int points = ewPods * POINTS_PER_EW_POD;
+        podEcm = points / 2;
+        podEccm = points - podEcm;
+    }
+
+    /**
+     * Whether the pods are doing anything at all.
+     * <p>
+     * J1.3322: "EW systems (EW pods, MRS, SWAC) cease to function if the shuttle is
+     * crippled. Built-in EW points continue to operate." So crippling takes the pods and
+     * leaves J4.47's two-and-two — which is the practical difference between the two.
+     */
+    public boolean podsWorking() {
+        return podsActive && ewPods > 0 && !isCrippled();
+    }
+
+    /** ECM the pods are producing this turn, or none if they are off or shot away. */
+    public int getPodEcm() { return podsWorking() ? podEcm : 0; }
+
+    /** ECCM the pods are producing this turn. */
+    public int getPodEccm() { return podsWorking() ? podEccm : 0; }
+
+    /**
+     * Every point of ECM this fighter has of its own: J4.47's built-in two plus whatever
+     * the pods are making, held to J4.91's ceiling of six.
+     * <p>
+     * J4.91 counts built-in, pods and lent points against that six and excludes natural
+     * sources, so Erratic Maneuvers and asteroids sit outside it — which is why the cap
+     * is applied here, to the fighter's OWN points, and not to the breakdown's total.
+     */
+    public int totalOwnEcm() {
+        return Math.min(MAX_USABLE_EW, getEcm() + getPodEcm());
+    }
+
+    public int totalOwnEccm() {
+        return Math.min(MAX_USABLE_EW, getEccm() + getPodEccm());
+    }
+
+    /** J4.91: "six points each of ECM and ECCM, not six total points." */
+    public static final int MAX_USABLE_EW = 6;
+
     /** The squadron this fighter belongs to (J4.46), or null if it is unassigned. */
     private com.sfb.objects.Squadron squadron;
 

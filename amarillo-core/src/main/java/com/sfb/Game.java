@@ -723,8 +723,13 @@ public class Game {
             generated = t.getEcmAllocated();
             builtIn = t.getStealthEcm();          // Orion G15.8
             lent = t.getLentEcmTotal();           // scouts AND any weasel, capped at six
-        } else if (target instanceof com.sfb.objects.shuttles.Fighter) {
-            builtIn = ((com.sfb.objects.shuttles.Fighter) target).getEcm(); // J4.47, two points
+        } else if (target instanceof com.sfb.objects.shuttles.Fighter f) {
+            // J4.47's two points plus whatever its EW pods are making (J4.96), held to
+            // J4.91's six. Both land in BUILT-IN: neither is paid for out of allocated
+            // power (a fighter has no allocation form at all, J1.1), and D6.3146 lets a
+            // friendly unit disregard them alike. J4.965 keeps pod points apart from
+            // built-in ones for LENDING, which is a different question from this sum.
+            builtIn = f.totalOwnEcm();
         }
         // A probe canister, a drone and an admin shuttle have no EW of their own at all.
         return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
@@ -742,7 +747,7 @@ public class Game {
             return ship.isActiveFireControl()
                     ? ship.getEccmAllocated() + ship.getLentEccm() : 0;
         if (actor instanceof com.sfb.objects.shuttles.Fighter fighter)
-            return fighter.getEccm();       // J4.47, two points built in
+            return fighter.totalOwnEccm();  // J4.47's two, plus its pods (J4.96)
         return 0;
     }
 
