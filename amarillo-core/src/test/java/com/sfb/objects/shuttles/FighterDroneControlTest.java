@@ -125,7 +125,7 @@ public class FighterDroneControlTest {
     public void twoDronesMayNotLeaveWithinAQuarterTurn() {
         Aas aas = new Aas();
 
-        aas.recordDroneFired(30);
+        aas.recordDroneFired(null, new com.sfb.objects.Drone(DroneType.TypeI), 30);
 
         assertEquals("eight impulses from the launch", 8, aas.impulsesUntilNextDrone(30));
         assertEquals("four impulses later, across a turn boundary, four still to wait",
@@ -142,7 +142,7 @@ public class FighterDroneControlTest {
     @Test
     public void theTurnFlagClearsButTheSpacingOutlivesIt() {
         Aas aas = new Aas();
-        aas.recordDroneFired(30);
+        aas.recordDroneFired(null, new com.sfb.objects.Drone(DroneType.TypeI), 30);
         assertTrue(aas.isDronesFiredThisTurn());
 
         aas.startTurn();

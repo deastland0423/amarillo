@@ -55,4 +55,26 @@ public class Taas extends Fighter {
         railD.setDesignator("D");
         getWeapons().addWeapon(railD);
     }
+
+    // --- J4.242 exemptions ---
+
+    /**
+     * J4.242: "the F-15 and TAAS (which can violate A if the drones are not launched on the
+     * same impulse...)". So a TAAS may split its pair between two targets, provided it does
+     * not let both go on one impulse.
+     */
+    @Override
+    public boolean mayLaunchAtDifferentTargets() {
+        return true;
+    }
+
+    /**
+     * J4.242: "...and which can violate B in any case." A TAAS may launch two standard
+     * drones, with no dogfight drone among them — which the AAS and HAAS may not, and is
+     * most of what the extra BPV buys.
+     */
+    @Override
+    public boolean mayLaunchTwoStandardDrones() {
+        return true;
+    }
 }

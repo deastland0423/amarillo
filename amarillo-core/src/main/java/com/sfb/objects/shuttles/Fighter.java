@@ -133,8 +133,17 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     private final java.util.Set<com.sfb.objects.Unit> lockOns =
             new java.util.LinkedHashSet<>();
 
-    /** J4.24: a fighter launches at most one drone per turn, whatever it carries. */
-    private boolean dronesFiredThisTurn = false;
+    /** J4.241: two drones in a turn is the most any fighter manages. */
+    public static final int MAX_DRONES_PER_TURN = 2;
+
+    /** Drones this fighter has let go this turn (J4.24, J4.241). */
+    private int dronesFiredThisTurn = 0;
+
+    /** What the first of them was sent at, for J4.241's same-target test. */
+    private com.sfb.objects.Unit firstDroneTarget = null;
+
+    /** Whether any of them was a dogfight drone, for J4.241's other test. */
+    private boolean firedDogfightDroneThisTurn = false;
 
     /**
      * The absolute impulse this fighter last let a drone go, or far in the past.
@@ -238,9 +247,76 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         return lockOns;
     }
 
-    /** J4.24: whether this fighter has already spent its one drone launch this turn. */
+    /** J4.24: whether this fighter has already let a drone go this turn. */
     public boolean isDronesFiredThisTurn() {
+        return dronesFiredThisTurn > 0;
+    }
+
+    public int getDronesFiredThisTurn() {
         return dronesFiredThisTurn;
+    }
+
+    // --- J4.242 exemptions, declared by the fighters that have them ---
+
+    /**
+     * J4.242: whether this fighter may send its two drones at DIFFERENT targets, which
+     * J4.241's condition A otherwise forbids. The F-15 and the TAAS may, but only when the
+     * two are not launched on the same impulse.
+     */
+    public boolean mayLaunchAtDifferentTargets() {
+        return false;
+    }
+
+    /**
+     * J4.242: whether this fighter may launch two drones NEITHER of which is a dogfight
+     * drone, which J4.241's condition B otherwise forbids. The F-14, F-15 and TAAS may, in
+     * any case.
+     */
+    public boolean mayLaunchTwoStandardDrones() {
+        return false;
+    }
+
+    /**
+     * Why this fighter may not let this drone go at this target right now, or null if it
+     * may (J4.24, J4.241, J4.242).
+     * <p>
+     * The FIRST drone of a turn is free but for the quarter-turn spacing measured from the
+     * last one, which reaches back across the turn boundary (J4.24).
+     * <p>
+     * A SECOND is J4.241, and both its conditions must hold: the pair goes at the same
+     * target, AND at least one of them is a dogfight drone. Conjunctive — read as "or" it
+     * would let a fighter split two standard drones between two targets, which is the thing
+     * the rule exists to stop. Note that J4.241 lifts the spacing as well as the count:
+     * "two drones per turn (or within 1/4 turn)", so a qualifying second drone need not
+     * wait its eight impulses.
+     */
+    public String droneLaunchRefusal(com.sfb.objects.Unit target,
+            com.sfb.objects.Drone drone, int currentImpulse) {
+        if (dronesFiredThisTurn == 0) {
+            int wait = impulsesUntilNextDrone(currentImpulse);
+            return wait > 0
+                    ? getName() + " launched a drone " + (DRONE_LAUNCH_SPACING - wait)
+                            + " impulse" + (DRONE_LAUNCH_SPACING - wait == 1 ? "" : "s")
+                            + " ago - two may not leave within a quarter turn (J4.24)"
+                    : null;
+        }
+        if (dronesFiredThisTurn >= MAX_DRONES_PER_TURN)
+            return getName() + " has launched two drones this turn, which is all any"
+                    + " fighter may (J4.241)";
+
+        boolean sameTarget = target != null && target == firstDroneTarget;
+        if (!sameTarget
+                && !(mayLaunchAtDifferentTargets() && currentImpulse != lastDroneLaunchImpulse))
+            return getName() + " may only send its second drone at the same target as the"
+                    + " first (J4.241)";
+
+        boolean pairHasDogfight = firedDogfightDroneThisTurn
+                || (drone != null && drone.getDroneType() != null
+                        && drone.getDroneType().isDogfightDrone());
+        if (!pairHasDogfight && !mayLaunchTwoStandardDrones())
+            return getName() + " may only launch a second drone when one of the pair is a"
+                    + " dogfight drone (J4.241)";
+        return null;
     }
 
     /**
@@ -253,15 +329,25 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
                 DRONE_LAUNCH_SPACING - (currentImpulse - lastDroneLaunchImpulse));
     }
 
-    public void recordDroneFired(int currentImpulse) {
-        dronesFiredThisTurn = true;
+    public void recordDroneFired(com.sfb.objects.Unit target, com.sfb.objects.Drone drone,
+            int currentImpulse) {
+        if (dronesFiredThisTurn == 0)
+            firstDroneTarget = target;
+        dronesFiredThisTurn++;
+        if (drone != null && drone.getDroneType() != null
+                && drone.getDroneType().isDogfightDrone())
+            firedDogfightDroneThisTurn = true;
         lastDroneLaunchImpulse = currentImpulse;
     }
 
     @Override
     public void startTurn() {
         tacticalManeuverUsed = false;
-        dronesFiredThisTurn = false;
+        // The turn's count resets; lastDroneLaunchImpulse deliberately does NOT, because
+        // J4.24's quarter turn is measured from the launch and reaches across the boundary.
+        dronesFiredThisTurn = 0;
+        firstDroneTarget = null;
+        firedDogfightDroneThisTurn = false;
         getWeapons().cleanUp();
     }
 }

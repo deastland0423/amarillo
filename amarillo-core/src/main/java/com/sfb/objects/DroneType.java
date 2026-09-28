@@ -41,6 +41,18 @@ public enum DroneType {
   TypeVIM(32, 20, 8, 0.5, 3, true, true, 165),
   TypeVIF(32, 32, 8, 0.5, 3, true, true, 178);
 
+  /**
+   * J4.241's "DFD": a dogfight drone, which is the type-VI family and nothing else.
+   * <p>
+   * A rule turns on it — a fighter may launch a second drone in the quarter turn only if
+   * one of the pair is a dogfight drone — so it is worth a name of its own. Not the same
+   * question as warpSeeker, which is about how the thing flies (FD2.56); the two coincide
+   * on the type-VIs and there is no reason to assume they always will.
+   */
+  public boolean isDogfightDrone() {
+    return warpSeeker;
+  }
+
   public final int endurance, speed, damage, hull, availableFromYear;
   public final double rack;
   public final boolean selfGuiding;

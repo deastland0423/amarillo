@@ -430,18 +430,13 @@ class LaunchCoordinator {
             return ActionResult.fail(fighter.getName() + " cannot launch seeking weapons for "
                     + wait + " more impulse" + (wait == 1 ? "" : "s")
                     + " - half a turn since launch (J1.341)");
-        if (fighter.isDronesFiredThisTurn())
-            return ActionResult.fail(fighter.getName()
-                    + " has already launched a drone this turn (J4.24)");
-        // J4.24's other half, which the per-turn flag cannot see: two drones may not leave
-        // the same fighter within a quarter turn, and that reaches back ACROSS the turn
-        // boundary where the flag resets.
-        int spacing = fighter.impulsesUntilNextDrone(game.getAbsoluteImpulse());
-        if (spacing > 0)
-            return ActionResult.fail(fighter.getName() + " launched a drone "
-                    + (Fighter.DRONE_LAUNCH_SPACING - spacing) + " impulse"
-                    + (Fighter.DRONE_LAUNCH_SPACING - spacing == 1 ? "" : "s")
-                    + " ago - two may not leave within a quarter turn (J4.24)");
+        // How often, and how many: J4.24's one-a-turn and quarter-turn spacing, J4.241's
+        // second drone, and whatever J4.242 exempts this particular fighter from. The
+        // fighter judges it, because the answer depends on what IT already launched.
+        String rate = fighter.droneLaunchRefusal(target, rail.getDrone(),
+                game.getAbsoluteImpulse());
+        if (rate != null)
+            return ActionResult.fail(rate);
         if (rail == null || !rail.isFunctional())
             return ActionResult.fail("That rail is destroyed");
         Drone drone = rail.getDrone();
@@ -459,7 +454,7 @@ class LaunchCoordinator {
 
         ActionResult result = placeLaunchedDrone(fighter, target, rail, drone, facing);
         if (result.isSuccess())
-            fighter.recordDroneFired(game.getAbsoluteImpulse());
+            fighter.recordDroneFired(target, drone, game.getAbsoluteImpulse());
         return result;
     }
 
