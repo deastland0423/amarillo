@@ -13,7 +13,7 @@ import com.sfb.weapons.Weapon;
  * by an onboard engine, a crippling threshold, and one free Tactical Maneuver
  * per turn (J4.12 — no energy cost, no breakdown roll).
  */
-public abstract class Fighter extends Shuttle {
+public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneController {
 
     /** Damage points needed to cripple this fighter (J1.33). */
     private int bpv;
@@ -124,9 +124,89 @@ public abstract class Fighter extends Shuttle {
         return super.canFireDirect(currentImpulse);
     }
 
+    // -------------------------------------------------------------------------
+    // Guiding its own drones (DroneController, J4.431)
+    // -------------------------------------------------------------------------
+
+    private final java.util.Set<com.sfb.objects.Seeker> controlledSeekers =
+            new java.util.LinkedHashSet<>();
+    private final java.util.Set<com.sfb.objects.Unit> lockOns =
+            new java.util.LinkedHashSet<>();
+
+    /** J4.431: a fighter launches at most one drone per turn, whatever it carries. */
+    private boolean dronesFiredThisTurn = false;
+
+    /**
+     * How many seekers this fighter can guide at once: its own drones and no more.
+     * <p>
+     * Counted from the RAILS rather than declared per class, which is what four identical
+     * copies of this code got wrong by degrees — an AAS said 2, a TAAS said 4, and both were
+     * just counting their own rails the long way. A fighter guides what it carries (J4.431);
+     * it is not a scout.
+     */
+    @Override
+    public int getControlCapacity() {
+        int rails = 0;
+        for (Weapon w : getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail)
+                rails++;
+        return rails;
+    }
+
+    @Override
+    public boolean acquireControl(com.sfb.objects.Seeker seeker) {
+        if (controlledSeekers.size() >= getControlCapacity())
+            return false;
+        controlledSeekers.add(seeker);
+        return true;
+    }
+
+    @Override
+    public void releaseControl(com.sfb.objects.Seeker seeker) {
+        controlledSeekers.remove(seeker);
+    }
+
+    @Override
+    public int getControlUsed() {
+        return controlledSeekers.size();
+    }
+
+    public java.util.List<com.sfb.objects.Seeker> getControlledSeekers() {
+        return new java.util.ArrayList<>(controlledSeekers);
+    }
+
+    // --- Lock-on (D6.121). A fighter holds its own; see LockOnResolver. ---
+
+    @Override
+    public boolean hasLockOn(com.sfb.objects.Unit target) {
+        return lockOns.contains(target);
+    }
+
+    public void addLockOn(com.sfb.objects.Unit target) {
+        lockOns.add(target);
+    }
+
+    public void removeLockOn(com.sfb.objects.Unit target) {
+        lockOns.remove(target);
+    }
+
+    public java.util.Set<com.sfb.objects.Unit> getLockOns() {
+        return lockOns;
+    }
+
+    /** J4.431: whether this fighter has already spent its one drone launch this turn. */
+    public boolean isDronesFiredThisTurn() {
+        return dronesFiredThisTurn;
+    }
+
+    public void recordDroneFired() {
+        dronesFiredThisTurn = true;
+    }
+
     @Override
     public void startTurn() {
         tacticalManeuverUsed = false;
+        dronesFiredThisTurn = false;
         getWeapons().cleanUp();
     }
 }
