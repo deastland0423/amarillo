@@ -192,19 +192,44 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * Designation and shortName are different jobs and are allowed to differ: a map counter
-     * has a few pixels ("St-1"), a hangar row has a line ("Stinger-1"). Neither may be blank.
+     * Designation and shortName are different jobs and are ALLOWED to differ — a map counter
+     * has a few pixels, a hangar row has a line. They need not: "AAS" is already as short as
+     * it goes, and forcing a difference would be inventing one.
+     * <p>
+     * The exact spelling of any one of them is the ship owner's taste and deliberately not
+     * pinned here; an earlier version of this test asserted "Stinger-1" and broke the moment
+     * he preferred "Stinger1", which is a test failing for an opinion rather than a defect.
+     * What IS pinned is that both resolve to something printable.
      */
     @Test
-    public void designationMayBeLongerThanTheCounterLabel() {
-        assertEquals("St-1", ShuttleCatalog.get("stinger1").shortName);
-        assertEquals("Stinger-1", ShuttleCatalog.get("stinger1").designation);
+    public void everyEntryHasBothLabelsAndNeitherIsBlank() {
+        for (ShuttleCatalog.Entry e : ShuttleCatalog.all()) {
+            assertFalse(e.type + " has no counter label", e.shortName.isBlank());
+            assertFalse(e.type + " has no designation", e.designation.isBlank());
+        }
     }
 
-    /** An entry that says nothing still names the craft, rather than naming it null. */
+    /**
+     * The fallback chain, which is the part that is logic rather than taste: designation, then
+     * the counter label, then the display name. An entry that says nothing still names its
+     * craft rather than naming it null.
+     */
     @Test
-    public void designationFallsBackRatherThanGoingBlank() {
-        for (ShuttleCatalog.Entry e : ShuttleCatalog.all())
-            assertNotNull("every entry resolves to something printable", e.designation);
+    public void designationFallsBackThroughShortNameToTheDisplayName() {
+        assertEquals("said outright, so used outright", "Flown Thing",
+                entry("Full Name", "Short", "Flown Thing").designation);
+        assertEquals("nothing said, so the counter label stands in", "Short",
+                entry("Full Name", "Short", null).designation);
+        assertEquals("blank counts as nothing said", "Short",
+                entry("Full Name", "Short", "  ").designation);
+        assertEquals("neither said, so the display name stands in", "Full Name",
+                entry("Full Name", null, null).designation);
+    }
+
+    /** A catalogue entry with only the three fields this test cares about. */
+    private static ShuttleCatalog.Entry entry(String name, String shortName,
+            String designation) {
+        return new ShuttleCatalog.Entry("probe", name, "shuttle", java.util.List.of("any"),
+                0, 0, 0, 0, 0, false, false, 0, shortName, designation);
     }
 }
