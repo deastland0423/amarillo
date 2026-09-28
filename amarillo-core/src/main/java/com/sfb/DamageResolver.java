@@ -599,6 +599,13 @@ class DamageResolver {
             com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
             if (s.isBeingRecovered())
                 return attacker.getName() + " is shut down for recovery and cannot fire (J1.622)";
+            // J1.6202: a shuttle held in a tractor "may not fire, launch, or guide any
+            // weapon" for as long as it is held. Flatter than the ship rule beside it —
+            // G7.91 still lets a tractored SHIP shoot back at whatever has hold of it, and
+            // a shuttle gets no such allowance.
+            if (s.isTractored())
+                return attacker.getName() + " is held in a tractor beam and cannot fire"
+                        + " (J1.6202)";
             if (!s.canFireDirect(game.getAbsoluteImpulse()))
                 return attacker.getName() + " cannot fire yet — a quarter turn (8 impulses)"
                         + " must pass since launch (J1.342)";

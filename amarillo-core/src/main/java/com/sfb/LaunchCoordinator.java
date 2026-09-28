@@ -417,6 +417,12 @@ class LaunchCoordinator {
         if (fighter.isCrippled())
             return ActionResult.fail(fighter.getName()
                     + " is crippled - external weapons are dropped (J1.332)");
+        // J1.6202: held in a tractor, a shuttle may not fire, launch, or guide any weapon.
+        // Not the same as being shut down for recovery (J1.622) — merely being HELD is
+        // enough, and a fighter under tow could otherwise keep throwing drones.
+        if (fighter.isTractored())
+            return ActionResult.fail(fighter.getName() + " is held in a tractor beam and"
+                    + " cannot launch seeking weapons (J1.6202)");
         // J1.341: half a turn after its OWN launch before it may release a seeking weapon.
         int wait = fighter.impulsesUntilSeekers(game.getAbsoluteImpulse());
         if (wait > 0)

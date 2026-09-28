@@ -247,4 +247,25 @@ public class FighterDroneLaunchTest {
         assertTrue("it must hold a lock-on the moment it is on the map, not next turn",
                 flier.hasLockOn(victim));
     }
+
+    /**
+     * J1.6202: a shuttle held in a tractor "may not fire, launch, or guide any weapon".
+     * <p>
+     * Flatter than the ship rule beside it: G7.91 still lets a tractored SHIP shoot back at
+     * whatever has hold of it, and a shuttle gets no such allowance. Worth pinning because
+     * only being SHUT DOWN for recovery (J1.622) was blocked — merely being held was not,
+     * so a fighter under tow could keep throwing drones.
+     */
+    @Test
+    public void aFighterUnderTowCannotLaunch() {
+        intoActivity();
+        aas.addLockOn(enemy);
+        aas.applyTractor(enemy);
+
+        Game.ActionResult result = game.launchFighterDrone(aas, enemy, rails().get(0), 0);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage(), result.getMessage().contains("J1.6202"));
+        assertNotNull("and the drone stays on the rail", rails().get(0).getDrone());
+    }
 }
