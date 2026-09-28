@@ -4203,6 +4203,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           impulse={gameState?.impulse ?? 0}
           units={launchUnits}
           attackerName={liveShip?.name ?? null}
+          selectedName={selected?.name ?? null}
           onSelectAttacker={(name: string) => {
             const obj = (gameState?.mapObjects ?? []).find(o => o.name === name);
             if (obj) setSelected(obj);

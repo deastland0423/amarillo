@@ -75,6 +75,12 @@ interface Props {
 
   units:        LaunchingUnit[];
   attackerName: string | null;
+  /**
+   * Whatever is selected on the map, ship or not — used only to explain an empty pad. Not
+   * the same as attackerName, which is null the moment the selection is anything that
+   * cannot give launch orders, and that is exactly the case worth explaining.
+   */
+  selectedName?: string | null;
   onSelectAttacker: (name: string) => void;
 
   targetName:     string | null;
@@ -236,7 +242,7 @@ function savedPosition(): { left: number; top: number } {
 
 export default function LaunchOrdersPad({
   gameId, playerToken, turn, impulse,
-  units, attackerName, onSelectAttacker, targetName, onSelectTarget,
+  units, attackerName, selectedName, onSelectAttacker, targetName, onSelectTarget,
   orders, onAddOrder, onRemoveOrder,
   hoveredOnMap, onHoverCandidate,
   declarationOpen, onCall, onCommit, onPass, error,
@@ -613,7 +619,25 @@ export default function LaunchOrdersPad({
           {/* ------------------------------------------------ candidates */}
           <div style={COL}>
             <div style={COL_TITLE}>{attacker ? `${attacker.name} can target` : 'Can target'}</div>
-            {!attacker && <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Pick a ship.</div>}
+            {/*
+              Nothing here to give orders to. The useful half is WHY, and the pad has to be
+              told: a craft in flight is not in `units` at all — that list is ships with
+              something to launch — so `attacker` is simply null and the reason is invisible
+              from in here. Hence selectedName.
+
+              Worth the prop because the silence reads as a fault: an empty pad was twice
+              mistaken for the shuttle bay cooldown bug. Keyed on having no BAY rather than
+              on being a fighter, since an admin shuttle put out by an ordinary warship lands
+              in exactly the same place.
+            */}
+            {!attacker && (
+              <div style={{ fontSize: '0.85em', color: '#8b949e' }}>
+                {selectedName
+                  ? `${selectedName} has no bay. Select a ship with a bay to give launch`
+                    + ' orders.'
+                  : 'Pick a ship.'}
+              </div>
+            )}
             {attacker && loading && <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Looking…</div>}
             {attacker && loadError && (
               <div style={{ fontSize: '0.85em', color: '#f85149' }}>{loadError}</div>
