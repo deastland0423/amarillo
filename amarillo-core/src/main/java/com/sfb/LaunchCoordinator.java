@@ -887,6 +887,8 @@ class LaunchCoordinator {
         }
         for (com.sfb.objects.Ship s : game.getShips())
             s.removeLockOn(shuttle); // no lock-ons on a shuttle in a bay
+        for (String line : game.orphanSeekersOf(shuttle))
+            msg.append("\n  ").append(line);
 
         return ActionResult.ok(msg.toString());
     }
@@ -958,7 +960,11 @@ class LaunchCoordinator {
         game.clearChasersOf(shuttle, "target recovered aboard " + ship.getName());
         for (com.sfb.objects.Ship s : game.getShips())
             s.removeLockOn(shuttle);
-        return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)" + disembark;
+        StringBuilder note = new StringBuilder();
+        for (String line : game.orphanSeekersOf(shuttle))
+            note.append("\n  ").append(line);
+        return shuttle.getName() + " recovered aboard " + ship.getName() + " (J1.621)"
+                + disembark + note;
     }
 
     /**

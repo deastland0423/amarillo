@@ -2005,11 +2005,21 @@ public class Game {
     }
 
     /** True if both units are owned by players on the same team. */
+    /**
+     * Whether these two units belong to the same side.
+     * <p>
+     * Any unit with an owner, not only a ship. It used to answer FALSE the moment either
+     * side was not a Ship, which made a fighter a member of no team at all — so nothing
+     * could be its ally, and a drone it launched could not be handed to its own carrier.
+     * Every existing caller passes ships (most cast to one first) and gets the same answer
+     * it always did; what changes is only that the question can now be ASKED about a
+     * fighter.
+     */
     public boolean isSameTeam(com.sfb.objects.Unit a, com.sfb.objects.Unit b) {
-        if (!(a instanceof Ship) || !(b instanceof Ship))
+        if (a == null || b == null)
             return false;
-        Player pa = ((Ship) a).getOwner();
-        Player pb = ((Ship) b).getOwner();
+        Player pa = a.getOwner();
+        Player pb = b.getOwner();
         if (pa == null || pb == null)
             return false;
         String ta = pa.getTeamName();
@@ -2301,6 +2311,15 @@ public class Game {
      * (D6.122). Package-private hook for resolvers acting after a mid-turn
      * fire-control drop; Game's own sites call seekerControl directly.
      */
+    /**
+     * A craft has left space, so whatever it was guiding must find a new controller or be
+     * let go. Called the moment it lands or is recovered rather than at the next sweep: a
+     * drone guided from inside a shuttle bay is a drone guided by nobody.
+     */
+    List<String> orphanSeekersOf(com.sfb.objects.shuttles.Shuttle departed) {
+        return seekerControl.orphanSeekersOf(departed);
+    }
+
     List<String> releaseOrphanedDrones() {
         return seekerControl.releaseOrphanedDrones();
     }

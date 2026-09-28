@@ -33,24 +33,48 @@ class SeekerControl {
     }
 
     /**
-     * Try to transfer control of a seeker to the first teammate of formerController
-     * that has both free control channels and lock-on to the seeker's target.
-     * On success: updates controller, releases from formerController if still held
-     * there,
-     * and returns a log string. Returns null if no valid teammate was found.
+     * Whether this candidate may take over a seeker its current controller is losing.
+     * <p>
+     * The owner's ruling (2026-09-28): a SHIP may always assume control of an allied
+     * seeker, whatever launched it, so long as it has a free channel — and D6.121's
+     * lock-on, which is what lets it guide the thing at all.
+     * <p>
+     * A FIGHTER may not, with one exception this does not yet cover: J4.43 lets a two-seat
+     * (EW) fighter "assume control of such weapons launched by other fighters of its
+     * squadron". Squadron membership is J4.46 and unmodelled, so the exception has nowhere
+     * to stand yet and every fighter is refused here. The refusal is deliberate and
+     * narrow — widening the TYPE of a controller must not widen the POLICY of who may
+     * take over, or an EW fighter would silently start inheriting ships' drones, which no
+     * rule allows.
      */
-    private String autoTransferSeekerControl(Seeker seeker, Ship formerController) {
+    private boolean eligibleSuccessor(Seeker seeker, Unit formerController, Unit candidate) {
+        if (!(candidate instanceof DroneController dc) || candidate == formerController)
+            return false;
+        if (!(candidate instanceof Ship))
+            return false;   // J4.43's squadron EW fighter: pending J4.46
+        Unit target = seeker.getTarget();
+        return target != null
+                && game.isSameTeam(candidate, formerController)
+                && dc.hasLockOn(target)
+                && dc.getControlUsed() < dc.getControlCapacity();
+    }
+
+    /**
+     * Hand a seeker to the first eligible successor, or return null if there is none.
+     * <p>
+     * Takes a Unit rather than a Ship because a fighter guides its own drones (J4.25) and
+     * so can be the one LOSING them — it lands, and whatever it was steering has to go
+     * somewhere. Who may receive is a separate question, and lives in eligibleSuccessor.
+     */
+    private String autoTransferSeekerControl(Seeker seeker, Unit formerController) {
         Unit target = seeker.getTarget();
         if (target == null || formerController == null)
             return null;
-        for (Ship candidate : ships) {
-            if (candidate == formerController)
+        for (Unit candidate : controllerCandidates()) {
+            if (!eligibleSuccessor(seeker, formerController, candidate))
                 continue;
-            if (!game.isSameTeam(candidate, formerController))
-                continue;
-            if (!candidate.hasLockOn(target))
-                continue;
-            if (!candidate.acquireControl(seeker))
+            DroneController dc = (DroneController) candidate;
+            if (!dc.acquireControl(seeker))
                 continue;
             // Release from the former controller if it still holds this seeker
             Unit current = seeker.getController();
@@ -63,6 +87,64 @@ class SeekerControl {
                     + formerController.getName() + " to " + candidate.getName();
         }
         return null;
+    }
+
+    /**
+     * Everything on the map that could in principle guide a seeker: ships and the fighters
+     * in flight. Ships come first so a ship is preferred where both would serve, which is
+     * also the order the rules put them in — a ship may always take an allied seeker, a
+     * fighter only its own squadron's.
+     */
+    /**
+     * Re-home or release everything this departing craft was guiding (owner's ruling,
+     * 2026-09-28: "when a controller lands the drones it is controlling become orphaned
+     * and should be given the chance to transfer").
+     * <p>
+     * Done at the moment of landing rather than left to the turn-start sweep, because in
+     * between the drone is being steered by something sitting in a shuttle bay. A seeker
+     * with nowhere to go is released and removed, which is the same answer the sweep gives
+     * a ship that loses its last teammate.
+     */
+    List<String> orphanSeekersOf(com.sfb.objects.shuttles.Shuttle departed) {
+        List<String> log = new ArrayList<>();
+        if (!(departed instanceof DroneController dc))
+            return log;
+        List<Seeker> held = new ArrayList<>();
+        for (Seeker s : seekers)
+            if (s.getController() == departed)
+                held.add(s);
+
+        for (Seeker s : held) {
+            String xfer = autoTransferSeekerControl(s, departed);
+            if (xfer != null) {
+                log.add(xfer.trim());
+                continue;
+            }
+            String name = s instanceof Unit ? ((Unit) s).getName() : "seeker";
+            log.add(name + " released — " + departed.getName()
+                    + " is no longer in space and no eligible controller was free");
+            dc.releaseControl(s);
+            s.setController(null);   // nothing is steering it; do not leave the bay pointer
+            seekers.remove(s);
+        }
+        return log;
+    }
+
+    /** Whether this unit is still in space, as opposed to sitting in a shuttle bay. */
+    private boolean onMap(Unit unit) {
+        if (unit instanceof Ship)
+            return ships.contains(unit);
+        if (unit instanceof com.sfb.objects.shuttles.Shuttle sh)
+            return game.getActiveShuttles().contains(sh);
+        return true;
+    }
+
+    private java.util.List<Unit> controllerCandidates() {
+        java.util.List<Unit> out = new ArrayList<>(ships);
+        for (com.sfb.objects.shuttles.Shuttle sh : game.getActiveShuttles())
+            if (sh instanceof DroneController)
+                out.add(sh);
+        return out;
     }
 
     /**
@@ -363,20 +445,26 @@ class SeekerControl {
                         toRemove.add(drone);
                     }
                 } else {
-                    // Controller-guided drones: released when controller loses lock-on
+                    // Controller-guided drones: released when the controller can no longer
+                    // guide them. Two ways that happens, and the second was invisible until
+                    // fighters could control anything: the controller loses lock-on, or the
+                    // controller LEAVES THE MAP — a fighter that lands is still holding its
+                    // drones from inside a shuttle bay otherwise.
                     Unit target = drone.getTarget();
                     Unit controller = drone.getController();
-                    if (target == null || !(controller instanceof Ship))
+                    if (target == null || !(controller instanceof DroneController dc))
                         continue;
-                    Ship controlShip = (Ship) controller;
-                    if (!controlShip.hasLockOn(target)) {
-                        String xfer = autoTransferSeekerControl(drone, controlShip);
+                    boolean offMap = !onMap(controller);
+                    if (offMap || !dc.hasLockOn(target)) {
+                        String xfer = autoTransferSeekerControl(drone, controller);
                         if (xfer != null) {
                             log.add(xfer);
                         } else {
-                            log.add("  Drone released — " + controlShip.getName()
-                                    + " lost lock-on to " + target.getName() + ", no teammate available");
-                            controlShip.releaseControl(drone);
+                            log.add("  Drone released — " + controller.getName()
+                                    + (offMap ? " is no longer in space"
+                                              : " lost lock-on to " + target.getName())
+                                    + ", no eligible controller available");
+                            dc.releaseControl(drone);
                             toRemove.add(drone);
                         }
                     }
