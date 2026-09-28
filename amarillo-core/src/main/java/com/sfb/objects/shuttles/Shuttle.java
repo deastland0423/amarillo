@@ -59,6 +59,20 @@ public abstract class Shuttle extends Unit {
 	// onto the map.
 	// Default -999 so elapsed is always huge for in-bay shuttles (they always pass
 	// any readiness check).
+	/** J1.342: a quarter turn before direct-fire weapons may be used after a launch. */
+	public static final int DIRECT_FIRE_DELAY = 8;
+
+	/** J1.341: half a turn before seeking weapons may be launched or guided. */
+	public static final int SEEKER_DELAY = 16;
+
+	/**
+	 * The absolute impulse this craft last left a bay on (J1.34), or far in the past while
+	 * it is sitting in one — a shuttle in a bay is not serving out a launch delay.
+	 * <p>
+	 * Read through {@link #getLaunchImpulse()} and never directly, even in this class:
+	 * ScatterPack keeps its own and overrides the accessor, so a check reading the field saw
+	 * -999 for every pack and waved it through.
+	 */
 	private int launchImpulse = -999;
 
 	private Weapons weapons = new Weapons(this); // The weapons carried by the shuttle.
@@ -525,22 +539,32 @@ public abstract class Shuttle extends Unit {
 	}
 
 	/**
-	 * True if enough impulses have elapsed since launch to fire direct-fire weapons
-	 * (8 impulses).
+	 * J1.342: a shuttle cannot fire direct-fire weapons for a quarter turn — eight impulses
+	 * — after its most recent launch. Launched on impulse 5, it may fire on impulse 13.
+	 * <p>
+	 * "Most recent" is what makes this the launch impulse rather than a one-off flag: a
+	 * shuttle recovered and sent out again starts the count afresh, which setLaunchImpulse
+	 * does for free.
 	 */
 	public boolean canFireDirect(int currentImpulse) {
-		return (currentImpulse - launchImpulse) >= 8;
+		return (currentImpulse - getLaunchImpulse()) >= DIRECT_FIRE_DELAY;
 	}
 
 	/**
-	 * True if enough impulses have elapsed since launch to launch seekers (16
-	 * impulses).
-	 * ScatterPacks are exempt — they ARE the seeker payload.
+	 * J1.341: a shuttle cannot launch or guide seeking weapons until half a turn — sixteen
+	 * impulses — after its most recent launch. Twice the direct-fire wait, and the gap
+	 * between the two is real: a fighter that may fire its phasers on impulse 13 still may
+	 * not release a drone until 21.
+	 * <p>
+	 * Scatter-packs are the rule's own exception, and the rule gives them a quarter turn
+	 * rather than none at all: {@link ScatterPack#isReadyToRelease} holds them to that
+	 * eight-impulse delay (FD7.33, FD7.44), so a pack answering true here is deferring to
+	 * that check, not escaping one.
 	 */
 	public boolean canLaunchSeeker(int currentImpulse) {
 		if (this instanceof ScatterPack)
-			return true;
-		return (currentImpulse - launchImpulse) >= 16;
+			return true;   // held instead to FD7.33's quarter turn, by isReadyToRelease
+		return (currentImpulse - getLaunchImpulse()) >= SEEKER_DELAY;
 	}
 
 }

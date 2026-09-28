@@ -600,7 +600,18 @@ class DamageResolver {
             if (s.isBeingRecovered())
                 return attacker.getName() + " is shut down for recovery and cannot fire (J1.622)";
             if (!s.canFireDirect(game.getAbsoluteImpulse()))
-                return attacker.getName() + " cannot fire yet — 8 impulses must pass since launch";
+                return attacker.getName() + " cannot fire yet — a quarter turn (8 impulses)"
+                        + " must pass since launch (J1.342)";
+            // J1.341 is the LONGER wait, and it is per weapon rather than per attack: the
+            // craft may be past its eight impulses and free to fire phasers while its drone
+            // rails are still shut. A DroneRail answers isDirectFire true — it is fired
+            // through this same path — so without this a fighter launched on impulse 5 would
+            // be releasing drones on 13, eight impulses early.
+            if (!s.canLaunchSeeker(game.getAbsoluteImpulse()))
+                for (Weapon w : selected)
+                    if (w instanceof com.sfb.weapons.Launcher)
+                        return attacker.getName() + " cannot launch seeking weapons yet —"
+                                + " half a turn (16 impulses) must pass since launch (J1.341)";
             if (s.isChaffLockedOut(game.getAbsoluteImpulse()))
                 return attacker.getName() + " cannot fire — chaff lockout for 8 impulses (D11.41)";
         }
