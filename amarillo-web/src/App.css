@@ -2249,10 +2249,32 @@ h3 {
   font-size: 0.78rem;
 }
 
+/* The name is what the row is ABOUT, so it carries the weight: everything else on the row
+   is a property of the craft named here. */
 .hangar-box-name {
-  color: #c9d1d9;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #e6edf3;
   font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
 }
+
+/* Armed and ready, at a glance — the thing a carrier captain scans the list for. Colour is
+   backed up by a tooltip, and by the state line beside it, so it is never the only carrier
+   of the information. */
+.hangar-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.hangar-dot.ready   { background: #3fb950; }
+.hangar-dot.partial { background: #f0c040; }
+.hangar-dot.empty   { background: #6e7681; }
 
 .hangar-box-state {
   color: #8b949e;

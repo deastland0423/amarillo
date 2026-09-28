@@ -261,6 +261,28 @@ public class GameStateDto {
          */
         public Integer wwChargeCount; // 0=uncharged, 1=primed, 2=ready; null = cannot weasel
         public Boolean wwReady;
+        /**
+         * What is actually on this fighter's drone rails, one entry per rail (J4.82).
+         * <p>
+         * Null on anything that carries no drones, rather than an empty list: "this craft
+         * has no rails" and "this craft has rails and they are all empty" are different
+         * facts, and a hangar row has to be able to say which.
+         * <p>
+         * The owner's alone. Enemy viewers never reach this — bay contents are dropped
+         * wholesale before redaction — which is what G4.233 wants: what a fighter is
+         * carrying is not something a scan reveals.
+         */
+        public List<FighterRailDto> rails;
+    }
+
+    /** One drone rail on a fighter: what it can take, and what is in it (J4.82, FD7.211). */
+    public static class FighterRailDto {
+        /** LIGHT, STANDARD, SPECIAL or HEAVY — what will fit here at all. */
+        public String railType;
+        /** The drone loaded, or null for an empty rail. */
+        public String drone;
+        /** Spaces the loaded drone takes, so a row can total the load without a table. */
+        public Double spaces;
     }
 
     public static class ShuttleSpaceDto {
@@ -1556,6 +1578,20 @@ public class GameStateDto {
                     sd.maxSpeed = s.getMaxSpeed();
                     sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
+                    for (com.sfb.weapons.Weapon fw : s.getWeapons().fetchAllWeapons()) {
+                        if (!(fw instanceof com.sfb.weapons.DroneRail rail))
+                            continue;
+                        if (sd.rails == null)
+                            sd.rails = new ArrayList<>();
+                        FighterRailDto rd2 = new FighterRailDto();
+                        rd2.railType = rail.getRailType() == null
+                                ? null : rail.getRailType().name();
+                        if (rail.getDrone() != null) {
+                            rd2.drone = rail.getDrone().getDroneType().name();
+                            rd2.spaces = rail.getDrone().getRackSize();
+                        }
+                        sd.rails.add(rd2);
+                    }
                     if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
                         com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
                         sd.armed = ss.isArmed();

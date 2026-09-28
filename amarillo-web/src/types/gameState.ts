@@ -97,6 +97,19 @@ export interface ShuttleInBayState {
   specialRole?:        string | null;  // "Wild Weasel", "suicide shuttle", "scatter pack"
   wwChargeCount?:      number;   // admin only: 0=uncharged, 1=primed, 2=ready
   wwReady?:            boolean;  // admin only: true when wwChargeCount >= 2
+  /**
+   * J4.82: this fighter's drone rails, one entry each. Absent (not []) on a craft with no
+   * rails at all — "carries no drones" and "carries drones and is empty" are different
+   * things, so the guard is != null.
+   */
+  rails?:              FighterRail[];
+}
+
+/** One drone rail on a fighter: what fits in it, and what is in it (J4.82, FD7.211). */
+export interface FighterRail {
+  railType?: string;   // LIGHT | STANDARD | SPECIAL | HEAVY
+  drone?:    string;   // DroneType name; absent when the rail is empty
+  spaces?:   number;
 }
 
 export interface ShuttleSpaceState {

@@ -221,4 +221,62 @@ public class BayShuttleDtoTest {
         }
         assertEquals("the Ranger's nine Stingers", 9, fighters);
     }
+
+    // -------------------------------------------------------------------------
+    // What a fighter is carrying (J4.82) — for the hangar row and its tooltip
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void aFighterReportsEveryRailAndWhatIsInIt() {
+        com.sfb.objects.shuttles.Taas taas = new com.sfb.objects.shuttles.Taas();
+        taas.setName("IKV Vengeance-TAAS-1");
+        bay.getSpaces().get(0).setShuttle(taas);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-TAAS-1");
+
+        assertNotNull(sd);
+        assertNotNull("a drone fighter has to be able to say what it carries", sd.rails);
+        assertEquals("a TAAS has four rails, two standard and two light", 4, sd.rails.size());
+        for (GameStateDto.FighterRailDto r : sd.rails) {
+            assertNotNull("the tooltip names the rail SIZE even when empty", r.railType);
+            assertNull("fighters are built empty (J4.8223)", r.drone);
+        }
+    }
+
+    @Test
+    public void aLoadedRailNamesItsDroneAndItsSize() {
+        com.sfb.objects.shuttles.Taas taas = new com.sfb.objects.shuttles.Taas();
+        taas.setName("IKV Vengeance-TAAS-2");
+        com.sfb.systemgroups.ShuttleSpace box = bay.getSpaces().get(0);
+        box.setShuttle(taas);
+        // Its own box armed it, which is the only way a fighter gets loaded (J4.881).
+        com.sfb.systemgroups.FighterArming.load(box, taas, 8);
+        bay.getSpaces().get(0).setShuttle(taas);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-TAAS-2");
+
+        assertNotNull(sd);
+        long loaded = sd.rails.stream().filter(r -> r.drone != null).count();
+        assertTrue("the box's ready rack should have armed it", loaded > 0);
+        for (GameStateDto.FighterRailDto r : sd.rails) {
+            if (r.drone == null)
+                continue;
+            assertNotNull("the row totals the load from this", r.spaces);
+            assertTrue(r.spaces > 0);
+        }
+    }
+
+    @Test
+    public void aShuttleWithNoRailsSendsNoRailList() {
+        AdminShuttle admin = new AdminShuttle();
+        admin.setName("IKV Vengeance-Admin-9");
+        bay.getSpaces().get(0).setShuttle(admin);
+
+        GameStateDto.ShuttleInBayDto sd = inBay("IKV Vengeance-Admin-9");
+
+        assertNotNull(sd);
+        assertNull("null, not an empty list: \"carries no drones\" and \"carries drones and"
+                + " is empty\" are different facts and the row shows them differently",
+                sd.rails);
+    }
 }
