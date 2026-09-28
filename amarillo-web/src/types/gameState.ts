@@ -362,6 +362,11 @@ export interface ShuttleObject extends MapObjectBase {
    * direct-fire weapons, and before it may use seeking weapons. 0 means it may. Decided in
    * core — never recomputed here from launchImpulse.
    */
+  /**
+   * J1.31: this fighter's drone rails. Absent for a craft with none, and absent for an
+   * enemy viewer whatever it carries (G4.233 keeps drones aboard off a scan).
+   */
+  rails?:         FighterRail[];
   fireDelayRemaining?:   number;
   seekerDelayRemaining?: number;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn

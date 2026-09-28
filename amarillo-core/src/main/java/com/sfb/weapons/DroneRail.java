@@ -56,10 +56,11 @@ public class DroneRail extends DroneRack {
     /** The ordinary load for a rail of this size; a fighter may say otherwise. */
     private static com.sfb.objects.DroneType defaultDroneFor(DroneRailType type) {
         if (type == null)
-            return null;   // the no-arg constructor sets STANDARD before this runs
+            return null; // the no-arg constructor sets STANDARD before this runs
         return switch (type) {
             case LIGHT -> com.sfb.objects.DroneType.TypeVI; // half a space, dogfight
             case STANDARD -> com.sfb.objects.DroneType.TypeI;
+            case SPECIAL -> com.sfb.objects.DroneType.TypeIII;
             case HEAVY -> com.sfb.objects.DroneType.TypeIV;
             default -> null;
         };
@@ -98,8 +99,10 @@ public class DroneRail extends DroneRack {
                     drone.getDroneType() + " (size " + drone.getRackSize()
                             + ") does not fit a " + railType + " rail (capacity " + railType.capacity + ")");
         }
-        // A MUTABLE list: a launch takes the drone off the rack with getAmmo().remove(),
-        // the same way it does for a ship's rack, and List.of refused it. The rail was only
+        // A MUTABLE list: a launch takes the drone off the rack with
+        // getAmmo().remove(),
+        // the same way it does for a ship's rack, and List.of refused it. The rail was
+        // only
         // ever loaded and emptied wholesale before, so nothing had asked.
         setAmmo(new java.util.ArrayList<>(List.of(drone)));
     }

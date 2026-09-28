@@ -2528,14 +2528,25 @@ export default function GameBoard({ session, onLeave }: Props) {
   }
 
   /** Ships of mine with something to send: a plasma tube, a loaded rack, or a ready craft. */
-  const launchUnits: LaunchingUnit[] = (gameState?.mapObjects ?? []).flatMap(o => {
-    if (o.type !== 'SHIP' || !myShips.has(o.name))
-      return [];
+  const launchUnits: LaunchingUnit[] = (gameState?.mapObjects ?? [])
+    .flatMap((o): LaunchingUnit[] => {
+    if (o.type === 'SHIP' && myShips.has(o.name)) {
     const ship = o as ShipObject;
     const hasPlasma = (ship.weapons ?? []).some(w => w.launcherType && w.functional);
     const hasRack   = (ship.droneRacks ?? []).some(r => r.functional && r.drones.length > 0);
     const hasCraft  = (ship.shuttleBays ?? []).some(b => b.shuttles.length > 0);
-    return hasPlasma || hasRack || hasCraft ? [{ name: ship.name, ship }] : [];
+      return hasPlasma || hasRack || hasCraft ? [{ name: ship.name, ship }] : [];
+    }
+    // A fighter on the map launches its own drones (J1.31), so it belongs in this list on
+    // its own account — not only as cargo in somebody's bay.
+    if (o.type === 'SHUTTLE') {
+      const sh = o as ShuttleObject;
+      if (!myShips.has(sh.parentShipName ?? ''))
+        return [];
+      const loaded = (sh.rails ?? []).some(r => r.drone);
+      return loaded ? [{ name: sh.name, fighter: sh }] : [];
+    }
+    return [];
   });
 
   const isActivityPhase = phase === 'Activity';

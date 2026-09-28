@@ -85,6 +85,9 @@ public class MapObjectPrivacyTest {
             // could do the subtraction, so sending the answer gives nothing away.
             "fireDelayRemaining", "seekerDelayRemaining");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
+            // G4.233: an identification gives up the seeking course and stops there. What a
+            // fighter still has on its rails is never on offer.
+            "rails",
             // What it is CARRYING: G4.233 gives the seeking course and stops there. How
             // much it could carry is a property of the craft and is public, below.
             "holdCrew", "holdSpacesUsed");

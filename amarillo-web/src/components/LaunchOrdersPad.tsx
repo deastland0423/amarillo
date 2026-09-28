@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ShipObject, ShuttleInBayState } from '../types/gameState';
+import type { ShuttleObject, ShipObject, ShuttleInBayState } from '../types/gameState';
 import { armingOf, ARMING_WORD, ARMING_COLOUR, droneSummary, railDetail }
   from './armingStatus';
 import { ArmingDot } from './ArmingDot';
@@ -49,7 +49,14 @@ export interface LaunchCandidate {
 /** A ship of mine with something it could send. */
 export interface LaunchingUnit {
   name: string;
-  ship: ShipObject;
+  /** Absent when the unit is a fighter in flight: it has no bays, racks or tubes. */
+  ship?: ShipObject;
+  /**
+   * Set instead of `ship` for a drone-armed fighter already on the map. A fighter launches
+   * its own drones (J1.31) at one a turn (J4.431), which is a different enough thing from a
+   * ship's racks to be its own section rather than a special case inside one.
+   */
+  fighter?: ShuttleObject;
 }
 
 /** One drafted launch — the client-side twin of the server's ActivityOrder. */
@@ -312,8 +319,12 @@ export default function LaunchOrdersPad({
    */
   function controlAfter(unitName: string): { used: number; limit: number; drafted: number } {
     const u = units.find(x => x.name === unitName);
-    const used = u?.ship.controlUsed ?? 0;
-    const limit = u?.ship.controlLimit ?? 0;
+    // A fighter guides its own drones and no more (J4.431), so its channels ARE its rails.
+    // The map DTO does not send a shuttle's channel counts, and need not: a fighter cannot
+    // launch more than one a turn anyway, so the readout only has to stop a single drafted
+    // drone from reading as over its limit.
+    const used = u?.ship?.controlUsed ?? 0;
+    const limit = u?.ship?.controlLimit ?? (u?.fighter?.rails?.length ?? 0);
     const drafted = orders.filter(o => o.shipName === unitName
         && (o.kind === 'PLASMA' || o.kind === 'DRONE' || o.kind === 'SCATTER_PACK')).length;
     return { used, limit, drafted };
@@ -343,7 +354,7 @@ export default function LaunchOrdersPad({
    */
   function canTrack(dir: number): boolean {
     if (!attacker || !target) return false;
-    const from = parseLocation(attacker.ship.location);
+    const from = parseLocation((attacker.ship ?? attacker.fighter)?.location);
     const to   = parseLocation(target.location);
     if (!from || !to) return false;
     return bearsOn({ col: from[0], row: from[1] }, dir, FA_MASK, { col: to[0], row: to[1] });
@@ -464,6 +475,8 @@ export default function LaunchOrdersPad({
   for (const c of packsReady)   offer(c.name, seekerFacings, seekerAuto);
   for (const c of weaselsReady) offer(c.name, ALL_FACINGS, shipFacing);
   for (const c of plainReady)   offer(c.name, ALL_FACINGS, shipFacing);
+  // A fighter's drones leave on the fighter's own bearing to the target, like any seeker.
+  if (attacker?.fighter) offer(attacker.name, seekerFacings, seekerAuto);
 
   function autoFor(key: string): number {
     return autoByKey.get(key) ?? shipFacing;
@@ -749,6 +762,47 @@ export default function LaunchOrdersPad({
                                       fastLoad: true, facing,
                                     })}>fast</button>
                           )}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/*
+                  A fighter's own rails (J1.31). One drone a turn whatever it carries
+                  (J4.431), so once an order is drafted for this fighter the rest go quiet
+                  — the server refuses them and there is no reason to let one be sealed.
+                */}
+                {(attacker.fighter?.rails ?? []).map((rail, i) => {
+                  const railName = `DroneRail-${String.fromCharCode(65 + i)}`;
+                  const used = spent.has(attacker.name);
+                  return (
+                    <div key={railName} style={{ ...ROW, cursor: 'default',
+                                                 flexWrap: 'wrap' }}>
+                      <span style={{ color: rail.drone ? '#e6edf3' : '#8b949e' }}>
+                        {railName}
+                      </span>
+                      <span style={{ color: '#8b949e', fontSize: '0.9em' }}>
+                        {rail.drone ?? 'empty'}
+                      </span>
+                      {rail.drone && !used && (
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                       alignItems: 'center' }}>
+                          {facingChip(attacker.name)}
+                          <button style={{ padding: '0 6px' }}
+                                  disabled={!legalHeading(attacker.name)}
+                                  onClick={() => draft({
+                                    label: `${attacker.name} → ${target.name}: ${rail.drone}`,
+                                    kind: 'DRONE', shipName: attacker.name,
+                                    targetName: target.name, weaponName: railName,
+                                    droneIndex: 0, facing: facings[attacker.name] ?? 0,
+                                  })}>launch</button>
+                        </span>
+                      )}
+                      {rail.drone && used && (
+                        <span style={{ marginLeft: 'auto', color: '#8b949e',
+                                       fontSize: '0.9em' }}>
+                          one drone a turn (J4.431)
                         </span>
                       )}
                     </div>

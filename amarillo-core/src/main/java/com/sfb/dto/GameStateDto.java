@@ -590,6 +590,15 @@ public class GameStateDto {
         public int personnelCapacity;   // personnel-space capacity of the hold
         public boolean isIdentified;    // true once an enemy lab or scout identified it (G4.2)
         /**
+         * What is on this fighter's drone rails, one entry each (J1.31). Null for anything
+         * that carries no rails, and null for an ENEMY viewer whatever it carries.
+         * <p>
+         * G4.233 is explicit that a successful identification reveals a seeking course and
+         * its target and NOTHING about drones aboard — so what a fighter is still holding is
+         * the owner's alone, and this is filled only when the viewer is on its side.
+         */
+        public List<FighterRailDto> rails;
+        /**
          * G4.233: a successful identification reveals whether the shuttle is following a
          * seeking course and, if it is, its target — and NOTHING about drones aboard
          * or a suicide bomb. So this pair is all an enemy ever learns about a suicide
@@ -1720,6 +1729,21 @@ public class GameStateDto {
         dto.landedHexSide = shuttle.getLandedHexSide();
         // What is aboard is hidden; how much it COULD carry is a property of the craft,
         // like its speed, and stays public.
+        // The owner's own: G4.233 keeps a fighter's remaining drones off an enemy scan.
+        if (!hideSecrets)
+            for (com.sfb.weapons.Weapon fw : shuttle.getWeapons().fetchAllWeapons()) {
+                if (!(fw instanceof com.sfb.weapons.DroneRail rail))
+                    continue;
+                if (dto.rails == null)
+                    dto.rails = new ArrayList<>();
+                FighterRailDto rd = new FighterRailDto();
+                rd.railType = rail.getRailType() == null ? null : rail.getRailType().name();
+                if (rail.getDrone() != null) {
+                    rd.drone = rail.getDrone().getDroneType().name();
+                    rd.spaces = rail.getDrone().getRackSize();
+                }
+                dto.rails.add(rd);
+            }
         dto.holdCrew = hideSecrets ? 0 : shuttle.getHold().getCrew();
         dto.holdSpacesUsed = hideSecrets ? 0 : shuttle.personnelSpacesUsed();
         dto.personnelCapacity = shuttle.getPersonnelCapacity();
