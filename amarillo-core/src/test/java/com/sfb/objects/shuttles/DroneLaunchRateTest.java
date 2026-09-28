@@ -168,4 +168,34 @@ public class DroneLaunchRateTest {
         assertTrue(taas.mayLaunchAtDifferentTargets());
         assertTrue(taas.mayLaunchTwoStandardDrones());
     }
+
+    // -------------------------------------------------------------------------
+    // J4.241's hard cap, which survives every exemption
+    // -------------------------------------------------------------------------
+
+    /**
+     * "No fighter can exceed the per-turn rate within a 1/4-turn period (of two consecutive
+     * turns)." Not enforced by a rule of its own here: it falls out of J4.24's spacing
+     * being measured from the LAST LAUNCH rather than from the turn boundary, so the first
+     * drone of a new turn still owes the quarter turn.
+     * <p>
+     * Pinned because that is a load-bearing accident. A future change that reset the
+     * spacing at startTurn would satisfy every other test in this file and quietly let a
+     * TAAS put four drones up inside eight impulses.
+     */
+    @Test
+    public void twoInOneTurnDoesNotBuyTwoMoreImmediatelyInTheNext() {
+        Taas taas = new Taas();
+        Ship t = target("A", 11);
+        taas.recordDroneFired(t, standard(), 31);
+        taas.recordDroneFired(t, standard(), 32);   // its J4.242 pair, legally
+
+        taas.startTurn();                           // a new turn, the count resets
+
+        assertNotNull("one impulse later is not a quarter turn",
+                taas.droneLaunchRefusal(t, standard(), 33));
+        assertNotNull("nor is seven", taas.droneLaunchRefusal(t, standard(), 39));
+        assertNull("eight impulses from the last launch, and it may go again",
+                taas.droneLaunchRefusal(t, standard(), 40));
+    }
 }
