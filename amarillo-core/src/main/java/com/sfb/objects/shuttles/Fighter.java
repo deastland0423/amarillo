@@ -170,7 +170,6 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     /** J4.961: "Each EWP can provide two points of either ECM or ECCM, or one of each." */
     public static final int POINTS_PER_EW_POD = 2;
 
-    private int ewPods;
     private int extraEwPods;
     private int podEcm;
     private int podEccm;
@@ -181,19 +180,45 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         return isTwoSeater() ? MAX_EW_PODS_EW_FIGHTER : MAX_EW_PODS;
     }
 
-    public int getEwPods() { return ewPods; }
+    /**
+     * Every pod aboard: the ones occupying rails (J4.962) and the extras slung alongside
+     * (J4.9621). Counted rather than stored, because a rail is where a pod actually sits
+     * and two places recording the same fact drift.
+     */
+    public int getEwPods() {
+        return railEwPods() + extraEwPods;
+    }
+
+    /** Pods carried in place of a drone, which is the ordinary way (J4.962). */
+    public int railEwPods() {
+        int n = 0;
+        for (Weapon w : getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail rail && rail.hasEwPod())
+                n++;
+        return n;
+    }
 
     /**
-     * Fit pods, up to what J4.964 allows. Any allocation already made is re-spread, since
-     * the points available have changed and J4.961 re-declares them every turn anyway.
+     * Fit pods to rails, each displacing a drone (J4.962), up to J4.964's limit.
      *
-     * @return the number actually fitted
+     * @return the number of rails now carrying one
      */
-    public int setEwPods(int pods) {
-        ewPods = Math.max(0, Math.min(pods, maxEwPods()));
-        extraEwPods = Math.min(extraEwPods, ewPods);
+    public int fitEwPods(int pods) {
+        int want = Math.max(0, Math.min(pods, maxEwPods() - extraEwPods));
+        for (Weapon w : getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof com.sfb.weapons.DroneRail rail))
+                continue;
+            // J4.2312: a standard rail and nothing else, so a TAAS can hang pods on its
+            // two standard rails and never on its light ones.
+            if (!rail.canCarryEwPod())
+                continue;
+            if (railEwPods() < want)
+                rail.fitEwPod();
+            else if (rail.hasEwPod() && railEwPods() > want)
+                rail.clearEwPod();
+        }
         spreadPodPointsEvenly();
-        return ewPods;
+        return railEwPods();
     }
 
     /**
@@ -203,7 +228,10 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     public int getExtraEwPods() { return extraEwPods; }
 
     public int setExtraEwPods(int extra) {
-        extraEwPods = Math.max(0, Math.min(Math.min(extra, MAX_EXTRA_EW_PODS), ewPods));
+        int room = maxEwPods() - railEwPods();
+        extraEwPods = Math.max(0,
+                Math.min(Math.min(extra, MAX_EXTRA_EW_PODS), Math.max(0, room)));
+        spreadPodPointsEvenly();
         return extraEwPods;
     }
 
@@ -217,7 +245,6 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         if (extraEwPods <= 0)
             return false;
         extraEwPods--;
-        ewPods--;
         spreadPodPointsEvenly();   // J4.9622: "the EW situation must be rebalanced"
         return true;
     }
@@ -245,7 +272,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * @return false if the split does not spend exactly the points the pods produce
      */
     public boolean allocatePodEw(int ecm, int eccm) {
-        if (ecm < 0 || eccm < 0 || ecm + eccm != ewPods * POINTS_PER_EW_POD)
+        if (ecm < 0 || eccm < 0 || ecm + eccm != getEwPods() * POINTS_PER_EW_POD)
             return false;
         podEcm = ecm;
         podEccm = eccm;
@@ -253,7 +280,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     }
 
     private void spreadPodPointsEvenly() {
-        int points = ewPods * POINTS_PER_EW_POD;
+        int points = getEwPods() * POINTS_PER_EW_POD;
         podEcm = points / 2;
         podEccm = points - podEcm;
     }
@@ -266,7 +293,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * leaves J4.47's two-and-two — which is the practical difference between the two.
      */
     public boolean podsWorking() {
-        return podsActive && ewPods > 0 && !isCrippled();
+        return podsActive && getEwPods() > 0 && !isCrippled();
     }
 
     /** ECM the pods are producing this turn, or none if they are off or shot away. */

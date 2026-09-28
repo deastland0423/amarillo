@@ -27,7 +27,6 @@ public class Haas_E extends Fighter {
         setCrippledHull(8);
         setBpv(10);
         setTwoSeater(true);
-        setEwPods(2);
 
         Phaser3 ph = new Phaser3();
         ph.setDesignator("1");
@@ -42,5 +41,11 @@ public class Haas_E extends Fighter {
         DroneRail railB = new DroneRail(DroneRail.DroneRailType.STANDARD);
         railB.setDesignator("B");
         getWeapons().addWeapon(railB);
+
+        // The SSD shows the EW variant with the same rails as the standard HAAS, carrying
+        // pods on them and two fewer drones (J4.962). The pods are not free: they cost the
+        // whole of this fighter's offensive armament, which is what it trades for being
+        // able to lend eight points to its squadron (J4.965, J4.941).
+        fitEwPods(2);
     }
 }

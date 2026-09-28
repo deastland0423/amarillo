@@ -93,7 +93,54 @@ public class DroneRail extends DroneRack {
      * @throws IllegalArgumentException if the drone is too large for this rail
      *                                  type.
      */
+    /**
+     * J4.962: "An EWP replaces one drone carried by the fighter." So a rail carries a
+     * drone or a pod and never both — the SSD for an EW fighter shows exactly this, the
+     * same rails as the standard model with pods on them and two fewer drones aboard.
+     */
+    private boolean ewPodFitted;
+
+    public boolean hasEwPod() { return ewPodFitted; }
+
+    /**
+     * J4.2312: "EW pods can be carried on standard drone rails, but cannot be carried on
+     * other types of rails."
+     * <p>
+     * Stricter than it looks. A pod is one space, so a half-space LIGHT rail obviously
+     * cannot take one — but the rule bars a HEAVY rail too, which has room to spare. It is
+     * about the fitting, not the volume.
+     */
+    public boolean canCarryEwPod() {
+        return railType == DroneRailType.STANDARD;
+    }
+
+    /**
+     * Fit an EW pod here, displacing whatever drone was on the rail.
+     *
+     * @return the drone that came off, or null if the rail was empty
+     */
+    public Drone fitEwPod() {
+        if (!canCarryEwPod())
+            throw new IllegalStateException(getName() + " is a " + railType
+                    + " rail; only a standard rail carries an EW pod (J4.2312)");
+        Drone displaced = getDrone();
+        setAmmo(new java.util.ArrayList<>());
+        ewPodFitted = true;
+        return displaced;
+    }
+
+    /** Take the pod off, leaving the rail empty and able to take a drone again. */
+    public boolean clearEwPod() {
+        if (!ewPodFitted)
+            return false;
+        ewPodFitted = false;
+        return true;
+    }
+
     public void loadDrone(Drone drone) {
+        if (ewPodFitted)
+            throw new IllegalStateException(getName()
+                    + " carries an EW pod; a rail holds one or the other (J4.962)");
         if (drone.getRackSize() > railType.capacity) {
             throw new IllegalArgumentException(
                     drone.getDroneType() + " (size " + drone.getRackSize()
