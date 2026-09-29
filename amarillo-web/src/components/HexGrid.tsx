@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MapObject, ShipObject, DroneObject, PlasmaObject } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject } from '../types/gameState';
 import { parseLocation, facingToAngle, facingLabel, factionColor, shieldStrengthColor } from '../types/gameState';
 import { hexRange } from '../hex/geometry';
 
@@ -923,6 +923,50 @@ function shuttleTooltipLines(
       lines.push('Course:   not seeking');
     }
   }
+  lines.push(...fighterEwLines(shuttle as ShuttleObject));
+  return lines;
+}
+
+/**
+ * A fighter's electronic warfare, for the hover (J4.47, J4.9x).
+ * <p>
+ * Public for friend and enemy alike, exactly as a ship's is: it is the figure that decides
+ * which target is worth shooting at, and a fighter flying with its EW fighter is a materially
+ * harder shot than the same fighter that has drifted out of formation.
+ *
+ * Every number here is read off the DTO. J4.91's ceiling, J4.93's loan and J4.921's range are
+ * rules answers and are not recomputed on this side.
+ */
+function fighterEwLines(shuttle: ShuttleObject): string[] {
+  const lines: string[] = [];
+  if (shuttle.ecmTotal == null && shuttle.eccmTotal == null) return lines;
+
+  let ew = `EW:       ${shuttle.ecmTotal ?? 0} ECM / ${shuttle.eccmTotal ?? 0} ECCM`;
+  if (shuttle.ewPods != null && shuttle.podsActive === false) ew += ' · pods OFF';
+  lines.push(ew);
+  if (shuttle.ecmSources) lines.push(`          ${shuttle.ecmSources}`);
+
+  // An EW fighter: what it is putting out, and whether that was chosen or defaulted.
+  if (shuttle.ewPods != null && shuttle.ewPods > 0) {
+    lines.push(`Pods:     ${shuttle.ewPods} — ${shuttle.podEcm ?? 0} ECM / `
+      + `${shuttle.podEccm ?? 0} ECCM`
+      + (shuttle.podEwDeclared ? '' : ' (undeclared)'));
+    if (shuttle.ewLendDelayRemaining) {
+      lines.push(`          cannot lend for ${shuttle.ewLendDelayRemaining} more `
+        + `impulse${shuttle.ewLendDelayRemaining === 1 ? '' : 's'} (J1.343)`);
+    }
+  }
+
+  // A fighter being lent to, or one that has drifted out of its EW fighter's reach.
+  if (shuttle.ewLenderName && shuttle.ewLenderName !== shuttle.name) {
+    const range = shuttle.ewLenderRange;
+    const limit = shuttle.ewLendRangeLimit;
+    const dist = range == null ? '' : `, ${range} hex${range === 1 ? '' : 'es'}`
+      + (limit != null && range > limit ? ` of ${limit}` : '');
+    lines.push(`EW from:  ${shuttle.ewLenderName}${dist}`);
+    if (shuttle.ewLendRefusal) lines.push(`          ${shuttle.ewLendRefusal}`);
+  }
+  if (shuttle.squadronName) lines.push(`Squadron: ${shuttle.squadronName}`);
   return lines;
 }
 

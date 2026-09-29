@@ -1373,25 +1373,29 @@ public class GameController {
 
         List<String> weaponsInArc = bearingWeaponNames(attackerUnit, targetUnit);
 
-        boolean hasLockOn = attackerUnit instanceof Ship
-                && ((Ship) attackerUnit).hasLockOn(targetUnit);
+        // A fighter holds lock-ons too (J1.31 gives every shuttle sensor rating six, automatic
+        // under D6.11), and asking only ships reported every fighter as having none.
+        boolean hasLockOn = attackerUnit instanceof Ship ship
+                ? ship.hasLockOn(targetUnit)
+                : attackerUnit instanceof com.sfb.objects.shuttles.Fighter f
+                        && f.hasLockOn(targetUnit);
 
         // The EW between THESE two, which is the only form of the question that has an
         // answer: natural ECM is counted along the line of sight (P3.33, P2.51,
         // P2.223), so the same target presents a different figure to every shooter and
         // no number on a ship's own panel can stand for it.
-        int ecmPoints = 0;
-        int ecmShift = 0;
-        int eccm = 0;
-        String ecmSources = null;
-        if (attackerUnit instanceof Ship) {
-            com.sfb.properties.EwBreakdown ew =
-                    session.getGame().ewAgainst((Ship) attackerUnit, targetUnit);
-            eccm = session.getGame().activeEccm((Ship) attackerUnit);
-            ecmPoints = ew.total();
-            ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
-            ecmSources = ew.describe();
-        }
+        // Asked of ANY attacker, not only a ship. This used to skip the whole calculation
+        // unless the shooter was a Ship, so a fighter taking a shot was shown zero ECM on its
+        // target, zero ECCM of its own, and a shift of zero — while the resolution behind it
+        // counted J4.47's two points and whatever its squadron was lending (J4.92). Both
+        // Game.ewAgainst and Game.eccmOf take a Unit; the Ship-only gate was left behind when
+        // they were widened.
+        com.sfb.properties.EwBreakdown ew =
+                session.getGame().ewAgainst(attackerUnit, targetUnit);
+        int eccm = session.getGame().eccmOf(attackerUnit);
+        int ecmPoints = ew.total();
+        int ecmShift = com.sfb.Game.netEcmShift(ecmPoints - eccm);
+        String ecmSources = ew.describe();
 
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("range", range);

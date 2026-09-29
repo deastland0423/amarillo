@@ -382,6 +382,26 @@ export interface ShuttleObject extends MapObjectBase {
   seekingCourse?:     boolean;
   seekingTargetName?: string | null;
   manned?:            boolean | null;   // G4.233; null = not established
+  // Electronic warfare (J4.47, J4.9x). Public for every fighter, friend or enemy, by the
+  // owner's ruling — the same treatment a ship's EW gets. Absent entirely on a craft with no
+  // EW of its own, which is why every field is optional rather than defaulting to zero.
+  ecmTotal?:          number;        // J4.91: built-in + pods + lent, capped at six
+  eccmTotal?:         number;
+  ecmSources?:        string | null; // "2 built-in + 2 pods + 2 lent from HAAS-E"
+  squadronName?:      string | null; // J4.46
+  ewPods?:            number;        // J4.96: pods aboard
+  podEcm?:            number;        // J4.961: this turn's declared split
+  podEccm?:           number;
+  podEwDeclared?:     boolean;       // J4.961: declared, or the even default
+  podsActive?:        boolean;       // J4.967
+  ewLendDelayRemaining?: number;     // J1.343: impulses before it may LEND
+  lentEwSourceName?:  string | null; // J4.93: who is lending right now
+  lentEcm?:           number;
+  lentEccm?:          number;
+  ewLenderName?:      string | null; // the squadron's EW fighter, in range or not
+  ewLenderRange?:     number;        // hexes to it
+  ewLendRangeLimit?:  number;        // J4.921's three, sent rather than hardcoded
+  ewLendRefusal?:     string | null; // why nothing is arriving
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
   targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
