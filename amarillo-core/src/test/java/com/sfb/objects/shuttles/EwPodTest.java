@@ -484,4 +484,32 @@ public class EwPodTest {
     public void aStingerEsBoxStocksNoDrones() {
         assertNull(com.sfb.systemgroups.ReadyRack.forFighter(new Stinger_E()));
     }
+
+    /**
+     * A Stinger-E reads READY, because it is. It has nothing to arm, which is not the same as
+     * being unarmed — showing it blank beside its green-dotted squadron-mates in the launch pad
+     * said the opposite of the truth.
+     */
+    @Test
+    public void aFighterWithNothingToArmReadsReady() {
+        assertEquals("READY", com.sfb.systemgroups.FighterArming.armingState(new Stinger_E()));
+        assertFalse("and still gives a deck crew no work",
+                com.sfb.systemgroups.FighterArming.needsArming(new Stinger_E()));
+    }
+
+    /** An empty drone fighter is a different thing entirely, and must keep saying so. */
+    @Test
+    public void anUnarmedDroneFighterStillReadsEmpty() {
+        assertEquals("EMPTY", com.sfb.systemgroups.FighterArming.armingState(new Haas()));
+    }
+
+    /**
+     * Null stays reserved for craft the question does not reach. An admin shuttle is not
+     * "unarmed" — it is not a combat craft, and a green dot on one would be noise.
+     */
+    @Test
+    public void aNonFighterStillHasNoArmingStateAtAll() {
+        assertNull(com.sfb.systemgroups.FighterArming.armingState(new AdminShuttle()));
+        assertNull(com.sfb.systemgroups.FighterArming.armingState(null));
+    }
 }

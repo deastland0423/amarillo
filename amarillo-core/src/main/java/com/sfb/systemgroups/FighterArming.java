@@ -1,5 +1,6 @@
 package com.sfb.systemgroups;
 
+import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.FighterFusion;
@@ -107,8 +108,18 @@ public final class FighterArming {
     }
 
     /**
-     * How near this craft is to flying a mission: READY, PARTIAL, EMPTY, or null when the
-     * question does not apply because it has nothing to arm.
+     * How near this craft is to flying a mission: READY, PARTIAL, EMPTY, or null where the
+     * question does not apply at all.
+     * <p>
+     * A FIGHTER with nothing to arm reads READY, because it is: a Hydran Stinger-E (R1.F7)
+     * carries one Ph-G and two permanent EW pods and is as armed as it can ever be, so
+     * showing it blank in the launch pad beside its green-dotted squadron-mates said the
+     * opposite of the truth. Null is reserved for craft the question does not reach — an
+     * admin shuttle is not "unarmed", it is not a combat craft.
+     * <p>
+     * Note this deliberately disagrees with {@link #needsArming}, which stays false for such
+     * a fighter. They answer different questions: whether a deck crew has work to do, and
+     * whether the craft can fly its mission. A Stinger-E is no work and fully ready.
      * <p>
      * Computed here rather than in the client, and once rather than per panel. The hangar
      * asks it to colour a row and the launch pad asks it to say which two fighters can go
@@ -121,8 +132,12 @@ public final class FighterArming {
      * them by folding it into "not ready".
      */
     public static String armingState(Shuttle craft) {
-        if (craft == null || halfActionsToFullyArm(craft) <= 0)
-            return null;   // an admin shuttle has nothing to arm; it is not "unarmed"
+        if (craft == null)
+            return null;
+        if (halfActionsToFullyArm(craft) <= 0)
+            // Nothing to arm. For a fighter that is the finished article; for anything else
+            // the question never applied.
+            return craft instanceof Fighter ? "READY" : null;
         int loaded = chargesCarriedBy(craft) + dronesCarriedBy(craft);
         if (loaded == 0)
             return "EMPTY";
