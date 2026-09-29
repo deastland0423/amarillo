@@ -63,6 +63,17 @@ public class SquadronEwInPlayTest {
         game.getShips().add(enemy);
 
         game.startTurn();
+        // The impulse clock does not run until allocation is in, and J1.343's eight impulses
+        // are measured on it — without this every wait below would spin at impulse zero.
+        for (Ship ship : game.getShips()) {
+            com.sfb.systemgroups.Energy e = new com.sfb.systemgroups.Energy();
+            e.setLifeSupport(ship.getLifeSupportCost());
+            e.setFireControl(ship.getFireControlCost());
+            e.setActivateShields(ship.getActiveShieldCost());
+            e.setWarpMovement(0.0);
+            game.submitAllocation(ship, e);
+        }
+        assertFalse("the turn should be under way", game.isAwaitingAllocation());
     }
 
     /** J4.461: the carrier sorts its own fighters out, and the EW fighter lands in a squadron. */
@@ -92,6 +103,7 @@ public class SquadronEwInPlayTest {
 
         Haas_E ewf = launch(Haas_E.class);
         Haas wingman = launch(Haas.class);
+        serveTheLendingDelay(ewf);
 
         assertNotNull("they must be squadron-mates for J4.921", wingman.getSquadron());
         assertTrue("and the launch must not have broken that",
@@ -121,6 +133,7 @@ public class SquadronEwInPlayTest {
 
         Haas_E ewf = launch(Haas_E.class);
         Haas wingman = launch(Haas.class);
+        serveTheLendingDelay(ewf);
         int withEwf = game.ewAgainst(enemy, wingman).total();
 
         // Break formation: past J4.921's three hexes the loan lapses.
@@ -142,12 +155,87 @@ public class SquadronEwInPlayTest {
 
         Haas_E ewf = launch(Haas_E.class);
         Haas wingman = launch(Haas.class);
+        serveTheLendingDelay(ewf);
         assertFalse(game.lentEwTo(wingman).isNothing());
 
         game.getActiveShuttles().remove(ewf);
         ewf.setLocation(null);                      // back aboard, off the map
 
         assertTrue("nothing is lending any more", game.lentEwTo(wingman).isNothing());
+    }
+
+    /**
+     * J1.343: "A shuttle cannot loan EW points ... for 1/4 turn (eight impulses) after its most
+     * recent launch." The same wait its phasers serve under J1.342 — so an EW fighter scrambled
+     * into a fight protects nobody until it has been out a quarter turn.
+     */
+    @Test
+    public void aFreshlyLaunchedEwFighterLendsNothingForEightImpulses() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+
+        Haas_E ewf = launch(Haas_E.class);
+        Haas wingman = launch(Haas.class);
+
+        assertTrue("in range and in squadron, but just launched",
+                game.lentEwTo(wingman).isNothing());
+        assertNull("so nothing counts as its source yet", game.lentEwSourceOf(wingman));
+        assertEquals("its own two points and no more (J4.47)",
+                2, game.ewAgainst(enemy, wingman).total());
+
+        int toGo = ewf.impulsesUntilEwLending(game.getAbsoluteImpulse());
+        assertTrue("there should be a wait to serve: " + toGo, toGo > 0);
+        waitImpulses(toGo);
+
+        assertFalse("and now it lends", game.lentEwTo(wingman).isNothing());
+        assertSame(ewf, game.lentEwSourceOf(wingman));
+    }
+
+    /**
+     * The other half of J1.343, and the reason it is not simply a launch delay: "A shuttle can
+     * RECEIVE EW lending immediately upon launch." A fighter joining a formation whose EW
+     * fighter has been up a while is covered from the moment it clears the bay.
+     */
+    @Test
+    public void aFreshlyLaunchedWingmanReceivesAtOnce() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+
+        Haas_E ewf = launch(Haas_E.class);
+        serveTheLendingDelay(ewf);
+
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        Haas latecomer = launch(Haas.class);
+        latecomer.setLocation(ewf.getLocation());
+        game.acquireFighterLockOns(latecomer);
+
+        assertEquals("no wait to receive (J1.343)", 2, game.lentEwTo(latecomer).ecm());
+        assertEquals(2, game.lentEwTo(latecomer).eccm());
+        assertEquals("covered from the moment it clears the bay",
+                4, game.ewAgainst(enemy, latecomer).total());
+    }
+
+    /** Serve out J1.343's quarter turn for a craft that has just launched. */
+    private void serveTheLendingDelay(com.sfb.objects.shuttles.Shuttle craft) {
+        waitImpulses(craft.impulsesUntilEwLending(game.getAbsoluteImpulse()));
+        for (com.sfb.objects.shuttles.Shuttle s : game.getActiveShuttles())
+            if (s instanceof Fighter f)
+                game.acquireFighterLockOns(f);
+    }
+
+    /** Advance until the absolute impulse has moved on by {@code n}. Bounded, never hangs. */
+    private void waitImpulses(int n) {
+        if (n <= 0)
+            return;
+        int target = game.getAbsoluteImpulse() + n;
+        for (int guard = 0; guard < 2000; guard++) {
+            if (game.getAbsoluteImpulse() >= target)
+                return;
+            game.advancePhase();
+        }
+        fail("impulse clock never reached " + target + " (stuck at "
+                + game.getAbsoluteImpulse() + ", phase " + game.getCurrentPhase() + ")");
     }
 
     /** Launch the first craft of this type out of whichever bay holds one. */

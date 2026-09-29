@@ -59,6 +59,16 @@ public abstract class Shuttle extends Unit {
 	public static final int SEEKER_DELAY = 16;
 
 	/**
+	 * J1.343: a quarter turn before a shuttle may LOAN EW points (or lay or sweep mines, or
+	 * collect information).
+	 * <p>
+	 * The same eight impulses as {@link #DIRECT_FIRE_DELAY}, kept as its own constant because
+	 * it is its own rule: the two happen to coincide today and a revision to one must not
+	 * silently move the other.
+	 */
+	public static final int EW_LENDING_DELAY = 8;
+
+	/**
 	 * The absolute impulse this craft last left a bay on (J1.34), or far in the past while
 	 * it is sitting in one — a shuttle in a bay is not serving out a launch delay.
 	 * <p>
@@ -559,6 +569,24 @@ public abstract class Shuttle extends Unit {
 	 */
 	public int impulsesUntilDirectFire(int currentImpulse) {
 		return Math.max(0, DIRECT_FIRE_DELAY - (currentImpulse - getLaunchImpulse()));
+	}
+
+	/**
+	 * J1.343: a shuttle "cannot loan EW points ... for 1/4 turn (eight impulses) after its
+	 * most recent launch" — the same wait as its direct-fire weapons.
+	 * <p>
+	 * The rule is deliberately one-sided, and its last sentence says so outright: "A shuttle
+	 * can receive EW lending immediately upon launch." So this gates the LENDER only. A
+	 * fighter launched into a formation is protected by its EW fighter at once; an EW fighter
+	 * launched into one protects nobody for eight impulses.
+	 */
+	public boolean canLoanEw(int currentImpulse) {
+		return (currentImpulse - getLaunchImpulse()) >= EW_LENDING_DELAY;
+	}
+
+	/** Impulses still to serve before this craft may lend EW (J1.343), or zero if it may. */
+	public int impulsesUntilEwLending(int currentImpulse) {
+		return Math.max(0, EW_LENDING_DELAY - (currentImpulse - getLaunchImpulse()));
 	}
 
 	/** The same for seeking weapons (J1.341), which wait twice as long. */

@@ -74,6 +74,13 @@ class SquadronEwResolver {
             return false;                       // R1.F7/J4.43: only an EW fighter lends
         if (ewf.isCrippled())
             return false;                       // J4.921: "an uncrippled EWF"
+        // J1.343: "A shuttle cannot loan EW points ... for 1/4 turn (eight impulses) after its
+        // most recent launch" — the same wait its own phasers serve under J1.342. Only the
+        // LENDER waits: the rule's last sentence is "A shuttle can receive EW lending
+        // immediately upon launch", which is also what J4.922 means when it cites J1.343. So
+        // the recipient's own launch impulse is deliberately not consulted anywhere here.
+        if (!ewf.canLoanEw(game.getAbsoluteImpulse()))
+            return false;
         if (!recipient.sharesSquadronWith(ewf))
             return false;                       // J4.921: "from its squadron"
         // J4.921: the RECIPIENT holds the lock-on, which is the reverse of a scout channel
