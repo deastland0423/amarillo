@@ -2366,6 +2366,16 @@ public class Game {
         return squadronEw.loanTo(fighter);
     }
 
+    /**
+     * The unit actually lending EW to {@code fighter} (J4.93), or null if nothing is.
+     * <p>
+     * Usually its own squadron's EW fighter, which needs no instruction from anybody: J4.93
+     * has the EWF lend to the squadron as a whole. A declared source overrides it.
+     */
+    public Unit lentEwSourceOf(com.sfb.objects.shuttles.Fighter fighter) {
+        return squadronEw.effectiveSource(fighter);
+    }
+
     /** Units {@code fighter} could take lent EW from at this instant (J4.921). */
     public List<Unit> ewLendingCandidates(com.sfb.objects.shuttles.Fighter fighter) {
         return squadronEw.lendingCandidates(fighter);

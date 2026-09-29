@@ -120,20 +120,37 @@ public class SquadronEwLendingTest {
         assertEquals(4, game.ewAgainst(enemy, ewf).total());
     }
 
-    /** An ordinary fighter lends nothing, however many pods someone bolted to it. */
+    /**
+     * An ordinary fighter lends nothing, however many pods someone bolted to it — J4.965 gives
+     * the power to an EWF, and R1.F7/J4.43 is what makes one.
+     * <p>
+     * Tested in a squadron with no EW fighter in it, since a squadron that HAS one would lend
+     * automatically and mask the question.
+     */
     @Test
     public void onlyAnEwFighterLends() {
-        Haas plain = new Haas();
-        plain.setName("HAAS-2");
-        plain.setOwner(wingman.getOwner());
-        plain.setLocation(new Location(10, 13));
-        game.getActiveShuttles().add(plain);
-        assertEquals("J4.964 allows an ordinary fighter two", 2, plain.fitEwPods(2));
-        assertNull(squadron.add(plain));
+        Haas podded = new Haas();
+        podded.setName("HAAS-P");
+        podded.setOwner(wingman.getOwner());
+        podded.setLocation(new Location(10, 13));
+        game.getActiveShuttles().add(podded);
+        assertEquals("J4.964 allows an ordinary fighter two", 2, podded.fitEwPods(2));
+
+        Haas mate = new Haas();
+        mate.setName("HAAS-M");
+        mate.setOwner(wingman.getOwner());
+        mate.setLocation(new Location(10, 13));
+        game.getActiveShuttles().add(mate);
+
+        Squadron noEwf = new Squadron("Plain", carrier);
+        assertNull(noEwf.add(podded));
+        assertNull(noEwf.add(mate));
         sweepLockOns();
 
-        assertNotNull(game.designateLentEwSource(wingman, plain));
-        assertTrue(game.lentEwTo(wingman).isNothing());
+        assertNull("no EW fighter, so nothing lends at all", game.lentEwSourceOf(mate));
+        assertTrue(game.lentEwTo(mate).isNothing());
+        assertNotNull("and it cannot be made a source by naming it",
+                game.designateLentEwSource(mate, podded));
     }
 
     // -------------------------------------------------------------------------
@@ -319,6 +336,9 @@ public class SquadronEwLendingTest {
     /** The loan is real EW, so it shows up as a die shift on fire against the fighter. */
     @Test
     public void theLoanIsFeltInCombat() {
+        // Baseline with nothing lending: out of the squadron, so its own two points and no more.
+        squadron.remove(wingman);
+        assertNull(game.lentEwSourceOf(wingman));
         assertEquals("2 built-in alone is +1 (D6.34 Step 5)",
                 1, game.fireEcmShift(enemy, wingman));
 
@@ -326,10 +346,8 @@ public class SquadronEwLendingTest {
         assertTrue(wide.allocatePodEw(4, 4));
         Squadron big = new Squadron("Wide", carrier);
         assertNull(big.add(wide));
-        squadron.remove(wingman);
         assertNull(big.add(wingman));
         sweepLockOns();
-        assertNull(game.designateLentEwSource(wingman, wide));
 
         assertEquals("2 built-in + 4 lent = 6 points", 6, game.ewAgainst(enemy, wingman).total());
         assertEquals("six points is +2 on the die", 2, game.fireEcmShift(enemy, wingman));
@@ -453,6 +471,96 @@ public class SquadronEwLendingTest {
 
         hydranEwf.applyCripplingEffects();       // J1.33 / J1.3322
         assertTrue(game.lentEwTo(stinger).isNothing());
+    }
+
+    // -------------------------------------------------------------------------
+    // J4.93: the EWF lends to the squadron, and nobody has to ask
+    // -------------------------------------------------------------------------
+
+    /**
+     * The point of the whole feature. J4.93: "A given carrier, EWF, MRS, or SWAC can loan the
+     * points it is generating to all fighters (of a designated squadron) that are within the
+     * appropriate distance and otherwise qualify." The designation belongs to the LENDER — an
+     * EWF lends to its squadron, and a squadron-mate needs no instruction to benefit.
+     * <p>
+     * Before this, nothing in the game ever designated a source, so the lending machinery was
+     * live in the fire path and permanently answering nothing.
+     */
+    @Test
+    public void aSquadronMateReceivesWithoutBeingTold() {
+        assertNull("nobody designated anything", wingman.getLentEwSource());
+
+        assertSame("its squadron's EW fighter, found on its own",
+                ewf, game.lentEwSourceOf(wingman));
+        assertEquals(2, game.lentEwTo(wingman).ecm());
+        assertEquals(2, game.lentEwTo(wingman).eccm());
+        assertEquals("and it is felt in combat: 2 built-in + 2 lent",
+                4, game.ewAgainst(enemy, wingman).total());
+    }
+
+    /** Every qualifying mate, not just the first (J4.93: each receives ALL of the points). */
+    @Test
+    public void thereIsNoQueueForIt() {
+        Haas third = new Haas();
+        third.setName("HAAS-3");
+        third.setOwner(wingman.getOwner());
+        third.setLocation(new Location(11, 12));
+        game.getActiveShuttles().add(third);
+        assertNull(squadron.add(third));
+        sweepLockOns();
+
+        assertEquals(2, game.lentEwTo(wingman).ecm());
+        assertEquals(2, game.lentEwTo(third).ecm());
+    }
+
+    /** A fighter in no squadron is nobody's business (J4.92 groups them for a reason). */
+    @Test
+    public void aFighterOutsideASquadronReceivesNothing() {
+        squadron.remove(wingman);
+
+        assertNull(game.lentEwSourceOf(wingman));
+        assertTrue(game.lentEwTo(wingman).isNothing());
+    }
+
+    /** The EWF does not lend to itself; J4.965 has it USE its pod points directly instead. */
+    @Test
+    public void theEwFighterIsNotItsOwnSource() {
+        assertNull(game.lentEwSourceOf(ewf));
+        assertTrue(game.lentEwTo(ewf).isNothing());
+        assertEquals("it just has them: 2 built-in + 2 pods", 4, ewf.totalOwnEcm());
+    }
+
+    /**
+     * An implicit source has no J4.922 stickiness, because nothing was declared to be held to:
+     * fly out of range and the points simply stop, and come back when the formation closes up.
+     */
+    @Test
+    public void anImplicitSourceComesAndGoesWithTheFormation() {
+        assertFalse(game.lentEwTo(wingman).isNothing());
+
+        wingman.setLocation(new Location(10, 17));        // five hexes out
+        assertTrue(game.lentEwTo(wingman).isNothing());
+        assertNull("and nothing is holding it to a dead source", wingman.getLentEwSource());
+
+        wingman.setLocation(new Location(10, 13));        // back in formation
+        assertFalse("the loan resumes", game.lentEwTo(wingman).isNothing());
+    }
+
+    /** A declared source still wins, which is how carrier lending will be chosen (J4.922). */
+    @Test
+    public void anExplicitDesignationOverridesTheSquadronDefault() {
+        Fighter wide = fourPodEwf();
+        Squadron big = new Squadron("Wide", carrier);
+        assertNull(big.add(wide));
+        squadron.remove(wingman);
+        assertNull(big.add(wingman));
+        sweepLockOns();
+        assertTrue(wide.allocatePodEw(8, 0));
+
+        assertSame("implicitly, its new squadron's EWF", wide, game.lentEwSourceOf(wingman));
+        assertNull(game.designateLentEwSource(wingman, wide));
+        assertSame("and now explicitly the same one", wide, wingman.getLentEwSource());
+        assertEquals(4, game.lentEwTo(wingman).ecm());
     }
 
     /**

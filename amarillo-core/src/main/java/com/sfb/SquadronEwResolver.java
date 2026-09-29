@@ -129,17 +129,62 @@ class SquadronEwResolver {
     }
 
     /**
-     * The points {@code recipient} is actually getting from its designated source.
+     * The unit actually lending to {@code recipient}: whatever it was explicitly pointed at,
+     * or failing that its own squadron's EW fighter.
      * <p>
-     * Empty where the source has become unusable, which is not the same as having no
-     * source: J4.922 says a fighter "cannot change just because the present source became
-     * unavailable but would have to continue 'receiving' from that unit (even though it
-     * could not use the points)". The designation survives; the points stop.
+     * The implicit half is what J4.93 describes. The designation there belongs to the LENDER,
+     * not the recipient: "A given carrier, EWF, MRS, or SWAC can loan the points it is
+     * generating to all fighters (of a designated squadron) that are within the appropriate
+     * distance and otherwise qualify." An EWF lends to its squadron; the squadron does not
+     * apply to it one fighter at a time. So a squadron-mate needs no instruction to benefit.
+     * <p>
+     * J4.922's single-source rule is not bypassed by this, because with one EWF per squadron
+     * (J4.463) and carrier lending unbuilt there is at present only ever one source to have.
+     * The clock that rule sets exists to stop a player hopping between sources impulse by
+     * impulse to chase the best EW, and it has nothing to bite on until a fighter can be in
+     * two lenders' reach. When carrier lending arrives, an explicit designation is how the
+     * player picks — and it wins here, which is why it is consulted first.
+     */
+    Unit effectiveSource(Fighter recipient) {
+        if (recipient == null)
+            return null;
+        Unit declared = recipient.getLentEwSource();
+        if (declared != null)
+            return declared;
+        return squadronLender(recipient);
+    }
+
+    /**
+     * The EW fighter of {@code recipient}'s own squadron that can lend to it right now.
+     * <p>
+     * J4.463 allows a squadron only one, so the search is really a lookup; it is written as a
+     * search because a squadron whose EWF is crippled or out of range should simply find
+     * nothing rather than find it and be told no.
+     */
+    private Unit squadronLender(Fighter recipient) {
+        com.sfb.objects.Squadron squadron = recipient.getSquadron();
+        if (squadron == null)
+            return null;
+        for (Fighter mate : squadron.getFighters())
+            if (mate != recipient && qualifiesNow(recipient, mate))
+                return mate;
+        return null;
+    }
+
+    /**
+     * The points {@code recipient} is actually getting from its source.
+     * <p>
+     * Empty where the source has become unusable, which for a DECLARED source is not the
+     * same as having no source: J4.922 says a fighter "cannot change just because the present
+     * source became unavailable but would have to continue 'receiving' from that unit (even
+     * though it could not use the points)". The designation survives; the points stop. An
+     * implicit squadron source has no such stickiness — nothing was declared, so there is
+     * nothing to be held to.
      */
     EwLoan loanTo(Fighter recipient) {
         if (recipient == null)
             return EwLoan.NONE;
-        Unit source = recipient.getLentEwSource();
+        Unit source = effectiveSource(recipient);
         if (!qualifiesNow(recipient, source))
             return EwLoan.NONE;
         Fighter ewf = (Fighter) source;
