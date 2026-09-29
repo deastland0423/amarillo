@@ -2481,23 +2481,71 @@ public class Game {
     }
 
     /**
-     * Why {@code fighter} is getting no lent EW from its squadron's EW fighter, or null if it
-     * is getting some. Names the clause — range, lock-on, crippling, or J1.343's wait — since
-     * "nothing" on its own tells a player nothing.
+     * Why {@code fighter} is getting no lent EW, or null if it is getting some.
+     * <p>
+     * Names the clause that bit — range, lock-on, crippling, J1.343's wait, or a carrier that
+     * generated nothing — because "no lent EW" on its own tells a player nothing. Both
+     * potential sources are considered, since J4.921 offers two: the squadron's EW fighter
+     * within three hexes and its home carrier within ten. Where both exist and both refuse,
+     * both reasons are given; a player deciding how to fix it needs to know about each.
      */
     public String ewLendRefusalFor(com.sfb.objects.shuttles.Fighter fighter) {
-        com.sfb.objects.Unit source = squadronEw.effectiveSource(fighter);
-        if (source == null)
-            source = squadronEw.squadronEwFighter(fighter);
-        if (source == null)
-            return fighter != null && fighter.getSquadron() == null
-                    ? "not in a squadron (J4.46)" : "no EW fighter in the squadron";
-        return squadronEw.refusalReason(fighter, source);
+        if (fighter == null)
+            return "no fighter given";
+        com.sfb.objects.Unit live = squadronEw.effectiveSource(fighter);
+        if (live != null && !squadronEw.loanTo(fighter).isNothing())
+            return null;                       // something is arriving; nothing to explain
+        if (fighter.getSquadron() == null)
+            return "not in a squadron (J4.46)";
+
+        StringBuilder why = new StringBuilder();
+        com.sfb.objects.shuttles.Fighter ewf = squadronEw.squadronEwFighter(fighter);
+        if (ewf != null)
+            append(why, squadronEw.refusalReason(fighter, ewf));
+        Ship home = fighter.getSquadron().getCarrier();
+        if (home != null)
+            append(why, squadronEw.refusalReason(fighter, home));
+        if (why.length() == 0)
+            return "nothing in the squadron can lend EW";
+        return why.toString();
+    }
+
+    private static void append(StringBuilder sb, String reason) {
+        if (reason == null || reason.isBlank())
+            return;
+        if (sb.length() > 0)
+            sb.append("; ");
+        sb.append(reason);
+    }
+
+    /**
+     * The unit a readout should name as this fighter's EW lender: whoever is actually lending,
+     * or failing that whoever would be — its squadron's EW fighter, or its home carrier.
+     * <p>
+     * Distinct from {@link #lentEwSourceOf}, which goes null the moment the points stop. A
+     * formation that has strung out needs to see WHO it has drifted away from and by how far,
+     * which is exactly when the live answer is gone.
+     */
+    public Unit ewLenderFor(com.sfb.objects.shuttles.Fighter fighter) {
+        if (fighter == null)
+            return null;
+        Unit live = squadronEw.effectiveSource(fighter);
+        if (live != null)
+            return live;
+        Unit ewf = squadronEw.squadronEwFighter(fighter);
+        if (ewf != null)
+            return ewf;
+        return fighter.getSquadron() != null ? fighter.getSquadron().getCarrier() : null;
     }
 
     /** J4.921's three hexes, so a readout need not hardcode a rules number. */
     public static int squadronLendRange() {
         return SquadronEwResolver.SQUADMATE_LEND_RANGE;
+    }
+
+    /** J4.921's other reach: ten hexes from a fighter's own carrier. */
+    public static int carrierLendRange() {
+        return SquadronEwResolver.CARRIER_LEND_RANGE;
     }
 
     /** Units {@code fighter} could take lent EW from at this instant (J4.921). */

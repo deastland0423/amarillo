@@ -110,6 +110,11 @@ public class ShipDtoPrivacyTest {
         "ecmAllocated", "eccmAllocated", "ecmTotal", "eccmTotal", "ecmSources",
         "lentEcm", "lentEccm", "scoutEwLent", "offensiveEw", "wildWeaselActive",
         "wwEcmBonus",
+        // J4.93/J4.931 squadron lending, public with the rest of EW by the owner's ruling of
+        // 2026-09-29 ("all EW is public anyway"). J4.931 agrees on its own account: "EW
+        // generated for a squadron which is accepting EW from another source can be detected."
+        // The squadron roster rides along — an opponent watching a formation can count it.
+        "squadrons", "squadronEwLimit",
         // Visible states and published costs
         "weapons", "activeFireControl", "fireControlActivating", "fcActivatingUntil",
         "fcPaidThisTurn", "fireControlCost", "lifeSupportCost", "cloakCost", "cloakState",

@@ -136,6 +136,51 @@ public class Squadron {
         return size() >= MIN_FOR_EW_FIGHTER;
     }
 
+    // -------------------------------------------------------------------------
+    // Electronic warfare its carrier generates FOR it (J4.93, J4.931)
+    // -------------------------------------------------------------------------
+
+    private int carrierEcm;
+    private int carrierEccm;
+
+    /**
+     * Points the carrier generated this turn for this squadron alone (J4.931).
+     * <p>
+     * Held on the squadron rather than the ship because the squadron is what the rule lends
+     * to, and J4.933 makes the pools independent: "a carrier with more than twelve fighters
+     * could divide them into squadrons and generate a SEPARATE SET of EW points for each group
+     * (assuming it has the power; yes this means it could generate twelve EW)".
+     * <p>
+     * A separate pool from the carrier's own EW, which J4.931 insists on: "The same points
+     * cannot be used by both the carrier and the fighters." That separation is also what
+     * satisfies J4.932's bar on re-lending — these points are generated, never received, so
+     * there is nothing borrowed here to pass on.
+     */
+    public int getCarrierEcm() { return carrierEcm; }
+
+    public int getCarrierEccm() { return carrierEccm; }
+
+    /** Whether the carrier put anything into this squadron's pool this turn. */
+    public boolean hasCarrierEw() { return carrierEcm > 0 || carrierEccm > 0; }
+
+    /**
+     * Set what the carrier generated for this squadron, as declared at allocation.
+     * <p>
+     * The caller is responsible for the cap — {@code Shuttles.declareSquadronEw} applies
+     * J4.931's "equal limit" — because the limit is the SHIP's sensor rating and a squadron
+     * cannot see it.
+     */
+    public void setCarrierEw(int ecm, int eccm) {
+        carrierEcm = Math.max(0, ecm);
+        carrierEccm = Math.max(0, eccm);
+    }
+
+    /** A fresh pool each turn (J4.931 generates it at allocation, like any other EW). */
+    public void resetCarrierEw() {
+        carrierEcm = 0;
+        carrierEccm = 0;
+    }
+
     @Override
     public String toString() {
         return name + " (" + size() + " fighters"

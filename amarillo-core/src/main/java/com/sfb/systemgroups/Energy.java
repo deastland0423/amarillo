@@ -48,6 +48,19 @@ public class Energy {
 	// EW points the scout generates this turn for lending (G24.211/.31): a ship-level pool,
 	// 1 energy per point, drawn through channels during the turn — not tied to a channel at EA.
 	private int scoutEwPoints = 0;
+
+	/**
+	 * J4.93/J4.931: EW a carrier generates for its squadrons to borrow, squadron name to
+	 * {ecm, eccm}.
+	 * <p>
+	 * Bought here rather than by a separate action because J4.931 generates it at allocation
+	 * like any other EW, and riding the allocation gives the per-turn reset for free: a turn
+	 * with nothing declared lends nothing instead of repeating the last one.
+	 * <p>
+	 * A SECOND pool, never a share of the ship's own ECM/ECCM — "The same points cannot be
+	 * used by both the carrier and the fighters."
+	 */
+	private java.util.Map<String, int[]> squadronEw = new java.util.LinkedHashMap<>();
 	
 	// Probes
 	private int probes;
@@ -231,6 +244,15 @@ public class Energy {
 	/** EW points the scout generates this turn for lending (ship-level pool, G24.211/.31). */
 	public int getScoutEwPoints() {
 		return scoutEwPoints;
+	}
+
+	public java.util.Map<String, int[]> getSquadronEw() {
+		return squadronEw;
+	}
+
+	public void setSquadronEw(java.util.Map<String, int[]> declared) {
+		this.squadronEw = declared == null
+				? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(declared);
 	}
 
 	public void setScoutEwPoints(int points) {

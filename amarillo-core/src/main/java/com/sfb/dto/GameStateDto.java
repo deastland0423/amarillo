@@ -224,6 +224,20 @@ public class GameStateDto {
         public int launchDirectionsMask; // 0 = unrestricted
     }
 
+    /**
+     * One of a carrier's squadrons, and the EW it generated for it this turn (J4.93/J4.931).
+     * <p>
+     * Sent so the allocation form can offer a pool per squadron, which J4.933 requires: the
+     * pools are independent, not shares of one — "generate a separate set of EW points for each
+     * group... yes this means it could generate twelve EW".
+     */
+    public static class SquadronEwDto {
+        public String name;
+        public int fighters;
+        public int ecm;        // generated for this squadron this turn
+        public int eccm;
+    }
+
     public static class ShuttleInBayDto {
         public String name;
         public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
@@ -427,6 +441,21 @@ public class GameStateDto {
         public int eccmTotal;
         /** Where the ECM comes from, e.g. "2 generated + 6 lent" — public by D6.32. */
         public String ecmSources;
+        /**
+         * J4.93/J4.931: this carrier's squadrons, and the EW it generated for each. Empty for
+         * anything that is not lending to squadrons.
+         */
+        public List<SquadronEwDto> squadrons = new ArrayList<>();
+        /**
+         * The most this ship may put into ANY ONE squadron's pool, or zero if it may not lend
+         * at all.
+         * <p>
+         * J4.931's "equal limit" — its own generation limit, min(sensor rating, 6). J4.942's
+         * separate sensor-rating cap is always the looser of the two and so never bites, which
+         * is why one number suffices. Zero for a casual carrier (J4.931/J4.6), so the form has
+         * a single thing to test rather than having to know the carrier rules.
+         */
+        public int squadronEwLimit;
         public boolean leader;       // leader variant (S8.36)
         public boolean escort;       // carrier escort, needs a carrier group (S8.311)
         public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
@@ -1345,6 +1374,20 @@ public class GameStateDto {
         appendEwSource(src, lentTotal, "lent");
         appendEwSource(src, ship.getStealthEcm(), "stealth");
         dto.ecmSources = src.length() == 0 ? null : src.toString();
+        // J4.93/J4.931: the squadrons and their lending pools. The limit is zeroed for anything
+        // that may not lend, so the form need not know the carrier rules (J4.931/J4.6).
+        for (com.sfb.objects.Squadron squadron : ship.getShuttles().getSquadrons()) {
+            SquadronEwDto sq = new SquadronEwDto();
+            sq.name = squadron.getName();
+            sq.fighters = squadron.size();
+            sq.ecm = squadron.getCarrierEcm();
+            sq.eccm = squadron.getCarrierEccm();
+            dto.squadrons.add(sq);
+        }
+        dto.squadronEwLimit = ship.getCarrierClass().isCarrier()
+                ? com.sfb.systemgroups.EwCircuits.generationLimit(
+                        ship.getSpecialFunctions().getSensor())
+                : 0;
         dto.lentEccm = ship.getLentEccm();
         dto.offensiveEw = ship.getOffensiveEw();
         dto.scoutEwPool = ship.getScoutEwPool();
@@ -1823,14 +1866,18 @@ public class GameStateDto {
 
         // J4.921's range, sent whether or not the loan is live: a fighter that has drifted
         // out needs to show how far out, not merely that it is getting nothing.
-        com.sfb.objects.shuttles.Fighter squadronLender = game.squadronEwFighterFor(fighter);
+        // Whichever lender is relevant — the squadron's EW fighter at three hexes (J4.921) or
+        // its home carrier at ten — with the limit that applies to that one, so the client
+        // never has to know which rule it is looking at.
+        com.sfb.objects.Unit squadronLender = game.ewLenderFor(fighter);
         if (squadronLender != null) {
             dto.ewLenderName = squadronLender.getName();
-            dto.ewLendRangeLimit = com.sfb.Game.squadronLendRange();
+            dto.ewLendRangeLimit = squadronLender instanceof com.sfb.objects.Ship
+                    ? com.sfb.Game.carrierLendRange() : com.sfb.Game.squadronLendRange();
             if (fighter.getLocation() != null && squadronLender.getLocation() != null)
                 dto.ewLenderRange = com.sfb.utilities.MapUtils.getRange(fighter, squadronLender);
         }
-        if (loan.isNothing() && fighter.getEwPods() == 0)
+        if (loan.isNothing())
             dto.ewLendRefusal = game.ewLendRefusalFor(fighter);
 
         dto.ecmSources = describeFighterEcm(fighter, loan, lender);

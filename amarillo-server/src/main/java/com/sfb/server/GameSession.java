@@ -947,6 +947,21 @@ public class GameSession {
                     e.setPoweredChannels(request.getPoweredChannels());
                 }
                 e.setScoutEwPoints(request.getScoutEwPoints());
+                // J4.93/J4.931: the carrier's squadron-lending pools. Translated into the pair
+                // core wants; the CAPABLE check and J4.931's point limit are core's, applied
+                // where the allocation is (Ship.startTurn), so they cannot be bypassed here.
+                if (request.getSquadronEw() != null) {
+                    java.util.Map<String, int[]> pools = new java.util.LinkedHashMap<>();
+                    for (java.util.Map.Entry<String, java.util.Map<String, Integer>> entry
+                            : request.getSquadronEw().entrySet()) {
+                        java.util.Map<String, Integer> half = entry.getValue();
+                        if (half == null)
+                            continue;
+                        pools.put(entry.getKey(), new int[] {
+                                half.getOrDefault("ecm", 0), half.getOrDefault("eccm", 0) });
+                    }
+                    e.setSquadronEw(pools);
+                }
 
                 // Heavy weapon arming
                 Map<String, String> arming = request.getWeaponArming();

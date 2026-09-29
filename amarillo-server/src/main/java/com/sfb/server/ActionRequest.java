@@ -56,6 +56,14 @@ public class ActionRequest {
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
     private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
+    /**
+     * ALLOCATE, J4.93/J4.931: EW a carrier generates for its squadrons to borrow, squadron name
+     * to {"ecm": n, "eccm": n}. A SECOND pool, never a share of the ship's own ECM/ECCM — "The
+     * same points cannot be used by both the carrier and the fighters."
+     * <p>
+     * Named per half rather than a bare pair, so the wire says which number is which.
+     */
+    private Map<String, Map<String, Integer>> squadronEw;
     private String              channelDesignator;      // LEND_EW: which scout channel to aim (G24.21)
     // ALLOCATE: warp energy dialled into a photon tube this turn, by weapon name (E4.21/E4.411).
     // Two points arms it as a standard torpedo; anything more is overload energy, up to six.
@@ -156,6 +164,8 @@ public class ActionRequest {
     public void    setPoweredChannels(java.util.List<String> c) { this.poweredChannels = c; }
     public int     getScoutEwPoints()                      { return scoutEwPoints; }
     public void    setScoutEwPoints(int p)                 { this.scoutEwPoints = p; }
+    public Map<String, Map<String, Integer>> getSquadronEw()       { return squadronEw; }
+    public void    setSquadronEw(Map<String, Map<String, Integer>> m) { this.squadronEw = m; }
     public String  getChannelDesignator()                  { return channelDesignator; }
     public void    setChannelDesignator(String d)          { this.channelDesignator = d; }
     public Map<String, Double> getPhotonArming()           { return photonArming; }

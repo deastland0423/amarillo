@@ -3,6 +3,7 @@ package com.sfb;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
@@ -48,6 +49,9 @@ class SquadronEwResolver {
     /** J4.921: three hexes from an EWF, MRS or SWAC of one's own squadron. */
     static final int SQUADMATE_LEND_RANGE = 3;
 
+    /** J4.921: ten hexes from one's "specific home carrier (or base)" — a much longer reach. */
+    static final int CARRIER_LEND_RANGE = 10;
+
     private final Game game;
     private final List<Shuttle> activeShuttles;
 
@@ -80,8 +84,10 @@ class SquadronEwResolver {
             return "no source";
         // J4.923: "A crippled shuttle can receive lent EW (J1.333)." The recipient's own
         // condition is deliberately not tested — only the LENDER must be uncrippled.
+        if (source instanceof Ship carrier)
+            return carrierRefusal(recipient, carrier);
         if (!(source instanceof Fighter ewf))
-            return source.getName() + " cannot lend to a squadron";  // see the class note
+            return source.getName() + " cannot lend to a squadron";  // MRS and SWAC: unbuilt
         if (!ewf.isTwoSeater())
             return ewf.getName() + " is not an EW fighter (R1.F7)";
         if (ewf.isCrippled())
@@ -108,6 +114,46 @@ class SquadronEwResolver {
         if (range > SQUADMATE_LEND_RANGE)
             return ewf.getName() + " is " + range + " hexes away; J4.921 allows "
                     + SQUADMATE_LEND_RANGE;
+        return null;
+    }
+
+    /**
+     * Why {@code carrier} is not lending to {@code recipient}, or null if it is (J4.921/J4.93).
+     * <p>
+     * Ten hexes rather than three, and to the fighter's own carrier rather than any ship in
+     * range: J4.921 says "within ten hexes of its SPECIFIC home carrier (or base)". A friendly
+     * carrier that happens to be nearby lends nothing to somebody else's fighters.
+     * <p>
+     * The lock-on clause is applied here as well as on the EWF branch. J4.921's grammar is
+     * ambiguous about whether "that has a lock-on to" governs both halves of its either/or;
+     * this reads it as doing so, which is the stricter reading and barely matters in play,
+     * since a fighter acquires on its own carrier automatically at J1.31's sensor rating six.
+     */
+    private String carrierRefusal(Fighter recipient, Ship carrier) {
+        // J4.931/J4.6: "Only actual carriers (not casual carriers) can use this procedure."
+        if (!carrier.getCarrierClass().isCarrier())
+            return carrier.getName() + " is not a fully capable carrier (J4.931)";
+        com.sfb.objects.Squadron squadron = recipient.getSquadron();
+        if (squadron == null)
+            return recipient.getName() + " is in no squadron, and a carrier lends to squadrons"
+                    + " (J4.93)";
+        // J4.921's "specific home carrier": the squadron's own ship, not merely a nearby one.
+        if (squadron.getCarrier() != carrier)
+            return carrier.getName() + " is not " + recipient.getName()
+                    + "'s home carrier (J4.921)";
+        // J4.931: the pool is generated at allocation, so an undeclared turn lends nothing.
+        if (!squadron.hasCarrierEw())
+            return carrier.getName() + " generated no EW for " + squadron.getName()
+                    + " this turn (J4.931)";
+        if (!recipient.hasLockOn(carrier))
+            return recipient.getName() + " has no lock-on to " + carrier.getName()
+                    + " (J4.921)";
+        if (recipient.getLocation() == null || carrier.getLocation() == null)
+            return carrier.getName() + " is not on the map";
+        int range = MapUtils.getRange(recipient, carrier);
+        if (range > CARRIER_LEND_RANGE)
+            return carrier.getName() + " is " + range + " hexes away; J4.921 allows "
+                    + CARRIER_LEND_RANGE;
         return null;
     }
 
@@ -194,7 +240,49 @@ class SquadronEwResolver {
         Unit declared = recipient.getLentEwSource();
         if (declared != null)
             return declared;
-        return squadronLender(recipient);
+
+        // Two sources can now offer at once — the squadron's EW fighter within three hexes and
+        // its carrier within ten — and J4.922 allows only one. The rulebook's J4.93 example
+        // says as much without saying who picks: a fighter taking the carrier's points
+        // "couldn't benefit from the points from the EWF since a fighter can only receive lent
+        // points from a single source".
+        //
+        // With no designation UI yet, the default takes the BETTER offer, which is what a
+        // player would choose and keeps the carrier's usually-larger pool reachable. The known
+        // deviation is J4.922's stickiness: a fighter drifting across a range boundary will
+        // switch sources sooner than the eight impulses that rule allows. An explicit
+        // designation overrides this and IS held to the eight, which is the escape hatch until
+        // the choice is surfaced.
+        Unit ewf = squadronLender(recipient);
+        Unit carrier = homeCarrierLender(recipient);
+        if (ewf == null)
+            return carrier;
+        if (carrier == null)
+            return ewf;
+        return loanFrom(recipient, carrier).combined()
+                > loanFrom(recipient, ewf).combined() ? carrier : ewf;
+    }
+
+    /** This fighter's home carrier, if it is in a position to lend right now (J4.921). */
+    private Unit homeCarrierLender(Fighter recipient) {
+        com.sfb.objects.Squadron squadron = recipient.getSquadron();
+        if (squadron == null || squadron.getCarrier() == null)
+            return null;
+        return qualifiesNow(recipient, squadron.getCarrier()) ? squadron.getCarrier() : null;
+    }
+
+    /** What a named source would lend, for comparing two offers without committing to one. */
+    private EwLoan loanFrom(Fighter recipient, Unit source) {
+        if (source instanceof Ship) {
+            com.sfb.objects.Squadron squadron = recipient.getSquadron();
+            return squadron == null ? EwLoan.NONE
+                    : new EwLoan(Math.min(Fighter.MAX_LENT_RECEIVED, squadron.getCarrierEcm()),
+                            Math.min(Fighter.MAX_LENT_RECEIVED, squadron.getCarrierEccm()));
+        }
+        if (source instanceof Fighter ewf)
+            return new EwLoan(Math.min(Fighter.MAX_LENT_RECEIVED, ewf.getPodEcm()),
+                    Math.min(Fighter.MAX_LENT_RECEIVED, ewf.getPodEccm()));
+        return EwLoan.NONE;
     }
 
     /**
@@ -230,6 +318,15 @@ class SquadronEwResolver {
         Unit source = effectiveSource(recipient);
         if (!qualifiesNow(recipient, source))
             return EwLoan.NONE;
+        // A carrier lends out of the pool it generated for this squadron (J4.931), which is
+        // separate from its own EW and so cannot be points it borrowed — J4.932's bar on
+        // re-lending is satisfied by construction rather than by a check.
+        if (source instanceof Ship) {
+            com.sfb.objects.Squadron squadron = recipient.getSquadron();
+            return new EwLoan(
+                    Math.min(Fighter.MAX_LENT_RECEIVED, squadron.getCarrierEcm()),
+                    Math.min(Fighter.MAX_LENT_RECEIVED, squadron.getCarrierEccm()));
+        }
         Fighter ewf = (Fighter) source;
         // J4.965: the pods only. getPodEcm/getPodEccm already return nothing when the pods
         // are switched off (J4.967) or shot away with the fighter (J1.3322), and the split

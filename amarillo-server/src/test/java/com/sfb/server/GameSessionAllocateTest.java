@@ -525,4 +525,66 @@ class GameSessionAllocateTest {
                     n += set.size();
         return n;
     }
+
+    // -------------------------------------------------------------------------
+    // Squadron EW lending (J4.93/J4.931) — a carrier's SECOND EW pool
+    // -------------------------------------------------------------------------
+
+    /**
+     * The wire carries per-squadron pools through to the squadrons themselves. Pinned at this
+     * tier because it is where this project's rule limits have drifted before: the CAPABLE
+     * check and J4.931's point limit deliberately live in core, so a translation that dropped
+     * the field would show up as a carrier that silently lends nothing.
+     */
+    @Test
+    void squadronEw_reachesTheSquadron() {
+        Ship carrier = new Ship();
+        carrier.init(com.sfb.samples.KzintiShips.getKzinBC());
+        carrier.setName("KHS Longsword");
+        carrier.setLocation(new com.sfb.properties.Location(10, 10));
+        carrier.setFacing(1);
+        carrier.setCarrierClass(com.sfb.properties.CarrierClass.CAPABLE);
+        game.getShips().add(carrier);
+
+        com.sfb.objects.Squadron squadron =
+                new com.sfb.objects.Squadron("Gold", carrier);
+        carrier.getShuttles().getSquadrons().add(squadron);
+
+        ActionRequest req = allocate("KHS Longsword");
+        req.setSquadronEw(java.util.Map.of("Gold", java.util.Map.of("ecm", 4, "eccm", 2)));
+        assertTrue(session.executeAction(req).isSuccess());
+        carrier.startTurn();   // where an allocation is applied (J4.931 generates it there)
+
+        assertEquals(4, squadron.getCarrierEcm());
+        assertEquals(2, squadron.getCarrierEccm());
+    }
+
+    /** J4.931/J4.6: a casual carrier's declaration is dropped, not honoured. */
+    @Test
+    void squadronEw_isRefusedToACasualCarrier() {
+        Ship casual = new Ship();
+        casual.init(com.sfb.samples.KzintiShips.getKzinBC());
+        casual.setName("KHS Casual");
+        casual.setLocation(new com.sfb.properties.Location(12, 10));
+        casual.setFacing(1);
+        casual.setCarrierClass(com.sfb.properties.CarrierClass.CASUAL);
+        game.getShips().add(casual);
+
+        com.sfb.objects.Squadron squadron = new com.sfb.objects.Squadron("Gold", casual);
+        casual.getShuttles().getSquadrons().add(squadron);
+
+        ActionRequest req = allocate("KHS Casual");
+        req.setSquadronEw(java.util.Map.of("Gold", java.util.Map.of("ecm", 4, "eccm", 2)));
+        assertTrue(session.executeAction(req).isSuccess());
+        casual.startTurn();
+
+        assertFalse(squadron.hasCarrierEw(), "J4.931 excludes casual carriers");
+    }
+
+    /** An omitted field leaves the pools alone rather than clearing or inventing anything. */
+    @Test
+    void squadronEw_isOptional() {
+        ActionRequest req = allocate("USS Enterprise");
+        assertTrue(session.executeAction(req).isSuccess());
+    }
 }

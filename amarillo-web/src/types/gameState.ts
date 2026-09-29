@@ -292,6 +292,13 @@ export interface ShipObject extends MapObjectBase {
   ecmTotal?:         number;   // generated + lent (weasel included) + built-in
   eccmTotal?:        number;   // generated + lent
   ecmSources?:       string | null;   // "2 generated + 6 lent"
+  /**
+   * J4.93/J4.931: this carrier's squadrons and the EW it generated for each this turn.
+   * squadronEwLimit is the most it may put into ANY ONE pool, and zero when it may not lend at
+   * all — so the form tests one number instead of knowing the carrier rules (J4.931/J4.6).
+   */
+  squadrons?:        { name: string; fighters: number; ecm: number; eccm: number }[];
+  squadronEwLimit?:  number;
   scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
   scoutEwLent?:     number;   // of the pool, how many are currently lent out (G24.2111)
   scoutEwRemaining?: number;  // still available to commit; dropped points are lost (G24.2122)

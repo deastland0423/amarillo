@@ -473,6 +473,15 @@ public class Ship extends Unit implements DroneController {
 		this.scoutEwPool = getScoutChannels().isEmpty() ? 0 : energyAllocated.getScoutEwPoints();
 		this.scoutEwRemaining = this.scoutEwPool; // fresh pool each turn (G24.2113)
 
+		// J4.93/J4.931: and the second EW pool, the one a carrier generates for its squadrons
+		// rather than for itself. Capped by its own generation limit, which is J4.931's "equal
+		// limit" — J4.942's sensor-rating cap is always the looser of the two and so never
+		// bites. CAPABLE carriers only (J4.931/J4.6), which zeroes it for everyone else.
+		for (String line : shuttles.applyCarrierEw(energyAllocated.getSquadronEw(),
+				getCarrierClass().isCarrier(),
+				com.sfb.systemgroups.EwCircuits.generationLimit(specialFunctions.getSensor())))
+			allocationNotes.add(line);
+
 		// Deck crews take up their posts for the turn (J4.817). After the allocation, so the
 		// crews that spent it loading a scatter pack are already spoken for.
 		crew.setAvailableDeckCrews(shuttles.postDeckCrews(crew.getAvailableDeckCrews(),
