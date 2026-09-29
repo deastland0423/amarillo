@@ -278,6 +278,73 @@ function ShuttleMovementPanel({
           <span className="sidebar-stat-label">Facing</span>
           <span className="sidebar-stat-value">{facingLabel(shuttle.facing)}</span>
         </div>
+        {shuttle.ecmTotal != null && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">EW</span>
+            <span className="sidebar-stat-value">
+              {shuttle.ecmTotal} ECM / {shuttle.eccmTotal ?? 0} ECCM
+              {shuttle.ewPods != null && shuttle.podsActive === false ? ' · pods OFF' : ''}
+            </span>
+          </div>
+        )}
+        {shuttle.ecmSources && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label" />
+            <span className="sidebar-stat-value" style={{ color: '#8b949e', fontSize: '0.9em' }}>
+              {shuttle.ecmSources}
+            </span>
+          </div>
+        )}
+        {/* J4.96: what an EW fighter is putting out, and whether that was chosen (J4.961)
+            or is merely the even default nobody has looked at. */}
+        {(shuttle.ewPods ?? 0) > 0 && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Pods</span>
+            <span className="sidebar-stat-value">
+              {shuttle.ewPods} — {shuttle.podEcm ?? 0} ECM / {shuttle.podEccm ?? 0} ECCM
+              {shuttle.podEwDeclared ? '' : ' (undeclared)'}
+            </span>
+          </div>
+        )}
+        {(shuttle.ewLendDelayRemaining ?? 0) > 0 && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label" />
+            <span className="sidebar-stat-value" style={{ color: '#f0c040', fontSize: '0.9em' }}>
+              cannot lend for {shuttle.ewLendDelayRemaining} more impulse
+              {shuttle.ewLendDelayRemaining === 1 ? '' : 's'} (J1.343)
+            </span>
+          </div>
+        )}
+        {/* J4.921: the squadron's EW fighter and how far off it is — shown whether or not it
+            is lending, because the moment the loan lapses is the moment you need the range. */}
+        {shuttle.ewLenderName && shuttle.ewLenderName !== shuttle.name && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">EW from</span>
+            <span className="sidebar-stat-value"
+                  style={{ color: shuttle.ewLendRefusal ? '#f0c040' : undefined }}>
+              {shuttle.ewLenderName}
+              {shuttle.ewLenderRange != null ? `, ${shuttle.ewLenderRange} hex`
+                + (shuttle.ewLenderRange === 1 ? '' : 'es') : ''}
+              {shuttle.ewLendRangeLimit != null && shuttle.ewLenderRange != null
+                && shuttle.ewLenderRange > shuttle.ewLendRangeLimit
+                ? ` of ${shuttle.ewLendRangeLimit}` : ''}
+            </span>
+          </div>
+        )}
+        {shuttle.ewLendRefusal && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label" />
+            <span className="sidebar-stat-value" style={{ color: '#8b949e', fontSize: '0.9em' }}>
+              {shuttle.ewLendRefusal}
+            </span>
+          </div>
+        )}
+        {shuttle.squadronName && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Squadron</span>
+            <span className="sidebar-stat-value">{shuttle.squadronName}</span>
+          </div>
+        )}
       </div>
 
       {isMine && phase === 'Movement' && (

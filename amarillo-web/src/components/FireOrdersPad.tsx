@@ -621,6 +621,19 @@ export default function FireOrdersPad({
                   {c.kind === 'SHIP' && c.shieldNumber > 0 ? ` · sh#${c.shieldNumber}` : ''}
                   {' · '}{c.weaponsInArc.length} bear
                   {worth != null ? ` · ~${worth}` : ''}
+                  {/* The EW between THESE two, which is the figure that decides whether the
+                      shot is worth taking. The server has always sent it — ecmPoints, eccm
+                      and the resolved shift — and nothing has ever shown it. D6.34 Step 5
+                      does the conversion; the shift is read off the wire, never computed
+                      here. */}
+                  {c.ecmShift > 0 && (
+                    <span style={{ color: '#f0c040' }}
+                          title={`${c.ecmPoints} ECM`
+                            + (c.ecmSources ? ` (${c.ecmSources})` : '')
+                            + ` vs ${c.eccm} ECCM — D6.34`}>
+                      {' · '}+{c.ecmShift} ECM
+                    </span>
+                  )}
                 </span>
               </button>
             );
