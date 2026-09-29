@@ -613,6 +613,61 @@ public class GameStateDto {
          * check isIdentified first. Null means "not established".
          */
         public Boolean manned;
+
+        // -------------------------------------------------------------------
+        // Electronic warfare (J4.47, J4.9x). Public, by the owner's ruling of
+        // 2026-09-29: "Since all EW is public anyway... You should be able to click on any
+        // ship or fighter and see how much ECM/ECCM it has." Consistent with ShipDto, where
+        // generated and lent are both public, and with J4.931's note that squadron EW
+        // lending "can be detected".
+        // -------------------------------------------------------------------
+
+        /**
+         * What this craft HAS, not what a given shot must burn through: J4.47's built-in two
+         * plus its pods (J4.96) plus anything lent (J4.92), held to J4.91's six. Natural
+         * sources are excluded, being properties of the line of fire rather than the craft.
+         * <p>
+         * Integer, not int, because a non-fighter shuttle has no EW of its own at all and
+         * "zero" would be a claim rather than an absence (J4.47 reaches only fighters).
+         */
+        public Integer ecmTotal;
+        public Integer eccmTotal;
+
+        /** Where it comes from, e.g. "2 built-in + 2 pods + 2 lent from HAAS-E". */
+        public String ecmSources;
+
+        /** J4.46: the squadron this fighter belongs to, which is what EW is lent to. */
+        public String squadronName;
+
+        /** J4.96: EW pods aboard. Null for a craft carrying none. */
+        public Integer ewPods;
+
+        /** J4.961: this turn's declared split of the pods' points. */
+        public Integer podEcm;
+        public Integer podEccm;
+
+        /**
+         * J4.961: whether that split was declared or is the even default. Worth telling apart
+         * — an undeclared EWF is one nobody has looked at, and 2/2 is only coincidentally
+         * what its owner might have chosen.
+         */
+        public Boolean podEwDeclared;
+
+        /** J4.967: whether the pods are switched on. */
+        public Boolean podsActive;
+
+        /**
+         * J1.343: impulses still to serve before this craft may LEND EW — the same quarter
+         * turn its direct-fire weapons serve (J1.342). Only the lender waits; the rule's last
+         * sentence is "A shuttle can receive EW lending immediately upon launch", so this says
+         * nothing about what the craft may receive. Null unless it has pods to lend with.
+         */
+        public Integer ewLendDelayRemaining;
+
+        /** J4.93: who is lending to this fighter right now, or null if nobody is. */
+        public String lentEwSourceName;
+        public Integer lentEcm;
+        public Integer lentEccm;
     }
 
     // -------------------------------------------------------------------------
@@ -960,7 +1015,7 @@ public class GameStateDto {
                 mapObjects.add(fromScatterPack((com.sfb.objects.shuttles.ScatterPack) shuttle));
             else
                 mapObjects.add(fromShuttle(shuttle, hiddenFrom(viewerTeam, shuttle.getOwner()),
-                        game.getAbsoluteImpulse()));
+                        game.getAbsoluteImpulse(), game));
         }
 
         for (Seeker seeker : game.getSeekers()) {
@@ -980,7 +1035,7 @@ public class GameStateDto {
                 // course and target added once it has. This used to open the whole DTO on
                 // identification, handing over the warhead and the arming turns.
                 if (hiddenFrom(viewerTeam, ss.getOwner()))
-                    mapObjects.add(fromShuttle(ss, true, game.getAbsoluteImpulse()));
+                    mapObjects.add(fromShuttle(ss, true, game.getAbsoluteImpulse(), game));
                 else
                     mapObjects.add(fromSuicideShuttle(ss));
             } else if (seeker instanceof com.sfb.objects.shuttles.ScatterPack) {
@@ -988,7 +1043,7 @@ public class GameStateDto {
                 // G4.233 again: "not if it is carrying drones". Releasing them is what makes
                 // a pack public, not being identified.
                 if (hiddenFrom(viewerTeam, pack.getOwner()) && !pack.isReleased())
-                    mapObjects.add(fromShuttle(pack, true, game.getAbsoluteImpulse()));
+                    mapObjects.add(fromShuttle(pack, true, game.getAbsoluteImpulse(), game));
                 else
                     mapObjects.add(fromScatterPack(pack));
             }
@@ -1684,12 +1739,66 @@ public class GameStateDto {
     }
 
     /**
+     * A fighter's electronic warfare, for everyone to see (owner's ruling, 2026-09-29).
+     * <p>
+     * Every figure is asked of the game rather than worked out here, and none of it is
+     * re-derived in the client: J4.91's ceiling, J4.93's loan and J1.343's countdown are all
+     * rules answers. A craft that is not a fighter gets nothing at all rather than zeroes —
+     * J4.47 reaches only fighters, and a zero would be a claim where there is simply no
+     * question.
+     */
+    private static void fillFighterEw(ShuttleDto dto, com.sfb.objects.shuttles.Shuttle shuttle,
+            int absoluteImpulse, com.sfb.Game game) {
+        if (game == null || !(shuttle instanceof com.sfb.objects.shuttles.Fighter fighter))
+            return;
+
+        dto.ecmTotal = game.usableEcmOf(fighter);
+        dto.eccmTotal = game.usableEccmOf(fighter);
+        dto.squadronName = fighter.getSquadron() != null
+                ? fighter.getSquadron().getName() : null;
+
+        com.sfb.properties.EwLoan loan = game.lentEwTo(fighter);
+        com.sfb.objects.Unit lender = game.lentEwSourceOf(fighter);
+        if (!loan.isNothing()) {
+            dto.lentEcm = loan.ecm();
+            dto.lentEccm = loan.eccm();
+            dto.lentEwSourceName = lender != null ? lender.getName() : null;
+        }
+
+        if (fighter.getEwPods() > 0) {
+            dto.ewPods = fighter.getEwPods();
+            dto.podEcm = fighter.getPodEcm();
+            dto.podEccm = fighter.getPodEccm();
+            dto.podEwDeclared = fighter.isPodEwDeclaredThisTurn();
+            dto.podsActive = fighter.arePodsActive();
+            // J1.343, and only worth sending to something that has points to lend.
+            dto.ewLendDelayRemaining = fighter.impulsesUntilEwLending(absoluteImpulse);
+        }
+
+        dto.ecmSources = describeFighterEcm(fighter, loan, lender);
+    }
+
+    /** "2 built-in + 2 pods + 2 lent from HAAS-E", or null where there is nothing to say. */
+    private static String describeFighterEcm(com.sfb.objects.shuttles.Fighter fighter,
+            com.sfb.properties.EwLoan loan, com.sfb.objects.Unit lender) {
+        StringBuilder sb = new StringBuilder();
+        if (fighter.getEcm() > 0)
+            sb.append(fighter.getEcm()).append(" built-in");
+        if (fighter.getPodEcm() > 0)
+            sb.append(sb.length() > 0 ? " + " : "").append(fighter.getPodEcm()).append(" pods");
+        if (loan.ecm() > 0)
+            sb.append(sb.length() > 0 ? " + " : "").append(loan.ecm()).append(" lent")
+                    .append(lender != null ? " from " + lender.getName() : "");
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    /**
      * @param hideSecrets true when the viewer is not on this shuttle's side. What a shuttle
      *                    carries is not public: G4.233 gives up whether it is manned and
      *                    whether it is seeking, and stops there.
      */
     private static ShuttleDto fromShuttle(com.sfb.objects.shuttles.Shuttle shuttle,
-            boolean hideSecrets, int absoluteImpulse) {
+            boolean hideSecrets, int absoluteImpulse, com.sfb.Game game) {
         ShuttleDto dto = new ShuttleDto();
         dto.name = shuttle.getName();
         dto.location = shuttle.getLocation() != null ? shuttle.getLocation().toString() : null;
@@ -1759,6 +1868,7 @@ public class GameStateDto {
             com.sfb.objects.Unit t = ((Seeker) shuttle).getTarget();
             dto.seekingTargetName = t != null ? t.getName() : null;
         }
+        fillFighterEw(dto, shuttle, absoluteImpulse, game);
         return dto;
     }
 

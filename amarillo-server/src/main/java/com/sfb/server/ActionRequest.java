@@ -42,6 +42,13 @@ public class ActionRequest {
     private boolean             cloakPaid;              // true if the player paid the cloak cost this turn
     private boolean             energizeCaps;           // true if player paid 1 pt to energize capacitors (WS-0)
     private int                 fighterCapacitorEnergy; // J4.832: points into fighter box capacitors
+    // J4.961 / J4.967: an EW fighter's pod declaration. Named fields rather than borrowed
+    // ones, and boxed so that "not sent" is distinguishable from "sent as zero" — a primitive
+    // would make an omitted split read as a legal 0/0 declaration and an omitted toggle read
+    // as "switch the pods off".
+    private Integer             podEcm;                 // J4.961: ECM half of this turn's split
+    private Integer             podEccm;                // J4.961: ECCM half
+    private Boolean             podsActive;             // J4.967: pods on or off
     /** J4.817: box id ("bay-space") to deck crews posted there this turn. */
     private Map<String, Integer> deckCrewPostings;
     /** J4.832: box id to points bought into that box's capacitor. */
@@ -458,4 +465,11 @@ public class ActionRequest {
     public void            setFireOrders(List<FireOrder> f)    { this.fireOrders = f; }
     public List<EwAdjustment> getEwAdjustments()               { return ewAdjustments; }
     public void               setEwAdjustments(List<EwAdjustment> e) { this.ewAdjustments = e; }
+
+    public Integer getPodEcm()                  { return podEcm; }
+    public void    setPodEcm(Integer v)         { this.podEcm = v; }
+    public Integer getPodEccm()                 { return podEccm; }
+    public void    setPodEccm(Integer v)        { this.podEccm = v; }
+    public Boolean getPodsActive()              { return podsActive; }
+    public void    setPodsActive(Boolean v)     { this.podsActive = v; }
 }

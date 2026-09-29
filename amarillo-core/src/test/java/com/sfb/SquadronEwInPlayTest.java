@@ -216,6 +216,71 @@ public class SquadronEwInPlayTest {
                 4, game.ewAgainst(enemy, latecomer).total());
     }
 
+    /**
+     * The readout the owner asked for: "You should be able to click on any ship or fighter and
+     * see how much ECM/ECCM it has." All of it public, and none of it re-derived in the client.
+     */
+    @Test
+    public void theDtoCarriesTheWholeEwPicture() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        Haas_E ewf = launch(Haas_E.class);
+        Haas wingman = launch(Haas.class);
+        serveTheLendingDelay(ewf);
+
+        com.sfb.dto.GameStateDto.ShuttleDto lender = shuttleDto(ewf.getName());
+        assertEquals("2 built-in + 2 of its own pods (J4.965)", Integer.valueOf(4),
+                lender.ecmTotal);
+        assertEquals(Integer.valueOf(4), lender.eccmTotal);
+        assertEquals(Integer.valueOf(2), lender.ewPods);
+        assertEquals(Integer.valueOf(2), lender.podEcm);
+        assertEquals("nobody declared, so the even default (J4.961)",
+                Boolean.FALSE, lender.podEwDeclared);
+        assertEquals(Boolean.TRUE, lender.podsActive);
+        assertEquals("its wait is served (J1.343)", Integer.valueOf(0),
+                lender.ewLendDelayRemaining);
+        assertNotNull("and it knows its squadron (J4.46)", lender.squadronName);
+
+        com.sfb.dto.GameStateDto.ShuttleDto receiver = shuttleDto(wingman.getName());
+        assertEquals("2 built-in + 2 lent", Integer.valueOf(4), receiver.ecmTotal);
+        assertEquals(Integer.valueOf(2), receiver.lentEcm);
+        assertEquals(ewf.getName(), receiver.lentEwSourceName);
+        assertNull("it carries no pods of its own", receiver.ewPods);
+        assertTrue("and the sources read plainly: " + receiver.ecmSources,
+                receiver.ecmSources.contains("built-in")
+                        && receiver.ecmSources.contains("lent from " + ewf.getName()));
+    }
+
+    /** A craft with no EW of its own says nothing, rather than claiming zero. */
+    @Test
+    public void anAdminShuttleCarriesNoEwFieldsAtAll() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        com.sfb.objects.shuttles.Shuttle admin = null;
+        for (ShuttleBay bay : carrier.getShuttles().getBays())
+            for (Shuttle craft : bay.getInventory())
+                if (admin == null && craft instanceof com.sfb.objects.shuttles.AdminShuttle a) {
+                    admin = a;
+                    Game.ActionResult r = game.launchShuttle(carrier, bay, a, 6, 13);
+                    assertTrue(r.getMessage(), r.isSuccess());
+                }
+        assertNotNull("fixture needs an admin shuttle", admin);
+
+        com.sfb.dto.GameStateDto.ShuttleDto dto = shuttleDto(admin.getName());
+        assertNull("J4.47 reaches only fighters", dto.ecmTotal);
+        assertNull(dto.eccmTotal);
+        assertNull(dto.ecmSources);
+        assertNull(dto.ewPods);
+    }
+
+    private com.sfb.dto.GameStateDto.ShuttleDto shuttleDto(String name) {
+        com.sfb.dto.GameStateDto state = new com.sfb.dto.GameStateDto(game, "Kzinti");
+        for (com.sfb.dto.GameStateDto.MapObjectDto o : state.mapObjects)
+            if (o instanceof com.sfb.dto.GameStateDto.ShuttleDto sd && name.equals(sd.name))
+                return sd;
+        throw new AssertionError(name + " not in the DTO");
+    }
+
     /** Serve out J1.343's quarter turn for a craft that has just launched. */
     private void serveTheLendingDelay(com.sfb.objects.shuttles.Shuttle craft) {
         waitImpulses(craft.impulsesUntilEwLending(game.getAbsoluteImpulse()));

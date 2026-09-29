@@ -749,8 +749,7 @@ public class Game {
             // together rather than each separately - the J4.93 example has a fighter on
             // 2 built-in + 2 pod + 4 lent using six of the eight - so the loan is what
             // gets trimmed, topping the fighter up to six rather than displacing its own.
-            lent = Math.max(0, Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
-                    f.getEcm() + f.getPodEcm() + squadronEw.loanTo(f).ecm()) - builtIn);
+            lent = Math.max(0, usableEcmOf(f) - builtIn);
         }
         // A probe canister, a drone and an admin shuttle have no EW of their own at all.
         return new com.sfb.properties.EwBreakdown(generated, builtIn, natural, lent, offensive);
@@ -768,11 +767,7 @@ public class Game {
             return ship.isActiveFireControl()
                     ? ship.getEccmAllocated() + ship.getLentEccm() : 0;
         if (actor instanceof com.sfb.objects.shuttles.Fighter fighter)
-            // J4.47's two, its pods (J4.96), and a squadron-mate's loan (J4.92), the three
-            // of them held to J4.91's six together.
-            return Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
-                    fighter.getEccm() + fighter.getPodEccm()
-                            + squadronEw.loanTo(fighter).eccm());
+            return usableEccmOf(fighter);
         return 0;
     }
 
@@ -2378,6 +2373,30 @@ public class Game {
      */
     public com.sfb.properties.EwLoan lentEwTo(com.sfb.objects.shuttles.Fighter fighter) {
         return squadronEw.loanTo(fighter);
+    }
+
+    /**
+     * Every point of ECM a fighter has of its own: J4.47's built-in two, whatever its pods are
+     * making (J4.96), and whatever a squadron-mate is lending (J4.92) — held together to
+     * J4.91's six, which is what that rule counts. Natural sources sit outside it (D6.3143).
+     * <p>
+     * Actor-independent, unlike {@link #ewAgainst}: this is what the fighter HAS, not what a
+     * particular shot has to burn through. That is the figure a readout wants, and the same
+     * distinction ShipDto's {@code ecmTotal} already draws.
+     */
+    public int usableEcmOf(com.sfb.objects.shuttles.Fighter fighter) {
+        if (fighter == null)
+            return 0;
+        return Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
+                fighter.getEcm() + fighter.getPodEcm() + squadronEw.loanTo(fighter).ecm());
+    }
+
+    /** The other half of J4.91's "six points each of ECM and ECCM, not six total points". */
+    public int usableEccmOf(com.sfb.objects.shuttles.Fighter fighter) {
+        if (fighter == null)
+            return 0;
+        return Math.min(com.sfb.objects.shuttles.Fighter.MAX_USABLE_EW,
+                fighter.getEccm() + fighter.getPodEccm() + squadronEw.loanTo(fighter).eccm());
     }
 
     /**

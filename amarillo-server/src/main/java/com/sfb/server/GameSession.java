@@ -1821,6 +1821,40 @@ public class GameSession {
                 return game.performFighterHet(shuttle, request.getFacing());
             }
 
+            case "DECLARE_POD_EW": {
+                // J4.961: the split is declared once a turn, in the window that runs into our
+                // Sensor Lock-On Phase. The rule limits are core's to enforce; this checks only
+                // that the client actually sent both halves.
+                String shuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Fighter fighter = findActiveFighter(shuttleName);
+                if (fighter == null)
+                    return ActionResult.fail("Active fighter not found: " + shuttleName);
+                if (request.getPodEcm() == null || request.getPodEccm() == null)
+                    return ActionResult.fail("Both podEcm and podEccm are required (J4.961)");
+                String refusal = game.declarePodEw(fighter,
+                        request.getPodEcm(), request.getPodEccm());
+                return refusal != null ? ActionResult.fail(refusal)
+                        : ActionResult.ok(fighter.getName() + " declares "
+                                + request.getPodEcm() + " ECM / " + request.getPodEccm()
+                                + " ECCM from its EW pods (J4.961)");
+            }
+
+            case "SET_FIGHTER_PODS_ACTIVE": {
+                // J4.967: "A fighter can turn off its EWPs during any Lock-On Stage of the
+                // Impulse Activity Segment" — so unlike the split, no turn-start window.
+                String shuttleName = request.getShipName();
+                com.sfb.objects.shuttles.Fighter fighter = findActiveFighter(shuttleName);
+                if (fighter == null)
+                    return ActionResult.fail("Active fighter not found: " + shuttleName);
+                if (request.getPodsActive() == null)
+                    return ActionResult.fail("podsActive is required (J4.967)");
+                boolean on = request.getPodsActive();
+                String refusal = game.setFighterPodsActive(fighter, on);
+                return refusal != null ? ActionResult.fail(refusal)
+                        : ActionResult.ok(fighter.getName() + " switches its EW pods "
+                                + (on ? "on" : "off") + " (J4.967)");
+            }
+
             case "DROP_CHAFF": {
                 String shuttleName = request.getShipName();
                 com.sfb.objects.shuttles.Shuttle shuttle = game.getActiveShuttles().stream()
@@ -2816,5 +2850,16 @@ public class GameSession {
 
     public boolean isStarted() {
         return started;
+    }
+
+    /** The named fighter among the craft on the map, or null. */
+    private com.sfb.objects.shuttles.Fighter findActiveFighter(String name) {
+        if (name == null)
+            return null;
+        for (com.sfb.objects.shuttles.Shuttle craft : game.getActiveShuttles())
+            if (craft instanceof com.sfb.objects.shuttles.Fighter fighter
+                    && fighter.getName().equalsIgnoreCase(name))
+                return fighter;
+        return null;
     }
 }

@@ -83,7 +83,16 @@ public class MapObjectPrivacyTest {
             // How long it must still wait before firing (J1.342) and before using seeking
             // weapons (J1.341). Public because launchImpulse is: anyone watching the launch
             // could do the subtraction, so sending the answer gives nothing away.
-            "fireDelayRemaining", "seekerDelayRemaining");
+            "fireDelayRemaining", "seekerDelayRemaining",
+            // Electronic warfare, all of it. The owner's ruling (2026-09-29): "Since all EW is
+            // public anyway... You should be able to click on any ship or fighter and see how
+            // much ECM/ECCM it has." Consistent with ShipDto, where generated and lent are both
+            // public, and with J4.931's own note that squadron EW lending "can be detected".
+            // J4.961's split is declared secretly and simultaneously (B2.4), but once declared
+            // it is announced, and the resulting die shift gives it away regardless.
+            "ecmTotal", "eccmTotal", "ecmSources", "squadronName", "ewPods", "podEcm",
+            "podEccm", "podEwDeclared", "podsActive", "ewLendDelayRemaining",
+            "lentEwSourceName", "lentEcm", "lentEccm");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
             // G4.233: an identification gives up the seeking course and stops there. What a
             // fighter still has on its rails is never on offer.
