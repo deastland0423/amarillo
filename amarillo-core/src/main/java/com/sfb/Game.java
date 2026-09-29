@@ -343,6 +343,20 @@ public class Game {
             }
         }
         awaitingAllocation = true;
+        // Shuttles get their turn reset, which until now they never did. Ships have always had
+        // ship.startTurn() below; Fighter.startTurn() existed and NOTHING called it, so every
+        // counter it clears was cleared never — J4.241's two drones a turn became two a game,
+        // J4.12's tactical maneuver one a game, J4.241's firstDroneTarget a target chosen turns
+        // ago, and the per-turn weapon housekeeping every ship gets was simply skipped.
+        //
+        // Craft still in a bay are swept too, because one may launch mid-turn and would carry
+        // last turn's counters out with it — including, now, its J4.961 pod EW declaration.
+        for (com.sfb.objects.shuttles.Shuttle craft : activeShuttles)
+            craft.startTurn();
+        for (Ship ship : ships)
+            for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
+                    craft.startTurn();
         for (Ship ship : ships) {
             // Labs need no turn reset: a box's availability is worked out from the impulse
             // it was last used (G4.22, G4.451), so nothing has to be handed back. The old
@@ -2364,6 +2378,65 @@ public class Game {
      */
     public com.sfb.properties.EwLoan lentEwTo(com.sfb.objects.shuttles.Fighter fighter) {
         return squadronEw.loanTo(fighter);
+    }
+
+    /**
+     * Declare how an EW fighter splits its pod points this turn (J4.961).
+     * <p>
+     * "Each EWP can provide two points of either ECM or ECCM, or one of each." Because a pod
+     * may split itself one and one, every distribution of twice the pod count is reachable —
+     * so the only constraint worth enforcing is the total, which is what {@code
+     * Fighter.allocatePodEw} checks.
+     * <p>
+     * Once per turn, in the declaration window. J4.961 places it in the Sensor Lock-On Phase;
+     * ours is the allocation window that runs into it, which is also where a SHIP declares its
+     * EW (D6.310) — so both sides of an EW duel are settled at the same moment, which is the
+     * point of B2.4's "secretly and simultaneously".
+     * <p>
+     * J4.965 is why one declaration does two jobs: the EWF uses these points itself AND lends
+     * them, so a 2/2 split gives it four of each of its own (with J4.47's built-in two) and
+     * hands two of each to every squadron-mate in reach.
+     *
+     * @return the refusal, or null if the declaration was accepted
+     */
+    public String declarePodEw(com.sfb.objects.shuttles.Fighter fighter, int ecm, int eccm) {
+        if (fighter == null)
+            return "no fighter given";
+        int pods = fighter.getEwPods();
+        if (pods <= 0)
+            return fighter.getName() + " carries no EW pods to allocate (J4.96)";
+        if (!awaitingAllocation)
+            return "Pod EW is declared in the Sensor Lock-On Phase at the start of a turn"
+                    + " (J4.961); this turn's declaration has closed";
+        if (fighter.isPodEwDeclaredThisTurn())
+            return fighter.getName() + " has already declared its pod EW this turn (J4.961)";
+        int points = pods * com.sfb.objects.shuttles.Fighter.POINTS_PER_EW_POD;
+        if (ecm < 0 || eccm < 0 || ecm + eccm != points)
+            return fighter.getName() + " has " + pods + " pod"
+                    + (pods == 1 ? "" : "s") + " and must split exactly " + points
+                    + " points; " + ecm + " + " + eccm + " is " + (ecm + eccm) + " (J4.961)";
+        fighter.allocatePodEw(ecm, eccm);
+        return null;
+    }
+
+    /**
+     * Switch a fighter's EW pods on or off (J4.967: "A fighter can turn off its EWPs during
+     * any Lock-On Stage of the Impulse Activity Segment").
+     * <p>
+     * Any impulse, unlike the split — J4.967 says any Lock-On Stage, and every impulse has
+     * one (Annex #2, stage 6B3). Switching off takes the fighter's own pod points with it as
+     * well as anything it was lending (J4.965).
+     *
+     * @return the refusal, or null if the switch was thrown
+     */
+    public String setFighterPodsActive(com.sfb.objects.shuttles.Fighter fighter,
+            boolean active) {
+        if (fighter == null)
+            return "no fighter given";
+        if (fighter.getEwPods() <= 0)
+            return fighter.getName() + " carries no EW pods (J4.96)";
+        fighter.setPodsActive(active);
+        return null;
     }
 
     /**

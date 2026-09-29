@@ -310,7 +310,32 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
             return false;
         podEcm = ecm;
         podEccm = eccm;
+        podEwDeclaredThisTurn = true;
         return true;
+    }
+
+    /**
+     * Whether this turn's pod split has been declared yet (J4.961: "announced in the Sensor
+     * Lock-On Phase of EACH turn").
+     * <p>
+     * False means the fighter is flying the even default rather than a choice. Worth telling
+     * apart: an undeclared EWF is one whose owner has not looked at it, and 2/2 is only
+     * coincidentally what they might have wanted.
+     */
+    public boolean isPodEwDeclaredThisTurn() { return podEwDeclaredThisTurn; }
+
+    private boolean podEwDeclaredThisTurn;
+
+    /**
+     * Let this turn's declaration lapse, back to an even split (J4.961).
+     * <p>
+     * The split does not carry over: the rule has it announced afresh every turn, so a player
+     * who declared all-ECM last turn and says nothing this turn gets the default back rather
+     * than silently keeping a choice they made against a situation that has moved on.
+     */
+    public void resetPodEwDeclaration() {
+        podEwDeclaredThisTurn = false;
+        spreadPodPointsEvenly();
     }
 
     private void spreadPodPointsEvenly() {
@@ -613,6 +638,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         dronesFiredThisTurn = 0;
         firstDroneTarget = null;
         firedDogfightDroneThisTurn = false;
+        resetPodEwDeclaration();        // J4.961: declared afresh each turn
         getWeapons().cleanUp();
     }
 }
