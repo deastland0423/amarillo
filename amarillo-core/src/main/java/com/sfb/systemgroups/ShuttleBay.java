@@ -14,6 +14,7 @@ import com.sfb.objects.shuttles.GASShuttle;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.Stinger1;
+import com.sfb.objects.shuttles.Stinger_E;
 import com.sfb.objects.shuttles.Stinger2;
 import com.sfb.objects.shuttles.StingerH;
 import com.sfb.objects.Unit;
@@ -323,6 +324,9 @@ public class ShuttleBay {
                 break;
             case "stingerh":
                 s = new StingerH();
+                break;
+            case "stinger_e":
+                s = new Stinger_E();
                 break;
             case "aas":
                 s = new Aas();

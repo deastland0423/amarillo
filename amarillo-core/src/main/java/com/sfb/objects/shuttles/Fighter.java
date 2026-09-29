@@ -171,6 +171,22 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     public static final int POINTS_PER_EW_POD = 2;
 
     private int extraEwPods;
+
+    /**
+     * Pods that are a permanent part of the airframe (J4.964, "including any built-in").
+     * <p>
+     * R1.F7: the Hydrans, ISC and Tholians "built a specific EW fighter which was the only
+     * type they used" rather than converting a standard fighter. A Stinger-E is not a
+     * Stinger-2 with pods hung on it — its two fusion beams were replaced by two EW pods at
+     * the factory, and they cannot be added or removed.
+     * <p>
+     * A third category rather than a reuse of either existing one, because it behaves like
+     * neither. Rail-mounted pods (J4.962) displace a drone and can be cleared; extra pods
+     * (J4.9621) cost a point of speed and dogfight rating each and can be jettisoned
+     * (J4.9622). These cost nothing and go nowhere — which is why a Stinger-E prints speed
+     * 15, the same as the Stinger-2 it derives from.
+     */
+    private int fixedEwPods;
     private int podEcm;
     private int podEccm;
     private boolean podsActive = true;
@@ -186,7 +202,25 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * and two places recording the same fact drift.
      */
     public int getEwPods() {
-        return railEwPods() + extraEwPods;
+        return railEwPods() + fixedEwPods + extraEwPods;
+    }
+
+    /** Pods welded to the airframe (J4.964). Set at construction; never loaded or dropped. */
+    public int getFixedEwPods() { return fixedEwPods; }
+
+    /**
+     * Declare permanently-fitted pods, for a purpose-built EW fighter (R1.F7).
+     * <p>
+     * Held to J4.964's ceiling like any other pod, and it is the ceiling that makes this
+     * safe to call from a constructor: a two-seat EWF may carry four, so a Stinger-E's two
+     * leaves room for J4.9621 extras rather than pre-empting them.
+     *
+     * @return the number actually fitted
+     */
+    public int setFixedEwPods(int pods) {
+        fixedEwPods = Math.max(0, Math.min(pods, maxEwPods()));
+        spreadPodPointsEvenly();
+        return fixedEwPods;
     }
 
     /** Pods carried in place of a drone, which is the ordinary way (J4.962). */
@@ -204,7 +238,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * @return the number of rails now carrying one
      */
     public int fitEwPods(int pods) {
-        int want = Math.max(0, Math.min(pods, maxEwPods() - extraEwPods));
+        int want = Math.max(0, Math.min(pods, maxEwPods() - extraEwPods - fixedEwPods));
         for (Weapon w : getWeapons().fetchAllWeapons()) {
             if (!(w instanceof com.sfb.weapons.DroneRail rail))
                 continue;
@@ -228,7 +262,7 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     public int getExtraEwPods() { return extraEwPods; }
 
     public int setExtraEwPods(int extra) {
-        int room = maxEwPods() - railEwPods();
+        int room = maxEwPods() - railEwPods() - fixedEwPods;
         extraEwPods = Math.max(0,
                 Math.min(Math.min(extra, MAX_EXTRA_EW_PODS), Math.max(0, room)));
         spreadPodPointsEvenly();
@@ -291,6 +325,11 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * J1.3322: "EW systems (EW pods, MRS, SWAC) cease to function if the shuttle is
      * crippled. Built-in EW points continue to operate." So crippling takes the pods and
      * leaves J4.47's two-and-two — which is the practical difference between the two.
+     * <p>
+     * Built-in POINTS and built-in PODS are not the same thing, and a purpose-built EW
+     * fighter is where the difference bites: a crippled Stinger-E loses both of its
+     * permanent pods and keeps J4.47's two-and-two, so it drops from six points of each to
+     * two and has nothing left to lend its squadron (J4.965).
      */
     public boolean podsWorking() {
         return podsActive && getEwPods() > 0 && !isCrippled();

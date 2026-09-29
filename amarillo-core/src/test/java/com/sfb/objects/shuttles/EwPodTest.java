@@ -389,4 +389,99 @@ public class EwPodTest {
         assertNotNull(rack);
         assertEquals(2, rack.capacity());
     }
+
+    // -------------------------------------------------------------------------
+    // A purpose-built EW fighter (R1.F7): the Hydran Stinger-E
+    // -------------------------------------------------------------------------
+
+    /**
+     * R1.F7: the Hydrans, ISC and Tholians "built a specific EW fighter which was the only
+     * type they used" and do not convert a standard fighter. A Stinger-E's two fusion beams
+     * were replaced by two EW pods at the factory.
+     */
+    @Test
+    public void aStingerEsPodsArePartOfTheAirframe() {
+        Stinger_E ewf = new Stinger_E();
+
+        assertEquals("two, per the SSD", 2, ewf.getEwPods());
+        assertEquals("permanently fitted (J4.964)", 2, ewf.getFixedEwPods());
+        assertEquals("nothing on a rail, because it has none", 0, ewf.railEwPods());
+        assertEquals("and nothing slung extra", 0, ewf.getExtraEwPods());
+        assertTrue("an EWF is a two-seat fighter (F3.222)", ewf.isTwoSeater());
+    }
+
+    /**
+     * The pods cost it no speed, which is what rules out J4.9621's "extra" pods — their
+     * whole signature is a point of speed and dogfight rating apiece. The SSD prints 15,
+     * the same as the Stinger-2 this derives from.
+     */
+    @Test
+    public void aStingerEIsNoSlowerThanTheStingerItDerivesFrom() {
+        assertEquals(new Stinger2().effectiveMaxSpeed(),
+                new Stinger_E().effectiveMaxSpeed());
+        assertEquals(15, new Stinger_E().effectiveMaxSpeed());
+    }
+
+    /**
+     * The bug this airframe would have exposed. Pods were modelled as living on standard
+     * drone rails (J4.962) — true of a Kzinti HAAS-E, and impossible for a Hydran fighter,
+     * which has no rails at all. A Stinger-E built with {@code fitEwPods(2)} would have
+     * come out with nothing and lent its squadron nothing.
+     */
+    @Test
+    public void railMountingCannotWorkOnAFighterWithNoRails() {
+        Stinger_E ewf = new Stinger_E();
+        assertTrue("no rails to hang anything on", railsOf(ewf).isEmpty());
+        assertEquals("so the J4.962 route fits none", 0, ewf.fitEwPods(2));
+        assertEquals("and the permanent pair is untouched", 2, ewf.getEwPods());
+    }
+
+    /** J4.961: two pods, four points — all of them lendable, since none are built-in EW. */
+    @Test
+    public void aStingerEGeneratesFourPodPoints() {
+        Stinger_E ewf = new Stinger_E();
+
+        assertEquals(4, ewf.getEwPods() * Fighter.POINTS_PER_EW_POD);
+        assertEquals("split evenly until declared otherwise (J4.961)", 2, ewf.getPodEcm());
+        assertEquals(2, ewf.getPodEccm());
+        assertEquals("2 built-in (J4.47) + 2 from the pods", 4, ewf.totalOwnEcm());
+    }
+
+    /**
+     * J1.3322 draws the line between built-in POINTS and built-in PODS: "EW systems (EW
+     * pods, MRS, SWAC) cease to function if the shuttle is crippled. Built-in EW points
+     * continue to operate." Permanent or not, a pod is a pod.
+     */
+    @Test
+    public void cripplingTakesEvenPermanentPods() {
+        Stinger_E ewf = new Stinger_E();
+        ewf.applyCripplingEffects();                       // J1.33
+
+        assertEquals("the pods stop", 0, ewf.getPodEcm());
+        assertEquals("J4.47's two-and-two survives", 2, ewf.totalOwnEcm());
+        assertEquals(2, ewf.totalOwnEccm());
+        assertFalse("and there is nothing left to lend (J4.965)", ewf.podsWorking());
+    }
+
+    /**
+     * J4.964 lets an EWF carry four "including any built-in", so a Stinger-E's two leave
+     * room for two J4.9621 extras — at a point of speed each, which is the trade.
+     */
+    @Test
+    public void theFixedPairLeavesRoomForTwoExtras() {
+        Stinger_E ewf = new Stinger_E();
+        int clean = ewf.effectiveMaxSpeed();
+
+        assertEquals(2, ewf.setExtraEwPods(2));
+        assertEquals("J4.964's four, reached the long way", 4, ewf.getEwPods());
+        assertEquals("J4.9621 charges a point of speed each", clean - 2,
+                ewf.effectiveMaxSpeed());
+        assertEquals("eight points now", 8, ewf.getEwPods() * Fighter.POINTS_PER_EW_POD);
+    }
+
+    /** No rails, no drones, so no reload behind it either (J4.822). */
+    @Test
+    public void aStingerEsBoxStocksNoDrones() {
+        assertNull(com.sfb.systemgroups.ReadyRack.forFighter(new Stinger_E()));
+    }
 }

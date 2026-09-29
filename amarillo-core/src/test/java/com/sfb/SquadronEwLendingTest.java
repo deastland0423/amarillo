@@ -388,6 +388,74 @@ public class SquadronEwLendingTest {
     }
 
     /**
+     * A Hydran squadron, end to end (R1.F7 + J4.93).
+     * <p>
+     * The Hydrans took the other route: rather than converting a fighter by hanging pods on
+     * its drone rails (J4.962, the Kzinti way), they built the Stinger-E as its own airframe
+     * with the pods permanent and the fusion beams gone. The lending machinery should not
+     * care which route the points came by — J4.965 asks only that they came from PODS.
+     */
+    @Test
+    public void aHydranEwFighterLendsJustTheSame() {
+        com.sfb.objects.shuttles.Stinger_E hydranEwf =
+                new com.sfb.objects.shuttles.Stinger_E();
+        hydranEwf.setName("Stinger-E");
+        hydranEwf.setOwner(wingman.getOwner());
+        hydranEwf.setLocation(new Location(10, 12));
+        hydranEwf.setFacing(13);
+
+        com.sfb.objects.shuttles.Stinger2 stinger = new com.sfb.objects.shuttles.Stinger2();
+        stinger.setName("Stinger-2");
+        stinger.setOwner(wingman.getOwner());
+        stinger.setLocation(new Location(10, 13));
+        stinger.setFacing(13);
+
+        game.getActiveShuttles().add(hydranEwf);
+        game.getActiveShuttles().add(stinger);
+        Squadron hydran = new Squadron("Hydran", carrier);
+        assertNull(hydran.add(hydranEwf));
+        assertNull(hydran.add(stinger));
+        sweepLockOns();
+
+        assertNull(game.designateLentEwSource(stinger, hydranEwf));
+        EwLoan loan = game.lentEwTo(stinger);
+        assertEquals("two permanent pods, four points, split evenly", 2, loan.ecm());
+        assertEquals(2, loan.eccm());
+
+        com.sfb.properties.EwBreakdown ew = game.ewAgainst(enemy, stinger);
+        assertEquals("J4.47's two", 2, ew.builtIn());
+        assertEquals("plus the Stinger-E's two", 2, ew.lent());
+        assertEquals(4, ew.total());
+    }
+
+    /** J4.965 again, from the Hydran end: crippling the EWF ends its squadron's loan. */
+    @Test
+    public void aCrippledStingerELendsNothing() {
+        com.sfb.objects.shuttles.Stinger_E hydranEwf =
+                new com.sfb.objects.shuttles.Stinger_E();
+        hydranEwf.setName("Stinger-E");
+        hydranEwf.setOwner(wingman.getOwner());
+        hydranEwf.setLocation(new Location(10, 12));
+        game.getActiveShuttles().add(hydranEwf);
+
+        com.sfb.objects.shuttles.Stinger2 stinger = new com.sfb.objects.shuttles.Stinger2();
+        stinger.setName("Stinger-2");
+        stinger.setOwner(wingman.getOwner());
+        stinger.setLocation(new Location(10, 13));
+        game.getActiveShuttles().add(stinger);
+
+        Squadron hydran = new Squadron("Hydran", carrier);
+        assertNull(hydran.add(hydranEwf));
+        assertNull(hydran.add(stinger));
+        sweepLockOns();
+        assertNull(game.designateLentEwSource(stinger, hydranEwf));
+        assertFalse(game.lentEwTo(stinger).isNothing());
+
+        hydranEwf.applyCripplingEffects();       // J1.33 / J1.3322
+        assertTrue(game.lentEwTo(stinger).isNothing());
+    }
+
+    /**
      * Give every fighter its lock-ons (D6.11, automatic at J1.31's sensor rating six).
      * <p>
      * The turn-start sweep lives in {@code beginImpulses}, which a test only reaches by
