@@ -2468,6 +2468,38 @@ public class Game {
         return squadronEw.effectiveSource(fighter);
     }
 
+    /**
+     * The EW fighter of this fighter's squadron, in range or not (J4.46, R1.F7).
+     * <p>
+     * Not the same question as {@link #lentEwSourceOf}, which answers only while the points
+     * are flowing. This one still answers when the formation has strung out, which is when a
+     * player most needs to know where their EW fighter is.
+     */
+    public com.sfb.objects.shuttles.Fighter squadronEwFighterFor(
+            com.sfb.objects.shuttles.Fighter fighter) {
+        return squadronEw.squadronEwFighter(fighter);
+    }
+
+    /**
+     * Why {@code fighter} is getting no lent EW from its squadron's EW fighter, or null if it
+     * is getting some. Names the clause — range, lock-on, crippling, or J1.343's wait — since
+     * "nothing" on its own tells a player nothing.
+     */
+    public String ewLendRefusalFor(com.sfb.objects.shuttles.Fighter fighter) {
+        com.sfb.objects.Unit source = squadronEw.effectiveSource(fighter);
+        if (source == null)
+            source = squadronEw.squadronEwFighter(fighter);
+        if (source == null)
+            return fighter != null && fighter.getSquadron() == null
+                    ? "not in a squadron (J4.46)" : "no EW fighter in the squadron";
+        return squadronEw.refusalReason(fighter, source);
+    }
+
+    /** J4.921's three hexes, so a readout need not hardcode a rules number. */
+    public static int squadronLendRange() {
+        return SquadronEwResolver.SQUADMATE_LEND_RANGE;
+    }
+
     /** Units {@code fighter} could take lent EW from at this instant (J4.921). */
     public List<Unit> ewLendingCandidates(com.sfb.objects.shuttles.Fighter fighter) {
         return squadronEw.lendingCandidates(fighter);

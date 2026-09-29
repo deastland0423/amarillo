@@ -668,6 +668,27 @@ public class GameStateDto {
         public String lentEwSourceName;
         public Integer lentEcm;
         public Integer lentEccm;
+
+        /**
+         * The squadron's EW fighter and how far away it is — sent whether or not it is
+         * currently lending, which is the point. J4.921 gives it three hexes, so a formation
+         * that has strung out stops being covered, and the player needs to see the distance
+         * to close it up again. {@code lentEwSourceName} goes null at that moment; this does
+         * not.
+         */
+        public String ewLenderName;
+        public Integer ewLenderRange;
+
+        /** J4.921's limit, sent so the client never hardcodes a rules number. */
+        public Integer ewLendRangeLimit;
+
+        /**
+         * Why nothing is arriving, naming the clause that bit — range, lock-on, crippling, or
+         * J1.343's post-launch wait. Null while the points are flowing. "No lent EW" with no
+         * reason is the least useful thing this panel could say, and working the reason out
+         * in the client would be the view deciding a rules question.
+         */
+        public String ewLendRefusal;
     }
 
     // -------------------------------------------------------------------------
@@ -1774,6 +1795,18 @@ public class GameStateDto {
             // J1.343, and only worth sending to something that has points to lend.
             dto.ewLendDelayRemaining = fighter.impulsesUntilEwLending(absoluteImpulse);
         }
+
+        // J4.921's range, sent whether or not the loan is live: a fighter that has drifted
+        // out needs to show how far out, not merely that it is getting nothing.
+        com.sfb.objects.shuttles.Fighter squadronLender = game.squadronEwFighterFor(fighter);
+        if (squadronLender != null) {
+            dto.ewLenderName = squadronLender.getName();
+            dto.ewLendRangeLimit = com.sfb.Game.squadronLendRange();
+            if (fighter.getLocation() != null && squadronLender.getLocation() != null)
+                dto.ewLenderRange = com.sfb.utilities.MapUtils.getRange(fighter, squadronLender);
+        }
+        if (loan.isNothing() && fighter.getEwPods() == 0)
+            dto.ewLendRefusal = game.ewLendRefusalFor(fighter);
 
         dto.ecmSources = describeFighterEcm(fighter, loan, lender);
     }

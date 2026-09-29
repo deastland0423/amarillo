@@ -273,6 +273,61 @@ public class SquadronEwInPlayTest {
         assertNull(dto.ewPods);
     }
 
+    /**
+     * J4.921's three hexes, watched from the outside. A formation that strings out stops being
+     * covered, so the panel has to show the distance and say which clause bit — the loan going
+     * quietly to nothing is the least useful thing it could do.
+     */
+    @Test
+    public void aFighterOutOfRangeStillShowsWhereItsEwFighterIs() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        Haas_E ewf = launch(Haas_E.class);
+        Haas wingman = launch(Haas.class);
+        serveTheLendingDelay(ewf);
+
+        com.sfb.dto.GameStateDto.ShuttleDto close = shuttleDto(wingman.getName());
+        assertEquals(ewf.getName(), close.ewLenderName);
+        assertEquals("J4.921's limit, sent rather than hardcoded",
+                Integer.valueOf(3), close.ewLendRangeLimit);
+        assertTrue("in range: " + close.ewLenderRange,
+                close.ewLenderRange <= close.ewLendRangeLimit);
+        assertNull("nothing to explain while it is working", close.ewLendRefusal);
+
+        // Break formation.
+        wingman.setLocation(new Location(10, 18));
+
+        com.sfb.dto.GameStateDto.ShuttleDto far = shuttleDto(wingman.getName());
+        assertNull("no loan now", far.lentEcm);
+        assertEquals("but the EW fighter is still findable", ewf.getName(), far.ewLenderName);
+        assertTrue("and the distance is shown: " + far.ewLenderRange,
+                far.ewLenderRange > far.ewLendRangeLimit);
+        assertNotNull(far.ewLendRefusal);
+        assertTrue("the reason should name the range and the rule: " + far.ewLendRefusal,
+                far.ewLendRefusal.contains("hexes away")
+                        && far.ewLendRefusal.contains("J4.921"));
+        assertEquals("and its own two points remain", Integer.valueOf(2), far.ecmTotal);
+    }
+
+    /** The other clauses explain themselves too, so a player is never left guessing. */
+    @Test
+    public void theRefusalNamesWhicheverClauseBit() {
+        while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            game.advancePhase();
+        Haas_E ewf = launch(Haas_E.class);
+        Haas wingman = launch(Haas.class);
+
+        String justLaunched = shuttleDto(wingman.getName()).ewLendRefusal;
+        assertNotNull(justLaunched);
+        assertTrue("J1.343's countdown: " + justLaunched,
+                justLaunched.contains("J1.343") && justLaunched.contains("impulse"));
+
+        serveTheLendingDelay(ewf);
+        ewf.applyCripplingEffects();
+        String crippled = shuttleDto(wingman.getName()).ewLendRefusal;
+        assertTrue("J4.921's uncrippled clause: " + crippled, crippled.contains("crippled"));
+    }
+
     private com.sfb.dto.GameStateDto.ShuttleDto shuttleDto(String name) {
         com.sfb.dto.GameStateDto state = new com.sfb.dto.GameStateDto(game, "Kzinti");
         for (com.sfb.dto.GameStateDto.MapObjectDto o : state.mapObjects)

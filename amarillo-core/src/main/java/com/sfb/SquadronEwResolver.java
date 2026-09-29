@@ -64,32 +64,68 @@ class SquadronEwResolver {
      * method is what then reports that the points cannot be used.
      */
     boolean qualifiesNow(Fighter recipient, Unit source) {
+        return refusalReason(recipient, source) == null;
+    }
+
+    /**
+     * Why {@code source} is not lending to {@code recipient} right now, or null if it is.
+     * <p>
+     * The reason and the verdict are the same method because a player looking at a fighter
+     * that is getting nothing needs to know WHICH clause bit — J4.921 has four, and "no lent
+     * EW" with no explanation is the least useful thing a readout can say. It is also the
+     * only way the two cannot drift: {@link #qualifiesNow} is one line over this.
+     */
+    String refusalReason(Fighter recipient, Unit source) {
         if (recipient == null || source == null || recipient == source)
-            return false;
+            return "no source";
         // J4.923: "A crippled shuttle can receive lent EW (J1.333)." The recipient's own
         // condition is deliberately not tested — only the LENDER must be uncrippled.
         if (!(source instanceof Fighter ewf))
-            return false;                       // carriers, MRS and SWAC: see the class note
+            return source.getName() + " cannot lend to a squadron";  // see the class note
         if (!ewf.isTwoSeater())
-            return false;                       // R1.F7/J4.43: only an EW fighter lends
+            return ewf.getName() + " is not an EW fighter (R1.F7)";
         if (ewf.isCrippled())
-            return false;                       // J4.921: "an uncrippled EWF"
+            return ewf.getName() + " is crippled (J4.921)";
         // J1.343: "A shuttle cannot loan EW points ... for 1/4 turn (eight impulses) after its
         // most recent launch" — the same wait its own phasers serve under J1.342. Only the
         // LENDER waits: the rule's last sentence is "A shuttle can receive EW lending
         // immediately upon launch", which is also what J4.922 means when it cites J1.343. So
         // the recipient's own launch impulse is deliberately not consulted anywhere here.
-        if (!ewf.canLoanEw(game.getAbsoluteImpulse()))
-            return false;
+        int wait = ewf.impulsesUntilEwLending(game.getAbsoluteImpulse());
+        if (wait > 0)
+            return ewf.getName() + " launched too recently — " + wait + " more impulse"
+                    + (wait == 1 ? "" : "s") + " before it may lend (J1.343)";
         if (!recipient.sharesSquadronWith(ewf))
-            return false;                       // J4.921: "from its squadron"
+            return ewf.getName() + " is not in " + recipient.getName()
+                    + "'s squadron (J4.921)";
         // J4.921: the RECIPIENT holds the lock-on, which is the reverse of a scout channel
         // (G24.218, where the scout must hold it).
         if (!recipient.hasLockOn(ewf))
-            return false;
+            return recipient.getName() + " has no lock-on to " + ewf.getName() + " (J4.921)";
         if (recipient.getLocation() == null || ewf.getLocation() == null)
-            return false;                       // one of them is in a bay or off-map
-        return MapUtils.getRange(recipient, ewf) <= SQUADMATE_LEND_RANGE;
+            return ewf.getName() + " is not on the map";
+        int range = MapUtils.getRange(recipient, ewf);
+        if (range > SQUADMATE_LEND_RANGE)
+            return ewf.getName() + " is " + range + " hexes away; J4.921 allows "
+                    + SQUADMATE_LEND_RANGE;
+        return null;
+    }
+
+    /**
+     * This fighter's squadron EW fighter, whether or not it can currently lend.
+     * <p>
+     * Distinct from {@link #effectiveSource}, which answers only when the points are actually
+     * flowing. A formation that has strung out needs to know how far away its EW fighter is in
+     * order to close up again, and a source that has stopped qualifying is exactly when that
+     * matters most.
+     */
+    Fighter squadronEwFighter(Fighter member) {
+        if (member == null || member.getSquadron() == null)
+            return null;
+        for (Fighter mate : member.getSquadron().getFighters())
+            if (mate != member && mate.isTwoSeater() && mate.getEwPods() > 0)
+                return mate;
+        return null;
     }
 
     /** Every unit {@code recipient} could designate right now (J4.921). */

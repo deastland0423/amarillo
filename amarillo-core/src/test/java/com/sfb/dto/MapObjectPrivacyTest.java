@@ -92,7 +92,10 @@ public class MapObjectPrivacyTest {
             // it is announced, and the resulting die shift gives it away regardless.
             "ecmTotal", "eccmTotal", "ecmSources", "squadronName", "ewPods", "podEcm",
             "podEccm", "podEwDeclared", "podsActive", "ewLendDelayRemaining",
-            "lentEwSourceName", "lentEcm", "lentEccm");
+            "lentEwSourceName", "lentEcm", "lentEccm",
+            // Where the squadron's EW fighter is and why it is not helping. Public with the
+            // rest of it, and an enemy watching the formation can see the geometry anyway.
+            "ewLenderName", "ewLenderRange", "ewLendRangeLimit", "ewLendRefusal");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
             // G4.233: an identification gives up the seeking course and stops there. What a
             // fighter still has on its rails is never on offer.
