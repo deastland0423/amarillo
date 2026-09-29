@@ -179,4 +179,33 @@ class GameSessionPodEwTest {
     void aFighterWithNoPodsHasNoSwitch() {
         assertFalse(session.executeAction(switchPods("HAAS-1", false)).isSuccess());
     }
+
+    /**
+     * J4.961 declares the split at the head of the turn, when an EW fighter is usually still
+     * in its bay — so the lookup has to find it there. Searching only the map refused the
+     * declaration in exactly the situation the rule is written for.
+     */
+    @Test
+    void anEwFighterStillInItsBayCanBeDeclaredFor() throws Exception {
+        com.sfb.objects.Ship cvs = com.sfb.objects.ShipLibrary.createShip(
+                com.sfb.objects.ShipSpec.fromJson(
+                        new java.io.File("../data/factions/kzinti/cvs.json")));
+        cvs.setName("KHS Watchful");
+        cvs.setLocation(new Location(14, 10));
+        cvs.setFacing(1);
+        game.getShips().add(cvs);
+
+        Haas_E inBay = null;
+        for (com.sfb.systemgroups.ShuttleBay bay : cvs.getShuttles().getBays())
+            for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
+                if (inBay == null && craft instanceof Haas_E found)
+                    inBay = found;
+        assertNotNull(inBay, "the CVS should keep a HAAS-E");
+
+        Game.ActionResult r = session.executeAction(declare(inBay.getName(), 4, 0));
+
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertEquals(4, inBay.getPodEcm());
+        assertTrue(inBay.isPodEwDeclaredThisTurn());
+    }
 }

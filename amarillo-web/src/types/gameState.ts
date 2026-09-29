@@ -86,6 +86,14 @@ export interface ShuttleInBayState {
   /** What a launch is actually capped at: maxSpeed less any point given to EM (C10.13). */
   effectiveMaxSpeed:   number;
   canLaunch:           boolean;  // hatch or tube available for this shuttle right now
+  // J4.96: pods and this turn's declared split (J4.961). Sent for a craft still in its bay
+  // because that is where an EW fighter usually is when the split is declared.
+  ewPods?:             number;
+  podEcm?:             number;
+  podEccm?:            number;
+  podEwDeclared?:      boolean;
+  podsActive?:         boolean;
+  squadronName?:       string | null;
   armed?:              boolean;  // suicide only
   armingTurnsComplete?: number; // suicide only
   lastArmingEnergy?:   number;  // suicide only: energy paid on the most recent arming turn

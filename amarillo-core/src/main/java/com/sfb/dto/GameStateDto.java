@@ -235,6 +235,20 @@ public class GameStateDto {
          */
         public int effectiveMaxSpeed;
         public boolean canLaunch; // true if hatch or tube is available for this shuttle right now
+        /**
+         * J4.96: EW pods aboard, and this turn's declared split (J4.961). Sent for a craft
+         * still in its bay because that is where an EW fighter usually IS when the split is
+         * declared — J4.961 puts the declaration at the head of the turn, before anything has
+         * launched, so a panel that only knew about craft on the map could never offer it.
+         * <p>
+         * Null for a craft with no pods, so "has none" and "has none declared" stay distinct.
+         */
+        public Integer ewPods;
+        public Integer podEcm;
+        public Integer podEccm;
+        public Boolean podEwDeclared;
+        public Boolean podsActive;
+        public String squadronName;
         // suicide only: arming has BEGUN (D12.123 counts a part-armed shuttle as armed).
         // Not the same as fully armed at three turns, which is what decides whether it owes
         // the 1-point hold — read armingTurnsComplete for that.
@@ -1700,6 +1714,17 @@ public class GameStateDto {
                     sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
                     sd.armingState = com.sfb.systemgroups.FighterArming.armingState(s);
+                    if (s instanceof com.sfb.objects.shuttles.Fighter bayFighter) {
+                        sd.squadronName = bayFighter.getSquadron() != null
+                                ? bayFighter.getSquadron().getName() : null;
+                        if (bayFighter.getEwPods() > 0) {
+                            sd.ewPods = bayFighter.getEwPods();
+                            sd.podEcm = bayFighter.getPodEcm();
+                            sd.podEccm = bayFighter.getPodEccm();
+                            sd.podEwDeclared = bayFighter.isPodEwDeclaredThisTurn();
+                            sd.podsActive = bayFighter.arePodsActive();
+                        }
+                    }
                     for (com.sfb.weapons.Weapon fw : s.getWeapons().fetchAllWeapons()) {
                         if (!(fw instanceof com.sfb.weapons.DroneRail rail))
                             continue;

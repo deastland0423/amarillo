@@ -79,6 +79,12 @@ interface ShipAlloc {
   tractorEnergy:        number;   // energy pool for tractor beams (G7.15)
   erraticManeuvers:     number;   // energy bought for Erratic Maneuvers (C10.11)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
+  /**
+   * J4.961: how each EW fighter splits its pod points this turn — the ECM half, the rest
+   * being ECCM. Only the one number is held because the total is fixed at twice the pod
+   * count and the server enforces it; storing both would let the two drift in the form.
+   */
+  podEw:                Record<string, number>;
   wwCharge:             Set<string>;             // shuttle names being charged as WW this turn
 }
 
@@ -88,6 +94,15 @@ const SHIELD_NAMES = ['#1', '#2', '#3', '#4', '#5', '#6'];
 
 function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipAlloc {
   const shuttleSpeeds: Record<string, number> = {};
+  // J4.961: seed from what each EW fighter is currently set to, which until declared is the
+  // even split the rules leave it on. Bay and flying craft alike — at the head of a turn an
+  // EW fighter has usually not launched yet, which is exactly when this is declared.
+  const podEw: Record<string, number> = {};
+  for (const bay of ship.shuttleBays ?? [])
+    for (const inBay of bay.shuttles ?? [])
+      if ((inBay.ewPods ?? 0) > 0) podEw[inBay.name] = inBay.podEcm ?? 0;
+  for (const flying of myShuttles)
+    if ((flying.ewPods ?? 0) > 0) podEw[flying.name] = flying.podEcm ?? 0;
   for (const s of myShuttles) shuttleSpeeds[s.name] = s.speed;
   const arming: Record<string, ArmChoice> = {};
   for (const w of ship.weapons ?? []) {
@@ -169,6 +184,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     tractorEnergy:     0,
     erraticManeuvers:  0,
     shuttleSpeeds,
+    podEw,
     wwCharge: new Set(
       (ship.shuttleBays ?? []).flatMap(bay =>
         bay.shuttles.filter(s => s.type === 'admin' && s.wwReady).map(s => s.name)
@@ -440,6 +456,21 @@ export default function EnergyAllocationDialog({
   const { spent, total, doublingBonus } = calcBudget(ship, alloc);
   const overBudget = spent > total;
 
+  /**
+   * J4.961's total for one fighter: twice its pod count. Looked up across every ship's bays
+   * and the craft on the map, because an EW fighter is usually still in a bay when this is
+   * declared and may have launched by the time it is submitted.
+   */
+  const podPointsFor = (fighterName: string): number => {
+    for (const sh of allShips)
+      for (const bay of sh.shuttleBays ?? [])
+        for (const inBay of bay.shuttles ?? [])
+          if (inBay.name === fighterName) return (inBay.ewPods ?? 0) * 2;
+    for (const flying of activeShuttles ?? [])
+      if (flying.name === fighterName) return (flying.ewPods ?? 0) * 2;
+    return 0;
+  };
+
   // Check if any ship is over energy budget or over deck crew limit (blocks submit)
   const anyOverBudget = myPending.some(name => {
     const s = allShips.find(sh => sh.name === name);
@@ -490,6 +521,27 @@ export default function EnergyAllocationDialog({
     setBusy(true);
     setErrMsg('');
     try {
+      // J4.961 first, and deliberately before the allocations: the declaration window is the
+      // one that runs into our Sensor Lock-On Phase, and submitting the LAST ship's
+      // allocation closes it. Sent after, every one of these would be refused.
+      for (const name of myPending) {
+        const a = allocMap[name];
+        if (!a) continue;
+        for (const [fighter, ecm] of Object.entries(a.podEw ?? {})) {
+          const total = podPointsFor(fighter);
+          if (total <= 0) continue;
+          const res = await gameApi.submitAction(gameId, playerToken, {
+            type:     'DECLARE_POD_EW',
+            shipName: fighter,
+            podEcm:   ecm,
+            podEccm:  total - ecm,
+          });
+          // A refusal here is worth showing but not worth abandoning the turn over — the
+          // commonest is "already declared this turn", which is harmless on a resubmit.
+          if (!res.success) setErrMsg(res.message ?? `Could not declare EW for ${fighter}`);
+        }
+      }
+
       for (const name of myPending) {
         const s = allShips.find(sh => sh.name === name);
         const a = allocMap[name];
@@ -1162,17 +1214,61 @@ export default function EnergyAllocationDialog({
           // charges, suicide arming, weasel charging — is Hangar Operations; this is a
           // movement order that happens to be set at allocation.
           const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
-          if (myShuttles.length === 0) return null;
+          // Not `myShuttles.length === 0` any more: a carrier with nothing launched still has
+          // EW fighters in its bays to declare for, which is the usual case at turn start.
+          if (myShuttles.length === 0 && Object.keys(alloc.podEw ?? {}).length === 0)
+            return null;
 
           const shortName = (s: ShuttleObject) =>
             s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
           return (
-            <Collapsible title="Shuttle Speeds" color="#f0c040" defaultOpen={false}>
+            <Collapsible title="Shuttles &amp; Squadron EW" color="#f0c040" defaultOpen={false}>
 
               {/* What craft in the BAYS get — crews, charges, arming — is Hangar
                   Operations. What is left here is the speed of the ones already
                   flying, which is a movement order that happens to be set at
                   allocation. */}
+
+              {/* J4.961: how each EW fighter splits its pod points this turn.
+                  Declared here rather than on the craft because the rule puts it at the head
+                  of the turn — the same moment a ship declares its own EW (D6.310), which is
+                  what makes B2.4's "secretly and simultaneously" mean anything — and because
+                  an EW fighter is usually still in its bay at that point and so cannot be
+                  clicked on the map at all.
+
+                  One stepper, not two: the total is fixed at twice the pod count (J4.961
+                  lets a pod give two of either or one of each, so every split of the total
+                  is reachable), and the ECCM half is simply what is left. */}
+              {Object.keys(alloc.podEw ?? {}).length > 0 && (
+                <div className="ea-section">
+                  <div className="ea-section-title" style={{ color: '#f0c040' }}>
+                    Squadron EW (J4.961)
+                  </div>
+                  <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>
+                    Each EW pod gives two points, as ECM, as ECCM, or one of each. Every
+                    fighter of the squadron within three hexes receives all of it (J4.93).
+                  </div>
+                  {Object.entries(alloc.podEw).map(([fighter, ecm]) => {
+                    const total = podPointsFor(fighter);
+                    const label = fighter.startsWith(activeTab + '-')
+                      ? fighter.slice(activeTab.length + 1) : fighter;
+                    return (
+                      <div key={fighter}>
+                        <Stepper
+                          value={ecm}
+                          min={0}
+                          max={total}
+                          onChange={v => setAlloc(a => ({ ...a, podEw: { ...a.podEw, [fighter]: v } }))}
+                          label={`${label} — ECM (of ${total})`}
+                        />
+                        <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 8 }}>
+                          {ecm} ECM / {total - ecm} ECCM
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Active Shuttle / Fighter Speeds */}
               {myShuttles.length > 0 && (

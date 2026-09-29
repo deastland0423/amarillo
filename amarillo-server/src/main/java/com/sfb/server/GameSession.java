@@ -2852,7 +2852,13 @@ public class GameSession {
         return started;
     }
 
-    /** The named fighter among the craft on the map, or null. */
+    /**
+     * The named fighter, on the map or still in a bay.
+     * <p>
+     * Bays included because J4.961 puts the pod declaration at the head of the turn, when an
+     * EW fighter has usually not launched yet — a lookup that only knew about craft on the map
+     * would refuse the declaration in exactly the situation the rule is written for.
+     */
     private com.sfb.objects.shuttles.Fighter findActiveFighter(String name) {
         if (name == null)
             return null;
@@ -2860,6 +2866,12 @@ public class GameSession {
             if (craft instanceof com.sfb.objects.shuttles.Fighter fighter
                     && fighter.getName().equalsIgnoreCase(name))
                 return fighter;
+        for (com.sfb.objects.Ship ship : game.getShips())
+            for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
+                    if (craft instanceof com.sfb.objects.shuttles.Fighter fighter
+                            && fighter.getName().equalsIgnoreCase(name))
+                        return fighter;
         return null;
     }
 }
