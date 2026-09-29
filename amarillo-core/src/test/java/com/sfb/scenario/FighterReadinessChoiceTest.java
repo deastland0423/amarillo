@@ -22,8 +22,14 @@ import com.sfb.systemgroups.ShuttleSpace;
  * <p>
  * On a squadron of one type it makes no difference, which is why it went unnoticed: the plain
  * Ranger's nine Stinger-1s are interchangeable and the first two are as good as any. The
- * Ranger REFIT is not — it carries Stinger-2s and Stinger-Hs in the same bay, and whether the
- * two hot fighters are fusion or hellbore is a decision about what you can do on turn one.
+ * Ranger REFIT is not — it carries Stinger-2s, Stinger-Hs and a Stinger-E in the same bay, and
+ * whether the two hot fighters are fusion or hellbore is a decision about what you can do on
+ * turn one.
+ * <p>
+ * The Stinger-E (R1.F7) added a third case that neither pass handled: a fighter with NOTHING
+ * to arm. It is the first fighter the RN+ lists, and both the automatic pass and the
+ * Commander's Options pass counted it against S4.10's two — so the ship went into the scenario
+ * with one hot fighter instead of two.
  * <p>
  * The choice is free. Readiness is what the weapon status already granted; this only says who
  * gets it. Stripping the squadron back to re-arrange it loses nothing either — J4.886's
@@ -62,6 +68,20 @@ public class FighterReadinessChoiceTest {
         return out;
     }
 
+    /**
+     * The first fighter the weapon status will actually arm.
+     * <p>
+     * Not the same as the first fighter in the bay since the RN+ gained its Stinger-E: that
+     * craft carries a Ph-G and two permanent EW pods (R1.F7) and so has nothing a deck crew
+     * can load, which means S4.10's two slots skip over it.
+     */
+    private static Shuttle firstArmable(Ship ship) {
+        for (Shuttle f : fighters(ship))
+            if (FighterArming.needsArming(f))
+                return f;
+        throw new IllegalStateException("nothing aboard needs arming");
+    }
+
     private static String firstOfType(Ship ship, String type) {
         for (Shuttle f : fighters(ship))
             if (f.getClass().getSimpleName().equalsIgnoreCase(type))
@@ -70,16 +90,52 @@ public class FighterReadinessChoiceTest {
     }
 
     @Test
-    public void theRefitCarriesTwoKindsOfFighterSoTheChoiceIsReal() throws Exception {
+    public void theRefitCarriesThreeKindsOfFighterSoTheChoiceIsReal() throws Exception {
         Ship rn = rangerRefit();
 
         long stinger2 = fighters(rn).stream()
                 .filter(f -> f.getClass().getSimpleName().equals("Stinger2")).count();
         long stingerH = fighters(rn).stream()
                 .filter(f -> f.getClass().getSimpleName().equals("StingerH")).count();
+        long stingerE = fighters(rn).stream()
+                .filter(f -> f.getClass().getSimpleName().equals("Stinger_E")).count();
 
-        assertEquals("seven fusion fighters", 7, stinger2);
-        assertEquals("and two hellbore ones", 2, stingerH);
+        assertEquals("six fusion fighters", 6, stinger2);
+        assertEquals("two hellbore ones", 2, stingerH);
+        assertEquals("and the EW fighter of its standard complement (R1.F7)", 1, stingerE);
+        assertEquals("nine in all", 9, fighters(rn).size());
+    }
+
+    /**
+     * The Stinger-E is not part of the choice, because there is nothing to choose about it.
+     * One Ph-G and two permanent EW pods (R1.F7) means no fusion charge, no hellbore charge
+     * and no drone — nothing its box can hand it, so it flies as it sits.
+     */
+    @Test
+    public void theEwFighterNeedsNoArmingAndSoIsNeverAChoice() throws Exception {
+        Ship rn = rangerRefit();
+        Shuttle ewf = fighters(rn).stream()
+                .filter(f -> f.getClass().getSimpleName().equals("Stinger_E"))
+                .findFirst().orElseThrow();
+
+        assertFalse("nothing for a deck crew to do", FighterArming.needsArming(ewf));
+        assertEquals("so it is first in the bay and still not armed", ewf.getName(),
+                fighters(rn).get(0).getName());
+        assertEquals(0, FighterArming.chargesCarriedBy(ewf));
+    }
+
+    /**
+     * And it must not eat one of S4.10's two slots. It is the first fighter the RN+ lists, so
+     * a pass that armed boxes rather than fighters-that-need-arming left the ship with ONE hot
+     * fighter instead of two.
+     */
+    @Test
+    public void aFighterWithNothingToArmDoesNotSpendAReadinessSlot() throws Exception {
+        Ship rn = rangerRefit();
+        ScenarioLoader.applyWeaponStatus(rn, 1);
+
+        assertEquals("S4.10 still delivers two ready fighters: " + armedNames(rn),
+                2, armedNames(rn).size());
     }
 
     @Test
@@ -90,8 +146,8 @@ public class FighterReadinessChoiceTest {
         List<String> armed = armedNames(rn);
 
         assertEquals(2, armed.size());
-        assertEquals("first come, as the file lists them",
-                fighters(rn).get(0).getName(), armed.get(0));
+        assertEquals("first come, as the file lists them — skipping any that need no arming",
+                firstArmable(rn).getName(), armed.get(0));
     }
 
     @Test
@@ -115,15 +171,23 @@ public class FighterReadinessChoiceTest {
     public void theFightersPassedOverGiveTheirChargesBack() throws Exception {
         Ship rn = rangerRefit();
         ScenarioLoader.applyWeaponStatus(rn, 1);
-        Shuttle firstComer = fighters(rn).get(0);
-        assertTrue("armed by the status", FighterArming.chargesCarriedBy(firstComer) > 0);
+        // The fighter to be passed over has to be one the status armed AND one the captain
+        // does not then name. Since the Stinger-E is skipped, the status arms the two
+        // Stinger-Hs — so naming the first leaves the second as the one that gives its
+        // charges back.
+        String chosen = firstOfType(rn, "StingerH");
+        Shuttle passedOver = fighters(rn).stream()
+                .filter(FighterArming::needsArming)
+                .filter(f -> !f.getName().equals(chosen))
+                .findFirst().orElseThrow();
+        assertTrue("armed by the status", FighterArming.chargesCarriedBy(passedOver) > 0);
 
         CoiLoadout loadout = new CoiLoadout();
-        loadout.armedFighters = List.of(firstOfType(rn, "StingerH"));
+        loadout.armedFighters = List.of(chosen);
         ScenarioLoader.applyCoi(rn, loadout, scenario());
 
         assertEquals("no longer one of the chosen", 0,
-                FighterArming.chargesCarriedBy(firstComer));
+                FighterArming.chargesCarriedBy(passedOver));
         for (ShuttleBay bay : rn.getShuttles().getBays())
             for (ShuttleSpace box : bay.getSpaces()) {
                 if (box.capacitorCapacity() == 0)
@@ -169,13 +233,15 @@ public class FighterReadinessChoiceTest {
     public void atWsThreeThereIsNothingToChoose() throws Exception {
         Ship rn = rangerRefit();
         ScenarioLoader.applyWeaponStatus(rn, 3);
-        assertEquals("S4.13 arms the lot", 9, armedNames(rn).size());
+        // Eight, not nine: S4.13 arms the lot, and the Stinger-E is not something that can
+        // be armed. It needs nothing, so it is ready at every weapon status including this one.
+        assertEquals("S4.13 arms everything that can be armed", 8, armedNames(rn).size());
 
         CoiLoadout loadout = new CoiLoadout();
         loadout.armedFighters = List.of(firstOfType(rn, "StingerH"));
         ScenarioLoader.applyCoi(rn, loadout, scenario());
 
         assertEquals("and a preference cannot disarm the rest of them",
-                9, armedNames(rn).size());
+                8, armedNames(rn).size());
     }
 }

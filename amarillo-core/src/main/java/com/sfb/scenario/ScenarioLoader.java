@@ -917,8 +917,21 @@ public class ScenarioLoader {
         }
 
         // WS-0 and WS-1: a couple of fighters ready on the deck, the rest cold.
-        for (int i = 0; i < Math.min(WS01_ARMED_FIGHTERS, boxes.size()); i++)
-            boxes.get(i).armOccupantFully();
+        //
+        // A fighter with nothing to arm does not use up one of the two. S4.10 grants two
+        // fighters READY, and a Stinger-E with one Ph-G and two permanent EW pods (R1.F7) is
+        // already ready — arming it is a no-op. Spending a slot on it left a Hydran Ranger
+        // refit with ONE hot fighter instead of two, because the Stinger-E is the first
+        // fighter its bay lists.
+        int armed = 0;
+        for (com.sfb.systemgroups.ShuttleSpace box : boxes) {
+            if (armed >= WS01_ARMED_FIGHTERS)
+                break;
+            if (!com.sfb.systemgroups.FighterArming.needsArming(box.getShuttle()))
+                continue;
+            box.armOccupantFully();
+            armed++;
+        }
     }
 
     /** S4.12: the carrier has had two turns of deck crew activity before the scenario. */
@@ -985,6 +998,10 @@ public class ScenarioLoader {
                                     Math.min(halfActions, perFighterCap));
                     halfActions -= load.halfActionsUsed();
                 } else {
+                    // Naming a fighter that has nothing to arm spends none of the allowance
+                    // (S4.10) — the same reasoning as the automatic pass above.
+                    if (!com.sfb.systemgroups.FighterArming.needsArming(box.getShuttle()))
+                        break;
                     box.armOccupantFully();
                 }
                 armed++;

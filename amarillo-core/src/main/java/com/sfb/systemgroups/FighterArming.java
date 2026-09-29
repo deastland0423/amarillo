@@ -94,6 +94,19 @@ public final class FighterArming {
     }
 
     /**
+     * Whether a deck crew has anything to do to this craft at all.
+     * <p>
+     * False for a fighter whose whole armament is phasers, and the Hydran Stinger-E (R1.F7)
+     * is the case that matters: one Ph-G and two permanently-fitted EW pods, so no fusion
+     * charge, no hellbore charge, no drone, and nothing its box can give it. Such a fighter
+     * is ALREADY ready, which is why the weapon-status allowances must not spend one of
+     * their slots on it (S4.10/S4.11).
+     */
+    public static boolean needsArming(Shuttle craft) {
+        return craft != null && halfActionsToFullyArm(craft) > 0;
+    }
+
+    /**
      * How near this craft is to flying a mission: READY, PARTIAL, EMPTY, or null when the
      * question does not apply because it has nothing to arm.
      * <p>
