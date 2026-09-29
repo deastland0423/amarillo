@@ -841,7 +841,7 @@ public class GameController {
     }
 
     /** What each side may buy with its option points, ship by ship. */
-    private List<Map<String, Object>> coiDataFor(ScenarioSpec spec) {
+    List<Map<String, Object>> coiDataFor(ScenarioSpec spec) {
             List<List<Ship>> sideShips = com.sfb.scenario.ScenarioLoader.loadShips(spec);
 
             List<Map<String, Object>> result = new ArrayList<>();
@@ -957,10 +957,18 @@ public class GameController {
 
                     // S4.10-S4.12: which fighters may start ready, and how many. Nothing to
                     // choose at WS-3, where S4.13 arms the lot.
+                    //
+                    // Only fighters a deck crew can actually do something to. A Hydran
+                    // Stinger-E (R1.F7) carries one Ph-G and two permanent EW pods, so it is
+                    // ready at every weapon status and picking it would do nothing — it was
+                    // offered as a checkbox that changed no outcome. Asked here rather than
+                    // in the client because "is there anything to arm" is a rules question.
                     java.util.List<java.util.Map<String, Object>> fighters = new ArrayList<>();
                     for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
                         for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
-                            if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter) {
+                            if (box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter
+                                    && com.sfb.systemgroups.FighterArming
+                                            .needsArming(box.getShuttle())) {
                                 java.util.Map<String, Object> f = new java.util.LinkedHashMap<>();
                                 f.put("name", box.getShuttle().getName());
                                 f.put("type", box.getShuttle().getClass().getSimpleName());
