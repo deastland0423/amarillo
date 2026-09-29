@@ -75,7 +75,7 @@ public final class FighterArming {
     public static int dronesCarriedBy(Shuttle fighter) {
         int loaded = 0;
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail && rail.getDrone() != null)
+            if (w instanceof DroneRail rail && isArmable(rail) && rail.getDrone() != null)
                 loaded++;
         return loaded;
     }
@@ -88,7 +88,7 @@ public final class FighterArming {
                 half += HALF_ACTIONS_PER_HELLBORE_CHARGE;
             else if (w instanceof FighterFusion)
                 half += FighterFusion.FULL_CHARGES * HALF_ACTIONS_PER_FUSION_CHARGE;
-            else if (w instanceof DroneRail rail)
+            else if (w instanceof DroneRail rail && isArmable(rail))
                 half += halfActionsFor(rail);
         }
         return half;
@@ -152,7 +152,7 @@ public final class FighterArming {
                 half += hb.isSpent() ? HALF_ACTIONS_PER_HELLBORE_CHARGE : 0;
             else if (w instanceof FighterFusion ff)
                 half += ff.chargesMissing() * HALF_ACTIONS_PER_FUSION_CHARGE;
-            else if (w instanceof DroneRail rail)
+            else if (w instanceof DroneRail rail && isArmable(rail))
                 half += rail.getDrone() == null ? halfActionsFor(rail) : 0;
         }
         return half;
@@ -271,9 +271,27 @@ public final class FighterArming {
     private static java.util.List<DroneRail> railsOf(Shuttle fighter) {
         java.util.List<DroneRail> rails = new java.util.ArrayList<>();
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail)
+            if (w instanceof DroneRail rail && isArmable(rail))
                 rails.add(rail);
         return rails;
+    }
+
+    /**
+     * Whether a deck crew can put a drone on this rail at all.
+     * <p>
+     * False for a rail carrying an EW pod. J4.962: "An EWP replaces one drone carried by the
+     * fighter" — the pod IS what that rail holds, so there is no drone to load, none to
+     * unload, and no half-action to budget for it. A Kzinti HAAS-E has pods on both of its
+     * rails and so has nothing to arm at all, exactly like a Hydran Stinger-E that has no
+     * rails to begin with.
+     * <p>
+     * Every arming figure in this class has to agree about that or they contradict each other:
+     * counting the rail as work made the HAAS-E look armable, which offered it in the S4.10
+     * picker, which then called armFully, which asked the rail to take a drone — and
+     * DroneRail.loadDrone throws rather than quietly drop the pod.
+     */
+    private static boolean isArmable(DroneRail rail) {
+        return rail != null && !rail.hasEwPod();
     }
 
     private static Load loadHellbore(ShuttleSpace box, Shuttle fighter, FighterHellbore hellbore,
@@ -507,8 +525,8 @@ public final class FighterArming {
                 hb.reload();
             else if (w instanceof FighterFusion ff)
                 while (ff.loadCharge()) { /* to the top */ }
-            else if (w instanceof DroneRail rail && rail.getDrone() == null
-                    && rail.getDesignDrone() != null)
+            else if (w instanceof DroneRail rail && isArmable(rail)
+                    && rail.getDrone() == null && rail.getDesignDrone() != null)
                 rail.loadDrone(new com.sfb.objects.Drone(rail.getDesignDrone()));
         }
     }

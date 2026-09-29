@@ -512,4 +512,68 @@ public class EwPodTest {
         assertNull(com.sfb.systemgroups.FighterArming.armingState(new AdminShuttle()));
         assertNull(com.sfb.systemgroups.FighterArming.armingState(null));
     }
+
+    // -------------------------------------------------------------------------
+    // Arming a fighter whose rails carry pods (J4.962)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The crash this found in playtest. Picking the HAAS-E in the Commander's Options
+     * "Fighters Ready" list threw IllegalStateException out of the submit endpoint: the
+     * arming arithmetic counted its two podded rails as work to do, so it looked armable,
+     * so armFully asked a podded rail to take a drone — and DroneRail.loadDrone refuses
+     * rather than quietly drop the pod.
+     */
+    @Test
+    public void armingAHaasEDoesNotThrow() {
+        Haas_E ewf = new Haas_E();
+        assertEquals("both rails carry pods", 2, ewf.railEwPods());
+
+        com.sfb.systemgroups.FighterArming.armFully(ewf);   // must not throw
+
+        assertEquals("and the pods are still there", 2, ewf.getEwPods());
+        assertEquals("with no drone smuggled aboard", 0,
+                com.sfb.systemgroups.FighterArming.dronesCarriedBy(ewf));
+    }
+
+    /**
+     * The reason it was offered at all. A podded rail is not work for a deck crew, so a HAAS-E
+     * with both rails podded has nothing to arm — the same answer as a Stinger-E, reached by a
+     * different route.
+     */
+    @Test
+    public void aFullyPoddedHaasEHasNothingToArm() {
+        Haas_E ewf = new Haas_E();
+
+        assertEquals(0, com.sfb.systemgroups.FighterArming.halfActionsToFullyArm(ewf));
+        assertFalse(com.sfb.systemgroups.FighterArming.needsArming(ewf));
+        assertEquals("so it too reads READY", "READY",
+                com.sfb.systemgroups.FighterArming.armingState(ewf));
+    }
+
+    /** A rail freed of its pod is a rail to arm again, and the figures follow. */
+    @Test
+    public void clearingAPodMakesTheRailArmableAgain() {
+        Haas_E ewf = new Haas_E();
+        for (com.sfb.weapons.Weapon w : ewf.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail)
+                rail.clearEwPod();
+
+        assertTrue(com.sfb.systemgroups.FighterArming.needsArming(ewf));
+        com.sfb.systemgroups.FighterArming.armFully(ewf);
+        assertEquals("two rails, two drones", 2,
+                com.sfb.systemgroups.FighterArming.dronesCarriedBy(ewf));
+    }
+
+    /** A partly podded fighter arms the rails it still has free, and only those. */
+    @Test
+    public void onlyTheUnpoddedRailsGetDrones() {
+        Haas fighter = new Haas();
+        railsOf(fighter).get(0).fitEwPod();
+
+        assertEquals("one rail of two is work", 1, fighter.getEwPods());
+        com.sfb.systemgroups.FighterArming.armFully(fighter);
+        assertEquals("the free rail only", 1,
+                com.sfb.systemgroups.FighterArming.dronesCarriedBy(fighter));
+    }
 }

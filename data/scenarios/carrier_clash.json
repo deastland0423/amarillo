@@ -24,12 +24,13 @@
       "faction": "Kzinti",
       "ships": [
         {
-          "type": "CV",
-          "shipName": "KHS Longsword",
+          "type": "CVS",
+          "shipName": "KHS Scimitar",
           "startHex": "0812",
           "startHeading": "A",
           "startSpeed": 20,
-          "weaponStatus": 1        }
+          "weaponStatus": 1
+        }
       ]
     }
   ],

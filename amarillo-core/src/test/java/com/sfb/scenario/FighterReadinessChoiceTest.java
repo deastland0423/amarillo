@@ -244,4 +244,56 @@ public class FighterReadinessChoiceTest {
         assertEquals("and a preference cannot disarm the rest of them",
                 8, armedNames(rn).size());
     }
+
+    /**
+     * The stack trace from playtest, as a test. Naming a Kzinti HAAS-E in the Commander's
+     * Options threw IllegalStateException out of the submit endpoint — armFully asked a rail
+     * carrying an EW pod to take a drone, and DroneRail.loadDrone refuses rather than quietly
+     * drop the pod (J4.962).
+     * <p>
+     * The endpoint no longer offers such a fighter, but this is the layer below that: core must
+     * not throw even when a name reaches it, because the list is a client's suggestion and
+     * nothing stops an old client or a replayed request from sending one.
+     */
+    @Test
+    public void namingAFighterWhosePodsFillItsRailsDoesNotThrow() throws Exception {
+        Ship cvs = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/kzinti/cvs.json")));
+        cvs.setName("KHS Watchful");
+        ScenarioLoader.applyWeaponStatus(cvs, 1);
+
+        Shuttle haasE = fighters(cvs).stream()
+                .filter(f -> f.getClass().getSimpleName().equals("Haas_E"))
+                .findFirst().orElseThrow();
+
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.armedFighters = List.of(haasE.getName());
+        ScenarioLoader.applyCoi(cvs, loadout, scenario());   // must not throw
+
+        assertEquals("and it is still carrying its pods, not a drone", 0,
+                FighterArming.dronesCarriedBy(haasE));
+    }
+
+    /**
+     * And naming it must not eat a readiness slot either, for the same reason a Stinger-E does
+     * not: there is no work to do on it. Its drone-armed sisters get the two.
+     */
+    @Test
+    public void aPoddedFighterDoesNotSpendASlotOnTheKzintiCarrierEither() throws Exception {
+        Ship cvs = ShipLibrary.createShip(
+                ShipSpec.fromJson(new File("../data/factions/kzinti/cvs.json")));
+        cvs.setName("KHS Watchful");
+        ScenarioLoader.applyWeaponStatus(cvs, 1);
+
+        // Not armedNames here: that counts CHARGES, which only a Hydran fighter has. A HAAS is
+        // armed with drones, so this is the same question asked in the currency it uses.
+        List<String> loaded = fighters(cvs).stream()
+                .filter(f -> FighterArming.dronesCarriedBy(f) > 0)
+                .map(Shuttle::getName).toList();
+
+        assertEquals("S4.10's two, none of it wasted on the EW fighter: " + loaded,
+                2, loaded.size());
+        assertFalse("and the EW fighter is not one of them: " + loaded,
+                loaded.stream().anyMatch(n -> n.contains("HAAS-E")));
+    }
 }

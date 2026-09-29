@@ -29,18 +29,27 @@ class CoiFighterReadinessEndpointTest {
     }
 
     /** The Hydran RN+, whose standard complement is six Stinger-2s, two -Hs and one -E. */
-    @SuppressWarnings("unchecked")
     private Map<String, Object> rnPlusCoi() {
+        return coiFor("Hydran", "RN+", "HMS Bravery");
+    }
+
+    /** The Kzinti CVS: eleven HAAS and one HAAS-E, whose pods sit on its two drone rails. */
+    private Map<String, Object> cvsCoi() {
+        return coiFor("Kzinti", "CVS", "KHS Watchful");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> coiFor(String faction, String type, String shipName) {
         com.sfb.scenario.ScenarioSpec spec = new com.sfb.scenario.ScenarioSpec();
         spec.mapCols = 42;
         spec.mapRows = 32;
         com.sfb.scenario.ScenarioSpec.SideSpec side = new com.sfb.scenario.ScenarioSpec.SideSpec();
-        side.faction = "Hydran";
-        side.name = "Hydrans";
+        side.faction = faction;
+        side.name = faction + "s";
         side.ships = new java.util.ArrayList<>();
         com.sfb.scenario.ScenarioSpec.ShipSetup ship = new com.sfb.scenario.ScenarioSpec.ShipSetup();
-        ship.type = "RN+";
-        ship.shipName = "HMS Bravery";
+        ship.type = type;
+        ship.shipName = shipName;
         ship.startHex = "1016";
         ship.startHeading = "C";
         side.ships.add(ship);
@@ -50,14 +59,23 @@ class CoiFighterReadinessEndpointTest {
         List<Map<String, Object>> sides = new GameController(null, null).coiDataFor(spec);
         return sides.stream()
                 .flatMap(sd -> ((List<Map<String, Object>>) sd.get("ships")).stream())
-                .filter(s -> "HMS Bravery".equals(s.get("shipName")))
+                .filter(s -> shipName.equals(s.get("shipName")))
                 .findFirst().orElseThrow(() -> new AssertionError(
-                        "RN+ not in the COI data: " + sides));
+                        type + " not in the COI data: " + sides));
     }
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> fightersOffered() {
-        return (List<Map<String, Object>>) rnPlusCoi().get("fighters");
+        return offeredIn(rnPlusCoi());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> offeredIn(Map<String, Object> shipCoi) {
+        return (List<Map<String, Object>>) shipCoi.get("fighters");
+    }
+
+    private List<String> typesOffered(Map<String, Object> shipCoi) {
+        return offeredIn(shipCoi).stream().map(f -> String.valueOf(f.get("type"))).toList();
     }
 
     @Test
@@ -86,5 +104,21 @@ class CoiFighterReadinessEndpointTest {
     @Test
     void theAllowanceAtWsThreeMatchesWhatCanBeArmed() {
         assertEquals(8, fightersOffered().size());
+    }
+
+    /**
+     * The Kzinti HAAS-E must be left out for the same reason, reached differently: it HAS two
+     * drone rails, and both carry EW pods (J4.962), so there is still nothing a deck crew can
+     * load. Offering it crashed the submit endpoint — armFully asked a podded rail to take a
+     * drone and DroneRail.loadDrone refused.
+     */
+    @Test
+    void theKzintiHaasEIsNotOfferedEither() {
+        List<String> types = typesOffered(cvsCoi());
+
+        assertFalse(types.contains("Haas_E"),
+                "a HAAS-E has pods on both rails and nothing to arm: " + types);
+        assertEquals(11, types.stream().filter("Haas"::equals).count(),
+                "its eleven drone-armed sisters are still offered: " + types);
     }
 }
