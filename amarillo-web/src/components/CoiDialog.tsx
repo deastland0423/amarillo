@@ -100,6 +100,25 @@ function defaultShipCoi(): ShipCoi {
   };
 }
 
+/**
+ * Where a ship's budget came from, for the tooltip on the figure (S3.211).
+ *
+ * Worth saying because the basis is not the number beside it on the SSD: the budget is a share
+ * of the "Effective Adjusted Combat BPV", which adds the ship's fighters to its hull. A carrier's
+ * budget is therefore well above a share of its printed BPV, and without this the difference
+ * looks like a bug.
+ *
+ * The server computes all of it; this only spells out the sum it sent.
+ */
+function budgetBasisLabel(ship: CoiShipData): string {
+  if (ship.coiBudgetBasis == null || ship.coiBudgetPercent == null) return '';
+  const fighters = ship.coiFighterBpv ?? 0;
+  const basis = fighters > 0
+    ? `${ship.coiBudgetBasis} BPV (hull ${ship.bpv} + fighters ${fighters})`
+    : `${ship.coiBudgetBasis} BPV`;
+  return `Commander's Options: ${ship.coiBudgetPercent}% of ${basis} — S3.211`;
+}
+
 function coiCost(c: ShipCoi): number {
   return c.extraBoardingParties * 0.5
        + c.convertBpToCommando  * 0.5
@@ -253,7 +272,11 @@ function ShipCoiPanel({
     <div className="coi-ship-panel">
       <div className="coi-ship-header">
         <span className="coi-ship-name">{ship.shipName}</span>
-        <span className="coi-budget" style={{ color: overBudget ? '#f85149' : '#56d364' }}>
+        <span
+          className="coi-budget"
+          style={{ color: overBudget ? '#f85149' : '#56d364' }}
+          title={budgetBasisLabel(ship)}
+        >
           {cost.toFixed(1)} / {ship.coiBudget.toFixed(1)} BPV
         </span>
       </div>

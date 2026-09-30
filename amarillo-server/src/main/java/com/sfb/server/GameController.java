@@ -937,12 +937,18 @@ public class GameController {
                         s.put("optionMounts", mounts);
                     }
 
-                    // Commander's options budget
+                    // Commander's options budget (S3.2), on S3.211's basis — which includes the
+                    // ship's fighters, so a carrier's budget is not the hull's alone.
                     int budgetPct = spec.commanderOptions != null
                             ? spec.commanderOptions.budgetPercent
-                            : 20;
-                    s.put("coiBudget", com.sfb.scenario.CoiLoadout.budget(
-                            ship.getBattlePointValue(), budgetPct));
+                            : com.sfb.scenario.CoiBudget.DEFAULT_PERCENT;
+                    s.put("coiBudget", com.sfb.scenario.CoiBudget.allowanceFor(ship, budgetPct));
+                    // Where that figure came from, so a carrier's budget can explain itself: it
+                    // is larger than a share of the hull, and the fighters are the reason.
+                    s.put("coiBudgetPercent", budgetPct);
+                    s.put("coiBudgetBasis",
+                            com.sfb.scenario.CoiBudget.effectiveAdjustedCombatBpv(ship));
+                    s.put("coiFighterBpv", com.sfb.scenario.CoiBudget.carriedFighterBpv(ship));
                     s.put("allowTBombs", spec.commanderOptions == null
                             || spec.commanderOptions.allowTBombs);
                     s.put("allowCommandos", spec.commanderOptions == null
@@ -1203,6 +1209,14 @@ public class GameController {
             String quotaViolation = session.validateCartelQuota(cartel, loadouts);
             if (quotaViolation != null) {
                 return ResponseEntity.badRequest().body(Map.of("error", quotaViolation));
+            }
+
+            // Commander's Option budget (S3.2) — reject an over-budget loadout. An ERROR, unlike
+            // the warnings below: the budget is a hard limit, and accepting the submission would
+            // leave applyCoi to decide which items the player loses.
+            String budgetViolation = session.validateCoiBudget(loadouts);
+            if (budgetViolation != null) {
+                return ResponseEntity.badRequest().body(Map.of("error", budgetViolation));
             }
 
             // What could not be applied, while there is still time to change it. Warnings,

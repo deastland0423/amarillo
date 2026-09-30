@@ -324,6 +324,14 @@ export interface CoiShipData {
   bpv:                 number;
   weaponStatus:        number;
   coiBudget:           number;
+  /**
+   * Where the budget came from (S3.211). The basis is the "Effective Adjusted Combat BPV" —
+   * hull plus fighters — which for a carrier is well above `bpv`, so the budget needs to be
+   * able to say why it is bigger than a share of the hull.
+   */
+  coiBudgetPercent?:   number;
+  coiBudgetBasis?:     number;
+  coiFighterBpv?:      number;
   allowTBombs:         boolean;
   allowCommandos:      boolean;
   maxTBombs:           number;

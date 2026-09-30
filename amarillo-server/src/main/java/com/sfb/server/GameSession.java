@@ -407,6 +407,41 @@ public class GameSession {
         return problems;
     }
 
+    /**
+     * Why these Commander's Option selections may not be bought, or null if they may (S3.2).
+     * <p>
+     * The client already shows a running cost against each ship's budget and refuses to submit
+     * an over-budget one, but the client is not the authority — a direct call to the endpoint
+     * would otherwise be accepted, and {@code applyCoi} would then silently drop whatever did
+     * not fit, in its own fixed order rather than the player's priority. This is the check that
+     * makes the refusal real, and it is the only place a PLAYER'S loadout is refused outright;
+     * a loadout written into a scenario file still reaches applyCoi's per-item trimming.
+     * <p>
+     * Ships are loaded fresh, exactly as the endpoint that told the client each ship's budget
+     * does, so the two cannot disagree about what a ship could afford.
+     */
+    public String validateCoiBudget(Map<String, com.sfb.scenario.CoiLoadout> loadouts) {
+        if (loadedSpec == null || loadouts == null || loadouts.isEmpty())
+            return null;
+
+        int percent = loadedSpec.commanderOptions != null
+                ? loadedSpec.commanderOptions.budgetPercent
+                : com.sfb.scenario.CoiBudget.DEFAULT_PERCENT;
+
+        List<String> refusals = new java.util.ArrayList<>();
+        for (java.util.List<com.sfb.objects.Ship> side
+                : com.sfb.scenario.ScenarioLoader.loadShips(loadedSpec))
+            for (com.sfb.objects.Ship ship : side) {
+                com.sfb.scenario.CoiLoadout loadout = loadouts.get(ship.getName());
+                if (loadout == null)
+                    continue;
+                String refusal = com.sfb.scenario.CoiBudget.refusalFor(ship, loadout, percent);
+                if (refusal != null)
+                    refusals.add(refusal);
+            }
+        return refusals.isEmpty() ? null : String.join("; ", refusals);
+    }
+
     public void submitCoi(String playerToken, Map<String, com.sfb.scenario.CoiLoadout> shipLoadouts) {
         pendingCoi.put(playerToken, new LinkedHashMap<>(shipLoadouts));
         coiDoneTokens.add(playerToken);

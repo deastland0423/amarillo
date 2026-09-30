@@ -167,9 +167,13 @@ public final class FleetValidator {
      * The most a ship may spend on Commander's Option items: a share of its combat BPV
      * (S3.2). Computed on combat BPV even for a scout, whose economic value is what it costs
      * to build rather than what it brings to the fight.
+     * <p>
+     * Delegates to {@link CoiBudget}, which owns S3.211's basis. This used to read the bare hull
+     * BPV, so a carrier's allowance left out the fighters that {@link #carriedFighterBpv} —
+     * two methods above — was already adding to its purchase cost.
      */
     public static double coiAllowance(Ship ship) {
-        return CoiLoadout.budget(ship.getBpv(), COI_PERCENT);
+        return CoiBudget.allowanceFor(ship, COI_PERCENT);
     }
 
     /**
@@ -183,13 +187,14 @@ public final class FleetValidator {
         return fleetCost(ships) + ships.stream().mapToDouble(Ship::getCoiSpend).sum();
     }
 
-    /** BPV of the fighters sitting in a ship's bays; they are bought with it (S8.11). */
+    /**
+     * BPV of the fighters sitting in a ship's bays; they are bought with it (S8.11).
+     * <p>
+     * One implementation, in {@link CoiBudget}: S8.11 asks what the fighters cost to buy and
+     * S3.211 asks what they add to the option basis, and the sum is the same either way.
+     */
     public static int carriedFighterBpv(Ship ship) {
-        int total = 0;
-        for (Shuttle s : ship.getShuttles().getAllShuttles())
-            if (s instanceof Fighter)
-                total += ((Fighter) s).getBpv();
-        return total;
+        return CoiBudget.carriedFighterBpv(ship);
     }
 
     /** What the whole force costs to buy. */

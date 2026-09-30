@@ -242,8 +242,13 @@ public class ScenarioLoader {
     public static void applyCoi(Ship ship, CoiLoadout loadout, ScenarioSpec spec) {
         if (loadout == null) return;
 
-        int budgetPercent = spec.commanderOptions != null ? spec.commanderOptions.budgetPercent : 20;
-        double budget = CoiLoadout.budget(ship.getBattlePointValue(), budgetPercent);
+        int budgetPercent = spec.commanderOptions != null
+                ? spec.commanderOptions.budgetPercent
+                : CoiBudget.DEFAULT_PERCENT;
+        // S3.211's basis, which includes the fighters the hull BPV leaves out. The endpoint now
+        // refuses an over-budget loadout outright, so the per-item checks below are the last line
+        // of defence for a loadout written into a scenario file, which never passes through it.
+        double budget = CoiBudget.allowanceFor(ship, budgetPercent);
         double spent  = 0;
 
         // --- Extra boarding parties ---
