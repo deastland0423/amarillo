@@ -118,6 +118,98 @@ function GuardSummaryRow({ gameId, playerToken, shipName }: {
   );
 }
 
+/**
+ * A carrier's squadrons, and where each one is getting its lent EW from (J4.93, J4.921, J4.922).
+ * <p>
+ * The selector sets the whole squadron at once, which is what the rule describes — J4.93 lends
+ * "to all fighters (of a designated squadron)" — and what a player wants: the alternative is the
+ * same choice made nine times on nine map clicks. The per-fighter picker on a selected fighter
+ * remains for the exception, a craft outside the carrier's ten hexes but inside its EW fighter's
+ * three.
+ * <p>
+ * Every figure is read off the DTO. J4.921's ranges, J4.922's countdown and the reason a loan is
+ * not arriving are rules answers and are not worked out here.
+ */
+function SquadronEwBlock({ ship, activeShuttles, onDesignateEwSource }: {
+  ship: ShipObject;
+  activeShuttles: ShuttleObject[];
+  onDesignateEwSource?: (fighter: string, source: string | null) => void;
+}) {
+  const flying = (name: string) =>
+    activeShuttles.filter(s => s.squadronName === name);
+
+  /** Sources any member of this squadron could take right now, without repeats. */
+  const optionsFor = (members: ShuttleObject[]) => {
+    const seen = new Set<string>();
+    for (const m of members)
+      for (const c of m.ewLendCandidates ?? []) seen.add(c);
+    return [...seen];
+  };
+
+  return (
+    <>
+      {(ship.squadrons ?? []).map(sq => {
+        const members = flying(sq.name);
+        const options = optionsFor(members);
+        const pool = sq.ecm + sq.eccm;
+        // One value for the group only where they agree; otherwise the selector shows mixed.
+        const sources = new Set(members.map(m => m.lentEwSourceName ?? ''));
+        const shared = sources.size === 1 ? [...sources][0] : '';
+        return (
+          <div key={sq.name} style={{ marginTop: 6 }}>
+            <StatRow
+              label={sq.name}
+              value={`${sq.fighters} fighter${sq.fighters === 1 ? '' : 's'}`
+                + (members.length > 0 ? `, ${members.length} flying` : '')
+                + (pool > 0 ? ` · lending ${sq.ecm}/${sq.eccm}` : '')}
+            />
+            {members.length > 0 && options.length > 0 && (
+              <div className="sidebar-stat-row">
+                <span className="sidebar-stat-label">EW from</span>
+                <span className="sidebar-stat-value">
+                  <select
+                    value={shared}
+                    onChange={e => {
+                      const want = e.target.value || null;
+                      for (const m of members) {
+                        // Only where it is a legal source for THAT fighter — J4.921's two
+                        // ranges differ, so a squadron can straddle them.
+                        if (want == null || (m.ewLendCandidates ?? []).includes(want))
+                          onDesignateEwSource?.(m.name, want);
+                      }
+                    }}
+                    style={{ maxWidth: 150 }}
+                  >
+                    {sources.size > 1 && <option value="">(mixed)</option>}
+                    {sources.size <= 1 && <option value="">none</option>}
+                    {options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </span>
+              </div>
+            )}
+            {members.map(m => (
+              <div key={m.name} className="sidebar-stat-row">
+                <span className="sidebar-stat-label" style={{ paddingLeft: 10, opacity: 0.8 }}>
+                  {m.name.replace(`${ship.name}-`, '')}
+                </span>
+                <span className="sidebar-stat-value"
+                      style={{ fontSize: '0.9em',
+                               color: m.ewLendRefusal ? '#f0c040' : undefined }}>
+                  {m.lentEcm != null
+                    ? `${m.lentEcm}/${m.lentEccm} from ${m.lentEwSourceName}`
+                      + (m.ewLenderRange != null ? ` (${m.ewLenderRange} hex)` : '')
+                    : (m.ewLendRefusal ?? 'no lent EW')}
+                  {(m.ewLendChangeIn ?? 0) > 0 ? ` · locked ${m.ewLendChangeIn}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function StatRow({ label, value, dmg }: { label: string; value: string | number; dmg?: boolean }) {
   return (
     <div className="sidebar-stat-row">
@@ -510,6 +602,13 @@ const MOVE_BUTTONS: { label: string; action: string; row: number; col: number; a
 interface SidebarProps {
   ship:            ShipObject;
   isMine:          boolean;
+  /**
+   * Craft on the map, for the squadron readout: every fighter carries its own squadron name,
+   * source, range and refusal, so the section joins on those rather than duplicating them onto
+   * the ship.
+   */
+  activeShuttles?: ShuttleObject[];
+  onDesignateEwSource?: (fighter: string, source: string | null) => void;
   canMove:         boolean;
   phase:           string;
   gameId:          string;
@@ -681,6 +780,7 @@ function ShipSidebar({
   heldFriendlyShuttles, onRecoverShuttle,
   tractoredObjectives, onRecoverObjective,
   rotateMode, rotateTarget, rotateError, onStartRotate, onCancelRotate,
+  activeShuttles, onDesignateEwSource,
 }: SidebarProps) {
   const [hetMode,   setHetMode]   = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -2012,6 +2112,21 @@ function ShipSidebar({
         )}
         {/* Where the ECM comes from — otherwise six points appear from nowhere when a
             weasel launches, and the only clue is the dice roll afterwards. */}
+        {/* J4.93: the carrier's squadrons — where the EW it bought at allocation is AIMED.
+            Here rather than on each fighter because the choice is per squadron in the rule
+            ("to all fighters of a designated squadron") and because hunting nine fighters on
+            the map to set the same thing nine times is no way to play.
+
+            Read-only on the pools: J4.931 generates them at allocation and J4.961 declares the
+            EW fighter's split there too, so the Energy Allocation form owns those. This aims
+            what that bought. */}
+        {isMine && (ship.squadrons?.length ?? 0) > 0 && (
+          <SquadronEwBlock
+            ship={ship}
+            activeShuttles={activeShuttles ?? []}
+            onDesignateEwSource={onDesignateEwSource}
+          />
+        )}
         {ship.ecmSources && (ship.ecmTotal ?? 0) > 0 && (
           <StatRow label="" value={ship.ecmSources} />
         )}
@@ -4134,6 +4249,9 @@ export default function GameBoard({ session, onLeave }: Props) {
             onMove={handleMove}
             onHet={handleHet}
             onTacTurn={handleTacTurn}
+            activeShuttles={(gameState?.mapObjects ?? []).filter(
+              o => o.type === 'SHUTTLE') as ShuttleObject[]}
+            onDesignateEwSource={handleDesignateEwSource}
             onCloak={handleCloak}
             onUncloak={handleUncloak}
             onClose={() => { setSelected(null); setFireTarget(null); handleCancelTBomb(); handleCancelBoarding(); handleCancelHar(); handleCancelCrew(); setTransportersOpen(false); }}
