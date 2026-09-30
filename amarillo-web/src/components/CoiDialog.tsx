@@ -108,6 +108,17 @@ function coiCost(c: ShipCoi): number {
        + c.extraDeckCrews       * 0.5;
 }
 
+/**
+ * Rack space used, to one decimal only when it needs one.
+ * <p>
+ * It genuinely can be fractional — an ADD round and a type-VI drone each take half a space
+ * (FD3.70) — so the figure cannot simply be rounded. But "0.0 / 6" for an empty rack is noise,
+ * and most loadouts are whole numbers.
+ */
+function spacesUsedLabel(used: number): string {
+  return Number.isInteger(used) ? String(used) : used.toFixed(1);
+}
+
 function droneSpaceUsed(drones: string[], allTypes: CoiDroneType[]): number {
   return drones.reduce((sum, name) => {
     const dt = allTypes.find(t => t.name === name);
@@ -372,7 +383,11 @@ function ShipCoiPanel({
             return (
               <div key={rack.index} className="coi-rack-block">
                 <div className="coi-rack-header">
-                  Rack {rack.designator} — {used.toFixed(1)} / {rack.spaces} spaces
+                  {/* Every drone rack in the ship data is already designated "Rack N", so
+                      prefixing unconditionally gave "Rack Rack 1". Conditional rather than
+                      simply dropped, in case a rack is ever designated like a phaser ("A"). */}
+                  {rack.designator.toLowerCase().startsWith('rack') ? '' : 'Rack '}{rack.designator}
+                  {' — '}{spacesUsedLabel(used)} / {rack.spaces} spaces
                 </div>
                 <div className="coi-rack-loadout">
                   {loadout.map((name, i) => {
@@ -579,7 +594,7 @@ function ShipCoiPanel({
                   const committed = computePackCommitments(coi.shuttlePrep);
                   return (
                     <div style={{ marginTop: 6 }}>
-                      <div className="coi-rack-header">{spaceUsed.toFixed(1)} / 6 spaces loaded</div>
+                      <div className="coi-rack-header">{spacesUsedLabel(spaceUsed)} / 6 spaces loaded</div>
                       <div className="coi-rack-loadout">
                         {prep.drones.map((name, i) => {
                           const dt = ship.availableDroneTypes.find(t => t.name === name);
