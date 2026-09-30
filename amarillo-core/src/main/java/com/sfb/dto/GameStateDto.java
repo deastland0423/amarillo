@@ -442,6 +442,22 @@ public class GameStateDto {
         /** Where the ECM comes from, e.g. "2 generated + 6 lent" — public by D6.32. */
         public String ecmSources;
         /**
+         * The impulse this unit next moves on, off the movement chart (C2.0), and how many
+         * impulses that is away. Zero for anything at speed zero, which never moves.
+         * <p>
+         * The wait is never zero when it does move — the chart is read strictly ahead, so one is
+         * the soonest answer. That distinction is what makes it usable for P3.25, where fire into
+         * an asteroid hex counts only on the impulse IMMEDIATELY before entry: a player needs to
+         * know they are one impulse out, not merely that a move is coming.
+         * <p>
+         * Sent for enemies as well as your own. The chart is printed in the rulebook and speed is
+         * already public, so this reveals nothing a player could not work out with the book open —
+         * and half its uses are about someone else's cadence: outrunning a seeker, reaching
+         * overload range before a target moves away.
+         */
+        public int nextMoveImpulse;
+        public int impulsesUntilMove;
+        /**
          * J4.93/J4.931: this carrier's squadrons, and the EW it generated for each. Empty for
          * anything that is not lending to squadrons.
          */
@@ -624,6 +640,23 @@ public class GameStateDto {
          */
         public int fireDelayRemaining;
         public int seekerDelayRemaining;
+        /**
+         * The impulse this unit next moves on, off the movement chart (C2.0), and how many
+         * impulses that is away. Zero for anything at speed zero, which never moves.
+         * <p>
+         * The wait is never zero when it does move — the chart is read strictly ahead, so one is
+         * the soonest answer. That distinction is what makes it usable for P3.25, where fire into
+         * an asteroid hex counts only on the impulse IMMEDIATELY before entry: a player needs to
+         * know they are one impulse out, not merely that a move is coming.
+         * <p>
+         * Sent for enemies as well as your own. The chart is printed in the rulebook and speed is
+         * already public, so this reveals nothing a player could not work out with the book open —
+         * and half its uses are about someone else's cadence: outrunning a seeker, reaching
+         * overload range before a target moves away.
+         */
+        public int nextMoveImpulse;
+        public int impulsesUntilMove;
+
         public boolean hetUsed; // fighters only: true if tactical maneuver used this turn
         // Planet landing (P2.4) + cargo hold, for the surface-cargo UI
         public String landingPhase;     // NONE | DESCENDING | LANDED | CLIMBING
@@ -805,6 +838,13 @@ public class GameStateDto {
     public static class DroneDto extends MapObjectDto {
         public int facing;
         public int speed;
+        /**
+         * When this seeker next moves (C2.0), and how far off that is. The other half of
+         * "can I outrun it?" — the pursued unit's own cadence is on its DTO, and the answer
+         * is the comparison. Public, like its speed and the chart itself.
+         */
+        public int nextMoveImpulse;
+        public int impulsesUntilMove;
         public String droneType; // "I", "II", etc. — revealed on identification
         public int warheadDamage; // revealed on identification
         public int hull; // current hull remaining — 0 to an enemy, see damageTaken
@@ -1101,7 +1141,8 @@ public class GameStateDto {
             if (seeker instanceof Drone) {
                 Drone d = (Drone) seeker;
                 mapObjects.add(fromDrone(d,
-                        hiddenFrom(viewerTeam, ownerOfController(d.getController())) && !d.isIdentified()));
+                        hiddenFrom(viewerTeam, ownerOfController(d.getController())) && !d.isIdentified(),
+                        game.getCurrentImpulse()));
             } else if (seeker instanceof PlasmaTorpedo) {
                 PlasmaTorpedo torp = (PlasmaTorpedo) seeker;
                 mapObjects.add(fromPlasma(torp,
@@ -1389,6 +1430,12 @@ public class GameStateDto {
         appendEwSource(src, lentTotal, "lent");
         appendEwSource(src, ship.getStealthEcm(), "stealth");
         dto.ecmSources = src.length() == 0 ? null : src.toString();
+        // C2.0: when it next moves. Off live speed, not the speed it was given at allocation —
+        // a ship that has decelerated is on a different row of the chart from this impulse on.
+        dto.nextMoveImpulse = com.sfb.utilities.ImpulseUtil.nextMovingImpulse(
+                game.getCurrentImpulse(), ship.getSpeed());
+        dto.impulsesUntilMove = com.sfb.utilities.ImpulseUtil.impulsesUntilNextMove(
+                game.getCurrentImpulse(), ship.getSpeed());
         // J4.93/J4.931: the squadrons and their lending pools. The limit is zeroed for anything
         // that may not lend, so the form need not know the carrier rules (J4.931/J4.6).
         for (com.sfb.objects.Squadron squadron : ship.getShuttles().getSquadrons()) {
@@ -2002,6 +2049,12 @@ public class GameStateDto {
             dto.seekingTargetName = t != null ? t.getName() : null;
         }
         fillFighterEw(dto, shuttle, absoluteImpulse, game);
+        if (game != null) {
+            dto.nextMoveImpulse = com.sfb.utilities.ImpulseUtil.nextMovingImpulse(
+                    game.getCurrentImpulse(), shuttle.getSpeed());
+            dto.impulsesUntilMove = com.sfb.utilities.ImpulseUtil.impulsesUntilNextMove(
+                    game.getCurrentImpulse(), shuttle.getSpeed());
+        }
         return dto;
     }
 
@@ -2192,13 +2245,18 @@ public class GameStateDto {
         dto.damageTaken = Math.max(0, shuttle.getHull() - shuttle.getCurrentHull());
     }
 
-    private static DroneDto fromDrone(Drone drone, boolean hideSecrets) {
+    private static DroneDto fromDrone(Drone drone, boolean hideSecrets, int currentImpulse) {
         DroneDto dto = new DroneDto();
         dto.tractoredBy = holderName(drone);
         dto.name = drone.getName();
         dto.location = drone.getLocation() != null ? drone.getLocation().toString() : null;
         dto.facing = drone.getFacing();
         dto.speed = drone.getSpeed();
+        // C2.0: when it next moves — the other half of "can I outrun it?".
+        dto.nextMoveImpulse = com.sfb.utilities.ImpulseUtil.nextMovingImpulse(
+                currentImpulse, drone.getSpeed());
+        dto.impulsesUntilMove = com.sfb.utilities.ImpulseUtil.impulsesUntilNextMove(
+                currentImpulse, drone.getSpeed());
         if (hideSecrets) {
             // Type, warhead, and endurance are unknown until identified (labs).
             dto.droneType = "?";

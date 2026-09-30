@@ -84,6 +84,9 @@ public class MapObjectPrivacyTest {
             // weapons (J1.341). Public because launchImpulse is: anyone watching the launch
             // could do the subtraction, so sending the answer gives nothing away.
             "fireDelayRemaining", "seekerDelayRemaining",
+            // C2.0: when it next moves. Public for the same reason its speed is — the chart is
+            // in the rulebook, and knowing when an enemy craft moves is half the point.
+            "nextMoveImpulse", "impulsesUntilMove",
             // Electronic warfare, all of it. The owner's ruling (2026-09-29): "Since all EW is
             // public anyway... You should be able to click on any ship or fighter and see how
             // much ECM/ECCM it has." Consistent with ShipDto, where generated and lent are both
@@ -113,6 +116,8 @@ public class MapObjectPrivacyTest {
         // ---- Drones (G4.231). Damage taken is public; the hull behind it is not, since
         // maxHull = hull + damage would name the type.
         rule(GameStateDto.DroneDto.class, Visibility.PUBLIC,
+            // C2.0 cadence: the other half of "can I outrun it?".
+            "nextMoveImpulse", "impulsesUntilMove",
             "facing", "speed", "damageTaken", "controllerFaction", "controllerName",
             "launcherName", "launchImpulse", "isIdentified");
         rule(GameStateDto.DroneDto.class, Visibility.REVEALED,

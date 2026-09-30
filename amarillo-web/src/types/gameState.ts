@@ -297,6 +297,14 @@ export interface ShipObject extends MapObjectBase {
    * squadronEwLimit is the most it may put into ANY ONE pool, and zero when it may not lend at
    * all — so the form tests one number instead of knowing the carrier rules (J4.931/J4.6).
    */
+  /**
+   * C2.0: the impulse this unit next moves on, and how many impulses off that is. Zero for
+   * anything at speed zero. The wait is never zero when it does move, so `impulsesUntilMove === 1`
+   * is "moves next impulse" — which is the test P3.25 needs, since fire into an asteroid hex only
+   * counts on the impulse immediately before entry.
+   */
+  nextMoveImpulse?:   number;
+  impulsesUntilMove?: number;
   squadrons?:        { name: string; fighters: number; ecm: number; eccm: number }[];
   squadronEwLimit?:  number;
   scoutEwPool?:     number;   // EW points this scout generated to lend this turn (G24.211)
@@ -382,6 +390,14 @@ export interface ShuttleObject extends MapObjectBase {
    * enemy viewer whatever it carries (G4.233 keeps drones aboard off a scan).
    */
   rails?:         FighterRail[];
+  /**
+   * C2.0: the impulse this unit next moves on, and how many impulses off that is. Zero for
+   * anything at speed zero. The wait is never zero when it does move, so `impulsesUntilMove === 1`
+   * is "moves next impulse" — which is the test P3.25 needs, since fire into an asteroid hex only
+   * counts on the impulse immediately before entry.
+   */
+  nextMoveImpulse?:   number;
+  impulsesUntilMove?: number;
   fireDelayRemaining?:   number;
   seekerDelayRemaining?: number;
   hetUsed?:       boolean;        // fighters only: true if tactical maneuver used this turn
@@ -435,6 +451,14 @@ export interface DroneObject extends MapObjectBase {
   type:              'DRONE';
   facing:            number;
   speed:             number;
+  /**
+   * C2.0: the impulse this unit next moves on, and how many impulses off that is. Zero for
+   * anything at speed zero. The wait is never zero when it does move, so `impulsesUntilMove === 1`
+   * is "moves next impulse" — which is the test P3.25 needs, since fire into an asteroid hex only
+   * counts on the impulse immediately before entry.
+   */
+  nextMoveImpulse?:   number;
+  impulsesUntilMove?: number;
   droneType:         string;       // revealed when identified
   warheadDamage:     number;       // revealed when identified
   hull:              number;

@@ -115,6 +115,11 @@ public class ShipDtoPrivacyTest {
         // generated for a squadron which is accepting EW from another source can be detected."
         // The squadron roster rides along — an opponent watching a formation can count it.
         "squadrons", "squadronEwLimit",
+        // C2.0 movement cadence. The chart is printed in the rulebook and speed is already
+        // public, so this reveals nothing a player could not work out with the book open — and
+        // half its uses are about someone ELSE's cadence (outrunning a seeker, reaching overload
+        // range before a target moves off).
+        "nextMoveImpulse", "impulsesUntilMove",
         // Visible states and published costs
         "weapons", "activeFireControl", "fireControlActivating", "fcActivatingUntil",
         "fcPaidThisTurn", "fireControlCost", "lifeSupportCost", "cloakCost", "cloakState",

@@ -52,6 +52,45 @@ public class ImpulseUtil {
     return m;
   }
 
+  /**
+   * The next impulse AFTER {@code currentImpulse} on which a unit of this speed moves, as a
+   * number from 1 to 32, or 0 if it never moves (speed zero).
+   * <p>
+   * Strictly after, because "next" has to mean something unambiguous while an impulse is being
+   * played: a unit that moves on the current impulse has either already done so or is about to,
+   * and neither is what a player asking "when do I move next?" wants to know.
+   * <p>
+   * Wraps into the following turn, which needs no special case: impulse 32 moves every speed, so
+   * the search always terminates within 32 steps for any speed of one or more.
+   */
+  public static int nextMovingImpulse(int currentImpulse, int speed) {
+    if (speed <= 0)
+      return 0;
+    for (int ahead = 1; ahead <= 32; ahead++) {
+      int impulse = ((currentImpulse - 1 + ahead) % 32) + 1;
+      if (doesMove(impulse, speed))
+        return impulse;
+    }
+    return 0;
+  }
+
+  /**
+   * How many impulses until that next move, or 0 if the unit never moves.
+   * <p>
+   * Zero cannot be confused with "moves now" because {@link #nextMovingImpulse} looks strictly
+   * ahead — one is the soonest answer it can give. That distinction is the whole point for
+   * P3.25, where fire counts only on the impulse IMMEDIATELY before entry: a player needs to
+   * know they are one impulse out, not merely that a move is coming.
+   */
+  public static int impulsesUntilNextMove(int currentImpulse, int speed) {
+    if (speed <= 0)
+      return 0;
+    for (int ahead = 1; ahead <= 32; ahead++)
+      if (doesMove(((currentImpulse - 1 + ahead) % 32) + 1, speed))
+        return ahead;
+    return 0;
+  }
+
   // Return TRUE if the given speed moves on the given impulse, FALSE otherwise.
   public static boolean doesMove(int impulse, int speed) {
     if (speed <= 0 || impulse < 1 || impulse > 32)

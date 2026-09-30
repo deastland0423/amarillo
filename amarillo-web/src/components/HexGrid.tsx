@@ -829,6 +829,9 @@ function shipTooltipLines(ship: ShipObject): string[] {
     `Facing:   ${facingLabel(ship.facing)}`,
     `Speed:    ${ship.speed}`,
   ];
+  // C2.0: when it moves next. On an enemy too — half the value is knowing when THEY move.
+  const shipMoves = nextMoveText(ship);
+  if (shipMoves) lines.push(`Moves:    ${shipMoves}`);
   // EW is announced as it is allocated, and lending is explicitly public (G24.211 note,
   // G24.2115) — so it belongs on the hover for enemy ships too, where it is the figure that
   // decides which target is worth shooting at.
@@ -923,6 +926,8 @@ function shuttleTooltipLines(
       lines.push('Course:   not seeking');
     }
   }
+  const craftMoves = nextMoveText(shuttle as ShuttleObject);
+  if (craftMoves) lines.push(`Moves:    ${craftMoves}`);
   lines.push(...fighterEwLines(shuttle as ShuttleObject));
   return lines;
 }
@@ -970,6 +975,21 @@ function fighterEwLines(shuttle: ShuttleObject): string[] {
   return lines;
 }
 
+/**
+ * "moves next impulse" or "moves on 14 (in 3)", off the movement chart (C2.0).
+ * <p>
+ * Both figures come from the server. The chart is a rules table and the client has never held
+ * it — which is exactly why a player could not tell when their own ship moved next, and why
+ * P3.25's asteroid clearing was unusable in practice: its fire counts only on the impulse
+ * immediately before entry, and nothing said which impulse that was.
+ */
+function nextMoveText(u: { nextMoveImpulse?: number; impulsesUntilMove?: number }): string | null {
+  const at = u.nextMoveImpulse ?? 0;
+  const inN = u.impulsesUntilMove ?? 0;
+  if (at <= 0 || inN <= 0) return null;
+  return inN === 1 ? `next impulse (${at})` : `impulse ${at} (in ${inN})`;
+}
+
 /** Build tooltip lines for a list of seekers.
  *  myShips: the set of ship names owned by the viewing player (null = spectator). */
 function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: string[] | null | undefined): string[] {
@@ -991,6 +1011,10 @@ function seekerTooltipLines(seekers: (DroneObject | PlasmaObject)[], myShips: st
       lines.push(`Controller: ${s.controllerName ?? '?'}`);
       lines.push(`Launch:     ${absImpulseLabel(s.launchImpulse)}`);
       lines.push(`Speed:      ${s.speed}`);
+      // C2.0: when the seeker next moves — the other half of "can I outrun it?", the pursued
+      // unit's own cadence being on its own hover.
+      const seekerMoves = nextMoveText(s as { nextMoveImpulse?: number; impulsesUntilMove?: number });
+      if (seekerMoves) lines.push(`Moves:      ${seekerMoves}`);
       lines.push(`Str:        ${s.currentStrength}`);
       if (canSeeTarget) lines.push(`Target:     ${s.targetName ?? '?'}`);
       // plasmaType and pseudo are never revealed to enemy

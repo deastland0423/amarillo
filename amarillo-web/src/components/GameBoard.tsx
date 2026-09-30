@@ -367,6 +367,18 @@ function ShuttleMovementPanel({
           <span className="sidebar-stat-label">Speed</span>
           <span className="sidebar-stat-value">{shuttle.speed} / {shuttle.maxSpeed}</span>
         </div>
+        {/* C2.0: when it next moves. The movement chart is a rules table the client has never
+            held, so this is the server's answer — and "next impulse" is the one P3.25 needs. */}
+        {(shuttle.impulsesUntilMove ?? 0) > 0 && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">Moves</span>
+            <span className="sidebar-stat-value">
+              {shuttle.impulsesUntilMove === 1
+                ? `next impulse (${shuttle.nextMoveImpulse})`
+                : `impulse ${shuttle.nextMoveImpulse} (in ${shuttle.impulsesUntilMove})`}
+            </span>
+          </div>
+        )}
         <div className="sidebar-stat-row">
           <span className="sidebar-stat-label">Facing</span>
           <span className="sidebar-stat-value">{facingLabel(shuttle.facing)}</span>
@@ -2078,6 +2090,21 @@ function ShipSidebar({
         <StatRow label="Speed"    value={(ship.tractorTrueSpeed ?? -1) >= 0
           ? `${ship.tractorTrueSpeed} (${ship.speed})`
           : ship.speed} />
+        {/* C2.0: when this ship next moves, beside Speed because it IS a property of the speed —
+            the movement chart turns one into the other, and the client has never held the chart.
+            Sent for enemies too: knowing when THEY move is half of outrunning a seeker or
+            reaching overload range before the target leaves it.
+
+            "next impulse" is the phrasing P3.25 needs, since fire into an asteroid hex counts
+            only on the impulse immediately before entry. */}
+        {(ship.impulsesUntilMove ?? 0) > 0 && (
+          <StatRow
+            label="Moves"
+            value={ship.impulsesUntilMove === 1
+              ? `next impulse (${ship.nextMoveImpulse})`
+              : `impulse ${ship.nextMoveImpulse} (in ${ship.impulsesUntilMove})`}
+          />
+        )}
         {isMine && (
           <GuardSummaryRow key={ship.name} gameId={gameId} playerToken={playerToken} shipName={ship.name} />
         )}
