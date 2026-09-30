@@ -995,6 +995,18 @@ public class GameController {
                         dtMap.put("speed", dt.speed);
                         dtMap.put("damage", dt.damage);
                         dtMap.put("rack", dt.rack);
+                        // What KIND of drone it is, so the picker can group by it instead of
+                        // reading the name. The suffix is speed and nothing else (M=20, F=32), so
+                        // grouping by family with speed as the choice inside is what makes a
+                        // Type-I and a Type-IM tell themselves apart.
+                        dtMap.put("family", dt.family.name());
+                        dtMap.put("familyLabel", dt.family.label);
+                        // Endurance varies WITHIN a family (a type-II is a standard drone with 64
+                        // impulses instead of 96), so it belongs on each drone, not the heading.
+                        // Worth showing: a dogfight drone is spent after 32 impulses, one turn.
+                        dtMap.put("endurance", dt.endurance);
+                        dtMap.put("selfGuiding", dt.selfGuiding);
+                        dtMap.put("dogfight", dt.isDogfightDrone());
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);

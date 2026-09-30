@@ -392,17 +392,11 @@ function ShipCoiPanel({
                   )}
                 </div>
                 {remaining > 0 && (
-                  <div className="coi-drone-add-row">
-                    {ship.availableDroneTypes
-                      .filter(dt => dt.rack <= remaining
-                        && (rack.canLoadTypeVI || !dt.name.startsWith('TypeVI')))
-                      .map(dt => (
-                        <button key={dt.name} className="secondary coi-drone-add-btn"
-                          onClick={() => addDrone(dt.name)}>
-                          + {dt.name} ({dt.rack}sp)
-                        </button>
-                      ))}
-                  </div>
+                  <DronePicker
+                    types={ship.availableDroneTypes.filter(dt => dt.rack <= remaining
+                      && (rack.canLoadTypeVI || !dt.dogfight))}
+                    onAdd={addDrone}
+                  />
                 )}
                 {/* FD3.70: only a type-G has the anti-drone targeting system, and its
                     loading "must always be planned" — this is where that planning
@@ -629,6 +623,82 @@ function ShipCoiPanel({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The drone loadout picker, grouped by family with speed as the choice inside it.
+ * <p>
+ * The flat list of `+ TypeIM (1sp)` buttons it replaces was unreadable to anyone who did not
+ * already know the naming, and the naming is the whole difficulty: the suffix carries SPEED and
+ * nothing else — none is 8 or 12, M is 20, F is 32 — while the numeral carries the family. So a
+ * Type-I and a Type-IM are the same drone at two speeds, and nothing on screen said so.
+ *
+ * Family-first rather than speed-first, deliberately. The family is the decision — how much
+ * damage, how much of the rack, whether it steers itself — and speed is a cheap secondary axis
+ * that repeats identically across families. Grouping by speed would scatter the families and put
+ * a 12-damage, a 24-damage and a half-space drone side by side as if they were alternatives.
+ * Three buttons in a row differing only in speed also TEACHES the naming without explaining it.
+ *
+ * Space and damage sit in the heading because core guarantees they are constant within a family
+ * (DroneFamilyTest pins it). Endurance sits on each button because it is NOT: a Type-II is a
+ * standard drone with 64 impulses instead of 96.
+ *
+ * The family comes from the server. Grouping on the name here would be the view deciding a rules
+ * question out of string prefixes — and would get it wrong at once, since "TypeIV" starts with
+ * "TypeI".
+ */
+function DronePicker({ types, onAdd }: {
+  types: CoiDroneType[];
+  onAdd: (name: string) => void;
+}) {
+  if (types.length === 0) return null;
+
+  // Server order within a family is speed order, so no sorting is needed or wanted.
+  const families: { key: string; label: string; members: CoiDroneType[] }[] = [];
+  for (const dt of types) {
+    let group = families.find(f => f.key === dt.family);
+    if (!group) {
+      group = { key: dt.family, label: dt.familyLabel, members: [] };
+      families.push(group);
+    }
+    group.members.push(dt);
+  }
+
+  const spaces = (n: number) => (n === 0.5 ? '\u00bd space' : n === 1 ? '1 space' : `${n} spaces`);
+
+  return (
+    <div className="coi-drone-picker">
+      {families.map(f => {
+        const sample = f.members[0];
+        return (
+          <div key={f.key} className="coi-drone-family">
+            <div className="coi-note coi-drone-family-head">
+              <strong>{f.label}</strong>
+              {' — '}{spaces(sample.rack)} · {sample.damage} dmg
+              {sample.selfGuiding && ' · needs no controller'}
+              {sample.dogfight && ' · dogfight drone'}
+            </div>
+            <div className="coi-drone-add-row">
+              {f.members.map(dt => (
+                <button
+                  key={dt.name}
+                  className="secondary coi-drone-add-btn"
+                  onClick={() => onAdd(dt.name)}
+                  title={`${dt.name} — speed ${dt.speed}, ${dt.damage} damage, `
+                    + `${spaces(dt.rack)}, ${dt.endurance} impulses of endurance`}
+                >
+                  speed {dt.speed}
+                  <span className="coi-drone-btn-sub">
+                    {dt.endurance} imp · {dt.name.replace('Type', '')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

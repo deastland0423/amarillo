@@ -273,6 +273,22 @@ export interface CoiDroneType {
   speed:  number;
   damage: number;
   rack:   number;   // spaces consumed per drone
+  /**
+   * What KIND of drone it is, from core. The suffix in the NAME is speed and nothing else — none
+   * is 8 or 12, M is 20, F is 32 — so a Type-I and a Type-IM are the same drone at two speeds and
+   * nothing in the name says so. Group by this, never by parsing the name: "TypeIV" starts with
+   * "TypeI", so prefix matching gets heavy drones wrong immediately.
+   */
+  family:      string;
+  familyLabel: string;
+  /**
+   * Impulses before it runs out. Varies WITHIN a family — a Type-II is a standard drone with 64
+   * instead of 96 — so it belongs on each drone rather than a family heading. A dogfight drone
+   * has 32, which is one turn, and is the trap most worth surfacing.
+   */
+  endurance:   number;
+  selfGuiding: boolean;   // needs no controller (FD1.7)
+  dogfight:    boolean;   // J4.241's DFD — the type-VI family
 }
 
 

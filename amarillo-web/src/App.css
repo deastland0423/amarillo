@@ -1695,6 +1695,40 @@ h3 {
   padding: 0.15rem 0.5rem;
 }
 
+/* The drone picker, grouped by family with speed as the choice inside it. The suffix in a
+   drone's name is speed and nothing else (M = 20, F = 32), which is the thing the old flat
+   list of names could not convey. */
+.coi-drone-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.coi-drone-family-head {
+  font-style: normal;
+  margin-bottom: 0.1rem;
+}
+
+.coi-drone-family-head strong {
+  color: #c9d1d9;
+}
+
+/* Speed is the label; endurance and the real type name sit under it, so a player still learns
+   which drone they picked without having to read the name to choose. */
+.coi-drone-picker .coi-drone-add-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  padding: 0.2rem 0.55rem;
+  min-width: 4.4rem;
+}
+
+.coi-drone-btn-sub {
+  font-size: 0.62rem;
+  opacity: 0.6;
+}
+
 .coi-note {
   font-size: 0.75rem;
   color: #6e7681;
