@@ -656,11 +656,17 @@ function DronePicker({ types, onAdd }: {
   if (types.length === 0) return null;
 
   // Server order within a family is speed order, so no sorting is needed or wanted.
+  //
+  // A server that predates the family fields sends neither, and every drone then falls into one
+  // nameless group — which renders as a single wrapping row of buttons, i.e. exactly the flat
+  // list this component replaced, with no clue as to why. Falling back to the drone's own name
+  // makes a stale server look wrong rather than look like a layout bug.
   const families: { key: string; label: string; members: CoiDroneType[] }[] = [];
   for (const dt of types) {
-    let group = families.find(f => f.key === dt.family);
+    const key = dt.family ?? `?${dt.name}`;
+    let group = families.find(f => f.key === key);
     if (!group) {
-      group = { key: dt.family, label: dt.familyLabel, members: [] };
+      group = { key, label: dt.familyLabel ?? dt.name, members: [] };
       families.push(group);
     }
     group.members.push(dt);
