@@ -84,6 +84,18 @@ public interface Seeker {
 	public int impact();
 
 	/**
+	 * The damage this seeker does to a PARTICULAR target, which for most seekers is simply its
+	 * warhead — a photon does not care what it hits.
+	 * <p>
+	 * Overridden where the rules make the warhead depend on the target: FD2.54 scales a dogfight
+	 * drone by the target's size class, because "the tiny warhead is designed to score a direct
+	 * hit on a fighter engine instead of damaging the shields of a ship".
+	 */
+	default int impact(com.sfb.objects.Unit target) {
+		return impact();
+	}
+
+	/**
 	 * Mark this seeker as identified by an enemy ship.
 	 * Identified seekers can be prioritized for point defense.
 	 */

@@ -686,7 +686,14 @@ function DronePicker({ types, onAdd }: {
             <span className="coi-drone-family-head">
               <strong>{f.label}</strong>
               <span className="coi-drone-family-stats">
-                {spaces(sample.rack)} · {sample.damage} dmg
+                {/* FD2.54: a dogfight drone's damage depends on the target, so one number would
+                    be a lie either way — "2/8 dmg" says which is which, ship first because that
+                    is the surprise. Both figures come from the server. */}
+                {spaces(sample.rack)}
+                {' · '}
+                {sample.damageVsShip !== sample.damage
+                  ? `${sample.damageVsShip}/${sample.damage} dmg`
+                  : `${sample.damage} dmg`}
                 {sample.selfGuiding && ' · self-guiding'}
               </span>
             </span>
@@ -696,8 +703,12 @@ function DronePicker({ types, onAdd }: {
                   key={dt.name}
                   className="secondary coi-drone-add-btn"
                   onClick={() => onAdd(dt.name)}
-                  title={`${dt.name} — speed ${dt.speed}, ${dt.damage} damage, `
-                    + `${spaces(dt.rack)}, ${dt.endurance} impulses of endurance`
+                  title={`${dt.name} — speed ${dt.speed}, ${spaces(dt.rack)}, `
+                    + `${dt.endurance} impulses of endurance; `
+                    + (dt.damageVsShip !== dt.damage
+                        ? `${dt.damage} damage to a fighter but only ${dt.damageVsShip} `
+                          + 'to a ship (FD2.54)'
+                        : `${dt.damage} damage`)
                     + (dt.selfGuiding ? ', needs no controller' : '')}
                 >
                   {/* "Speed 8", not a bare "8": the number means nothing on its own to a player

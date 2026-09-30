@@ -430,7 +430,11 @@ class SeekerMover {
                 : unit.getLocation();
         int terrainEcm = game.terrainEcmAlongLine(guideLoc, target.getLocation());
         int ecmShift = computeSeekerEcmShift(seeker, target, terrainEcm);
-        int dmg = adjustForCloak(applyProximityRoll(seeker.impact(), ecmShift, log), target, log);
+        // FD2.54: the target matters for a dogfight drone — two points on a ship rather than its
+        // full eight, because the warhead is sized for a fighter engine and not a ship's shields.
+        // Asking impact() without the target gave a type-VI four times its due against every ship
+        // it ever hit, on a drone that costs half a rack space.
+        int dmg = adjustForCloak(applyProximityRoll(seeker.impact(target), ecmShift, log), target, log);
         String controllerName = seeker.getController() instanceof Ship
                 ? seeker.getController().getName()
                 : unit.getName();

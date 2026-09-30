@@ -1007,6 +1007,11 @@ public class GameController {
                         dtMap.put("endurance", dt.endurance);
                         dtMap.put("selfGuiding", dt.selfGuiding);
                         dtMap.put("dogfight", dt.isDogfightDrone());
+                        // FD2.54: a dogfight drone's warhead depends on the target — two points
+                        // on a ship against its printed eight on a fighter. Sent rather than
+                        // hardcoded in the picker, which would be the view holding a rules number.
+                        dtMap.put("damageVsShip", dt.isDogfightDrone()
+                                ? com.sfb.objects.Drone.DOGFIGHT_DAMAGE_VS_SHIP : dt.damage);
                         droneTypes.add(dtMap);
                     }
                     s.put("availableDroneTypes", droneTypes);

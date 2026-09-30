@@ -289,6 +289,13 @@ export interface CoiDroneType {
   endurance:   number;
   selfGuiding: boolean;   // needs no controller (FD1.7)
   dogfight:    boolean;   // J4.241's DFD — the type-VI family
+  /**
+   * FD2.54: what it does to a SHIP, which for a dogfight drone is not its printed warhead — two
+   * points rather than eight, "because the tiny warhead is designed to score a direct hit on a
+   * fighter engine instead of damaging the shields of a ship". Equal to `damage` for every other
+   * drone. Sent rather than derived so the picker never holds a rules number.
+   */
+  damageVsShip: number;
 }
 
 
