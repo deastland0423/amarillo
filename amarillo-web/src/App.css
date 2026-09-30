@@ -1732,16 +1732,18 @@ h3 {
   gap: 0.25rem;
 }
 
-/* Speed is the label, big; the type name sits under it so a player still learns which drone
-   they took. Narrow enough that four fit beside the family name without wrapping. */
+/* "Speed 20" is the label; the type name sits under it so a player still learns which drone they
+   took. Sized to its content, NOT stretched: there is a global `button { flex: 1 }`, which made
+   these grow to fill the row, so a family with two speeds got fat buttons and one with four got
+   thin ones. Same size everywhere is what lets the eye read down the speed column. */
 .coi-drone-picker .coi-drone-add-btn {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   line-height: 1.1;
-  padding: 0.15rem 0.3rem;
-  min-width: 2.5rem;
-  font-size: 0.82rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.76rem;
 }
 
 .coi-drone-btn-sub {

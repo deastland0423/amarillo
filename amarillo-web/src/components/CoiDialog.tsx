@@ -700,7 +700,10 @@ function DronePicker({ types, onAdd }: {
                     + `${spaces(dt.rack)}, ${dt.endurance} impulses of endurance`
                     + (dt.selfGuiding ? ', needs no controller' : '')}
                 >
-                  {dt.speed}
+                  {/* "Speed 8", not a bare "8": the number means nothing on its own to a player
+                      who does not already know the drone naming, and not knowing it is the whole
+                      reason this picker was rebuilt. */}
+                  Speed {dt.speed}
                   {/* The type name, so a player still learns WHICH drone they took even though
                       they chose it by speed. Endurance is in the tooltip: it varies within a
                       family (a type-II has 64 impulses, not 96) but is too much to put on a
