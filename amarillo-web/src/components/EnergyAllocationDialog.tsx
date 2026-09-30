@@ -877,9 +877,10 @@ export default function EnergyAllocationDialog({
               + `${Object.values(alloc.squadronEw ?? {}).reduce((a, p) => a + p.ecm + p.eccm, 0)})`}
             color="#58c8ff">
             <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>
-              Generated separately from this ship's own EW — the same points cannot serve both
-              (J4.931). Up to {ship.squadronEwLimit} points per squadron, 1 energy each, reaching
-              any of its fighters within ten hexes (J4.921).
+              The CARRIER's pool, generated separately from this ship's own EW — the same points
+              cannot serve both (J4.931). Up to {ship.squadronEwLimit} points per squadron, 1
+              energy each, reaching any of its fighters within ten hexes (J4.921). An EW
+              fighter's own pods are the squadron's other lender, below.
             </div>
             {(ship.squadrons ?? []).map(sq => {
               const cur = alloc.squadronEw?.[sq.name] ?? { ecm: 0, eccm: 0 };
@@ -926,6 +927,54 @@ export default function EnergyAllocationDialog({
               );
             })}
           </Collapsible>
+          </div>
+        )}
+
+        {/* J4.961: how each EW FIGHTER splits the points its own pods make (J4.965 lets it
+            both use and lend them). A section of its own, beside the carrier's pool above,
+            because the two are the squadron's two possible lenders and a player looking for
+            one will look where the other is. It used to hide inside the Shuttles collapsible
+            under the heading "Squadron EW", which read as the carrier's pool and was two
+            screens away from it.
+
+            Declared here rather than on the craft because the rule puts it at the head of the
+            turn — the same moment a ship declares its own EW (D6.310), which is what makes
+            B2.4's "secretly and simultaneously" mean anything — and because an EW fighter is
+            usually still in its bay at that point and so cannot be clicked on the map at all.
+
+                  One stepper, not two: the total is fixed at twice the pod count (J4.961
+                  lets a pod give two of either or one of each, so every split of the total
+                  is reachable), and the ECCM half is simply what is left. */}
+        {Object.keys(alloc.podEw ?? {}).length > 0 && (
+          <div className="ea-section">
+            <Collapsible
+              title={`EW FIGHTER PODS  (${Object.values(alloc.podEw ?? {})
+                .reduce((a, v) => a + v, 0)} ECM declared)`}
+              color="#58c8ff">
+                  <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>
+                    Each EW pod gives two points, as ECM, as ECCM, or one of each. Every
+                    fighter of the squadron within three hexes receives all of it (J4.93).
+                  </div>
+                  {Object.entries(alloc.podEw).map(([fighter, ecm]) => {
+                    const total = podPointsFor(fighter);
+                    const label = fighter.startsWith(activeTab + '-')
+                      ? fighter.slice(activeTab.length + 1) : fighter;
+                    return (
+                      <div key={fighter}>
+                        <Stepper
+                          value={ecm}
+                          min={0}
+                          max={total}
+                          onChange={v => setAlloc(a => ({ ...a, podEw: { ...a.podEw, [fighter]: v } }))}
+                          label={`${label} — ECM (of ${total})`}
+                        />
+                        <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 8 }}>
+                          {ecm} ECM / {total - ecm} ECCM
+                        </div>
+                      </div>
+                    );
+                  })}
+            </Collapsible>
           </div>
         )}
 
@@ -1311,61 +1360,17 @@ export default function EnergyAllocationDialog({
           // charges, suicide arming, weasel charging — is Hangar Operations; this is a
           // movement order that happens to be set at allocation.
           const myShuttles = activeShuttles.filter(s => s.parentShipName === activeTab);
-          // Not `myShuttles.length === 0` any more: a carrier with nothing launched still has
-          // EW fighters in its bays to declare for, which is the usual case at turn start.
-          if (myShuttles.length === 0 && Object.keys(alloc.podEw ?? {}).length === 0)
-            return null;
+          if (myShuttles.length === 0) return null;
 
           const shortName = (s: ShuttleObject) =>
             s.name.startsWith(activeTab + '-') ? s.name.slice(activeTab.length + 1) : s.name;
           return (
-            <Collapsible title="Shuttles &amp; Squadron EW" color="#f0c040" defaultOpen={false}>
+            <Collapsible title="Shuttle Speeds" color="#f0c040" defaultOpen={false}>
 
               {/* What craft in the BAYS get — crews, charges, arming — is Hangar
                   Operations. What is left here is the speed of the ones already
                   flying, which is a movement order that happens to be set at
                   allocation. */}
-
-              {/* J4.961: how each EW fighter splits its pod points this turn.
-                  Declared here rather than on the craft because the rule puts it at the head
-                  of the turn — the same moment a ship declares its own EW (D6.310), which is
-                  what makes B2.4's "secretly and simultaneously" mean anything — and because
-                  an EW fighter is usually still in its bay at that point and so cannot be
-                  clicked on the map at all.
-
-                  One stepper, not two: the total is fixed at twice the pod count (J4.961
-                  lets a pod give two of either or one of each, so every split of the total
-                  is reachable), and the ECCM half is simply what is left. */}
-              {Object.keys(alloc.podEw ?? {}).length > 0 && (
-                <div className="ea-section">
-                  <div className="ea-section-title" style={{ color: '#f0c040' }}>
-                    Squadron EW (J4.961)
-                  </div>
-                  <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 6 }}>
-                    Each EW pod gives two points, as ECM, as ECCM, or one of each. Every
-                    fighter of the squadron within three hexes receives all of it (J4.93).
-                  </div>
-                  {Object.entries(alloc.podEw).map(([fighter, ecm]) => {
-                    const total = podPointsFor(fighter);
-                    const label = fighter.startsWith(activeTab + '-')
-                      ? fighter.slice(activeTab.length + 1) : fighter;
-                    return (
-                      <div key={fighter}>
-                        <Stepper
-                          value={ecm}
-                          min={0}
-                          max={total}
-                          onChange={v => setAlloc(a => ({ ...a, podEw: { ...a.podEw, [fighter]: v } }))}
-                          label={`${label} — ECM (of ${total})`}
-                        />
-                        <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 8 }}>
-                          {ecm} ECM / {total - ecm} ECCM
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
 
               {/* Active Shuttle / Fighter Speeds */}
               {myShuttles.length > 0 && (
