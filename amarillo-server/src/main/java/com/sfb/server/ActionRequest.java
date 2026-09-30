@@ -49,6 +49,8 @@ public class ActionRequest {
     private Integer             podEcm;                 // J4.961: ECM half of this turn's split
     private Integer             podEccm;                // J4.961: ECCM half
     private Boolean             podsActive;             // J4.967: pods on or off
+    /** J4.922: the unit a fighter should receive lent EW from; empty string to stop receiving. */
+    private String              ewSourceName;
     /** J4.817: box id ("bay-space") to deck crews posted there this turn. */
     private Map<String, Integer> deckCrewPostings;
     /** J4.832: box id to points bought into that box's capacitor. */
@@ -482,4 +484,6 @@ public class ActionRequest {
     public void    setPodEccm(Integer v)        { this.podEccm = v; }
     public Boolean getPodsActive()              { return podsActive; }
     public void    setPodsActive(Boolean v)     { this.podsActive = v; }
+    public String  getEwSourceName()            { return ewSourceName; }
+    public void    setEwSourceName(String v)    { this.ewSourceName = v; }
 }

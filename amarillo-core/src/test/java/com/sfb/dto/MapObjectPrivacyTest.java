@@ -95,7 +95,11 @@ public class MapObjectPrivacyTest {
             "lentEwSourceName", "lentEcm", "lentEccm",
             // Where the squadron's EW fighter is and why it is not helping. Public with the
             // rest of it, and an enemy watching the formation can see the geometry anyway.
-            "ewLenderName", "ewLenderRange", "ewLendRangeLimit", "ewLendRefusal");
+            "ewLenderName", "ewLenderRange", "ewLendRangeLimit", "ewLendRefusal",
+            // J4.922's choice and its clock. Public with the rest of EW: D17.194 says the
+            // levels and "the source of all EW points" are always known, so which source a
+            // fighter is tied to is not a secret either.
+            "ewLendCandidates", "ewLendSourceProvisional", "ewLendChangeIn");
         rule(GameStateDto.ShuttleDto.class, Visibility.PRIVATE,
             // G4.233: an identification gives up the seeking course and stops there. What a
             // fighter still has on its rails is never on offer.

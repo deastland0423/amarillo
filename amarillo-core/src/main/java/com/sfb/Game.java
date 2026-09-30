@@ -506,6 +506,10 @@ public class Game {
     /** A fighter just off the deck takes its own lock-ons at once (J1.31, J1.344). */
     void acquireFighterLockOns(com.sfb.objects.shuttles.Fighter fighter) {
         lockOnResolver.sweepFighterLockOns(fighter);
+        // J4.922: "A fighter can begin receiving points immediately after launch." The lock-on
+        // has just been settled, and J4.921 wants one before anybody may lend — so this is the
+        // first moment a freshly launched fighter can be tied to a source.
+        squadronEw.sweepDesignations();
     }
 
     List<String> checkLockOnsForNewUnit(Ship launcher, Unit newUnit) {
@@ -948,6 +952,11 @@ public class Game {
                 // LOS at the phase boundary (transitions only; the same-step
                 // passing exemption falls out of checking nowhere else)
                 lastSeekerLog.addAll(lockOnResolver.sweepPlanetLos());
+                // J4.922: all movement for the impulse is in, so ranges and lock-ons are
+                // settled — the moment to tie any fighter still without an EW source to one.
+                // Fighters that already have one are left alone: that rule holds them for
+                // eight impulses whether the source is any use or not.
+                lastSeekerLog.addAll(squadronEw.sweepDesignations());
                 lastSeekerLog.addAll(seekerControl.sweepSelfGuidedLos());
                 lastSeekerLog.addAll(seekerControl.releaseOrphanedDrones());
                 log.addAll(lastSeekerLog);
@@ -2546,6 +2555,21 @@ public class Game {
     /** J4.921's other reach: ten hexes from a fighter's own carrier. */
     public static int carrierLendRange() {
         return SquadronEwResolver.CARRIER_LEND_RANGE;
+    }
+
+    /**
+     * Impulses before {@code fighter} may change its EW source (J4.922's eight), or zero if it
+     * may now.
+     * <p>
+     * Zero also for a source the GAME chose, which a player may always replace — that clock
+     * governs changing a commitment they made, and an automatic pick is not one.
+     */
+    public int impulsesUntilEwSourceChange(com.sfb.objects.shuttles.Fighter fighter) {
+        if (fighter == null || fighter.getLentEwSource() == null
+                || fighter.isLentEwSourceProvisional())
+            return 0;
+        int since = getAbsoluteImpulse() - fighter.getLentEwSourceImpulse();
+        return Math.max(0, com.sfb.objects.shuttles.Fighter.LENT_EW_SOURCE_INTERVAL - since);
     }
 
     /** Units {@code fighter} could take lent EW from at this instant (J4.921). */

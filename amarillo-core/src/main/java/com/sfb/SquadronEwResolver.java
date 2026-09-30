@@ -174,7 +174,10 @@ class SquadronEwResolver {
         return null;
     }
 
-    /** Every unit {@code recipient} could designate right now (J4.921). */
+    /**
+     * Every unit {@code recipient} could designate right now — J4.921's two kinds both: an EW
+     * fighter of its own squadron within three hexes, and its home carrier within ten.
+     */
     List<Unit> lendingCandidates(Fighter recipient) {
         List<Unit> candidates = new ArrayList<>();
         if (recipient == null)
@@ -182,6 +185,9 @@ class SquadronEwResolver {
         for (Shuttle shuttle : activeShuttles)
             if (shuttle instanceof Fighter other && qualifiesNow(recipient, other))
                 candidates.add(other);
+        Unit carrier = homeCarrierLender(recipient);
+        if (carrier != null)
+            candidates.add(carrier);
         return candidates;
     }
 
@@ -201,7 +207,9 @@ class SquadronEwResolver {
             return "no fighter given";
         int now = game.getAbsoluteImpulse();
         Unit current = recipient.getLentEwSource();
-        if (current != null && current != source) {
+        // A source the GAME picked may be replaced freely — it stands in for a decision the
+        // player has not made, and J4.922's interval governs changing one they have.
+        if (current != null && current != source && !recipient.isLentEwSourceProvisional()) {
             int since = now - recipient.getLentEwSourceImpulse();
             if (since < Fighter.LENT_EW_SOURCE_INTERVAL)
                 return recipient.getName() + " has been receiving EW from "
@@ -235,24 +243,50 @@ class SquadronEwResolver {
      * player picks — and it wins here, which is why it is consulted first.
      */
     Unit effectiveSource(Fighter recipient) {
-        if (recipient == null)
-            return null;
-        Unit declared = recipient.getLentEwSource();
-        if (declared != null)
-            return declared;
+        // Just the recorded source, and deliberately nothing else. J4.922 is a rule about
+        // COMMITMENT — "It cannot change just because the present source became unavailable but
+        // would have to continue 'receiving' from that unit" — so a source worked out afresh on
+        // every read could not obey it: a fighter drifting across a range boundary would switch
+        // the instant the arithmetic changed. {@link #sweepDesignations} is what fills the
+        // field, once, at a defined moment.
+        return recipient == null ? null : recipient.getLentEwSource();
+    }
 
-        // Two sources can now offer at once — the squadron's EW fighter within three hexes and
-        // its carrier within ten — and J4.922 allows only one. The rulebook's J4.93 example
-        // says as much without saying who picks: a fighter taking the carrier's points
-        // "couldn't benefit from the points from the EWF since a fighter can only receive lent
-        // points from a single source".
-        //
-        // With no designation UI yet, the default takes the BETTER offer, which is what a
-        // player would choose and keeps the carrier's usually-larger pool reachable. The known
-        // deviation is J4.922's stickiness: a fighter drifting across a range boundary will
-        // switch sources sooner than the eight impulses that rule allows. An explicit
-        // designation overrides this and IS held to the eight, which is the escape hatch until
-        // the choice is surfaced.
+    /**
+     * Give every fighter that has no source the best one on offer (J4.922).
+     * <p>
+     * A fighter with a source already is left alone, which is the whole point: J4.922 holds it
+     * there for eight impulses even after the source stops being any use, and only an explicit
+     * designation may move it. So this designates and never re-designates.
+     * <p>
+     * "Best" means the larger combined offer, which is the choice a player would make when both
+     * the squadron's EW fighter (three hexes) and its carrier (ten) are in reach — the case the
+     * J4.93 example describes. Once made it is binding, so the arithmetic is consulted exactly
+     * once per commitment rather than continuously.
+     *
+     * @return a line per fighter newly tied to a source, for the log
+     */
+    List<String> sweepDesignations() {
+        List<String> log = new ArrayList<>();
+        for (Shuttle craft : activeShuttles) {
+            if (!(craft instanceof Fighter fighter))
+                continue;
+            if (fighter.getLentEwSource() != null)
+                continue;                       // J4.922 holds it; do not second-guess
+            Unit best = bestOnOffer(fighter);
+            if (best == null)
+                continue;
+            // Provisional: the game is choosing for a player who has not, so J4.922's clock
+            // must not start yet or the automation would lock them out of their own choice.
+            fighter.setLentEwSource(best, game.getAbsoluteImpulse(), true);
+            log.add(fighter.getName() + " begins receiving EW from " + best.getName()
+                    + " (J4.922)");
+        }
+        return log;
+    }
+
+    /** The better of J4.921's two offers, or null if neither is available. */
+    private Unit bestOnOffer(Fighter recipient) {
         Unit ewf = squadronLender(recipient);
         Unit carrier = homeCarrierLender(recipient);
         if (ewf == null)

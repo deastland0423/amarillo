@@ -97,7 +97,11 @@ class GameSessionPodEwTest {
     /** And the squadron feels it — the same points are lent (J4.965). */
     @Test
     void theSquadronGetsWhatWasDeclared() {
-        wingman.addLockOn(ewf);   // J4.921: the recipient holds the lock-on
+        // J4.921 wants the lock-on, and J4.922 wants a recorded source. The designation sweep
+        // that would normally set it runs inside Game's impulse loop, which this wire-level test
+        // never enters — so it is set directly. What is under test is the translation layer.
+        wingman.addLockOn(ewf);
+        wingman.setLentEwSource(ewf, 0);
         assertTrue(session.executeAction(declare("HAAS-E", 4, 0)).isSuccess());
 
         assertEquals(4, game.lentEwTo(wingman).ecm());
@@ -146,7 +150,11 @@ class GameSessionPodEwTest {
 
     @Test
     void theOffSwitchReachesTheFighter() {
-        wingman.addLockOn(ewf);   // J4.921: the recipient holds the lock-on
+        // J4.921 wants the lock-on, and J4.922 wants a recorded source. The designation sweep
+        // that would normally set it runs inside Game's impulse loop, which this wire-level test
+        // never enters — so it is set directly. What is under test is the translation layer.
+        wingman.addLockOn(ewf);
+        wingman.setLentEwSource(ewf, 0);
         assertFalse(game.lentEwTo(wingman).isNothing());
 
         Game.ActionResult r = session.executeAction(switchPods("HAAS-E", false));
@@ -207,5 +215,77 @@ class GameSessionPodEwTest {
         assertTrue(r.isSuccess(), r.getMessage());
         assertEquals(4, inBay.getPodEcm());
         assertTrue(inBay.isPodEwDeclaredThisTurn());
+    }
+
+    // -------------------------------------------------------------------------
+    // DESIGNATE_EW_SOURCE (J4.922)
+    // -------------------------------------------------------------------------
+
+    /** J4.921 requires the recipient to hold a lock-on before any source will qualify. */
+    private void readyToReceive() {
+        wingman.addLockOn(ewf);
+        wingman.setLentEwSource(null, 0);
+    }
+
+    private ActionRequest designate(String fighter, String source) {
+        ActionRequest req = new ActionRequest();
+        req.setType("DESIGNATE_EW_SOURCE");
+        req.setPlayerToken(HOST);
+        req.setShipName(fighter);
+        req.setEwSourceName(source);
+        return req;
+    }
+
+    @Test
+    void aPlayerCanNameTheSource() {
+        readyToReceive();
+
+        Game.ActionResult r = session.executeAction(designate("HAAS-1", "HAAS-E"));
+
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertSame(ewf, wingman.getLentEwSource());
+        assertFalse(wingman.isLentEwSourceProvisional(),
+                "a named source is the player's commitment, so J4.922's clock starts");
+        assertTrue(r.getMessage().contains("J4.922"), r.getMessage());
+    }
+
+    /** And can stop receiving, which the empty name means. */
+    @Test
+    void anEmptyNameStopsReceiving() {
+        readyToReceive();
+        assertTrue(session.executeAction(designate("HAAS-1", "")).isSuccess());
+
+        assertNull(wingman.getLentEwSource());
+    }
+
+    /** J4.921: a unit that cannot lend right now cannot be named. */
+    @Test
+    void anIneligibleSourceIsRefused() {
+        readyToReceive();
+        Game.ActionResult r = session.executeAction(designate("HAAS-1", "KHS Longsword"));
+
+        assertFalse(r.isSuccess(), "the BC is no carrier of this fighter's");
+        assertTrue(r.getMessage().contains("J4.921"), r.getMessage());
+    }
+
+    /**
+     * J4.922's clock, once the player has committed: "It can change the source it is receiving
+     * from every eight impulses."
+     */
+    @Test
+    void aSecondChangeWaitsOutTheInterval() {
+        readyToReceive();
+        assertTrue(session.executeAction(designate("HAAS-1", "HAAS-E")).isSuccess());
+
+        Game.ActionResult again = session.executeAction(designate("HAAS-1", ""));
+
+        assertFalse(again.isSuccess());
+        assertTrue(again.getMessage().contains("J4.922"), again.getMessage());
+        assertSame(ewf, wingman.getLentEwSource(), "and it stays where it was");
+    }
+
+    @Test
+    void anUnknownFighterIsRefusedForDesignationToo() {
+        assertFalse(session.executeAction(designate("HAAS-9", "HAAS-E")).isSuccess());
     }
 }

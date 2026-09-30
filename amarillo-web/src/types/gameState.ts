@@ -417,6 +417,9 @@ export interface ShuttleObject extends MapObjectBase {
   ewLenderRange?:     number;        // hexes to it
   ewLendRangeLimit?:  number;        // J4.921's three, sent rather than hardcoded
   ewLendRefusal?:     string | null; // why nothing is arriving
+  ewLendCandidates?:  string[];      // J4.921: what it could be switched to right now
+  ewLendSourceProvisional?: boolean; // J4.922: the game chose it, so it may be replaced freely
+  ewLendChangeIn?:    number;        // J4.922: impulses before a change is allowed
   controllerFaction?: string;        // SUICIDE_SHUTTLE and SCATTER_PACK only
   controllerName?:   string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only
   targetName?:       string | null;  // SUICIDE_SHUTTLE and SCATTER_PACK only

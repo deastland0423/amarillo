@@ -94,6 +94,18 @@ public class CarrierEwLendingTest {
             e.setSquadronEw(declared);
         carrier.allocateEnergy(e);
         carrier.startTurn();
+        sweepEw();
+    }
+
+    /**
+     * Settle lock-ons and let J4.922's designation sweep run, which is what a turn does at the
+     * end of its Movement phase. Without it no fighter has a source and nothing is lent — that
+     * is the point of the rule: the commitment is recorded, not recomputed.
+     */
+    private void sweepEw() {
+        for (com.sfb.objects.shuttles.Shuttle craft : game.getActiveShuttles())
+            if (craft instanceof com.sfb.objects.shuttles.Fighter f)
+                game.acquireFighterLockOns(f);
     }
 
     // -------------------------------------------------------------------------
@@ -157,6 +169,7 @@ public class CarrierEwLendingTest {
     /** J4.931: the pool is generated at allocation, so a turn without a declaration lends none. */
     @Test
     public void anUndeclaredTurnLendsNothing() {
+        sweepEw();
         assertFalse(squadron.hasCarrierEw());
         assertTrue(game.lentEwTo(wingman).isNothing());
         String why = game.ewLendRefusalFor(wingman);
@@ -267,9 +280,47 @@ public class CarrierEwLendingTest {
         assertSame("the carrier's six beats the EWF's four", carrier,
                 game.lentEwSourceOf(wingman));
         assertEquals(4, game.lentEwTo(wingman).ecm());
+    }
 
-        // Take the carrier's pool away and the EWF is the better offer again.
-        applyAllocation(null);
+    /**
+     * And the commitment BINDS, which is the substance of J4.922: "It cannot change just because
+     * the present source became unavailable but would have to continue 'receiving' from that
+     * unit (even though it could not use the points)."
+     * <p>
+     * So a fighter tied to the carrier gets nothing when the carrier stops generating — it does
+     * NOT fall back to the EW fighter beside it, however much better that would be.
+     */
+    @Test
+    public void aFighterStaysTiedToASourceThatHasStoppedPaying() {
+        Haas_E ewf = new Haas_E();
+        ewf.setName("HAAS-E");
+        ewf.setOwner(carrier.getOwner());
+        ewf.setLocation(new Location(10, 15));
+        game.getActiveShuttles().add(ewf);
+        assertNull(squadron.add(ewf));
+
+        generate("Gold", 4, 2);
+        assertSame(carrier, game.lentEwSourceOf(wingman));
+
+        applyAllocation(null);                   // a turn where the carrier generates nothing
+
+        assertSame("still tied to it (J4.922)", carrier, game.lentEwSourceOf(wingman));
+        assertTrue("and so receiving nothing, with the EWF right beside it",
+                game.lentEwTo(wingman).isNothing());
+    }
+
+    /** A fighter with no commitment yet takes the EW fighter when the carrier offers nothing. */
+    @Test
+    public void withNoCarrierPoolTheEwFighterIsChosen() {
+        Haas_E ewf = new Haas_E();
+        ewf.setName("HAAS-E");
+        ewf.setOwner(carrier.getOwner());
+        ewf.setLocation(new Location(10, 15));
+        game.getActiveShuttles().add(ewf);
+        assertNull(squadron.add(ewf));
+
+        applyAllocation(null);                   // nothing generated for the squadron
+
         assertSame(ewf, game.lentEwSourceOf(wingman));
         assertEquals(2, game.lentEwTo(wingman).ecm());
     }

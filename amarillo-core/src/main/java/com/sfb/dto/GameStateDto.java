@@ -732,6 +732,21 @@ public class GameStateDto {
          * in the client would be the view deciding a rules question.
          */
         public String ewLendRefusal;
+
+        /**
+         * J4.921/J4.922: units this fighter could be switched to right now — an EW fighter of
+         * its own squadron within three hexes, or its home carrier within ten.
+         */
+        public List<String> ewLendCandidates;
+
+        /**
+         * J4.922: whether the current source was picked by the game rather than the player. A
+         * provisional one may be replaced freely; a declared one waits out the eight.
+         */
+        public Boolean ewLendSourceProvisional;
+
+        /** J4.922: impulses before the source may be changed, zero if it may now. */
+        public Integer ewLendChangeIn;
     }
 
     // -------------------------------------------------------------------------
@@ -1879,6 +1894,19 @@ public class GameStateDto {
         }
         if (loan.isNothing())
             dto.ewLendRefusal = game.ewLendRefusalFor(fighter);
+
+        // J4.922: what it could switch to, and whether it may yet. Sent for any fighter that
+        // has a choice to make, so the panel can offer one without working out the rule.
+        java.util.List<com.sfb.objects.Unit> options = game.ewLendingCandidates(fighter);
+        if (!options.isEmpty()) {
+            dto.ewLendCandidates = new ArrayList<>();
+            for (com.sfb.objects.Unit option : options)
+                dto.ewLendCandidates.add(option.getName());
+        }
+        if (fighter.getLentEwSource() != null) {
+            dto.ewLendSourceProvisional = fighter.isLentEwSourceProvisional();
+            dto.ewLendChangeIn = game.impulsesUntilEwSourceChange(fighter);
+        }
 
         dto.ecmSources = describeFighterEcm(fighter, loan, lender);
     }

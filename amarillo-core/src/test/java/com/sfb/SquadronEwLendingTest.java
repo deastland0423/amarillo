@@ -488,7 +488,8 @@ public class SquadronEwLendingTest {
      */
     @Test
     public void aSquadronMateReceivesWithoutBeingTold() {
-        assertNull("nobody designated anything", wingman.getLentEwSource());
+        assertTrue("the game chose for it, not the player",
+                wingman.isLentEwSourceProvisional());
 
         assertSame("its squadron's EW fighter, found on its own",
                 ewf, game.lentEwSourceOf(wingman));
@@ -531,19 +532,27 @@ public class SquadronEwLendingTest {
     }
 
     /**
-     * An implicit source has no J4.922 stickiness, because nothing was declared to be held to:
-     * fly out of range and the points simply stop, and come back when the formation closes up.
+     * J4.922's stickiness, which is the substance of the rule: "It cannot change just because
+     * the present source became unavailable but would have to continue 'receiving' from that
+     * unit (even though it could not use the points)."
+     * <p>
+     * So the points stop when the formation strings out and resume when it closes up, and
+     * throughout the fighter stays tied to the same EW fighter. It does not go looking for
+     * another, which is what a source recomputed on every read used to do.
      */
     @Test
-    public void anImplicitSourceComesAndGoesWithTheFormation() {
+    public void theSourceHoldsEvenWhenItStopsPaying() {
         assertFalse(game.lentEwTo(wingman).isNothing());
+        Object source = wingman.getLentEwSource();
+        assertSame(ewf, source);
 
         wingman.setLocation(new Location(10, 17));        // five hexes out
-        assertTrue(game.lentEwTo(wingman).isNothing());
-        assertNull("and nothing is holding it to a dead source", wingman.getLentEwSource());
+        assertTrue("no points out here", game.lentEwTo(wingman).isNothing());
+        assertSame("but still receiving from it (J4.922)", source, wingman.getLentEwSource());
 
         wingman.setLocation(new Location(10, 13));        // back in formation
-        assertFalse("the loan resumes", game.lentEwTo(wingman).isNothing());
+        assertFalse("and the loan resumes", game.lentEwTo(wingman).isNothing());
+        assertSame(source, wingman.getLentEwSource());
     }
 
     /** A declared source still wins, which is how carrier lending will be chosen (J4.922). */

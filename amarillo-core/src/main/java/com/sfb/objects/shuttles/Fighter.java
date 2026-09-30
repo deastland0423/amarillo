@@ -407,6 +407,22 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     /** The absolute impulse the current source was designated on, for J4.922's eight. */
     private int lentEwSourceImpulse = -LENT_EW_SOURCE_INTERVAL;
 
+    /**
+     * Whether the current source was chosen by the game rather than by the player.
+     * <p>
+     * J4.922's eight-impulse clock governs a player CHANGING the source — a commitment they
+     * made. An automatic designation is a convenience standing in for that commitment, not the
+     * commitment itself, so it must not lock the player out of the choice the rule grants them:
+     * a provisional source may be replaced freely, and only then does the clock start.
+     * <p>
+     * Without this the automation quietly removed a right. The sweep runs at the end of
+     * Movement, before the player can touch anything, so every designation they attempted in
+     * the first eight impulses was refused by a choice they never made.
+     */
+    private boolean lentEwSourceProvisional;
+
+    public boolean isLentEwSourceProvisional() { return lentEwSourceProvisional; }
+
     public com.sfb.objects.Unit getLentEwSource() { return lentEwSource; }
 
     public int getLentEwSourceImpulse() { return lentEwSourceImpulse; }
@@ -417,8 +433,14 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * the rest of the squadron to judge J4.921 and J4.922 — a fighter can see neither.
      */
     public void setLentEwSource(com.sfb.objects.Unit source, int impulse) {
+        setLentEwSource(source, impulse, false);
+    }
+
+    /** @param provisional true when the game chose it, not the player — see the field note. */
+    public void setLentEwSource(com.sfb.objects.Unit source, int impulse, boolean provisional) {
         this.lentEwSource = source;
         this.lentEwSourceImpulse = impulse;
+        this.lentEwSourceProvisional = provisional;
     }
 
     /** The squadron this fighter belongs to (J4.46), or null if it is unassigned. */
@@ -426,7 +448,15 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
 
     public com.sfb.objects.Squadron getSquadron() { return squadron; }
 
-    public void setSquadron(com.sfb.objects.Squadron squadron) { this.squadron = squadron; }
+    public void setSquadron(com.sfb.objects.Squadron squadron) {
+        // A PROVISIONAL EW source was chosen for the squadron this fighter is leaving, so it
+        // means nothing in the new one — J4.921 lends within a squadron, and a stale pick would
+        // block the sweep from choosing again. A source the PLAYER declared is left alone: that
+        // is their commitment to keep or change under J4.922, not ours to tidy away.
+        if (this.squadron != squadron && lentEwSourceProvisional)
+            setLentEwSource(null, lentEwSourceImpulse, false);
+        this.squadron = squadron;
+    }
 
     /** J4.221/J4.46: whether these two fly together, which decides who may take a handoff. */
     public boolean sharesSquadronWith(Fighter other) {

@@ -227,7 +227,7 @@ function isCloakOperating(ship: ShipObject): boolean {
 
 function ShuttleMovementPanel({
   shuttle, isMine, canMove, phase, onMove, onHet, onClose, canLand, onLand,
-  onLoadPersonnel, onUnloadPersonnel,
+  onLoadPersonnel, onUnloadPersonnel, onDesignateEwSource,
 }: {
   shuttle:  ShuttleObject;
   isMine:   boolean;
@@ -241,6 +241,7 @@ function ShuttleMovementPanel({
   onLoadPersonnel:   () => void;
   onUnloadPersonnel: () => void;
   onTacTurn?: (facing: number, sublight: boolean) => void;
+  onDesignateEwSource?: (fighter: string, source: string | null) => void;
 }) {
   const [hetMode, setHetMode]     = useState(false);
   const [hetFacing, setHetFacing] = useState<number | null>(null);
@@ -343,6 +344,45 @@ function ShuttleMovementPanel({
           <div className="sidebar-stat-row">
             <span className="sidebar-stat-label">Squadron</span>
             <span className="sidebar-stat-value">{shuttle.squadronName}</span>
+          </div>
+        )}
+        {/* J4.922: one source at a time, changeable every eight impulses. Offered only where
+            there is a real choice to make. A source the GAME picked is marked as such because it
+            can be replaced at once; one the player declared starts the clock, and the countdown
+            below says how long is left. */}
+        {isMine && (shuttle.ewLendCandidates?.length ?? 0) > 0 && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label">EW source</span>
+            <span className="sidebar-stat-value">
+              <select
+                value={shuttle.lentEwSourceName ?? ''}
+                disabled={(shuttle.ewLendChangeIn ?? 0) > 0}
+                onChange={e => onDesignateEwSource?.(shuttle.name, e.target.value || null)}
+                style={{ maxWidth: 150 }}
+              >
+                <option value="">none</option>
+                {(shuttle.ewLendCandidates ?? []).map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </span>
+          </div>
+        )}
+        {isMine && (shuttle.ewLendChangeIn ?? 0) > 0 && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label" />
+            <span className="sidebar-stat-value" style={{ color: '#8b949e', fontSize: '0.9em' }}>
+              may change in {shuttle.ewLendChangeIn} impulse
+              {shuttle.ewLendChangeIn === 1 ? '' : 's'} (J4.922)
+            </span>
+          </div>
+        )}
+        {isMine && shuttle.ewLendSourceProvisional && shuttle.lentEwSourceName && (
+          <div className="sidebar-stat-row">
+            <span className="sidebar-stat-label" />
+            <span className="sidebar-stat-value" style={{ color: '#8b949e', fontSize: '0.9em' }}>
+              chosen automatically — change it freely
+            </span>
           </div>
         )}
       </div>
@@ -2887,6 +2927,21 @@ export default function GameBoard({ session, onLeave }: Props) {
     }
   }
 
+  /**
+   * J4.922: point a fighter at an EW source, or clear it. The eight-impulse interval and
+   * J4.921's eligibility are both core's; this only carries the name.
+   */
+  async function handleDesignateEwSource(fighter: string, source: string | null) {
+    setActionError(null);
+    try {
+      const res = await gameApi.designateEwSource(
+        session.gameId, session.playerToken, fighter, source);
+      if (!res.success) setActionError(res.message);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'EW source change failed');
+    }
+  }
+
   async function handleFighterHet(facing: number) {
     if (!liveShuttle) return;
     setActionError(null);
@@ -4192,6 +4247,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onMove={handleShuttleMove}
             onHet={handleFighterHet}
             onTacTurn={handleTacTurn}
+            onDesignateEwSource={handleDesignateEwSource}
             onClose={() => setSelected(null)}
             canLand={phase === 'Activity' && !!landableCarrierFor(liveShuttle)}
             onLand={handleLandShuttle}

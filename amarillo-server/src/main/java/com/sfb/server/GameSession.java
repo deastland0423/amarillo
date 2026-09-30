@@ -1854,6 +1854,31 @@ public class GameSession {
                                 + " ECCM from its EW pods (J4.961)");
             }
 
+            case "DESIGNATE_EW_SOURCE": {
+                // J4.922: one source at a time, changeable every eight impulses. The interval
+                // and the eligibility are core's; this only resolves the names.
+                com.sfb.objects.shuttles.Fighter fighter =
+                        findActiveFighter(request.getShipName());
+                if (fighter == null)
+                    return ActionResult.fail("Active fighter not found: " + request.getShipName());
+                String wanted = request.getEwSourceName();
+                com.sfb.objects.Unit source = null;
+                if (wanted != null && !wanted.isBlank()) {
+                    for (com.sfb.objects.Unit option : game.ewLendingCandidates(fighter))
+                        if (option.getName().equalsIgnoreCase(wanted))
+                            source = option;
+                    if (source == null)
+                        return ActionResult.fail(wanted + " cannot lend EW to "
+                                + fighter.getName() + " right now (J4.921)");
+                }
+                String refusal = game.designateLentEwSource(fighter, source);
+                return refusal != null ? ActionResult.fail(refusal)
+                        : ActionResult.ok(fighter.getName()
+                                + (source == null ? " stops receiving lent EW"
+                                        : " receives lent EW from " + source.getName())
+                                + " (J4.922)");
+            }
+
             case "SET_FIGHTER_PODS_ACTIVE": {
                 // J4.967: "A fighter can turn off its EWPs during any Lock-On Stage of the
                 // Impulse Activity Segment" — so unlike the split, no turn-start window.

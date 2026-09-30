@@ -185,7 +185,7 @@ public class SquadronEwInPlayTest {
 
         int toGo = ewf.impulsesUntilEwLending(game.getAbsoluteImpulse());
         assertTrue("there should be a wait to serve: " + toGo, toGo > 0);
-        waitImpulses(toGo);
+        serveTheLendingDelay(ewf);   // waits, then settles lock-ons and J4.922 designations
 
         assertFalse("and now it lends", game.lentEwTo(wingman).isNothing());
         assertSame(ewf, game.lentEwSourceOf(wingman));

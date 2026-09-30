@@ -77,6 +77,9 @@ class FighterFireEwPreviewTest {
         assertNull(squadron.add(fighter));
         fighter.addLockOn(ewf);          // J4.921: the recipient holds the lock-on
         fighter.addLockOn(enemy);        // and one on what it is shooting at
+        // J4.922's source is recorded by a sweep inside Game's impulse loop, which an endpoint
+        // test does not reach; set directly, since what is under test is the fire preview.
+        fighter.setLentEwSource(ewf, 0);
 
         Player alice = new Player();
         alice.setName("Alice");

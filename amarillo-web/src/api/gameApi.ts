@@ -602,6 +602,28 @@ export const gameApi = {
     });
   },
 
+  /**
+   * J4.922: point a fighter at the unit it receives lent EW from, or pass null to stop. One
+   * source at a time, and a change the player made is held for eight impulses — both enforced
+   * in core, which is why this only carries the name.
+   */
+  designateEwSource(
+    gameId: string,
+    playerToken: string,
+    fighterName: string,
+    sourceName: string | null,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/games/${gameId}/action`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': playerToken },
+      body: JSON.stringify({
+        type:         'DESIGNATE_EW_SOURCE',
+        shipName:     fighterName,
+        ewSourceName: sourceName ?? '',
+      }),
+    });
+  },
+
   submitAction(
     gameId: string,
     playerToken: string,
