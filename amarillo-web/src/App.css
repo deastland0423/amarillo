@@ -1698,34 +1698,54 @@ h3 {
 /* The drone picker, grouped by family with speed as the choice inside it. The suffix in a
    drone's name is speed and nothing else (M = 20, F = 32), which is the thing the old flat
    list of names could not convey. */
+/* One row per drone family: what the family IS on the left, the speeds to choose from on the
+   right. A grid rather than stacked blocks so the rows line up as a table — the family name and
+   the speed buttons share a column across every row, which is what makes the M/F pattern visible
+   at a glance. */
 .coi-drone-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
 }
 
 .coi-drone-family-head {
-  font-style: normal;
-  margin-bottom: 0.1rem;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .coi-drone-family-head strong {
   color: #c9d1d9;
 }
 
-/* Speed is the label; endurance and the real type name sit under it, so a player still learns
-   which drone they picked without having to read the name to choose. */
+.coi-drone-family-stats {
+  font-size: 0.66rem;
+  color: #6e7681;
+}
+
+.coi-drone-speeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* Speed is the label, big; the type name sits under it so a player still learns which drone
+   they took. Narrow enough that four fit beside the family name without wrapping. */
 .coi-drone-picker .coi-drone-add-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.15;
-  padding: 0.2rem 0.55rem;
-  min-width: 4.4rem;
+  line-height: 1.1;
+  padding: 0.15rem 0.3rem;
+  min-width: 2.5rem;
+  font-size: 0.82rem;
 }
 
 .coi-drone-btn-sub {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   opacity: 0.6;
 }
 

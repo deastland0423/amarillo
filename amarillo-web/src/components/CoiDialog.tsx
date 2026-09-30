@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
 
@@ -673,30 +673,37 @@ function DronePicker({ types, onAdd }: {
       {families.map(f => {
         const sample = f.members[0];
         return (
-          <div key={f.key} className="coi-drone-family">
-            <div className="coi-note coi-drone-family-head">
+          <Fragment key={f.key}>
+            {/* The label sits BESIDE the buttons, not above them, so each family really is one
+                row. Stacked, the four speed buttons were wide enough to wrap in a narrow ship
+                panel and the whole thing read as a flat list again — which was the complaint. */}
+            <span className="coi-drone-family-head">
               <strong>{f.label}</strong>
-              {' — '}{spaces(sample.rack)} · {sample.damage} dmg
-              {sample.selfGuiding && ' · needs no controller'}
-              {sample.dogfight && ' · dogfight drone'}
-            </div>
-            <div className="coi-drone-add-row">
+              <span className="coi-drone-family-stats">
+                {spaces(sample.rack)} · {sample.damage} dmg
+                {sample.selfGuiding && ' · self-guiding'}
+              </span>
+            </span>
+            <span className="coi-drone-speeds">
               {f.members.map(dt => (
                 <button
                   key={dt.name}
                   className="secondary coi-drone-add-btn"
                   onClick={() => onAdd(dt.name)}
                   title={`${dt.name} — speed ${dt.speed}, ${dt.damage} damage, `
-                    + `${spaces(dt.rack)}, ${dt.endurance} impulses of endurance`}
+                    + `${spaces(dt.rack)}, ${dt.endurance} impulses of endurance`
+                    + (dt.selfGuiding ? ', needs no controller' : '')}
                 >
-                  speed {dt.speed}
-                  <span className="coi-drone-btn-sub">
-                    {dt.endurance} imp · {dt.name.replace('Type', '')}
-                  </span>
+                  {dt.speed}
+                  {/* The type name, so a player still learns WHICH drone they took even though
+                      they chose it by speed. Endurance is in the tooltip: it varies within a
+                      family (a type-II has 64 impulses, not 96) but is too much to put on a
+                      button this size. */}
+                  <span className="coi-drone-btn-sub">{dt.name.replace('Type', '')}</span>
                 </button>
               ))}
-            </div>
-          </div>
+            </span>
+          </Fragment>
         );
       })}
     </div>
