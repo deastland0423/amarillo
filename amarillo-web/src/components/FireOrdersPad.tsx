@@ -5,6 +5,9 @@ import { useDraggable } from '../hooks/useDraggable';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import WeaponDamageTooltip from './WeaponDamageTooltip';
 import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
+// The arming-mode vocabulary lives in weaponCondition so this pad and the DAC choice dialog
+// cannot drift into two spellings of "ovl".
+import { ARMING_LABEL, ARMING_COLOUR } from './weaponCondition';
 
 /**
  * The Fire Orders pad (D6.315 written orders).
@@ -157,32 +160,6 @@ const EMPTY_SEL: Sel = {
  * grouping memo below re-run every time and defeats its own purpose.
  */
 const EMPTY_ROWS: FireCandidate[] = [];
-
-/**
- * How a heavy weapon is armed, short enough to sit beside its name.
- *
- * STANDARD is included, and it was a mistake to leave it out: armingType is null on a weapon
- * that does not arm at all, so with no badge for standard a phaser and a standard-armed
- * disruptor looked identical — and one of them CAN be overloaded while the other cannot.
- * Absence has to mean "this weapon has no modes", so every mode says its name.
- */
-const ARMING_LABEL: Record<string, string> = {
-  STANDARD: 'std',
-  OVERLOAD: 'ovl',
-  SPECIAL:  'spl',
-  ROLLING:  'roll',
-};
-
-/**
- * Overload changes what the shot is worth, so it is the one that carries colour. Standard is
- * the same grey as the arc label beside it: present, legible, and not asking for attention.
- */
-const ARMING_COLOUR: Record<string, string> = {
-  STANDARD: '#8b949e',
-  OVERLOAD: '#f0c040',
-  SPECIAL:  '#79c0ff',
-  ROLLING:  '#8b949e',
-};
 
 const KIND_LABEL: Record<FireCandidate['kind'], string> = {
   SHIP:    'ship',

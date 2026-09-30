@@ -1,5 +1,7 @@
 import React from 'react';
 import type { PendingDacChoice, ShipObject } from '../types/gameState';
+import type { WeaponChip } from './weaponCondition';
+import { weaponChips, chipColour } from './weaponCondition';
 
 interface Props {
   pendingChoices: PendingDacChoice[];
@@ -24,17 +26,32 @@ const WARP_LABELS: Record<string, string> = {
   rwarp: 'Right Warp',
 };
 
-// Maps Java weapon class name prefix → short display name.
-// PlasmaLauncher is handled separately using launcherType.
+/**
+ * Maps a weapon's type string → short display name.
+ *
+ * The keys are the `type` values in the ship JSON, because a weapon's name is
+ * `type + "-" + designator` (Weapon.getName). Three of these were wrong and silently fell
+ * through to the raw type: there is no "Disruptor30", "FusionBeam" or "SpatterGun" in the data —
+ * they are "Disruptor" and "Fusion", and the spatter gun does not exist yet. A miss is not
+ * visibly broken, which is why it survived: the option still reads "Disruptor (A)".
+ *
+ * ScoutChannel, ESG, ADD and DroneRack are here because they are all destroyed on weapon hits
+ * and so appear among the options — a channel on phaser hits (G24.17), an ESG on drone hits
+ * (G23.14). PlasmaLauncher is handled separately using launcherType.
+ */
 const WEAPON_TYPE_LABELS: Record<string, string> = {
   'Phaser1':        'Ph-1',
   'Phaser2':        'Ph-2',
   'Phaser3':        'Ph-3',
-  'Disruptor30':    'Dis-30',
-  'FusionBeam':     'Fusion',
+  'PhaserG':        'Ph-G',
+  'Disruptor':      'Dis',
+  'Fusion':         'Fusion',
   'Photon':         'Photon',
   'Hellbore':       'HB',
-  'SpatterGun':     'Spatter',
+  'ADD':            'ADD',
+  'DroneRack':      'Rack',
+  'ScoutChannel':   'Channel',
+  'ESG':            'ESG',
   'FighterFusion':  'Ftr Fusion',
   'FighterHellbore':'Ftr HB',
   'PlasmaLauncher': 'Plasma',
@@ -68,7 +85,15 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
     };
   }
 
-  function weaponInfo(opt: string): { displayName: string; arcLabel: string; fired: boolean } | null {
+  interface WeaponInfo {
+    displayName: string;
+    arcLabel:    string;
+    chips:       WeaponChip[];
+    /** True when something real dies with this weapon — an armed warhead, a loaded rack. */
+    costly:      boolean;
+  }
+
+  function weaponInfo(opt: string): WeaponInfo | null {
     if (!targetShip) return null;
     const ws = targetShip.weapons.find(w => w.name === opt);
     if (!ws) return null;
@@ -82,11 +107,17 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
       shortType = `Plasma-${ws.launcherType}`;
     }
 
+    // A drone rack rides in BOTH lists: `weapons` carries its arc and readiness, `droneRacks`
+    // alone says what is on it. Matched on name, which is the same string in both.
+    const rack = targetShip.droneRacks?.find(r => r.name === opt) ?? null;
+    const chips = weaponChips(ws, rack);
+
     const displayName = designator ? `${shortType} (${designator})` : shortType;
     return {
       displayName,
       arcLabel: ws.arcLabel ?? '',
-      fired: ws.shotsThisTurn > 0,
+      chips,
+      costly: chips.some(c => c.tone === 'valuable'),
     };
   }
 
@@ -131,7 +162,9 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
             const isWarp    = opt in WARP_LABELS;
             const sInfo = isShuttle ? shuttleSpaceLabel(opt) : null;
             const wInfo = (!isShuttle && !isWarp) ? weaponInfo(opt) : null;
-            const armedWarning = sInfo?.armed ?? false;
+            // One warning colour for both kinds of "you are about to lose something": an armed
+            // shuttle in its space, and a weapon holding a warhead or a load.
+            const armedWarning = (sInfo?.armed ?? false) || (wInfo?.costly ?? false);
 
             return (
               <button
@@ -155,7 +188,7 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                 {isShuttle && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{sInfo!.label}</span>
-                    {armedWarning && (
+                    {sInfo!.armed && (
                       <span style={{ color: '#f0883e', fontSize: 12, marginLeft: 8 }}>ARMED ⚠</span>
                     )}
                   </div>
@@ -166,17 +199,27 @@ export const DacChoiceDialog: React.FC<Props> = ({ pendingChoices, myShipNames, 
                   <span>{WARP_LABELS[opt]}</span>
                 )}
 
-                {/* Weapon option — friendly name + arc + fired status */}
+                {/* Weapon option — name, arc, and what state it is in */}
                 {wInfo && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 500 }}>{wInfo.displayName}</span>
-                      {wInfo.fired && (
-                        <span style={{ color: '#8b949e', fontSize: 11, marginLeft: 8, fontStyle: 'italic' }}>fired</span>
+                      {wInfo.arcLabel && (
+                        <span style={{ color: '#8b949e', fontSize: 11 }}>[{wInfo.arcLabel}]</span>
                       )}
                     </div>
-                    {wInfo.arcLabel && (
-                      <div style={{ color: '#8b949e', fontSize: 11, marginTop: 2 }}>{wInfo.arcLabel}</div>
+                    {/* The reason this dialog exists: which of these is cheapest to lose. */}
+                    {wInfo.chips.length > 0 && (
+                      <div style={{
+                        display: 'flex', flexWrap: 'wrap', gap: '2px 8px',
+                        marginTop: 3, fontSize: 11, lineHeight: 1.4,
+                      }}>
+                        {wInfo.chips.map((chip, i) => (
+                          <span key={i} title={chip.title} style={{ color: chipColour(chip) }}>
+                            {chip.text}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
