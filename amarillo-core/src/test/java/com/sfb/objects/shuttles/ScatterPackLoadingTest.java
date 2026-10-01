@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * How fast a scatter pack can be filled (J4.8172, FD7.22).
@@ -100,7 +101,7 @@ public class ScatterPackLoadingTest {
     /** A fighter packs at its own smaller capacity, and the per-turn limit still applies. */
     @Test
     public void aFighterPacksAtItsOwnCapacity() {
-        ScatterPack pack = new ScatterPack(new Aas());
+        ScatterPack pack = new ScatterPack(CataloguedFighter.of("aas"));
         pack.setName("Pack-2");
 
         assertEquals("FD7.11: an AAS carries two spaces", 2, pack.getMaxDroneSpaces());

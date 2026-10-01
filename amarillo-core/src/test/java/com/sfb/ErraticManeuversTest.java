@@ -253,7 +253,7 @@ public class ErraticManeuversTest {
     public void aShuttleCountsAsNimbleForTheseExemptions() {
         // C11.1: all shuttlecraft and fighters are nimble unless a rule says otherwise.
         assertTrue(new com.sfb.objects.shuttles.AdminShuttle().isNimbleUnit());
-        assertTrue(new com.sfb.objects.shuttles.Stinger1().isNimbleUnit());
+        assertTrue(com.sfb.objects.shuttles.CataloguedFighter.of("stinger1").isNimbleUnit());
         assertFalse("a seeking weapon is not nimble",
                 new com.sfb.objects.Drone(com.sfb.objects.DroneType.TypeI).isNimbleUnit());
     }

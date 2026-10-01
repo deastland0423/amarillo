@@ -9,13 +9,12 @@ import org.junit.Test;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
-import com.sfb.objects.shuttles.StingerH;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * What arming a fighter costs a deck crew, and the invariant that keeps the
@@ -39,11 +38,11 @@ public class FighterArmingTest {
     public void everyFighterWeCarryIsPricedByItsLoad() {
         // Four fusion charges at half an action each (J4.833).
         assertEquals("a Stinger-1 is two actions", 2,
-                FighterArming.actionsToFullyArm(new Stinger1()));
+                FighterArming.actionsToFullyArm(CataloguedFighter.of("stinger1")));
         // One hellbore charge, one whole action (J4.834).
-        assertEquals("a Stinger-H is one", 1, FighterArming.actionsToFullyArm(new StingerH()));
+        assertEquals("a Stinger-H is one", 1, FighterArming.actionsToFullyArm(CataloguedFighter.of("stingerh")));
         // Two standard drone rails, one action a space (J4.82).
-        assertEquals("an AAS is two", 2, FighterArming.actionsToFullyArm(new Aas()));
+        assertEquals("an AAS is two", 2, FighterArming.actionsToFullyArm(CataloguedFighter.of("aas")));
     }
 
     @Test
@@ -53,11 +52,11 @@ public class FighterArmingTest {
         // advanced fighters that will: two crews reach four actions only by working
         // both of
         // the two turns S4.12 allows (J4.8172 caps them at two crews per box).
-        int stinger = FighterArming.actionsToFullyArm(new Stinger1());
+        int stinger = FighterArming.actionsToFullyArm(CataloguedFighter.of("stinger1"));
         assertTrue("no fighter in the catalogue yet exceeds the two actions one crew-turn pair"
                 + " delivers", stinger <= 2);
 
-        Stinger1 fresh = new Stinger1();
+        Fighter fresh = CataloguedFighter.of("stinger1");
         assertEquals("a fighter is built empty, so all of it is outstanding (J4.8223)", 4,
                 FighterArming.halfActionsOutstanding(fresh));
 
@@ -72,8 +71,8 @@ public class FighterArmingTest {
 
     @Test
     public void aBudgetShortOfAWholeActionBuysNoHellboreCharge() throws Exception {
-        StingerH sh = new StingerH();
-        sh.setName("StingerH-1");
+        Fighter sh = CataloguedFighter.of("stingerh");
+        sh.setName("Fighter-1");
         ShuttleSpace box = new ShuttleSpace(sh);
         assertTrue("built empty (J4.8223)", hellboreOf(sh).isSpent());
         assertEquals("so its box holds the charge", 1, box.getCapacitorCharges());
@@ -118,7 +117,7 @@ public class FighterArmingTest {
 
     @Test
     public void disarmingAFighterPutsItsChargesBackInTheBox() {
-        ShuttleSpace box = new ShuttleSpace(named(new Stinger1(), "Stinger-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("stinger1"), "Stinger-1"));
         box.armOccupantFully();
         assertEquals("armed from its own box, so one reload left behind",
                 4, box.getCapacitorCharges());
@@ -135,7 +134,7 @@ public class FighterArmingTest {
 
     @Test
     public void disarmingAHellboreFighterFillsItsOneChargeBox() {
-        ShuttleSpace box = new ShuttleSpace(named(new StingerH(), "StingerH-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("stingerh"), "Fighter-1"));
         box.armOccupantFully();
         assertEquals("the armed fighter is carrying the box's only charge",
                 0, box.getCapacitorCharges());
@@ -148,7 +147,7 @@ public class FighterArmingTest {
 
     @Test
     public void aDroneFighterIsArmedFromItsOwnReadyRack() {
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
 
         // J4.822: a box built for a drone fighter has a rack. J4.8223: it starts full
         // and
@@ -173,7 +172,7 @@ public class FighterArmingTest {
 
     @Test
     public void unloadingADroneFighterPutsTheDronesBackInItsRack() {
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
         FighterArming.load(box, box.getShuttle(), 4);
         assertEquals(0, box.getReadyRack().count());
 
@@ -186,7 +185,7 @@ public class FighterArmingTest {
 
     @Test
     public void unloadingTakesDronesBackAtAWholeActionASpace() {
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
         FighterArming.load(box, box.getShuttle(), 4);
         assertEquals(2, loadedRails(box.getShuttle()));
         assertEquals(0, box.getReadyRack().count());
@@ -208,7 +207,7 @@ public class FighterArmingTest {
         // A drone has to go somewhere: the rack is where it belongs (J4.822), and a
         // full rack
         // is not a place to put another. Nothing is destroyed to make room.
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
         FighterArming.armFully(box.getShuttle()); // rails loaded without drawing the rack
         assertEquals("rack full AND rails full — more drones than the box should hold",
                 2, box.getReadyRack().count());
@@ -223,9 +222,9 @@ public class FighterArmingTest {
     @Test
     public void aRackWillNotServeAFighterItWasNotBuiltFor() {
         // J4.8222: each rack is designed for a specific type of fighter.
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
-        com.sfb.objects.shuttles.Taas stranger = (com.sfb.objects.shuttles.Taas) named(
-                new com.sfb.objects.shuttles.Taas(), "HAAS-1");
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
+        com.sfb.objects.shuttles.Fighter stranger = (com.sfb.objects.shuttles.Fighter) named(
+                com.sfb.objects.shuttles.CataloguedFighter.of("taas"), "HAAS-1");
 
         FighterArming.Load load = FighterArming.load(box, stranger, 4);
 
@@ -237,7 +236,7 @@ public class FighterArmingTest {
 
     @Test
     public void aDestroyedBoxTakesItsReadyRackWithIt() {
-        ShuttleSpace box = new ShuttleSpace(named(new Aas(), "AAS-1"));
+        ShuttleSpace box = new ShuttleSpace(named(CataloguedFighter.of("aas"), "AAS-1"));
 
         box.destroy();
 
@@ -288,7 +287,7 @@ public class FighterArmingTest {
 
     @Test
     public void aFighterBuiltEmptyReadsEmpty() {
-        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+        com.sfb.objects.shuttles.Fighter aas = com.sfb.objects.shuttles.CataloguedFighter.of("aas");
 
         assertEquals("fighters are built empty (J4.8223)",
                 "EMPTY", FighterArming.armingState(aas));
@@ -296,7 +295,7 @@ public class FighterArmingTest {
 
     @Test
     public void aFullyLoadedFighterReadsReady() {
-        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Aas());
+        ShuttleSpace box = new ShuttleSpace(com.sfb.objects.shuttles.CataloguedFighter.of("aas"));
         FighterArming.load(box, box.getShuttle(), 8);
 
         assertEquals("both rails filled from its own ready rack",
@@ -310,7 +309,7 @@ public class FighterArmingTest {
      */
     @Test
     public void aHalfLoadedFighterReadsPartial() {
-        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Aas());
+        ShuttleSpace box = new ShuttleSpace(com.sfb.objects.shuttles.CataloguedFighter.of("aas"));
         // Two half-actions buys one drone space, so one rail of the two.
         FighterArming.load(box, box.getShuttle(), 2);
 
@@ -321,7 +320,7 @@ public class FighterArmingTest {
     /** It answers for energy-armed fighters too, not just drone ones. */
     @Test
     public void aStingerReadsTheSameWayFromItsCapacitor() {
-        ShuttleSpace box = new ShuttleSpace(new com.sfb.objects.shuttles.Stinger1());
+        ShuttleSpace box = new ShuttleSpace(com.sfb.objects.shuttles.CataloguedFighter.of("stinger1"));
         com.sfb.objects.shuttles.Shuttle stinger = box.getShuttle();
 
         assertEquals("EMPTY", FighterArming.armingState(stinger));

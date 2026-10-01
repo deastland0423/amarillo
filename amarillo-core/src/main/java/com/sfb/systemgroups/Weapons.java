@@ -13,6 +13,7 @@ import com.sfb.weapons.Phaser3;
 import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The collection of weapons on a ship.

@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Towing hazards and beam economy, implemented as prerequisites for the

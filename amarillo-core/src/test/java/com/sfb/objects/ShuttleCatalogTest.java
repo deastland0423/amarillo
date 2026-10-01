@@ -10,6 +10,7 @@ import java.io.File;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * The catalogue and the Java classes describe the same things and must not drift. The BPVs of
@@ -114,32 +115,54 @@ public class ShuttleCatalogTest {
     }
 
     /**
-     * Every catalogued type builds to a DISTINCT class.
+     * Every catalogued type builds to a craft that REPORTS that same type.
      * <p>
-     * The bpv check next door compares a built shuttle against its catalogue entry, which
-     * catches a type that builds to the wrong thing only when the two happen to differ in
-     * cost. When the TAAS was added, case "haas" was given `new Taas()` by copy-paste: every
-     * Highly Advanced Attack Shuttle in the game was quietly a Tactically Advanced one, and
-     * "taas" had no case at all and fell through to an admin shuttle. Two fighters wrong,
-     * found only because their BPVs were 8 and 9 (2026-09-27).
+     * This used to demand a distinct Java CLASS per type, and it earned its keep: when the TAAS
+     * was added, case "haas" was given {@code CataloguedFighter.of("taas")} by copy-paste, so every Highly Advanced
+     * Attack Shuttle in the game was quietly a Tactically Advanced one while "taas" had no case at
+     * all and fell through to an admin shuttle. Two fighters wrong, found only because their BPVs
+     * were 8 and 9 (2026-09-27).
+     * <p>
+     * A fighter is a catalogue ROW now, so they all share one class and distinctness is no test of
+     * anything. Identity is: a built craft carries the catalogue key it was built from. That is
+     * strictly stronger — it would have caught the original bug too, since a "haas" row building a
+     * Fighter would have reported "taas" — and it is the same key the DTO, the ready racks and the
+     * fighter lines all identify a craft by.
      */
     @Test
-    public void everyTypeBuildsToAClassOfItsOwn() {
-        java.util.Map<String, String> byClass = new java.util.LinkedHashMap<>();
-        java.util.List<String> clashes = new java.util.ArrayList<>();
+    public void everyTypeBuildsToSomethingThatKnowsWhatItIs() {
+        java.util.List<String> wrong = new java.util.ArrayList<>();
 
         for (com.sfb.objects.ShuttleCatalog.Entry e : com.sfb.objects.ShuttleCatalog.all()) {
             com.sfb.objects.shuttles.Shuttle built =
                     com.sfb.systemgroups.ShuttleBay.buildShuttle(e.type, e.type);
-            String cls = built.getClass().getSimpleName();
-            String already = byClass.put(cls, e.type);
-            if (already != null)
-                clashes.add(already + " and " + e.type + " both build a " + cls);
+            if (!e.type.equalsIgnoreCase(built.getCatalogType()))
+                wrong.add(e.type + " built a craft reporting '" + built.getCatalogType()
+                        + "' (a " + built.getClass().getSimpleName() + ")");
         }
 
-        assertTrue("two catalogued types cannot be the same class - one of them has the"
-                + " wrong case in ShuttleBay.buildShuttle: " + String.join(" | ", clashes),
-                clashes.isEmpty());
+        assertTrue("a catalogued type must build to a craft that knows it is that type: "
+                + String.join(" | ", wrong), wrong.isEmpty());
+    }
+
+    /**
+     * And the non-fighter craft keep a class each, since they hold real behaviour.
+     * <p>
+     * Named so the collapse of the fighter classes cannot quietly take these with it: an
+     * administrative shuttle, a GAS and an HTS are not fighters, and the three role craft —
+     * scatter pack, suicide shuttle, wild weasel — are seekers.
+     */
+    @Test
+    public void theNonFighterCraftStillHaveClassesOfTheirOwn() {
+        assertEquals("AdminShuttle",
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("admin", "a")
+                        .getClass().getSimpleName());
+        assertEquals("GASShuttle",
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("gas", "g")
+                        .getClass().getSimpleName());
+        assertEquals("HTSShuttle",
+                com.sfb.systemgroups.ShuttleBay.buildShuttle("hts", "h")
+                        .getClass().getSimpleName());
     }
 
     // -------------------------------------------------------------------------
@@ -165,7 +188,7 @@ public class ShuttleCatalogTest {
                 continue;
             sawFighter = true;
         }
-        assertTrue("a CV's fighters should be named AAS-n, not Aas-n", sawFighter);
+        assertTrue("a CV's fighters should be named AAS-n, not Fighter-n", sawFighter);
     }
 
     @Test
@@ -230,6 +253,6 @@ public class ShuttleCatalogTest {
     private static ShuttleCatalog.Entry entry(String name, String shortName,
             String designation) {
         return new ShuttleCatalog.Entry("probe", name, "shuttle", java.util.List.of("any"),
-                0, 0, 0, 0, 0, false, false, 0, shortName, designation);
+                0, 0, 0, 0, 0, false, false, 0, shortName, designation, null);
     }
 }

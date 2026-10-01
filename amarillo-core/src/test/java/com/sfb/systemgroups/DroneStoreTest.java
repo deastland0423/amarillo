@@ -16,7 +16,6 @@ import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
@@ -121,7 +120,7 @@ public class DroneStoreTest {
         DroneStore store = shuttles().getDroneStore();
         ShuttleSpace box = fighterBoxes().get(0);
 
-        assertTrue("an AAS box", box.getShuttle() instanceof Aas);
+        assertTrue("an AAS box", "aas".equals(box.getShuttle().getCatalogType()));
         for (Drone d : store.contents())
             assertEquals("stocked around the rails the ship actually has",
                     DroneType.TypeI, d.getDroneType());

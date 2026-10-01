@@ -5,10 +5,11 @@ import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.sfb.objects.shuttles.Das;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.weapons.FighterDisruptor;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * J4.84: the capacitor and reloading for a disruptor-armed fighter.
@@ -32,11 +33,11 @@ import com.sfb.weapons.Weapon;
 public class DisruptorCapacitorTest {
 
     private ShuttleSpace box;
-    private Das das;
+    private Fighter das;
 
     @Before
     public void seatADasInItsBox() {
-        das = new Das();
+        das = CataloguedFighter.of("das");
         das.setName("DAS-1");
         box = new ShuttleSpace(das);
     }
@@ -245,7 +246,7 @@ public class DisruptorCapacitorTest {
      */
     @Test
     public void theBoxStartsFullBecauseTheFighterStartsEmpty() {
-        ShuttleSpace fresh = new ShuttleSpace(new Das());
+        ShuttleSpace fresh = new ShuttleSpace(CataloguedFighter.of("das"));
         assertEquals("J4.886: full at the start of a scenario", 2, fresh.getCapacitorCharges());
     }
 

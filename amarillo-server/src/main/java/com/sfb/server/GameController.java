@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * REST API for game session management.
@@ -977,7 +978,16 @@ public class GameController {
                                             .needsArming(box.getShuttle())) {
                                 java.util.Map<String, Object> f = new java.util.LinkedHashMap<>();
                                 f.put("name", box.getShuttle().getName());
-                                f.put("type", box.getShuttle().getClass().getSimpleName());
+                                // Two fields, because the client needs both and they are not the
+                                // same thing. `type` is the CATALOGUE KEY it groups by — taken from
+                                // the Java class name while each fighter had one of its own, which
+                                // would now read "CataloguedFighter" for every entry. `designation`
+                                // is what the row SHOWS a player: "HAAS-E", not "haas_e".
+                                String catalogType = box.getShuttle().getCatalogType();
+                                f.put("type", catalogType);
+                                com.sfb.objects.ShuttleCatalog.Entry ce =
+                                        com.sfb.objects.ShuttleCatalog.get(catalogType);
+                                f.put("designation", ce != null ? ce.designation : catalogType);
                                 fighters.add(f);
                             }
                     s.put("fighters", fighters);

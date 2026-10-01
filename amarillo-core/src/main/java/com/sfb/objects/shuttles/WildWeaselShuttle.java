@@ -80,4 +80,10 @@ public class WildWeaselShuttle extends Shuttle {
     public boolean isManned() {
         return false;
     }
+
+    /** J3.0: an admin shuttle in this role presents as the role, not as an admin shuttle. */
+    @Override
+    public String dtoType() {
+        return "wildweasel";
+    }
 }

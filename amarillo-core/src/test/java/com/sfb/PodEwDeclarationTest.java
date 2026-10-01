@@ -7,9 +7,9 @@ import org.junit.Test;
 
 import com.sfb.objects.Ship;
 import com.sfb.objects.Squadron;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.properties.Location;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Declaring how an EW fighter splits its pod points (J4.961).
@@ -28,8 +28,8 @@ public class PodEwDeclarationTest {
     private Game game;
     private Ship carrier;
     private Ship enemy;
-    private Haas_E ewf;
-    private Haas wingman;
+    private Fighter ewf;
+    private Fighter wingman;
 
     @Before
     public void setUp() {
@@ -56,13 +56,13 @@ public class PodEwDeclarationTest {
         enemy.setActiveFireControl(true);
         game.getShips().add(enemy);
 
-        ewf = new Haas_E();
+        ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(kzinti);
         ewf.setLocation(new Location(10, 12));
         ewf.setFacing(13);
 
-        wingman = new Haas();
+        wingman = CataloguedFighter.of("haas");
         wingman.setName("HAAS-1");
         wingman.setOwner(kzinti);
         wingman.setLocation(new Location(10, 13));
@@ -169,10 +169,10 @@ public class PodEwDeclarationTest {
     /** And a fighter still in its bay has its declaration lapse too, in case it launches. */
     @Test
     public void aBayFightersDeclarationLapsesAsWell() {
-        Haas_E inBay = null;
+        Fighter inBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : carrier.getShuttles().getBays())
             for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
-                if (inBay == null && craft instanceof Haas_E found)
+                if (inBay == null && craft instanceof Fighter found)
                     inBay = found;
         if (inBay == null)
             return;      // this carrier keeps no EW fighter; nothing to prove here

@@ -165,7 +165,7 @@ public class FighterControlHandoffTest {
     public void anEwFighterInheritsFromItsOwnSquadron() {
         carrier.removeLockOn(enemy);   // so the ship cannot simply take it instead
 
-        com.sfb.objects.shuttles.Haas_E ew = new com.sfb.objects.shuttles.Haas_E();
+        com.sfb.objects.shuttles.Fighter ew = com.sfb.objects.shuttles.CataloguedFighter.of("haas_e");
         ew.setName("HAAS-E-1");
         ew.setLocation(new Location(10, 10));
         ew.setFacing(1);
@@ -198,7 +198,7 @@ public class FighterControlHandoffTest {
     public void anEwFighterInAnotherSquadronInheritsNothing() {
         carrier.removeLockOn(enemy);
 
-        com.sfb.objects.shuttles.Haas_E stranger = new com.sfb.objects.shuttles.Haas_E();
+        com.sfb.objects.shuttles.Fighter stranger = com.sfb.objects.shuttles.CataloguedFighter.of("haas_e");
         stranger.setName("HAAS-E-OTHER");
         stranger.setLocation(new Location(10, 10));
         stranger.setFacing(1);
@@ -221,7 +221,7 @@ public class FighterControlHandoffTest {
         // A wingman already in space, with a free channel and lock-on to the same target.
         // Placed directly rather than launched: a launch would spend the tunnel deck's
         // hatches (J1.58) and the landing below needs one.
-        com.sfb.objects.shuttles.Aas wingman = new com.sfb.objects.shuttles.Aas();
+        com.sfb.objects.shuttles.Fighter wingman = com.sfb.objects.shuttles.CataloguedFighter.of("aas");
         wingman.setName("AAS-WING");
         wingman.setLocation(new Location(10, 10));
         wingman.setFacing(1);

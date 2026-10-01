@@ -11,7 +11,8 @@ import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Launch tubes (J1.54) and what they will and will not pass.
@@ -31,8 +32,8 @@ public class LaunchTubeTest {
         return bay;
     }
 
-    private static Stinger1 stinger(int n) {
-        Stinger1 s = new Stinger1();
+    private static Fighter stinger(int n) {
+        Fighter s = CataloguedFighter.of("stinger1");
         s.setName("Stinger-" + n);
         return s;
     }

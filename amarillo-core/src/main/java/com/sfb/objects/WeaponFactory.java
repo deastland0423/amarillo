@@ -10,6 +10,10 @@ import com.sfb.weapons.ADD;
 import com.sfb.weapons.ADD.AddType;
 import com.sfb.weapons.Disruptor;
 import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.DroneRail;
+import com.sfb.weapons.FighterDisruptor;
+import com.sfb.weapons.FighterFusion;
+import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Fusion;
 import com.sfb.weapons.Hellbore;
 import com.sfb.weapons.Phaser1;
@@ -19,6 +23,7 @@ import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Photon;
 import com.sfb.weapons.PlasmaLauncher;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Builds a {@link Weapon} instance from a {@link WeaponSpec} recipe. Extracted
@@ -151,6 +156,42 @@ public final class WeaponFactory {
                 com.sfb.weapons.ESG esg = new com.sfb.weapons.ESG();
                 esg.setDesignator(ws.designator);
                 return esg;
+            }
+            // ---- Fighter-borne weapons (J4.8x) ----
+            // A fighter carries no reactor, so these run on CHARGES from its box rather than
+            // arming energy. They are ordinary recipes all the same: what differs is the weapon
+            // class, not the way a ship file names it.
+            case "FighterFusion": {
+                FighterFusion ff = new FighterFusion();
+                ff.setArcs(arcMask);
+                ff.setDesignator(ws.designator);
+                return ff;
+            }
+            case "FighterHellbore": {
+                FighterHellbore fh = new FighterHellbore();
+                fh.setArcs(arcMask);
+                fh.setDesignator(ws.designator);
+                return fh;
+            }
+            case "FighterDisruptor": {
+                FighterDisruptor fd = new FighterDisruptor();
+                fd.setArcs(arcMask);
+                fd.setDesignator(ws.designator);
+                return fd;
+            }
+            /*
+             * A rail is not a rack: the RAIL decides what will fit on it and what that costs
+             * (J4.231), so railType is required rather than defaulted. A rail of the wrong type
+             * silently accepts the wrong drones, which is worse than refusing to build.
+             */
+            case "DroneRail": {
+                if (ws.railType == null) {
+                    System.err.println("DroneRail " + ws.designator + " has no railType");
+                    return null;
+                }
+                DroneRail rail = new DroneRail(DroneRail.DroneRailType.valueOf(ws.railType));
+                rail.setDesignator(ws.designator);
+                return rail;
             }
             default:
                 System.err.println("Unknown weapon type: " + ws.type);

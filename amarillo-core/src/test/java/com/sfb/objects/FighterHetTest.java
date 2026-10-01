@@ -11,6 +11,8 @@ import com.sfb.Game;
 import com.sfb.Game.ActionResult;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Tests for fighter Tactical Maneuver (HET) per C6.42:
@@ -25,7 +27,7 @@ import com.sfb.samples.FederationShips;
 public class FighterHetTest {
 
     private Game game;
-    private Stinger1 fighter;
+    private Fighter fighter;
     private AdminShuttle plainShuttle;
 
     @Before
@@ -40,7 +42,7 @@ public class FighterHetTest {
         ship.setLocation(new Location(5, 5));
         game.getShips().add(ship);
 
-        fighter = new Stinger1();
+        fighter = CataloguedFighter.of("stinger1");
         fighter.setName("Stinger-1");
         fighter.setLocation(new Location(10, 10));
         fighter.setFacing(1);

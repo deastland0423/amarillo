@@ -6,7 +6,8 @@ import org.junit.Test;
 
 import com.sfb.exceptions.TargetOutOfRangeException;
 import com.sfb.exceptions.WeaponUnarmedException;
-import com.sfb.objects.shuttles.Das;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The disruptor a Kzinti DAS carries (J4.4) — a heavy weapon on a fighter, which means charges
@@ -190,7 +191,7 @@ public class FighterDisruptorTest {
 
     @Test
     public void theDasCarriesOneOfThemForwards() {
-        Das das = new Das();
+        Fighter das = CataloguedFighter.of("das");
         long disruptors = das.getWeapons().fetchAllWeapons().stream()
                 .filter(w -> w instanceof FighterDisruptor).count();
         assertEquals("one fighter disruptor", 1, disruptors);
@@ -206,7 +207,7 @@ public class FighterDisruptorTest {
     /** The DAS is a fighter like any other: speed, hull and BPV as catalogued. */
     @Test
     public void theDasIsBuiltToItsCatalogueEntry() {
-        Das das = new Das();
+        Fighter das = CataloguedFighter.of("das");
         assertEquals(10, das.getMaxSpeed());
         assertEquals(10, das.getHull());
         assertEquals(10, das.getBpv());

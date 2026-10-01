@@ -88,7 +88,7 @@ public class FighterReadinessChoiceTest {
 
     private static String firstOfType(Ship ship, String type) {
         for (Shuttle f : fighters(ship))
-            if (f.getClass().getSimpleName().equalsIgnoreCase(type))
+            if (type.equalsIgnoreCase(f.getCatalogType()))
                 return f.getName();
         throw new IllegalStateException("no " + type + " aboard");
     }
@@ -98,11 +98,11 @@ public class FighterReadinessChoiceTest {
         Ship rn = rangerRefit();
 
         long stinger2 = fighters(rn).stream()
-                .filter(f -> f.getClass().getSimpleName().equals("Stinger2")).count();
+                .filter(f -> "stinger2".equals(f.getCatalogType())).count();
         long stingerH = fighters(rn).stream()
-                .filter(f -> f.getClass().getSimpleName().equals("StingerH")).count();
+                .filter(f -> "stingerh".equals(f.getCatalogType())).count();
         long stingerE = fighters(rn).stream()
-                .filter(f -> f.getClass().getSimpleName().equals("Stinger_E")).count();
+                .filter(f -> "stinger_e".equals(f.getCatalogType())).count();
 
         assertEquals("six fusion fighters", 6, stinger2);
         assertEquals("two hellbore ones", 2, stingerH);
@@ -119,7 +119,7 @@ public class FighterReadinessChoiceTest {
     public void theEwFighterNeedsNoArmingAndSoIsNeverAChoice() throws Exception {
         Ship rn = rangerRefit();
         Shuttle ewf = fighters(rn).stream()
-                .filter(f -> f.getClass().getSimpleName().equals("Stinger_E"))
+                .filter(f -> "stinger_e".equals(f.getCatalogType()))
                 .findFirst().orElseThrow();
 
         assertFalse("nothing for a deck crew to do", FighterArming.needsArming(ewf));
@@ -174,7 +174,7 @@ public class FighterReadinessChoiceTest {
     public void theCaptainCanSayWhichTwoAreHot() throws Exception {
         Ship rn = rangerRefit();
         ScenarioLoader.applyWeaponStatus(rn, 1);
-        String hellbore = firstOfType(rn, "StingerH");
+        String hellbore = firstOfType(rn, "stingerh");
         String lastFusion = fighters(rn).get(fighters(rn).size() - 1).getName();
 
         CoiLoadout loadout = new CoiLoadout();
@@ -195,7 +195,7 @@ public class FighterReadinessChoiceTest {
         // does not then name. Since the Stinger-E is skipped, the status arms the two
         // Stinger-Hs — so naming the first leaves the second as the one that gives its
         // charges back.
-        String chosen = firstOfType(rn, "StingerH");
+        String chosen = firstOfType(rn, "stingerh");
         Shuttle passedOver = fighters(rn).stream()
                 .filter(FighterArming::needsArming)
                 .filter(f -> !f.getName().equals(chosen))
@@ -237,7 +237,7 @@ public class FighterReadinessChoiceTest {
         Ship rn = rangerRefit();
         rn.getCrew().killDeckCrews(rn.getCrew().getDeckCrews() - 2);   // two crews, two actions
         ScenarioLoader.applyWeaponStatus(rn, 2);
-        String hellbore = firstOfType(rn, "StingerH");
+        String hellbore = firstOfType(rn, "stingerh");
 
         CoiLoadout loadout = new CoiLoadout();
         loadout.armedFighters = List.of(hellbore);
@@ -258,7 +258,7 @@ public class FighterReadinessChoiceTest {
         assertEquals("S4.13 arms everything that can be armed", 8, armedNames(rn).size());
 
         CoiLoadout loadout = new CoiLoadout();
-        loadout.armedFighters = List.of(firstOfType(rn, "StingerH"));
+        loadout.armedFighters = List.of(firstOfType(rn, "stingerh"));
         ScenarioLoader.applyCoi(rn, loadout, scenario());
 
         assertEquals("and a preference cannot disarm the rest of them",

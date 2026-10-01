@@ -41,7 +41,7 @@ public class KzintiCvaSquadronsTest {
         Map<String, Integer> tally = new LinkedHashMap<>();
         for (Shuttle s : cva.getShuttles().getAllShuttles())
             if (s instanceof Fighter)
-                tally.merge(s.getClass().getSimpleName(), 1, Integer::sum);
+                tally.merge(s.getCatalogType(), 1, Integer::sum);
         return tally;
     }
 
@@ -58,7 +58,7 @@ public class KzintiCvaSquadronsTest {
      */
     @Test
     public void itsComplementResolvesToItsOwnEra() {
-        assertEquals(Map.of("Haas", 16, "Das", 6, "Haas_E", 2), fighterTally());
+        assertEquals(Map.of("haas", 16, "das", 6, "haas_e", 2), fighterTally());
     }
 
     @Test

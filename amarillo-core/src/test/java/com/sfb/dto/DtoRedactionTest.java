@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Per-viewer redaction of hidden information (2026-07-13 ruling): enemy
@@ -486,7 +487,7 @@ public class DtoRedactionTest {
     public void aFighterIsFlaggedAsOne() {
         // The type label used to be inferred from "has weapons", which stops working the
         // moment every shuttle reports its phaser.
-        com.sfb.objects.shuttles.Stinger1 f = new com.sfb.objects.shuttles.Stinger1();
+        com.sfb.objects.shuttles.Fighter f = com.sfb.objects.shuttles.CataloguedFighter.of("stinger1");
         f.setName("Alpha 1");
         f.setLocation(new Location(13, 13));
         f.setOwner(fedPlayer);

@@ -6,10 +6,11 @@ import org.junit.Test;
 
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger2;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A deck crew mending a fighter, one damage point an action (J4.818).
@@ -22,9 +23,9 @@ import com.sfb.weapons.Weapon;
 public class FighterRepairTest {
 
     /** A Stinger-2 damaged to within one point of its crippling threshold, and past it. */
-    private static Stinger2 hurt(int damage) {
-        Stinger2 s = new Stinger2();
-        s.setName("Stinger2-1");
+    private static Fighter hurt(int damage) {
+        Fighter s = CataloguedFighter.of("stinger2");
+        s.setName("Fighter-1");
         s.setCurrentHull(s.getHull() - damage);
         if (s.shouldCripple())
             s.applyCripplingEffects();
@@ -48,7 +49,7 @@ public class FighterRepairTest {
 
     @Test
     public void anActionMendsOnePoint() {
-        Stinger2 s = hurt(3);
+        Fighter s = hurt(3);
         ShuttleSpace box = new ShuttleSpace(s);
         assertFalse("three points is not yet crippling", s.isCrippled());
 
@@ -61,7 +62,7 @@ public class FighterRepairTest {
 
     @Test
     public void halfAnActionMendsNothing() {
-        Stinger2 s = hurt(3);
+        Fighter s = hurt(3);
         ShuttleSpace box = new ShuttleSpace(s);
 
         FighterArming.Load half = FighterArming.repair(box, s, 1);
@@ -73,7 +74,7 @@ public class FighterRepairTest {
 
     @Test
     public void twoCrewsMendTwoPoints() {
-        Stinger2 s = hurt(4);
+        Fighter s = hurt(4);
         ShuttleSpace box = new ShuttleSpace(s);
 
         FighterArming.Load both = FighterArming.repair(box, s, 4);   // two crews, two actions
@@ -84,7 +85,7 @@ public class FighterRepairTest {
 
     @Test
     public void onePointOfRepairCanUncrippleAFighter() {
-        Stinger2 s = hurt(7);   // a Stinger-2 is crippled at 7 damage
+        Fighter s = hurt(7);   // a Stinger-2 is crippled at 7 damage
         assertTrue("crippled", s.isCrippled());
         assertTrue("its gatling phaser is down to one shot (J1.3321)",
                 phaserOf(s).isReducedToPhaserThree());
@@ -103,7 +104,7 @@ public class FighterRepairTest {
 
     @Test
     public void repairGivesBackTheWeaponsButNotTheChargesTheCripplingSpent() {
-        Stinger2 s = hurt(7);
+        Fighter s = hurt(7);
         ShuttleSpace box = new ShuttleSpace(s);
 
         FighterArming.repair(box, s, 2);
@@ -117,8 +118,8 @@ public class FighterRepairTest {
 
     @Test
     public void aFighterAtFullHullHasNothingToRepair() {
-        Stinger2 s = new Stinger2();
-        s.setName("Stinger2-1");
+        Fighter s = CataloguedFighter.of("stinger2");
+        s.setName("Fighter-1");
         ShuttleSpace box = new ShuttleSpace(s);
 
         assertNull(FighterArming.repair(box, s, 4).note());

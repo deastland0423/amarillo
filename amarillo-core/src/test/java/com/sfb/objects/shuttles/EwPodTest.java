@@ -8,6 +8,8 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Electronic warfare pods (J4.96).
@@ -23,14 +25,14 @@ import com.sfb.weapons.Weapon;
  */
 public class EwPodTest {
 
-    private static Aas ordinary() {
-        Aas a = new Aas();
+    private static Fighter ordinary() {
+        Fighter a = CataloguedFighter.of("aas");
         a.setName("AAS-1");
         return a;
     }
 
-    private static Haas_E ewFighter() {
-        Haas_E e = new Haas_E();
+    private static Fighter ewFighter() {
+        Fighter e = CataloguedFighter.of("haas_e");
         e.setName("HAAS-E-1");
         return e;
     }
@@ -49,7 +51,7 @@ public class EwPodTest {
 
     @Test
     public void theEwFighterCarriesItsPodsOnItsRails() {
-        Haas_E ew = ewFighter();
+        Fighter ew = ewFighter();
 
         assertEquals("the same two rails as a standard HAAS", 2, railsOf(ew).size());
         assertEquals("both carrying pods, as the SSD shows", 2, ew.railEwPods());
@@ -59,7 +61,7 @@ public class EwPodTest {
 
     @Test
     public void aPodOnARailMeansNoDroneOnIt() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         DroneRail rail = railsOf(aas).get(0);
         rail.loadDrone(new Drone(DroneType.TypeI));
 
@@ -72,7 +74,7 @@ public class EwPodTest {
 
     @Test
     public void aRailWithAPodRefusesADrone() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         DroneRail rail = railsOf(aas).get(0);
         rail.fitEwPod();
 
@@ -86,7 +88,7 @@ public class EwPodTest {
 
     @Test
     public void takingThePodOffFreesTheRailAgain() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         DroneRail rail = railsOf(aas).get(0);
         rail.fitEwPod();
 
@@ -102,7 +104,7 @@ public class EwPodTest {
 
     @Test
     public void anOrdinaryFighterTakesTwoPodsAndNoMore() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
 
         assertEquals(2, aas.maxEwPods());
         assertEquals("asking for four gets two", 2, aas.fitEwPods(4));
@@ -115,7 +117,7 @@ public class EwPodTest {
      */
     @Test
     public void aTwoRailEwFighterReachesFourOnlyWithExtras() {
-        Haas_E ew = ewFighter();
+        Fighter ew = ewFighter();
 
         assertEquals(4, ew.maxEwPods());
         assertEquals("only two rails to hang them on", 2, ew.railEwPods());
@@ -132,7 +134,7 @@ public class EwPodTest {
 
     @Test
     public void eachPodIsTwoPoints() {
-        Haas_E ew = ewFighter();
+        Fighter ew = ewFighter();
         ew.setExtraEwPods(2);   // four pods, eight points
 
         assertTrue("all eight as ECM", ew.allocatePodEw(8, 0));
@@ -146,7 +148,7 @@ public class EwPodTest {
 
     @Test
     public void anAllocationMustSpendExactlyWhatThePodsMake() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         aas.fitEwPods(2);   // four points
 
         assertFalse("three is not four", aas.allocatePodEw(2, 1));
@@ -160,21 +162,21 @@ public class EwPodTest {
 
     @Test
     public void aPodOnARailIsFreeButAnExtraCostsSpeed() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         int clean = aas.effectiveMaxSpeed();
 
         aas.fitEwPods(2);
         assertEquals("pods that replaced drones are free (J4.962)",
                 clean, aas.effectiveMaxSpeed());
 
-        Aas other = ordinary();
+        Fighter other = ordinary();
         other.setExtraEwPods(2);
         assertEquals("a point each (J4.9621)", clean - 2, other.effectiveMaxSpeed());
     }
 
     @Test
     public void droppingAnExtraPodGivesTheSpeedBackAndLosesThePod() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         int clean = aas.effectiveMaxSpeed();
         aas.setExtraEwPods(1);
         assertEquals(clean - 1, aas.effectiveMaxSpeed());
@@ -192,7 +194,7 @@ public class EwPodTest {
 
     @Test
     public void podsCanBeSwitchedOff() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         aas.fitEwPods(2);
         aas.allocatePodEw(4, 0);
         assertEquals(4, aas.getPodEcm());
@@ -209,7 +211,7 @@ public class EwPodTest {
      */
     @Test
     public void cripplingTakesThePodsAndLeavesTheBuiltIn() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
         aas.fitEwPods(2);
         aas.allocatePodEw(4, 0);
         assertEquals(6, aas.totalOwnEcm());
@@ -228,7 +230,7 @@ public class EwPodTest {
 
     @Test
     public void aFighterCannotUseMoreThanSixOfEither() {
-        Haas_E ew = ewFighter();
+        Fighter ew = ewFighter();
         ew.setExtraEwPods(2);
         ew.allocatePodEw(8, 0);   // eight pod points, all ECM
 
@@ -239,7 +241,7 @@ public class EwPodTest {
 
     @Test
     public void sixEachNotSixTotal() {
-        Haas_E ew = ewFighter();
+        Fighter ew = ewFighter();
         ew.setExtraEwPods(2);
         ew.allocatePodEw(4, 4);
 
@@ -249,7 +251,7 @@ public class EwPodTest {
 
     @Test
     public void aFighterWithNoPodsIsJustItsBuiltInTwo() {
-        Aas aas = ordinary();
+        Fighter aas = ordinary();
 
         assertEquals(0, aas.getEwPods());
         assertEquals(2, aas.totalOwnEcm());
@@ -297,7 +299,7 @@ public class EwPodTest {
     /** A TAAS has two standard rails and two light: only the standard pair take pods. */
     @Test
     public void aMixedRailFighterHangsPodsOnItsStandardRailsOnly() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
         taas.setName("TAAS-1");
 
         assertEquals("four rails in all", 4, railsOf(taas).size());
@@ -364,12 +366,12 @@ public class EwPodTest {
      */
     @Test
     public void aPoddedRailGetsNoReadyRackReload() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         assertEquals("both rails podded", 2, ewf.getEwPods());
         assertNull("nothing left to reload",
                 com.sfb.systemgroups.ReadyRack.forFighter(ewf));
 
-        Haas plain = new Haas();
+        Fighter plain = CataloguedFighter.of("haas");
         com.sfb.systemgroups.ReadyRack rack =
                 com.sfb.systemgroups.ReadyRack.forFighter(plain);
         assertNotNull("the drone-armed model still gets one", rack);
@@ -379,7 +381,7 @@ public class EwPodTest {
     /** Take a pod off and the rail wants its reload back. */
     @Test
     public void clearingThePodRestoresTheReload() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         for (com.sfb.weapons.Weapon w : ewf.getWeapons().fetchAllWeapons())
             if (w instanceof DroneRail rail)
                 rail.clearEwPod();
@@ -401,7 +403,7 @@ public class EwPodTest {
      */
     @Test
     public void aStingerEsPodsArePartOfTheAirframe() {
-        Stinger_E ewf = new Stinger_E();
+        Fighter ewf = CataloguedFighter.of("stinger_e");
 
         assertEquals("two, per the SSD", 2, ewf.getEwPods());
         assertEquals("permanently fitted (J4.964)", 2, ewf.getFixedEwPods());
@@ -417,9 +419,9 @@ public class EwPodTest {
      */
     @Test
     public void aStingerEIsNoSlowerThanTheStingerItDerivesFrom() {
-        assertEquals(new Stinger2().effectiveMaxSpeed(),
-                new Stinger_E().effectiveMaxSpeed());
-        assertEquals(15, new Stinger_E().effectiveMaxSpeed());
+        assertEquals(CataloguedFighter.of("stinger2").effectiveMaxSpeed(),
+                CataloguedFighter.of("stinger_e").effectiveMaxSpeed());
+        assertEquals(15, CataloguedFighter.of("stinger_e").effectiveMaxSpeed());
     }
 
     /**
@@ -430,7 +432,7 @@ public class EwPodTest {
      */
     @Test
     public void railMountingCannotWorkOnAFighterWithNoRails() {
-        Stinger_E ewf = new Stinger_E();
+        Fighter ewf = CataloguedFighter.of("stinger_e");
         assertTrue("no rails to hang anything on", railsOf(ewf).isEmpty());
         assertEquals("so the J4.962 route fits none", 0, ewf.fitEwPods(2));
         assertEquals("and the permanent pair is untouched", 2, ewf.getEwPods());
@@ -439,7 +441,7 @@ public class EwPodTest {
     /** J4.961: two pods, four points — all of them lendable, since none are built-in EW. */
     @Test
     public void aStingerEGeneratesFourPodPoints() {
-        Stinger_E ewf = new Stinger_E();
+        Fighter ewf = CataloguedFighter.of("stinger_e");
 
         assertEquals(4, ewf.getEwPods() * Fighter.POINTS_PER_EW_POD);
         assertEquals("split evenly until declared otherwise (J4.961)", 2, ewf.getPodEcm());
@@ -454,7 +456,7 @@ public class EwPodTest {
      */
     @Test
     public void cripplingTakesEvenPermanentPods() {
-        Stinger_E ewf = new Stinger_E();
+        Fighter ewf = CataloguedFighter.of("stinger_e");
         ewf.applyCripplingEffects();                       // J1.33
 
         assertEquals("the pods stop", 0, ewf.getPodEcm());
@@ -469,7 +471,7 @@ public class EwPodTest {
      */
     @Test
     public void theFixedPairLeavesRoomForTwoExtras() {
-        Stinger_E ewf = new Stinger_E();
+        Fighter ewf = CataloguedFighter.of("stinger_e");
         int clean = ewf.effectiveMaxSpeed();
 
         assertEquals(2, ewf.setExtraEwPods(2));
@@ -482,7 +484,7 @@ public class EwPodTest {
     /** No rails, no drones, so no reload behind it either (J4.822). */
     @Test
     public void aStingerEsBoxStocksNoDrones() {
-        assertNull(com.sfb.systemgroups.ReadyRack.forFighter(new Stinger_E()));
+        assertNull(com.sfb.systemgroups.ReadyRack.forFighter(CataloguedFighter.of("stinger_e")));
     }
 
     /**
@@ -492,15 +494,15 @@ public class EwPodTest {
      */
     @Test
     public void aFighterWithNothingToArmReadsReady() {
-        assertEquals("READY", com.sfb.systemgroups.FighterArming.armingState(new Stinger_E()));
+        assertEquals("READY", com.sfb.systemgroups.FighterArming.armingState(CataloguedFighter.of("stinger_e")));
         assertFalse("and still gives a deck crew no work",
-                com.sfb.systemgroups.FighterArming.needsArming(new Stinger_E()));
+                com.sfb.systemgroups.FighterArming.needsArming(CataloguedFighter.of("stinger_e")));
     }
 
     /** An empty drone fighter is a different thing entirely, and must keep saying so. */
     @Test
     public void anUnarmedDroneFighterStillReadsEmpty() {
-        assertEquals("EMPTY", com.sfb.systemgroups.FighterArming.armingState(new Haas()));
+        assertEquals("EMPTY", com.sfb.systemgroups.FighterArming.armingState(CataloguedFighter.of("haas")));
     }
 
     /**
@@ -526,7 +528,7 @@ public class EwPodTest {
      */
     @Test
     public void armingAHaasEDoesNotThrow() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         assertEquals("both rails carry pods", 2, ewf.railEwPods());
 
         com.sfb.systemgroups.FighterArming.armFully(ewf);   // must not throw
@@ -543,7 +545,7 @@ public class EwPodTest {
      */
     @Test
     public void aFullyPoddedHaasEHasNothingToArm() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
 
         assertEquals(0, com.sfb.systemgroups.FighterArming.halfActionsToFullyArm(ewf));
         assertFalse(com.sfb.systemgroups.FighterArming.needsArming(ewf));
@@ -554,7 +556,7 @@ public class EwPodTest {
     /** A rail freed of its pod is a rail to arm again, and the figures follow. */
     @Test
     public void clearingAPodMakesTheRailArmableAgain() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         for (com.sfb.weapons.Weapon w : ewf.getWeapons().fetchAllWeapons())
             if (w instanceof DroneRail rail)
                 rail.clearEwPod();
@@ -568,7 +570,7 @@ public class EwPodTest {
     /** A partly podded fighter arms the rails it still has free, and only those. */
     @Test
     public void onlyTheUnpoddedRailsGetDrones() {
-        Haas fighter = new Haas();
+        Fighter fighter = CataloguedFighter.of("haas");
         railsOf(fighter).get(0).fitEwPod();
 
         assertEquals("one rail of two is work", 1, fighter.getEwPods());

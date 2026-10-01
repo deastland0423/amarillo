@@ -153,7 +153,7 @@ public class LaunchAnonymityTest {
     public void aFighterKeepsItsOwnName() {
         // Deliberately different: a fighter is visibly a fighter, so anonymising it would
         // only make a player's own squadron harder to tell apart for no gain.
-        com.sfb.objects.shuttles.Stinger1 fighter = new com.sfb.objects.shuttles.Stinger1();
+        com.sfb.objects.shuttles.Fighter fighter = com.sfb.objects.shuttles.CataloguedFighter.of("stinger1");
         fighter.setName("Alpha 1");
         putInBay(fighter);
         readyToLaunch();

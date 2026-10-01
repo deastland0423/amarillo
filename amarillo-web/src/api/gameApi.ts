@@ -340,7 +340,11 @@ export interface CoiShipData {
   deckCrews?:          number;
   extraDeckCrewCost?:  number;
   /** S4.10-S4.12: the fighters aboard, and how many may start ready (-1 = a crew budget). */
-  fighters?:           { name: string; type: string }[];
+  /**
+   * Fighters the deck crews could arm (S4.10-S4.12). `type` is the catalogue KEY, used to tell
+   * whether a squadron is mixed; `designation` is what to SHOW — "HAAS-E", not "haas_e".
+   */
+  fighters?:           { name: string; type: string; designation?: string }[];
   maxArmedFighters?:   number;
   maxDroneSpeed:       number | null;
   heavyWeapons:        CoiHeavyWeapon[];

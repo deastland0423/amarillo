@@ -123,4 +123,10 @@ public class SuicideShuttle extends Shuttle implements Seeker {
     public String specialRole() {
         return "suicide shuttle";
     }
+
+    /** J2.0: an admin shuttle in this role presents as the role, not as an admin shuttle. */
+    @Override
+    public String dtoType() {
+        return "suicide";
+    }
 }

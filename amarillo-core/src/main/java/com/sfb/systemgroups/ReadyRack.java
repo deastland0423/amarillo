@@ -79,7 +79,12 @@ public class ReadyRack {
                 stock.add(rail.getDesignDrone());
         if (stock.isEmpty())
             return null;
-        return new ReadyRack(fighter.getClass().getSimpleName(), stock);
+        // Keyed on the CATALOGUE type, not the Java class name. J4.8222 makes a ready rack
+        // serve one kind of fighter and no other, and the class name only ever stood in for
+        // "kind" because each fighter happened to have a class of its own. Now that a fighter is
+        // a catalogue row they share one class, and a rack keyed on the class name would serve
+        // EVERY fighter — the type-specific rule silently becoming type-agnostic.
+        return new ReadyRack(fighter.getCatalogType(), stock);
     }
 
     public String getServesFighterType() { return servesFighterType; }
@@ -94,7 +99,8 @@ public class ReadyRack {
 
     /** J4.8222: this rack services one kind of fighter and no other. */
     public boolean serves(Shuttle fighter) {
-        return fighter != null && servesFighterType.equals(fighter.getClass().getSimpleName());
+        return fighter != null && servesFighterType != null
+                && servesFighterType.equals(fighter.getCatalogType());
     }
 
     /** Take one drone out to load onto the fighter, or null if the rack is empty. */

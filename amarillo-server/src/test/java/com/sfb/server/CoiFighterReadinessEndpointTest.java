@@ -87,7 +87,7 @@ class CoiFighterReadinessEndpointTest {
         List<String> types = fightersOffered().stream()
                 .map(f -> String.valueOf(f.get("type"))).toList();
 
-        assertFalse(types.contains("Stinger_E"),
+        assertFalse(types.contains("stinger_e"),
                 "a Stinger-E has nothing to arm and must not be offered: " + types);
     }
 
@@ -97,8 +97,8 @@ class CoiFighterReadinessEndpointTest {
                 .map(f -> String.valueOf(f.get("type"))).toList();
 
         assertEquals(8, types.size(), "six Stinger-2s and two Stinger-Hs: " + types);
-        assertEquals(6, types.stream().filter("Stinger2"::equals).count());
-        assertEquals(2, types.stream().filter("StingerH"::equals).count());
+        assertEquals(6, types.stream().filter("stinger2"::equals).count());
+        assertEquals(2, types.stream().filter("stingerh"::equals).count());
     }
 
     /**
@@ -120,9 +120,9 @@ class CoiFighterReadinessEndpointTest {
     void theKzintiHaasEIsNotOfferedEither() {
         List<String> types = typesOffered(cvsCoi());
 
-        assertFalse(types.contains("Haas_E"),
+        assertFalse(types.contains("haas_e"),
                 "a HAAS-E has pods on both rails and nothing to arm: " + types);
-        assertEquals(11, types.stream().filter("Haas"::equals).count(),
+        assertEquals(11, types.stream().filter("haas"::equals).count(),
                 "its eleven drone-armed sisters are still offered: " + types);
     }
 }

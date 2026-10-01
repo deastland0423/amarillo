@@ -4,8 +4,6 @@ import com.sfb.Game;
 import com.sfb.Player;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Squadron;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.properties.Location;
 import com.sfb.samples.FederationShips;
 import com.sfb.samples.KzintiShips;
@@ -15,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The electronic warfare a fire preview shows, when either end of the shot is a fighter.
@@ -32,8 +32,8 @@ class FighterFireEwPreviewTest {
     private Game game;
     private String gameId;
     private String host;
-    private Haas_E ewf;
-    private Haas fighter;
+    private Fighter ewf;
+    private Fighter fighter;
     private Ship enemy;
 
     @BeforeEach
@@ -60,12 +60,12 @@ class FighterFireEwPreviewTest {
         enemy.setActiveFireControl(true);
         game.getShips().add(enemy);
 
-        ewf = new Haas_E();
+        ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setLocation(new Location(10, 11));
         ewf.setFacing(13);
 
-        fighter = new Haas();
+        fighter = CataloguedFighter.of("haas");
         fighter.setName("HAAS-1");
         fighter.setLocation(new Location(10, 12));
         fighter.setFacing(13);

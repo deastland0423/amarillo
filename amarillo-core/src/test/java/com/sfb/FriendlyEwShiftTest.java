@@ -3,7 +3,6 @@ package com.sfb;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
 import com.sfb.objects.shuttles.AdminShuttle;
-import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
 import com.sfb.samples.FederationShips;
@@ -12,6 +11,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * D6.3146 — which ECM sources count when a D6.37 system (tractor, transporter, SFG) is
@@ -115,7 +116,7 @@ public class FriendlyEwShiftTest {
 
     @Test
     public void aFriendlyFightersBuiltInEcmIsIgnored() {
-        Stinger1 f = new Stinger1();   // two points built in (J4.47, D6.3142)
+        Fighter f = CataloguedFighter.of("stinger1");   // two points built in (J4.47, D6.3142)
         f.setName("Alpha 1");
         f.setOwner(klingon);
         f.setLocation(new Location(10, 10));
@@ -162,7 +163,7 @@ public class FriendlyEwShiftTest {
 
     @Test
     public void anEnemyFightersBuiltInEcmCounts() {
-        Stinger1 f = new Stinger1();   // J4.47: two points built in
+        Fighter f = CataloguedFighter.of("stinger1");   // J4.47: two points built in
         f.setName("Scratch One");
         f.setOwner(federation);
         f.setLocation(new Location(10, 10));

@@ -262,7 +262,7 @@ public class FighterLineTest {
     private List<String> fighterClassNames(ShuttleBay bay) {
         return bay.getInventory().stream()
                 .filter(s -> s instanceof Fighter)
-                .map(s -> s.getClass().getSimpleName())
+                .map(Shuttle::getCatalogType)
                 .collect(Collectors.toList());
     }
 
@@ -274,8 +274,8 @@ public class FighterLineTest {
         assertEquals("bay size is unchanged", 15, bay.getTotalSpaces());
         List<String> fighters = fighterClassNames(bay);
         assertEquals(12, fighters.size());
-        assertEquals(11, fighters.stream().filter("Haas"::equals).count());
-        assertEquals(1, fighters.stream().filter("Haas_E"::equals).count());
+        assertEquals(11, fighters.stream().filter("haas"::equals).count());
+        assertEquals(1, fighters.stream().filter("haas_e"::equals).count());
 
         long admins = bay.getInventory().stream()
                 .filter(s -> !(s instanceof Fighter)).count();
@@ -297,9 +297,9 @@ public class FighterLineTest {
         assertEquals("still 15 spaces, not 27", 15, bay.getTotalSpaces());
         List<String> fighters = fighterClassNames(bay);
         assertEquals(12, fighters.size());
-        assertEquals("no AAS left behind", 0, fighters.stream().filter("Aas"::equals).count());
-        assertEquals(11, fighters.stream().filter("Tadsc"::equals).count());
-        assertEquals(1, fighters.stream().filter("Tadsc_E"::equals).count());
+        assertEquals("no AAS left behind", 0, fighters.stream().filter("aas"::equals).count());
+        assertEquals(11, fighters.stream().filter("tadsc"::equals).count());
+        assertEquals(1, fighters.stream().filter("tadsc_e"::equals).count());
     }
 
     @Test

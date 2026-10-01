@@ -8,10 +8,11 @@ import org.junit.Test;
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.properties.Location;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A drone-armed fighter putting its own drones on the map (J1.31, J4.24).
@@ -28,7 +29,7 @@ public class FighterDroneLaunchTest {
 
     private Game game;
     private Ship enemy;
-    private Aas aas;
+    private Fighter aas;
 
     @Before
     public void setUp() {
@@ -47,7 +48,7 @@ public class FighterDroneLaunchTest {
         enemy.setOwner(fed);
         game.getShips().add(enemy);
 
-        aas = new Aas();
+        aas = CataloguedFighter.of("aas");
         aas.setName("AAS-1");
         aas.setLocation(new Location(10, 10));
         aas.setFacing(1);
@@ -231,10 +232,12 @@ public class FighterDroneLaunchTest {
         g.startTurn();   // the one lock-on sweep of the turn happens HERE, bay still shut
 
         com.sfb.systemgroups.ShuttleBay bay = carrier.getShuttles().getBays().get(0);
-        com.sfb.objects.shuttles.Shuttle craft = null;
+        // By catalogue type, not by class: a fighter is a catalogue row now and they share one.
+        com.sfb.objects.shuttles.Fighter craft = null;
         for (com.sfb.objects.shuttles.Shuttle sh : bay.getInventory())
-            if (craft == null && sh instanceof Aas)
-                craft = sh;
+            if (craft == null && "aas".equals(sh.getCatalogType())
+                    && sh instanceof com.sfb.objects.shuttles.Fighter f)
+                craft = f;
         assertNotNull("fixture needs a fighter in the bay", craft);
 
         while (g.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
@@ -243,9 +246,8 @@ public class FighterDroneLaunchTest {
         Game.ActionResult launched = g.launchShuttle(carrier, bay, craft, 8, 1);
         assertTrue(launched.getMessage(), launched.isSuccess());
 
-        Aas flier = (Aas) craft;
         assertTrue("it must hold a lock-on the moment it is on the map, not next turn",
-                flier.hasLockOn(victim));
+                craft.hasLockOn(victim));
     }
 
     /**

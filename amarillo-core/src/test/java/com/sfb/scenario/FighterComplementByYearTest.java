@@ -67,7 +67,7 @@ public class FighterComplementByYearTest {
         Map<String, Integer> tally = new LinkedHashMap<>();
         for (Shuttle s : ship.getShuttles().getAllShuttles())
             if (s instanceof Fighter)
-                tally.merge(s.getClass().getSimpleName(), 1, Integer::sum);
+                tally.merge(s.getCatalogType(), 1, Integer::sum);
         return tally;
     }
 
@@ -75,15 +75,15 @@ public class FighterComplementByYearTest {
     @Test
     public void theKzintiCvsReEquipsWithTheYear() {
         assertEquals("Y170 — the year it entered service",
-                Map.of("Aas", 11, "Aas_E", 1), fightersOf(carrier("Kzinti", "CVS", 170)));
+                Map.of("aas", 11, "aas_e", 1), fightersOf(carrier("Kzinti", "CVS", 170)));
         assertEquals("Y173 — HAAS",
-                Map.of("Haas", 11, "Haas_E", 1), fightersOf(carrier("Kzinti", "CVS", 173)));
+                Map.of("haas", 11, "haas_e", 1), fightersOf(carrier("Kzinti", "CVS", 173)));
         assertEquals("Y177 — TAAS",
-                Map.of("Taas", 11, "Taas_E", 1), fightersOf(carrier("Kzinti", "CVS", 177)));
+                Map.of("taas", 11, "taas_e", 1), fightersOf(carrier("Kzinti", "CVS", 177)));
         assertEquals("Y180 — TADS",
-                Map.of("Tads", 11, "Tads_E", 1), fightersOf(carrier("Kzinti", "CVS", 180)));
+                Map.of("tads", 11, "tads_e", 1), fightersOf(carrier("Kzinti", "CVS", 180)));
         assertEquals("Y183 — TADSC",
-                Map.of("Tadsc", 11, "Tadsc_E", 1), fightersOf(carrier("Kzinti", "CVS", 183)));
+                Map.of("tadsc", 11, "tadsc_e", 1), fightersOf(carrier("Kzinti", "CVS", 183)));
     }
 
     @Test
@@ -100,21 +100,21 @@ public class FighterComplementByYearTest {
 
     @Test
     public void theHydranRnPlusGetsItsMixedComplement() {
-        assertEquals(Map.of("Stinger2", 6, "StingerH", 2, "Stinger_E", 1),
+        assertEquals(Map.of("stinger2", 6, "stingerh", 2, "stinger_e", 1),
                 fightersOf(carrier("Hydran", "RN+", 170)));
     }
 
     /** The fallback, through the loader: before the Stinger-E, all nine are Stinger-1s. */
     @Test
     public void theHydranRnFliesStingerOnesInItsOwnEra() {
-        assertEquals(Map.of("Stinger1", 9), fightersOf(carrier("Hydran", "RN", 134)));
+        assertEquals(Map.of("stinger1", 9), fightersOf(carrier("Hydran", "RN", 134)));
     }
 
     @Test
     public void aCarrierWithNoEwFighterStillGetsNone() {
         // The CVE carries six fighters — under J4.463's eight, so no EW fighter.
         Map<String, Integer> cve = fightersOf(carrier("Kzinti", "CVE", 170));
-        assertEquals(Map.of("Aas", 6), cve);
+        assertEquals(Map.of("aas", 6), cve);
     }
 
     /**

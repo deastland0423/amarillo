@@ -252,7 +252,7 @@ public final class FighterArming {
             return Load.NOTHING;
         if (!rack.serves(fighter))
             return new Load(0, 0, fighter.getName() + ": this box's ready rack services "
-                    + rack.getServesFighterType() + ", not " + fighter.getClass().getSimpleName()
+                    + rack.getServesFighterType() + ", not " + fighter.getCatalogType()
                     + " (J4.8222)");
 
         int budget = halfActionBudget;

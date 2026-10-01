@@ -8,6 +8,8 @@ import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
 import com.sfb.objects.Ship;
 import com.sfb.properties.Location;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * How many drones a fighter may let go, and how close together (J4.24, J4.241, J4.242).
@@ -47,12 +49,12 @@ public class DroneLaunchRateTest {
 
     @Test
     public void theFirstDroneOfATurnIsFree() {
-        assertNull(new Aas().droneLaunchRefusal(target("A", 11), standard(), 5));
+        assertNull(CataloguedFighter.of("aas").droneLaunchRefusal(target("A", 11), standard(), 5));
     }
 
     @Test
     public void aSecondStandardDroneAtTheSameTargetIsStillRefused() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         Ship t = target("A", 11);
         aas.recordDroneFired(t, standard(), 5);
 
@@ -68,7 +70,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aDogfightDroneAtTheSameTargetBuysTheSecondLaunch() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         Ship t = target("A", 11);
         aas.recordDroneFired(t, standard(), 5);
 
@@ -78,7 +80,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void itCountsIfTheFirstOneWasTheDogfightDrone() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         Ship t = target("A", 11);
         aas.recordDroneFired(t, dogfight(), 5);
 
@@ -87,7 +89,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aDifferentTargetBreaksConditionAEvenWithADogfightDrone() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         aas.recordDroneFired(target("A", 11), standard(), 5);
 
         String why = aas.droneLaunchRefusal(target("B", 12), dogfight(), 6);
@@ -99,7 +101,7 @@ public class DroneLaunchRateTest {
     /** J4.241 lifts the spacing as well as the count: "two per turn (or within 1/4 turn)". */
     @Test
     public void aQualifyingSecondDroneNeedNotWaitTheQuarterTurn() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         Ship t = target("A", 11);
         aas.recordDroneFired(t, dogfight(), 5);
 
@@ -108,7 +110,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aThirdDroneIsNeverAllowed() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         Ship t = target("A", 11);
         aas.recordDroneFired(t, standard(), 5);
         aas.recordDroneFired(t, dogfight(), 6);
@@ -125,7 +127,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aTaasMayLaunchTwoStandardDronesAtOneTarget() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
         Ship t = target("A", 11);
         taas.recordDroneFired(t, standard(), 5);
 
@@ -135,7 +137,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aTaasMaySplitItsPairIfTheyLeaveOnDifferentImpulses() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
         taas.recordDroneFired(target("A", 11), standard(), 5);
 
         assertNull("J4.242 waives A when they do not go on the same impulse",
@@ -144,7 +146,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aTaasStillMayNotSplitThemOnTheSameImpulse() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
         taas.recordDroneFired(target("A", 11), standard(), 5);
 
         String why = taas.droneLaunchRefusal(target("B", 12), standard(), 5);
@@ -155,7 +157,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void anAasHasNoneOfThoseExemptions() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
 
         assertFalse(aas.mayLaunchAtDifferentTargets());
         assertFalse(aas.mayLaunchTwoStandardDrones());
@@ -163,7 +165,7 @@ public class DroneLaunchRateTest {
 
     @Test
     public void aTaasHasBoth() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
 
         assertTrue(taas.mayLaunchAtDifferentTargets());
         assertTrue(taas.mayLaunchTwoStandardDrones());
@@ -185,7 +187,7 @@ public class DroneLaunchRateTest {
      */
     @Test
     public void twoInOneTurnDoesNotBuyTwoMoreImmediatelyInTheNext() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
         Ship t = target("A", 11);
         taas.recordDroneFired(t, standard(), 31);
         taas.recordDroneFired(t, standard(), 32);   // its J4.242 pair, legally

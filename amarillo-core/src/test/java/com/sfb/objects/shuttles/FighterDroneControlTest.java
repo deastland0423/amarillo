@@ -5,6 +5,8 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import com.sfb.objects.DroneType;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * How many seeking weapons a fighter can guide (J4.25, J4.43).
@@ -23,8 +25,8 @@ public class FighterDroneControlTest {
     @Test
     public void aStandardTwoRailFighterGuidesTwo() {
         assertEquals("two type-I rails, two non-dogfight drones", 2,
-                new Aas().getControlCapacity());
-        assertEquals(2, new Haas().getControlCapacity());
+                CataloguedFighter.of("aas").getControlCapacity());
+        assertEquals(2, CataloguedFighter.of("haas").getControlCapacity());
     }
 
     /**
@@ -33,7 +35,7 @@ public class FighterDroneControlTest {
      */
     @Test
     public void dogfightDronesDoNotCountTowardsControl() {
-        Taas taas = new Taas();
+        Fighter taas = CataloguedFighter.of("taas");
 
         assertEquals("four rails", 4, taas.getWeapons().fetchAllWeapons().stream()
                 .filter(w -> w instanceof com.sfb.weapons.DroneRail).count());
@@ -44,7 +46,7 @@ public class FighterDroneControlTest {
     /** J4.43: a two-seat fighter guides twelve, and EW fighters keep that ability. */
     @Test
     public void aTwoSeatFighterGuidesTwelve() {
-        Haas_E ew = new Haas_E();
+        Fighter ew = CataloguedFighter.of("haas_e");
 
         assertTrue("the EW variant is a two-seater", ew.isTwoSeater());
         assertEquals(Fighter.TWO_SEAT_CONTROL, ew.getControlCapacity());
@@ -58,7 +60,7 @@ public class FighterDroneControlTest {
      */
     @Test
     public void substitutingADogfightDroneDoesNotShrinkTheCapacity() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         for (com.sfb.weapons.Weapon w : aas.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.DroneRail rail)
                 rail.loadDrone(new com.sfb.objects.Drone(DroneType.TypeVI));
@@ -70,7 +72,7 @@ public class FighterDroneControlTest {
     /** A fighter that carries no drones at all guides nothing; the floor is not for it. */
     @Test
     public void aFighterWithNoRailsGuidesNothing() {
-        assertEquals(0, new Stinger1().getControlCapacity());
+        assertEquals(0, CataloguedFighter.of("stinger1").getControlCapacity());
     }
 
     /**
@@ -123,7 +125,7 @@ public class FighterDroneControlTest {
      */
     @Test
     public void twoDronesMayNotLeaveWithinAQuarterTurn() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
 
         aas.recordDroneFired(null, new com.sfb.objects.Drone(DroneType.TypeI), 30);
 
@@ -135,13 +137,13 @@ public class FighterDroneControlTest {
 
     @Test
     public void aFighterThatHasNeverLaunchedIsNotWaiting() {
-        assertEquals(0, new Aas().impulsesUntilNextDrone(1));
+        assertEquals(0, CataloguedFighter.of("aas").impulsesUntilNextDrone(1));
     }
 
     /** The per-turn flag still clears at the turn boundary; the spacing does not. */
     @Test
     public void theTurnFlagClearsButTheSpacingOutlivesIt() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         aas.recordDroneFired(null, new com.sfb.objects.Drone(DroneType.TypeI), 30);
         assertTrue(aas.isDronesFiredThisTurn());
 

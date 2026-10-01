@@ -15,6 +15,7 @@ import com.sfb.objects.Unit;
 import com.sfb.properties.Location;
 import com.sfb.utilities.MapUtils;
 import com.sfb.utilities.MovementUtil;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Voluntary movement for ships, fighters, and player-controlled shuttles:

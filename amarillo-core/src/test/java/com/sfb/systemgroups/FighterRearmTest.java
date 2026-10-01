@@ -13,11 +13,11 @@ import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
-import com.sfb.objects.shuttles.StingerH;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Hydran fighter rearming (J4.83).
@@ -34,7 +34,7 @@ public class FighterRearmTest {
     private static ShuttleBay bayOfStingers(int n) {
         ShuttleBay bay = new ShuttleBay(null);
         for (int i = 0; i < n; i++) {
-            Stinger1 s = new Stinger1();
+            Fighter s = CataloguedFighter.of("stinger1");
             s.setName("Stinger-" + (i + 1));
             bay.addSpace(new ShuttleSpace(s));
         }
@@ -106,8 +106,8 @@ public class FighterRearmTest {
 
     @Test
     public void anArmedHellboreFighterLeavesItsBoxEmpty() {
-        StingerH sh = new StingerH();
-        sh.setName("StingerH-1");
+        Fighter sh = CataloguedFighter.of("stingerh");
+        sh.setName("Fighter-1");
         ShuttleSpace box = new ShuttleSpace(sh);
 
         assertEquals("a hellbore box holds one charge (J4.834)", 1, box.capacitorCapacity());
@@ -158,7 +158,7 @@ public class FighterRearmTest {
     public void aFighterThatArrivedThisTurnIsNotTouched() {
         ShuttleBay bay = new ShuttleBay(null);
         bay.addSpace(new ShuttleSpace());
-        Stinger1 landed = new Stinger1();
+        Fighter landed = CataloguedFighter.of("stinger1");
         landed.setName("Returning");
         spendEverything(landed);
 
@@ -211,8 +211,8 @@ public class FighterRearmTest {
     @Test
     public void aHellboreBoxHoldsOneChargeAndReloadingItTakesOneCrew() throws Exception {
         ShuttleBay bay = new ShuttleBay(null);
-        StingerH sh = new StingerH();
-        sh.setName("StingerH-1");
+        Fighter sh = CataloguedFighter.of("stingerh");
+        sh.setName("Fighter-1");
         bay.addSpace(new ShuttleSpace(sh));
         ShuttleSpace box = bay.getSpaces().get(0);
         assertEquals("a hellbore box carries one charge, not a fusion capacitor (J4.834)",
@@ -283,8 +283,8 @@ public class FighterRearmTest {
     @Test
     public void aHellboreChargeCostsTwoPointsOnEachOfTwoTurns() {
         ShuttleBay bay = new ShuttleBay(null);
-        StingerH sh = new StingerH();
-        sh.setName("StingerH-1");
+        Fighter sh = CataloguedFighter.of("stingerh");
+        sh.setName("Fighter-1");
         bay.addSpace(new ShuttleSpace(sh));
         ShuttleSpace box = bay.getSpaces().get(0);
         box.armOccupantFully();   // the charge moves to the fighter, leaving the box empty
@@ -435,7 +435,8 @@ public class FighterRearmTest {
         List<Shuttle> stingers = new ArrayList<>();
         for (ShuttleBay bay : rn.getShuttles().getBays())
             for (ShuttleSpace box : bay.getSpaces())
-                if (box.getShuttle() instanceof Stinger1 s) {
+                if ("stinger1".equals(box.getShuttle().getCatalogType())) {
+                    Shuttle s = box.getShuttle();
                     spendEverything(s);
                     stingers.add(s);
                 }

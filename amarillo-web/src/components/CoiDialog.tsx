@@ -360,7 +360,7 @@ function ShipCoiPanel({
                         : coi.armedFighters.filter(n => n !== f.name),
                     })} />
                   {f.name.replace(`${ship.shipName}-`, '')}
-                  <span className="coi-note"> — {f.type}</span>
+                  <span className="coi-note"> — {f.designation ?? f.type}</span>
                 </label>
               );
             })}

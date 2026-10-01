@@ -6,11 +6,11 @@ import org.junit.Test;
 
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneType;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Taas;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A fighter whose rails are not all the same size (J4.82, FD7.211).
@@ -34,15 +34,15 @@ public class MixedRailFighterTest {
         return rails;
     }
 
-    private static Taas taas() {
-        Taas t = new Taas();
+    private static Fighter taas() {
+        Fighter t = CataloguedFighter.of("taas");
         t.setName("TAAS-1");
         return t;
     }
 
     @Test
     public void itCarriesFourDronesInThreeSpaces() {
-        Taas t = taas();
+        Fighter t = taas();
 
         assertEquals("four rails", 4, railsOf(t).size());
         double spaces = railsOf(t).stream().mapToDouble(r -> r.getRailType().capacity).sum();
@@ -90,7 +90,7 @@ public class MixedRailFighterTest {
         // actions a turn is the ceiling — and a TAAS wants three.
         assertEquals(3, FighterArming.actionsToFullyArm(taas()));
         assertEquals("an AAS still fits in one turn", 2,
-                FighterArming.actionsToFullyArm(new Aas()));
+                FighterArming.actionsToFullyArm(CataloguedFighter.of("aas")));
     }
 
     @Test

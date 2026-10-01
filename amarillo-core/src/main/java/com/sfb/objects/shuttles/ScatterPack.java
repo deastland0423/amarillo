@@ -189,4 +189,10 @@ public class ScatterPack extends Shuttle implements Seeker {
     public String specialRole() {
         return "scatterpack";
     }
+
+    /** FD7.0: an admin shuttle in this role presents as the role, not as an admin shuttle. */
+    @Override
+    public String dtoType() {
+        return "scatterpack";
+    }
 }

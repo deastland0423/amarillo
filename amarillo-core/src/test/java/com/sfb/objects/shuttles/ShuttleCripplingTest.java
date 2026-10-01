@@ -3,6 +3,8 @@ package com.sfb.objects.shuttles;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Crippling is a shuttle property, not a fighter one (J1.33): every shuttle has
@@ -64,7 +66,7 @@ public class ShuttleCripplingTest {
      */
     @Test
     public void fightersStillCrippleTheirOwnWay() {
-        Stinger2 f = new Stinger2();
+        Fighter f = CataloguedFighter.of("stinger2");
         assertEquals(7, f.getCrippledHull());
 
         f.setCurrentHull(f.getHull() - 7);
@@ -81,11 +83,11 @@ public class ShuttleCripplingTest {
         assertEquals(4, new AdminShuttle().getCrippledHull());
         assertEquals(6, new GASShuttle().getCrippledHull());
         assertEquals(8, new HTSShuttle().getCrippledHull());
-        assertEquals(6, new Stinger1().getCrippledHull());
-        assertEquals(7, new Stinger2().getCrippledHull());
-        assertEquals(7, new StingerH().getCrippledHull());
-        assertEquals(6, new Aas().getCrippledHull());
-        assertEquals(8, new Taas().getCrippledHull());
-        assertEquals(8, new Haas_E().getCrippledHull());
+        assertEquals(6, CataloguedFighter.of("stinger1").getCrippledHull());
+        assertEquals(7, CataloguedFighter.of("stinger2").getCrippledHull());
+        assertEquals(7, CataloguedFighter.of("stingerh").getCrippledHull());
+        assertEquals(6, CataloguedFighter.of("aas").getCrippledHull());
+        assertEquals(8, CataloguedFighter.of("taas").getCrippledHull());
+        assertEquals(8, CataloguedFighter.of("haas_e").getCrippledHull());
     }
 }

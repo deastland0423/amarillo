@@ -9,7 +9,6 @@ import org.junit.Test;
 
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger_E;
 
 /**
  * The Hydran RN+ as its ship file describes it: a fully capable carrier whose standard
@@ -38,7 +37,7 @@ public class HydranRnPlusTest {
         Ship ship = rnPlus();
         int fighters = 0, ewf = 0, admin = 0;
         for (Shuttle craft : ship.getShuttles().getAllShuttles()) {
-            if (craft instanceof Stinger_E)
+            if ("stinger_e".equals(craft.getCatalogType()))
                 ewf++;
             if (craft instanceof Fighter)
                 fighters++;

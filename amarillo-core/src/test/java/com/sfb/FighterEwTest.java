@@ -6,8 +6,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.objects.Ship;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.properties.Location;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A fighter's own electronic warfare in combat (J4.47, D6.3142).
@@ -26,7 +27,7 @@ public class FighterEwTest {
 
     private Game game;
     private Ship warship;
-    private Aas fighter;
+    private Fighter fighter;
 
     @Before
     public void setUp() {
@@ -45,7 +46,7 @@ public class FighterEwTest {
         warship.setActiveFireControl(true);
         game.getShips().add(warship);
 
-        fighter = new Aas();
+        fighter = CataloguedFighter.of("aas");
         fighter.setName("AAS-1");
         fighter.setLocation(new Location(10, 8));
         fighter.setFacing(13);

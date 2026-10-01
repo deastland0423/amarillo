@@ -3,14 +3,14 @@ package com.sfb.server;
 import com.sfb.Game;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Squadron;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.properties.Location;
 import com.sfb.samples.KzintiShips;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The request-translation layer for an EW fighter's pod declaration (J4.961, J4.967).
@@ -26,8 +26,8 @@ class GameSessionPodEwTest {
 
     private GameSession session;
     private Game game;
-    private Haas_E ewf;
-    private Haas wingman;
+    private Fighter ewf;
+    private Fighter wingman;
 
     @BeforeEach
     void setUp() {
@@ -41,12 +41,12 @@ class GameSessionPodEwTest {
         carrier.setFacing(1);
         game.getShips().add(carrier);
 
-        ewf = new Haas_E();
+        ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setLocation(new Location(10, 12));
         ewf.setFacing(13);
 
-        wingman = new Haas();
+        wingman = CataloguedFighter.of("haas");
         wingman.setName("HAAS-1");
         wingman.setLocation(new Location(10, 13));
         wingman.setFacing(13);

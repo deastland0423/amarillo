@@ -78,7 +78,7 @@ public class DeckCrewOrdersTest {
         // taking a drone back off, both on the same fighter and both legal (J4.8172).
         Shuttles group = new Shuttles(null);
         ShuttleBay bay = new ShuttleBay(null);
-        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+        com.sfb.objects.shuttles.Fighter aas = com.sfb.objects.shuttles.CataloguedFighter.of("aas");
         aas.setName("AAS-1");
         ShuttleSpace box = new ShuttleSpace(aas);
         bay.addSpace(box);

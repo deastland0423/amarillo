@@ -8,11 +8,10 @@ import org.junit.Test;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Squadron;
 import com.sfb.objects.shuttles.Fighter;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.properties.EwLoan;
 import com.sfb.properties.Location;
 import com.sfb.weapons.DroneRail;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * An EW fighter lending its pod points to its squadron (J4.92, J4.93).
@@ -31,8 +30,8 @@ public class SquadronEwLendingTest {
     private Ship carrier;
     private Ship enemy;
     private Squadron squadron;
-    private Haas_E ewf;
-    private Haas wingman;
+    private Fighter ewf;
+    private Fighter wingman;
 
     @Before
     public void setUp() {
@@ -61,13 +60,13 @@ public class SquadronEwLendingTest {
 
         squadron = new Squadron("Gold", carrier);
 
-        ewf = new Haas_E();
+        ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(kzinti);
         ewf.setLocation(new Location(10, 12));
         ewf.setFacing(13);
 
-        wingman = new Haas();
+        wingman = CataloguedFighter.of("haas");
         wingman.setName("HAAS-1");
         wingman.setOwner(kzinti);
         wingman.setLocation(new Location(10, 13));
@@ -129,14 +128,14 @@ public class SquadronEwLendingTest {
      */
     @Test
     public void onlyAnEwFighterLends() {
-        Haas podded = new Haas();
+        Fighter podded = CataloguedFighter.of("haas");
         podded.setName("HAAS-P");
         podded.setOwner(wingman.getOwner());
         podded.setLocation(new Location(10, 13));
         game.getActiveShuttles().add(podded);
         assertEquals("J4.964 allows an ordinary fighter two", 2, podded.fitEwPods(2));
 
-        Haas mate = new Haas();
+        Fighter mate = CataloguedFighter.of("haas");
         mate.setName("HAAS-M");
         mate.setOwner(wingman.getOwner());
         mate.setLocation(new Location(10, 13));
@@ -193,7 +192,7 @@ public class SquadronEwLendingTest {
     /** J4.921: "from its squadron". A fighter outside it gets nothing, however close. */
     @Test
     public void lendingDoesNotReachOutsideTheSquadron() {
-        Haas stranger = new Haas();
+        Fighter stranger = CataloguedFighter.of("haas");
         stranger.setName("HAAS-9");
         stranger.setOwner(wingman.getOwner());
         stranger.setLocation(new Location(10, 12));       // same hex as the EWF
@@ -252,7 +251,7 @@ public class SquadronEwLendingTest {
 
     @Test
     public void swappingSourcesWaitsOutEightImpulses() {
-        Haas_E second = new Haas_E();
+        Fighter second = CataloguedFighter.of("haas_e");
         second.setName("HAAS-E2");
         second.setOwner(wingman.getOwner());
         second.setLocation(new Location(10, 11));
@@ -305,7 +304,7 @@ public class SquadronEwLendingTest {
         Fighter wide = fourPodEwf();                       // the example's fighter #1
         assertTrue(wide.allocatePodEw(4, 4));              // one ECM and one ECCM per pod
 
-        Haas two = new Haas();                             // the example's fighter #2
+        Fighter two = CataloguedFighter.of("haas");                             // the example's fighter #2
         two.setName("HAAS-2");
         two.setOwner(wingman.getOwner());
         two.setLocation(new Location(10, 13));
@@ -356,7 +355,7 @@ public class SquadronEwLendingTest {
     /** J4.93: all of the points, to every qualifying fighter — not divided between them. */
     @Test
     public void everyWingmanGetsTheWholeLoan() {
-        Haas third = new Haas();
+        Fighter third = CataloguedFighter.of("haas");
         third.setName("HAAS-3");
         third.setOwner(wingman.getOwner());
         third.setLocation(new Location(11, 12));
@@ -389,8 +388,8 @@ public class SquadronEwLendingTest {
      */
     @Test
     public void aFighterWithNoRailsStillReceives() {
-        com.sfb.objects.shuttles.Stinger1 stinger = new com.sfb.objects.shuttles.Stinger1();
-        stinger.setName("Stinger1");
+        com.sfb.objects.shuttles.Fighter stinger = com.sfb.objects.shuttles.CataloguedFighter.of("stinger1");
+        stinger.setName("Fighter");
         stinger.setOwner(wingman.getOwner());
         stinger.setLocation(new Location(10, 13));
         stinger.setFacing(13);
@@ -415,14 +414,14 @@ public class SquadronEwLendingTest {
      */
     @Test
     public void aHydranEwFighterLendsJustTheSame() {
-        com.sfb.objects.shuttles.Stinger_E hydranEwf =
-                new com.sfb.objects.shuttles.Stinger_E();
+        com.sfb.objects.shuttles.Fighter hydranEwf =
+                com.sfb.objects.shuttles.CataloguedFighter.of("stinger_e");
         hydranEwf.setName("Stinger-E");
         hydranEwf.setOwner(wingman.getOwner());
         hydranEwf.setLocation(new Location(10, 12));
         hydranEwf.setFacing(13);
 
-        com.sfb.objects.shuttles.Stinger2 stinger = new com.sfb.objects.shuttles.Stinger2();
+        com.sfb.objects.shuttles.Fighter stinger = com.sfb.objects.shuttles.CataloguedFighter.of("stinger2");
         stinger.setName("Stinger-2");
         stinger.setOwner(wingman.getOwner());
         stinger.setLocation(new Location(10, 13));
@@ -449,14 +448,14 @@ public class SquadronEwLendingTest {
     /** J4.965 again, from the Hydran end: crippling the EWF ends its squadron's loan. */
     @Test
     public void aCrippledStingerELendsNothing() {
-        com.sfb.objects.shuttles.Stinger_E hydranEwf =
-                new com.sfb.objects.shuttles.Stinger_E();
+        com.sfb.objects.shuttles.Fighter hydranEwf =
+                com.sfb.objects.shuttles.CataloguedFighter.of("stinger_e");
         hydranEwf.setName("Stinger-E");
         hydranEwf.setOwner(wingman.getOwner());
         hydranEwf.setLocation(new Location(10, 12));
         game.getActiveShuttles().add(hydranEwf);
 
-        com.sfb.objects.shuttles.Stinger2 stinger = new com.sfb.objects.shuttles.Stinger2();
+        com.sfb.objects.shuttles.Fighter stinger = com.sfb.objects.shuttles.CataloguedFighter.of("stinger2");
         stinger.setName("Stinger-2");
         stinger.setOwner(wingman.getOwner());
         stinger.setLocation(new Location(10, 13));
@@ -502,7 +501,7 @@ public class SquadronEwLendingTest {
     /** Every qualifying mate, not just the first (J4.93: each receives ALL of the points). */
     @Test
     public void thereIsNoQueueForIt() {
-        Haas third = new Haas();
+        Fighter third = CataloguedFighter.of("haas");
         third.setName("HAAS-3");
         third.setOwner(wingman.getOwner());
         third.setLocation(new Location(11, 12));

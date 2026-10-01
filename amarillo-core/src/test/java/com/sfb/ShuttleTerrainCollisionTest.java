@@ -4,7 +4,6 @@ import com.sfb.objects.Ship;
 import com.sfb.objects.Terrain;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.properties.Location;
 import com.sfb.properties.TerrainType;
@@ -16,6 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * P3.2 / P2.223 terrain collision for shuttles and fighters.
@@ -67,8 +68,8 @@ public class ShuttleTerrainCollisionTest {
         return g;
     }
 
-    private Stinger1 fighterIn(Game g, int col, int row, int speed) {
-        Stinger1 f = new Stinger1();
+    private Fighter fighterIn(Game g, int col, int row, int speed) {
+        Fighter f = CataloguedFighter.of("stinger1");
         f.setName("Alpha 1");
         f.setOwner(fedPlayer);
         f.setLocation(new Location(col, row));
@@ -103,7 +104,7 @@ public class ShuttleTerrainCollisionTest {
     @Test
     public void shuttleMovingForward_intoAsteroidHex_rollsCollision() {
         game.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
-        Stinger1 f = fighterIn(game, 10, 10, 12);
+        Fighter f = fighterIn(game, 10, 10, 12);
         advanceUntilCanMove(game, f);
 
         Game.ActionResult r = game.moveShuttleForward(f);
@@ -115,7 +116,7 @@ public class ShuttleTerrainCollisionTest {
 
     @Test
     public void shuttleTurning_intoAsteroidHex_rollsCollision() {
-        Stinger1 f = fighterIn(game, 10, 20, 12);
+        Fighter f = fighterIn(game, 10, 20, 12);
         // Turn mode at speed 12 is 2 hexes, so it must fly two before it may turn.
         for (int i = 0; i < 2; i++) {
             advanceUntilCanMove(game, f);
@@ -135,7 +136,7 @@ public class ShuttleTerrainCollisionTest {
 
     @Test
     public void shuttleSideslipping_intoAsteroidHex_rollsCollision() {
-        Stinger1 f = fighterIn(game, 10, 20, 12);
+        Fighter f = fighterIn(game, 10, 20, 12);
         advanceUntilCanMove(game, f);
         assertTrue(game.moveShuttleForward(f).isSuccess()); // a slip needs a move first
         Location before = f.getLocation();
@@ -164,7 +165,7 @@ public class ShuttleTerrainCollisionTest {
         for (int trial = 0; trial < 60 && !sawRealDamage; trial++) {
             Game g = freshGame();
             g.addTerrain(new Terrain(TerrainType.ASTEROID, 10, 9));
-            Stinger1 f = fighterIn(g, 10, 10, 12);
+            Fighter f = fighterIn(g, 10, 10, 12);
             advanceUntilCanMove(g, f);
 
             int hullBefore = f.getCurrentHull();

@@ -1,12 +1,9 @@
 package com.sfb.objects;
 
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.GASShuttle;
-import com.sfb.objects.shuttles.Taas;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.ScatterPack;
-import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.objects.shuttles.SuicideShuttle;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +11,8 @@ import org.junit.Test;
 import java.io.File;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Which shuttles may take which special role — J3.18 Wild Weasels, FD7.11
@@ -70,7 +69,7 @@ public class ShuttleRoleEligibilityTest {
 
     @Test
     public void aFighterMayNotWeasel() {
-        assertFalse("J4.41 bars fighters outright", new Stinger1().canBecomeWildWeasel());
+        assertFalse("J4.41 bars fighters outright", CataloguedFighter.of("stinger1").canBecomeWildWeasel());
     }
 
     // ---------------------------------------------------------------- FD7.11,
@@ -94,9 +93,9 @@ public class ShuttleRoleEligibilityTest {
     @Test
     public void aFighterQualifiesOnlyIfItCarriesDrones() {
         assertFalse("a fusion-armed stinger has no drones to scatter (FD7.211)",
-                new Stinger1().canBecomeScatterPack());
+                CataloguedFighter.of("stinger1").canBecomeScatterPack());
         assertTrue("a Kzinti attack shuttle carries two rails, so it qualifies",
-                new Aas().canBecomeScatterPack());
+                CataloguedFighter.of("aas").canBecomeScatterPack());
     }
 
     /**
@@ -110,10 +109,10 @@ public class ShuttleRoleEligibilityTest {
     @Test
     public void aFightersCapacityMatchesTheRailsItActuallyCarries() {
         assertEquals("a Kzinti AAS builds two drone rails, so it scatters two (FD7.211)",
-                droneRails(new Aas()), new Aas().scatterPackSpaces());
-        assertEquals(droneRails(new Taas()), new Taas().scatterPackSpaces());
+                droneRails(CataloguedFighter.of("aas")), CataloguedFighter.of("aas").scatterPackSpaces());
+        assertEquals(droneRails(CataloguedFighter.of("taas")), CataloguedFighter.of("taas").scatterPackSpaces());
         assertEquals("and a stinger builds none",
-                droneRails(new Stinger1()), new Stinger1().scatterPackSpaces());
+                droneRails(CataloguedFighter.of("stinger1")), CataloguedFighter.of("stinger1").scatterPackSpaces());
     }
 
     /**
@@ -151,8 +150,8 @@ public class ShuttleRoleEligibilityTest {
                 new GASShuttle().canBecomeWildWeasel(),
                 new GASShuttle().canBecomeScatterPack());
         assertNotEquals("a drone-armed fighter is the other way round",
-                new Aas().canBecomeWildWeasel(),
-                new Aas().canBecomeScatterPack());
+                CataloguedFighter.of("aas").canBecomeWildWeasel(),
+                CataloguedFighter.of("aas").canBecomeScatterPack());
     }
 
     // ---------------------------------------------------------------- J2.222,
@@ -175,8 +174,8 @@ public class ShuttleRoleEligibilityTest {
     public void aFighterMayNotBeASuicideShuttle() {
         // Yet a drone-armed fighter MAY be a scatter pack — the inversion runs both
         // ways.
-        assertFalse("J2.222 bars fighters", new Aas().canBecomeSuicide());
-        assertTrue("but FD7.11 admits them as scatter packs", new Aas().canBecomeScatterPack());
+        assertFalse("J2.222 bars fighters", CataloguedFighter.of("aas").canBecomeSuicide());
+        assertTrue("but FD7.11 admits them as scatter packs", CataloguedFighter.of("aas").canBecomeScatterPack());
     }
 
     @Test
@@ -188,7 +187,7 @@ public class ShuttleRoleEligibilityTest {
         assertFalse(gas.canBecomeScatterPack());
 
         // A drone-armed fighter: barred from two roles, admitted to the third.
-        Aas fighter = new Aas();
+        Fighter fighter = CataloguedFighter.of("aas");
         assertFalse(fighter.canBecomeWildWeasel());
         assertFalse(fighter.canBecomeSuicide());
         assertTrue(fighter.canBecomeScatterPack());
@@ -289,7 +288,7 @@ public class ShuttleRoleEligibilityTest {
         assertEquals("admin", new AdminShuttle().getCatalogType());
         assertEquals("gas", new GASShuttle().getCatalogType());
         assertEquals("hts", new HTSShuttle().getCatalogType());
-        assertEquals("stinger1", new Stinger1().getCatalogType());
+        assertEquals("stinger1", CataloguedFighter.of("stinger1").getCatalogType());
     }
 
     @Test

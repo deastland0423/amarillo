@@ -6,10 +6,9 @@ import java.io.File;
 
 import org.junit.Test;
 
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.Fighter;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.systemgroups.Shuttles;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * Squadron organisation (J4.46).
@@ -25,8 +24,8 @@ public class SquadronTest {
         return ship.getShuttles();
     }
 
-    private static Aas aas(String name) {
-        Aas a = new Aas();
+    private static Fighter aas(String name) {
+        Fighter a = CataloguedFighter.of("aas");
         a.setName(name);
         return a;
     }
@@ -84,7 +83,7 @@ public class SquadronTest {
     @Test
     public void aFighterCannotJoinTwice() {
         Squadron sq = new Squadron("Alpha", null);
-        Aas one = aas("AAS-1");
+        Fighter one = aas("AAS-1");
         sq.add(one);
 
         assertNotNull(sq.add(one));
@@ -94,7 +93,7 @@ public class SquadronTest {
     @Test
     public void leavingClearsTheBackReference() {
         Squadron sq = new Squadron("Alpha", null);
-        Aas one = aas("AAS-1");
+        Fighter one = aas("AAS-1");
         sq.add(one);
 
         assertTrue(sq.remove(one));
@@ -109,9 +108,9 @@ public class SquadronTest {
     @Test
     public void onlyOneEwFighterToASquadron() {
         Squadron sq = new Squadron("Alpha", null);
-        Haas_E first = new Haas_E();
+        Fighter first = CataloguedFighter.of("haas_e");
         first.setName("HAAS-E-1");
-        Haas_E second = new Haas_E();
+        Fighter second = CataloguedFighter.of("haas_e");
         second.setName("HAAS-E-2");
 
         assertNull(sq.add(first));
@@ -181,7 +180,7 @@ public class SquadronTest {
         carrier.setName("KHS Sabre");
         Squadron sq = new Squadron("Alpha", carrier);
 
-        Aas stranger = aas("AAS-X");
+        Fighter stranger = aas("AAS-X");
         stranger.setParentShipName("KHS Someone Else");
 
         String why = sq.add(stranger);

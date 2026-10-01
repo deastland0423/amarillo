@@ -3,7 +3,6 @@ package com.sfb;
 import com.sfb.objects.Ship;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.objects.shuttles.SuicideShuttle;
 import com.sfb.objects.shuttles.WildWeaselShuttle;
 import com.sfb.properties.Location;
@@ -13,6 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * Erratic Maneuvers for shuttles and fighters (C10.13 / C10.131).
@@ -76,7 +77,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void committingCostsExactlyOnePointOfSpeed() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         int rated = f.getMaxSpeed();
 
         assertTrue(game.commitShuttleEmSpeed(f).isSuccess());
@@ -89,7 +90,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void aShuttleAlreadyAboveTheNewMaximumIsSlowedAtOnce() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         assertEquals(12, f.getCurrentSpeed());
 
         game.commitShuttleEmSpeed(f);
@@ -102,7 +103,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void switchingEmOffDoesNotGiveTheSpeedBack() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         int rated = f.getMaxSpeed();
         game.commitShuttleEmSpeed(f);
 
@@ -122,7 +123,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void emCannotBeStartedWithoutCommittingTheSpeedFirst() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
 
         Game.ActionResult r = game.announceErraticManeuvers(f, true);
 
@@ -156,7 +157,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void aShuttleUnderEmGetsTheSameFourPointsOfEcm() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         game.commitShuttleEmSpeed(f);
         assertTrue(game.announceErraticManeuvers(f, true).isSuccess());
         for (int guard = 0; guard < 40 && !f.isUsingEm(); guard++)
@@ -171,7 +172,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void aShuttleIsNimbleSoItKeepsItsTurnMode() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         game.commitShuttleEmSpeed(f);
         // Measured AFTER the commitment: Turn Mode is a function of speed, and giving up a
         // point of speed can cross a band in the table on its own. What is under test is
@@ -188,7 +189,7 @@ public class ShuttleErraticManeuversTest {
 
     @Test
     public void aFighterCannotHetWhileUnderEm() {
-        Stinger1 f = onMap(new Stinger1(), "Alpha 1", 12);
+        Fighter f = onMap(CataloguedFighter.of("stinger1"), "Alpha 1", 12);
         game.commitShuttleEmSpeed(f);
         assertTrue(game.announceErraticManeuvers(f, true).isSuccess());
         for (int guard = 0; guard < 40 && !f.isUsingEm(); guard++)

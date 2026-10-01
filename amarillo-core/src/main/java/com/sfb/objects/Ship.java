@@ -40,6 +40,7 @@ import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DroneRack;
 import com.sfb.weapons.HeavyWeapon;
 import com.sfb.weapons.Weapon;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * 

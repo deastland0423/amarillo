@@ -1814,7 +1814,12 @@ public class GameStateDto {
                 if (s != null) {
                     ShuttleInBayDto sd = new ShuttleInBayDto();
                     sd.name = s.getName();
-                    sd.type = s.getClass().getSimpleName().replace("Shuttle", "").toLowerCase();
+                    // The CATALOGUE key, not the Java class name. The client keys its hangar and
+                    // launch pad on this string, and deriving it from the class worked only while
+                    // every fighter had a class of its own — once they became catalogue rows, each
+                    // one would have reported "cataloguedfighter". The catalogue key is what the
+                    // ship files, the fighter lines and the arming rules all already use.
+                    sd.type = s.dtoType();
                     sd.maxSpeed = s.getMaxSpeed();
                     sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
                     sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());

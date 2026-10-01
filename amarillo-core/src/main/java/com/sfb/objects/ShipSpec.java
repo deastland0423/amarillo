@@ -281,6 +281,14 @@ public class ShipSpec {
         public List<String> launchDirections;
         /** For drone racks: "TYPE_F", "TYPE_G" */
         public String rackType;
+        /**
+         * For drone RAILS: "LIGHT", "STANDARD", "SPECIAL", "HEAVY" (J4.231).
+         * <p>
+         * Required, not defaulted. The rail decides what fits on it and what that costs, so a
+         * rail of the wrong type quietly accepts the wrong drones — a worse failure than the
+         * factory refusing to build it.
+         */
+        public String railType;
         /** For drone racks: number of spaces */
         public int spaces;
         /** For ADD: type string */

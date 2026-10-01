@@ -6,8 +6,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sfb.objects.Ship;
-import com.sfb.objects.shuttles.Haas;
 import com.sfb.properties.Location;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A fighter's per-turn state actually resetting at the turn boundary.
@@ -33,7 +34,7 @@ public class FighterTurnResetTest {
 
     private Game game;
     private Ship carrier;
-    private Haas fighter;
+    private Fighter fighter;
 
     @Before
     public void setUp() {
@@ -49,7 +50,7 @@ public class FighterTurnResetTest {
         carrier.setOwner(kzinti);
         game.getShips().add(carrier);
 
-        fighter = new Haas();
+        fighter = CataloguedFighter.of("haas");
         fighter.setName("HAAS-1");
         fighter.setOwner(kzinti);
         fighter.setLocation(new Location(10, 12));

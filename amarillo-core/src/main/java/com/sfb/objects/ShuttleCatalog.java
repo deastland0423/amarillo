@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * The pre-game view of shuttles and fighters, read from data/shuttles/shuttles.json.
@@ -31,6 +32,42 @@ public final class ShuttleCatalog {
     public static final String ANY_FACTION = "any";
 
     /** One catalogued type. Immutable; the live object is built by ShuttleBay.buildShuttle. */
+    /**
+     * What a craft is built WITH: its armament and the handful of fitted systems that are not
+     * weapons (J4.8x, J4.96x, D11.0).
+     *
+     * One record rather than six more constructor parameters, and on the catalogue rather than in
+     * a Java class per fighter. Sixteen fighter classes used to hold this, every one of them a
+     * constructor and nothing else, with their stats duplicated here and kept honest only by a
+     * test — which is how three of them came to carry their base fighter's BPV. A fighter is a
+     * ROW now, and a new faction's suite is a data change.
+     *
+     * @param weapons                     recipes, built by {@link WeaponFactory} exactly as a
+     *                                    ship's are
+     * @param ewPods                      J4.962: pods fitted ON RAILS, each displacing a drone
+     * @param fixedEwPods                 J4.964: pods built in and not removable — the Hydran
+     *                                    Stinger-E, whose pods replaced its fusions outright
+     * @param chaffPacks                  D11.0: chaff aboard, already a plain count on Shuttle
+     * @param twoSeater                   J4.43: two seats, which every EW fighter has. NOT
+     *                                    derived from the pods: J4.43 permits a two-seat fighter
+     *                                    that is no EW fighter, and an EW fighter that has lost
+     *                                    its pods is still one
+     * @param mayLaunchAtDifferentTargets J4.242's exception, named for the F-15 and TAAS
+     * @param mayLaunchTwoStandardDrones  J4.242's other half, the same ships
+     */
+    public record Loadout(
+            List<ShipSpec.WeaponSpec> weapons,
+            int ewPods,
+            int fixedEwPods,
+            int chaffPacks,
+            boolean twoSeater,
+            boolean mayLaunchAtDifferentTargets,
+            boolean mayLaunchTwoStandardDrones) {
+
+        static final Loadout NONE =
+                new Loadout(List.of(), 0, 0, 0, false, false, false);
+    }
+
     public static final class Entry {
         public final String type;          // key used by ship JSON and the ShuttleBay factory
         public final String name;          // display name
@@ -74,10 +111,14 @@ public final class ShuttleCatalog {
          */
         public final int scatterPackSize;
 
+        /** How this craft is armed and fitted; {@link Loadout#NONE} for a row that says nothing. */
+        public final Loadout loadout;
+
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
               boolean canWeasel, boolean canSuicide, int scatterPackSize,
-              String shortName, String designation) {
+              String shortName, String designation, Loadout loadout) {
+            this.loadout = loadout == null ? Loadout.NONE : loadout;
             this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
             this.designation = designation == null || designation.isBlank()
                     ? this.shortName : designation;
@@ -212,10 +253,47 @@ public final class ShuttleCatalog {
                     n.path("canSuicide").asBoolean(false),
                     n.path("scatterPackSize").asInt(0),
                     n.path("shortName").asText(null),
-                    n.path("designation").asText(null));
+                    n.path("designation").asText(null),
+                    loadoutFrom(n));
             registry.put(e.type.toLowerCase(), e);
         }
         loaded = true;
+    }
+
+    /**
+     * Read a craft's armament and fitted systems out of its catalogue row.
+     * <p>
+     * Weapon recipes use the SAME shape a ship file uses — {@code type}, {@code designator},
+     * {@code arcs}, plus whatever that weapon needs — so {@link WeaponFactory} builds a fighter's
+     * phaser exactly as it builds a cruiser's. A row with no {@code weapons} array yields
+     * {@link Loadout#NONE}, which is right for an administrative shuttle.
+     */
+    private static Loadout loadoutFrom(JsonNode n) {
+        List<ShipSpec.WeaponSpec> weapons = new ArrayList<>();
+        for (JsonNode w : n.path("weapons")) {
+            ShipSpec.WeaponSpec ws = new ShipSpec.WeaponSpec();
+            ws.type = w.path("type").asText(null);
+            ws.designator = w.path("designator").asText(null);
+            List<String> arcs = new ArrayList<>();
+            for (JsonNode a : w.path("arcs"))
+                arcs.add(a.asText());
+            ws.arcs = arcs;
+            ws.railType = w.path("railType").asText(null);
+            ws.rackType = w.path("rackType").asText(null);
+            ws.plasmaType = w.path("plasmaType").asText(null);
+            ws.range = w.path("range").asInt(0);
+            ws.spaces = w.path("spaces").asInt(0);
+            ws.addType = w.path("addType").asText(null);
+            weapons.add(ws);
+        }
+        return new Loadout(
+                weapons,
+                n.path("ewPods").asInt(0),
+                n.path("fixedEwPods").asInt(0),
+                n.path("chaffPacks").asInt(0),
+                n.path("twoSeater").asBoolean(false),
+                n.path("mayLaunchAtDifferentTargets").asBoolean(false),
+                n.path("mayLaunchTwoStandardDrones").asBoolean(false));
     }
 
     /** Convenience: load from the usual path under a data root. */

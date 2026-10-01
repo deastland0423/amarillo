@@ -37,7 +37,7 @@ public class TunnelDeckTest {
     private static ShuttleBay plainBay(int fighters) {
         ShuttleBay bay = new ShuttleBay(null);
         for (int i = 0; i < fighters; i++) {
-            com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+            com.sfb.objects.shuttles.Fighter aas = com.sfb.objects.shuttles.CataloguedFighter.of("aas");
             aas.setName("AAS-" + (i + 1));
             bay.addSpace(new ShuttleSpace(aas));
         }

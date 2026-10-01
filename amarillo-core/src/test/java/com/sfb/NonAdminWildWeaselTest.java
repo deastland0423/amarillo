@@ -6,7 +6,6 @@ import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.GASShuttle;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
 import com.sfb.objects.shuttles.WildWeaselShuttle;
 import com.sfb.properties.Location;
 import com.sfb.samples.KlingonShips;
@@ -16,6 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * J3.18: any non-fighter shuttle may be charged and launched as a Wild Weasel.
@@ -220,7 +221,7 @@ public class NonAdminWildWeaselTest {
     @Test
     public void aFighterCannotBeChargedOrLaunched() {
         // J4.41 bars fighters, and opening the gate must not have opened it for them.
-        Stinger1 fighter = new Stinger1();
+        Fighter fighter = CataloguedFighter.of("stinger1");
         assertFalse("J4.41", fighter.canBecomeWildWeasel());
 
         charged(fighter, "Alpha 1");   // charge it anyway, to prove the launch path refuses

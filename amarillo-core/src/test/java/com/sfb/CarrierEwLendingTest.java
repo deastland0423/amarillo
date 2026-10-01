@@ -10,11 +10,11 @@ import org.junit.Test;
 
 import com.sfb.objects.Ship;
 import com.sfb.objects.Squadron;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.properties.Location;
 import com.sfb.systemgroups.Energy;
 import com.sfb.systemgroups.EwCircuits;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A carrier lending EW to its squadrons (J4.93, J4.931, J4.933).
@@ -34,7 +34,7 @@ public class CarrierEwLendingTest {
     private Ship carrier;
     private Ship enemy;
     private Squadron squadron;
-    private Haas wingman;
+    private Fighter wingman;
 
     @Before
     public void setUp() {
@@ -61,7 +61,7 @@ public class CarrierEwLendingTest {
         enemy.setActiveFireControl(true);
         game.getShips().add(enemy);
 
-        wingman = new Haas();
+        wingman = CataloguedFighter.of("haas");
         wingman.setName("HAAS-1");
         wingman.setOwner(kzinti);
         wingman.setLocation(new Location(10, 14));   // four hexes out: past an EWF, inside a carrier
@@ -225,7 +225,7 @@ public class CarrierEwLendingTest {
     @Test
     public void eachSquadronGetsItsOwnPool() {
         Squadron second = new Squadron("Blue", carrier);
-        Haas other = new Haas();
+        Fighter other = CataloguedFighter.of("haas");
         other.setName("HAAS-2");
         other.setOwner(carrier.getOwner());
         other.setLocation(new Location(10, 13));
@@ -266,7 +266,7 @@ public class CarrierEwLendingTest {
      */
     @Test
     public void withTwoOffersTheBetterOneIsTaken() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(carrier.getOwner());
         ewf.setLocation(new Location(10, 15));       // one hex from the wingman
@@ -292,7 +292,7 @@ public class CarrierEwLendingTest {
      */
     @Test
     public void aFighterStaysTiedToASourceThatHasStoppedPaying() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(carrier.getOwner());
         ewf.setLocation(new Location(10, 15));
@@ -312,7 +312,7 @@ public class CarrierEwLendingTest {
     /** A fighter with no commitment yet takes the EW fighter when the carrier offers nothing. */
     @Test
     public void withNoCarrierPoolTheEwFighterIsChosen() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(carrier.getOwner());
         ewf.setLocation(new Location(10, 15));
@@ -328,7 +328,7 @@ public class CarrierEwLendingTest {
     /** A declared source still wins over the default, and J4.922 holds it for eight impulses. */
     @Test
     public void anExplicitDesignationOverridesTheBetterOffer() {
-        Haas_E ewf = new Haas_E();
+        Fighter ewf = CataloguedFighter.of("haas_e");
         ewf.setName("HAAS-E");
         ewf.setOwner(carrier.getOwner());
         ewf.setLocation(new Location(10, 15));

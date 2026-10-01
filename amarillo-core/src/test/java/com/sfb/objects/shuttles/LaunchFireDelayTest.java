@@ -3,6 +3,8 @@ package com.sfb.objects.shuttles;
 import static org.junit.Assert.*;
 
 import org.junit.Test;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * What a newly launched craft may not do yet (J1.34).
@@ -18,8 +20,8 @@ import org.junit.Test;
  */
 public class LaunchFireDelayTest {
 
-    private static Aas launchedAt(int impulse) {
-        Aas aas = new Aas();
+    private static Fighter launchedAt(int impulse) {
+        Fighter aas = CataloguedFighter.of("aas");
         aas.setName("AAS-1");
         aas.setLaunchImpulse(impulse);
         return aas;
@@ -27,7 +29,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void directFireOpensAQuarterTurnAfterLaunch() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         assertFalse("the impulse it launched on", aas.canFireDirect(5));
         assertFalse("seven impulses later is still short", aas.canFireDirect(12));
@@ -36,7 +38,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void seekingWeaponsWaitTwiceAsLong() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         assertFalse(aas.canLaunchSeeker(13));
         assertFalse("fifteen is still short", aas.canLaunchSeeker(20));
@@ -49,7 +51,7 @@ public class LaunchFireDelayTest {
      */
     @Test
     public void thereIsAWindowWhenItMayShootButNotRelease() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         for (int impulse = 13; impulse <= 20; impulse++) {
             assertTrue("phasers free at " + impulse, aas.canFireDirect(impulse));
@@ -59,7 +61,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void aSecondLaunchStartsTheWaitAgain() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
         assertTrue(aas.canFireDirect(13));
 
         aas.setLaunchImpulse(40);   // recovered and sent out again
@@ -102,7 +104,7 @@ public class LaunchFireDelayTest {
     /** A craft sitting in a bay is not serving a launch delay it has never begun. */
     @Test
     public void aCraftStillInItsBayIsNotWaitingOnAnything() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
 
         assertTrue(aas.canFireDirect(1));
         assertTrue(aas.canLaunchSeeker(1));
@@ -131,7 +133,7 @@ public class LaunchFireDelayTest {
         enemy.setFacing(13);
         game.getShips().add(enemy);
 
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
         aas.setName("AAS-1");
         aas.setLocation(new com.sfb.properties.Location(10, 10));
         aas.setFacing(1);
@@ -172,7 +174,7 @@ public class LaunchFireDelayTest {
      */
     @Test
     public void theCountdownRunsDownToZeroAndStops() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         assertEquals("the impulse it launched on", 8, aas.impulsesUntilDirectFire(5));
         assertEquals(1, aas.impulsesUntilDirectFire(12));
@@ -182,7 +184,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void theSeekerCountdownIsTwiceAsLongAndOutlastsTheOther() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         assertEquals(16, aas.impulsesUntilSeekers(5));
         assertEquals("phasers free, drones eight impulses off",
@@ -193,7 +195,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void theCountdownAgreesWithTheGuardItIsDrawnFrom() {
-        Aas aas = launchedAt(5);
+        Fighter aas = launchedAt(5);
 
         for (int impulse = 5; impulse <= 25; impulse++) {
             assertEquals("direct fire at impulse " + impulse,
@@ -205,7 +207,7 @@ public class LaunchFireDelayTest {
 
     @Test
     public void aCraftInItsBayIsCountingDownNothing() {
-        Aas aas = new Aas();
+        Fighter aas = CataloguedFighter.of("aas");
 
         assertEquals(0, aas.impulsesUntilDirectFire(1));
         assertEquals(0, aas.impulsesUntilSeekers(1));

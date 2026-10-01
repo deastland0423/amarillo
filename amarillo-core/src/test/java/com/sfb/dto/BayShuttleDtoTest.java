@@ -228,7 +228,7 @@ public class BayShuttleDtoTest {
 
     @Test
     public void aFighterReportsEveryRailAndWhatIsInIt() {
-        com.sfb.objects.shuttles.Taas taas = new com.sfb.objects.shuttles.Taas();
+        com.sfb.objects.shuttles.Fighter taas = com.sfb.objects.shuttles.CataloguedFighter.of("taas");
         taas.setName("IKV Vengeance-TAAS-1");
         bay.getSpaces().get(0).setShuttle(taas);
 
@@ -245,7 +245,7 @@ public class BayShuttleDtoTest {
 
     @Test
     public void aLoadedRailNamesItsDroneAndItsSize() {
-        com.sfb.objects.shuttles.Taas taas = new com.sfb.objects.shuttles.Taas();
+        com.sfb.objects.shuttles.Fighter taas = com.sfb.objects.shuttles.CataloguedFighter.of("taas");
         taas.setName("IKV Vengeance-TAAS-2");
         com.sfb.systemgroups.ShuttleSpace box = bay.getSpaces().get(0);
         box.setShuttle(taas);
@@ -309,7 +309,7 @@ public class BayShuttleDtoTest {
     /** FD7.11: fighters qualify too, and at their own smaller capacity. */
     @Test
     public void aFighterReportsItsOwnSmallerPackCapacity() {
-        com.sfb.objects.shuttles.Aas aas = new com.sfb.objects.shuttles.Aas();
+        com.sfb.objects.shuttles.Fighter aas = com.sfb.objects.shuttles.CataloguedFighter.of("aas");
         aas.setName("IKV Vengeance-AAS-1");
         bay.getSpaces().get(0).setShuttle(aas);
 

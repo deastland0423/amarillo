@@ -5,8 +5,9 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import com.sfb.objects.Ship;
-import com.sfb.objects.shuttles.Aas;
 import com.sfb.systemgroups.ShuttleBay;
+import com.sfb.objects.shuttles.CataloguedFighter;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * S3.2/S3.211: what a ship may spend on Commander's Option items, and what the percentage is
@@ -31,7 +32,7 @@ public class CoiBudgetTest {
     private void addFighters(Ship ship, int n) {
         ShuttleBay bay = ship.getShuttles().getBays().get(0);
         for (int i = 0; i < n; i++) {
-            Aas f = new Aas();
+            Fighter f = CataloguedFighter.of("aas");
             f.setName("AAS " + (i + 1));
             bay.addShuttle(f, 0);
         }

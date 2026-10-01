@@ -579,12 +579,27 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     // --- J4.242 exemptions, declared by the fighters that have them ---
 
     /**
+     * J4.242's two exemptions, as FLAGS rather than as overrides.
+     *
+     * The rule names the ships that have them — "the F-15 and TAAS" — so this is one exception
+     * granted to a list, not a behaviour each fighter invents. Six classes used to override both
+     * methods identically (TAAS, TADS, TADSC and their EW variants), and every later fighter in
+     * the family would have copied the pair again. Declared in the catalogue row instead.
+     */
+    private boolean mayLaunchAtDifferentTargets;
+    private boolean mayLaunchTwoStandardDrones;
+
+    /**
      * J4.242: whether this fighter may send its two drones at DIFFERENT targets, which
      * J4.241's condition A otherwise forbids. The F-15 and the TAAS may, but only when the
      * two are not launched on the same impulse.
      */
     public boolean mayLaunchAtDifferentTargets() {
-        return false;
+        return mayLaunchAtDifferentTargets;
+    }
+
+    public void setMayLaunchAtDifferentTargets(boolean may) {
+        this.mayLaunchAtDifferentTargets = may;
     }
 
     /**
@@ -593,7 +608,11 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * any case.
      */
     public boolean mayLaunchTwoStandardDrones() {
-        return false;
+        return mayLaunchTwoStandardDrones;
+    }
+
+    public void setMayLaunchTwoStandardDrones(boolean may) {
+        this.mayLaunchTwoStandardDrones = may;
     }
 
     /**

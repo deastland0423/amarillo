@@ -4,28 +4,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.sfb.objects.shuttles.Aas;
-import com.sfb.objects.shuttles.Aas_E;
 import com.sfb.objects.shuttles.AdminShuttle;
-import com.sfb.objects.shuttles.Das;
-import com.sfb.objects.shuttles.Dasc;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Taas;
-import com.sfb.objects.shuttles.Taas_E;
-import com.sfb.objects.shuttles.Tads;
-import com.sfb.objects.shuttles.Tads_E;
-import com.sfb.objects.shuttles.Tadsc;
-import com.sfb.objects.shuttles.Tadsc_E;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.GASShuttle;
 import com.sfb.objects.shuttles.HTSShuttle;
 import com.sfb.objects.shuttles.Shuttle;
-import com.sfb.objects.shuttles.Stinger1;
-import com.sfb.objects.shuttles.Stinger_E;
-import com.sfb.objects.shuttles.Stinger2;
-import com.sfb.objects.shuttles.StingerH;
 import com.sfb.objects.Unit;
+import com.sfb.objects.shuttles.CataloguedFighter;
 
 /**
  * A single shuttle bay on a ship.
@@ -332,61 +317,28 @@ public class ShuttleBay {
     // -------------------------------------------------------------------------
 
     public static Shuttle buildShuttle(String type, String name) {
+        // A FIGHTER is a catalogue row, not a class (J4.4). Asked first, so a new fighter needs no
+        // code at all: its row carries its stats and its armament, and CataloguedFighter builds
+        // both. Sixteen classes used to live below this switch, every one a constructor repeating
+        // stats the catalogue already held.
+        com.sfb.objects.ShuttleCatalog.Entry entry = com.sfb.objects.ShuttleCatalog.get(type);
+        if (entry != null && entry.isFighter()) {
+            Shuttle fighter = new com.sfb.objects.shuttles.CataloguedFighter(entry);
+            fighter.setName(name);
+            return fighter;
+        }
+
         Shuttle s;
         switch (type.toLowerCase()) {
+            // What remains are craft that are not fighters, or that genuinely behave
+            // differently: a scatter pack, a suicide shuttle and a wild weasel are SEEKERS and
+            // override a dozen methods each, and those three are roles an admin shuttle takes on
+            // rather than catalogue stock, which is why they are not rows.
             case "gas":
                 s = new GASShuttle();
                 break;
             case "hts":
                 s = new HTSShuttle();
-                break;
-            case "stinger1":
-                s = new Stinger1();
-                break;
-            case "stinger2":
-                s = new Stinger2();
-                break;
-            case "stingerh":
-                s = new StingerH();
-                break;
-            case "stinger_e":
-                s = new Stinger_E();
-                break;
-            case "aas":
-                s = new Aas();
-                break;
-            case "haas":
-                s = new Haas();
-                break;
-            case "taas":
-                s = new Taas();
-                break;
-            case "aas_e":
-                s = new Aas_E();
-                break;
-            case "das":
-                s = new Das();
-                break;
-            case "dasc":
-                s = new Dasc();
-                break;
-            case "haas_e":
-                s = new Haas_E();
-                break;
-            case "taas_e":
-                s = new Taas_E();
-                break;
-            case "tads":
-                s = new Tads();
-                break;
-            case "tads_e":
-                s = new Tads_E();
-                break;
-            case "tadsc":
-                s = new Tadsc();
-                break;
-            case "tadsc_e":
-                s = new Tadsc_E();
                 break;
             case "admin":
                 s = new AdminShuttle();
@@ -395,9 +347,11 @@ public class ShuttleBay {
                 // An unknown key used to fall through to an admin shuttle, so a typo or a
                 // fighter whose case was never added launched as a shuttle and nobody noticed.
                 // Say so, loudly, and still return something rather than killing the load.
+                // A FIGHTER can no longer reach here: it is either in the catalogue, and built
+                // above, or it does not exist.
                 System.err.println("ShuttleBay: unknown shuttle type '" + type
-                        + "' — no case in buildShuttle; falling back to an admin shuttle."
-                        + " Add the case when adding a new type.");
+                        + "' — not in the shuttle catalogue and no case in buildShuttle;"
+                        + " falling back to an admin shuttle.");
                 s = new AdminShuttle();
                 break;
         }

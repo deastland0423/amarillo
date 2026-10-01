@@ -178,6 +178,22 @@ public abstract class Shuttle extends Unit {
 
 	public String getCatalogType() { return catalogType; }
 
+	/**
+	 * The key the CLIENT identifies this craft by — its hangar and launch pad both group on it.
+	 * <p>
+	 * The catalogue type for anything that is catalogue stock, which is almost everything. The
+	 * three ROLE craft override it: a scatter pack, a suicide shuttle and a wild weasel are an
+	 * administrative shuttle playing a part (J2.0, J3.0, FD7.0), so each keeps "admin" as its
+	 * catalogue type while needing to present as what it is now doing.
+	 * <p>
+	 * This used to be derived in the DTO from the Java class name, which worked only while every
+	 * fighter had a class of its own. Once a fighter became a catalogue row they shared one, and
+	 * every fighter in every bay would have reported "cataloguedfighter" to the client.
+	 */
+	public String dtoType() {
+		return catalogType;
+	}
+
 	protected void setCatalogType(String type) { this.catalogType = type; }
 
 	private com.sfb.objects.ShuttleCatalog.Entry catalogEntry() {
