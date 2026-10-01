@@ -19,6 +19,8 @@ import { BlindChoiceDialog } from './BlindChoiceDialog';
 import { AttractChoiceDialog } from './AttractChoiceDialog';
 import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
+import { Stepper } from './Stepper';
+import { channelLendCeiling } from './scoutLending';
 
 interface Props {
   session: LobbyResult;
@@ -1314,30 +1316,33 @@ function ShipSidebar({
                               ))}
                             </select>
 
+                            {/* G24.2112 caps ONE channel at six points of EW, ECM and ECCM
+                                combined — so each stepper's ceiling is what it already holds
+                                plus whatever is left of the shared six. That expresses the
+                                paired cap exactly as the hand-rolled buttons did, while using
+                                the same control as the rest of the app. */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <span style={{ color: '#8b949e', width: 34 }}
                                     title="ECM — jamming lent to the recipient, making it harder to hit (D6.3)">ECM</span>
-                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                                disabled={draft.ecm <= 0}
-                                onClick={() => setDraft({ ecm: Math.max(0, draft.ecm - 1) })}>−</button>
-                              <span style={{ color: '#3fb950', minWidth: 12, textAlign: 'center' }}>{draft.ecm}</span>
-                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                                disabled={draftTotal >= 6}
-                                onClick={() => setDraft({ ecm: draft.ecm + 1 })}>+</button>
+                              <Stepper
+                                value={draft.ecm} min={0} max={channelLendCeiling(draft.ecm, draftTotal)}
+                                onChange={v => setDraft({ ecm: v })}
+                              />
                             </div>
 
+                            {/* G24.283: a scout cannot lend ECCM to ITSELF, so self-protection
+                                pins this to zero. A max of zero beside a min of zero disables
+                                both buttons on its own — no separate disabled flag needed. */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isSelf ? 0.45 : 1 }}>
                               <span style={{ color: '#8b949e', width: 34 }}
                                     title={isSelf
                                       ? 'A scout cannot lend ECCM to itself (G24.283) — self-protection is ECM only'
                                       : 'ECCM — lent to the recipient to see through enemy jamming (D6.3)'}>ECCM</span>
-                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                                disabled={isSelf || draft.eccm <= 0}
-                                onClick={() => setDraft({ eccm: Math.max(0, draft.eccm - 1) })}>−</button>
-                              <span style={{ color: '#f0c040', minWidth: 12, textAlign: 'center' }}>{isSelf ? 0 : draft.eccm}</span>
-                              <button className="action-strip-btn" style={{ padding: '0 5px' }}
-                                disabled={isSelf || draftTotal >= 6}
-                                onClick={() => setDraft({ eccm: draft.eccm + 1 })}>+</button>
+                              <Stepper
+                                value={draftEccm} min={0}
+                                max={isSelf ? 0 : channelLendCeiling(draft.eccm, draftTotal)}
+                                onChange={v => setDraft({ eccm: v })}
+                              />
                               {isSelf && (
                                 <span style={{ color: '#8b949e', fontSize: '0.68rem', fontStyle: 'italic' }}>
                                   self-protection is ECM only
