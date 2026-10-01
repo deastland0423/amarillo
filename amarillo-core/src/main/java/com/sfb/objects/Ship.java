@@ -1635,6 +1635,25 @@ public class Ship extends Unit implements DroneController {
 
 	/// SHUTTLES ///
 
+	/**
+	 * Rename the ship, and its fighter squadrons with it.
+	 * <p>
+	 * A carrier names its squadrons after itself, and it organises them while its systems are
+	 * built — before a scenario has told it what it is called. {@code Unit.init} takes the name
+	 * out of the ship FILE, so without this the squadrons kept that placeholder for the whole
+	 * game: a CVA fielded as "KHS Ascendant" had a "KHS Olympus Squadron 1" aboard, and the name
+	 * is on the DTO for players to read.
+	 * <p>
+	 * Overridden here rather than hooked into {@code Marker.setName}, which everything on the map
+	 * inherits and where almost nothing has squadrons to rename.
+	 */
+	@Override
+	public void setName(String name) {
+		super.setName(name);
+		if (shuttles != null)
+			shuttles.renameSquadronsFor(name);
+	}
+
 	// TODO: Shuttle operations
 	public Shuttles getShuttles() {
 		return this.shuttles;

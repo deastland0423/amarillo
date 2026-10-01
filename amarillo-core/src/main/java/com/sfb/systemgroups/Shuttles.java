@@ -227,16 +227,38 @@ public class Shuttles implements Systems {
         int needed = Math.max(1,
                 (slots + com.sfb.objects.Squadron.MAX_SLOTS - 1)
                         / com.sfb.objects.Squadron.MAX_SLOTS);
-        String ship = owningUnit == null ? "" : owningUnit.getName();
         for (int i = 0; i < needed; i++)
             squadrons.add(new com.sfb.objects.Squadron(
-                    (ship.isEmpty() ? "" : ship + " ") + "Squadron " + (i + 1),
+                    squadronName(owningUnit == null ? null : owningUnit.getName(), i),
                     owningUnit instanceof com.sfb.objects.Ship sh ? sh : null));
 
         for (com.sfb.objects.shuttles.Fighter f : fighters)
             for (com.sfb.objects.Squadron sq : squadrons)
                 if (sq.add(f) == null)
                     break;
+    }
+
+    /** "KHS Ascendant Squadron 1", or just "Squadron 1" on a ship with no name yet. */
+    private static String squadronName(String shipName, int index) {
+        String prefix = shipName == null || shipName.isBlank() ? "" : shipName + " ";
+        return prefix + "Squadron " + (index + 1);
+    }
+
+    /**
+     * Re-stamp the squadron names this carrier generated, after the ship has been renamed.
+     * <p>
+     * Called from {@code Ship.setName}, because the order is unavoidable: squadrons are organised
+     * while the ship's systems are built, and a scenario names its ships afterwards. Without this
+     * every carrier's squadrons wore the placeholder name out of its JSON file — a CVA fielded as
+     * "KHS Ascendant" had squadrons called "KHS Olympus Squadron 1", which reached the client.
+     * <p>
+     * Only the auto-generated names are affected, which is every squadron this class makes; a
+     * squadron built directly by a test or a future pre-game choice keeps the name it was given,
+     * since it never came through here.
+     */
+    public void renameSquadronsFor(String shipName) {
+        for (int i = 0; i < squadrons.size(); i++)
+            squadrons.get(i).setName(squadronName(shipName, i));
     }
 
     /**

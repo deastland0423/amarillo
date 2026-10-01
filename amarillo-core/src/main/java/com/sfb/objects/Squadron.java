@@ -35,7 +35,7 @@ public class Squadron {
     /** J4.463: a squadron smaller than this may not hold an EW fighter. */
     public static final int MIN_FOR_EW_FIGHTER = 8;
 
-    private final String name;
+    private String name;
     private final Ship carrier;
     private final List<Fighter> fighters = new ArrayList<>();
 
@@ -45,6 +45,22 @@ public class Squadron {
     }
 
     public String getName() { return name; }
+
+    /**
+     * Rename this squadron. Used when the carrier itself is renamed.
+     * <p>
+     * The names a carrier generates for its own squadrons are built from its name, and the ship
+     * is named AFTER its systems are built: {@code Unit.init} takes the name straight out of the
+     * ship file and the scenario's own name arrives later through {@code setName}. Without this,
+     * every carrier's squadrons kept the placeholder from its JSON — a CVA in play as "KHS
+     * Ascendant" had squadrons called "KHS Olympus Squadron 1", and that name reaches the client.
+     * <p>
+     * The name is also an identifier across the wire: {@code Shuttles.applyCarrierEw} looks
+     * squadrons up by it from the map the energy allocation sends. That is safe because renaming
+     * happens at setup, long before any allocation — but it is why this is a deliberate operation
+     * at a known moment rather than a name composed afresh on every read.
+     */
+    public void setName(String name) { this.name = name; }
 
     public Ship getCarrier() { return carrier; }
 
@@ -62,7 +78,23 @@ public class Squadron {
         return slots;
     }
 
-    /** J4.463: EW and two-seat fighters currently in this squadron. */
+    /**
+     * J4.463: EW fighters currently in this squadron.
+     * <p>
+     * Counted by {@code isTwoSeater()} — the craft's IDENTITY — and deliberately not by whether it
+     * still has pods. Those are two different questions and the difference is load-bearing:
+     * J4.965 and J1.3322 leave an EW fighter that has lost its pods still an EW fighter, one that
+     * lends nothing. Counting pods here would stop it being the squadron's EW fighter the moment
+     * it was crippled, and let a second one join.
+     * <p>
+     * So: <b>identity is seats, lendable quantity is pods.</b> Changing this to pods was tried and
+     * broke three lending tests, which is the evidence that the two must stay apart.
+     * <p>
+     * The gap this leaves is real but empty: J4.43's "a two-seat fighter, AND the EW fighters
+     * built from them" permits a plain two-seat fighter, which would be counted here as an EW
+     * fighter it is not. None exists, and the owner expects none for a long while. The fix when
+     * one arrives is a property of its own — "is an EW fighter" — not a swap to pods.
+     */
     public int ewFighterCount() {
         int n = 0;
         for (Fighter f : fighters)
