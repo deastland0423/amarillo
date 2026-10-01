@@ -34,13 +34,13 @@ public class Stinger2 extends Fighter {
 
         FighterFusion fA = new FighterFusion();
         fA.setDesignator("A");
-        fA.setArcs(ArcUtils.FULL);
+        fA.setArcs(ArcUtils.FA);
         fA.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(fA);
 
         FighterFusion fB = new FighterFusion();
         fB.setDesignator("B");
-        fB.setArcs(ArcUtils.FULL);
+        fB.setArcs(ArcUtils.FA);
         fB.setArcsFromJSON(List.of("FA"));
         getWeapons().addWeapon(fB);
     }
