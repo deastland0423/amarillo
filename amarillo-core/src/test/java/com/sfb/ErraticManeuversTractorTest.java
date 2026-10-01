@@ -11,15 +11,21 @@ import com.sfb.properties.Location;
 /**
  * C10.24: "EM cannot be conducted while the unit is ... held by a tractor beam (G7.92)."
  * <p>
- * A unit under tow is not manoeuvring; it is being moved. The rule has two directions and both
- * matter:
- * <ul>
- *   <li>a held unit may not BEGIN EM — caught where the announcement is refused;</li>
- *   <li>a unit already using EM that is THEN grabbed stops — which no announcement can catch,
- *       because being tractored is not something the victim declares.</li>
- * </ul>
- * C10.24 lists two further conditions this engine cannot ask about: a unit in a WEB (G10.57),
- * there being no web casters, and one DOCKED to another ship (C13.923).
+ * The commitment is SUSPENDED, not cancelled, and that distinction is the rule (owner, 2026-10-01):
+ * a held unit is still spending the EM energy — it went at allocation and is gone — but it is not
+ * manoeuvring, so C10.41's four points of ECM lapse while the tractor holds it. The moment the
+ * tractor releases, the effect returns. Nothing is announced in either direction.
+ * <p>
+ * Cancelling instead would be wrong twice over: the unit would lose the energy for nothing, and
+ * C10.32's one-start-per-turn would stop it resuming after release. That was this test's first
+ * shape and it was wrong.
+ * <p>
+ * Because the rule is about the EFFECT, one check covers both timings — grabbed while manoeuvring,
+ * or announcing while already held — rather than a refusal at announce time and a cancellation
+ * later. Hence {@code Unit.isEmEffective()} beside {@code isUsingEm()}.
+ * <p>
+ * C10.24 names two further conditions this engine cannot ask about: being in a WEB (G10.57, no web
+ * casters) and being DOCKED to another ship (C13.923).
  */
 public class ErraticManeuversTractorTest {
 
@@ -53,7 +59,7 @@ public class ErraticManeuversTractorTest {
         game.getShips().add(tug);
 
         game.startTurn();
-        // EM is bought at allocation (C10.11); without that the refusal would be that one.
+        // EM is bought at allocation (C10.11), and the energy is gone whatever happens next.
         for (Ship s : game.getShips()) {
             com.sfb.systemgroups.Energy e = new com.sfb.systemgroups.Energy();
             e.setLifeSupport(s.getLifeSupportCost());
@@ -71,83 +77,111 @@ public class ErraticManeuversTractorTest {
         game.advancePhase();
     }
 
-    // ---------------------------------------------------------------- may not begin
-
-    @Test
-    public void aTractoredShipMayNotBeginEm() {
-        ship.applyTractor(tug);
-        assertTrue("fixture must actually be held", ship.isTractored());
-
-        Game.ActionResult result = game.announceErraticManeuvers(ship, true);
-
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage(), result.getMessage().contains("C10.24"));
-        assertTrue(result.getMessage(), result.getMessage().contains("tractor"));
-        assertFalse("and it is not manoeuvring", ship.isUsingEm());
-    }
-
-    /** The refusal names C10.24 rather than the energy clause — it DID pay for EM. */
-    @Test
-    public void theRefusalIsTheTractorNotTheEnergy() {
-        ship.applyTractor(tug);
-        String message = game.announceErraticManeuvers(ship, true).getMessage();
-
-        assertFalse("it paid at allocation, so C10.11 is not the reason: " + message,
-                message.contains("C10.11"));
-    }
-
-    @Test
-    public void anUnheldShipMayBeginEmPerfectlyWell() {
-        assertFalse(ship.isTractored());
-
-        Game.ActionResult result = game.announceErraticManeuvers(ship, true);
-
-        assertTrue(result.getMessage(), result.isSuccess());
-        finishTheImpulse();
-        assertTrue("in force at the end of the impulse (C10.311)", ship.isUsingEm());
-    }
-
-    // ---------------------------------------------------------------- and must stop
-
-    /**
-     * The direction an announcement cannot cover: already manoeuvring, then grabbed. Nothing the
-     * victim declares, so Stage 6E has to notice.
-     */
-    @Test
-    public void beingGrabbedWhileManoeuvringStopsEm() {
+    private void beginEm() {
         assertTrue(game.announceErraticManeuvers(ship, true).isSuccess());
         finishTheImpulse();
-        assertTrue("fixture: it is manoeuvring", ship.isUsingEm());
-
-        ship.applyTractor(tug);
-        finishTheImpulse();
-
-        assertFalse("held, so no longer conducting EM (C10.24)", ship.isUsingEm());
+        assertTrue("fixture: EM should be in force", ship.isUsingEm());
     }
 
-    /** And C10.32 still bars a restart in the same turn, whatever ended it. */
+    // ---------------------------------------------------------------- suspend and resume
+
     @Test
-    public void itMayNotSimplyRestartOnceReleased() {
-        assertTrue(game.announceErraticManeuvers(ship, true).isSuccess());
-        finishTheImpulse();
+    public void aTractorSuspendsTheEffectButNotTheCommitment() {
+        beginEm();
+        assertTrue("manoeuvring and effective", ship.isEmEffective());
+
         ship.applyTractor(tug);
-        finishTheImpulse();
-        assertFalse(ship.isUsingEm());
+
+        assertTrue("the commitment stands — the energy is spent either way", ship.isUsingEm());
+        assertFalse("but the ECM effect lapses while held (C10.24)", ship.isEmEffective());
+    }
+
+    @Test
+    public void releasingTheTractorBringsTheEffectBack() {
+        beginEm();
+        ship.applyTractor(tug);
+        assertFalse(ship.isEmEffective());
 
         ship.releaseTractor();
-        Game.ActionResult again = game.announceErraticManeuvers(ship, true);
 
-        assertFalse("C10.31/C10.32: one start per turn", again.isSuccess());
-        assertTrue(again.getMessage(), again.getMessage().contains("C10.31"));
+        assertTrue("the moment the tractor releases, the effect returns",
+                ship.isEmEffective());
+        assertTrue(ship.isUsingEm());
     }
 
-    /** A ship not under EM at all is untouched by the sweep — no spurious log, no state change. */
+    /** No announcement is involved, so nothing is consumed and nothing must be re-declared. */
+    @Test
+    public void noAnnouncementIsNeededToResume() {
+        beginEm();
+        ship.applyTractor(tug);
+        finishTheImpulse();
+        ship.releaseTractor();
+        finishTheImpulse();
+
+        assertTrue("still manoeuvring, with no second announcement", ship.isEmEffective());
+    }
+
+    /**
+     * The reason suspension matters rather than cancellation: C10.32 allows one start per turn, so
+     * a cancelled EM could not resume at all and the energy would be wasted.
+     */
+    @Test
+    public void cancellingWouldHaveCostTheTurnsOneStart() {
+        beginEm();
+        assertTrue("the start is spent — this is why it must not be cancelled",
+                ship.hasStartedEmThisTurn());
+
+        ship.applyTractor(tug);
+        ship.releaseTractor();
+
+        assertTrue("so resuming must not need a fresh start", ship.isEmEffective());
+        assertFalse("and a fresh announcement would indeed be refused",
+                game.announceErraticManeuvers(ship, true).isSuccess());
+    }
+
+    // ---------------------------------------------------------------- the ECM it suspends
+
+    /** C10.41/.413: four natural points against fire aimed at the EM unit — while effective. */
+    @Test
+    public void theFourPointsLapseWhileHeldAndReturnAfter() {
+        beginEm();
+        int manoeuvring = game.ewAgainst(tug, ship).total();
+
+        ship.applyTractor(tug);
+        int held = game.ewAgainst(tug, ship).total();
+
+        ship.releaseTractor();
+        int released = game.ewAgainst(tug, ship).total();
+
+        assertEquals("C10.41's four points are gone while held", manoeuvring - 4, held);
+        assertEquals("and back on release", manoeuvring, released);
+    }
+
+    /** C10.414: and the penalty on the EM unit's OWN fire lapses with it. */
+    @Test
+    public void itsOwnFirePenaltyLapsesTooAndReturns() {
+        beginEm();
+        int manoeuvring = game.ewAgainst(ship, tug).total();
+
+        ship.applyTractor(tug);
+        int held = game.ewAgainst(ship, tug).total();
+
+        ship.releaseTractor();
+
+        assertEquals("the EM unit's own fire is no longer degraded while held",
+                manoeuvring - 4, held);
+        assertEquals("and is again once released", manoeuvring,
+                game.ewAgainst(ship, tug).total());
+    }
+
+    /** A ship not manoeuvring at all is unaffected by any of this. */
     @Test
     public void aHeldShipThatWasNeverManoeuvringIsUnaffected() {
         ship.applyTractor(tug);
         finishTheImpulse();
 
         assertFalse(ship.isUsingEm());
+        assertFalse(ship.isEmEffective());
         assertFalse("and it has not burned its once-per-turn start",
                 ship.hasStartedEmThisTurn());
     }

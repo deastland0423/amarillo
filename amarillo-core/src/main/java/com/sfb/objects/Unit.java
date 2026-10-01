@@ -198,21 +198,22 @@ public class Unit extends Marker implements Tractorable {
 	}
 
 	/**
-	 * Stop EM outright, without an announcement (C10.24).
+	 * Whether EM is actually DOING anything right now (C10.24).
 	 * <p>
-	 * For the conditions that END EM rather than forbid its start: being taken in tow is not
-	 * something a unit announces, so there is no pending announcement to apply. The once-per-turn
-	 * start (C10.31) is deliberately NOT refunded — the unit did begin EM this turn, and C10.32
-	 * bars a restart in the same turn whatever ended it.
-	 *
-	 * @return true if EM was actually in force and is now off, so the caller can log it
+	 * Distinct from {@link #isUsingEm()}, and the distinction is the rule: a unit held by a
+	 * tractor beam is still paying for EM — the energy went at allocation and is gone — but it is
+	 * not manoeuvring, so the ECM effect is invalidated for as long as it is held. The moment the
+	 * tractor releases, the effect returns. Nothing is announced either way.
+	 * <p>
+	 * So the commitment is suspended, never cancelled. Cancelling it would be wrong twice over:
+	 * the unit would lose the energy for nothing, and C10.32's one-start-per-turn would stop it
+	 * resuming after release.
+	 * <p>
+	 * C10.24 names two further conditions this engine cannot ask about: being in a WEB (G10.57,
+	 * no web casters) and being DOCKED to another ship (C13.923). Both belong here.
 	 */
-	public boolean stopEm() {
-		if (!usingEm)
-			return false;
-		usingEm = false;
-		emAnnouncedImpulse = -1;
-		return true;
+	public boolean isEmEffective() {
+		return usingEm && !isTractored();
 	}
 
 	/** Turn boundary: the once-per-turn start becomes available again (C10.31). */
