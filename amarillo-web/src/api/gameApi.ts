@@ -421,11 +421,17 @@ export const gameApi = {
   /**
    * The ship catalogue. Fetched whole and filtered in the browser: a force may draw on several
    * allied empires (S8.6) and the builder switches between them freely, and the lot is ~17KB.
+   *
+   * `year` is NOT a filter — the shelf still hides out-of-service hulls client-side. It is
+   * there because a carrier's price depends on it: S8.131 makes the date decide which fighters
+   * it flies and S8.11 charges for them, so a Kzinti CVS is 243 points in Y170 and 315 in Y183.
+   * Omit it and every ship is quoted as its own service year built it, which is what browsing
+   * without a date should show.
    */
-  listShips(factions?: string[]): Promise<CatalogShip[]> {
-    const query = factions?.length
-      ? '?' + factions.map(f => `faction=${encodeURIComponent(f)}`).join('&')
-      : '';
+  listShips(factions?: string[], year?: number): Promise<CatalogShip[]> {
+    const parts = (factions ?? []).map(f => `faction=${encodeURIComponent(f)}`);
+    if (year && year > 0) parts.push(`year=${year}`);
+    const query = parts.length ? '?' + parts.join('&') : '';
     return request(`/api/games/ships${query}`);
   },
 

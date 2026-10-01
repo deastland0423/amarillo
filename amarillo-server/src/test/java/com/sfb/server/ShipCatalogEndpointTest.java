@@ -27,8 +27,19 @@ class ShipCatalogEndpointTest {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> ships(String... factions) {
+        return shipsInYear(0, factions);
+    }
+
+    /**
+     * The catalogue in a given year. A carrier's price moves with the date — S8.131 makes it
+     * decide which fighters it flies and S8.11 charges for them — and year 0 means "no date
+     * chosen", which quotes each ship as its own service year built it.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> shipsInYear(int year, String... factions) {
         List<String> filter = factions.length == 0 ? null : List.of(factions);
-        return (List<Map<String, Object>>) new GameController(null, null).listShips(filter).getBody();
+        return (List<Map<String, Object>>) new GameController(null, null)
+                .listShips(filter, year).getBody();
     }
 
     private Map<String, Object> find(String faction, String type) {
@@ -80,6 +91,43 @@ class ShipCatalogEndpointTest {
         assertTrue((Integer) cv.get("fighterBpv") > 0, cv.toString());
         assertEquals((Integer) cv.get("bpv") + (Integer) cv.get("fighterBpv"), cv.get("cost"));
         assertEquals(Boolean.TRUE, cv.get("requiresEscort"));
+    }
+
+    /**
+     * S8.131: the date decides which fighters a carrier flies, and S8.11 charges for them, so
+     * the shelf price has to move with the year the fleet is being built in.
+     * <p>
+     * This is the invariant the whole endpoint exists for. It used to fail: the shelf always
+     * built a carrier at its hull's own service year, so a Y183 fleet was quoted a Kzinti CVS
+     * at its Y170 AAS price and the validator charged the same — both wrong together, which is
+     * exactly how it went unnoticed.
+     */
+    @Test
+    void aCarrierCostsMoreInALaterYear() {
+        Map<String, Object> early = shipsInYear(170, "Kzinti").stream()
+                .filter(s -> "CVS".equals(s.get("type"))).findFirst().orElseThrow();
+        Map<String, Object> late = shipsInYear(183, "Kzinti").stream()
+                .filter(s -> "CVS".equals(s.get("type"))).findFirst().orElseThrow();
+
+        assertEquals(early.get("bpv"), late.get("bpv"), "the hull does not change");
+        assertTrue((Integer) late.get("fighterBpv") > (Integer) early.get("fighterBpv"),
+                "TADSC cost more than AAS: " + early.get("fighterBpv")
+                        + " -> " + late.get("fighterBpv"));
+        assertTrue((Integer) late.get("cost") > (Integer) early.get("cost"),
+                "so the shelf price rises: " + early.get("cost") + " -> " + late.get("cost"));
+        assertTrue((Double) late.get("coiAllowance") > (Double) early.get("coiAllowance"),
+                "and S3.211's allowance with it");
+    }
+
+    /** No date chosen quotes each ship as its own service year built it, not an empty bay. */
+    @Test
+    void withNoYearTheShelfShowsTheServiceYearComplement() {
+        Map<String, Object> undated = find("Kzinti", "CVS");
+        Map<String, Object> atService = shipsInYear(170, "Kzinti").stream()
+                .filter(s -> "CVS".equals(s.get("type"))).findFirst().orElseThrow();
+
+        assertEquals(atService.get("cost"), undated.get("cost"));
+        assertTrue((Integer) undated.get("fighterBpv") > 0);
     }
 
     /** A scout is shelved at the economic value it is actually bought for (G24.35). */

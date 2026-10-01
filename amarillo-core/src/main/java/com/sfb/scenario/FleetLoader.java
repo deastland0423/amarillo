@@ -47,6 +47,11 @@ public final class FleetLoader {
                 continue;
             }
             Ship ship = ShipLibrary.createShip(shipSpec);
+            // S8.131: the fleet's date decides which fighters a carrier has, and S8.11 charges
+            // for them, so the complement must be re-seated BEFORE anything prices the ship.
+            // Without this a Y183 fleet bought a Kzinti CVS at its Y170 AAS price — 243 points
+            // for a 315-point ship, with the COI allowance understated to match.
+            com.sfb.objects.FighterComplement.reseat(ship, spec.year);
 
             // Several ships of one type are normal, and a player may not have named them
             // apart. Violations have to point at one ship, so make the names unique here.

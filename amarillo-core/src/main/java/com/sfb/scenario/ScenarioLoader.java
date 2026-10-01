@@ -98,24 +98,11 @@ public class ScenarioLoader {
      * fighters and then swapping them would throw the work away.
      */
     private static void applyFighterComplement(Ship ship, int year) {
-        if (year <= 0)
-            return;
-        // One counter for the whole ship, so a complement spread over several bays is numbered
-        // straight through: the Hydran RN's nine fighters are Stinger1-1 to Stinger1-9, not three
-        // bays each starting again at one.
-        java.util.Map<String, Integer> typeCount = new java.util.LinkedHashMap<>();
-        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
-            com.sfb.objects.FighterComplement complement = bay.getFighterComplement();
-            if (complement == null)
-                continue;
-            if (complement.typesFor(year).isEmpty()) {
-                note(ship, "Fighters: line '" + complement.getLine()
-                        + "' has nothing available in Y" + year
-                        + " — keeping the complement it was built with");
-                continue;
-            }
-            complement.applyTo(bay, year, "", typeCount);
-        }
+        // The work moved to FighterComplement.reseat: the fleet resolver and the ship-catalogue
+        // endpoint need the same re-seating, and while this was private to the scenario loader
+        // they both quietly sold carriers at their hull's service year.
+        for (String n : com.sfb.objects.FighterComplement.reseat(ship, year))
+            note(ship, n);
     }
 
     /**

@@ -142,7 +142,8 @@ public class GameController {
      */
     @GetMapping("/ships")
     public ResponseEntity<List<Map<String, Object>>> listShips(
-            @RequestParam(name = "faction", required = false) List<String> factions) {
+            @RequestParam(name = "faction", required = false) List<String> factions,
+            @RequestParam(name = "year", required = false, defaultValue = "0") int year) {
         com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
         try {
             if (!com.sfb.objects.ShipLineCatalog.isLoaded())
@@ -158,6 +159,12 @@ public class GameController {
                     && factions.stream().noneMatch(f -> f.equalsIgnoreCase(spec.faction)))
                 continue;
             com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+            // S8.131: the date decides which fighters a carrier flies, and S8.11 charges for
+            // them, so the shelf price is only honest once the complement matches the year the
+            // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves the
+            // ship as its own service year built it, which is the right thing to show when
+            // browsing without a date rather than a guess at some house default.
+            com.sfb.objects.FighterComplement.reseat(ship, year);
             Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("faction", spec.faction);
             row.put("type", spec.type);

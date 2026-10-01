@@ -47,11 +47,29 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   }, []);
 
   useEffect(() => {
-    gameApi.listShips()
-      .then(setCatalog)
-      .catch(e => setError(e instanceof Error ? e.message : 'Could not load the ship catalogue.'));
     refreshFleets();
   }, [refreshFleets]);
+
+  /**
+   * The catalogue is re-fetched when the date changes, because a carrier's PRICE moves with it:
+   * S8.131 makes the date decide which fighters it flies and S8.11 charges for them, so a
+   * Kzinti CVS is 243 points in Y170 and 315 in Y183. Quoting a stale shelf price would put the
+   * builder at odds with the validator, which is the one thing the catalogue endpoint exists to
+   * prevent.
+   *
+   * Debounced on the same 250ms as validation: the year is a text field, so typing "183" would
+   * otherwise fetch three times.
+   */
+  const catalogTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    window.clearTimeout(catalogTimer.current);
+    catalogTimer.current = window.setTimeout(() => {
+      gameApi.listShips(undefined, spec.year)
+        .then(setCatalog)
+        .catch(e => setError(e instanceof Error ? e.message : 'Could not load the ship catalogue.'));
+    }, 250);
+    return () => window.clearTimeout(catalogTimer.current);
+  }, [spec.year]);
 
   // ---- validation -------------------------------------------------------
   // The rules live on the server. Every change asks again rather than the browser

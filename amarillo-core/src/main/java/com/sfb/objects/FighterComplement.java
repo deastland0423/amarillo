@@ -175,6 +175,53 @@ public final class FighterComplement {
         return types;
     }
 
+    /**
+     * J4.4: re-seat every declared complement aboard {@code ship} for {@code year}.
+     * <p>
+     * A ship is built from its own file, which knows only its service year, so a Kzinti CVS
+     * arrives flying the AAS it entered service with in Y170. This is where it re-equips: HAAS
+     * from Y173, TAAS from Y177, TADS from Y180, TADSC from Y183. A bay whose contents were
+     * listed literally has no complement and is left exactly as the file wrote it.
+     * <p>
+     * It lives here, rather than in the caller that first needed it, because THREE paths build
+     * ships and every one of them has to price them the same: the scenario loader, the fleet
+     * resolver, and the ship-catalogue endpoint that quotes the shelf price. While this was
+     * private to {@code ScenarioLoader} the other two silently sold every carrier at its hull's
+     * service year — a Kzinti CVS at 243 points in a Y183 fleet instead of 315. That is the same
+     * drift {@code CoiBudget} exists to prevent, one layer down.
+     * <p>
+     * S8.131 is the rule underneath: the scenario date "will define ... what ships, FIGHTERS,
+     * and other units will be available". The year is not a preference, so there is deliberately
+     * no way for a buyer to ask for an earlier, cheaper complement.
+     *
+     * @param year the SCENARIO's year; a year of zero or less leaves the ship untouched, which
+     *             is what a catalogue listing with no date wants — it then shows the ship as its
+     *             own service year built it
+     * @return one note per bay that could not be re-seated, for the caller to surface
+     */
+    public static List<String> reseat(com.sfb.objects.Ship ship, int year) {
+        List<String> notes = new ArrayList<>();
+        if (ship == null || year <= 0 || ship.getShuttles() == null)
+            return notes;
+        // One counter for the whole ship, so a complement spread over several bays is numbered
+        // straight through: the Hydran RN's nine fighters are Stinger1-1 to Stinger1-9, not three
+        // bays each starting again at one.
+        Map<String, Integer> typeCount = new LinkedHashMap<>();
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            FighterComplement complement = bay.getFighterComplement();
+            if (complement == null)
+                continue;
+            if (complement.typesFor(year).isEmpty()) {
+                notes.add("Fighters: line '" + complement.getLine()
+                        + "' has nothing available in Y" + year
+                        + " — keeping the complement it was built with");
+                continue;
+            }
+            complement.applyTo(bay, year, "", typeCount);
+        }
+        return notes;
+    }
+
     @Override
     public String toString() {
         return line + counts;
