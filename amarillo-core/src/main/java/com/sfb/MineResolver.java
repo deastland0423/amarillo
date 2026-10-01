@@ -263,14 +263,27 @@ class MineResolver {
                 if (prev == null)
                     continue; // did not move this impulse — stationary units don't trigger
                 int roll = dice.rollOneDie();
-                if (mine.detectsUnit(unit.getSpeed(), roll)) {
+                /*
+                 * C10.46/C2.451: a mine reacts to EFFECTIVE speed, which folds in the cost of
+                 * Erratic Maneuvers. C10.461 then falls straight out of the arithmetic rather
+                 * than needing a rule of its own: SpaceMine.detectsUnit triggers unconditionally
+                 * at speed six or more, and a non-nimble ship under EM adds six — so it "will
+                 * always trigger a mine ... if its speed is greater than zero", exactly as the
+                 * rule says, "because the six points of EM movement energy are added to speed for
+                 * this purpose". A nimble ship adds three (C10.462) and a shuttle one (C10.463),
+                 * both of which merely shorten the odds.
+                 *
+                 * Speed zero needs no special case: a stationary unit never ENTERS a mine hex.
+                 */
+                int speed = unit.effectiveSpeed();
+                if (mine.detectsUnit(speed, roll)) {
                     log.add("  tBomb detection: " + unit.getName()
-                            + " (roll " + roll + " ≤ speed " + unit.getSpeed() + ") — TRIGGERED");
+                            + " (roll " + roll + " ≤ speed " + speed + ") — TRIGGERED");
                     triggered = true;
                     break;
                 } else {
                     log.add("  tBomb detection: " + unit.getName()
-                            + " (roll " + roll + " > speed " + unit.getSpeed() + ") — no trigger");
+                            + " (roll " + roll + " > speed " + speed + ") — no trigger");
                 }
             }
 

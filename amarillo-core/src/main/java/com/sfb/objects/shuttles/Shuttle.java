@@ -334,6 +334,20 @@ public abstract class Shuttle extends Unit {
 	public boolean isEmSpeedCommitted() { return emSpeedCommitted; }
 
 	/**
+	 * C10.13: one movement point, which for a shuttle is a point of SPEED rather than energy.
+	 * <p>
+	 * C10.463 adds it back for effective speed, and the apparent contradiction is the rule: the
+	 * craft FLIES one hex slower, having spent that point on manoeuvring, but it is throwing the
+	 * signature of the full speed about, which is what a mine and an asteroid react to. "This is
+	 * irrespective of Ace status, however green pilots will add two."  Pilot quality is not
+	 * modelled, so this is the one point.
+	 */
+	@Override
+	public double emMovementCost() {
+		return 1;
+	}
+
+	/**
 	 * C10.13/C10.131: a shuttle or fighter buys EM with one movement point - a point of
 	 * speed - and the commitment binds for the WHOLE turn. It is recorded during energy
 	 * allocation if the shuttle is already launched, or on the impulse of launch if it is

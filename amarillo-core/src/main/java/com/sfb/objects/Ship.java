@@ -1078,6 +1078,15 @@ public class Ship extends Unit implements DroneController {
 
 	public boolean hasPaidForEm() { return paidForEm; }
 
+	/**
+	 * C10.11/C10.12: six movement points, or three for a nimble ship. Read off the same
+	 * performance figure the energy allocation charges, so the two cannot disagree.
+	 */
+	@Override
+	public double emMovementCost() {
+		return getPerformanceData().getErraticCost();
+	}
+
 	public void setPaidForEm(boolean paid) { this.paidForEm = paid; }
 
 	// --- Lock-on ---

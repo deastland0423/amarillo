@@ -3660,14 +3660,35 @@ public class Game {
      *               included (C11.1); seeking WEAPONS - drones, plasma - are never nimble
      * @param crew   crew quality for the C11.33 poor-crew negation, or null
      */
+    /** P3.2's speed columns. */
+    private static int bracketFor(int speed) {
+        return speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
+    }
+
     TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
             com.sfb.systemgroups.Crew.CrewQuality crew, boolean passiveFireControl) {
+        return rollTerrainCollision(loc, speed, nimble, crew, passiveFireControl, 0);
+    }
+
+    /**
+     * As above, but {@code extraBracket} shifts the speed column (C10.45).
+     * <p>
+     * The rule's own note: "ships (including PFs) add the cost of EM to their speed while shuttles
+     * (including fighters) use the next higher column." A shuttle's EM costs one movement point,
+     * and adding one would cross a column boundary only at 6, 14 or 25 — so for a shuttle the
+     * column is bumped instead, which is what the note asks for and is harsher at every other
+     * speed.
+     */
+    TerrainHit rollTerrainCollision(Location loc, int speed, boolean nimble,
+            com.sfb.systemgroups.Crew.CrewQuality crew, boolean passiveFireControl,
+            int extraBracket) {
         boolean asteroid = isAsteroidHex(loc);
         boolean ring = !asteroid && isRingHex(loc);
         if (!asteroid && !ring)
             return null;
         int[][] table = asteroid ? ASTEROID_DAMAGE : RING_DAMAGE;
-        int bracket = speed <= 6 ? 0 : speed <= 14 ? 1 : speed <= 25 ? 2 : 3;
+        int bracket = bracketFor(speed) + Math.max(0, extraBracket);
+        bracket = Math.min(bracket, table[0].length - 1);
         int rawDie = new com.sfb.utilities.DiceRoller().rollOneDie();
         int die = collisionDie(rawDie, nimble, crew, passiveFireControl);
         int damage = table[die - 1][bracket];
@@ -3717,7 +3738,10 @@ public class Game {
     }
 
     String applyTerrainCollision(Unit unit) {
-        return unit == null ? "" : applyTerrainCollision(unit, unit.getSpeed());
+        // C10.45/C2.451: asteroids and rings react to EFFECTIVE speed, which includes the cost
+        // of Erratic Maneuvers. A unit not using EM has an effective speed equal to its practical
+        // one, so this is the ordinary case too.
+        return unit == null ? "" : applyTerrainCollision(unit, unit.effectiveSpeed());
     }
 
     /**
@@ -3748,7 +3772,13 @@ public class Game {
         // they simply have no such system to switch off.
         boolean passiveFc = isShip && !((Ship) unit).isActiveFireControl();
 
-        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew, passiveFc);
+        // C10.45: a SHUTTLE manoeuvring erratically takes the next column up rather than having
+        // its one point added, which is what the rule's note specifies. A ship has already had
+        // its six (or three) folded into the speed passed in.
+        int columnBump = unit instanceof com.sfb.objects.shuttles.Shuttle && unit.isEmEffective()
+                ? 1 : 0;
+        TerrainHit hit = rollTerrainCollision(unit.getLocation(), speed, nimble, crew, passiveFc,
+                columnBump);
         if (hit == null)
             return "";
 

@@ -198,6 +198,43 @@ public class Unit extends Marker implements Tractorable {
 	}
 
 	/**
+	 * What this unit's EM costs it in movement points, for {@link #effectiveSpeed()}.
+	 * <p>
+	 * Zero on the base class — a drone or a plasma torpedo cannot use EM at all (C10.17). A ship
+	 * pays six, or three if nimble (C10.11/C10.12), which its performance data already holds
+	 * because the energy allocation charges it. A shuttle or fighter pays one point of SPEED
+	 * rather than energy (C10.13/C10.463).
+	 */
+	public double emMovementCost() {
+		return 0;
+	}
+
+	/**
+	 * C2.45 EFFECTIVE SPEED: "the actual rate at which the unit is moving through space."
+	 * <p>
+	 * C2.43 defines it as practical speed + the cost of Erratic Maneuvers + terrain-induced
+	 * movement. The terrain term is black holes, nebulae and webs (P4.0, P6.5, G10.0), none of
+	 * which this engine models — when they arrive they belong here.
+	 * <p>
+	 * C2.451 lists what it is FOR: "mines, asteroids, rings, dust, recovering shuttles and
+	 * fighters, destroying objects (e.g., shuttles) by towing them at high speed, collisions with
+	 * small moons, docking, and web damage". Of those, mines and asteroids/rings exist and ask
+	 * this; the rest are for when their systems do.
+	 * <p>
+	 * It deliberately asks {@link #isEmEffective()} rather than {@code isUsingEm()}: a unit held
+	 * by a tractor is paying for EM but not manoeuvring, so it is not throwing that signature
+	 * about either (C10.24). C2.45 handles a towed unit separately anyway — "if two ships are
+	 * connected by tractor beam, their effective speed is equal to the sum of their
+	 * pseudo-speeds" — which is a tug rule, not modelled here.
+	 * <p>
+	 * NOT included, per C2.45: the cost of HETs or Tactical Maneuvers. Those belong to the
+	 * MANEUVER RATE (C2.42), which is a different number for a different purpose.
+	 */
+	public int effectiveSpeed() {
+		return getSpeed() + (isEmEffective() ? (int) Math.ceil(emMovementCost()) : 0);
+	}
+
+	/**
 	 * Whether EM is actually DOING anything right now (C10.24).
 	 * <p>
 	 * Distinct from {@link #isUsingEm()}, and the distinction is the rule: a unit held by a
