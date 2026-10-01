@@ -201,7 +201,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
+    // Either key. Error bodies are meant to carry `error`, but the action endpoint's
+    // "You do not own ship" 403 sent `message` — so the one refusal a player is most likely to
+    // meet arrived as a bare "HTTP 403" with no reason at all, and a playtester could only report
+    // the status. Reading both means a server that uses the other key still explains itself.
+    throw new Error(body.error ?? body.message ?? `HTTP ${res.status}`);
   }
   return res.json();
 }

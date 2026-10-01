@@ -1889,8 +1889,12 @@ public class GameController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Game has not started yet"));
 
             if (request.getShipName() != null && !session.ownsShip(token, request.getShipName()))
+                // "error" like every other failure body, which is the key the client reads.
+                // This 403 alone said "message", so it arrived as a bare "HTTP 403". "message"
+                // is kept as well, since a client may be reading it.
                 return ResponseEntity.status(403).body(Map.of(
                         "success", false,
+                        "error", "You do not own ship: " + request.getShipName(),
                         "message", "You do not own ship: " + request.getShipName()));
 
             request.setPlayerToken(token);

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import com.sfb.objects.shuttles.Fighter;
 
 /**
  * A single game instance on the server.
@@ -364,6 +365,26 @@ public class GameSession {
                 .findFirst().orElse(null);
         if (shuttle != null)
             return shuttle.getOwner() == p.getCorePlayer();
+
+        /*
+         * And a craft still in a BAY, which is owned by whoever owns the carrier holding it.
+         *
+         * Without this, every action naming a fighter before it launches was refused: the pod-EW
+         * declaration (J4.961) is made from the energy allocation, which happens while the whole
+         * squadron is still aboard, and it sends the fighter's own name. A player opening the EA
+         * form and declaring a split got "You do not own ship: HAAS-E-1" — the one fighter that
+         * most needs declaring for.
+         *
+         * It went unnoticed because the test for that action calls GameSession.executeAction
+         * directly, below the layer that checks ownership. A bay fighter has no owner of its own
+         * either — ownership is stamped on launch — so asking the carrier is the only way to
+         * answer, and is the right question: a fighter in your carrier's bay is yours.
+         */
+        for (Ship carrier : game.getShips())
+            for (com.sfb.systemgroups.ShuttleBay bay : carrier.getShuttles().getBays())
+                for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
+                    if (craft.getName().equalsIgnoreCase(shipName))
+                        return carrier.getOwner() == p.getCorePlayer();
 
         return false;
     }
