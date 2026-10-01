@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import type { CoiSideData, CoiShipData, CoiSubmission, CoiDroneType, CoiDroneRack, Cartel } from '../api/gameApi';
 import { gameApi } from '../api/gameApi';
+import { Stepper } from './Stepper';
 
 type Tier = 'HOME' | 'OPERATING' | 'OUTSIDE' | 'UNIVERSAL';
 
@@ -284,8 +285,8 @@ function ShipCoiPanel({
       {/* Boarding parties */}
       <div className="coi-row">
         <label className="coi-label">Extra boarding parties (0.5 ea, max 10)</label>
-        <input type="number" min={0} max={10} value={coi.extraBoardingParties}
-          onChange={e => setNum('extraBoardingParties', parseInt(e.target.value) || 0)} />
+        <Stepper value={coi.extraBoardingParties} min={0} max={10}
+          onChange={n => setNum('extraBoardingParties', n)} />
       </div>
 
       {/* Convert to commandos */}
@@ -293,13 +294,13 @@ function ShipCoiPanel({
         <>
           <div className="coi-row">
             <label className="coi-label">Convert BPs → commandos (0.5 ea, max 2)</label>
-            <input type="number" min={0} max={2} value={coi.convertBpToCommando}
-              onChange={e => setNum('convertBpToCommando', parseInt(e.target.value) || 0)} />
+            <Stepper value={coi.convertBpToCommando} min={0} max={2}
+              onChange={n => setNum('convertBpToCommando', n)} />
           </div>
           <div className="coi-row">
             <label className="coi-label">Extra commando squads (1.0 ea, max 2)</label>
-            <input type="number" min={0} max={2} value={coi.extraCommandoSquads}
-              onChange={e => setNum('extraCommandoSquads', parseInt(e.target.value) || 0)} />
+            <Stepper value={coi.extraCommandoSquads} min={0} max={2}
+              onChange={n => setNum('extraCommandoSquads', n)} />
           </div>
         </>
       )}
@@ -308,8 +309,8 @@ function ShipCoiPanel({
       {ship.allowTBombs && ship.maxTBombs > 0 && (
         <div className="coi-row">
           <label className="coi-label">T-bombs (4.0 ea, +1 free dummy each, max {ship.maxTBombs})</label>
-          <input type="number" min={0} max={ship.maxTBombs} value={coi.extraTBombs}
-            onChange={e => setNum('extraTBombs', Math.min(ship.maxTBombs, parseInt(e.target.value) || 0))} />
+          <Stepper value={coi.extraTBombs} min={0} max={ship.maxTBombs}
+            onChange={n => setNum('extraTBombs', n)} />
         </div>
       )}
 
@@ -322,9 +323,8 @@ function ShipCoiPanel({
             Deck crews ({(ship.extraDeckCrewCost ?? 0.5).toFixed(1)} ea, max{' '}
             {ship.maxExtraDeckCrews}; has {ship.deckCrews})
           </label>
-          <input type="number" min={0} max={ship.maxExtraDeckCrews} value={coi.extraDeckCrews}
-            onChange={e => setNum('extraDeckCrews',
-              Math.min(ship.maxExtraDeckCrews ?? 0, parseInt(e.target.value) || 0))} />
+          <Stepper value={coi.extraDeckCrews} min={0} max={ship.maxExtraDeckCrews ?? 0}
+            onChange={n => setNum('extraDeckCrews', n)} />
         </div>
       )}
 
@@ -533,14 +533,20 @@ function ShipCoiPanel({
                       {label}
                     </label>
                   ))}
+                  {/* The overload control below is not a plain Stepper: its value is worded
+                      rather than a bare number ("no ovld" / "+2 ovld"), which Stepper has no room
+                      for. So it borrows the stepper's CLASSES instead — the same 24px buttons and
+                      tabular value — and looks and behaves like every other numeric control
+                      without losing the wording. The unclassed buttons it had before were also
+                      subject to the global `button { flex: 1 }`, which stretched them. */}
                   {isPhoton && (
-                    <span className="coi-arm-option" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <button type="button" disabled={ovl <= 0}
+                    <span className="coi-arm-option ea-stepper">
+                      <button type="button" className="ea-step-btn" disabled={ovl <= 0}
                         onClick={() => setPhotonOverload(w.designator, Math.max(0, ovl - 1))}>−</button>
-                      <span style={{ minWidth: 62, textAlign: 'center' }}>
+                      <span className="ea-step-value" style={{ minWidth: 62 }}>
                         {ovl > 0 ? `+${ovl} ovld` : 'no ovld'}
                       </span>
-                      <button type="button" disabled={!canAdd}
+                      <button type="button" className="ea-step-btn" disabled={!canAdd}
                         onClick={() => setPhotonOverload(w.designator, ovl + 1)}>+</button>
                       <span style={{ opacity: 0.7 }}>
                         {mode === 'SPECIAL' ? '4 damage' : `${(4 + ovl) > 4 ? (4 + ovl) * 2 : 8} damage`}
