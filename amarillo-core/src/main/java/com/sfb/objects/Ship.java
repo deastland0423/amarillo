@@ -185,6 +185,14 @@ public class Ship extends Unit implements DroneController {
 
 	/** J4.61/J4.62: what this ship may DO as a carrier, as opposed to what a fleet list allows. */
 	private com.sfb.properties.CarrierClass carrierClass = com.sfb.properties.CarrierClass.NONE;
+
+	// --- Aegis fire control (D13.0) ---
+	/** What the hull HAS. D13.16: aegis "cannot be destroyed", so this never changes in play. */
+	private com.sfb.properties.AegisLevel aegisFitted = com.sfb.properties.AegisLevel.NONE;
+	/** What it is RUNNING (D13.52): off, or at or below what is fitted (D13.525). */
+	private com.sfb.properties.AegisLevel aegisMode = com.sfb.properties.AegisLevel.NONE;
+	/** Absolute impulse the current mode was switched ON, for D13.523's four-impulse wait. */
+	private int aegisActivatedImpulse = Integer.MIN_VALUE;
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
@@ -233,6 +241,10 @@ public class Ship extends Unit implements DroneController {
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
 		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
+		aegisFitted = com.sfb.properties.AegisLevel.from(values.get("aegis"));
+		// D13.52: a ship with aegis starts a scenario with it on unless its owner turns it off.
+		// Fitted is what the hull HAS and never changes (D13.16); mode is what it is running.
+		aegisMode = aegisFitted;
 		bch         = Boolean.TRUE.equals(values.get("isbch"));
 
 		// Calculated Ship Values
@@ -870,6 +882,118 @@ public class Ship extends Unit implements DroneController {
 	public void setCarrierClass(com.sfb.properties.CarrierClass carrierClass) {
 		this.carrierClass = carrierClass == null
 				? com.sfb.properties.CarrierClass.NONE : carrierClass;
+	}
+
+	// ---------------------------------------------------------------- Aegis (D13.0)
+
+	/** What this hull has fitted. D13.16: it cannot be destroyed, so this never changes. */
+	public com.sfb.properties.AegisLevel getAegisFitted() {
+		return aegisFitted;
+	}
+
+	/**
+	 * Fit (or remove) the system. A configuration call, not a move: aegis is not installed
+	 * mid-battle, and D13.16 means it is never removed by damage either.
+	 * <p>
+	 * It brings the running mode with it, matching what {@code init} does when a ship file
+	 * declares aegis — D13.52 lets a ship switch the system off, so being OFF is a decision
+	 * somebody makes, not the state a newly fitted system starts in. Setting what a hull has
+	 * and leaving it switched off would be a trap for every caller.
+	 */
+	public void setAegisFitted(com.sfb.properties.AegisLevel level) {
+		this.aegisFitted = level == null ? com.sfb.properties.AegisLevel.NONE : level;
+		this.aegisMode = this.aegisFitted;
+		this.aegisActivatedImpulse = Integer.MIN_VALUE;   // fitted before the shooting starts
+	}
+
+	/** The level it is currently RUNNING at (D13.52); never above what is fitted. */
+	public com.sfb.properties.AegisLevel getAegisMode() {
+		return aegisMode;
+	}
+
+	/**
+	 * Switch aegis on, off, or between levels (D13.52). Done in the Fire Control Step of the
+	 * Initial Stage (6B1); this records it and the caller owns the timing.
+	 * <p>
+	 * The warm-up is asymmetric, which is the detail worth getting right. D13.525: going from
+	 * inactive to limited, or from limited to full, "is accomplished as per (D13.523)" — four
+	 * impulses during which the system is detectable but does not work. Going the other way,
+	 * full down to limited, is "as per (D13.521)" — immediate. So climbing costs time and
+	 * dropping does not, which is what makes D13.525's deception worth anything: a ship can
+	 * drop to limited to look weaker at no cost, but cannot instantly climb back.
+	 *
+	 * @param wanted          the level to run at; NONE switches it off
+	 * @param absoluteImpulse when the switch happens
+	 * @return false if the hull cannot run at that level (D13.525 bars limited posing as full)
+	 */
+	public boolean setAegisMode(com.sfb.properties.AegisLevel wanted, int absoluteImpulse) {
+		com.sfb.properties.AegisLevel want =
+				wanted == null ? com.sfb.properties.AegisLevel.NONE : wanted;
+		if (!aegisFitted.permits(want))
+			return false;
+		boolean climbing = want.firings() > aegisMode.firings();
+		aegisMode = want;
+		if (climbing)
+			aegisActivatedImpulse = absoluteImpulse;
+		return true;
+	}
+
+	/**
+	 * Whether aegis is actually doing anything right now.
+	 * <p>
+	 * D13.524: "Aegis can only be active if the fire control system is active. Low-powered fire
+	 * control (D6.72) is not sufficient." D13.523: it does not function for four impulses after
+	 * being switched up to its current level. A ship that began the scenario with aegis on has
+	 * no activation impulse and so no wait.
+	 */
+	public boolean isAegisOperational(int absoluteImpulse) {
+		if (!aegisMode.isFitted() || !isActiveFireControl())
+			return false;
+		return aegisActivatedImpulse == Integer.MIN_VALUE
+				|| absoluteImpulse - aegisActivatedImpulse >= AEGIS_WARMUP_IMPULSES;
+	}
+
+	/** D13.523: impulses between switching aegis up and it working. */
+	public static final int AEGIS_WARMUP_IMPULSES = 4;
+
+	/** D13.21: aegis reaches six hexes. */
+	public static final int AEGIS_RANGE = 6;
+
+	/** D13.21: nothing bigger than size class 6 — so shuttles, fighters and seekers. */
+	public static final int AEGIS_SMALLEST_SIZE_CLASS = 6;
+
+	/**
+	 * Whether this ship may engage {@code target} with aegis fire right now (D13.21, D13.23).
+	 * <p>
+	 * D13.21 limits it to "size-6 and smaller ... targets within six hexes", and is explicit
+	 * that this is not about self-defence: "it is not necessary for such a target to be
+	 * approaching the aegis-equipped ship", and it does include the ECM drones escorting an
+	 * enemy warship (FD9.1). D13.23 requires active fire control AND a lock-on to the target.
+	 * <p>
+	 * The rule's two exclusions need no code. Mines (M8.54) are {@code Marker}s, not
+	 * {@code Unit}s, so one can never arrive here; DefSats (R1.15E) do not exist in this engine.
+	 * If either ever becomes a Unit, this method is where they must be refused.
+	 */
+	public boolean canAegisEngage(Unit target, int absoluteImpulse) {
+		if (target == null || target.getLocation() == null || getLocation() == null)
+			return false;
+		if (!isAegisOperational(absoluteImpulse))
+			return false;
+		if (target.getSizeClass() < AEGIS_SMALLEST_SIZE_CLASS)
+			return false;
+		if (!hasLockOn(target))
+			return false;
+		return com.sfb.utilities.MapUtils.getRange(getLocation(), target.getLocation())
+				<= AEGIS_RANGE;
+	}
+
+	/**
+	 * Firings this ship gets in one impulse (D13.14 / D13.411), or zero if aegis is not working.
+	 * The FIRST of them is the ordinary one every ship has, taken alongside all non-aegis fire,
+	 * so {@code AegisLevel.extraFirings()} is what aegis actually adds.
+	 */
+	public int aegisFirings(int absoluteImpulse) {
+		return isAegisOperational(absoluteImpulse) ? aegisMode.firings() : 0;
 	}
 
 	/**

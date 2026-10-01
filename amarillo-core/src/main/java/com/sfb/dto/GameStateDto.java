@@ -474,6 +474,15 @@ public class GameStateDto {
         public int squadronEwLimit;
         public boolean leader;       // leader variant (S8.36)
         public boolean escort;       // carrier escort, needs a carrier group (S8.311)
+        // --- Aegis fire control (D13.0). Owner-only, see redactForEnemy. ---
+        /** What the hull has fitted: NONE / LIMITED / FULL, or null to an enemy. */
+        public String aegisFitted;
+        /** What it is running at (D13.52); may be below what is fitted (D13.525). */
+        public String aegisMode;
+        /** False while D13.523's four-impulse warm-up runs, or without active fire control. */
+        public Boolean aegisOperational;
+        /** Firings this impulse (D13.14/D13.411): 4 full, 2 limited, 0 when not working. */
+        public Integer aegisFirings;
         public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
         public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
@@ -1416,6 +1425,10 @@ public class GameStateDto {
             dto.setupNotes = new ArrayList<>(ship.getSetupNotes());
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
+        dto.aegisFitted = ship.getAegisFitted().name();
+        dto.aegisMode = ship.getAegisMode().name();
+        dto.aegisOperational = ship.isAegisOperational(game.getAbsoluteImpulse());
+        dto.aegisFirings = ship.aegisFirings(game.getAbsoluteImpulse());
         dto.requiresEscort = ship.requiresEscort();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
@@ -2139,6 +2152,20 @@ public class GameStateDto {
         // pool behind them is not.
         dto.tractorEnergy = 0;
         dto.tractorEnergyRemaining = 0;
+
+        // Aegis (D13.0). D13.51: that a ship HAS aegis running, and whether it is limited or
+        // full, is detectable only by tactical intelligence at Level E (D17.4) — and "if the
+        // system is inactive (D13.52), it cannot be detected" at all. D17 is not modelled, so
+        // there is no way for an enemy to earn this and every field goes. Note the pulse COUNT
+        // is the giveaway as much as the label: two firings against four is exactly the
+        // limited/full distinction D13.51 protects, so it cannot be published either.
+        //
+        // The ship's TYPE stays public, so an opponent who knows a Kzinti AFF carries full
+        // aegis may infer it. That is their knowledge of the game, not a disclosure by us.
+        dto.aegisFitted = null;
+        dto.aegisMode = null;
+        dto.aegisOperational = null;
+        dto.aegisFirings = null;
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.

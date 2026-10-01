@@ -63,6 +63,19 @@ public class ShipSpec {
 
     /** Carrier escort: cannot be fielded except as part of a carrier group (S8.311). */
     public boolean isEscort;
+
+    /**
+     * Aegis fire control fitted to this hull (D13.0): "NONE", "LIMITED" or "FULL".
+     * <p>
+     * Deliberately NOT derived from {@link #isEscort}. Most aegis ships are carrier escorts,
+     * but D13.0 names the Klingon D5 as a non-escort that has it, and plenty of escorts predate
+     * the system. The two answer different questions and one field cannot do both.
+     * <p>
+     * Nor is it derived from {@link #serviceYear}: the pre- and post-Y175 versions are separate
+     * hulls with their own years and BPVs — Kzinti EFF (Y168, limited) against AFF (Y175, full).
+     * See {@link com.sfb.properties.AegisLevel}.
+     */
+    public String aegis;
     /**
      * Cannot be fielded without an escort group (S8.315): a size class 2 ship of this kind
      * needs three escorts, class 3 two, class 4 one, at least one of them size class 4.
@@ -340,6 +353,8 @@ public class ShipSpec {
             m.put("typename", typeName);
         if (isEscort)
             m.put("isescort", true);
+        if (aegis != null)
+            m.put("aegis", aegis);
         if (requiresEscort)
             m.put("requiresescort", true);
         if (carrierClass != null)

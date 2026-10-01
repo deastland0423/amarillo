@@ -50,6 +50,11 @@ public class ShipDtoPrivacyTest {
     // ---------------------------------------------------------------- the rulings
 
     private static final Set<String> SHIP_PRIVATE = new HashSet<>(Arrays.asList(
+        // Aegis (D13.0). D13.51 makes an ACTIVE aegis detectable only at tactical intelligence
+        // Level E (D17.4), and an inactive one not detectable at all. D17 is not modelled, so
+        // an enemy can never earn this. The firing COUNT is as revealing as the label — two
+        // against four is precisely the limited/full distinction — so it is private too.
+        "aegisFitted", "aegisMode", "aegisOperational", "aegisFirings",
         // The energy held, NOT the boxes holding it: availableBattery is a box count and
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
