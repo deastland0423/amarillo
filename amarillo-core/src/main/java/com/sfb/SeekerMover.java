@@ -147,6 +147,17 @@ class SeekerMover {
                         queueSeekerImpact(drone, (Ship) target,
                                 droneLabel(drone) + " impacted " + target.getName(), log);
                         expired.add(seeker);
+                    } else if (target instanceof Shuttle) {
+                        // A fighter, or any other craft. Before this a drone that reached one
+                        // simply flew on: there was no branch for it at all.
+                        impactShuttle(drone, (Shuttle) target,
+                                droneLabel(drone) + " impacted " + target.getName(), log);
+                        expired.add(seeker);
+                    } else {
+                        // Nothing else is a legal seeker target today. Say so rather than drift
+                        // past it, which is how the fighter case went unnoticed.
+                        log.add("  " + droneLabel(drone) + " reached " + target.getName()
+                                + ", which it has no way to damage");
                     }
                     continue;
                 }
@@ -266,6 +277,9 @@ class SeekerMover {
                         }
                     } else if (target instanceof Ship) {
                         queueSeekerImpact(ss, (Ship) target,
+                                "Suicide shuttle impacted " + target.getName(), log);
+                    } else if (target instanceof Shuttle) {
+                        impactShuttle(ss, (Shuttle) target,
                                 "Suicide shuttle impacted " + target.getName(), log);
                     }
                     expired.add(ss);
@@ -445,6 +459,45 @@ class SeekerMover {
                 shieldNum, dmg, 0, false, false, hitMsg,
                 enveloping ? (PlasmaTorpedo) seeker : null));
         log.add(hitMsg + " — queued for Reinforcement phase");
+    }
+
+    /**
+     * A seeker reaching a shuttle it was aimed at — a fighter, most of the time.
+     * <p>
+     * The gap this fills was total: the impact branches knew how to hit a Ship, another drone and
+     * a Wild Weasel, and a seeker that reached ANYTHING ELSE just carried on until its endurance
+     * ran out. A drone could not hit a fighter at all, which also made FD2.54's eight-damage tier
+     * unreachable — the whole point of a dogfight drone is the fighter it is sized for, and it had
+     * nothing it could be fired at.
+     * <p>
+     * Unlike a ship's hit this is applied AT ONCE rather than queued. There is nothing to queue
+     * for: a fighter has no shields to allocate against, no bleed-through and no damage allocation
+     * chart, just hull and J1.33's crippling threshold. {@code Game.applyDamageToUnit} already
+     * handled all of that — the plasma branch below has been calling it for any non-ship target
+     * all along, which is why a plasma torpedo could hit a fighter and a drone could not.
+     * <p>
+     * ECM still counts, and this is where a squadron's lent EW earns its keep (J4.93):
+     * {@code computeSeekerEcmShift} takes a Unit and so reads a fighter's own two points plus
+     * whatever its EW fighter is lending, and the shift feeds the same proximity roll a ship's
+     * hit uses. No shield number, and no cloak roll — a fighter has neither.
+     */
+    private void impactShuttle(Seeker seeker, Shuttle target, String description,
+            List<String> log) {
+        Unit unit = (Unit) seeker;
+        // P3.33: terrain ECM along the guidance line, as for a ship.
+        Location guideLoc = seeker.getController() instanceof Ship
+                ? ((Ship) seeker.getController()).getLocation()
+                : unit.getLocation();
+        int terrainEcm = game.terrainEcmAlongLine(guideLoc, target.getLocation());
+        int ecmShift = computeSeekerEcmShift(seeker, target, terrainEcm);
+        // FD2.54 lives in impact(target): a dogfight drone does its full eight here, against the
+        // size class it was built for, where it would do two to a ship.
+        int dmg = applyProximityRoll(seeker.impact(target), ecmShift, log);
+        log.add("  " + description + "  damage " + dmg);
+        // Shield number 0: a shuttle has none, and applyDamageToUnit ignores it for one.
+        String result = game.applyDamageToUnit(dmg, target, 0);
+        if (result != null && !result.isBlank())
+            log.add("  " + result);
     }
 
     /**
