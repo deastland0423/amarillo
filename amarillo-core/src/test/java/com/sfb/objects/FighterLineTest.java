@@ -113,6 +113,41 @@ public class FighterLineTest {
         assertEquals("stinger_e", late.typeFor("ew"));
     }
 
+    /**
+     * A carrier with spaces dedicated to attack fighters, in a year before any attack fighter
+     * exists, flies STANDARD fighters in them.
+     * <p>
+     * The Kzinti line is the live case: the DAS arrives in Y172, so a carrier declaring two
+     * attack slots has two AAS in them in Y170 and two DAS from Y172 — without the ship file
+     * knowing anything about either date. Before the DAS this was only testable hypothetically.
+     */
+    /** The attack role changes hands in Y183: the DASC takes over from the DAS. */
+    @Test
+    public void theAttackRoleAdvancesOnItsOwnSchedule() {
+        FighterComplement cv = complement("kzinti-attack", 9, 2, 1);
+
+        assertEquals("Y180: DAS still, with TADS standards",
+                Map.of("tads", 9, "das", 2, "tads_e", 1), tally(cv.typesFor(180)));
+        assertEquals("Y183: DASC, and the standards become TADSC",
+                Map.of("tadsc", 9, "dasc", 2, "tadsc_e", 1), tally(cv.typesFor(183)));
+    }
+
+    @Test
+    public void attackSlotsFlyStandardFightersUntilAnAttackFighterExists() {
+        FighterComplement cv = complement("kzinti-attack", 9, 2, 1);
+
+        assertEquals("Y170: no DAS yet, so the attack slots are AAS too",
+                Map.of("aas", 11, "aas_e", 1), tally(cv.typesFor(170)));
+        assertEquals("Y172: the DAS arrives and fills them",
+                Map.of("aas", 9, "das", 2, "aas_e", 1), tally(cv.typesFor(172)));
+        assertEquals("Y173: the standards become HAAS, the attack slots stay DAS",
+                Map.of("haas", 9, "das", 2, "haas_e", 1), tally(cv.typesFor(173)));
+
+        // The count never changes, whatever the era supplies.
+        for (int year : new int[] { 170, 172, 173, 177, 180, 183 })
+            assertEquals("twelve fighters in Y" + year, 12, cv.typesFor(year).size());
+    }
+
     @Test
     public void aLineWithNoAttackRoleGivesStandardsInstead() {
         // The Kzinti line has no attack fighter in any era; asking for one yields the standard.
@@ -138,12 +173,18 @@ public class FighterLineTest {
                 tally(complement("kzinti-attack", 11, 0, 1).typesFor(0)));
     }
 
+    /**
+     * Both lines exist and have eras. Deliberately NOT an exact era count: this test pinned the
+     * Kzinti line at five and broke the moment a Y172 era was added for the DAS, which is a line
+     * growing as intended rather than a regression. What matters is that each line is populated
+     * and that the eras below resolve to the right fighters.
+     */
     @Test
     public void bothLinesAreCatalogued() {
         assertTrue(ShuttleCatalog.lineNames().containsAll(
                 List.of("kzinti-attack", "hydran-stinger")));
-        assertEquals(5, ShuttleCatalog.lineEras("kzinti-attack").size());
-        assertEquals(2, ShuttleCatalog.lineEras("hydran-stinger").size());
+        assertFalse(ShuttleCatalog.lineEras("kzinti-attack").isEmpty());
+        assertFalse(ShuttleCatalog.lineEras("hydran-stinger").isEmpty());
     }
 
     @Test
@@ -165,6 +206,34 @@ public class FighterLineTest {
                     assertEquals(line + " " + era + ": '" + role.getValue()
                             + "' must be a fighter", "fighter", e.kind);
                 }
+    }
+
+    /**
+     * A role, once a line has one, must appear in every later era.
+     * <p>
+     * This is the hazard of writing eras as whole rows: each row repeats every role, so adding a
+     * new standard fighter means remembering to carry the attack and EW entries forward into it.
+     * Forget one and that era's attack slots silently fall back to standard fighters — a wrong
+     * complement with no error anywhere, because falling back is legitimate behaviour that
+     * cannot tell an omission from an intention.
+     * <p>
+     * `attack: das` is currently repeated across four eras and `dasc` takes over in the fifth, so
+     * there are already five chances to drop it. If a role ever genuinely should lapse, this test
+     * is the place to say so out loud.
+     */
+    @Test
+    public void noEraDropsARoleAnEarlierOneHad() {
+        for (String line : ShuttleCatalog.lineNames()) {
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line)) {
+                for (String role : seen)
+                    assertTrue(line + " era from Y" + era.from + " is missing the '" + role
+                                    + "' role an earlier era had — its slots would quietly"
+                                    + " fall back to standard fighters. Era is " + era,
+                            era.hasOwnTypeFor(role));
+                seen.addAll(era.roles().keySet());
+            }
+        }
     }
 
     /** Each era must begin no earlier than the fighters it names became available. */

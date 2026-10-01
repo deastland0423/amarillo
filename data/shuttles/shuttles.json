@@ -41,10 +41,11 @@
   "fighterLines": {
     "kzinti-attack": [
       { "from": 164, "standard": "aas",   "ew": "aas_e"   },
-      { "from": 173, "standard": "haas",  "ew": "haas_e"  },
-      { "from": 177, "standard": "taas",  "ew": "taas_e"  },
-      { "from": 180, "standard": "tads",  "ew": "tads_e"  },
-      { "from": 183, "standard": "tadsc", "ew": "tadsc_e" }
+      { "from": 172, "standard": "aas",   "ew": "aas_e", "attack": "das"   },
+      { "from": 173, "standard": "haas",  "ew": "haas_e", "attack": "das"  },
+      { "from": 177, "standard": "taas",  "ew": "taas_e", "attack": "das"  },
+      { "from": 180, "standard": "tads",  "ew": "tads_e", "attack": "das"  },
+      { "from": 183, "standard": "tadsc", "ew": "tadsc_e", "attack": "dasc" }
     ],
     "hydran-stinger": [
       { "from": 134, "standard": "stinger1" },
@@ -70,7 +71,9 @@
     { "type": "taas_e",     "name": "Tactically Advanced Attack Shuttle (EW)",   "kind": "fighter",    "factions": ["kzinti"], "year": 177, "speed": 15, "hull": 11, "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TAAS-E", "designation": "TAAS-E" },
     { "type": "tads",       "name": "Tactically Advanced Drone Shuttle",         "kind": "fighter",    "factions": ["kzinti"], "year": 180, "speed": 15, "hull": 11, "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADS", "designation": "TADS" },
     { "type": "tads_e",     "name": "Tactically Advanced Drone Shuttle (EW)",    "kind": "fighter",    "factions": ["kzinti"], "year": 180, "speed": 15, "hull": 11, "crippled": 8, "bpv": 13,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADS-E", "designation": "TADS-E" },
-    { "type": "tadsc",       "name": "Tactically Advanced Drone Shuttle-C",      "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADSC", "designation": "TADSC" },
-    { "type": "tadsc_e",     "name": "Tactically Advanced Drone Shuttle-C (EW)", "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 14,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADSC-E", "designation": "TADSC-E" }
+    { "type": "tadsc",      "name": "Tactically Advanced Drone Shuttle-C",       "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADSC", "designation": "TADSC" },
+    { "type": "tadsc_e",    "name": "Tactically Advanced Drone Shuttle-C (EW)",  "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 14,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADSC-E", "designation": "TADSC-E" },
+    { "type": "das",        "name": "Disruptor Attack Shuttle",                  "kind": "fighter",    "factions": ["kzinti"], "year": 172, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "DAS", "designation": "DAS" },
+    { "type": "dasc",       "name": "Disruptor Attack Shuttle-C",                "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "DASC", "designation": "DASC" }
   ]
 }

@@ -3,6 +3,7 @@ package com.sfb.systemgroups;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.weapons.DroneRail;
+import com.sfb.weapons.FighterDisruptor;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Weapon;
@@ -39,6 +40,8 @@ public final class FighterArming {
 
     private static final int HALF_ACTIONS_PER_FUSION_CHARGE = 1;    // J4.833
     private static final int HALF_ACTIONS_PER_HELLBORE_CHARGE = 2;  // J4.834
+    /** J4.843: "a single deck crew action" per charge - twice what a fusion charge costs. */
+    private static final int HALF_ACTIONS_PER_DISRUPTOR_CHARGE = 2;
     private static final int HALF_ACTIONS_PER_DRONE_SPACE = 2;      // J4.82
 
     private FighterArming() {}
@@ -60,9 +63,12 @@ public final class FighterArming {
             return hellbore.isSpent() ? 0 : 1;
 
         int charges = 0;
-        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
             if (w instanceof FighterFusion ff)
                 charges += ff.getChargesRemaining();
+            else if (w instanceof FighterDisruptor fd)
+                charges += fd.getChargesRemaining();
+        }
         return charges;
     }
 
@@ -88,6 +94,8 @@ public final class FighterArming {
                 half += HALF_ACTIONS_PER_HELLBORE_CHARGE;
             else if (w instanceof FighterFusion)
                 half += FighterFusion.FULL_CHARGES * HALF_ACTIONS_PER_FUSION_CHARGE;
+            else if (w instanceof FighterDisruptor)
+                half += FighterDisruptor.FULL_CHARGES * HALF_ACTIONS_PER_DISRUPTOR_CHARGE;
             else if (w instanceof DroneRail rail && isArmable(rail))
                 half += halfActionsFor(rail);
         }
@@ -152,6 +160,8 @@ public final class FighterArming {
                 half += hb.isSpent() ? HALF_ACTIONS_PER_HELLBORE_CHARGE : 0;
             else if (w instanceof FighterFusion ff)
                 half += ff.chargesMissing() * HALF_ACTIONS_PER_FUSION_CHARGE;
+            else if (w instanceof FighterDisruptor fd)
+                half += fd.chargesMissing() * HALF_ACTIONS_PER_DISRUPTOR_CHARGE;
             else if (w instanceof DroneRail rail && isArmable(rail))
                 half += rail.getDrone() == null ? halfActionsFor(rail) : 0;
         }
@@ -215,6 +225,12 @@ public final class FighterArming {
 
         if (hasFusions(fighter))
             return loadFusions(box, fighter, halfActionBudget);
+
+        // Before the drones, because a DAS carries both and the gun is the reason it is there.
+        // A later pass fills its rails.
+        Load disruptor = loadDisruptors(box, fighter, halfActionBudget);
+        if (disruptor != Load.NOTHING)
+            return disruptor;
 
         if (dronesCarriedBy(fighter) < railsOf(fighter).size())
             return loadDrones(box, fighter, halfActionBudget);
@@ -306,6 +322,46 @@ public final class FighterArming {
         hellbore.reload();
         return new Load(HALF_ACTIONS_PER_HELLBORE_CHARGE, 1, fighter.getName()
                 + ": hellbore reloaded from the fighter box capacitor (J4.834)");
+    }
+
+    /**
+     * Reload a fighter disruptor from its box's capacitor (J4.84).
+     * <p>
+     * J4.843 prices a charge at "a single deck crew action", so unlike a fusion charge — half an
+     * action, two to a crew — a budget short of a whole action buys nothing at all (J4.8174). The
+     * same all-or-nothing shape as the hellbore, which costs the same.
+     * <p>
+     * J4.881 still holds: the box's capacitor is the only supply, never the ship directly.
+     */
+    private static Load loadDisruptors(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {
+        int missing = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof FighterDisruptor fd)
+                missing += fd.chargesMissing();
+        if (missing == 0)
+            return Load.NOTHING;
+
+        int affordable = halfActionBudget / HALF_ACTIONS_PER_DISRUPTOR_CHARGE;
+        if (affordable == 0)
+            return Load.NOTHING;   // a disruptor charge is one whole action or nothing (J4.843)
+
+        int drawn = box.drawCharges(Math.min(missing, affordable));
+        if (drawn == 0)
+            return new Load(0, 0, fighter.getName()
+                    + ": disruptor capacitor empty, not reloaded (J4.842)");
+
+        int loaded = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof FighterDisruptor fd)
+                while (loaded < drawn && fd.loadCharge())
+                    loaded++;
+        // Anything the weapon would not take stays in the capacitor.
+        if (loaded < drawn)
+            box.setCapacitorCharges(box.getCapacitorCharges() + (drawn - loaded));
+
+        return new Load(loaded * HALF_ACTIONS_PER_DISRUPTOR_CHARGE, loaded, fighter.getName()
+                + ": " + loaded + " disruptor charge" + (loaded == 1 ? "" : "s") + " loaded, "
+                + box.getCapacitorCharges() + " left in the box (J4.843)");
     }
 
     private static Load loadFusions(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {

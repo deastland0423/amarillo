@@ -21,6 +21,33 @@ public class ShuttleSpace {
     /** J4.834: a hellbore box carries one hellbore charge instead. */
     public static final int HELLBORE_CAPACITOR = 1;
 
+    /**
+     * J4.842: a disruptor fighter's box holds two disruptor charges — one complete reload for
+     * the single two-charge disruptor a DAS carries (J4.845).
+     */
+    public static final int DISRUPTOR_CAPACITOR = 2;
+
+    /**
+     * J4.842: "two points per charge; both points must be provided on the same turn."
+     * <p>
+     * The same price as a hellbore charge per point but a different rule about time: J4.834
+     * SPREADS the hellbore's four points over two turns, while this one refuses to be split at
+     * all. {@link #addCapacitorEnergy} enforces that by never banking an odd point on a
+     * disruptor box, so a half-paid charge cannot exist to carry over.
+     */
+    public static final int POWER_PER_DISRUPTOR_CHARGE = 2;
+
+    /**
+     * Which weapon's capacitor a box has, and therefore how its charges are priced.
+     * <p>
+     * An explicit kind because the alternative — inferring it from the CAPACITY — had already
+     * run out: the pricing used to read {@code capacitorCapacity() == HELLBORE_CAPACITOR}, which
+     * works only while one is 1 and the other is 8. A disruptor box holds 2, so it would have
+     * been silently priced as a fusion box at a point a charge, half the rule's price, with no
+     * per-turn limit.
+     */
+    public enum CapacitorKind { NONE, FUSION, HELLBORE, DISRUPTOR }
+
     /** J4.832: a fusion charge costs the ship one point, so 8 fills a fusion box. */
     public static final int POWER_PER_FUSION_CHARGE = 1;
 
@@ -66,6 +93,9 @@ public class ShuttleSpace {
      */
     private int capacitorCapacity = -1;  // -1 = no fighter has sat here yet
     private int capacitorCharges = -1;   // -1 = not yet filled (J4.886)
+
+    /** Learned with the capacity, from the first fighter seated, and kept for the same reason. */
+    private CapacitorKind capacitorKind = CapacitorKind.NONE;
 
     /**
      * Power paid towards the NEXT charge but not yet worth one (J4.834).
@@ -141,6 +171,7 @@ public class ShuttleSpace {
     public void setShuttle(Shuttle shuttle) {
         this.shuttle = shuttle;
         if (capacitorCapacity < 0 && shuttle != null) {
+            capacitorKind = kindFor(shuttle);
             capacitorCapacity = capacityFor(shuttle);
             if (capacitorCharges < 0)
                 capacitorCharges = Math.max(0,
@@ -263,10 +294,16 @@ public class ShuttleSpace {
         return Math.max(0, capacitorCapacity() - getCapacitorCharges());
     }
 
-    /** What a charge costs this box: J4.832 for a fusion box, J4.834 for a hellbore one. */
+    /**
+     * What a charge costs this box: J4.832 for a fusion box, J4.834 for a hellbore one, J4.842
+     * for a disruptor one.
+     */
     public int powerPerCapacitorCharge() {
-        return capacitorCapacity() == HELLBORE_CAPACITOR
-                ? POWER_PER_HELLBORE_CHARGE : POWER_PER_FUSION_CHARGE;
+        switch (capacitorKind) {
+            case HELLBORE:  return POWER_PER_HELLBORE_CHARGE;
+            case DISRUPTOR: return POWER_PER_DISRUPTOR_CHARGE;
+            default:        return POWER_PER_FUSION_CHARGE;
+        }
     }
 
     /**
@@ -287,8 +324,19 @@ public class ShuttleSpace {
     }
 
     private int maxCapacitorPowerPerTurn() {
-        return capacitorCapacity() == HELLBORE_CAPACITOR
+        return capacitorKind == CapacitorKind.HELLBORE
                 ? HELLBORE_POWER_PER_TURN : Integer.MAX_VALUE;
+    }
+
+    /**
+     * Whether this box may carry part-payment for a charge from one turn into the next.
+     * <p>
+     * Only a hellbore box may: J4.834 spreads its four points over two turns, so its first two
+     * have to sit somewhere. A disruptor box may NOT — J4.842 requires "both points ... on the
+     * same turn" — and a fusion charge costs a single point, so nothing is ever left over.
+     */
+    private boolean banksAcrossTurns() {
+        return capacitorKind == CapacitorKind.HELLBORE;
     }
 
     /**
@@ -304,10 +352,15 @@ public class ShuttleSpace {
      */
     public int addCapacitorEnergy(int power) {
         int wanted = Math.min(Math.max(0, power), capacitorPowerWanted());
+        int price = powerPerCapacitorCharge();
+        // J4.842: a disruptor charge takes both its points on the SAME turn, so an odd point is
+        // refused outright rather than banked. Nothing then exists to carry over, which is how
+        // the same-turn rule is kept without a turn boundary to clear a bank at.
+        if (!banksAcrossTurns() && price > 1)
+            wanted -= wanted % price;
         if (wanted == 0)
             return 0;
         capacitorEnergyBanked += wanted;
-        int price = powerPerCapacitorCharge();
         int charges = capacitorEnergyBanked / price;
         if (charges > 0) {
             capacitorEnergyBanked -= charges * price;
@@ -336,15 +389,40 @@ public class ShuttleSpace {
      * catalogue does yet, which is why nothing exercises it.
      */
     private static int capacityFor(Shuttle occupant) {
-        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
+        switch (kindFor(occupant)) {
+            case HELLBORE:  return HELLBORE_CAPACITOR;
+            case FUSION:    return FUSION_CAPACITOR;
+            case DISRUPTOR: return DISRUPTOR_CAPACITOR;
+            default:        return 0;
+        }
+    }
+
+    /**
+     * Which capacitor the SSD would print for a box holding this fighter.
+     * <p>
+     * Hellbore is tested before fusion because a Stinger-H carries both and its box is the
+     * hellbore one — the original code had the same ordering for the same reason, as two
+     * separate loops.
+     * <p>
+     * J4.85's photon fighters and J4.86's plasma-F ones still fall through to NONE. That stays
+     * a gap waiting for those fighters rather than a ruling about them.
+     */
+    private static CapacitorKind kindFor(Shuttle occupant) {
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.FighterHellbore)
-                return HELLBORE_CAPACITOR;
-        }
-        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons()) {
+                return CapacitorKind.HELLBORE;
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.FighterFusion)
-                return FUSION_CAPACITOR;
-        }
-        return 0;
+                return CapacitorKind.FUSION;
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.FighterDisruptor)
+                return CapacitorKind.DISRUPTOR;
+        return CapacitorKind.NONE;
+    }
+
+    /** Which weapon's capacitor this box has (J4.831/J4.834/J4.842). */
+    public CapacitorKind getCapacitorKind() {
+        return capacitorKind;
     }
 
     /**

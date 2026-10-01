@@ -212,6 +212,21 @@ export function getWeaponDamagePreview(
     return hitOrMissPreview(hitChart[clampRange(adjustedRange, maxR)], damage);
   }
 
+  /**
+   * A fighter-mounted disruptor (the Kzinti DAS). Before the general disruptor branch, which
+   * would otherwise claim it — "fighterdisruptor" contains "disruptor".
+   *
+   * Same hit and damage charts as a ship's: only the REACH is cut, to the ten every fighter
+   * weapon works to. And never overloaded — overload is an energy decision and a fighter has no
+   * energy to make it with, so the mode is ignored here rather than offered.
+   */
+  if (n.includes('fighterdisruptor')) {
+    const maxR = 10;
+    const r    = clampRange(range, maxR);
+    const adjR = clampRange(adjustedRange, maxR);
+    return hitOrMissPreview(DISRUPTOR_HIT_CHART[adjR], DISRUPTOR_DMG_CHART[r]);
+  }
+
   if (n.includes('disruptor')) {
     const hitChart = mode === 'OVERLOAD' ? DISRUPTOR_OVLD_HIT_CHART : DISRUPTOR_HIT_CHART;
     const dmgChart = mode === 'OVERLOAD' ? DISRUPTOR_OVLD_DMG_CHART : DISRUPTOR_DMG_CHART;

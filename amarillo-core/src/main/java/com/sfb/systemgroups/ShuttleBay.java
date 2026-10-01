@@ -7,6 +7,8 @@ import java.util.List;
 import com.sfb.objects.shuttles.Aas;
 import com.sfb.objects.shuttles.Aas_E;
 import com.sfb.objects.shuttles.AdminShuttle;
+import com.sfb.objects.shuttles.Das;
+import com.sfb.objects.shuttles.Dasc;
 import com.sfb.objects.shuttles.Haas;
 import com.sfb.objects.shuttles.Taas;
 import com.sfb.objects.shuttles.Taas_E;
@@ -361,6 +363,12 @@ public class ShuttleBay {
                 break;
             case "aas_e":
                 s = new Aas_E();
+                break;
+            case "das":
+                s = new Das();
+                break;
+            case "dasc":
+                s = new Dasc();
                 break;
             case "haas_e":
                 s = new Haas_E();

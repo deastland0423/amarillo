@@ -26,6 +26,22 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 	// OVERLOAD DAMAGE
 	private final static int[] overloadDamageChart = { 10, 10, 8, 8, 8, 6, 6, 6, 6 };
 
+	/**
+	 * The standard hit chart, for a weapon that shoots as a disruptor without being one.
+	 * <p>
+	 * Exposed so {@link FighterDisruptor} can use the same numbers rather than hold a second
+	 * copy of them. Returned by reference and so must not be written to — the array is a
+	 * {@code static final} the whole game reads.
+	 */
+	static int[] standardHitChart() {
+		return hitChart;
+	}
+
+	/** The standard damage chart, for the same reason as {@link #standardHitChart()}. */
+	static int[] standardDamageChart() {
+		return damageChart;
+	}
+
 	private WeaponArmingType armingType = WeaponArmingType.STANDARD;
 	private int disruptorRange; // Maximum range for this model of disruptor (15, 22, 30, etc.)
 	private int armingTurn = 0; // Number of turns the weapon has been arming.
