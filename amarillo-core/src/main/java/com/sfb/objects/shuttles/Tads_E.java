@@ -27,6 +27,11 @@ public class Tads_E extends Fighter {
         setHull(11);
         setCrippledHull(8);
         setBpv(13);
+        // J4.43: a two-seat fighter, which is what every EW fighter is built from. This
+        // flag is how the rest of the game recognises one - it gates lending (R1.F7),
+        // J4.463's one-per-squadron limit, and J4.221 drone handoff. Without it this is
+        // a fighter carrying pods that can do nothing with them.
+        setTwoSeater(true);
 
         Phaser3 ph = new Phaser3();
         ph.setDesignator("1");
