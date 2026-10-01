@@ -1517,8 +1517,29 @@ public class Ship extends Unit implements DroneController {
 		return this.specialFunctions.getControlLimit();
 	}
 
+	/**
+	 * C10.512: "A unit using EM cannot guide seeking weapons." So a ship conducting EM has no
+	 * usable channels at all, whatever its rating.
+	 * <p>
+	 * Expressing the rule as a CAPACITY of zero rather than as a bespoke release routine is
+	 * what makes it work: {@code Game.checkControlOverflow} already queues any ship whose used
+	 * channels exceed its capacity and hands the player the CONTROL_OVERFLOW phase, where each
+	 * seeker is transferred to another unit (F3.5) or released (F3.4) one at a time. That is
+	 * precisely the procedure F3.532 calls an involuntary transfer, and the release branch
+	 * already does the right thing on the other side - a self-guiding weapon carries on, and
+	 * anything else goes inert and destroys itself (FD1.71).
+	 * <p>
+	 * The timing falls out too. EM comes into force in Stage 6E (C10.311), and the overflow
+	 * sweep runs on the very next phase transition, where it already catches a cloak or a
+	 * blinded scout channel costing a ship its capacity mid-impulse (G24.242).
+	 * <p>
+	 * {@link #isEmEffective()} rather than {@code isUsingEm()}, as everywhere else: a ship held
+	 * by a tractor is not conducting EM (C10.24) and keeps its channels.
+	 */
 	@Override
 	public int getControlCapacity() {
+		if (isEmEffective())
+			return 0;
 		return this.specialFunctions.getControlLimit();
 	}
 
@@ -1526,7 +1547,15 @@ public class Ship extends Unit implements DroneController {
 		return this.specialFunctions.getControlUsed();
 	}
 
+	/**
+	 * C10.512 again, on the way in: a ship conducting EM cannot pick up a seeker either, which
+	 * F3.52 requires independently ("the unit assuming control must satisfy the requirements to
+	 * control the seeking weapon"). Without this a ship could be handed the very seekers its own
+	 * overflow had just made it give up.
+	 */
 	public boolean acquireControl(Seeker seeker) {
+		if (isEmEffective())
+			return false;
 		return this.specialFunctions.acquireControl(seeker);
 	}
 

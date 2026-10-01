@@ -507,6 +507,11 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      */
     @Override
     public int getControlCapacity() {
+        // C10.512: a unit using EM cannot guide seeking weapons, and a fighter may use EM
+        // (C10.13). See the note on acquireControl below for the half of this that a fighter
+        // does NOT yet get.
+        if (isEmEffective())
+            return 0;
         // J4.43: two-seaters guide twelve and can take over their squadron's seekers. The
         // taking-over half is not built; it needs squadron organisation (J4.46).
         if (isTwoSeater())
@@ -526,8 +531,22 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         return Math.max(MINIMUM_CONTROL, channels);
     }
 
+    /**
+     * C10.512 on the way in, which is as far as the rule reaches for a fighter today.
+     * <p>
+     * A SHIP that starts EM while already guiding seekers is swept by
+     * {@code Game.checkControlOverflow}, which hands the player the CONTROL_OVERFLOW phase to
+     * transfer or release each one. That sweep iterates ships only, and
+     * {@code PendingControlOverflow} holds a {@code Ship}, so a FIGHTER that starts EM while
+     * guiding its own drones keeps guiding them. Closing that means widening the overflow
+     * machinery to controllers generally - the record, the DTO and the picker - which is its
+     * own piece of work and matters most for a two-seater holding its squadron's twelve
+     * (F3.222).
+     */
     @Override
     public boolean acquireControl(com.sfb.objects.Seeker seeker) {
+        if (isEmEffective())
+            return false;
         if (controlledSeekers.size() >= getControlCapacity())
             return false;
         controlledSeekers.add(seeker);
