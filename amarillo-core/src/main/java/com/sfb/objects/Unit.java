@@ -197,6 +197,24 @@ public class Unit extends Marker implements Tractorable {
 		return true;
 	}
 
+	/**
+	 * Stop EM outright, without an announcement (C10.24).
+	 * <p>
+	 * For the conditions that END EM rather than forbid its start: being taken in tow is not
+	 * something a unit announces, so there is no pending announcement to apply. The once-per-turn
+	 * start (C10.31) is deliberately NOT refunded — the unit did begin EM this turn, and C10.32
+	 * bars a restart in the same turn whatever ended it.
+	 *
+	 * @return true if EM was actually in force and is now off, so the caller can log it
+	 */
+	public boolean stopEm() {
+		if (!usingEm)
+			return false;
+		usingEm = false;
+		emAnnouncedImpulse = -1;
+		return true;
+	}
+
 	/** Turn boundary: the once-per-turn start becomes available again (C10.31). */
 	public void resetEmForNewTurn() {
 		emStartedThisTurn = false;

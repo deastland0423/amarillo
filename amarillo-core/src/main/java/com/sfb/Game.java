@@ -573,6 +573,18 @@ public class Game {
      * shuttles may never use EM at all.
      */
     private String emIneligibility(Unit unit) {
+        /*
+         * C10.24: "EM cannot be conducted while the unit is ... held by a tractor beam (G7.92)."
+         * A unit under tow is not manoeuvring; it is being moved.
+         *
+         * Applies to every kind of unit, so it is tested before the ship/shuttle split below.
+         * The rule lists two other conditions we cannot ask about: a unit in a WEB (G10.57), as
+         * there are no web casters (E12), and one DOCKED to another ship (C13.923). Both belong
+         * here when those systems arrive.
+         */
+        if (unit.isTractored())
+            return unit.getName() + " is held by a tractor beam and cannot conduct Erratic"
+                    + " Maneuvers (C10.24)";
         if (unit instanceof Ship)
             return ((Ship) unit).hasPaidForEm() ? null
                     : unit.getName() + " did not pay for Erratic Maneuvers in energy"
@@ -1019,6 +1031,15 @@ public class Game {
                         log.add("  " + emUnit.getName() + (emUnit.isUsingEm()
                                 ? " begins Erratic Maneuvers (C10.311)"
                                 : " ceases Erratic Maneuvers (C10.32)"));
+
+                // C10.24: a unit may not CONDUCT EM while held by a tractor beam, and being
+                // grabbed is not something it announces. The eligibility check guards STARTING;
+                // this is the other direction — a unit already manoeuvring that gets taken in
+                // tow stops, here, in the same stage an announcement would have taken effect.
+                for (Unit emUnit : emUnits)
+                    if (emUnit.isUsingEm() && emUnit.isTractored() && emUnit.stopEm())
+                        log.add("  " + emUnit.getName() + " is held by a tractor beam and"
+                                + " ceases Erratic Maneuvers (C10.24)");
 
                 // 6E: Roll UIM burnout once per ship that used UIM this impulse (D6.521)
                 if (!uimUsedThisImpulse.isEmpty()) {
