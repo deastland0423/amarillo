@@ -52,7 +52,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "stinger1", "stinger1", "stinger1"], "launchTubes": 3 }
+    { "shuttles": ["admin", "admin", "admin"], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "standard": 3, "attack": 0, "ew": 0 } }
   ],
 
   "crewData": {

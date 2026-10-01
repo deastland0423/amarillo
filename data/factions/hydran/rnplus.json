@@ -52,9 +52,9 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "stinger_e", "stingerH", "stingerH"], "launchTubes": 3 },
-    { "shuttles": ["stinger2", "stinger2", "stinger2"], "launchTubes": 3 },
-    { "shuttles": ["stinger2", "stinger2", "stinger2"], "launchTubes": 3 }
+    { "shuttles": ["admin", "admin", "admin"], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "standard": 0, "attack": 2, "ew": 1 } },
+    { "shuttles": [], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "standard": 3, "attack": 0, "ew": 0 } },
+    { "shuttles": [], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "standard": 3, "attack": 0, "ew": 0 } }
   ],
 
   "crewData": {

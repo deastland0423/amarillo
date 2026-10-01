@@ -168,9 +168,50 @@ public class ShipSpec {
         public int excess;
     }
 
+    /**
+     * A bay's fighter complement by ROLE, resolved to types by the year (J4.4).
+     * <p>
+     * The alternative was to list concrete fighters in {@code shuttles}, which can only ever be
+     * right for one era: a Kzinti CVS entered service in Y170 flying AAS, re-equipped with HAAS
+     * in Y173, TAAS in Y177, TADS in Y180 and TADSC in Y183, and none of that changes its SSD.
+     * Authoring five files per carrier would multiply every hull correction by five and leave
+     * the fighters' BPV — which feeds the carrier's S3.211 option budget — to be maintained by
+     * hand in each.
+     * <p>
+     * So the ship declares the shape of its complement and {@code fighterLines} in
+     * shuttles.json decides what fills it. Counts are per role; a role the era has no type for
+     * falls back to the standard fighter.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FighterComplementSpec {
+        /** Line name as keyed in shuttles.json, e.g. "kzinti-attack". */
+        public String line;
+        /** General-purpose fighters. */
+        public int standard;
+        /**
+         * Attack fighters, where the line has them (the Hydran Stinger-H).
+         * <p>
+         * NOT "heavy": a heavy fighter is a separate SFB category that J4.463 counts in
+         * its own right ("five or more heavy fighters"), so the name is reserved for it.
+         */
+        public int attack;
+        /** EW fighters (J4.463 caps how many a carrier may field). */
+        public int ew;
+
+        public int total() {
+            return standard + attack + ew;
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ShuttleBaySpec {
         public List<String> shuttles;  // e.g. ["admin", "admin", "gas"]
+        /**
+         * Fighters by role, resolved by year (J4.4). Sits alongside {@code shuttles} rather
+         * than replacing it: the admin shuttles sharing the bay stay listed literally, because
+         * nothing about them changes with the year.
+         */
+        public FighterComplementSpec fighters;
         public int          launchTubes; // J1.54 — 0 means standard hatch only
         /**
          * J1.58: "tunnel" for a bay with doors at both ends, each hatch working
@@ -394,13 +435,23 @@ public class ShipSpec {
             List<Object> bayList = new ArrayList<>();
             for (ShuttleBaySpec bay : shuttleBays) {
                 List<String> shuttles = bay.shuttles != null ? bay.shuttles : new ArrayList<>();
-                if (bay.launchTubes > 0 || bay.type != null) {
+                // A role-based complement forces the object form, since the plain list has
+                // nowhere to carry it.
+                if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
                     if (bay.launchTubes > 0)
                         bayMap.put("launchTubes", bay.launchTubes);
                     if (bay.type != null)
                         bayMap.put("type", bay.type);
+                    if (bay.fighters != null) {
+                        Map<String, Object> f = new HashMap<>();
+                        f.put("line", bay.fighters.line);
+                        f.put("standard", bay.fighters.standard);
+                        f.put("attack", bay.fighters.attack);
+                        f.put("ew", bay.fighters.ew);
+                        bayMap.put("fighters", f);
+                    }
                     bayList.add(bayMap);
                 } else {
                     bayList.add(shuttles);

@@ -27,9 +27,13 @@ import com.sfb.systemgroups.ShuttleSpace;
  * turn one.
  * <p>
  * The Stinger-E (R1.F7) added a third case that neither pass handled: a fighter with NOTHING
- * to arm. It is the first fighter the RN+ lists, and both the automatic pass and the
+ * to arm. It was the first fighter the RN+ listed, and both the automatic pass and the
  * Commander's Options pass counted it against S4.10's two — so the ship went into the scenario
  * with one hot fighter instead of two.
+ * <p>
+ * Bay order no longer puts it first: the complement is resolved by role from the year (J4.4) and
+ * the EW fighter is seated last, precisely because it has nothing a deck crew can load. So the
+ * tests below reach it by naming it in the readiness preference rather than by position.
  * <p>
  * The choice is free. Readiness is what the weapon status already granted; this only says who
  * gets it. Stripping the squadron back to re-arrange it loses nothing either — J4.886's
@@ -119,15 +123,31 @@ public class FighterReadinessChoiceTest {
                 .findFirst().orElseThrow();
 
         assertFalse("nothing for a deck crew to do", FighterArming.needsArming(ewf));
-        assertEquals("so it is first in the bay and still not armed", ewf.getName(),
-                fighters(rn).get(0).getName());
         assertEquals(0, FighterArming.chargesCarriedBy(ewf));
+
+        // Asked for FIRST and still not armed. This used to lean on the EW fighter happening to
+        // be first in the bay, which was true only of the hand-written Hydran data; now the
+        // complement is seated by role (J4.4) and the EW fighter comes last. Naming it in the
+        // preference puts it at the front of the queue regardless, which is the rule this is
+        // about: it is skipped because it needs no arming, not because of where it sits.
+        ScenarioLoader.applyWeaponStatus(rn, 1);
+        CoiLoadout loadout = new CoiLoadout();
+        loadout.armedFighters = List.of(ewf.getName());
+        ScenarioLoader.applyCoi(rn, loadout, scenario());
+
+        assertEquals("still nothing aboard it", 0, FighterArming.chargesCarriedBy(ewf));
+        assertFalse("and it is not counted among the ready: " + armedNames(rn),
+                armedNames(rn).contains(ewf.getName()));
     }
 
     /**
-     * And it must not eat one of S4.10's two slots. It is the first fighter the RN+ lists, so
-     * a pass that armed boxes rather than fighters-that-need-arming left the ship with ONE hot
-     * fighter instead of two.
+     * And it must not eat one of S4.10's two slots. A pass that armed boxes rather than
+     * fighters-that-need-arming left the ship with ONE hot fighter instead of two — which is
+     * what happened when the EW fighter was the first craft the RN+ listed.
+     * <p>
+     * It is now seated last, since a complement resolved by role puts the EW fighter at the end
+     * (J4.4) — so the two slots would reach the armable fighters even if the skip were broken.
+     * The test above is the one that still exercises the skip, by naming the EW fighter first.
      */
     @Test
     public void aFighterWithNothingToArmDoesNotSpendAReadinessSlot() throws Exception {
@@ -262,16 +282,19 @@ public class FighterReadinessChoiceTest {
         cvs.setName("KHS Watchful");
         ScenarioLoader.applyWeaponStatus(cvs, 1);
 
-        Shuttle haasE = fighters(cvs).stream()
-                .filter(f -> f.getClass().getSimpleName().equals("Haas_E"))
+        // By capability, not by class: which EW fighter a CVS carries is decided by the year
+        // (J4.4), so it is an AAS-E at its Y170 service year and a HAAS-E only from Y173.
+        Shuttle ewFighter = fighters(cvs).stream()
+                .filter(f -> f instanceof com.sfb.objects.shuttles.Fighter ftr
+                        && ftr.getEwPods() > 0)
                 .findFirst().orElseThrow();
 
         CoiLoadout loadout = new CoiLoadout();
-        loadout.armedFighters = List.of(haasE.getName());
+        loadout.armedFighters = List.of(ewFighter.getName());
         ScenarioLoader.applyCoi(cvs, loadout, scenario());   // must not throw
 
         assertEquals("and it is still carrying its pods, not a drone", 0,
-                FighterArming.dronesCarriedBy(haasE));
+                FighterArming.dronesCarriedBy(ewFighter));
     }
 
     /**

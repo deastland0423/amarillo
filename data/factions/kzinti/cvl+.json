@@ -57,7 +57,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas", "aas"], "type": "tunnel" }
+    { "shuttles": ["admin", "admin"], "type": "tunnel", "fighters": { "line": "kzinti-attack", "standard": 8, "attack": 0, "ew": 1 } }
   ],
 
   "crewData": {

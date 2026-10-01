@@ -128,11 +128,72 @@ public final class ShuttleCatalog {
     private ShuttleCatalog() {
     }
 
+    /**
+     * One era of a fighter line: the year it begins, and which type fills each role.
+     * <p>
+     * Roles are named rather than positional ("standard", "heavy", "ew") because a carrier
+     * declares how many of each it carries and the era decides what they are. An era that has
+     * no type for a role leaves it absent, and {@link #typeFor} falls back to the standard —
+     * which is how a Hydran RN carries nine Stinger-1s before the Stinger-E existed and six
+     * Stinger-2s, two Stinger-Hs and one Stinger-E after, from a single declaration.
+     */
+    public static final class LineEra {
+        public static final String STANDARD = "standard";
+
+        public final int from;
+        private final Map<String, String> byRole;
+
+        LineEra(int from, Map<String, String> byRole) {
+            this.from = from;
+            this.byRole = Collections.unmodifiableMap(new LinkedHashMap<>(byRole));
+        }
+
+        /** The type filling {@code role} in this era, falling back to the standard fighter. */
+        public String typeFor(String role) {
+            String t = byRole.get(role);
+            return t != null ? t : byRole.get(STANDARD);
+        }
+
+        /** True if this era has a type of its own for the role (no fallback needed). */
+        public boolean hasOwnTypeFor(String role) {
+            return byRole.containsKey(role);
+        }
+
+        public Map<String, String> roles() {
+            return byRole;
+        }
+
+        @Override
+        public String toString() {
+            return "from Y" + from + " " + byRole;
+        }
+    }
+
+    /** Fighter lines by name, each a list of eras in ascending year order. */
+    private static final Map<String, List<LineEra>> fighterLines = new LinkedHashMap<>();
+
     /** Load the catalogue from a shuttles.json file. Replaces anything already loaded. */
     public static void load(File file) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(file);
         registry.clear();
+        fighterLines.clear();
+        JsonNode lines = root.path("fighterLines");
+        for (java.util.Iterator<String> it = lines.fieldNames(); it.hasNext(); ) {
+            String lineName = it.next();
+            List<LineEra> eras = new ArrayList<>();
+            for (JsonNode eraNode : lines.path(lineName)) {
+                Map<String, String> byRole = new LinkedHashMap<>();
+                for (java.util.Iterator<String> rf = eraNode.fieldNames(); rf.hasNext(); ) {
+                    String role = rf.next();
+                    if (!"from".equals(role))
+                        byRole.put(role, eraNode.path(role).asText());
+                }
+                eras.add(new LineEra(eraNode.path("from").asInt(0), byRole));
+            }
+            eras.sort(java.util.Comparator.comparingInt(e -> e.from));
+            fighterLines.put(lineName.toLowerCase(), eras);
+        }
         for (JsonNode n : root.path("shuttles")) {
             List<String> factions = new ArrayList<>();
             for (JsonNode f : n.path("factions"))
@@ -222,5 +283,78 @@ public final class ShuttleCatalog {
     public static int bpvOf(String type) {
         Entry e = get(type);
         return e == null ? 0 : e.bpv;
+    }
+
+    /**
+     * The name stem a craft of this type is numbered from — "HAAS-E" giving "HAAS-E-1".
+     * <p>
+     * Here rather than in Shuttles because the designation it prefers is a catalogue field, and
+     * two callers now need the same answer: the bay built from a literal list, and a complement
+     * resolved from a fighter line.
+     */
+    public static String displayNameOf(String type) {
+        if (type == null || type.isEmpty())
+            return "Shuttle";
+        Entry e = get(type);
+        if (e != null && e.designation != null)
+            return e.designation;
+        switch (type.toLowerCase()) {
+            case "suicide":     return "Suicide";
+            case "scatterpack": return "ScatterPack";
+            default:
+                return Character.toUpperCase(type.charAt(0)) + type.substring(1);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Fighter lines (J4.4): which fighter fills a role in a given year
+    // -------------------------------------------------------------------------
+
+    /** Every era of a named line, ascending by year; empty if the line is unknown. */
+    public static List<LineEra> lineEras(String lineName) {
+        ensureLoaded();
+        if (lineName == null)
+            return Collections.emptyList();
+        return fighterLines.getOrDefault(lineName.toLowerCase(), Collections.emptyList());
+    }
+
+    /** Every line name the catalogue knows. */
+    public static java.util.Set<String> lineNames() {
+        ensureLoaded();
+        return Collections.unmodifiableSet(fighterLines.keySet());
+    }
+
+    /**
+     * The era of {@code lineName} in force in {@code year} — the latest one whose year has
+     * arrived — or null if the line is unknown or had not started yet.
+     * <p>
+     * A year of 0 means "unspecified", which happens for a ship built outside any scenario.
+     * Those get the EARLIEST era rather than nothing, because a carrier with an empty bay is a
+     * worse answer than a carrier with its original fighters.
+     */
+    public static LineEra eraFor(String lineName, int year) {
+        List<LineEra> eras = lineEras(lineName);
+        if (eras.isEmpty())
+            return null;
+        if (year <= 0)
+            return eras.get(0);
+        LineEra current = null;
+        for (LineEra e : eras) {
+            if (e.from <= year)
+                current = e;
+            else
+                break;
+        }
+        return current;
+    }
+
+    /**
+     * The fighter type filling {@code role} on {@code lineName} in {@code year}, or null if
+     * the line is unknown or has not begun. Falls back to the line's standard fighter where
+     * the era has no type for the role.
+     */
+    public static String fighterFor(String lineName, String role, int year) {
+        LineEra era = eraFor(lineName, year);
+        return era == null ? null : era.typeFor(role);
     }
 }

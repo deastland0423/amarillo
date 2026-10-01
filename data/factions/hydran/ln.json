@@ -50,8 +50,8 @@
 
   "shuttleBays": [
     { "shuttles": ["admin"] },
-    { "shuttles": ["stinger1", "stinger1"], "launchTubes": 2 },
-    { "shuttles": ["stinger1", "stinger1"], "launchTubes": 2 }
+    { "shuttles": [], "launchTubes": 2, "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } },
+    { "shuttles": [], "launchTubes": 2, "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } }
   ],
 
   "crewData": {

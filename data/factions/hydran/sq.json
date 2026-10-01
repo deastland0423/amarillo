@@ -5,7 +5,7 @@
   "carrierClass": "CAPABLE",
   "line": "F-S",
   "name": "Peekaboo",
-  "serviceYear": 130,
+  "serviceYear": 134,
   "bpv": 25,
   "turnMode": "C",
   "sizeClass": 4,
@@ -52,7 +52,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "stinger1", "stinger1"] }
+    { "shuttles": ["admin"], "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } }
   ],
 
   "crewData": {

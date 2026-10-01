@@ -79,10 +79,43 @@ public class ScenarioLoader {
         // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
         ship.setSpeedPreviousTurn(setup.startSpeed);
         ship.setSpeedTwoTurnsAgo(setup.startSpeed);
+        applyFighterComplement(ship, year);
         applyYearUpgrades(ship, faction, year, shipSpec);
         applyEsgCapacitors(ship, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
+    }
+
+    /**
+     * J4.4: re-seat each bay's declared fighter complement for the SCENARIO's year.
+     * <p>
+     * A ship is built from its own file, which knows only its service year, so a Kzinti CVS
+     * arrives flying the AAS it entered service with in Y170. This is where it re-equips: HAAS
+     * from Y173, TAAS from Y177, TADS from Y180, TADSC from Y183. A bay whose contents were
+     * listed literally has no complement and is left exactly as the file wrote it.
+     * <p>
+     * Before {@code applyWeaponStatus}, which arms whatever is aboard — arming the outgoing
+     * fighters and then swapping them would throw the work away.
+     */
+    private static void applyFighterComplement(Ship ship, int year) {
+        if (year <= 0)
+            return;
+        // One counter for the whole ship, so a complement spread over several bays is numbered
+        // straight through: the Hydran RN's nine fighters are Stinger1-1 to Stinger1-9, not three
+        // bays each starting again at one.
+        java.util.Map<String, Integer> typeCount = new java.util.LinkedHashMap<>();
+        for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+            com.sfb.objects.FighterComplement complement = bay.getFighterComplement();
+            if (complement == null)
+                continue;
+            if (complement.typesFor(year).isEmpty()) {
+                note(ship, "Fighters: line '" + complement.getLine()
+                        + "' has nothing available in Y" + year
+                        + " — keeping the complement it was built with");
+                continue;
+            }
+            complement.applyTo(bay, year, "", typeCount);
+        }
     }
 
     /**

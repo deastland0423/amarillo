@@ -12,8 +12,6 @@ import com.sfb.objects.ShipLibrary;
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.Squadron;
 import com.sfb.objects.shuttles.Fighter;
-import com.sfb.objects.shuttles.Haas;
-import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.properties.Location;
 import com.sfb.systemgroups.ShuttleBay;
@@ -22,9 +20,13 @@ import com.sfb.systemgroups.ShuttleBay;
  * Squadron EW lending as a real game actually reaches it (J4.93).
  * <p>
  * Everything else about lending is tested against hand-built squadrons, which proves the rule
- * and not the wiring. This starts from a ship file — the Kzinti CVS, eleven HAAS and one
- * HAAS-E — lets the carrier organise its own squadrons at init (J4.461), launches two fighters
+ * and not the wiring. This starts from a ship file — the Kzinti CVS, eleven fighters and one EW
+ * fighter — lets the carrier organise its own squadrons at init (J4.461), launches two fighters
  * through the ordinary launch path, and checks the points arrive.
+ * <p>
+ * Which MODEL those are is decided by the year (J4.4), so nothing here names one: built from its
+ * own file the CVS flies the AAS it entered service with in Y170, and a Y173 scenario re-equips
+ * it with the HAAS. The craft is found by carrying pods, not by its class.
  * <p>
  * That chain is the thing worth guarding, because until the squadron default was added it was
  * broken at the far end in the quietest possible way: the lending machinery was consulted on
@@ -79,13 +81,13 @@ public class SquadronEwInPlayTest {
     /** J4.461: the carrier sorts its own fighters out, and the EW fighter lands in a squadron. */
     @Test
     public void theCarrierOrganisesItsOwnSquadronsFromItsShipFile() {
-        Haas_E ewf = null;
+        Fighter ewf = null;
         for (Squadron squadron : carrier.getShuttles().getSquadrons())
             for (Fighter f : squadron.getFighters())
-                if (f instanceof Haas_E found)
-                    ewf = found;
+                if (f.getEwPods() > 0)
+                    ewf = f;
 
-        assertNotNull("the CVS's HAAS-E should be in a squadron", ewf);
+        assertNotNull("the CVS's EW fighter should be in a squadron", ewf);
         assertNotNull(ewf.getSquadron());
         assertTrue("and in one big enough to hold it (J4.463)",
                 ewf.getSquadron().largeEnoughForEwFighter());
@@ -101,8 +103,8 @@ public class SquadronEwInPlayTest {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
 
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
         serveTheLendingDelay(ewf);
 
         assertNotNull("they must be squadron-mates for J4.921", wingman.getSquadron());
@@ -131,8 +133,8 @@ public class SquadronEwInPlayTest {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
 
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
         serveTheLendingDelay(ewf);
         int withEwf = game.ewAgainst(enemy, wingman).total();
 
@@ -153,8 +155,8 @@ public class SquadronEwInPlayTest {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
 
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
         serveTheLendingDelay(ewf);
         assertFalse(game.lentEwTo(wingman).isNothing());
 
@@ -174,8 +176,8 @@ public class SquadronEwInPlayTest {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
 
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
 
         assertTrue("in range and in squadron, but just launched",
                 game.lentEwTo(wingman).isNothing());
@@ -201,12 +203,12 @@ public class SquadronEwInPlayTest {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
 
-        Haas_E ewf = launch(Haas_E.class);
+        Fighter ewf = launchEwFighter();
         serveTheLendingDelay(ewf);
 
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
-        Haas latecomer = launch(Haas.class);
+        Fighter latecomer = launchWingman();
         latecomer.setLocation(ewf.getLocation());
         game.acquireFighterLockOns(latecomer);
 
@@ -224,8 +226,8 @@ public class SquadronEwInPlayTest {
     public void theDtoCarriesTheWholeEwPicture() {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
         serveTheLendingDelay(ewf);
 
         com.sfb.dto.GameStateDto.ShuttleDto lender = shuttleDto(ewf.getName());
@@ -282,8 +284,8 @@ public class SquadronEwInPlayTest {
     public void aFighterOutOfRangeStillShowsWhereItsEwFighterIs() {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
         serveTheLendingDelay(ewf);
 
         com.sfb.dto.GameStateDto.ShuttleDto close = shuttleDto(wingman.getName());
@@ -314,8 +316,8 @@ public class SquadronEwInPlayTest {
     public void theRefusalNamesWhicheverClauseBit() {
         while (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             game.advancePhase();
-        Haas_E ewf = launch(Haas_E.class);
-        Haas wingman = launch(Haas.class);
+        Fighter ewf = launchEwFighter();
+        Fighter wingman = launchWingman();
 
         String justLaunched = shuttleDto(wingman.getName()).ewLendRefusal;
         assertNotNull(justLaunched);
@@ -370,5 +372,38 @@ public class SquadronEwInPlayTest {
                     return (T) craft;
                 }
         throw new AssertionError("no " + type.getSimpleName() + " aboard the CVS");
+    }
+
+    /**
+     * Launch the carrier's EW fighter, whichever model that happens to be.
+     * <p>
+     * By capability rather than by class, because which fighter a CVS carries is decided by the
+     * YEAR (J4.4): built from its own file it flies the AAS it entered service with in Y170, and
+     * a Y173 scenario re-equips it with the HAAS. This test is about lending, not about models,
+     * so it asks for the craft with pods and lets the era supply it. Naming Haas_E here is what
+     * made these tests fail the moment the complement started following the year — and the data
+     * they were written against had the wrong era's fighters aboard.
+     */
+    private Fighter launchEwFighter() {
+        for (ShuttleBay bay : carrier.getShuttles().getBays())
+            for (Shuttle craft : bay.getInventory())
+                if (craft instanceof Fighter f && f.getEwPods() > 0) {
+                    Game.ActionResult r = game.launchShuttle(carrier, bay, craft, 8, 13);
+                    assertTrue("launching the EW fighter: " + r.getMessage(), r.isSuccess());
+                    return f;
+                }
+        throw new AssertionError("no EW fighter aboard the CVS");
+    }
+
+    /** Launch an ordinary squadron-mate — a fighter with no pods, whatever model the era flies. */
+    private Fighter launchWingman() {
+        for (ShuttleBay bay : carrier.getShuttles().getBays())
+            for (Shuttle craft : bay.getInventory())
+                if (craft instanceof Fighter f && f.getEwPods() == 0) {
+                    Game.ActionResult r = game.launchShuttle(carrier, bay, craft, 8, 13);
+                    assertTrue("launching a wingman: " + r.getMessage(), r.isSuccess());
+                    return f;
+                }
+        throw new AssertionError("no ordinary fighter aboard the CVS");
     }
 }

@@ -203,12 +203,16 @@ class GameSessionPodEwTest {
         cvs.setFacing(1);
         game.getShips().add(cvs);
 
-        Haas_E inBay = null;
+        // Found by carrying pods, not by class: which EW fighter a CVS has aboard is decided by
+        // the year (J4.4), so built from its own file at Y170 it is an AAS-E and only a Y173
+        // scenario makes it a HAAS-E. This test is about declaring a pod split, not about models.
+        com.sfb.objects.shuttles.Fighter inBay = null;
         for (com.sfb.systemgroups.ShuttleBay bay : cvs.getShuttles().getBays())
             for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
-                if (inBay == null && craft instanceof Haas_E found)
-                    inBay = found;
-        assertNotNull(inBay, "the CVS should keep a HAAS-E");
+                if (inBay == null && craft instanceof com.sfb.objects.shuttles.Fighter f
+                        && f.getEwPods() > 0)
+                    inBay = f;
+        assertNotNull(inBay, "the CVS should keep an EW fighter");
 
         Game.ActionResult r = session.executeAction(declare(inBay.getName(), 4, 0));
 

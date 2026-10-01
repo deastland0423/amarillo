@@ -54,6 +54,7 @@ public class Shuttles implements Systems {
             for (Object rawBay : rawBays) {
                 ShuttleBay bay = new ShuttleBay(owningUnit);
                 List<String> shuttleTypes;
+                com.sfb.objects.FighterComplement complement = null;
                 if (rawBay instanceof Map) {
                     Map<String, Object> bayObj = (Map<String, Object>) rawBay;
                     shuttleTypes = (List<String>) bayObj.get("shuttles");
@@ -66,6 +67,8 @@ public class Shuttles implements Systems {
                     // take an admin shuttle, which a tube will not (J1.542).
                     if ("tunnel".equalsIgnoreCase(String.valueOf(bayObj.get("type"))))
                         bay.setHatchCount(ShuttleBay.TUNNEL_DECK_HATCHES);
+                    // J4.4: fighters declared by role, filled in by the year below.
+                    complement = com.sfb.objects.FighterComplement.fromBayMap(bayObj.get("fighters"));
                 } else {
                     shuttleTypes = (List<String>) rawBay;
                 }
@@ -76,6 +79,25 @@ public class Shuttles implements Systems {
                         Shuttle shuttle = ShuttleBay.buildShuttle(type, name);
                         bay.addSpace(new ShuttleSpace(shuttle));
                     }
+                }
+                if (complement != null) {
+                    // The bay keeps the declaration so the scenario can re-seat it for ITS
+                    // year; this first seating uses the ship's own service year, so a ship
+                    // built outside any scenario still has the fighters it entered service
+                    // with rather than an empty bay.
+                    bay.setFighterComplement(complement);
+                    for (int i = 0; i < complement.total(); i++)
+                        bay.addEmptySpace();
+                    // "serviceyear", all lower case — that is the key ShipSpec.toValuesMap writes
+                    // and Ship.init reads. Spelling it serviceYear here returned null, every
+                    // carrier fell back to its earliest era, and a Hydran RN+ lost the Stinger-E
+                    // it is defined by.
+                    Object sy = values.get("serviceyear");
+                    // typeCount is the SHIP's counter, shared with the literal list above, so
+                    // fighters spread over several bays are numbered once through rather than
+                    // restarting in each — three bays of Stinger-1s must not all begin at one.
+                    complement.applyTo(bay, sy instanceof Number ? ((Number) sy).intValue() : 0,
+                            "", typeCount);
                 }
                 bays.add(bay);
             }
@@ -689,15 +711,6 @@ public class Shuttles implements Systems {
      * shuttles and scatter packs are ROLES an admin shuttle takes on, not stock anyone holds.
      */
     private static String displayName(String type) {
-        com.sfb.objects.ShuttleCatalog.Entry e = com.sfb.objects.ShuttleCatalog.get(type);
-        if (e != null)
-            return e.designation;
-        switch (type.toLowerCase()) {
-            case "suicide":     return "Suicide";
-            case "scatterpack": return "ScatterPack";
-            default:
-                // Capitalize first letter for unknown types
-                return Character.toUpperCase(type.charAt(0)) + type.substring(1);
-        }
+        return com.sfb.objects.ShuttleCatalog.displayNameOf(type);
     }
 }

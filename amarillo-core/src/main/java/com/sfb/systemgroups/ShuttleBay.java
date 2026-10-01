@@ -5,9 +5,15 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.sfb.objects.shuttles.Aas;
+import com.sfb.objects.shuttles.Aas_E;
 import com.sfb.objects.shuttles.AdminShuttle;
 import com.sfb.objects.shuttles.Haas;
 import com.sfb.objects.shuttles.Taas;
+import com.sfb.objects.shuttles.Taas_E;
+import com.sfb.objects.shuttles.Tads;
+import com.sfb.objects.shuttles.Tads_E;
+import com.sfb.objects.shuttles.Tadsc;
+import com.sfb.objects.shuttles.Tadsc_E;
 import com.sfb.objects.shuttles.Haas_E;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.GASShuttle;
@@ -64,8 +70,24 @@ public class ShuttleBay {
     private int launchTubeCount = 0;
     private int[] lastTubeImpulse = new int[0];
 
+    /**
+     * J4.4: this bay's fighters declared by role, kept so the complement can be re-seated when
+     * the scenario's year differs from the ship's service year. Null for a bay whose contents
+     * were listed literally.
+     */
+    private com.sfb.objects.FighterComplement fighterComplement;
+
     public ShuttleBay(Unit owner) {
         this.owner = owner;
+    }
+
+    public void setFighterComplement(com.sfb.objects.FighterComplement complement) {
+        this.fighterComplement = complement;
+    }
+
+    /** The role-based complement this bay was declared with, or null if it has none. */
+    public com.sfb.objects.FighterComplement getFighterComplement() {
+        return fighterComplement;
     }
 
     // -------------------------------------------------------------------------
@@ -337,8 +359,26 @@ public class ShuttleBay {
             case "taas":
                 s = new Taas();
                 break;
+            case "aas_e":
+                s = new Aas_E();
+                break;
             case "haas_e":
                 s = new Haas_E();
+                break;
+            case "taas_e":
+                s = new Taas_E();
+                break;
+            case "tads":
+                s = new Tads();
+                break;
+            case "tads_e":
+                s = new Tads_E();
+                break;
+            case "tadsc":
+                s = new Tadsc();
+                break;
+            case "tadsc_e":
+                s = new Tadsc_E();
                 break;
             case "admin":
                 s = new AdminShuttle();

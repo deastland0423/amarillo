@@ -43,6 +43,10 @@ class CoiFighterReadinessEndpointTest {
         com.sfb.scenario.ScenarioSpec spec = new com.sfb.scenario.ScenarioSpec();
         spec.mapCols = 42;
         spec.mapRows = 32;
+        // Y173, so the Kzinti carriers fly the HAAS this test is named for: a complement is
+        // resolved from the year (J4.4) and a CVS at its own Y170 service year flies the AAS.
+        // The Hydran RN+ is in its Y170 era either way.
+        spec.year = 173;
         com.sfb.scenario.ScenarioSpec.SideSpec side = new com.sfb.scenario.ScenarioSpec.SideSpec();
         side.faction = faction;
         side.name = faction + "s";

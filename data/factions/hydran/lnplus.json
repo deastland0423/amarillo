@@ -5,7 +5,7 @@
   "carrierClass": "CAPABLE",
   "line": "DD",
   "name": "HMS Thought",
-  "serviceYear": 134,
+  "serviceYear": 172,
   "bpv": 77,
   "turnMode": "B",
   "sizeClass": 4,
@@ -50,8 +50,8 @@
 
   "shuttleBays": [
     { "shuttles": ["admin"] },
-    { "shuttles": ["stinger2", "stinger2"], "launchTubes": 2 },
-    { "shuttles": ["stinger2", "stinger2"], "launchTubes": 2 }
+    { "shuttles": [], "launchTubes": 2, "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } },
+    { "shuttles": [], "launchTubes": 2, "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } }
   ],
 
   "crewData": {
