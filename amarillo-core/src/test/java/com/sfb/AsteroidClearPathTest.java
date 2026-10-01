@@ -54,6 +54,9 @@ public class AsteroidClearPathTest {
         e.setFireControl(fed.getFireControlCost());
         e.setActivateShields(fed.getActiveShieldCost());
         e.setWarpMovement(0.0);
+        // Bought but not switched on: C10.11's energy goes at allocation, and only the two
+        // P3.254 tests below ever announce the maneuver.
+        e.setErraticManuvers(fed.getPerformanceData().getErraticCost());
         game.submitAllocation(fed, e);
     }
 
@@ -254,6 +257,93 @@ public class AsteroidClearPathTest {
 
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage(), r.getMessage().contains("Direct Fire phase"));
+    }
+
+    // ---------------------------------------------------------------- P3.254 and EM
+
+    /** Bring EM into force. C10.3: an announcement takes effect at Stage 6E, not when made. */
+    private void beginEm() {
+        assertTrue(game.announceErraticManeuvers(fed, true).isSuccess());
+        for (int guard = 0; guard < 8
+                && game.getCurrentPhase() != Game.ImpulsePhase.END_OF_IMPULSE; guard++)
+            game.advancePhase();
+        game.advancePhase();
+        assertTrue("fixture: EM should be in force", fed.isEmEffective());
+    }
+
+    /**
+     * P3.254: "Units cannot perform EM (C10.45) while using weapons to reduce the effect of
+     * asteroids."
+     * <p>
+     * Refused outright rather than allowed to score nothing, because a shot that silently fails
+     * to help is a shot the player only discovers wasted after the collision roll.
+     */
+    @Test
+    public void aShipConductingEmCannotFireToClearAPath() {
+        beginEm();
+        advanceToDirectFire();
+
+        Game.ActionResult r = game.clearAsteroidPath(fed, new Location(10, 9),
+                java.util.List.of());
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("P3.254"));
+    }
+
+    /**
+     * And the loophole at the other end, which is exactly one impulse wide: fire on impulse N,
+     * announce EM on the same impulse (it comes into force at Stage 6E, after the shot), enter
+     * on N+1 holding both the cleared rocks and C10.41's four points of ECM. P3.254 bars
+     * performing EM "while using weapons to reduce the effect of asteroids", and the using is
+     * not finished until the benefit is taken.
+     */
+    @Test
+    public void aPathClearedBeforeEmBeganIsForfeitOnEnteringUnderIt() {
+        Location target = new Location(10, 9);
+        game.recordAsteroidClearance(fed, target, 8);
+        beginEm();                   // announced after the shot, in force for the entry
+
+        arriveAt(target);
+        String line = game.applyTerrainCollision(fed);
+
+        assertTrue("expected a collision line: " + line, line.contains("enters asteroid hex"));
+        assertFalse("the clearance must not be credited: " + line,
+                line.contains("cleared by fire"));
+        assertTrue("and the player must be told why: " + line, line.contains("P3.254"));
+    }
+
+    /** The same entry without EM still gets its eight points, so the guard is not a blanket. */
+    @Test
+    public void theSamePathIsStillGoodWhenNotConductingEm() {
+        Location target = new Location(10, 9);
+        game.recordAsteroidClearance(fed, target, 8);
+        waitImpulses(1);
+
+        arriveAt(target);
+        String line = game.applyTerrainCollision(fed);
+
+        assertTrue("not manoeuvring, so the fire still counts: " + line,
+                line.contains("cleared by fire"));
+    }
+
+    /** A tractor means EM "cannot be conducted" (C10.24), so it does not bar the shot either. */
+    @Test
+    public void aShipHeldByATractorMayStillClearAPath() {
+        Ship tug = new Ship();
+        tug.init(com.sfb.samples.KlingonShips.getD7());
+        tug.setName("IKV Grip");
+        tug.setLocation(new Location(10, 11));
+        game.getShips().add(tug);
+
+        beginEm();
+        fed.applyTractor(tug);
+        assertFalse("fixture: held, so not conducting EM", fed.isEmEffective());
+
+        advanceToDirectFire();
+        Game.ActionResult r = game.clearAsteroidPath(fed, new Location(10, 9),
+                java.util.List.of());
+
+        assertTrue(r.getMessage(), r.isSuccess() || !r.getMessage().contains("P3.254"));
     }
 
     private void advanceToDirectFire() {

@@ -3759,6 +3759,16 @@ public class Game {
         // with no asteroids in it at all.
         int cleared = spendAsteroidClearance(unit, unit.getLocation());
 
+        // P3.254 at the other end. Refusing only the fire would leave a one-impulse loophole
+        // open, and exactly one impulse wide: a unit could shoot its path clear, announce EM in
+        // the same impulse - the announcement comes into force at Stage 6E, after the shot - and
+        // enter the hex next impulse with both the cleared rocks and C10.41's four points of ECM.
+        // The rule bars performing EM "while USING weapons to reduce the effect of asteroids",
+        // and the using is not over until the benefit is taken.
+        boolean emForfeit = cleared > 0 && unit.isEmEffective();
+        if (emForfeit)
+            cleared = 0;
+
         boolean isShip = unit instanceof Ship;
         // C11.1: "All shuttlecraft and fighters (including those on seeking courses) are
         // nimble unless noted otherwise" - so the test is the Shuttle type itself, which
@@ -3801,6 +3811,8 @@ public class Game {
                 + (isShip ? ", shield " + shieldNum : "") + ")";
         if (cleared > 0)
             where += " — " + cleared + " cleared by fire (P3.25), " + hit.damage + " → " + damage;
+        else if (emForfeit)
+            where += " — its cleared path is forfeit for conducting EM (P3.254)";
         if (damage == 0)
             return where + " — no damage";
         return where + " — " + applyDamageToUnit(damage, unit, shieldNum);

@@ -500,6 +500,16 @@ class DamageResolver {
             return Game.ActionResult.fail(attacker.getName() + " is not on the map");
         if (!attacker.isActiveFireControl())
             return Game.ActionResult.fail(attacker.getName() + " needs active fire control to fire");
+        // P3.254: "Units cannot perform EM (C10.45) while using weapons to reduce the effect of
+        // asteroids." A refusal rather than a shot that quietly earns nothing: the player would
+        // otherwise spend the weapon and not find out until the collision roll came in unreduced.
+        //
+        // It asks isEmEffective() rather than isUsingEm() because C10.24's words are that EM
+        // "cannot be CONDUCTED" while a tractor holds the unit - a held ship is not thrashing
+        // about, whatever it paid at allocation, so nothing stops it aiming.
+        if (attacker.isEmEffective())
+            return Game.ActionResult.fail(attacker.getName()
+                    + " cannot fire to clear a path while conducting Erratic Maneuvers (P3.254)");
 
         int range = com.sfb.utilities.MapUtils.getRange(attacker.getLocation(), hex);
         int terrainEcm = game.terrainEcmForClearingFire(attacker.getLocation(), hex);
