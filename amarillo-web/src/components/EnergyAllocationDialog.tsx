@@ -1139,21 +1139,19 @@ export default function EnergyAllocationDialog({
             })}
             {/* Ship-level EW pool the scout generates to lend (G24.211): 1 energy per point,
                 drawn through any channel during the turn — you aim it from the sidebar. */}
-            <label className="ea-het-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            {/* The label stays on the LEFT, as the Commander's Options rows do: it is far too
+                long to sit after the buttons the way a one-word energy line's does. `editable`
+                because the control it replaced was a typed field — 0 to 18 is a lot of clicking,
+                and taking typing away would have been a trade rather than an improvement. */}
+            <div className="ea-het-row" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
               <span style={{ opacity: 0.85 }}>EW points to generate (lending pool):</span>
-              <input
-                type="number"
-                min={0}
-                max={18}
-                value={alloc.scoutEwPoints}
-                style={{ width: 52 }}
-                onChange={ev => {
-                  const v = Math.max(0, Math.min(18, Number(ev.target.value) || 0));
-                  setAlloc(a => ({ ...a, scoutEwPoints: v }));
-                }}
+              <Stepper
+                value={alloc.scoutEwPoints} min={0} max={18} editable
+                onChange={v => setAlloc(a => ({ ...a, scoutEwPoints: v }))}
+                label={`1 energy each (G24.211)${alloc.scoutEwPoints > 0
+                  ? ` — ${alloc.scoutEwPoints} energy` : ''}`}
               />
-              <span style={{ fontSize: '0.8em', opacity: 0.65 }}>1 energy each (G24.211)</span>
-            </label>
+            </div>
           </div>
         )}
 
