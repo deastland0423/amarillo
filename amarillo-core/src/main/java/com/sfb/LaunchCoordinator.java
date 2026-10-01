@@ -47,6 +47,34 @@ class LaunchCoordinator {
      * and are removed.
      * Applies an 8-impulse lockout on direct-fire and seeker weapons (D11.41–42).
      */
+    /**
+     * C10.511: "A unit using EM cannot launch drones, shuttles, fighters, probes (for
+     * information or as weapons), PFs, or plasma torpedoes."
+     * <p>
+     * One helper rather than nine copies, and it sits here rather than on Game because every
+     * launch in the rule passes through this class. Two things the rule does NOT bar, both of
+     * which this class also offers and neither of which calls this:
+     * <ul>
+     * <li>{@link #dropChaff} - C10.516 says outright that "a fighter using EM can use chaff".</li>
+     * <li>Plasma BOLTS - C10.511's own parenthesis: "plasma bolts are direct-fire weapons and
+     *     can be used while under EM at the standard EM penalties." They are fired through the
+     *     weapon in the direct-fire path, never through {@link #launchPlasma}, so the carve-out
+     *     costs nothing to honour.</li>
+     * </ul>
+     * Landing and recovery are a different rule (C10.53) and are not touched here.
+     * <p>
+     * It asks isEmEffective() rather than isUsingEm(), as P3.254 does: C10.24's words are that
+     * EM "cannot be CONDUCTED" while a tractor holds the unit, so a held unit may still launch.
+     *
+     * @return the refusal, or null if this unit is not conducting EM
+     */
+    private ActionResult emLaunchBlock(Unit launcher, String what) {
+        if (launcher == null || !launcher.isEmEffective())
+            return null;
+        return ActionResult.fail(launcher.getName() + " cannot launch " + what
+                + " while conducting Erratic Maneuvers (C10.511)");
+    }
+
     public ActionResult dropChaff(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Chaff can only be dropped during the Activity phase (D11.31)");
@@ -104,6 +132,9 @@ class LaunchCoordinator {
     }
 
     public ActionResult launchWildWeasel(Ship ship, String shuttleName, int facing, int speed) {
+        ActionResult emBlock = emLaunchBlock(ship, "a wild weasel");
+        if (emBlock != null)
+            return emBlock;
         // Find the charged admin shuttle in any bay
         com.sfb.objects.shuttles.Shuttle foundShuttle = null;
         com.sfb.systemgroups.ShuttleBay foundShuttleBay = null;
@@ -283,6 +314,9 @@ class LaunchCoordinator {
     }
 
     public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a drone");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -316,6 +350,9 @@ class LaunchCoordinator {
      * Launch a specific drone from the given rack at the given target.
      */
     public ActionResult launchDrone(Ship launcher, Unit target, DroneRack rack, Drone drone, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a drone");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -411,6 +448,9 @@ class LaunchCoordinator {
      */
     public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        ActionResult emBlock = emLaunchBlock(fighter, "a drone");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
         if (target == null)
@@ -464,6 +504,9 @@ class LaunchCoordinator {
      * location, faced toward the target, and added to the active seekers list.
      */
     public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a plasma torpedo");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -563,6 +606,9 @@ class LaunchCoordinator {
     }
 
     public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a pseudo plasma torpedo");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -633,6 +679,9 @@ class LaunchCoordinator {
      */
     public ActionResult launchShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.Shuttle shuttle, int speed, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a shuttle");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -697,6 +746,9 @@ class LaunchCoordinator {
      */
     public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target, int facing, int speed) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a suicide shuttle");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
@@ -757,6 +809,9 @@ class LaunchCoordinator {
      */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a scatter pack");
+        if (emBlock != null)
+            return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only be launched during the Activity phase");
         ActionResult cloakBlock = game.cloakActionBlock(launcher);
