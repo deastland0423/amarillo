@@ -722,14 +722,11 @@ export default function EnergyAllocationDialog({
         <div className="ea-section">
           <div className="ea-section-title" style={{ color: '#79c0ff' }}>Movement</div>
           <div className="ea-speed-row">
-            <input type="number" className="ea-speed-input"
-              min={0} max={effectiveMaxWarp}
-              value={alloc.speed}
-              onChange={e => setAlloc(a => ({
-                ...a,
-                speed: Math.max(0, Math.min(effectiveMaxWarp, Number(e.target.value))),
-                impulse: false,
-              }))}
+            {/* Editable, unlike the energy steppers beside it: speed runs to about 31, so the
+                buttons are for nudging and the field is for jumping straight to a number. */}
+            <Stepper
+              value={alloc.speed} min={0} max={effectiveMaxWarp} editable
+              onChange={v => setAlloc(a => ({ ...a, speed: v, impulse: false }))}
             />
             <span className="ea-speed-cost">
               {(Math.min(alloc.speed, 30) * (ship.moveCost ?? 1)).toFixed(1)} energy

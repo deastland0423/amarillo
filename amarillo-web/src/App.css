@@ -1260,6 +1260,35 @@ h3 {
   gap: 0.5rem;
 }
 
+/* The typeable value inside a Stepper (see Stepper's `editable`). Same footprint as the
+   non-editable .ea-step-value so a row does not jump when one is swapped for the other, and the
+   browser's own spinners are hidden — the whole point is the two big buttons either side. */
+.ea-step-input {
+  width: 3.2rem;
+  padding: 0.15rem 0.2rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #e6edf3;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  font-size: 0.95rem;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ea-step-input::-webkit-outer-spin-button,
+.ea-step-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ea-step-input:focus {
+  outline: none;
+  border-color: #f0c040;
+}
+
 .ea-speed-input {
   width: 60px;
   padding: 0.3rem 0.4rem;
