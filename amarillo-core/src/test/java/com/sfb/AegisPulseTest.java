@@ -241,6 +241,57 @@ public class AegisPulseTest {
         assertTrue(r.getMessage(), r.getMessage().contains("Direct Fire"));
     }
 
+    // ------------------------------------------------- D13.22, the per-hull restriction
+
+    /**
+     * "While the aegis system can control all direct-fire weapons (unless noted otherwise, for
+     * example the D5), you are not required to use it for all (or any) fire."
+     * <p>
+     * The Klingon D5 is that exception, and the owner's ruling gives its list: the ADDs and the
+     * four phaser-3s, across every variant of the hull. So a D5's disruptors and phaser-1s sit
+     * out the aegis pulses even though they are direct-fire weapons that could otherwise fire.
+     */
+    @Test
+    public void aHullMayRestrictWhatItsAegisControls() {
+        escort.setAegisWeaponTypes(java.util.List.of("ADD", "Phaser3"));
+
+        assertTrue("a phaser-3 is on the list", escort.aegisMayControl(phaser(0).get(0)));
+
+        Weapon disruptor = escort.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor)
+                .findFirst().orElseThrow(() -> new AssertionError("the BC carries disruptors"));
+        assertFalse("a disruptor is not", escort.aegisMayControl(disruptor));
+
+        Game.ActionResult r = game.fireAegisPulse(escort, freshDrone(), List.of(disruptor));
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("D13.22"));
+    }
+
+    /** The default is the rule's default: no list means aegis controls everything. */
+    @Test
+    public void withNoListAegisControlsEveryDirectFireWeapon() {
+        assertTrue("fixture: no restriction declared", escort.getAegisWeaponTypes().isEmpty());
+
+        Weapon disruptor = escort.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.Disruptor)
+                .findFirst().orElseThrow(() -> new AssertionError("the BC carries disruptors"));
+
+        assertTrue(escort.aegisMayControl(disruptor));
+    }
+
+    /** A restricted hull still spends no firing on a refusal. */
+    @Test
+    public void aRefusedWeaponCostsNoFiring() {
+        escort.setAegisWeaponTypes(java.util.List.of("ADD"));
+        int before = escort.aegisPulsesRemaining(game.getAbsoluteImpulse());
+
+        assertFalse(game.fireAegisPulse(escort, freshDrone(), phaser(0)).isSuccess());
+
+        assertEquals("a refusal is not a firing", before,
+                escort.aegisPulsesRemaining(game.getAbsoluteImpulse()));
+    }
+
     // ---------------------------------------------------------------- D13.22
 
     /**

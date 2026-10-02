@@ -2927,12 +2927,18 @@ public class Game {
         if (selected == null || selected.isEmpty())
             return ActionResult.fail("No weapons selected");
 
-        // D13.22: a weapon that already fired the other way this impulse sits this one out.
-        // Refused rather than dropped, so a player is told why a weapon did not shoot.
-        for (Weapon w : selected)
+        // D13.22, both halves. Refused rather than silently dropped, so a player is told why
+        // a weapon did not shoot.
+        for (Weapon w : selected) {
+            // "Unless noted otherwise, for example the D5" — a hull may restrict what its
+            // aegis reaches. The D5's covers its ADDs and its four phaser-3s, nothing else.
+            if (!attacker.aegisMayControl(w))
+                return ActionResult.fail(attacker.getName() + "'s aegis cannot control "
+                        + w.getName() + " (D13.22)");
             if (w.barredByAegisExclusivity(now, true))
                 return ActionResult.fail(w.getName()
                         + " already fired outside aegis control this impulse (D13.22)");
+        }
 
         int range = MapUtils.getRange(attacker.getLocation(), target.getLocation());
         int adjustedRange = range + attacker.getScanner();

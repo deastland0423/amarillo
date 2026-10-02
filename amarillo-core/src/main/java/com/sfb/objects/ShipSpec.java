@@ -76,6 +76,21 @@ public class ShipSpec {
      * See {@link com.sfb.properties.AegisLevel}.
      */
     public String aegis;
+
+    /**
+     * Weapon TYPES this ship's aegis may control, when it cannot control everything.
+     * <p>
+     * D13.22's default is that "the aegis system can control all direct-fire weapons", and
+     * absent or empty means exactly that. The clause continues "unless noted otherwise, for
+     * example the D5" — so a hull may name a shorter list, and the Klingon D5's is its ADDs
+     * and its four phaser-3s.
+     * <p>
+     * Type names, matching {@code Weapon.getType()} and the "type" in this file's own weapon
+     * entries: "ADD", "Phaser3". Not designators — a restriction that happened to name every
+     * weapon of a type would be the same list written less robustly, and would rot the moment
+     * a variant renumbered its mounts.
+     */
+    public java.util.List<String> aegisWeapons;
     /**
      * Cannot be fielded without an escort group (S8.315): a size class 2 ship of this kind
      * needs three escorts, class 3 two, class 4 one, at least one of them size class 4.
@@ -355,6 +370,8 @@ public class ShipSpec {
             m.put("isescort", true);
         if (aegis != null)
             m.put("aegis", aegis);
+        if (aegisWeapons != null && !aegisWeapons.isEmpty())
+            m.put("aegisweapons", aegisWeapons);
         if (requiresEscort)
             m.put("requiresescort", true);
         if (carrierClass != null)

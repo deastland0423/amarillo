@@ -193,6 +193,8 @@ public class Ship extends Unit implements DroneController {
 	private com.sfb.properties.AegisLevel aegisMode = com.sfb.properties.AegisLevel.NONE;
 	/** Absolute impulse the current mode was switched ON, for D13.523's four-impulse wait. */
 	private int aegisActivatedImpulse = Integer.MIN_VALUE;
+	/** D13.22: weapon types this ship's aegis may control. Empty means all of them. */
+	private java.util.List<String> aegisWeaponTypes = java.util.List.of();
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
@@ -242,6 +244,10 @@ public class Ship extends Unit implements DroneController {
 		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
 		aegisFitted = com.sfb.properties.AegisLevel.from(values.get("aegis"));
+		Object aegisWeaponList = values.get("aegisweapons");
+		aegisWeaponTypes = aegisWeaponList instanceof java.util.List
+				? java.util.List.copyOf((java.util.List<String>) aegisWeaponList)
+				: java.util.List.of();
 		// D13.52: a ship with aegis starts a scenario with it on unless its owner turns it off.
 		// Fitted is what the hull HAS and never changes (D13.16); mode is what it is running.
 		aegisMode = aegisFitted;
@@ -994,6 +1000,37 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public int aegisFirings(int absoluteImpulse) {
 		return isAegisOperational(absoluteImpulse) ? aegisMode.firings() : 0;
+	}
+
+	/**
+	 * D13.22: whether this ship's aegis may control {@code w}.
+	 * <p>
+	 * The default is everything — "the aegis system can control all direct-fire weapons" — and
+	 * the clause goes on, "unless noted otherwise, for example the D5". A hull that names a
+	 * shorter list gets only what it names: the Klingon D5's aegis reaches its anti-drone racks
+	 * and its four phaser-3s, and not the disruptors or the phaser-1s beside them.
+	 * <p>
+	 * Matched on the weapon's TYPE rather than its class, because the ship file speaks in types
+	 * and so should the restriction — and not on designators, which would say the same thing
+	 * less robustly and rot the first time a variant renumbered its mounts.
+	 */
+	public boolean aegisMayControl(com.sfb.weapons.Weapon w) {
+		if (w == null)
+			return false;
+		if (aegisWeaponTypes.isEmpty())
+			return true;
+		return aegisWeaponTypes.contains(w.getType());
+	}
+
+	/** The restriction as data, for the DTO and for tests. Empty means no restriction. */
+	public java.util.List<String> getAegisWeaponTypes() {
+		return aegisWeaponTypes;
+	}
+
+	/** Set the restriction directly; null or empty restores D13.22's "all direct-fire". */
+	public void setAegisWeaponTypes(java.util.List<String> types) {
+		this.aegisWeaponTypes = types == null
+				? java.util.List.of() : java.util.List.copyOf(types);
 	}
 
 	/** Extra firings used so far, and the impulse that count belongs to. */
