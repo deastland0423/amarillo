@@ -169,12 +169,23 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	 * (capped to new space limit).
 	 */
 	public void upgradeRackType(DroneRackType newType) {
+		// A refit that does not change the type must not behave like one that does. The Y175
+		// type-G refit is expressed as an upgrade to TYPE_G with an extra reload set (FD3.72),
+		// and everything below here exists to throw away ammunition that no longer fits a
+		// DIFFERENT rack: it reset the reload count to the type's base and emptied the loaded
+		// reload sets, so a refitted G ended up claiming three reloads and holding none.
+		if (newType == this.type)
+			return;
 		this.type = newType;
 		applyTypeStats(newType);
 		// A rack that is no longer a type-G has no targeting system for anti-drones, so
-		// whatever it was carrying goes with the refit.
-		if (!acceptsAntiDrones())
+		// whatever it was carrying goes with the refit — the rounds in the rack AND the
+		// reload set behind them (FD3.70). Only the loaded rounds were being dropped, which
+		// left a type-A holding eight anti-drones it had no way to fire.
+		if (!acceptsAntiDrones()) {
 			this.addAmmo = 0;
+			this.addReloads = 0;
+		}
 		// Trim loaded ammo to new space limit
 		double usedSpaces = ammoList.stream().mapToDouble(d -> d.getRackSize()).sum();
 		while (usedSpaces > spaces && !ammoList.isEmpty()) {
@@ -211,8 +222,30 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 	 * Named apart from the addReloads FIELD, which counts anti-drone rounds held in
 	 * reserve. The two were one word for two things, six lines apart.
 	 */
+	/**
+	 * Add reload sets, as the Y175 type-G refit does (FD3.72).
+	 * <p>
+	 * The rule says what the new set contains: "When the type-G was given a third set of
+	 * reloads in Y175, that set was identical to the loading of the rack." So this builds real
+	 * drones rather than only raising a number — a count that outruns the contents is how a
+	 * refitted rack came to advertise three reloads with nothing in any of them.
+	 * <p>
+	 * The set mirrors what is loaded NOW, which is also why the refit has to be applied after
+	 * the rack is filled. A rack with nothing in it gets the count and no drones, which is the
+	 * honest answer for a rack nobody has loaded yet: {@link #setAmmo} builds the sets when the
+	 * loading finally arrives.
+	 */
 	public void addReloadSets(int count) {
 		this.numberOfReloads += count;
+		for (int i = 0; i < count; i++) {
+			List<Drone> set = new ArrayList<>();
+			for (Drone d : ammoList) {
+				if (d.getDroneType() != null)
+					set.add(new Drone(d.getDroneType()));
+			}
+			if (!set.isEmpty())
+				this.reloads.add(set);
+		}
 	}
 
 	@Override
