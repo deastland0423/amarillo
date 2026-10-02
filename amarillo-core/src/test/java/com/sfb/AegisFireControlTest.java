@@ -14,19 +14,17 @@ import com.sfb.properties.AegisLevel;
 import com.sfb.properties.Location;
 
 /**
- * Aegis fire control (D13.0), slice one: what a ship HAS, what it is RUNNING, and what it may
- * shoot at. The four-pulse firing structure is separate work.
+ * Aegis fire control (D13.0): what a ship has, and what it may shoot at.
  * <p>
- * Two things the rules are emphatic about and this pins:
- * <ul>
- * <li><b>Aegis belongs to the ship, not to being an escort.</b> D13.0: "This system was almost
- *     never used on ships other than carrier escorts (the Klingon D5 being an exception)."
- *     Deriving it from {@code isEscort} would be right for most hulls and wrong for the ones
- *     worth naming.</li>
- * <li><b>Fitted is not running.</b> D13.16 says aegis "cannot be destroyed", so what the hull
- *     has is permanent; but D13.52 lets a ship switch it off, D13.525 lets a full system pose
- *     as limited, and D13.523 makes it useless for four impulses after being switched up.</li>
- * </ul>
+ * <b>Aegis belongs to the ship, not to being an escort.</b> D13.0: "This system was almost never
+ * used on ships other than carrier escorts (the Klingon D5 being an exception)." Deriving it from
+ * {@code isEscort} would be right for most hulls and wrong for the ones worth naming.
+ * <p>
+ * What a hull has is also what it always runs. D13.16 makes aegis indestructible, and D13.52's
+ * voluntary switching is deliberately not modelled (owner's call) — so there is no separate
+ * "mode", and the only thing that can stop a fitted system is losing active fire control
+ * (D13.524). The tests for switching, the four-impulse warm-up and a full system posing as
+ * limited were deleted with the feature rather than weakened to match it.
  */
 public class AegisFireControlTest {
 
@@ -45,7 +43,6 @@ public class AegisFireControlTest {
         escort.setFacing(1);
         escort.setActiveFireControl(true);
         escort.setAegisFitted(AegisLevel.FULL);
-        escort.setAegisMode(AegisLevel.FULL, 0);
         game.getShips().add(escort);
     }
 
@@ -101,56 +98,7 @@ public class AegisFireControlTest {
         assertFalse("a ship with no aegis cannot be operational", plain.isAegisOperational(0));
     }
 
-    // ---------------------------------------------------------------- fitted vs running
-
-    /** D13.525: a full system may pose as limited. The reverse is not on offer. */
-    @Test
-    public void aFullSystemMayRunAsLimitedButNotTheOtherWayRound() {
-        assertTrue("full posing as limited is expressly allowed",
-                escort.setAegisMode(AegisLevel.LIMITED, 10));
-        assertEquals(AegisLevel.LIMITED, escort.getAegisMode());
-        assertEquals("and what it HAS is untouched", AegisLevel.FULL, escort.getAegisFitted());
-
-        Ship lesser = new Ship();
-        lesser.init(com.sfb.samples.KzintiShips.getKzinBC());
-        lesser.setAegisFitted(AegisLevel.LIMITED);
-
-        assertFalse("limited cannot pretend to be full", lesser.setAegisMode(AegisLevel.FULL, 10));
-        assertEquals(AegisLevel.LIMITED, lesser.getAegisMode());
-    }
-
-    /**
-     * D13.523 against D13.521, and the asymmetry is the point: climbing costs four impulses,
-     * dropping is immediate. That is what makes D13.525's deception worth anything — a ship can
-     * look weaker for free but cannot instantly look strong again.
-     */
-    @Test
-    public void switchingUpCostsFourImpulsesAndSwitchingDownIsFree() {
-        escort.setAegisMode(AegisLevel.NONE, 20);
-        assertFalse("off is off at once", escort.isAegisOperational(20));
-
-        escort.setAegisMode(AegisLevel.FULL, 20);
-        assertFalse("impulse 20: detectable, but not working yet", escort.isAegisOperational(20));
-        assertFalse("impulse 23: still inside the four", escort.isAegisOperational(23));
-        assertTrue("impulse 24: working", escort.isAegisOperational(24));
-
-        // Dropping a level is immediate — no fresh wait.
-        assertTrue(escort.setAegisMode(AegisLevel.LIMITED, 25));
-        assertTrue("no new warm-up for going down", escort.isAegisOperational(25));
-    }
-
-    /** A ship that began the scenario with aegis on has no wait to serve. */
-    @Test
-    public void aegisOnFromTheStartNeedsNoWarmUp() {
-        Ship ready = new Ship();
-        ready.init(com.sfb.samples.KzintiShips.getKzinBC());
-        ready.setActiveFireControl(true);
-        ready.setAegisFitted(AegisLevel.FULL);
-
-        assertEquals("init leaves it running at what is fitted",
-                AegisLevel.FULL, ready.getAegisMode());
-        assertTrue("and working from impulse one", ready.isAegisOperational(1));
-    }
+    // ---------------------------------------------------------------- when it works
 
     /** D13.524: "Aegis can only be active if the fire control system is active." */
     @Test
@@ -227,13 +175,13 @@ public class AegisFireControlTest {
                 escort.canAegisEngage(drone, 10));
     }
 
-    /** Everything above is moot while the system is not working. */
+    /** Everything above is moot on a hull with no aegis at all. */
     @Test
-    public void nothingIsEngageableWhileAegisIsOff() {
+    public void nothingIsEngageableWithoutAegis() {
         Drone drone = droneAt(2);
         assertTrue(escort.canAegisEngage(drone, 10));
 
-        escort.setAegisMode(AegisLevel.NONE, 10);
+        escort.setAegisFitted(AegisLevel.NONE);
 
         assertFalse(escort.canAegisEngage(drone, 10));
     }

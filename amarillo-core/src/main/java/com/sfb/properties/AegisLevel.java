@@ -63,18 +63,6 @@ public enum AegisLevel {
         return this != NONE;
     }
 
-    /**
-     * Whether a ship fitted with this may run AS {@code mode}.
-     * <p>
-     * D13.525: "Ships with full aegis can use limited aegis, presumably as a deception
-     * procedure." The reverse is not offered, and D13.52 lets anything switch off entirely.
-     */
-    public boolean permits(AegisLevel mode) {
-        if (mode == null || mode == NONE)
-            return true;
-        return this == FULL || this == mode;
-    }
-
     /** Lenient parse for ship files; anything unrecognised is NONE, as CarrierClass does. */
     public static AegisLevel from(Object raw) {
         if (raw instanceof AegisLevel a)

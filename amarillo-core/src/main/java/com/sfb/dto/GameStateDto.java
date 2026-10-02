@@ -477,8 +477,6 @@ public class GameStateDto {
         // --- Aegis fire control (D13.0). Owner-only, see redactForEnemy. ---
         /** What the hull has fitted: NONE / LIMITED / FULL, or null to an enemy. */
         public String aegisFitted;
-        /** What it is running at (D13.52); may be below what is fitted (D13.525). */
-        public String aegisMode;
         /** False while D13.523's four-impulse warm-up runs, or without active fire control. */
         public Boolean aegisOperational;
         /** Firings this impulse (D13.14/D13.411): 4 full, 2 limited, 0 when not working. */
@@ -1426,7 +1424,6 @@ public class GameStateDto {
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
         dto.aegisFitted = ship.getAegisFitted().name();
-        dto.aegisMode = ship.getAegisMode().name();
         dto.aegisOperational = ship.isAegisOperational(game.getAbsoluteImpulse());
         dto.aegisFirings = ship.aegisFirings(game.getAbsoluteImpulse());
         dto.requiresEscort = ship.requiresEscort();
@@ -2163,7 +2160,6 @@ public class GameStateDto {
         // The ship's TYPE stays public, so an opponent who knows a Kzinti AFF carries full
         // aegis may infer it. That is their knowledge of the game, not a disclosure by us.
         dto.aegisFitted = null;
-        dto.aegisMode = null;
         dto.aegisOperational = null;
         dto.aegisFirings = null;
 

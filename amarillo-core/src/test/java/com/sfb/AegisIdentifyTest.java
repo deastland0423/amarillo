@@ -280,15 +280,6 @@ public class AegisIdentifyTest {
         assertTrue(r.getMessage(), r.getMessage().contains("D13.35"));
     }
 
-    /** D13.525: a full system RUNNING as limited cannot either — it is the mode that matters. */
-    @Test
-    public void aFullSystemPosingAsLimitedCannotIdentify() {
-        escort.setAegisMode(AegisLevel.LIMITED, game.getAbsoluteImpulse());
-
-        assertFalse(attempt("Incoming-1", 1).isSuccess());
-        assertEquals("though it still HAS a full system", AegisLevel.FULL,
-                escort.getAegisFitted());
-    }
 
     /** D13.524: and none of it works without active fire control. */
     @Test

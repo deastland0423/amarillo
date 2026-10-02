@@ -2968,8 +2968,8 @@ public class Game {
         try {
             String log = fireWeapons(attacker, target, selected, range, adjustedRange, 0);
             return ActionResult.ok(attacker.getName() + " aegis firing "
-                    + (attacker.getAegisMode().firings() - attacker.aegisPulsesRemaining(now))
-                    + " of " + attacker.getAegisMode().firings() + ":\n" + log);
+                    + (attacker.getAegisFitted().firings() - attacker.aegisPulsesRemaining(now))
+                    + " of " + attacker.getAegisFitted().firings() + ":\n" + log);
         } finally {
             for (Weapon w : selected)
                 w.setFiringUnderAegis(false);

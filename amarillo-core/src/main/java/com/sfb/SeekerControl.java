@@ -471,7 +471,7 @@ class SeekerControl {
         int turn = game.getClock().getTurn();
 
         // D13.35 / D13.412: the full system only. A limited one cannot do this at all.
-        if (!actingShip.getAegisMode().canIdentifySeekers())
+        if (!actingShip.getAegisFitted().canIdentifySeekers())
             return ActionResult.fail(actingShip.getName()
                     + " needs a full aegis system to identify seeking weapons (D13.35)");
         if (!actingShip.isAegisOperational(impulse))

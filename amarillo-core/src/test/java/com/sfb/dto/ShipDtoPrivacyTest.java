@@ -54,7 +54,7 @@ public class ShipDtoPrivacyTest {
         // Level E (D17.4), and an inactive one not detectable at all. D17 is not modelled, so
         // an enemy can never earn this. The firing COUNT is as revealing as the label — two
         // against four is precisely the limited/full distinction — so it is private too.
-        "aegisFitted", "aegisMode", "aegisOperational", "aegisFirings",
+        "aegisFitted", "aegisOperational", "aegisFirings",
         // The energy held, NOT the boxes holding it: availableBattery is a box count and
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
