@@ -58,8 +58,8 @@
 
   "shuttleBays": [
     { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"] },
-    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 } },
-    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 } }
+    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 }, "balconyPositions": 6 },
+    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 }, "balconyPositions": 6 }
   ],
 
   "crewData": {

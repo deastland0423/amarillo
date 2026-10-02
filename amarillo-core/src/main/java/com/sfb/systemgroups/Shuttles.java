@@ -67,6 +67,12 @@ public class Shuttles implements Systems {
                     // take an admin shuttle, which a tube will not (J1.542).
                     if ("tunnel".equalsIgnoreCase(String.valueOf(bayObj.get("type"))))
                         bay.setHatchCount(ShuttleBay.TUNNEL_DECK_HATCHES);
+                    // J1.53: outside parking on a track, belonging to THIS bay. Not spaces —
+                    // a balcony position cannot be destroyed and holds no ready rack, so it is
+                    // a capacity on the bay rather than another ShuttleSpace.
+                    Object balconyObj = bayObj.get("balconyPositions");
+                    if (balconyObj instanceof Number)
+                        bay.setBalconyPositions(((Number) balconyObj).intValue());
                     // J4.4: fighters declared by role, filled in by the year below.
                     complement = com.sfb.objects.FighterComplement.fromBayMap(bayObj.get("fighters"));
                 } else {

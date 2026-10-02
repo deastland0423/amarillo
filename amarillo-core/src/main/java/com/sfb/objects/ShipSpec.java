@@ -272,6 +272,19 @@ public class ShipSpec {
          * has no such limits, which is why a tunnel deck is counted here and not as tubes.
          */
         public String       type;
+        /**
+         * J1.53: balcony positions belonging to THIS bay — outside parking on a mechanical
+         * track. Absent or zero means the bay has no balcony, which is almost every bay.
+         * <p>
+         * Per bay rather than per ship, and the Federation CVA is why: its SSD reads "Each
+         * Size-1 Fighter bay has six balcony positions: Total of 12", so its two fighter bays
+         * have six each and its admin bay has none. A per-ship figure could not say that.
+         * The Gorn BC is three and three.
+         * <p>
+         * Not a count of shuttle boxes. A balcony position is not a {@link ShuttleBaySpec}
+         * space at all — see {@code ShuttleBay.getBalcony()} for what it is and is not.
+         */
+        public int          balconyPositions;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -498,13 +511,18 @@ public class ShipSpec {
                 List<String> shuttles = bay.shuttles != null ? bay.shuttles : new ArrayList<>();
                 // A role-based complement forces the object form, since the plain list has
                 // nowhere to carry it.
-                if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null) {
+                if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null
+                        || bay.balconyPositions > 0) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
                     if (bay.launchTubes > 0)
                         bayMap.put("launchTubes", bay.launchTubes);
                     if (bay.type != null)
                         bayMap.put("type", bay.type);
+                    // A balcony alone forces the object form too — the plain list has nowhere
+                    // to carry it, and a bay with a balcony and nothing else would lose it.
+                    if (bay.balconyPositions > 0)
+                        bayMap.put("balconyPositions", bay.balconyPositions);
                     if (bay.fighters != null) {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);

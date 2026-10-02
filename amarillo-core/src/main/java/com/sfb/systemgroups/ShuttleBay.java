@@ -123,6 +123,80 @@ public class ShuttleBay {
         return spaces.size();
     }
 
+    // ---------------------------------------------------------------- Balcony (J1.53)
+
+    /**
+     * J1.53: how many shuttles this bay's outside balcony can park. Zero for almost every bay.
+     * <p>
+     * Fixed for the bay's life. A balcony position CANNOT be destroyed (owner's ruling,
+     * 2026-10-02) — unlike a shuttle box, which is destroyed on an "any weapon" hit (J1.414).
+     * Damage reaches the shuttles parked there, never the positions, so this number never falls.
+     */
+    private int balconyPositions;
+
+    /**
+     * The craft parked on the balcony, in no particular order.
+     * <p>
+     * <b>A balcony position is deliberately NOT a {@link ShuttleSpace}, and this is the design
+     * decision the whole feature rests on.</b> A shuttle box is destroyed on an "any weapon"
+     * hit (J1.414), chain reacts (J1.415), and owns a ready rack and a fighter capacitor. A
+     * balcony position has none of that: it cannot be destroyed, nothing can be rearmed or
+     * repaired on it (J1.531), and no individual position is ever addressed — a rear-hull
+     * damage point simply destroys one parked shuttle outright.
+     * <p>
+     * So this is a plain list with a capacity, and nothing that walks {@link #getSpaces()} or
+     * {@link #getInventory()} will ever see a parked craft. That separation is what keeps every
+     * existing damage, arming and deck-crew path correct without being told about balconies.
+     */
+    private final List<Shuttle> balcony = new ArrayList<>();
+
+    public int getBalconyPositions() {
+        return balconyPositions;
+    }
+
+    /** Set from the ship file (J1.53). A configuration call, not a move. */
+    public void setBalconyPositions(int positions) {
+        this.balconyPositions = Math.max(0, positions);
+    }
+
+    /** True if this bay has a balcony at all. */
+    public boolean hasBalcony() {
+        return balconyPositions > 0;
+    }
+
+    /** The craft parked outside. Live list; callers must not add to it directly. */
+    public List<Shuttle> getBalcony() {
+        return java.util.Collections.unmodifiableList(balcony);
+    }
+
+    /** Positions still free on the balcony. */
+    public int balconyFree() {
+        return Math.max(0, balconyPositions - balcony.size());
+    }
+
+    /**
+     * Park a craft on the balcony. Capacity only — the RULES about what may be parked
+     * (J1.534 bars a suicide shuttle or wild weasel) and what the move costs (J1.50's rate)
+     * belong to the caller, which is where the game can refuse with a reason.
+     *
+     * @return false if there is no free position
+     */
+    public boolean park(Shuttle shuttle) {
+        if (shuttle == null || balconyFree() <= 0 || balcony.contains(shuttle))
+            return false;
+        balcony.add(shuttle);
+        return true;
+    }
+
+    /** Take a craft off the balcony, whether it is coming inside or launching from there. */
+    public boolean unpark(Shuttle shuttle) {
+        return balcony.remove(shuttle);
+    }
+
+    public boolean isParked(Shuttle shuttle) {
+        return balcony.contains(shuttle);
+    }
+
     /** Remaining undestroyed spaces — for DAC remaining-box tracking. */
     public int getRemainingSpaces() {
         return (int) spaces.stream().filter(s -> !s.isDestroyed()).count();
