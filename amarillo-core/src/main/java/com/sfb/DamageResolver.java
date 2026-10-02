@@ -1064,7 +1064,27 @@ class DamageResolver {
      * Game.submitDacChoice — validation and phase bookkeeping stay in Game).
      */
     void applyDacChoice(PendingDacChoice pending, String chosenSystem) {
-        if ("shuttle".equals(pending.dacType)) {
+        if ("ahull".equals(pending.dacType) || "afthull".equals(pending.dacType)) {
+            // J1.531: the owner has picked which parked craft the rear hull point takes.
+            // Ship owns the option format, since Ship is what generated it.
+            String killed = pending.targetShip.applyBalconyDacChoice(chosenSystem);
+            if (killed == null) {
+                game.internalDamageLog().add("  balcony hit: no parked craft matched "
+                        + chosenSystem);
+            } else {
+                game.internalDamageLog().add("  internal [" + pending.roll + "]: rear hull — "
+                        + killed + " DESTROYED on the balcony (J1.531)");
+                // Deliberately NO chain reaction and NO deck crew deaths, both of which a
+                // shuttle BOX would cause. J1.531: "no chain reactions (D12.0) will occur",
+                // and a balcony has no deck crews on it to kill.
+            }
+
+            // The rest of the volley still has to land - the same hand-back the generic
+            // branch below does. Easy to miss, because one point was consumed by the craft.
+            if (pending.remainingBleed > 0)
+                pendingInternalDamage.add(0, new PendingDamage(
+                        pending.targetShip, pending.remainingBleed, pending.attackerShip, true));
+        } else if ("shuttle".equals(pending.dacType)) {
             // Parse "bay:<b>:space:<s>"
             String[] parts = chosenSystem.split(":");
             int bayIdx = Integer.parseInt(parts[1]);

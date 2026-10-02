@@ -2223,6 +2223,79 @@ public class Ship extends Unit implements DroneController {
 		return tryApplySystemHit(system, null);
 	}
 
+	// ---------------------------------------------------------------- Balcony (J1.53)
+
+	/**
+	 * Every craft parked on any of this ship's balconies, in bay order (J1.53).
+	 * <p>
+	 * The list damage asks about. With nothing parked, a balcony does not interact with damage
+	 * at all - which is why this returning empty is the normal case and must stay cheap.
+	 */
+	public List<com.sfb.objects.shuttles.Shuttle> parkedCraft() {
+		List<com.sfb.objects.shuttles.Shuttle> all = new ArrayList<>();
+		for (com.sfb.systemgroups.ShuttleBay bay : shuttles.getBays())
+			all.addAll(bay.getBalcony());
+		return all;
+	}
+
+	/**
+	 * Destroy one parked craft outright (J1.531). A single damage point does this: a balcony
+	 * has no boxes to lose, so the craft simply ceases to exist and its position comes free.
+	 *
+	 * @return the bay it was parked on, or null if it was not parked anywhere
+	 */
+	public com.sfb.systemgroups.ShuttleBay destroyParkedCraft(com.sfb.objects.shuttles.Shuttle craft) {
+		for (com.sfb.systemgroups.ShuttleBay bay : shuttles.getBays())
+			if (bay.unpark(craft))
+				return bay;
+		return null;
+	}
+
+	/**
+	 * Apply the owner's J1.531 pick: destroy the parked craft named by one of the option
+	 * strings {@link #getDacChoiceOptions} produced, {@code "bay:<b>:balcony:<name>"}.
+	 * <p>
+	 * Parsed here rather than in the damage resolver because this class is what generates
+	 * those strings - the format never has to be known in two places.
+	 *
+	 * @return the destroyed craft's name, or null if no parked craft matched
+	 */
+	public String applyBalconyDacChoice(String option) {
+		int at = option == null ? -1 : option.indexOf(":balcony:");
+		if (at < 0)
+			return null;
+		String name = option.substring(at + ":balcony:".length());
+		for (com.sfb.objects.shuttles.Shuttle craft : parkedCraft())
+			if (craft.getName().equals(name)) {
+				destroyParkedCraft(craft);
+				return craft.getName();
+			}
+		return null;
+	}
+
+	/**
+	 * J1.533: "Shuttles can remain on the balcony at any speed up to 31. Any shuttles on the
+	 * balcony when the ship disengages by acceleration (i.e., exceeds a speed of 31) are
+	 * destroyed."
+	 * <p>
+	 * Note what the rule does NOT say: there is no penalty for merely going fast. Speed 31 is
+	 * fine, and so is launching at it (J1.532). It is exceeding 31 - which in practice only
+	 * happens when disengaging by acceleration - that strips the balcony.
+	 *
+	 * @return a log line per craft lost, empty if nothing was parked
+	 */
+	public List<String> stripBalconiesForAcceleration() {
+		List<String> log = new ArrayList<>();
+		for (com.sfb.systemgroups.ShuttleBay bay : shuttles.getBays()) {
+			for (com.sfb.objects.shuttles.Shuttle craft : new ArrayList<>(bay.getBalcony())) {
+				bay.unpark(craft);
+				log.add("  " + craft.getName() + " was on the balcony and is lost as "
+						+ getName() + " disengages by acceleration (J1.533)");
+			}
+		}
+		return log;
+	}
+
 	/** Resets the rule-of-3 phaser group state. Called before each fresh damage chain (D4.3221). */
 	public void resetPhaserDacGroup() {
 		phaserDacGroupPos  = 0;
@@ -2236,6 +2309,11 @@ public class Ship extends Unit implements DroneController {
 			// holding a unit (which link breaks?); with any idle beam the pick is
 			// forced and resolves silently via tryApplySystemHit.
 			case "tractor": return tractors.needsDamageChoice();
+			// J1.531: a rear hull point destroys a shuttle parked on the balcony INSTEAD of a
+			// hull box. Following the tractor precedent, only ask when there is a real choice
+			// to make: with one craft parked the pick is forced and tryApplySystemHit does it
+			// silently, and with none parked this is an ordinary hull hit.
+			case "ahull": case "afthull": return parkedCraft().size() > 1;
 			default: return false;
 		}
 	}
@@ -2309,6 +2387,18 @@ public class Ship extends Unit implements DroneController {
 							opts.add("bay:" + b + ":space:" + s);
 					}
 				}
+				return opts;
+			}
+			case "ahull": case "afthull": {
+				// Only reached with more than one craft parked (J1.531). Addressed by NAME
+				// rather than by index: a balcony is an unordered list of craft, and no
+				// individual position is ever addressed - unlike a shuttle box, which has an
+				// identity that survives being emptied.
+				java.util.List<String> opts = new ArrayList<>();
+				java.util.List<com.sfb.systemgroups.ShuttleBay> bays = shuttles.getBays();
+				for (int b = 0; b < bays.size(); b++)
+					for (com.sfb.objects.shuttles.Shuttle craft : bays.get(b).getBalcony())
+						opts.add("bay:" + b + ":balcony:" + craft.getName());
 				return opts;
 			}
 			case "tractor": {
@@ -2591,6 +2681,21 @@ public class Ship extends Unit implements DroneController {
 			}
 			case "ahull":
 			case "afthull": {
+				// J1.531: "each 'rear hull' damage point destroys one shuttle (instead of one
+				// hull box) ... This is not an option; the damage point MUST be scored on the
+				// shuttles if any are on the balcony." So the hull box is never touched while
+				// anything is parked - the craft is not extra armour, it is the hit.
+				//
+				// Only the forced case lands here: with more than one parked craft
+				// requiresPlayerChoice has already diverted this to the owner.
+				java.util.List<com.sfb.objects.shuttles.Shuttle> parked = parkedCraft();
+				if (!parked.isEmpty()) {
+					com.sfb.objects.shuttles.Shuttle craft = parked.get(0);
+					destroyParkedCraft(craft);
+					// No chain reaction even if it was armed - J1.531 says so outright, which
+					// is the opposite of a shuttle BOX (D12.10).
+					return "balcony HIT (" + craft.getName() + " destroyed, J1.531)";
+				}
 				boolean aAvail = hullBoxes.getAvailableAhull() > 0;
 				if (!hullBoxes.damageAhull())
 					return null;

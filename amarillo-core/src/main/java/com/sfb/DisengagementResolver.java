@@ -78,6 +78,12 @@ class DisengagementResolver {
         if (!confirm)
             return ship.getName() + " remained in the battle";
 
+        // J1.533: "Any shuttles on the balcony when the ship disengages by acceleration (i.e.,
+        // exceeds a speed of 31) are destroyed." Collected before the exit branches, because
+        // they are lost either way - a ship that exits into a destruction zone has still just
+        // accelerated past 31 with craft strapped to its hull.
+        List<String> balconyLost = ship.stripBalconiesForAcceleration();
+
         String teamName = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
         Set<String> badDirs = teamName != null
                 ? destructionDirectionsByTeam.getOrDefault(teamName, new HashSet<>())
@@ -94,6 +100,8 @@ class DisengagementResolver {
             game.refreshGameEnd();
             String msg = ship.getName() + " destroyed — disengaged by acceleration in direction " + exitDir
                     + " (destruction zone)";
+            if (!balconyLost.isEmpty())
+                msg += "\n" + String.join("\n", balconyLost);
             return dropped.isEmpty() ? msg : msg + "\n" + String.join("\n", dropped);
         }
         // Safe exit — any carried objectives are secured to this player (permanent)
@@ -103,6 +111,8 @@ class DisengagementResolver {
         ship.setLocation(null);
         game.releaseTiesToDeparted(ship, "target disengaged");
         String msg = ship.getName() + " has disengaged by acceleration (C7.1)";
+        if (!balconyLost.isEmpty())
+            msg += "\n" + String.join("\n", balconyLost);
         return secured.isEmpty() ? msg : msg + "\n" + String.join("\n", secured);
     }
 
