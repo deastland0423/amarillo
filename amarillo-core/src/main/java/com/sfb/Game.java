@@ -2877,6 +2877,84 @@ public class Game {
     }
 
     /**
+     * One EXTRA aegis firing (D13.13/D13.14): fire, see the result, decide again.
+     * <p>
+     * Everything ordinary fire does, it does — this is not a second resolver. The difference is
+     * only in WHEN: D13.11 says aegis "can fire weapons individually, judge the results, and
+     * then fire more, all on the same step of the same impulse", which is precisely the thing
+     * the sealed declaration round exists to forbid. D13.13 grants it deliberately, and only
+     * to targets nobody has to react to.
+     * <p>
+     * <b>This is the second, third or fourth firing, never the first.</b> D13.14: "The first of
+     * the four aegis firings is at the same time as all non-aegis fire", so pulse one is the
+     * ordinary volley a ship already gets and nothing here is needed for it.
+     * <p>
+     * Safe to resolve immediately — which is the whole reason the sealed round can be skipped —
+     * because D13.21 confines aegis to size class 6 and smaller. Every legal target is a seeker
+     * or a shuttle, whose damage applies at once with no shields to reinforce and no DAC choice
+     * to put to its owner. There is no decision point inside a pulse for anyone to be denied.
+     * <p>
+     * ONE FIRING IS ONE CALL, at one target. D13.14's "rather than just one per target" reads a
+     * firing as a per-target opportunity, which is also the shape {@code fireWeapons} has.
+     * Splitting a single firing across two targets is therefore not offered.
+     * <p>
+     * NOT MODELLED, and documented rather than hidden: D13.141 makes all aegis ships' first
+     * firings simultaneous, then all seconds, and so on. Resolving one ship's pulses as they
+     * are ordered diverges from that only when two units on the SAME side engage the same
+     * targets — opposing aegis ships never contend, since a ship does not shoot its own
+     * seekers. Callers that hold several aegis ships should loop the PULSE outside and the
+     * ship inside, which keeps D13.141 true within one player's own force.
+     *
+     * @return the combat log, or a refusal naming the rule that stopped it
+     */
+    public ActionResult fireAegisPulse(Ship attacker, Unit target, List<Weapon> selected) {
+        if (attacker == null)
+            return ActionResult.fail("No firing ship");
+        if (currentPhase != ImpulsePhase.DIRECT_FIRE)
+            return ActionResult.fail("Aegis fires during the Direct Fire phase");
+        int now = getAbsoluteImpulse();
+        if (!attacker.isAegisOperational(now))
+            return ActionResult.fail(attacker.getName()
+                    + " has no aegis fire control operating (D13.23/D13.524)");
+        if (attacker.aegisPulsesRemaining(now) <= 0)
+            return ActionResult.fail(attacker.getName()
+                    + " has used all of its aegis firings this impulse (D13.142)");
+        if (!attacker.canAegisEngage(target, now))
+            return ActionResult.fail(attacker.getName() + " cannot engage "
+                    + (target == null ? "nothing" : target.getName())
+                    + " with aegis — size class 6 and smaller, within "
+                    + Ship.AEGIS_RANGE + " hexes, with a lock-on (D13.21/D13.23)");
+        if (selected == null || selected.isEmpty())
+            return ActionResult.fail("No weapons selected");
+
+        // D13.22: a weapon that already fired the other way this impulse sits this one out.
+        // Refused rather than dropped, so a player is told why a weapon did not shoot.
+        for (Weapon w : selected)
+            if (w.barredByAegisExclusivity(now, true))
+                return ActionResult.fail(w.getName()
+                        + " already fired outside aegis control this impulse (D13.22)");
+
+        int range = MapUtils.getRange(attacker.getLocation(), target.getLocation());
+        int adjustedRange = range + attacker.getScanner();
+        attacker.consumeAegisPulse(now);
+
+        // D13.143: "Weapons firing with aegis fire at their normal rate. They have more
+        // opportunities to fire; they do not fire more rapidly." Nothing here lifts a rate
+        // limit — fireWeapons applies every one of them exactly as it would on any other shot.
+        for (Weapon w : selected)
+            w.setFiringUnderAegis(true);
+        try {
+            String log = fireWeapons(attacker, target, selected, range, adjustedRange, 0);
+            return ActionResult.ok(attacker.getName() + " aegis firing "
+                    + (attacker.getAegisMode().firings() - attacker.aegisPulsesRemaining(now))
+                    + " of " + attacker.getAegisMode().firings() + ":\n" + log);
+        } finally {
+            for (Weapon w : selected)
+                w.setFiringUnderAegis(false);
+        }
+    }
+
+    /**
      * Bombard a planet's surface (P2.311/P2.525): fire the selected direct-fire
      * weapons at a chosen, visible hex side; damage accumulates on that side and
      * the planet total. See {@link DamageResolver#bombardPlanet}.

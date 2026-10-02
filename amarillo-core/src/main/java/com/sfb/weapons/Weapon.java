@@ -249,7 +249,39 @@ public abstract class Weapon {
 	protected void registerFire() {
 		lastImpulseFired = clock.getImpulse();
 		lastTurnFired = clock.getTurn();
+		lastShotUnderAegis = firingUnderAegis;
 		shotsThisTurn++;
+	}
+
+	// --- D13.22: a weapon may not fire both ways in one impulse ---
+
+	/** Set by the firing path immediately before a shot; captured by {@link #registerFire}. */
+	private boolean firingUnderAegis;
+
+	/** Which way the most recent shot went, for the D13.22 test below. */
+	private boolean lastShotUnderAegis;
+
+	/**
+	 * Tell this weapon which kind of shot is about to be taken (D13.22). The ordinary fire
+	 * path leaves it false; the aegis path sets it true and clears it afterwards.
+	 */
+	public void setFiringUnderAegis(boolean underAegis) {
+		this.firingUnderAegis = underAegis;
+	}
+
+	/**
+	 * D13.22: "Any non-aegis use of a given weapon cannot take place on the same impulse as
+	 * the weapon is fired under aegis control." The rule's own example is a phaser-G, which is
+	 * exactly the case ordinary rate limits do NOT catch — it has four shots a turn, so
+	 * {@code canFire} is perfectly happy to let it fire again in the same impulse. A phaser-1
+	 * is protected by its own once-per-turn limit and would never reach this.
+	 *
+	 * @param currentImpulse the absolute impulse
+	 * @param underAegis     whether the shot being considered is an aegis shot
+	 * @return true if this weapon has already fired the OTHER way this impulse
+	 */
+	public boolean barredByAegisExclusivity(int currentImpulse, boolean underAegis) {
+		return lastImpulseFired == currentImpulse && lastShotUnderAegis != underAegis;
 	}
 
 	/**

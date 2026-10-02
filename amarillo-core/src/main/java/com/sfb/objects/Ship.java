@@ -996,6 +996,38 @@ public class Ship extends Unit implements DroneController {
 		return isAegisOperational(absoluteImpulse) ? aegisMode.firings() : 0;
 	}
 
+	/** Extra firings used so far, and the impulse that count belongs to. */
+	private int aegisPulsesUsed;
+	private int aegisPulseImpulse = Integer.MIN_VALUE;
+
+	/**
+	 * Extra aegis firings still available this impulse (D13.14, D13.411, D13.142).
+	 * <p>
+	 * The FIRST firing is the ordinary one, taken in the sealed volley alongside everybody
+	 * else's fire, so what is left to spend is {@code extraFirings()}: three for a full system,
+	 * one for a limited one.
+	 * <p>
+	 * D13.142 falls out of a counter rather than needing rules of its own. "Units with aegis
+	 * can skip one of the four firings" — skipping is simply not spending one. "but cannot make
+	 * it up after the fourth firing" — the cap. "or by firing twice during one of the other
+	 * firings" — each call is one firing, so there is no way to express it.
+	 */
+	public int aegisPulsesRemaining(int absoluteImpulse) {
+		if (!isAegisOperational(absoluteImpulse))
+			return 0;
+		int used = aegisPulseImpulse == absoluteImpulse ? aegisPulsesUsed : 0;
+		return Math.max(0, aegisMode.extraFirings() - used);
+	}
+
+	/** Spend one extra firing. The count is per impulse and resets by itself when it moves on. */
+	public void consumeAegisPulse(int absoluteImpulse) {
+		if (aegisPulseImpulse != absoluteImpulse) {
+			aegisPulseImpulse = absoluteImpulse;
+			aegisPulsesUsed = 0;
+		}
+		aegisPulsesUsed++;
+	}
+
 	/**
 	 * Heavy battlecruiser. A fleet may include only one (S8.333), but unlike the size class 2
 	 * ship it needs no squadron of followers, and it may be taken in addition to that ship.
