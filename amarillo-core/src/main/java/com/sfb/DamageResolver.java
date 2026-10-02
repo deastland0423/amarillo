@@ -705,6 +705,13 @@ class DamageResolver {
 
         for (Weapon w : selected) {
             w.setEcmShift(ecmShift);
+            // C10.49: an ADD fired by a ship conducting EM takes +1 (E1.821 adds a shift to the
+            // roll on a hit-or-miss weapon). It is the ONE thing that degrades an anti-drone,
+            // since E5.15 exempts them from EW outright, and it comes from the FIRER's own
+            // manoeuvring rather than the target's. isEmEffective, so a tractored ship is not
+            // penalised for a manoeuvre it is not conducting (C10.24).
+            if (w instanceof com.sfb.weapons.ADD)
+                ((com.sfb.weapons.ADD) w).setFirerUsingEm(attacker.isEmEffective());
             if (!w.isFunctional()) {
                 log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
                 continue;

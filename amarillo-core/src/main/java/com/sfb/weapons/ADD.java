@@ -112,12 +112,46 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         this.reloadsAvailable = reloadSets * capacity;
     }
 
-    // ADD fires at real range — ECM/scanner shifts do not apply (FD3.1).
+    /**
+     * E5.16: "The scanner (D6.2) factor (usually zero until damage is scored on the ship) is
+     * added to the die roll, not the range, for ADDs."
+     * <p>
+     * Every caller hands a weapon {@code adjustedRange = range + attacker.getScanner()}, so the
+     * scanner is exactly the difference between the two. ADD is the one weapon that must undo
+     * that and apply it to the roll instead. Carried as per-shot state the way
+     * {@link #setEcmShift} is, so the single-argument {@link #fire(int)} behaves the same.
+     */
+    private int scannerShift;
+
+    /**
+     * C10.49: "ADDs (E5.15) fired by a unit using EM are penalized by a +1 shift (E1.8)."
+     * <p>
+     * The one thing that does reach an ADD's accuracy, and E5.15 points straight at it — note
+     * that this is the FIRING ship's own Erratic Maneuvers, not the target's, and it is +1
+     * rather than EM's usual four points of ECM.
+     */
+    private int emShift;
+
+    /** C10.49: tell this rack whether the ship it is bolted to is manoeuvring erratically. */
+    public void setFirerUsingEm(boolean usingEm) {
+        this.emShift = usingEm ? EM_SHIFT : 0;
+    }
+
+    /** C10.49's penalty, as a die-roll modifier per E1.821. */
+    public static final int EM_SHIFT = 1;
+
+    /**
+     * E5.15: "Anti-drones ignore EW effects." So the adjusted range is discarded rather than
+     * used — an ADD shoots at the real range however much ECM is on the line, and
+     * {@link #getEcmShift()} is never consulted. The scanner is pulled back out of it for
+     * E5.16; see {@link #scannerShift}.
+     */
     @Override
     public int fire(int realRange, int adjustedRange)
             throws com.sfb.exceptions.WeaponUnarmedException,
                    com.sfb.exceptions.TargetOutOfRangeException,
                    com.sfb.exceptions.CapacitorException {
+        this.scannerShift = Math.max(0, adjustedRange - realRange);
         return fire(realRange);
     }
 
@@ -134,8 +168,11 @@ public class ADD extends HitOrMissWeapon implements DirectFire {
         registerFire();
 
         int roll = new DiceRoller().rollOneDie();
-        setLastRoll(roll);
-        return hitsAt(range, roll) ? HIT : 0;
+        setLastRoll(roll);                      // the die as thrown, for the combat log
+        // E1.821: on a hit-or-miss weapon a shift is simply added to the roll. The two that
+        // reach an ADD are the scanner (E5.16) and the firer's own EM (C10.49) — never ECM,
+        // which E5.15 excludes outright.
+        return hitsAt(range, roll + scannerShift + emShift) ? HIT : 0;
     }
 
     @Override
