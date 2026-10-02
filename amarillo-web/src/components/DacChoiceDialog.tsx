@@ -54,6 +54,8 @@ const WEAPON_TYPE_LABELS: Record<string, string> = {
   'ESG':            'ESG',
   'FighterFusion':  'Ftr Fusion',
   'FighterHellbore':'Ftr HB',
+  'FighterDisruptor':'Ftr Dis',
+  'FighterPhoton':  'Ftr Photon',
   'PlasmaLauncher': 'Plasma',
 };
 

@@ -203,6 +203,21 @@ export function getWeaponDamagePreview(
     return rollTablePreview(table, range, maxR);
   }
 
+  /**
+   * A fighter-mounted photon (the Federation A-10 and A-20). Before the general photon branch,
+   * which would otherwise claim it — "fighterphoton" contains "photon" — and would quote a
+   * reach of thirty.
+   *
+   * Same hit charts as a ship's, standard or proximity: only the REACH is cut, to the twelve
+   * J1.31 names for a shuttle-mounted photon. Never overloaded — J4.852 says so outright
+   * ("overloads are not allowed") — so the mode selects between standard and proximity only.
+   */
+  if (n.includes('fighterphoton')) {
+    const hitChart = mode === 'SPECIAL' ? PHOTON_PROX_HIT_CHART : PHOTON_HIT_CHART;
+    const damage   = mode === 'SPECIAL' ? 4 : 8;
+    return hitOrMissPreview(hitChart[clampRange(adjustedRange, 12)], damage);
+  }
+
   if (n.includes('photon')) {
     const hitChart = mode === 'OVERLOAD' ? PHOTON_OVLD_HIT_CHART
                    : mode === 'SPECIAL'  ? PHOTON_PROX_HIT_CHART

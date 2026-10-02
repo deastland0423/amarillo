@@ -75,8 +75,10 @@ public class CataloguedFighter extends Fighter {
 
         for (ShipSpec.WeaponSpec ws : load.weapons()) {
             Weapon w = WeaponFactory.build(ws, ws.arcs);
-            if (w != null)
+            if (w != null) {
+                capRangeForShuttleMount(w);
                 getWeapons().addWeapon(w);
+            }
         }
 
         // Pods AFTER the weapons, because fitting one to a rail needs the rails to exist
@@ -86,5 +88,29 @@ public class CataloguedFighter extends Fighter {
             setFixedEwPods(load.fixedEwPods());
         if (load.ewPods() > 0)
             fitEwPods(load.ewPods());
+    }
+
+    /**
+     * J1.31: "No shuttle (including fighters) can fire a direct-fire weapon to a range of more
+     * than fifteen hexes." A weapon mounted on a shuttle reaches less far than the same weapon
+     * on a ship, so the cap is applied where the mounting happens rather than in the weapon.
+     * <p>
+     * A CAP, never an extension. The rule continues: "Some weapons have shorter ranges
+     * specified, for example, photons are limited to Range 12, disruptors to Range 10" — and
+     * the fighter weapon classes already set those shorter figures for themselves, so taking
+     * the lower of the two leaves them alone. {@code FighterDisruptor} keeps its 10.
+     * <p>
+     * Why it is here and not in each weapon: the phaser a fighter carries is the SAME class a
+     * ship carries. A fighter-mounted phaser-2 reached range 50 until this existed, because
+     * nothing had ever put a phaser-2 on a fighter before the Klingon Z-1 arrived — every
+     * earlier fighter carried a phaser-3, a phaser-G, or a heavy weapon that caps itself. A
+     * FighterPhaser2 class would have fixed the one case and left the next one waiting.
+     * <p>
+     * "This range limit is not adjusted by pilot status", so no ace or green modifier applies.
+     */
+    public static final int SHUTTLE_MAX_RANGE = 15;
+
+    private static void capRangeForShuttleMount(Weapon w) {
+        w.capMaxRange(SHUTTLE_MAX_RANGE);
     }
 }

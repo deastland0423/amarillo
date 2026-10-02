@@ -29,6 +29,29 @@ public class Photon extends HitOrMissWeapon implements DirectFire, HeavyWeapon {
 	private final static int[] proximityHitChart = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 			3, 3, 3, 3, 3, 3, 3, 3 };
 
+	/**
+	 * The standard hit chart, for a weapon that shoots as a photon without being one.
+	 * <p>
+	 * Exposed so {@link FighterPhoton} uses the same numbers rather than holding a second copy,
+	 * exactly as {@link Disruptor#standardHitChart()} serves the fighter disruptor. Returned by
+	 * reference and so must not be written to — the array is a {@code static final} the whole
+	 * game reads.
+	 */
+	static int[] standardHitChart() {
+		return hitChart;
+	}
+
+	/**
+	 * The proximity-fuse chart (E4.4), for the same reason.
+	 * <p>
+	 * A fighter needs it because J4.854 lets the torpedo "be set as a standard or proximity fuse
+	 * at the time the charge is loaded on the fighter" — so a photon fighter has both modes
+	 * available, unlike the fighter disruptor, which the owner specified as standard only.
+	 */
+	static int[] proximityChart() {
+		return proximityHitChart;
+	}
+
 	/** Warp energy that must be paid into the tube on each of the two arming turns (E4.21). */
 	public static final double STANDARD_PER_TURN = 2.0;
 	/** Overload energy a torpedo can take on top of that, i.e. 100% overload (E4.41/E4.411). */

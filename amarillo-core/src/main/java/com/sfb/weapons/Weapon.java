@@ -175,6 +175,20 @@ public abstract class Weapon {
 		this.maxRange = range;
 	}
 
+	/**
+	 * Lower this weapon's reach, never raise it — for a mounting that is worse than the weapon
+	 * (J1.31: no shuttle fires a direct-fire weapon beyond fifteen hexes).
+	 * <p>
+	 * Public where {@link #setMaxRange} is protected, and one-directional for the same reason:
+	 * a mount may handicap a weapon but must not improve on what the weapon can do. A weapon
+	 * that already reaches less far keeps its own figure, which is how a fighter disruptor
+	 * holds its Range 10 under a fifteen-hex cap.
+	 */
+	public void capMaxRange(int cap) {
+		if (cap < this.maxRange)
+			this.maxRange = cap;
+	}
+
 	protected void setMinRange(int range) {
 		this.minRange = range;
 	}

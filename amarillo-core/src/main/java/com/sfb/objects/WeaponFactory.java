@@ -14,6 +14,7 @@ import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.FighterDisruptor;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
+import com.sfb.weapons.FighterPhoton;
 import com.sfb.weapons.Fusion;
 import com.sfb.weapons.Hellbore;
 import com.sfb.weapons.Phaser1;
@@ -178,6 +179,12 @@ public final class WeaponFactory {
                 fd.setArcs(arcMask);
                 fd.setDesignator(ws.designator);
                 return fd;
+            }
+            case "FighterPhoton": {
+                FighterPhoton fp = new FighterPhoton();
+                fp.setArcs(arcMask);
+                fp.setDesignator(ws.designator);
+                return fp;
             }
             /*
              * A rail is not a rack: the RAIL decides what will fit on it and what that costs
