@@ -1799,7 +1799,9 @@ public class GameSession {
                 ShuttleBay foundBay = null;
                 Shuttle foundShuttle = null;
                 for (ShuttleBay bay : ship.getShuttles().getBays()) {
-                    for (Shuttle s : bay.getInventory()) {
+                    // launchableInventory, not getInventory: a craft parked on the balcony is
+                    // the one thing MOST ready to launch (J1.53), and it is not inside the bay.
+                    for (Shuttle s : bay.launchableInventory()) {
                         if (s.getName().equalsIgnoreCase(shuttleName)) {
                             foundBay = bay;
                             foundShuttle = s;
@@ -1831,7 +1833,8 @@ public class GameSession {
                 ShuttleBay foundBay = null;
                 com.sfb.objects.shuttles.ScatterPack foundPack = null;
                 for (ShuttleBay bay : launcher.getShuttles().getBays()) {
-                    for (Shuttle s : bay.getInventory()) {
+                    // J1.534 lets a scatter pack sit on the balcony, so look there too.
+                    for (Shuttle s : bay.launchableInventory()) {
                         if (s.getName().equalsIgnoreCase(packName)
                                 && s instanceof com.sfb.objects.shuttles.ScatterPack) {
                             foundBay = bay;

@@ -197,6 +197,24 @@ public class ShuttleBay {
         return balcony.contains(shuttle);
     }
 
+    /**
+     * Everything this bay could launch right now: what is in its boxes PLUS what is parked on
+     * its balcony (J1.53).
+     * <p>
+     * {@link #getInventory()} deliberately excludes parked craft - it answers "what is INSIDE
+     * this bay", which is what damage, arming and deck-crew work all need. But a launch is the
+     * one operation that does not care which side of the hatch the craft is on, and a lookup
+     * that scanned only the inventory would make a parked fighter unlaunchable: the whole
+     * point of the balcony is that it CAN launch, and faster.
+     * <p>
+     * Any code resolving a craft by name in order to launch it wants this, not getInventory().
+     */
+    public List<Shuttle> launchableInventory() {
+        List<Shuttle> all = getInventory();
+        all.addAll(balcony);
+        return all;
+    }
+
     /** Remaining undestroyed spaces — for DAC remaining-box tracking. */
     public int getRemainingSpaces() {
         return (int) spaces.stream().filter(s -> !s.isDestroyed()).count();
@@ -317,7 +335,16 @@ public class ShuttleBay {
         return false;
     }
 
+    /**
+     * J1.53: a craft ALREADY on the balcony launches free of the J1.50 rate, and any number of
+     * them may go in the same impulse. It is already outside the ship - the hatch it would have
+     * used was spent moving it out there, which is the trade the balcony exists to offer.
+     * <p>
+     * Asked before the hatch and before the tube, because a parked craft needs neither.
+     */
     public boolean canLaunch(Shuttle shuttle, int currentImpulse) {
+        if (isParked(shuttle))
+            return true;
         if (isLaunchTubeEligible(shuttle) && getAvailableTubeCount(currentImpulse) > 0)
             return true;
         return canLaunch(currentImpulse);
@@ -333,6 +360,16 @@ public class ShuttleBay {
      * Returns the shuttle, or null if not found in any space.
      */
     public Shuttle launch(Shuttle shuttle, int speed, int facing, int currentImpulse) {
+        // J1.53: off the balcony, and nothing is spent. No hatch, no tube, no cooldown
+        // booked, so a second parked craft can follow it in the same impulse. It also holds
+        // no space, so findSpace() below would have refused it outright.
+        if (isParked(shuttle)) {
+            unpark(shuttle);
+            shuttle.setSpeed(Math.min(speed, shuttle.getMaxSpeed()));
+            shuttle.setFacing(facing);
+            return shuttle;
+        }
+
         ShuttleSpace space = findSpace(shuttle);
         if (space == null)
             return null;
