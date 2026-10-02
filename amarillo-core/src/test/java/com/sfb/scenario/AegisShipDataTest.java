@@ -18,9 +18,14 @@ import com.sfb.weapons.Weapon;
 /**
  * Which ships actually carry aegis, read from the ship files (D13.0).
  * <p>
- * A guard on the DATA rather than the mechanism. Aegis is declared per hull and nothing
- * computes it, so a hull that quietly loses its declaration — or gains one — would change what
- * a fleet can do with no code change and no failing test anywhere else.
+ * A guard on the DATA rather than the mechanism, and only where the data is a RULING. Aegis is
+ * declared per hull and nothing computes it, so the ship file is the single source of truth: a
+ * new escort needs nothing but its own {@code "aegis"} line to work.
+ * <p>
+ * There is deliberately NO roster of hulls that may carry aegis. One was written and removed
+ * the same day: D13.0 says most carrier escorts have the system, so any such list becomes a
+ * second place to edit for every correct addition, and a guard that fires on good work is a
+ * chore rather than a safety net. Nobody types {@code "aegis": "FULL"} by accident.
  * <p>
  * The Klingon D5 is the one the rulebook singles out: D13.0 says aegis "was almost never used
  * on ships other than carrier escorts (the Klingon D5 being an exception)", and D13.22 names it
@@ -88,32 +93,5 @@ public class AegisShipDataTest {
         assertTrue("and so declares no restriction", d7.getAegisWeaponTypes().isEmpty());
         for (Weapon w : d7.getWeapons().fetchAllWeapons())
             assertTrue("an unrestricted hull controls " + w.getName(), d7.aegisMayControl(w));
-    }
-
-    /**
-     * Nothing has picked up aegis by accident.
-     * <p>
-     * A SUBSET check rather than an exact set, and the reason is worth knowing before anyone
-     * tightens it: aegis is an owner ruling per hull, and the Kzinti escorts were being
-     * authored while this was written. An exact set would fail on a clean checkout that has
-     * the D5s but not yet the Kzinti files, and fail again the day a Hydran escort is added.
-     * This way it still catches the thing worth catching — a hull nobody meant to arm — while
-     * staying true whichever of the known ones are present.
-     */
-    @Test
-    public void noUnexpectedHullHasAegis() {
-        java.util.Set<String> permitted = java.util.Set.of(
-                "Klingon D5", "Klingon D5C", "Klingon D5L",     // D13.0's named exception
-                "Kzinti EFF", "Kzinti EFF+", "Kzinti AFF");     // carrier escorts
-        java.util.Set<String> withAegis = new java.util.TreeSet<>();
-        for (ShipSpec spec : ShipLibrary.all())
-            if (ShipLibrary.createShip(spec).getAegisFitted().isFitted())
-                withAegis.add(spec.faction + " " + spec.type);
-
-        java.util.Set<String> unexpected = new java.util.TreeSet<>(withAegis);
-        unexpected.removeAll(permitted);
-        assertTrue("hulls carrying aegis that nobody ruled on: " + unexpected
-                + " — add them above once the ruling is made", unexpected.isEmpty());
-        assertTrue("fixture: the D5s at least should be there", withAegis.size() >= 3);
     }
 }
