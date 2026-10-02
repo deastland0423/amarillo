@@ -39,6 +39,11 @@
   ],
   "fighterLinesNote": "J4.4: which fighter fills each role in a carrier's bay is decided by the YEAR, not by the ship. A carrier declares how many of each role it carries (see a ship file's shuttleBays.fighters) and the latest entry whose 'from' year has arrived supplies the types. A role this era has no type for falls back to 'standard' - which is how a Hydran RN carries nine Stinger-1s in Y134 and six Stinger-2s, two Stinger-Hs and one Stinger-E in Y170 from one declaration.",
   "fighterLines": {
+    "federation-fighter": [
+      { "from": 167, "superiority": "f4", "ew": "f4_e" },
+      { "from": 171, "superiority": "f4", "ew": "f4_e", "assault": "a10" },
+      { "from": 173, "superiority": "f18", "ew": "f18_e", "assault": "a10" }
+    ],
     "klingon-zegurnii": [
       { "from": 167, "superiority": "z2",   "ew": "z2_e", "attack": "z1"   },
       { "from": 172, "superiority": "z2",   "ew": "z2_e", "attack": "z1v", "assault": "zd"   },
@@ -66,6 +71,43 @@
     { "type": "gas",        "name": "General Assault Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 8,  "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS", "designation": "GAS" },
     { "type": "hts",        "name": "Heavy Transport Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS", "designation": "HTS" },
 
+    { "type": "f4", "name": "F-4 Phantom Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 167, "speed": 8,  "hull": 9,  "crippled": 6, "bpv": 7,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-4", "designation": "F4",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "f4_e", "name": "F-4E Phantom Fighter (EW)",         "kind": "fighter",    "factions": ["federation"], "year": 167, "speed": 8,  "hull": 9,  "crippled": 6, "bpv": 9,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-4E", "designation": "F4E", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "f18", "name": "F-18 Hornet Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 173, "speed": 13,  "hull": 10,  "crippled": 7, "bpv": 8,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-18", "designation": "F18",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "f18_e", "name": "F-18E Hornet Fighter (EW)",         "kind": "fighter",    "factions": ["federation"], "year": 173, "speed": 13,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-18E", "designation": "F18E", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "a10", "name": "A-10 Warthog Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 171, "speed": 10,  "hull": 16,  "crippled": 11, "bpv": 10,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "A-10", "designation": "A10",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "FighterPhoton", "designator": "C", "arcs": ["FA"] } ] },
+
     { "type": "z1", "name": "Z-1 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 6,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1", "designation": "Z1",
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
@@ -80,13 +122,13 @@
 
     { "type": "zp", "name": "Z-P Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 172, "speed": 10,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "Z-P", "designation": "ZP",
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
-                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "LIGHT" } ] },
 
     { "type": "zpc", "name": "Z-PC Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 183, "speed": 10,  "hull": 12,  "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-PC", "designation": "ZPC",
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
-                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
 
