@@ -3331,6 +3331,22 @@ public class Game {
         return launchCoordinator.landShuttle(ship, shuttleName);
     }
 
+    /**
+     * Move a craft out of its bay onto that bay's balcony (J1.53).
+     * <p>
+     * Costs the bay a hatch, the same one a launch or a recovery draws on, which is how
+     * J1.532's "a given bay cannot land a shuttle and move another one to the balcony during
+     * the same two-impulse cycle" falls out. See {@link LaunchCoordinator#moveToBalcony}.
+     */
+    public ActionResult moveToBalcony(Ship ship, String shuttleName) {
+        return launchCoordinator.moveToBalcony(ship, shuttleName);
+    }
+
+    /** Bring a craft back inside from the balcony (J1.53). Costs a hatch, as the move out does. */
+    public ActionResult moveFromBalcony(Ship ship, String shuttleName) {
+        return launchCoordinator.moveFromBalcony(ship, shuttleName);
+    }
+
     /** Launch a scatter pack (FD7.0). */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {

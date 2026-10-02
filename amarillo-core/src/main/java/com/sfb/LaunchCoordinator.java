@@ -870,6 +870,109 @@ class LaunchCoordinator {
      * Active suicide shuttles, scatter packs, and Wild Weasels cannot land this
      * way (J1.611); they need a tractor (J1.62, deferred).
      */
+    // ---------------------------------------------------------------- Balcony (J1.53)
+
+    /**
+     * Move a craft from a bay out onto that bay's balcony (J1.53).
+     * <p>
+     * The transfer COSTS A HATCH. J1.53: "Movement from this outside track to and from the
+     * hangar bay is limited by (J1.50)", and J1.532 spells out the consequence — "the rate in
+     * (J1.50) includes all launch/land and bay/balcony operations; i.e., a given bay cannot
+     * land a shuttle and move another one to the balcony during the same two-impulse cycle."
+     * Claiming through {@link com.sfb.systemgroups.ShuttleBay#claimHatch} gets that for free:
+     * it is the same counter a launch and a recovery draw on, and a tunnel deck's two hatches
+     * (J1.58) go on working independently.
+     * <p>
+     * Only the craft's OWN bay will take it: each balcony belongs to a specific bay (J1.532),
+     * so a full balcony cannot be relieved by another bay's spare positions.
+     * <p>
+     * J1.534 bars two kinds outright: "Scatter-packs can be held on the balcony; suicide
+     * shuttles and wild weasels cannot." A scatter pack may be PARKED, but note J1.531 means
+     * it cannot be PREPARED out there - that bar belongs with the other parked restrictions.
+     */
+    ActionResult moveToBalcony(Ship ship, String shuttleName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail(
+                    "Shuttles can only be moved to the balcony during the Activity phase");
+
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        com.sfb.objects.shuttles.Shuttle shuttle = null;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays())
+            for (com.sfb.objects.shuttles.Shuttle sh : b.getInventory())
+                if (sh.getName().equalsIgnoreCase(shuttleName)) {
+                    bay = b;
+                    shuttle = sh;
+                }
+        if (shuttle == null)
+            return ActionResult.fail("No shuttle called " + shuttleName + " aboard "
+                    + ship.getName());
+        if (!bay.hasBalcony())
+            return ActionResult.fail(shuttleName + "'s bay has no balcony (J1.53)");
+
+        // J1.534: a suicide shuttle or wild weasel may not be held outside at all.
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail("Suicide shuttles and wild weasels cannot be held on the"
+                    + " balcony (J1.534)");
+
+        if (bay.balconyFree() <= 0)
+            return ActionResult.fail(shuttleName + "'s bay has all "
+                    + bay.getBalconyPositions() + " balcony positions occupied");
+
+        int impulse = game.getAbsoluteImpulse();
+        if (!bay.claimHatch(impulse))
+            return ActionResult.fail("The bay's hatch is still cycling — a bay/balcony move"
+                    + " draws on the same rate as a launch or a recovery (J1.532)");
+
+        // replaceShuttle(x, null) is the bay's existing idiom for vacating a box.
+        bay.replaceShuttle(shuttle, null);
+        bay.park(shuttle);
+        return ActionResult.ok(shuttleName + " moved out to the balcony ("
+                + bay.balconyFree() + " position(s) still free)");
+    }
+
+    /**
+     * Bring a craft back inside from the balcony (J1.53). Costs a hatch, exactly as the outward
+     * move does — the rule limits movement "to and from the hangar bay".
+     * <p>
+     * It needs a free shuttle box to come back to. A balcony is parking, not storage: J1.416
+     * assigns every shuttle aboard to a specific box, and nothing on the balcony holds one.
+     */
+    ActionResult moveFromBalcony(Ship ship, String shuttleName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail(
+                    "Shuttles can only be brought in from the balcony during the Activity phase");
+
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        com.sfb.objects.shuttles.Shuttle shuttle = null;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays())
+            for (com.sfb.objects.shuttles.Shuttle sh : b.getBalcony())
+                if (sh.getName().equalsIgnoreCase(shuttleName)) {
+                    bay = b;
+                    shuttle = sh;
+                }
+        if (shuttle == null)
+            return ActionResult.fail("No shuttle called " + shuttleName
+                    + " on any balcony of " + ship.getName());
+
+        if (bay.getEmptySpaceCount() <= 0)
+            return ActionResult.fail(shuttleName + " has no free shuttle box to return to"
+                    + " (J1.416)");
+
+        int impulse = game.getAbsoluteImpulse();
+        if (!bay.claimHatch(impulse))
+            return ActionResult.fail("The bay's hatch is still cycling — a bay/balcony move"
+                    + " draws on the same rate as a launch or a recovery (J1.532)");
+
+        bay.unpark(shuttle);
+        for (com.sfb.systemgroups.ShuttleSpace sp : bay.getSpaces())
+            if (sp.isEmpty()) {
+                sp.setShuttle(shuttle);
+                break;
+            }
+        return ActionResult.ok(shuttleName + " brought in from the balcony");
+    }
+
     ActionResult landShuttle(Ship ship, String shuttleName) {
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only land during the Activity phase");
