@@ -6,6 +6,7 @@
   "name": "KHS #173",
   "serviceYear": 160,
   "bpv": 90,
+  "epv": 90,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,

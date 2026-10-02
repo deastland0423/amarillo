@@ -1,11 +1,11 @@
 {
   "faction": "Kzinti",
-  "type": "EFF",
-  "typeName": "Escort Frigate",
+  "type": "AFF",
+  "typeName": "Aegis Frigate",
   "line": "FF",
-  "name": "#315",
-  "serviceYear": 168,
-  "bpv": 65,
+  "name": "#322",
+  "serviceYear": 175,
+  "bpv": 81,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,
@@ -13,10 +13,10 @@
   "bonusHets": 1,
   "commandRating": 3,
   "isEscort": true,
-  "aegis": "LIMITED",
+  "aegis": "FULL",
   "tokenArt": "kzinti/cm.png",
   
-  "shields": [15, 12, 10, 9, 10, 12],
+  "shields": [15, 12, 12, 12, 12, 12],
   
   "hullBoxes": {
     "fhull": 3,
@@ -69,10 +69,11 @@
     { "type": "Phaser3", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 3", "addType": "ADD_12" }
-
   ]
 
 }

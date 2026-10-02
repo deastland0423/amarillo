@@ -1,11 +1,11 @@
 {
   "faction": "Kzinti",
-  "type": "EFF",
+  "type": "EFF+",
   "typeName": "Escort Frigate",
   "line": "FF",
-  "name": "#315",
+  "name": "#318",
   "serviceYear": 168,
-  "bpv": 65,
+  "bpv": 74,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.3333333,
@@ -16,7 +16,7 @@
   "aegis": "LIMITED",
   "tokenArt": "kzinti/cm.png",
   
-  "shields": [15, 12, 10, 9, 10, 12],
+  "shields": [15, 12, 12, 12, 12, 12],
   
   "hullBoxes": {
     "fhull": 3,
@@ -69,10 +69,11 @@
     { "type": "Phaser3", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 3", "addType": "ADD_12" }
-
   ]
 
 }

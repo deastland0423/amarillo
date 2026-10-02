@@ -14,8 +14,8 @@
     "ShipLineCatalogTest enforces the agreement across every ship."
   ],
   "lines": [
-    { "code": "DN",  "name": "Dreadnought",         "moveCosts": [1.5] },
     { "code": "BB",  "name": "Battleship",          "moveCosts": [2.0] },
+    { "code": "DN",  "name": "Dreadnought",         "moveCosts": [1.5] },
     { "code": "BCH", "name": "Heavy Battlecruiser", "moveCosts": [1.0] },
     { "code": "CA",  "name": "Heavy Cruiser",       "moveCosts": [1.0] },
     { "code": "CL",  "name": "Light Cruiser",       "moveCosts": [0.6666667, 0.75] },
