@@ -32,11 +32,11 @@ import com.sfb.systemgroups.ShuttleBay;
  * first is what makes every launch path — plain shuttle, fighter, scatter pack — correct at
  * once. These tests go through {@code game.launchShuttle} to prove that actually happened.
  * <p>
- * NOT part of this slice: landing from space directly onto a balcony. The rule's words are
- * "landed on ... this balcony", but whether that means a craft in space may land there or only
- * that an inside craft may be moved out is a reading I do not want to guess at — landing stays
- * on the hatch, which is the conservative behaviour, and {@link #aLandingStillCostsAHatch}
- * pins it so a future change has to be deliberate.
+ * Landing straight onto the balcony is here too, and it is the half I first guessed wrong.
+ * J1.532 settles it outright: "A ship can land shuttles (J1.6) on the balcony at any speed
+ * (and by any method) that it could land them in the hangar" — and J1.53's headline puts
+ * landings in the same free, unlimited clause as launches. So a carrier can recover a whole
+ * strike group in one impulse, not merely launch one.
  */
 public class BalconyLaunchTest {
 
@@ -287,12 +287,11 @@ public class BalconyLaunchTest {
     // ------------------------------------------------- what is NOT free
 
     /**
-     * Landing from space still costs a hatch. See the class comment: whether "landed on this
-     * balcony" lets a craft in space touch down outside is a reading I am not guessing at, so
-     * the behaviour stays as it was and this test makes any future change deliberate.
+     * A HANGAR landing still costs a hatch — that half was always right, and it is the contrast
+     * that makes a balcony landing worth asking for.
      */
     @Test
-    public void aLandingStillCostsAHatch() {
+    public void aHangarLandingStillCostsAHatch() {
         ShuttleBay bay = fighterBay();
         Shuttle craft = park(bay, 1).get(0);
         assertTrue(launch(bay, craft).isSuccess());
@@ -304,6 +303,138 @@ public class BalconyLaunchTest {
 
         assertFalse("the landing spent a hatch (J1.50)",
                 bay.canLaunch(game.getAbsoluteImpulse()));
+    }
+
+    // ------------------------------------------------- landing ON the balcony (J1.532)
+
+    @Test
+    public void aCraftCanLandStraightOntoTheBalconyWithoutAHatch() {
+        ShuttleBay bay = fighterBay();
+        Shuttle craft = park(bay, 1).get(0);
+        assertTrue(launch(bay, craft).isSuccess());
+        craft.setSpeed(0);
+        int hatchesBefore = bay.getAvailableHatchCount(game.getAbsoluteImpulse());
+
+        Game.ActionResult r = game.landOnBalcony(cva, craft.getName());
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue("it is parked outside", bay.isParked(craft));
+        assertFalse("and off the map", game.getActiveShuttles().contains(craft));
+        assertNull(craft.getLocation());
+        assertEquals("no hatch was spent (J1.53)",
+                hatchesBefore, bay.getAvailableHatchCount(game.getAbsoluteImpulse()));
+        assertFalse("it took no shuttle box either", bay.getInventory().contains(craft));
+    }
+
+    /** "any number ... may be landed on ... during a given impulse" — the recovery payoff. */
+    @Test
+    public void everyCraftCanLandOnTheBalconyInTheSameImpulse() {
+        ShuttleBay bay = fighterBay();
+        java.util.List<Shuttle> parked = park(bay, 6);
+        int impulse = game.getAbsoluteImpulse();
+        for (Shuttle craft : parked)
+            assertTrue(launch(bay, craft).isSuccess());
+        for (Shuttle craft : parked)
+            craft.setSpeed(0);
+        assertEquals("fixture: all six launched on one impulse", impulse,
+                game.getAbsoluteImpulse());
+
+        for (Shuttle craft : parked) {
+            Game.ActionResult r = game.landOnBalcony(cva, craft.getName());
+            assertTrue(craft.getName() + ": " + r.getMessage(), r.isSuccess());
+        }
+
+        assertEquals("all six came back in the same impulse", impulse,
+                game.getAbsoluteImpulse());
+        assertEquals(6, bay.getBalcony().size());
+        assertTrue("nothing left in space", game.getActiveShuttles().isEmpty());
+    }
+
+    /** A spent hatch is no obstacle either — a balcony landing never consults it. */
+    @Test
+    public void aSpentHatchDoesNotStopABalconyLanding() {
+        ShuttleBay bay = fighterBay();
+        Shuttle craft = park(bay, 1).get(0);
+        assertTrue(launch(bay, craft).isSuccess());
+        craft.setSpeed(0);
+
+        // Spend the hatch moving another craft out.
+        assertTrue(game.moveToBalcony(cva, bay.getInventory().get(0).getName()).isSuccess());
+        assertFalse("fixture: the hatch is spent", bay.canLaunch(game.getAbsoluteImpulse()));
+
+        Game.ActionResult r = game.landOnBalcony(cva, craft.getName());
+
+        assertTrue(r.getMessage(), r.isSuccess());
+    }
+
+    /**
+     * "At any speed ... that it could land them in the hangar" — the J1.61 conditions still
+     * apply, so a carrier outrunning its own fighter cannot collect it. Shared with the hangar
+     * landing through one eligibility check, so the two cannot drift apart.
+     */
+    @Test
+    public void theLandingConditionsStillApplyToTheBalcony() {
+        ShuttleBay bay = fighterBay();
+        Shuttle craft = park(bay, 1).get(0);
+        assertTrue(launch(bay, craft).isSuccess());
+        craft.setSpeed(2);
+        cva.setSpeed(10);
+
+        Game.ActionResult r = game.landOnBalcony(cva, craft.getName());
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("faster"));
+        assertTrue("still in space", game.getActiveShuttles().contains(craft));
+    }
+
+    /**
+     * EVERY position on the ship, not just the nearest bay's. A landing craft is choosing a
+     * place on the hull, so any bay with a free position will take it — which is why filling
+     * one of the CVA's two balconies is not enough, as the first version of this test found
+     * out. Parked directly here: the J1.50 transfer rate is slice two's subject, and twelve
+     * hatch cycles would eat most of a turn.
+     */
+    @Test
+    public void aFullShipRefusesTheLanding() {
+        ShuttleBay bay = fighterBay();
+        Shuttle craft = park(bay, 1).get(0);
+        assertTrue(launch(bay, craft).isSuccess());
+        craft.setSpeed(0);
+
+        int n = 0;
+        for (ShuttleBay b : cva.getShuttles().getBays())
+            while (b.balconyFree() > 0) {
+                com.sfb.objects.shuttles.AdminShuttle filler =
+                        new com.sfb.objects.shuttles.AdminShuttle();
+                filler.setName("Filler-" + (++n));
+                assertTrue(b.park(filler));
+            }
+        assertEquals("fixture: all twelve positions taken", 12, cva.parkedCraft().size());
+
+        Game.ActionResult r = game.landOnBalcony(cva, craft.getName());
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("occupied"));
+        assertTrue("still in space", game.getActiveShuttles().contains(craft));
+    }
+
+    /** A ship with no balcony says so, rather than silently landing the craft in a bay. */
+    @Test
+    public void aShipWithNoBalconyRefusesTheLanding() throws Exception {
+        Ship ca = ShipLibrary.createShip(ShipLibrary.get("Federation", "CA"));
+        ca.setName("USS Constitution");
+        ca.setLocation(cva.getLocation());
+        ca.setOwner(fed);
+        game.getShips().add(ca);
+        ShuttleBay bay = fighterBay();
+        Shuttle craft = park(bay, 1).get(0);
+        assertTrue(launch(bay, craft).isSuccess());
+        craft.setSpeed(0);
+
+        Game.ActionResult r = game.landOnBalcony(ca, craft.getName());
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("no balcony"));
     }
 
     /** And moving a craft back INSIDE still costs one too — slice two's half of the rule. */

@@ -3347,6 +3347,16 @@ public class Game {
         return launchCoordinator.moveFromBalcony(ship, shuttleName);
     }
 
+    /**
+     * Land a craft from space straight onto a balcony position (J1.532) - free, and any number
+     * may do it in the same impulse. The counterpart of landShuttle, which uses a hatch and a
+     * shuttle box; see {@link LaunchCoordinator#landOnBalcony} for why this is the player's
+     * choice rather than a fallback.
+     */
+    public ActionResult landOnBalcony(Ship ship, String shuttleName) {
+        return launchCoordinator.landOnBalcony(ship, shuttleName);
+    }
+
     /** Launch a scatter pack (FD7.0). */
     public ActionResult launchScatterPack(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.ScatterPack pack, Unit target, int facing, int speed) {

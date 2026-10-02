@@ -973,6 +973,129 @@ class LaunchCoordinator {
         return ActionResult.ok(shuttleName + " brought in from the balcony");
     }
 
+    /**
+     * Land a craft from space directly onto a balcony position (J1.532).
+     * <p>
+     * "A ship can land shuttles (J1.6) on the balcony at any speed (and by any method) that it
+     * could land them in the hangar" - so the J1.61 conditions are unchanged - and J1.53 puts
+     * this in the FREE half of the rule: "any number (up to the ship's limit) may be landed on
+     * or launched from this balcony during a given impulse." No hatch, no cooldown, no limit.
+     * That is what lets a carrier recover a whole strike group in one impulse instead of
+     * cycling them in one per two impulses.
+     * <p>
+     * A separate action from {@link #landShuttle} rather than a fallback inside it, because
+     * which side of the hatch a returning craft stops on is a real decision: the balcony is
+     * instant, but a single rear hull damage point then destroys the craft outright (J1.531).
+     * The player makes that call, not the engine.
+     * <p>
+     * Nothing disembarks here. A craft on the balcony is outside the hull, and J1.531 shuts
+     * down every other kind of work on it (no rearming, no repair, no deck crews); letting
+     * passengers walk out through a closed hatch would be the odd part, not this.
+     */
+    ActionResult landOnBalcony(Ship ship, String shuttleName) {
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only land during the Activity phase");
+
+        com.sfb.objects.shuttles.Shuttle shuttle = activeShuttles.stream()
+                .filter(sh -> sh.getName().equalsIgnoreCase(shuttleName))
+                .findFirst().orElse(null);
+        if (shuttle == null)
+            return ActionResult.fail("Shuttle not found on the map: " + shuttleName);
+
+        ActionResult ineligible = landingEligibility(ship, shuttle);
+        if (ineligible != null)
+            return ineligible;
+
+        // J1.534: these may not be HELD outside even if they could land. The eligibility check
+        // above already refuses active ones; this catches a craft that is prepared but not yet
+        // launched as one.
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail("Suicide shuttles and wild weasels cannot be held on the"
+                    + " balcony (J1.534)");
+
+        com.sfb.systemgroups.ShuttleBay bay = null;
+        boolean anyBalcony = false;
+        for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays()) {
+            if (!b.hasBalcony())
+                continue;
+            anyBalcony = true;
+            if (b.balconyFree() > 0) {
+                bay = b;
+                break;
+            }
+        }
+        if (!anyBalcony)
+            return ActionResult.fail(ship.getName() + " has no balcony (J1.53)");
+        if (bay == null)
+            return ActionResult.fail("Every balcony position on " + ship.getName()
+                    + " is occupied");
+
+        // Deliberately NO claimHatch and no markUsed: J1.53's free half.
+        bay.park(shuttle);
+        activeShuttles.remove(shuttle);
+        shuttle.setLocation(null);
+        shuttle.setParentShipName(ship.getName());
+
+        StringBuilder msg = new StringBuilder(shuttleName + " landed on " + ship.getName()
+                + "'s balcony (J1.532)");
+
+        // Same housekeeping a hangar landing does: it is off the map, so nothing can still be
+        // chasing or holding a lock-on to it.
+        java.util.List<Seeker> chasing = new java.util.ArrayList<>();
+        for (Seeker sk : seekers)
+            if (shuttle.equals(sk.getTarget()))
+                chasing.add(sk);
+        for (Seeker sk : chasing) {
+            msg.append("\n  ").append(sk instanceof Unit ? ((Unit) sk).getName() : "seeker")
+                    .append(" lost tracking — target landed");
+            game.removeSeekerFromPlay(sk);
+        }
+        for (Ship s : game.getShips())
+            s.removeLockOn(shuttle);
+        for (String line : game.orphanSeekersOf(shuttle))
+            msg.append("\n  ").append(line);
+
+        return ActionResult.ok(msg.toString());
+    }
+
+    /**
+     * The J1.61 conditions for a craft in space to come aboard: friendly, same hex, and the
+     * ship no faster than the shuttle. Shared by the hangar landing and the balcony landing,
+     * because J1.532 says a ship can land on the balcony "at any speed (and by any method)
+     * that it could land them in the hangar" - the conditions are the same ones, and two
+     * copies of them would drift the moment either changed.
+     *
+     * @return the refusal, or null if the craft may come aboard
+     */
+    private ActionResult landingEligibility(Ship ship,
+            com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
+                || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
+                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return ActionResult.fail(
+                    "Active suicide shuttles, scatterpacks, and Wild Weasels cannot land aboard (J1.611)");
+
+        // J1.531 also bars the balcony to enemies outright: "enemy shuttles cannot land or be
+        // brought down on the balcony". For an unassisted landing this same check covers it.
+        String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
+        String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
+        if (shipTeam == null || !shipTeam.equals(shuttleTeam))
+            return ActionResult.fail("Only friendly shuttles may land aboard unassisted (J1.61/J1.612)");
+
+        if (shuttle.getLocation() == null || ship.getLocation() == null
+                || !shuttle.getLocation().equals(ship.getLocation()))
+            return ActionResult.fail(shuttle.getName() + " must be in the same hex as "
+                    + ship.getName() + " to land (J1.61)");
+
+        if (ship.getSpeed() > shuttle.getSpeed())
+            return ActionResult.fail(ship.getName() + " (speed " + ship.getSpeed()
+                    + ") is moving faster than " + shuttle.getName() + " (speed "
+                    + shuttle.getSpeed() + ") — cannot land aboard (J1.61)");
+
+        return null;
+    }
+
     ActionResult landShuttle(Ship ship, String shuttleName) {
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Shuttles can only land during the Activity phase");
@@ -983,26 +1106,9 @@ class LaunchCoordinator {
         if (shuttle == null)
             return ActionResult.fail("Shuttle not found on the map: " + shuttleName);
 
-        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
-                || shuttle instanceof com.sfb.objects.shuttles.ScatterPack
-                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
-            return ActionResult.fail(
-                    "Active suicide shuttles, scatterpacks, and Wild Weasels cannot land aboard (J1.611)");
-
-        String shipTeam = ship.getOwner() != null ? ship.getOwner().getTeamName() : null;
-        String shuttleTeam = shuttle.getOwner() != null ? shuttle.getOwner().getTeamName() : null;
-        if (shipTeam == null || !shipTeam.equals(shuttleTeam))
-            return ActionResult.fail("Only friendly shuttles may land aboard unassisted (J1.61/J1.612)");
-
-        if (shuttle.getLocation() == null || ship.getLocation() == null
-                || !shuttle.getLocation().equals(ship.getLocation()))
-            return ActionResult.fail(shuttleName + " must be in the same hex as "
-                    + ship.getName() + " to land (J1.61)");
-
-        if (ship.getSpeed() > shuttle.getSpeed())
-            return ActionResult.fail(ship.getName() + " (speed " + ship.getSpeed()
-                    + ") is moving faster than " + shuttleName + " (speed " + shuttle.getSpeed()
-                    + ") — cannot land aboard (J1.61)");
+        ActionResult ineligible = landingEligibility(ship, shuttle);
+        if (ineligible != null)
+            return ineligible;
 
         int impulse = game.getAbsoluteImpulse();
         com.sfb.systemgroups.ShuttleBay bay = null;

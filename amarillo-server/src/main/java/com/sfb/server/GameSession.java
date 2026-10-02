@@ -1788,6 +1788,22 @@ public class GameSession {
                 return r;
             }
 
+            case "LAND_ON_BALCONY": {
+                // J1.532: landing on the balcony is free and unlimited, unlike LAND_SHUTTLE
+                // which takes a hatch and a shuttle box. Separate actions because the choice
+                // between them is the player's (J1.531 then puts the craft at risk).
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String balconyName = request.getAction(); // shuttle name in action field
+                if (balconyName == null || balconyName.isBlank())
+                    return ActionResult.fail("No shuttle specified");
+                ActionResult r = game.landOnBalcony(ship, balconyName);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "LAUNCH_SHUTTLE": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
