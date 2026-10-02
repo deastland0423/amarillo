@@ -12,6 +12,8 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
+  "aegis": "LIMITED",
+  "aegisWeapons": ["ADD", "Phaser3"],
   "tokenArt": "klingon/d5.png",
   
   "shields": [30, 26, 26, 26, 26, 26],
