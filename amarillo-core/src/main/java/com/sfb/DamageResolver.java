@@ -1124,6 +1124,19 @@ class DamageResolver {
                 pendingInternalDamage.add(0, new PendingDamage(
                         pending.targetShip, 1, pending.attackerShip));
             }
+
+            // Hand back the rest of the volley, exactly as the generic branch below does.
+            // This branch used to forget to, and silently dropped every point C3.14 had not
+            // yet dealt when the shuttle hit interrupted resolution - 19 points of a 25-point
+            // phaser volley in the test that caught it, which made owning a shuttle bay a
+            // damage reduction. DacChoiceRemainingDamageTest fires a real volley to prove it.
+            //
+            // Added LAST so it sits at the head of the queue, ahead of any chain-reaction
+            // point queued just above: the interrupted volley finishes first, and D12.10's
+            // extra point is the "separate volley" its own comment calls it.
+            if (pending.remainingBleed > 0)
+                pendingInternalDamage.add(0, new PendingDamage(
+                        pending.targetShip, pending.remainingBleed, pending.attackerShip, true));
         } else {
             String hitLabel = pending.targetShip.applyDacChoiceHit(
                     pending.dacType, chosenSystem, pending.attackerShip);
