@@ -252,13 +252,24 @@ public class FighterLineTest {
         }
     }
 
-    /** Each era must begin no earlier than the fighters it names became available. */
+    /**
+     * Each era must begin no earlier than the fighters it names became available.
+     * <p>
+     * A type MISSING from the catalogue is skipped rather than dereferenced, and that is not
+     * laziness: {@link #everyTypeNamedByEveryLineIsACataloguedFighter} already owns "does it
+     * exist at all" and names the offender. This test used to read {@code e.year} off a null
+     * and die with "Cannot read field year because e is null", which told the author nothing
+     * and buried the useful failure from the other test under a crash. One problem, one
+     * message.
+     */
     @Test
     public void noEraNamesAFighterThatDidNotExistYet() {
         for (String line : ShuttleCatalog.lineNames())
             for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line))
                 for (Map.Entry<String, String> role : era.roles().entrySet()) {
                     ShuttleCatalog.Entry e = ShuttleCatalog.get(role.getValue());
+                    if (e == null)
+                        continue;
                     assertTrue(line + " starts at Y" + era.from + " but " + role.getValue()
                             + " is Y" + e.year, e.year <= era.from);
                 }

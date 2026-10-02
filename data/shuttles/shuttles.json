@@ -41,8 +41,11 @@
   "fighterLines": {
     "klingon-zegurnii": [
       { "from": 167, "superiority": "z2",   "ew": "z2_e", "attack": "z1"   },
-      { "from": 172, "superiority": "z2",   "ew": "z2_e", "attack": "z1v"   },
-      { "from": 173, "superiority": "zv",   "ew": "zv_e", "attack": "z1v"   }
+      { "from": 172, "superiority": "z2",   "ew": "z2_e", "attack": "z1v", "assault": "zd"   },
+      { "from": 173, "superiority": "zv",   "ew": "zv_e", "attack": "zp", "assault": "zd"   },
+      { "from": 177, "superiority": "zy",   "ew": "zy_e", "attack": "zp", "assault": "zd"   },
+      { "from": 180, "superiority": "zyb",   "ew": "zy_e", "attack": "zp", "assault": "zd"   },
+      { "from": 183, "superiority": "zyc",   "ew": "zy_e", "attack": "zpc", "assault": "zdc"   }
     ],
     "kzinti-attack": [
       { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
@@ -64,48 +67,98 @@
     { "type": "hts",        "name": "Heavy Transport Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS", "designation": "HTS" },
 
     { "type": "z1", "name": "Z-1 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 6,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1", "designation": "Z1",
-
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+
     { "type": "z1v", "name": "Z-1V Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 171, "speed": 9,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1V", "designation": "Z1V",
-
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
-    { "type": "z2", "name": "Z-2 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-2", "designation": "Z2",
 
-      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+    { "type": "zp", "name": "Z-P Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 172, "speed": 10,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "Z-P", "designation": "ZP",
+      "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "LIGHT" } ] },
 
+    { "type": "zpc", "name": "Z-PC Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 183, "speed": 10,  "hull": 12,  "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-PC", "designation": "ZPC",
+      "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+
+    { "type": "z2", "name": "Z-2 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-2", "designation": "Z2",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+                   
     { "type": "z2_e", "name": "Z-2 Fighter (EW)",              "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-2E", "designation": "Z2E", "ewPods": 2, "twoSeater": true,
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
 
-
     { "type": "zv", "name": "Z-V Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-V", "designation": "ZV",
-
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
-    { "type": "zv_e", "name": "Z-V Fighter (EW)",              "kind": "fighter",    "factions": ["klingon"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-V", "designation": "ZV", "ewPods": 2, "twoSeater": true,
-
-      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-
-                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
-                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
-
                    
+    { "type": "zv_e", "name": "Z-V Fighter (EW)",              "kind": "fighter",    "factions": ["klingon"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-VE", "designation": "ZVE", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+
+    { "type": "zy", "name": "Z-Y Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 177, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 9,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "Z-Y", "designation": "ZY",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "zy_e", "name": "Z-Y Fighter (EW)",                   "kind": "fighter",    "factions": ["klingon"], "year": 177, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-YE", "designation": "ZYE", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "zyb", "name": "Z-YB Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 180, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 5, "canSuicide": false, "shortName": "Z-YB", "designation": "ZYB",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" } ] },
+
+    { "type": "zyc", "name": "Z-YC Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 183, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 6, "canSuicide": false, "shortName": "Z-YC", "designation": "ZYC",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" } ] },
+
+    { "type": "zd", "name": "Z-D Disruptor Armed Fighter",                  "kind": "fighter",    "factions": ["klingon"], "year": 172, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "Z-D", "designation": "ZD",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] },
+
+    { "type": "zdc", "name": "Z-DC Disruptor Armed Fighter",                  "kind": "fighter",    "factions": ["klingon"], "year": 183, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-D", "designation": "ZD",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] },
+
+
     { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",
 
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
@@ -155,7 +208,7 @@
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
-    { "type": "tads", "name": "Tactically Advanced Drone Shuttle",         "kind": "fighter",    "factions": ["kzinti"], "year": 180, "speed": 15, "hull": 11, "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADS", "designation": "TADS", "mayLaunchAtDifferentTargets": true, "mayLaunchTwoStandardDrones": true,
+    { "type": "tads", "name": "Tactically Advanced Drone Shuttle",         "kind": "fighter",    "factions": ["kzinti"], "year": 180, "speed": 15, "hull": 11, "crippled": 8, "bpv": 11,  "canWeasel": false, "scatterPackSize": 5, "canSuicide": false, "shortName": "TADS", "designation": "TADS", "mayLaunchAtDifferentTargets": true, "mayLaunchTwoStandardDrones": true,
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
@@ -173,7 +226,7 @@
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
                    { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" } ] },
-    { "type": "tadsc", "name": "Tactically Advanced Drone Shuttle-C",       "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "TADSC", "designation": "TADSC", "mayLaunchAtDifferentTargets": true, "mayLaunchTwoStandardDrones": true,
+    { "type": "tadsc", "name": "Tactically Advanced Drone Shuttle-C",       "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 15, "hull": 11, "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 6, "canSuicide": false, "shortName": "TADSC", "designation": "TADSC", "mayLaunchAtDifferentTargets": true, "mayLaunchTwoStandardDrones": true,
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
@@ -196,7 +249,7 @@
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] },
-    { "type": "dasc", "name": "Disruptor Attack Shuttle-C",                "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "DASC", "designation": "DASC",
+    { "type": "dasc", "name": "Disruptor Attack Shuttle-C",                "kind": "fighter",    "factions": ["kzinti"], "year": 183, "speed": 10,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "DASC", "designation": "DASC",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
