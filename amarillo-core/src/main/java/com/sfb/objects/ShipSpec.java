@@ -214,20 +214,41 @@ public class ShipSpec {
     public static class FighterComplementSpec {
         /** Line name as keyed in shuttles.json, e.g. "kzinti-attack". */
         public String line;
-        /** General-purpose fighters. */
-        public int standard;
         /**
-         * Attack fighters, where the line has them (the Hydran Stinger-H).
-         * <p>
-         * NOT "heavy": a heavy fighter is a separate SFB category that J4.463 counts in
-         * its own right ("five or more heavy fighters"), so the name is reserved for it.
+         * SUPERIORITY fighters: the general-purpose type, able to intercept enemy fighters and
+         * pose some threat to ships. The annex's own word — "two will be superiority fighters
+         * and two will be assault fighters" — and the fallback every other role resolves to.
+         */
+        public int superiority;
+        /**
+         * ATTACK fighters: dedicated to attacking ships, but WITHOUT a heavy weapon. Carried on
+         * many kinds of carrier rather than reserved to the biggest, which is what separates
+         * them from {@link #assault}.
          */
         public int attack;
+        /**
+         * ASSAULT fighters: carrying a heavy weapon — disruptors or photons, and plasma-F for
+         * the Romulans and Gorns. The annex labels them "A" in the spare-shuttle column and
+         * calls them "single-space assault fighters", distinguishing them from the two-space
+         * heavy fighters it labels "H".
+         * <p>
+         * Mostly found on the largest carriers and on bases, but deliberately NOT enforced as a
+         * size class rule: the annex gives the size class 3 Klingon D6V an assault fighter
+         * ("The spare fighter on the D6V labeled 'A' is an assault fighter, I.e., Z-D or Z-P").
+         * Doctrine for whoever authors the data, not a constraint the engine imposes.
+         */
+        public int assault;
         /** EW fighters (J4.463 caps how many a carrier may field). */
         public int ew;
 
+        /**
+         * NOT a role: a HEAVY fighter is the two-space category the annex labels "H", and it
+         * breaks the bay's one-craft-per-space model, so it is not expressible yet. J4.463
+         * counts heavy fighters in their own right ("five or more heavy fighters"). The name is
+         * reserved — see the fighter-lines notes.
+         */
         public int total() {
-            return standard + attack + ew;
+            return superiority + attack + assault + ew;
         }
     }
 
@@ -487,8 +508,9 @@ public class ShipSpec {
                     if (bay.fighters != null) {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);
-                        f.put("standard", bay.fighters.standard);
+                        f.put("superiority", bay.fighters.superiority);
                         f.put("attack", bay.fighters.attack);
+                        f.put("assault", bay.fighters.assault);
                         f.put("ew", bay.fighters.ew);
                         bayMap.put("fighters", f);
                     }

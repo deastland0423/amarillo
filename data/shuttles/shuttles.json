@@ -39,17 +39,22 @@
   ],
   "fighterLinesNote": "J4.4: which fighter fills each role in a carrier's bay is decided by the YEAR, not by the ship. A carrier declares how many of each role it carries (see a ship file's shuttleBays.fighters) and the latest entry whose 'from' year has arrived supplies the types. A role this era has no type for falls back to 'standard' - which is how a Hydran RN carries nine Stinger-1s in Y134 and six Stinger-2s, two Stinger-Hs and one Stinger-E in Y170 from one declaration.",
   "fighterLines": {
+    "klingon-zegurnii": [
+      { "from": 167, "superiority": "z2",   "ew": "z2_e", "attack": "z1"   },
+      { "from": 172, "superiority": "z2",   "ew": "z2_e", "attack": "z1v"   },
+      { "from": 173, "superiority": "zv",   "ew": "zv_e", "attack": "z1v"   }
+    ],
     "kzinti-attack": [
-      { "from": 164, "standard": "aas",   "ew": "aas_e"   },
-      { "from": 172, "standard": "aas",   "ew": "aas_e", "attack": "das"   },
-      { "from": 173, "standard": "haas",  "ew": "haas_e", "attack": "das"  },
-      { "from": 177, "standard": "taas",  "ew": "taas_e", "attack": "das"  },
-      { "from": 180, "standard": "tads",  "ew": "tads_e", "attack": "das"  },
-      { "from": 183, "standard": "tadsc", "ew": "tadsc_e", "attack": "dasc" }
+      { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
+      { "from": 172, "superiority": "aas",   "ew": "aas_e", "assault": "das"   },
+      { "from": 173, "superiority": "haas",  "ew": "haas_e", "assault": "das"  },
+      { "from": 177, "superiority": "taas",  "ew": "taas_e", "assault": "das"  },
+      { "from": 180, "superiority": "tads",  "ew": "tads_e", "assault": "das"  },
+      { "from": 183, "superiority": "tadsc", "ew": "tadsc_e", "assault": "dasc" }
     ],
     "hydran-stinger": [
-      { "from": 134, "standard": "stinger1" },
-      { "from": 170, "standard": "stinger2", "attack": "stingerh", "ew": "stinger_e" }
+      { "from": 134, "superiority": "stinger1" },
+      { "from": 170, "superiority": "stinger2", "assault": "stingerh", "ew": "stinger_e" }
     ]
   },
 
@@ -58,6 +63,49 @@
     { "type": "gas",        "name": "General Assault Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 8,  "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS", "designation": "GAS" },
     { "type": "hts",        "name": "Heavy Transport Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS", "designation": "HTS" },
 
+    { "type": "z1", "name": "Z-1 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 6,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1", "designation": "Z1",
+
+      "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+    { "type": "z1v", "name": "Z-1V Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 171, "speed": 9,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1V", "designation": "Z1V",
+
+      "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+    { "type": "z2", "name": "Z-2 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-2", "designation": "Z2",
+
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+    { "type": "z2_e", "name": "Z-2 Fighter (EW)",              "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-2E", "designation": "Z2E", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+
+
+    { "type": "zv", "name": "Z-V Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-V", "designation": "ZV",
+
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+    { "type": "zv_e", "name": "Z-V Fighter (EW)",              "kind": "fighter",    "factions": ["klingon"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-V", "designation": "ZV", "ewPods": 2, "twoSeater": true,
+
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
+
+                   
     { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",
 
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },

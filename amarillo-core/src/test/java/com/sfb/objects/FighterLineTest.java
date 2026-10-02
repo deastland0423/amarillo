@@ -35,12 +35,28 @@ public class FighterLineTest {
         ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
     }
 
-    private FighterComplement complement(String line, int standard, int attack, int ew) {
+    /**
+     * A complement whose middle count is the line's HEAVY-WEAPON role.
+     * <p>
+     * Named by role rather than hard-coded, because the two are not interchangeable: the Kzinti
+     * and Hydran lines put their heavy-weapon fighters (DAS disruptors, Stinger-H hellbores) in
+     * {@code assault}, while the Klingon Z-1 — a phaser-2 and drones, no heavy weapon — stays in
+     * {@code attack}. Passing the wrong one does not fail loudly; those slots quietly fall back
+     * to the superiority fighter, which is exactly what this helper hid when it said "attack"
+     * for every line.
+     */
+    private FighterComplement complement(String line, int superiority, String role, int roleCount,
+            int ew) {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        counts.put("standard", standard);
-        counts.put("attack", attack);
+        counts.put("superiority", superiority);
+        counts.put(role, roleCount);
         counts.put("ew", ew);
         return new FighterComplement(line, counts);
+    }
+
+    /** The Kzinti and Hydran lines: their heavy-weapon fighters are assault. */
+    private FighterComplement complement(String line, int superiority, int assault, int ew) {
+        return complement(line, superiority, "assault", assault, ew);
     }
 
     /** Types grouped and counted, so order within a role does not matter to the assertion. */
@@ -160,7 +176,7 @@ public class FighterLineTest {
     public void anUnknownLineResolvesToNothingRatherThanThrowing() {
         assertNull(ShuttleCatalog.eraFor("klingon-nonexistent", 180));
         assertTrue(complement("klingon-nonexistent", 6, 0, 1).typesFor(180).isEmpty());
-        assertNull(ShuttleCatalog.fighterFor("klingon-nonexistent", "standard", 180));
+        assertNull(ShuttleCatalog.fighterFor("klingon-nonexistent", "superiority", 180));
     }
 
     /**
@@ -332,8 +348,10 @@ public class FighterLineTest {
         FighterComplement rn = complement("hydran-stinger", 6, 2, 1);
         assertEquals(9, rn.total());
         assertEquals(1, rn.ewCount());
-        assertEquals(6, rn.countOf("standard"));
-        assertEquals(2, rn.countOf("attack"));
+        assertEquals(6, rn.countOf("superiority"));
+        assertEquals("the Stinger-H is hellbore-armed, so the RN+ declares it as ASSAULT",
+                2, rn.countOf("assault"));
+        assertEquals("and carries no plain attack fighters", 0, rn.countOf("attack"));
         assertEquals(0, rn.countOf("nonexistent-role"));
     }
 }

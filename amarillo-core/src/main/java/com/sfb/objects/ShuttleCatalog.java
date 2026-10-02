@@ -172,14 +172,20 @@ public final class ShuttleCatalog {
     /**
      * One era of a fighter line: the year it begins, and which type fills each role.
      * <p>
-     * Roles are named rather than positional ("standard", "heavy", "ew") because a carrier
+     * Roles are named rather than positional (superiority / attack / assault / ew) because a carrier
      * declares how many of each it carries and the era decides what they are. An era that has
-     * no type for a role leaves it absent, and {@link #typeFor} falls back to the standard —
+     * no type for a role leaves it absent, and {@link #typeFor} falls back to the superiority —
      * which is how a Hydran RN carries nine Stinger-1s before the Stinger-E existed and six
      * Stinger-2s, two Stinger-Hs and one Stinger-E after, from a single declaration.
      */
     public static final class LineEra {
-        public static final String STANDARD = "standard";
+        /**
+         * The role every other falls back to (see {@link #typeFor}). Named SUPERIORITY after the
+         * annex's own term: "two will be superiority fighters and two will be assault fighters".
+         * Load-bearing in code as well as data, so {@code FighterRoleNameTest} pins that it is
+         * itself a role and that every era declares one.
+         */
+        public static final String STANDARD = "superiority";
 
         public final int from;
         private final Map<String, String> byRole;

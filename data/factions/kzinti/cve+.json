@@ -57,7 +57,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"], "type": "tunnel", "fighters": { "line": "kzinti-attack", "standard": 6, "attack": 0, "ew": 0 } }
+    { "shuttles": ["admin"], "type": "tunnel", "fighters": { "line": "kzinti-attack", "superiority": 6, "assault": 0, "ew": 0 } }
   ],
 
   "crewData": {

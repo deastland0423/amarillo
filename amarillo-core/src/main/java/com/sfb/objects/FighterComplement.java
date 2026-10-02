@@ -24,11 +24,29 @@ import com.sfb.systemgroups.ShuttleBay;
  * option budget, to be kept in step by hand in each copy.
  *
  * <h2>The fallback is what makes one declaration cover every era</h2>
- * A role the era has no type for falls back to the line's standard fighter. The Hydran RN
- * declares six standard, two attack and one EW; in Y170 that is six Stinger-2s, two Stinger-Hs
- * and a Stinger-E, and in Y134 — when only the Stinger-1 existed — it is nine Stinger-1s. Both
- * printed complements, one declaration, and no need to special-case the years before an EW
- * fighter was invented.
+ * A role the era has no type for falls back to the line's SUPERIORITY fighter. The Hydran RN
+ * declares six superiority, two attack and one EW; in Y170 that is six Stinger-2s, two
+ * Stinger-Hs and a Stinger-E, and in Y134 — when only the Stinger-1 existed — it is nine
+ * Stinger-1s. Both printed complements, one declaration, and no need to special-case the years
+ * before an EW fighter was invented. The annex states the same fallback for assault fighters:
+ * "If the ship is not operating assault fighters, it will [be the] same as the other spare
+ * fighter."
+ *
+ * <h2>The four roles, in the annex's own words</h2>
+ * <ul>
+ * <li><b>superiority</b> — the general-purpose fighter, intercepting enemy fighters and posing
+ *     some threat to ships. The fallback every other role resolves to.</li>
+ * <li><b>attack</b> — dedicated to attacking ships but carrying no heavy weapon; found on many
+ *     kinds of carrier.</li>
+ * <li><b>assault</b> — carrying a heavy weapon: disruptors or photons, and plasma-F for the
+ *     Romulans and Gorns. The annex labels these "A" and calls them "single-space assault
+ *     fighters". Mostly the largest carriers and bases, but NOT enforced by size class — the
+ *     annex gives the size class 3 Klingon D6V one.</li>
+ * <li><b>ew</b> — the electronic warfare fighter (J4.463 caps how many a carrier may field).</li>
+ * </ul>
+ * <b>heavy</b> is deliberately NOT a role. The annex labels two-space heavy fighters "H", and a
+ * craft occupying two shuttle boxes breaks the bay's one-craft-per-space model; J4.463 also
+ * counts heavy fighters in their own right. The name is reserved for when that is built.
  */
 public final class FighterComplement {
 
@@ -44,7 +62,8 @@ public final class FighterComplement {
      * The hand-written data disagreed with itself on this: the Kzinti carriers listed their EW
      * fighter last and the Hydran RN+ listed it first. One order had to win.
      */
-    public static final List<String> ROLES = List.of("standard", "attack", "ew");
+    public static final List<String> ROLES =
+            List.of("superiority", "attack", "assault", "ew");
 
     private final String line;
     private final Map<String, Integer> counts;

@@ -52,7 +52,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"], "fighters": { "line": "hydran-stinger", "standard": 2, "attack": 0, "ew": 0 } }
+    { "shuttles": ["admin"], "fighters": { "line": "hydran-stinger", "superiority": 2, "assault": 0, "ew": 0 } }
   ],
 
   "crewData": {
