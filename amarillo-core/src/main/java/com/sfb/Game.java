@@ -2173,6 +2173,22 @@ public class Game {
         return ActionResult.ok(log);
     }
 
+    /**
+     * D13.3: a full aegis system tries to identify one incoming seeking weapon.
+     * <p>
+     * Independent of the lab procedure (D13.33) but producing the same result (D13.34), so it
+     * sets the same identified flag that G4.2 and G24.25 do. Six attempts a turn and four an
+     * impulse; see {@link SeekerControl#identifyWithAegis}.
+     */
+    public ActionResult identifyWithAegis(Ship actingShip, String targetName) {
+        return seekerControl.identifyWithAegis(actingShip, targetName, -1);
+    }
+
+    /** Package-private seam: the die supplied, so a test is not at the mercy of the roll. */
+    ActionResult identifyWithAegis(Ship actingShip, String targetName, int scriptedDie) {
+        return seekerControl.identifyWithAegis(actingShip, targetName, scriptedDie);
+    }
+
     /** Voluntarily transfer control of a seeker to an allied ship (FD1.7). */
     public ActionResult transferSeekerControl(String seekerName, String toShipName) {
         return seekerControl.transferSeekerControl(seekerName, toShipName);

@@ -438,6 +438,108 @@ class SeekerControl {
      * mirrors the scout-channel path. An unset owner counts as hostile, since refusing
      * the attempt would be the worse failure.
      */
+    /**
+     * D13.3: a full aegis system identifying one incoming seeking weapon.
+     *
+     * <p>D13.31: "Ships with a full aegis capability have a limited ability to determine the
+     * type of incoming seeking weapon independent of the lab procedure (G4.22). They may make
+     * six 'attempts' per turn, each directed at a specific individual seeking weapon. This is
+     * done in the Ship System Functions Stage (6B4)."
+     *
+     * <p>It sets the SAME flag the labs and the scout sensors set, because D13.34 says the
+     * aegis system "produces the same information" — a third way to earn one result, not a
+     * parallel notion of being identified. D13.33 keeps the two procedures independent in the
+     * other direction: using this does not spend a lab, and labs are not used by aegis.
+     *
+     * <p>D13.32 allows attempts "at the same or different seeking weapon on the same or
+     * different impulses (but not more than four times per impulse)", so there are two caps,
+     * the six per turn and the four per impulse. It also notes the procedure "can be used
+     * against shuttles that are suspected to be seeking weapons", which is why a plain shuttle
+     * is a legal target here and not only a {@code Seeker}.
+     *
+     * <p>D13.321's −1 for repeating a target is read through {@link Ship#aegisIdPreviousTarget},
+     * which honours D13.322: attempts within one impulse are simultaneous and do not count as
+     * previous to each other.
+     *
+     * @param scriptedDie a die supplied by a test, or -1 to roll
+     */
+    ActionResult identifyWithAegis(Ship actingShip, String targetName, int scriptedDie) {
+        if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
+            return ActionResult.fail(
+                    "Aegis identification happens in the Ship System Functions Stage (6B4)");
+        int impulse = game.getAbsoluteImpulse();
+        int turn = game.getClock().getTurn();
+
+        // D13.35 / D13.412: the full system only. A limited one cannot do this at all.
+        if (!actingShip.getAegisMode().canIdentifySeekers())
+            return ActionResult.fail(actingShip.getName()
+                    + " needs a full aegis system to identify seeking weapons (D13.35)");
+        if (!actingShip.isAegisOperational(impulse))
+            return ActionResult.fail(actingShip.getName()
+                    + " has no aegis fire control operating (D13.23/D13.524)");
+        if (actingShip.aegisIdAttemptsLeftThisTurn(turn) <= 0)
+            return ActionResult.fail(actingShip.getName()
+                    + " has used all six aegis identification attempts this turn (D13.31)");
+        if (actingShip.aegisIdAttemptsLeftThisImpulse(impulse) <= 0)
+            return ActionResult.fail(actingShip.getName()
+                    + " has made four aegis identification attempts this impulse (D13.32)");
+
+        Seeker seeker = seekers.stream()
+                .filter(sk -> ((com.sfb.objects.Marker) sk).getName().equals(targetName))
+                .findFirst().orElse(null);
+        com.sfb.objects.shuttles.Shuttle shuttle = null;
+        if (seeker == null)
+            for (com.sfb.objects.shuttles.Shuttle sh : game.getActiveShuttles())
+                if (sh.getName().equals(targetName)) {
+                    shuttle = sh;
+                    break;
+                }
+        if (seeker == null && shuttle == null)
+            return ActionResult.fail("No such seeking weapon: " + targetName);
+
+        boolean friendly;
+        if (seeker != null) {
+            Unit controller = seeker.getController();
+            friendly = controller instanceof Ship
+                    && ((Ship) controller).getFaction() == actingShip.getFaction();
+        } else {
+            friendly = sameOwnerTeam(actingShip, shuttle);
+        }
+        if (friendly)
+            return ActionResult.fail("Cannot identify a friendly unit");
+
+        com.sfb.objects.Marker target = seeker != null
+                ? (com.sfb.objects.Marker) seeker : shuttle;
+        int range = MapUtils.getRange(actingShip, target);
+        int needs = Ship.aegisIdentifyNeeds(range);
+        if (needs < 0)
+            return ActionResult.fail(targetName + " is at range " + range
+                    + " — aegis cannot identify beyond six hexes (D13.31)");
+
+        boolean repeat = targetName.equals(actingShip.aegisIdPreviousTarget(impulse));
+        actingShip.recordAegisIdAttempt(turn, impulse, targetName);
+
+        int roll = scriptedDie > 0 ? scriptedDie : new DiceRoller().rollOneDie();
+        int effective = roll - (repeat ? Ship.AEGIS_ID_REPEAT_BONUS : 0);
+        boolean success = effective <= needs;
+
+        StringBuilder log = new StringBuilder(actingShip.getName())
+                .append(" aegis identification on ").append(targetName)
+                .append("  range ").append(range)
+                .append("  (die ").append(roll)
+                .append(repeat ? ", −1 repeat (D13.321)" : "")
+                .append(", needs ").append(needs).append(" or less)");
+
+        if (!success)
+            return ActionResult.ok(log.append("  — no result").toString());
+
+        if (seeker != null)
+            seeker.identify();
+        else
+            shuttle.identify();
+        return ActionResult.ok(log.append("  — IDENTIFIED").toString());
+    }
+
     private boolean sameOwnerTeam(Ship actingShip, Unit shuttle) {
         com.sfb.Player a = actingShip.getOwner();
         com.sfb.Player b = shuttle.getOwner();

@@ -1033,6 +1033,88 @@ public class Ship extends Unit implements DroneController {
 				? java.util.List.of() : java.util.List.copyOf(types);
 	}
 
+	// ---------------------------------------------------------------- D13.3 identification
+
+	/** D13.31: six identification attempts per turn. */
+	public static final int AEGIS_ID_PER_TURN = 6;
+
+	/** D13.32: "but not more than four times per impulse", on top of the six. */
+	public static final int AEGIS_ID_PER_IMPULSE = 4;
+
+	/** D13.321: a repeat attempt on the same seeker is one easier. */
+	public static final int AEGIS_ID_REPEAT_BONUS = 1;
+
+	private int aegisIdTurn = Integer.MIN_VALUE;
+	private int aegisIdUsedThisTurn;
+	private int aegisIdImpulse = Integer.MIN_VALUE;
+	private int aegisIdUsedThisImpulse;
+	/** The target of the last attempt made in an EARLIER impulse (D13.321/.322). */
+	private String aegisIdPreviousTarget;
+	/** This impulse's latest target, promoted to the above when a later impulse attempts. */
+	private String aegisIdTargetThisImpulse;
+
+	/**
+	 * D13.31's table: the highest die that identifies at this range, or -1 where the attempt
+	 * is not allowed at all.
+	 * <p>
+	 * "0-3 automatic, 4 on a 1-4, 5 on a 1-3, 6 on a 1, 7+ not allowed." Automatic is spelled
+	 * as 6 rather than as a special case, since no die can beat it.
+	 */
+	private static final int[] AEGIS_ID_CHART = { 6, 6, 6, 6, 4, 3, 1 };
+
+	public static int aegisIdentifyNeeds(int range) {
+		if (range < 0 || range >= AEGIS_ID_CHART.length)
+			return -1;         // "7+ not allowed"
+		return AEGIS_ID_CHART[range];
+	}
+
+	/** Attempts left this turn (D13.31). */
+	public int aegisIdAttemptsLeftThisTurn(int turn) {
+		int used = aegisIdTurn == turn ? aegisIdUsedThisTurn : 0;
+		return Math.max(0, AEGIS_ID_PER_TURN - used);
+	}
+
+	/** Attempts left this impulse (D13.32). */
+	public int aegisIdAttemptsLeftThisImpulse(int absoluteImpulse) {
+		int used = aegisIdImpulse == absoluteImpulse ? aegisIdUsedThisImpulse : 0;
+		return Math.max(0, AEGIS_ID_PER_IMPULSE - used);
+	}
+
+	/**
+	 * The seeker that counts as "immediately previous" for D13.321's −1.
+	 * <p>
+	 * D13.322 is the subtle part: "Attempts during the same impulse are all rolled
+	 * simultaneously and do not count as 'previous' to each other", so this deliberately
+	 * reports only what was attempted in an EARLIER impulse. Null means no modifier.
+	 */
+	public String aegisIdPreviousTarget(int absoluteImpulse) {
+		if (aegisIdImpulse == absoluteImpulse)
+			return aegisIdPreviousTarget;          // this impulse's own attempts do not count
+		return aegisIdTargetThisImpulse != null    // a later impulse: the last one promotes
+				? aegisIdTargetThisImpulse : aegisIdPreviousTarget;
+	}
+
+	/** Spend one attempt and remember what it was aimed at. */
+	public void recordAegisIdAttempt(int turn, int absoluteImpulse, String targetName) {
+		if (aegisIdTurn != turn) {
+			aegisIdTurn = turn;
+			aegisIdUsedThisTurn = 0;
+		}
+		if (aegisIdImpulse != absoluteImpulse) {
+			// Moving to a new impulse promotes this impulse's last attempt to "previous".
+			// D13.322 lets the player nominate WHICH of an impulse's attempts counts as the
+			// last; this takes the one actually made last, and the choice is not surfaced.
+			if (aegisIdTargetThisImpulse != null)
+				aegisIdPreviousTarget = aegisIdTargetThisImpulse;
+			aegisIdTargetThisImpulse = null;
+			aegisIdImpulse = absoluteImpulse;
+			aegisIdUsedThisImpulse = 0;
+		}
+		aegisIdUsedThisTurn++;
+		aegisIdUsedThisImpulse++;
+		aegisIdTargetThisImpulse = targetName;
+	}
+
 	/** Extra firings used so far, and the impulse that count belongs to. */
 	private int aegisPulsesUsed;
 	private int aegisPulseImpulse = Integer.MIN_VALUE;
