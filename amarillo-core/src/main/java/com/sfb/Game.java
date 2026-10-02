@@ -3348,6 +3348,24 @@ public class Game {
     }
 
     /**
+     * Is this craft parked on some ship's balcony (J1.53)?
+     * <p>
+     * Asked by the rules that bar a parked craft from doing things - firing, for one (J1.531).
+     * Scanning the bays rather than holding a flag on the shuttle: the bay's balcony list is
+     * the single fact about where a craft is, and a duplicate boolean would be one more thing
+     * to keep in step with every park, unpark, launch and destruction.
+     */
+    public boolean isParkedOnBalcony(Unit unit) {
+        if (!(unit instanceof com.sfb.objects.shuttles.Shuttle craft))
+            return false;
+        for (Ship ship : ships)
+            for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays())
+                if (bay.isParked(craft))
+                    return true;
+        return false;
+    }
+
+    /**
      * Land a craft from space straight onto a balcony position (J1.532) - free, and any number
      * may do it in the same impulse. The counterpart of landShuttle, which uses a hatch and a
      * shuttle box; see {@link LaunchCoordinator#landOnBalcony} for why this is the player's

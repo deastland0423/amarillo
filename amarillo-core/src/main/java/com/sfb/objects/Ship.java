@@ -1572,9 +1572,16 @@ public class Ship extends Unit implements DroneController {
 		getTractors().setClock(clock);   // the damage pick reads the impulse (G7.13)
 		for (com.sfb.weapons.Weapon w : getWeapons().fetchAllWeapons())
 			w.setClock(clock);
-		for (com.sfb.systemgroups.ShuttleBay bay : getShuttles().getBays())
+		for (com.sfb.systemgroups.ShuttleBay bay : getShuttles().getBays()) {
 			for (com.sfb.objects.shuttles.Shuttle s : bay.getInventory())
 				s.attachClock(clock);
+			// The balcony too (J1.53). Parked craft are deliberately absent from the bay's
+			// inventory, which is right for damage, arming and deck-crew work - but the clock
+			// is not a rule about where a craft is, and a parked one that never got it would
+			// read turn zero for the rest of the game.
+			for (com.sfb.objects.shuttles.Shuttle s : bay.getBalcony())
+				s.attachClock(clock);
+		}
 	}
 
 	public Shields getShields() {

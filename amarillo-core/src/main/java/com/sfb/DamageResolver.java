@@ -609,6 +609,13 @@ class DamageResolver {
             com.sfb.objects.shuttles.Shuttle s = (com.sfb.objects.shuttles.Shuttle) attacker;
             if (s.isBeingRecovered())
                 return attacker.getName() + " is shut down for recovery and cannot fire (J1.622)";
+            // J1.531: "Shuttles on the balcony cannot fire." Strapped to the hull on a track,
+            // it is parked, not flying. Guarded here rather than relied on being unreachable:
+            // a parked craft is in no space and not in activeShuttles today, so nothing can
+            // currently name it as an attacker - but that is a property of the lookups, not
+            // of the rule, and the rule is what should refuse.
+            if (game.isParkedOnBalcony(s))
+                return attacker.getName() + " is on the balcony and cannot fire (J1.531)";
             // J1.6202: a shuttle held in a tractor "may not fire, launch, or guide any
             // weapon" for as long as it is held. Flatter than the ship rule beside it —
             // G7.91 still lets a tractored SHIP shoot back at whatever has hold of it, and

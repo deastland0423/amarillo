@@ -873,6 +873,33 @@ class LaunchCoordinator {
     // ---------------------------------------------------------------- Balcony (J1.53)
 
     /**
+     * J1.534: "Scatter-packs can be held on the balcony; suicide shuttles and wild weasels
+     * cannot."
+     * <p>
+     * Both questions have to be asked, which is the lesson this method exists to hold. The
+     * CLASS catches a craft already converted - a {@link com.sfb.objects.shuttles.WildWeaselShuttle}
+     * does not override {@code specialRole()}, so asking only the role let one straight out
+     * onto the balcony. The ROLE catches a craft still being prepared - a shuttle charging as
+     * a weasel is an ordinary admin shuttle of the same type (J3.18), so asking only the class
+     * let THAT one out. Each check alone was a bug; the first version of this slice swapped one
+     * for the other and slice two's own test caught it.
+     * <p>
+     * The scatter pack is the one role the rule allows out there, so it is named as the
+     * exception rather than either check being weakened.
+     *
+     * @return the role that bars it, or null if it may be held outside
+     */
+    private String barredFromBalcony(com.sfb.objects.shuttles.Shuttle shuttle) {
+        if (shuttle instanceof com.sfb.objects.shuttles.ScatterPack)
+            return null;
+        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle)
+            return "suicide shuttle";
+        if (shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
+            return "Wild Weasel";
+        return shuttle.specialRole();
+    }
+
+    /**
      * Move a craft from a bay out onto that bay's balcony (J1.53).
      * <p>
      * The transfer COSTS A HATCH. J1.53: "Movement from this outside track to and from the
@@ -909,11 +936,21 @@ class LaunchCoordinator {
         if (!bay.hasBalcony())
             return ActionResult.fail(shuttleName + "'s bay has no balcony (J1.53)");
 
-        // J1.534: a suicide shuttle or wild weasel may not be held outside at all.
-        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
-                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
-            return ActionResult.fail("Suicide shuttles and wild weasels cannot be held on the"
-                    + " balcony (J1.534)");
+        // J1.534: "Scatter-packs can be held on the balcony; suicide shuttles and wild
+        // weasels cannot."
+        //
+        // Asked through specialRole() rather than with instanceof, which is what this check
+        // used to do and what let a charged weasel straight out onto the balcony: a shuttle
+        // being charged as a weasel is still an ADMIN shuttle, same class and same type
+        // (J3.18), and specialRole() is the one thing that knows otherwise. A craft already
+        // converted to WildWeaselShuttle is caught by the same question.
+        //
+        // The scatter pack is the one role the rule allows out there, so it is named as the
+        // exception rather than the check being weakened.
+        String barred = barredFromBalcony(shuttle);
+        if (barred != null)
+            return ActionResult.fail(shuttleName + " is prepared as a " + barred
+                    + " and cannot be held on the balcony (J1.534)");
 
         if (bay.balconyFree() <= 0)
             return ActionResult.fail(shuttleName + "'s bay has all "
@@ -1006,13 +1043,11 @@ class LaunchCoordinator {
         if (ineligible != null)
             return ineligible;
 
-        // J1.534: these may not be HELD outside even if they could land. The eligibility check
-        // above already refuses active ones; this catches a craft that is prepared but not yet
-        // launched as one.
-        if (shuttle instanceof com.sfb.objects.shuttles.SuicideShuttle
-                || shuttle instanceof com.sfb.objects.shuttles.WildWeaselShuttle)
-            return ActionResult.fail("Suicide shuttles and wild weasels cannot be held on the"
-                    + " balcony (J1.534)");
+        // J1.534: these may not be HELD outside even if they could land.
+        String barred = barredFromBalcony(shuttle);
+        if (barred != null)
+            return ActionResult.fail(shuttleName + " is prepared as a " + barred
+                    + " and cannot be held on the balcony (J1.534)");
 
         com.sfb.systemgroups.ShuttleBay bay = null;
         boolean anyBalcony = false;
