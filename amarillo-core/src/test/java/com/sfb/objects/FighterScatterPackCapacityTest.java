@@ -87,6 +87,73 @@ public class FighterScatterPackCapacityTest {
                 + String.join("\n", mixed), mixed.isEmpty());
     }
 
+    /**
+     * A fighter armed with type-D plasmas can NEVER be a scatter pack (owner's ruling,
+     * 2026-10-03: "Since Romulan fighters can never use drones, they shouldn't be able to be
+     * scatter packs").
+     * <p>
+     * It follows from J4.825 - "No fighter in the game can use both type-D plasmas and drones,
+     * so you cannot load drones on a plasma-D-armed fighter" - because a scatter pack IS
+     * drones (FD7.11), and FD7.211 measures a fighter's capacity for one as "its NORMAL load
+     * of drones", which for these fighters is none. FP9.31 says the same of the Gorns: "No
+     * Gorn fighter carries drones, even those fighters built by the Federation."
+     * <p>
+     * Asserted directly rather than left to the capacity arithmetic below. That arithmetic
+     * does reach the same answer - a PLASMA_D rail is worth zero - but it reads as a rail
+     * being SMALL rather than as drones being forbidden, and the next person to wonder why a
+     * two-rail fighter carries no pack deserves the actual reason.
+     *
+     * <h2>What this is NOT about</h2>
+     * FD7.443 says "A fighter or MRS shuttle armed with a plasma-F or plasma-Ds can be used as
+     * an SP, which at least has the advantage of launching the plasma torp(s) eight impulses
+     * sooner than a manned fighter can." That is a DIFFERENT thing and does not contradict the
+     * ruling: FD7.44 prepares the fighter ITSELF as a scatter pack so it releases its OWN
+     * seeking weapons early, where {@code scatterPackSize} is FD7.11's question of how many
+     * drones a craft can carry as a pack. The first is not modelled at all; the second is
+     * zero for these fighters. Recorded here because the two were conflated once already.
+     */
+    @Test
+    public void noPlasmaDFighterCanBeAScatterPack() {
+        List<String> wrong = new ArrayList<>();
+        for (ShuttleCatalog.Entry entry : ShuttleCatalog.all()) {
+            if (!"fighter".equals(entry.kind))
+                continue;
+            Fighter f = CataloguedFighter.of(entry.type);
+            if (f == null)
+                continue;
+            boolean plasmaD = false;
+            for (Weapon w : f.getWeapons().fetchAllWeapons())
+                if (w instanceof DroneRail rail && rail.isPlasmaD())
+                    plasmaD = true;
+            if (!plasmaD)
+                continue;
+            if (entry.scatterPackSize != 0 || entry.canScatterPack())
+                wrong.add("  " + entry.type + " carries type-D plasmas but declares"
+                        + " scatterPackSize " + entry.scatterPackSize);
+        }
+        assertTrue("plasma-D fighters cannot load drones (J4.825), so none may be a scatter"
+                + " pack:" + "\n" + String.join("\n", wrong), wrong.isEmpty());
+    }
+
+    /**
+     * And the Romulans specifically, which is where the ruling came from: not one of their
+     * fighters may be a pack, whatever it is armed with.
+     */
+    @Test
+    public void noRomulanFighterCanBeAScatterPack() {
+        int checked = 0;
+        for (ShuttleCatalog.Entry entry : ShuttleCatalog.all()) {
+            if (!"fighter".equals(entry.kind) || !entry.factions.contains("romulan"))
+                continue;
+            checked++;
+            assertEquals(entry.type + " is Romulan, so it carries no drones", 0,
+                    entry.scatterPackSize);
+            assertFalse(entry.type + " must not qualify as a scatter pack",
+                    entry.canScatterPack());
+        }
+        assertTrue("fixture: the Romulan fighters should be in the catalogue", checked >= 4);
+    }
+
     @Test
     public void everyNonEwFightersScatterPackCapacityMatchesItsRails() {
         List<String> problems = new ArrayList<>();
