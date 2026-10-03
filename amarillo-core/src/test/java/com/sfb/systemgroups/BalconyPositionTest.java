@@ -196,17 +196,51 @@ public class BalconyPositionTest {
         assertEquals(6, total);
     }
 
-    /** Every other ship has none — a balcony is rare, and the default must be zero. */
+    /**
+     * The balcony is a GORN trait, fleet-wide. "On Gorn ships this is usually on the wings"
+     * is J1.53's own aside, and the Gorn are the faction known for the system: every hull in
+     * their list has one on every bay, from the SC up to the DN.
+     * <p>
+     * Asserted over the whole faction rather than ship by ship, so a new Gorn hull that
+     * forgets its balcony fails here instead of simply being unable to do something the rest
+     * of the fleet can.
+     */
     @Test
-    public void noOtherShipInTheLibraryHasABalcony() {
+    public void everyGornShipHasABalconyOnEveryBay() {
+        java.util.Set<String> missing = new java.util.TreeSet<>();
+        int checked = 0;
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if (!"Gorn".equals(spec.faction))
+                continue;
+            checked++;
+            for (ShuttleBay bay : ShipLibrary.createShip(spec).getShuttles().getBays())
+                if (!bay.hasBalcony())
+                    missing.add(spec.type);
+        }
+
+        assertTrue("fixture: the Gorn list should not be empty", checked >= 10);
+        assertTrue("Gorn hulls with a bay that has no balcony: " + missing, missing.isEmpty());
+    }
+
+    /**
+     * And OUTSIDE the Gorn it stays rare: the Federation CVA and nothing else. The default
+     * must be zero, so a stray {@code balconyPositions} on some other faction's hull — or a
+     * key landing in the wrong bay — fails here rather than quietly granting a ship a
+     * system it does not have.
+     */
+    @Test
+    public void outsideTheGornOnlyTheFederationCvaHasOne() {
         java.util.Set<String> withBalcony = new java.util.TreeSet<>();
-        for (ShipSpec spec : ShipLibrary.all())
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if ("Gorn".equals(spec.faction))
+                continue;
             for (ShuttleBay bay : ShipLibrary.createShip(spec).getShuttles().getBays())
                 if (bay.hasBalcony())
                     withBalcony.add(spec.faction + " " + spec.type);
+        }
 
         assertEquals("only the hulls whose SSDs give them one",
-                java.util.Set.of("Federation CVA", "Gorn BC"), withBalcony);
+                java.util.Set.of("Federation CVA"), withBalcony);
     }
 
     /**

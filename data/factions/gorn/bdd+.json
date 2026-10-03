@@ -50,8 +50,8 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "gas"] },
-    { "shuttles": ["admin", "gas"] }
+    { "shuttles": ["admin", "gas"], "balconyPositions": 2 },
+    { "shuttles": ["admin", "gas"], "balconyPositions": 2 }
   ],
 
   "crewData": {
