@@ -139,6 +139,31 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     /** Drones this fighter has let go this turn (J4.24, J4.241). */
     private int dronesFiredThisTurn = 0;
 
+    /**
+     * FP9.36: "Fighters and MRS shuttles which carry type-D torpedoes can fire one per turn
+     * unless specifically stated otherwise."
+     * <p>
+     * Shared with the type-K, because FP13.3 says so outright: a plasma-K replaces a plasma-D
+     * on a rail one for one and "does not increase its plasma-launch rate, i.e., a fighter
+     * with a plasma-K and a plasma-D can still only launch one of these in a turn (J4.28)".
+     * So this counts TORPEDOES, not type-Ds.
+     */
+    public static final int MAX_PLASMA_TORPEDOES_PER_TURN = 1;
+
+    /** Type-D and type-K torpedoes this fighter has launched this turn (FP9.36, FP13.3). */
+    private int plasmaTorpedoesFiredThisTurn = 0;
+
+    /**
+     * The absolute impulse the last torpedo went out on, or far in the past.
+     * <p>
+     * Kept for the same reason {@link #lastDroneLaunchImpulse} is: J4.28 puts type-Ds under
+     * the J4.2x rules as type-I drones, so J4.24's quarter turn applies and reaches back
+     * across the turn boundary that clears the count. Without it a fighter fires on impulse 30
+     * and again on impulse 2, four impulses apart, one torpedo in each turn and the rule
+     * satisfied on the count alone.
+     */
+    private int lastPlasmaTorpedoImpulse = -DRONE_LAUNCH_SPACING;
+
     /** What the first of them was sent at, for J4.241's same-target test. */
     private com.sfb.objects.Unit firstDroneTarget = null;
 
@@ -678,6 +703,54 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
     }
 
     /**
+     * Why this fighter may not let a plasma torpedo go right now, or null if it may
+     * (FP9.36, J4.28, FP13.3).
+     * <p>
+     * One a turn, flatly - FP9.36 grants no second torpedo the way J4.241 grants a second
+     * drone, and a torpedo is not a dogfight drone, which is the condition that second turns
+     * on. Plus J4.24's quarter-turn spacing, which J4.28 brings with it by treating type-Ds
+     * "as type-I drones for purposes of the above rules".
+     * <p>
+     * No target argument, unlike {@link #droneLaunchRefusal}: J4.241's same-target test exists
+     * to constrain a SECOND launch, and there is never a second one here.
+     * <p>
+     * A separate counter from the drones rather than one shared, even though J4.28 treats them
+     * alike, because J4.825 forbids any fighter to carry both - so the two can never interact,
+     * and one counter standing for both would only invite the question.
+     */
+    public String plasmaTorpedoLaunchRefusal(int currentImpulse) {
+        if (plasmaTorpedoesFiredThisTurn >= MAX_PLASMA_TORPEDOES_PER_TURN)
+            return getName() + " has already launched a plasma torpedo this turn, which is all"
+                    + " a fighter may (FP9.36)";
+        int wait = impulsesUntilNextPlasmaTorpedo(currentImpulse);
+        if (wait > 0)
+            return getName() + " launched a plasma torpedo " + (DRONE_LAUNCH_SPACING - wait)
+                    + " impulse" + (DRONE_LAUNCH_SPACING - wait == 1 ? "" : "s")
+                    + " ago - two may not leave within a quarter turn (J4.24, J4.28)";
+        return null;
+    }
+
+    /**
+     * Impulses still to wait before another torpedo may go (J4.24 via J4.28), or zero.
+     * Outlives the per-turn count, like its drone counterpart, because the spacing is
+     * measured from the launch.
+     */
+    public int impulsesUntilNextPlasmaTorpedo(int currentImpulse) {
+        return Math.max(0,
+                DRONE_LAUNCH_SPACING - (currentImpulse - lastPlasmaTorpedoImpulse));
+    }
+
+    public void recordPlasmaTorpedoFired(int currentImpulse) {
+        plasmaTorpedoesFiredThisTurn++;
+        lastPlasmaTorpedoImpulse = currentImpulse;
+    }
+
+    /** FP9.36: torpedoes this fighter has launched this turn. */
+    public int getPlasmaTorpedoesFiredThisTurn() {
+        return plasmaTorpedoesFiredThisTurn;
+    }
+
+    /**
      * Impulses still to wait before this fighter may let another drone go (J4.24), or zero.
      * Separate from the per-turn limit and outlives it: the spacing is measured from the
      * last launch, so it reaches back across the turn boundary that clears the flag.
@@ -706,6 +779,9 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         dronesFiredThisTurn = 0;
         firstDroneTarget = null;
         firedDogfightDroneThisTurn = false;
+        // FP9.36's torpedo, on the same terms: the count resets, lastPlasmaTorpedoImpulse
+        // does not, because J4.28 brings J4.24's quarter turn with it.
+        plasmaTorpedoesFiredThisTurn = 0;
         resetPodEwDeclaration();        // J4.961: declared afresh each turn
         getWeapons().cleanUp();
     }

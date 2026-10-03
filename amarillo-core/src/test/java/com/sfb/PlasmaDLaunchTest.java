@@ -28,18 +28,19 @@ import com.sfb.weapons.Weapon;
  * are a drone launch's - crippled (J1.332), tractored (J1.6202), the half turn since its own
  * launch (J1.341) - while the torpedo-side placement is {@code launchPlasma}'s.
  *
- * <h2>The judgement call in here</h2>
- * J4.24's drone firing rate is NOT applied. It is a rule about drones ("DRONE FIRING RATES: A
- * fighter can always launch one drone per turn..."), and a plasma-D is not a drone: J4.825
- * shares the drone rules for "rearming and storage" only, and Annex #4's listing of Pl-Ds in
- * the drone column is by its own admission "to avoid confusing them with the plasma-Fs" - a
- * presentation choice. Nothing in FP9.2, FP9.3 or FP10.3 gives a fighter's plasma-Ds a rate of
- * their own.
+ * <h2>The firing rate, and the judgement call that was wrong</h2>
+ * ONE torpedo per turn (FP9.36: "Fighters and MRS shuttles which carry type-D torpedoes can
+ * fire one per turn unless specifically stated otherwise"), plus J4.24's quarter-turn spacing,
+ * which J4.28 brings with it: type-Ds "are generally treated as type-I drones for purposes of
+ * the above rules". FP13.3 shares the rate with the type-K.
  * <p>
- * So a Gladiator-F may send both torpedoes in the same impulse, which
- * {@link #bothTorpedoesCanGoInOneImpulse} pins deliberately rather than by accident. J1.341
- * still bites and is the only spacing there is. If a rate does turn out to apply, it belongs
- * beside the J4.242 flags where the other per-fighter launch limits live.
+ * This class previously argued the opposite and pinned it in a test called
+ * {@code bothTorpedoesCanGoInOneImpulse}: that J4.24 was a rule about drones, that J4.825
+ * shared only rearming and storage, and that "nothing in FP9.2, FP9.3 or FP10.3 gives a
+ * fighter's plasma-Ds a rate of their own". The last clause was simply false - FP9.36 is in
+ * FP9.3. The pin did its job in the end, but only because the owner asked about ship-mounted
+ * racks and the subsection got read; a test that pins a conclusion cannot check the search
+ * that produced it.
  */
 public class PlasmaDLaunchTest {
 
@@ -217,24 +218,57 @@ public class PlasmaDLaunchTest {
     // ---------------------------------------------------------------- the rate question
 
     /**
-     * BOTH torpedoes in one impulse, which is the judgement recorded in the class comment:
-     * J4.24's rate is a rule about drones and a plasma-D is not one.
+     * FP9.36: one torpedo a turn. A Gladiator-F carries two and may send only the first.
      * <p>
-     * Pinned so the decision is visible. If a rate does apply, this is the test that should
-     * fail and be rewritten - not one that quietly keeps passing because nobody looked.
+     * This replaces {@code bothTorpedoesCanGoInOneImpulse}, which asserted the opposite on a
+     * misreading - see the class comment. The second rail stays loaded, which is the part
+     * worth asserting: the refusal must not consume the torpedo it declines to launch.
      */
     @Test
-    public void bothTorpedoesCanGoInOneImpulse() {
+    public void onlyOneTorpedoMayGoInATurn() {
         int impulse = game.getAbsoluteImpulse();
+        DroneRail first = railsOf().get(0);
+        DroneRail second = railsOf().get(1);
 
-        for (DroneRail rail : railsOf())
-            assertTrue("rail " + rail.getDesignator(),
-                    game.launchFighterPlasmaD(gf, enemy, rail, 1).isSuccess());
+        assertTrue(game.launchFighterPlasmaD(gf, enemy, first, 1).isSuccess());
+
+        Game.ActionResult refused = game.launchFighterPlasmaD(gf, enemy, second, 1);
+        assertFalse("a second torpedo in the same turn", refused.isSuccess());
+        assertTrue(refused.getMessage(), refused.getMessage().contains("FP9.36"));
 
         assertEquals("same impulse", impulse, game.getAbsoluteImpulse());
-        assertEquals("two torpedoes away", 2, torpedoesInSpace());
-        for (DroneRail rail : railsOf())
-            assertFalse(rail.isLoaded());
+        assertEquals("one torpedo away", 1, torpedoesInSpace());
+        assertFalse("the one that flew is gone", first.isLoaded());
+        assertTrue("the one refused is still aboard", second.isLoaded());
+    }
+
+    /**
+     * J4.24's quarter turn, which J4.28 brings to the type-D by treating it as a type-I drone.
+     * <p>
+     * The count alone is not enough and this is why: a new turn clears it, so a fighter that
+     * launched late in one turn would otherwise launch again immediately in the next - one
+     * torpedo in each turn, the per-turn rule satisfied, and four impulses between them.
+     */
+    @Test
+    public void theQuarterTurnSpacingReachesAcrossTheTurnBoundary() {
+        assertTrue(game.launchFighterPlasmaD(gf, enemy, railsOf().get(0), 1).isSuccess());
+
+        // A fresh turn clears the per-turn count but not the spacing.
+        gf.startTurn();
+        assertEquals("count cleared", 0, gf.getPlasmaTorpedoesFiredThisTurn());
+
+        // Driven through the LAUNCH, not through the fighter's own method: the count and the
+        // spacing come out of one refusal, so a test that asked the fighter directly would
+        // keep passing with the gate unwired. The second rail is still loaded, so nothing but
+        // the spacing can refuse this.
+        Game.ActionResult refused =
+                game.launchFighterPlasmaD(gf, enemy, railsOf().get(1), 1);
+        assertFalse("still inside the quarter turn", refused.isSuccess());
+        assertTrue(refused.getMessage(), refused.getMessage().contains("quarter turn"));
+
+        // Eight impulses after the launch it is free again.
+        assertNull(gf.plasmaTorpedoLaunchRefusal(
+                game.getAbsoluteImpulse() + Fighter.DRONE_LAUNCH_SPACING));
     }
 
     // ---------------------------------------------------------------- the fighter's own state

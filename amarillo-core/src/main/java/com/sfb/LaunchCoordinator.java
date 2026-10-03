@@ -547,18 +547,22 @@ class LaunchCoordinator {
      * FP9.22's gate: "The weapon cannot be launched until it has been activated." A torpedo
      * sitting on the rail unpaid-for is refused here rather than silently flying.
      *
+     * <h2>The firing rate, which I first got wrong</h2>
+     * ONE torpedo per turn (FP9.36), plus J4.24's quarter-turn spacing, which J4.28 brings
+     * with it: "type-D plasma torpedoes are generally treated as type-I drones for purposes of
+     * the above rules". The rate is shared with the type-K (FP13.3).
+     * <p>
+     * This comment previously argued the opposite - that no rule in FP9.2, FP9.3 or FP10.3
+     * gave a fighter's plasma-Ds a rate, so a G-F could send both torpedoes in one impulse -
+     * and a test pinned it. FP9.36 is in FP9.3 and says it in one line. The reasoning was
+     * sound and the search was not, which is the whole argument for reading the subsections
+     * rather than deciding what they must contain.
+     * <p>
+     * Unlike a drone there is no second launch to qualify, so no target is passed: J4.241's
+     * same-target and dogfight-drone conditions exist to license a SECOND drone, and FP9.36
+     * licenses none.
+     * <p>
      * <h2>What it does NOT check, and why</h2>
-     * J4.24's drone firing rate - one a turn, two only under J4.241's conditions - is a rule
-     * about DRONES, and a plasma-D is not one. J4.825 shares the drone rules for "rearming and
-     * storage" only, and Annex #4 lists Pl-Ds in the drone column by its own admission "to
-     * avoid confusing them with the plasma-Fs", which is a presentation choice rather than a
-     * rule. No rule in FP9.2, FP9.3 or FP10.3 gives a fighter's plasma-Ds a rate of their own.
-     * <p>
-     * So a G-F may send both torpedoes in one impulse. J1.341's half-turn after the fighter's
-     * own launch still bites, and that is the only spacing there is. Flagged rather than
-     * assumed: if a rate does apply, it belongs beside the J4.242 flags where the other
-     * per-fighter launch limits live.
-     * <p>
      * Nor a lock-on (D6.121), nor control capacity (J4.25), matching {@link #launchPlasma}: a
      * plasma torpedo finds its own way once launched, where a drone must be guided.
      */
@@ -593,6 +597,12 @@ class LaunchCoordinator {
             return ActionResult.fail(rail.getName() + "'s torpedo has not been activated"
                     + " - half an energy point, and it cannot be launched without it (FP9.22)");
 
+        // FP9.36: one a turn, and J4.24's quarter turn through J4.28. The fighter judges it,
+        // like the drone rate, because the answer depends on what IT has already sent.
+        String rate = fighter.plasmaTorpedoLaunchRefusal(game.getAbsoluteImpulse());
+        if (rate != null)
+            return ActionResult.fail(rate);
+
         int torpFacing = launchFacingFor(fighter, target, facing);
         if (torpFacing == 0 && facing > 0)
             return badFacing(facing);
@@ -623,6 +633,9 @@ class LaunchCoordinator {
                 torpedo.setCloakLockRetained(true);
         }
         seekers.add(torpedo);
+        // FP9.36's counter, booked once the torpedo is actually away - the same place the
+        // drone launch books its own.
+        fighter.recordPlasmaTorpedoFired(game.getAbsoluteImpulse());
         // No lock-on sweep and no scout blinds, which the fighter DRONE launch also skips:
         // checkLockOnsForNewUnit asks a SHIP what it can now see, and G24.1342 blinds a
         // scout's own channels. A fighter has neither to offer.
