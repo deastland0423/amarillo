@@ -23,9 +23,12 @@ import com.sfb.systemgroups.ShuttleBay;
  * shuttles if any are on the balcony."
  * </blockquote>
  * <ul>
- * <li><b>Instead of</b> — a parked craft is not extra armour in front of the hull. The hull box
- * survives untouched and the craft is the hit, so parking does not increase the damage a ship
- * can absorb; it converts hull damage into dead shuttles.</li>
+ * <li><b>Instead of</b> — the hull box survives untouched and the craft is the hit. Note
+ * which way this cuts, because the first version of this comment had it backwards: parked
+ * craft ARE ablative protection for the rear hull. Six points against a full balcony kill six
+ * shuttles and no hull boxes, where six points against a bare one take six boxes. The ship
+ * lives longer; what it spends is a whole shuttle per point, and the protection ends the
+ * moment the balcony is empty.</li>
  * <li><b>No chain reactions</b> — the opposite of a shuttle BOX, where an armed occupant takes
  * another box with it and sprays a point into the ship (D12.10). An armed fighter on the
  * balcony just dies.</li>
@@ -106,9 +109,10 @@ public class BalconyDamageTest {
     }
 
     /**
-     * The clause that makes parking a gamble rather than free armour: once the balcony is
-     * empty, rear hull points eat hull boxes again. A ship does not absorb more total damage
-     * by parking craft — it trades hull boxes for fighters.
+     * What bounds the protection: it lasts exactly as long as there is something parked. Once
+     * the balcony is bare, rear hull points eat hull boxes again at the normal rate, so a
+     * player who stacked the balcony has bought the hull some time at the price of the
+     * squadron rather than bought anything permanently.
      */
     @Test
     public void onceTheBalconyIsEmptyTheHullTakesItAgain() {
