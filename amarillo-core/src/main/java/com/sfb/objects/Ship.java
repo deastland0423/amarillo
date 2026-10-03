@@ -1024,14 +1024,14 @@ public class Ship extends Unit implements DroneController {
 	 * Validated against the line when the racks are fitted, never trusted: a stored choice
 	 * outlives the scenario it was made for.
 	 */
-	private String fighterServiceType;
+	private String fighterFacilityType;
 
-	public String getFighterServiceType() {
-		return fighterServiceType;
+	public String getFighterFacilityType() {
+		return fighterFacilityType;
 	}
 
-	public void setFighterServiceType(String type) {
-		this.fighterServiceType = type;
+	public void setFighterFacilityType(String type) {
+		this.fighterFacilityType = type;
 	}
 
 	// -------------------------------------------------------------------------

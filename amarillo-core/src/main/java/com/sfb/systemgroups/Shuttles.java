@@ -77,9 +77,9 @@ public class Shuttles implements Systems {
                     // sits in them. Recorded now and EQUIPPED later, because what a rack serves
                     // depends on the scenario year (J4.621) and nothing here knows it yet - the
                     // same reason a carrier's complement is re-seated rather than built now.
-                    Object racksObj = bayObj.get("fighterServiceFacilities");
+                    Object racksObj = bayObj.get("fighterFacilities");
                     if (racksObj instanceof Number)
-                        bay.setFighterServiceFacilities(((Number) racksObj).intValue());
+                        bay.setFighterFacilities(((Number) racksObj).intValue());
                     // J4.4: fighters declared by role, filled in by the year below.
                     complement = com.sfb.objects.FighterComplement.fromBayMap(bayObj.get("fighters"));
                 } else {

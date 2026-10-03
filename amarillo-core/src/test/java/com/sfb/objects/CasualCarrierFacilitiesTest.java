@@ -35,9 +35,9 @@ import com.sfb.systemgroups.ShuttleSpace;
  * </ul>
  *
  * <h2>Why it is FACILITIES and not just racks</h2>
- * J4.8 gives the general term and puts it in scare quotes itself: "Any ship can recover a fighter,
- * but only one with 'appropriate facilities' can service that fighter." A ready rack is one of the
- * four species. J4.73: "Federation ships have a
+ * J4.89 licenses one name for all of them: ready racks and storage boxes "can be included in the
+ * general term 'ready rack' or 'fighter facility' or 'weapons charge storage facility' or
+ * 'capacitor' for purposes of these rules." A ready rack is one of the four species. J4.73: "Federation ships have a
  * 'photon freezer' to supply photon torpedoes for their A-10 attack shuttles; Romulan, ISC, and
  * Gorn ships have stasis boxes to store extra plasma-F torpedoes. Hydran ships have facilities to
  * store charges for fusion beams and hellbores." Which one a box gets depends entirely on what its
@@ -58,7 +58,7 @@ public class CasualCarrierFacilitiesTest {
     /** The K5D as a scenario would build it: a year, and optionally a chosen fighter model. */
     private Ship k5d(int year, String chosenModel) {
         Ship ship = ShipLibrary.createShip(k5dSpec);
-        ship.setFighterServiceType(chosenModel);
+        ship.setFighterFacilityType(chosenModel);
         FighterComplement.reseat(ship, year);
         return ship;
     }
@@ -87,7 +87,7 @@ public class CasualCarrierFacilitiesTest {
             assertFalse("no fighter aboard",
                     box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter);
         assertEquals("two boxes declared with racks", 2,
-                ship.getShuttles().getBays().get(0).getFighterServiceFacilities());
+                ship.getShuttles().getBays().get(0).getFighterFacilities());
     }
 
     /** And it has the racks, which is the thing that was impossible before. */

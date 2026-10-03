@@ -317,12 +317,20 @@ public class ShipSpec {
          * carries no fighters of its own - a "casual carrier", which J4.62 says is "most carrier
          * escorts, the Hydran Pegasus and Gendarme, and many WYN ships".
          * <p>
-         * Named for J4.8's own general term rather than for any one fitting: "Any ship can recover
-         * a fighter, but only one with 'appropriate facilities' can service that fighter." A ready
-         * rack is only ONE of the four species J4.73 lists - photon freezer, plasma-F stasis box,
-         * fusion and hellbore stores are the others - and which one a box gets depends on the
-         * fighter it serves, so a Hydran escort declaring this gets fusion capacitors and no rack
-         * at all. Calling the field {@code readyRacks} made that read as a contradiction.
+         * Named for the rulebook's own general term. J4.89: "The variously described ready racks
+         * (J4.822) and storage boxes (J4.88) can be included in the general term 'ready rack' or
+         * 'fighter facility' or 'weapons charge storage facility' or 'capacitor' for purposes of
+         * these rules."
+         * <p>
+         * So the four species J4.73 lists - ready rack, photon freezer, plasma-F stasis box,
+         * fusion and hellbore stores - share one name, and this is it. Which one a box gets depends
+         * on the fighter it serves, so a Hydran escort declaring this gets fusion capacitors and no
+         * rack at all; a field called {@code readyRacks} read as a contradiction there, even though
+         * J4.89 would also have allowed that name.
+         * <p>
+         * J4.89's last sentence is worth keeping in view: "Some carriers have two or more kinds of
+         * fighter facilities; this requires additional restrictions." A single count per bay cannot
+         * express a mixed bay, and will need to become a per-box declaration if one ever appears.
          * <p>
          * A count of BOXES, and that is the point: J4.822 puts the fitting in a shuttle box and
          * J4.831 destroys it with the box, so an escort's facilities take damage exactly as a
@@ -336,7 +344,7 @@ public class ShipSpec {
          * and the scenario year resolves it. Naming a fighter type HERE would be wrong in every
          * year but one; naming it in a COI choice is right, because the year is settled by then.
          */
-        public int          fighterServiceFacilities;
+        public int          fighterFacilities;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -564,7 +572,7 @@ public class ShipSpec {
                 // A role-based complement forces the object form, since the plain list has
                 // nowhere to carry it.
                 if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null
-                        || bay.balconyPositions > 0 || bay.fighterServiceFacilities > 0) {
+                        || bay.balconyPositions > 0 || bay.fighterFacilities > 0) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
                     if (bay.launchTubes > 0)
@@ -576,8 +584,8 @@ public class ShipSpec {
                     if (bay.balconyPositions > 0)
                         bayMap.put("balconyPositions", bay.balconyPositions);
                     // J4.62: a casual carrier's racks, which likewise force the object form.
-                    if (bay.fighterServiceFacilities > 0)
-                        bayMap.put("fighterServiceFacilities", bay.fighterServiceFacilities);
+                    if (bay.fighterFacilities > 0)
+                        bayMap.put("fighterFacilities", bay.fighterFacilities);
                     if (bay.fighters != null) {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);
