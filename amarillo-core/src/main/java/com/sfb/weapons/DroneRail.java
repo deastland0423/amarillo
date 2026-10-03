@@ -15,7 +15,25 @@ public class DroneRail extends DroneRack {
         LIGHT(0.5), // TypeVI only
         STANDARD(1.0), // TypeI or TypeVI
         SPECIAL(1.0), // TypeI or TypeIII
-        HEAVY(2.0); // TypeIV, TypeI, or TypeVI
+        HEAVY(2.0), // TypeIV, TypeI, or TypeVI
+        /**
+         * A type-D plasma torpedo rail (FP9.2) - a rail, not a plasma launcher, because the
+         * rules make it one. FP9.21: type-Ds are "stored, transported, handled, and loaded as
+         * drones are, each taking one 'space'", and J4.825 adds that "the rearming and storage
+         * rules for drones are used for type-D plasma torpedoes" and that one "is the same
+         * size as a one-space drone".
+         * <p>
+         * So everything about the MOUNT is a drone rail: the box's ready rack stocks it, a deck
+         * crew loads it, and it occupies one space. Only the payload differs, and a torpedo is
+         * not a drone - which is why it is held in a field of its own rather than in the
+         * inherited drone ammo list. That also means every drone path asking
+         * {@link #getDrone()} sees null here and skips the rail, which is exactly right: a
+         * drone launch must never fire a plasma torpedo.
+         * <p>
+         * J4.825 again: "No fighter in the game can use both type-D plasmas and drones, so you
+         * cannot load drones on a plasma-D-armed fighter (nor vice versa)."
+         */
+        PLASMA_D(1.0);
 
         public final double capacity;
 
@@ -62,6 +80,9 @@ public class DroneRail extends DroneRack {
             case STANDARD -> com.sfb.objects.DroneType.TypeI;
             case SPECIAL -> com.sfb.objects.DroneType.TypeIII;
             case HEAVY -> com.sfb.objects.DroneType.TypeIV;
+            // A plasma-D rail has no design DRONE: J4.825 bars drones from such a fighter
+            // outright, so there is no ordinary drone load for a rack to reach for.
+            case PLASMA_D -> null;
             default -> null;
         };
     }
@@ -80,7 +101,14 @@ public class DroneRail extends DroneRack {
      * enforces).
      */
     public boolean accepts(com.sfb.objects.Drone drone) {
+        if (isPlasmaD())
+            return false;   // J4.825: no drones on a plasma-D-armed fighter
         return drone != null && drone.getRackSize() <= railType.capacity;
+    }
+
+    /** True if this rail carries type-D plasma torpedoes rather than drones (FP9.2). */
+    public boolean isPlasmaD() {
+        return railType == DroneRailType.PLASMA_D;
     }
 
     public DroneRailType getRailType() {
@@ -138,6 +166,9 @@ public class DroneRail extends DroneRack {
     }
 
     public void loadDrone(Drone drone) {
+        if (isPlasmaD())
+            throw new IllegalStateException(getName() + " is a plasma-D rail; no fighter can"
+                    + " use both type-D plasmas and drones (J4.825)");
         if (ewPodFitted)
             throw new IllegalStateException(getName()
                     + " carries an EW pod; a rail holds one or the other (J4.962)");
@@ -157,5 +188,49 @@ public class DroneRail extends DroneRack {
     /** The drone currently loaded, or null if empty. */
     public Drone getDrone() {
         return getAmmo().isEmpty() ? null : getAmmo().get(0);
+    }
+
+    // ---------------------------------------------------------------- plasma-D (FP9.2)
+
+    /**
+     * The torpedo on a plasma-D rail. Held apart from the inherited drone ammo list because a
+     * {@link com.sfb.objects.PlasmaTorpedo} is not a {@link Drone}: that list is typed for
+     * drones, is shared with every ship rack, and carries reload sets and size trimming that
+     * mean nothing to a torpedo.
+     */
+    private com.sfb.objects.PlasmaTorpedo torpedo;
+
+    /**
+     * Put a type-D torpedo on the rail. The handling is a drone's (J4.825), so this is the
+     * deck crew's single action and nothing else - FP9.22's activation is a separate step and
+     * a separate half point of energy.
+     */
+    public void loadTorpedo(com.sfb.objects.PlasmaTorpedo loaded) {
+        if (!isPlasmaD())
+            throw new IllegalStateException(getName() + " is a " + railType
+                    + " rail and cannot carry a plasma torpedo (FP9.2)");
+        this.torpedo = loaded;
+    }
+
+    public com.sfb.objects.PlasmaTorpedo getTorpedo() {
+        return torpedo;
+    }
+
+    /** Take the torpedo off - a launch, or a deck crew unloading it. */
+    public com.sfb.objects.PlasmaTorpedo removeTorpedo() {
+        com.sfb.objects.PlasmaTorpedo was = torpedo;
+        torpedo = null;
+        return was;
+    }
+
+    /**
+     * Whether this rail is carrying anything at all, whichever kind of rail it is.
+     * <p>
+     * Ask THIS rather than {@code getDrone() != null} anywhere the question is "has this rail
+     * still got something on it" - a loaded plasma-D rail answers null to {@code getDrone()},
+     * and code reading that as "empty" would try to load a drone onto it and break J4.825.
+     */
+    public boolean isLoaded() {
+        return isPlasmaD() ? torpedo != null : getDrone() != null;
     }
 }

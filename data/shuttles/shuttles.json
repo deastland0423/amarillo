@@ -57,7 +57,7 @@
       { "from": 183, "superiority": "zyc",   "ew": "zy_e", "attack": "zpc", "assault": "zdc"   }
     ],
     "romulan-gladiator": [
-      { "from": 165, "assault": "g1", "assault_ew": "g1_e" }
+      { "from": 165, "superiority": "gf", "ew": "gf_e", "assault": "g1", "assault_ew": "g1_e" }
     ],
     "kzinti-attack": [
       { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
@@ -234,6 +234,7 @@
                     { "type": "DroneRail", "designator": "H", "arcs": ["FA"], "railType": "LIGHT" }
                   ] },
 
+
     { "type": "z1", "name": "Z-1 Fighter",                   "kind": "fighter",    "factions": ["klingon"], "year": 167, "speed": 6,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "Z-1", "designation": "Z1",
       "weapons": [ { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
@@ -335,28 +336,40 @@
       "weapons": [ ] },
 
 
-    { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",
-
+    { "type": "gf", "name": "Gladiator-F Superiority Fighter",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-F", "designation": "GF",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } 
+                 ] },
 
+    { "type": "gf_e", "name": "Gladiator-F Superiority Fighter (EW)",                   "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-FE", "designation": "GFE", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] }
+                 ] },
+
+
+    { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
-
                    { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+
     { "type": "stinger2", "name": "Stinger-2",                                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-2", "designation": "Stinger2",
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
                    { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+
     { "type": "stingerh", "name": "Stinger-H",                                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-H", "designation": "StingerH",
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterHellbore", "designator": "H", "arcs": ["FA"] } ] },
+
     { "type": "stinger_e", "name": "Stinger-E (EW)",                            "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 12, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-E", "designation": "StingerE", "fixedEwPods": 2, "twoSeater": true,
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] } ] },
+
+
     { "type": "aas", "name": "Advanced Attack Shuttle",                   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "AAS", "designation": "AAS",
-
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
-
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
     { "type": "aas_e", "name": "Advanced Attack Shuttle (EW)",              "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "AAS-E", "designation": "AAS-E", "ewPods": 2, "twoSeater": true,
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },

@@ -46,8 +46,45 @@ public class FighterScatterPackCapacityTest {
             case STANDARD: return 1.0;
             case SPECIAL:  return 1.0;
             case HEAVY:    return 1.0;
+            // J4.825: "No fighter in the game can use both type-D plasmas and drones, so you
+            // cannot load drones on a plasma-D-armed fighter (nor vice versa)." A scatter pack
+            // IS drones, so a plasma-D rail contributes nothing to the capacity for one. Stated
+            // rather than left to the default below, which would read as an oversight.
+            case PLASMA_D: return 0.0;
             default:       return 0.0;
         }
+    }
+
+    /**
+     * J4.825's exclusivity, as a guard on the data: "No fighter in the game can use both
+     * type-D plasmas and drones."
+     * <p>
+     * Worth pinning because the two mounts are now the same class, told apart only by rail
+     * type - so a fighter with one of each is a single keystroke away and would be refused
+     * only at load time, deep in a deck crew pass, if at all.
+     */
+    @Test
+    public void noFighterMixesPlasmaDRailsWithDroneRails() {
+        List<String> mixed = new ArrayList<>();
+        for (ShuttleCatalog.Entry entry : ShuttleCatalog.all()) {
+            if (!"fighter".equals(entry.kind))
+                continue;           // of() refuses a shuttle outright
+            Fighter f = CataloguedFighter.of(entry.type);
+            if (f == null)
+                continue;
+            boolean plasmaD = false, drones = false;
+            for (Weapon w : f.getWeapons().fetchAllWeapons())
+                if (w instanceof DroneRail rail) {
+                    if (rail.isPlasmaD())
+                        plasmaD = true;
+                    else
+                        drones = true;
+                }
+            if (plasmaD && drones)
+                mixed.add("  " + entry.type + " has both plasma-D rails and drone rails");
+        }
+        assertTrue("fighters mixing type-D plasmas and drones (J4.825):\n"
+                + String.join("\n", mixed), mixed.isEmpty());
     }
 
     @Test
