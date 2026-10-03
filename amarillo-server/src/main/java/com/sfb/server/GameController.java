@@ -1482,6 +1482,11 @@ public class GameController {
         body.put("range", range);
         body.put("adjustedRange", adjRange);
         body.put("shieldNumber", shieldNumber);
+        // The target's size class. Public - a counter on the map announces what it is - and the
+        // client needs it to show WHY a plasma rack's defensive mode cannot engage a given
+        // target: FP10.212 reaches "size-5 and smaller targets within an effective range of six
+        // hexes". Mirrored in the pad as an affordance only; core refuses authoritatively.
+        body.put("sizeClass", targetUnit.getSizeClass());
         body.put("weaponsInArc", weaponsInArc);
         body.put("hasLockOn", hasLockOn);
         body.put("ecmPoints", ecmPoints);
@@ -1698,6 +1703,9 @@ public class GameController {
                 // geometry rather than about the row.
                 row.put("location", candidate.getLocation().toString());
                 row.put("hasLockOn", launcher.hasLockOn(candidate));
+                // Public, and what the pad needs to say why a plasma rack's defensive mode
+                // cannot engage this candidate (FP10.212: size-5 and smaller, six hexes).
+                row.put("sizeClass", candidate.getSizeClass());
                 row.put("plasmaLaunchers", plasmaLaunchersBearing(launcher, candidate));
                 out.add(row);
             }
@@ -1724,7 +1732,14 @@ public class GameController {
             return out;                       // same hex: no bearing exists to test
         int relative = MapUtils.getRelativeBearing(bearing, launcherShip.getFacing());
         for (com.sfb.weapons.Weapon w : launcherShip.getWeapons().fetchAllWeapons()) {
-            if (!(w instanceof com.sfb.weapons.PlasmaLauncher) || !w.isFunctional())
+            // Plasma RACKS belong here too: FP10.222 launches a seeking type-D from one, and
+            // FP10.12 gives it a 180-degree firing arc to test - "they can engage any target in
+            // this arc". Unlike a drone rack, which has no arc and is therefore left out, a
+            // plasma rack's arc is exactly what decides whether a candidate is reachable, so
+            // omitting it left every rack out of the launch pad and the launch unreachable.
+            boolean isPlasmaMount = w instanceof com.sfb.weapons.PlasmaLauncher
+                    || w instanceof com.sfb.weapons.PlasmaRack;
+            if (!isPlasmaMount || !w.isFunctional())
                 continue;
             if (com.sfb.utilities.ArcUtils.inArc(relative, w.getArcs()))
                 out.add(w.getName());

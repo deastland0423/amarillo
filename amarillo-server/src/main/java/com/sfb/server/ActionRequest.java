@@ -441,6 +441,14 @@ public class ActionRequest {
         /** Shuttle, weasel, suicide shuttle or pack name, for the 6B8 kinds. */
         private String  shuttleName;
         private int     speed;
+        /**
+         * FP10.21: which mode a PLASMA_RACK launches in, "OFFENSIVE" or "DEFENSIVE".
+         * <p>
+         * Sealed with the order rather than resolved later, because firing IS the declaration and
+         * it binds the rack for the turn - the player has to have chosen before the plan is
+         * committed. The action refuses an order that names no mode rather than picking one.
+         */
+        private String  plasmaRackMode;
 
         public String  getKind()                    { return kind; }
         public void    setKind(String k)            { this.kind = k; }
@@ -462,6 +470,8 @@ public class ActionRequest {
         public void    setShuttleName(String s)     { this.shuttleName = s; }
         public int     getSpeed()                   { return speed; }
         public void    setSpeed(int s)              { this.speed = s; }
+        public String  getPlasmaRackMode()          { return plasmaRackMode; }
+        public void    setPlasmaRackMode(String m)  { this.plasmaRackMode = m; }
     }
 
     public static class EwAdjustment {

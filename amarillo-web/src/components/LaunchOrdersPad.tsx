@@ -45,6 +45,11 @@ export interface LaunchCandidate {
    * "unreachable": a drone rack has no arc, so any candidate will take a drone.
    */
   plasmaLaunchers: string[];
+  /**
+   * The target's size class, which counts UP as a unit gets smaller. Needed to show why a plasma
+   * rack's defensive mode cannot engage a given target (FP10.212).
+   */
+  sizeClass: number;
 }
 
 /** A ship of mine with something it could send. */
@@ -63,7 +68,8 @@ export interface LaunchingUnit {
 /** One drafted launch — the client-side twin of the server's ActivityOrder. */
 export interface LaunchOrder {
   label:       string;
-  kind:        'PLASMA' | 'DRONE' | 'SUICIDE' | 'SCATTER_PACK' | 'WEASEL' | 'SHUTTLE';
+  kind:        'PLASMA' | 'PLASMA_RACK' | 'DRONE' | 'SUICIDE' | 'SCATTER_PACK'
+             | 'WEASEL' | 'SHUTTLE';
   shipName:    string;
   targetName?: string;
   weaponName?: string;
@@ -73,6 +79,8 @@ export interface LaunchOrder {
   facing?:     number;
   shuttleName?: string;
   speed?:      number;
+  /** FP10.21: OFFENSIVE or DEFENSIVE, for a PLASMA_RACK. Sealed with the order. */
+  plasmaRackMode?: 'OFFENSIVE' | 'DEFENSIVE';
 }
 
 interface Props {
@@ -390,6 +398,16 @@ export default function LaunchOrdersPad({
   const ship = attacker?.ship ?? null;
   const plasma = (ship?.weapons ?? []).filter(w =>
     w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady || w.canFastLoad));
+  /**
+   * Plasma racks with something to send (FP10.222).
+   *
+   * Separate from `plasma` because a rack is no launcher: no arming to be ready, no pseudo
+   * (FP9.13), no fast-load. What it needs instead is an ACTIVATED torpedo - FP9.22's half point -
+   * which is why the test is plasmaRackActive rather than `armed`. A rack full of unpaid-for
+   * torpedoes is as unable to launch as an empty one.
+   */
+  const plasmaRacks = (ship?.weapons ?? []).filter(w =>
+    w.plasmaRack && w.functional && (w.plasmaRackActive ?? 0) > 0);
   const racks = (ship?.droneRacks ?? []).filter(r => r.functional && r.canFire && r.drones.length > 0);
   /**
    * Everything the ship could launch: what is in its boxes PLUS what is parked on a balcony
@@ -741,10 +759,76 @@ export default function LaunchOrdersPad({
                   Each launch carries its own heading and speed.
                 </div>
 
-                {plasma.length === 0 && racks.length === 0
+                {plasma.length === 0 && plasmaRacks.length === 0 && racks.length === 0
                   && suicideReady.length === 0 && packsReady.length === 0 && (
                   <div style={{ fontSize: '0.85em', color: '#8b949e' }}>Nothing ready to send.</div>
                 )}
+
+                {/* FP10.222: a seeking type-D out of a plasma rack. Two launch buttons rather
+                    than one, because FP10.21 makes the MODE part of the firing and it binds the
+                    rack for the rest of the turn - so there is no "launch" without saying which,
+                    and no default, since defaulting would spend one of the ship's two offensive
+                    places (FP10.242) or give up the other mode's reach. A rack already committed
+                    this turn offers only the mode it is in. */}
+                {plasmaRacks.map(w => {
+                  const bears = target.plasmaLaunchers.includes(w.name);
+                  const used = spent.has(w.name);
+                  const blocked = used ? 'already sent' : !bears ? 'out of arc' : null;
+                  const ok = legalHeading(w.name);
+                  const facing = facings[w.name] ?? 0;
+                  const why = blocked
+                            ?? (ok ? null : `cannot launch ${FACING_LABEL[headingOf(w.name)]}`);
+                  const committed = w.plasmaRackMode && w.plasmaRackMode !== 'UNDECIDED'
+                            ? w.plasmaRackMode as 'OFFENSIVE' | 'DEFENSIVE' : null;
+                  const offerable: ('OFFENSIVE' | 'DEFENSIVE')[] =
+                            committed ? [committed] : ['OFFENSIVE', 'DEFENSIVE'];
+                  return (
+                    <div key={w.name} style={{ ...ROW, cursor: 'default', flexWrap: 'wrap' }}>
+                      <span style={{ color: why ? '#8b949e' : '#e6edf3' }}>{w.name}</span>
+                      {w.arcLabel && (
+                        <span style={{ color: '#8b949e', fontSize: '0.9em' }}>[{w.arcLabel}]</span>
+                      )}
+                      <span style={{ color: '#86efac', fontSize: '0.9em' }}>
+                        {w.plasmaRackActive}/{w.plasmaRackTorpedoes} active
+                      </span>
+                      {why && <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{why}</span>}
+                      {!blocked && (
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 4,
+                                       alignItems: 'center' }}>
+                          {facingChip(w.name)}
+                          {offerable.map(m => {
+                            // FP10.212: defensive mode engages "size-5 and smaller targets within
+                            // an effective range of six hexes". Size class counts UP as a unit
+                            // shrinks. Mirrored as an affordance; core is what refuses.
+                            const tooBig = m === 'DEFENSIVE' && target.sizeClass < 5;
+                            const tooFar = m === 'DEFENSIVE' && target.range > 6;
+                            return (
+                              <button key={m} style={{ padding: '0 6px' }}
+                                      className={m === 'OFFENSIVE' ? '' : 'secondary'}
+                                      disabled={!ok || tooBig || tooFar}
+                                      title={tooBig
+                                        ? 'Defensive mode engages size-5 and smaller (FP10.212)'
+                                        : tooFar
+                                        ? 'Defensive mode reaches six hexes (FP10.212)'
+                                        : m === 'OFFENSIVE'
+                                          ? 'One torpedo a turn, any target (FP10.211)'
+                                          : 'One per impulse, inside six hexes (FP10.212)'}
+                                      onClick={() => draft({
+                                        label: `${attacker.name} → ${target.name}: ${w.name}`
+                                             + ` (${m.toLowerCase()})`,
+                                        kind: 'PLASMA_RACK', shipName: attacker.name,
+                                        targetName: target.name, weaponName: w.name, facing,
+                                        plasmaRackMode: m,
+                                      })}>
+                                {m === 'OFFENSIVE' ? 'launch off' : 'launch def'}
+                              </button>
+                            );
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {plasma.map(w => {
                   const bears = target.plasmaLaunchers.includes(w.name);

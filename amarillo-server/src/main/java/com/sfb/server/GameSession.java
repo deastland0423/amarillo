@@ -2659,6 +2659,7 @@ public class GameSession {
         String kind = o.getKind() == null ? "" : o.getKind().toUpperCase();
         switch (kind) {
             case "PLASMA":
+            case "PLASMA_RACK":
             case "DRONE":
                 return 6;                 // 6B6 Seeking Weapons Stage
             case "SHUTTLE":
@@ -2691,6 +2692,15 @@ public class GameSession {
                 r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
                 r.setPseudo(o.isPseudo());
                 r.setFastLoad(o.isFastLoad());
+                r.setFacing(o.getFacing());
+                break;
+            case "PLASMA_RACK":
+                // FP10.222: a seeking type-D out of a plasma rack. No pseudo (FP9.13) and no
+                // fast-load; what it carries instead is the MODE, which binds the rack for the
+                // turn and which the action refuses to default.
+                r.setType("LAUNCH_PLASMA_RACK");
+                r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
+                r.setPlasmaRackMode(o.getPlasmaRackMode());
                 r.setFacing(o.getFacing());
                 break;
             case "DRONE":

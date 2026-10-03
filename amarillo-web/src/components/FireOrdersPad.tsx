@@ -34,6 +34,13 @@ export interface FireCandidate {
   range:         number;
   adjustedRange: number;
   shieldNumber:  number;
+  /**
+   * The target's size class, which counts UP as a unit gets smaller - a shuttle is 6, a cruiser 3.
+   * Used to show why a plasma rack's defensive mode cannot engage a given target (FP10.212:
+   * "size-5 and smaller targets within an effective range of six hexes"). An affordance only;
+   * core refuses authoritatively.
+   */
+  sizeClass:     number;
   weaponsInArc:  string[];
   /**
    * Which of YOUR units this seeker is bearing down on, or null — inferred from its public
@@ -140,8 +147,14 @@ interface Sel {
   picked:   Set<string>;
   /** Weapon name -> shots this impulse, for weapons that may fire more than once. */
   shots:    Record<string, number>;
-  /** Weapon name -> SINGLE or DOUBLE, for a fighter's fusion. */
-  modes:    Record<string, 'SINGLE' | 'DOUBLE'>;
+  /**
+   * Weapon name -> the mode it fires in, for the two weapons that have one.
+   *
+   * SINGLE/DOUBLE is a fighter's fusion; OFFENSIVE/DEFENSIVE is a plasma rack (FP10.21). One
+   * record because they share one wire field, `shotModes`, which the server already dispatches
+   * by weapon type - a second map would have to be merged back into it anyway.
+   */
+  modes:    Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE'>;
   useUim:   boolean;
   /** A Hellbore firing in direct-fire mode: half damage, the facing shield (E10.7). */
   hellbore: boolean;
@@ -149,7 +162,7 @@ interface Sel {
 
 const EMPTY_PICK:  Set<string> = new Set();
 const EMPTY_SHOTS: Record<string, number> = {};
-const EMPTY_MODES: Record<string, 'SINGLE' | 'DOUBLE'> = {};
+const EMPTY_MODES: Record<string, 'SINGLE' | 'DOUBLE' | 'OFFENSIVE' | 'DEFENSIVE'> = {};
 const EMPTY_SEL: Sel = {
   attacker: null, target: null, picked: EMPTY_PICK,
   shots: EMPTY_SHOTS, modes: EMPTY_MODES, useUim: false, hellbore: false,
@@ -257,8 +270,10 @@ const ROW: React.CSSProperties = {
  * from the volley estimate.
  */
 function previewFor(w: WeaponState, range: number, adjustedRange: number) {
-  return w.launcherType
-    ? getPlasmaBoltPreview(w.plasmaType, range)
+  return w.plasmaRack
+    ? getPlasmaBoltPreview('D', range, adjustedRange)
+    : w.launcherType
+    ? getPlasmaBoltPreview(w.plasmaType, range, adjustedRange)
     : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, true);
 }
 
@@ -438,8 +453,25 @@ export default function FireOrdersPad({
     return Math.min(shots[w.name] ?? 1, left);
   }
 
+  /**
+   * Racks in this order that still need a mode (FP10.21).
+   * <p>
+   * The order is held back rather than sent to be refused: the server does refuse it by name,
+   * but a fire order is a committed thing and finding out afterwards is worse than not being
+   * able to add it. A rack already committed this turn needs nothing - its mode cannot change.
+   */
+  const racksNeedingMode = attacker
+    ? [...picked].filter(name => {
+        const w = attacker.weapons.find(x => x.name === name);
+        return w?.plasmaRack
+            && (!w.plasmaRackMode || w.plasmaRackMode === 'UNDECIDED')
+            && !modes[name];
+      })
+    : [];
+
   function addOrder() {
     if (!attacker || !target || picked.size === 0) return;
+    if (racksNeedingMode.length > 0) return;
     // A weapon firing more than once appears once per shot: the wire format counts shots by
     // repetition, which is how the sidebar has always sent them.
     const names = [...picked].flatMap(name => {
@@ -447,11 +479,20 @@ export default function FireOrdersPad({
       return w ? Array(shotsFor(w)).fill(name) as string[] : [name];
     });
     const shotModes: Record<string, string> = {};
-    for (const name of picked)
+    for (const name of picked) {
+      const w = attacker.weapons.find(x => x.name === name);
       // != null, not !== undefined: a field the server has nothing to say about arrives as
       // JSON null, not as an absent key, and null !== undefined is true.
-      if (attacker.weapons.find(x => x.name === name)?.chargesRemaining != null)
+      if (w?.chargesRemaining != null)
         shotModes[name] = modes[name] ?? 'SINGLE';
+      // FP10.21: a plasma rack's mode, and deliberately NO default. Firing is the declaration
+      // and it binds the rack for the turn, so picking for the player would spend one of the
+      // ship's two offensive places (FP10.242) or quietly give up the other mode's reach. An
+      // unchosen rack sends nothing and the server refuses it by name - but addOrder is
+      // disabled before that can happen, so the refusal is a backstop rather than the path.
+      if (w?.plasmaRack && modes[name])
+        shotModes[name] = modes[name];
+    }
 
     onAddOrder({
       label: `${attacker.name} → ${target.name} (${names.length} wpn)`,
@@ -726,6 +767,23 @@ export default function FireOrdersPad({
                         {(w.addReloads ?? 0) > 0 ? ` (+${w.addReloads})` : ''}
                       </span>
                     )}
+                    {/* A plasma rack's load (FP10.1): torpedoes aboard, how many are paid for
+                        under FP9.22, and reload sets (FP10.312). An unactivated torpedo cannot
+                        be launched at all, so the active count is the number that matters and is
+                        shown first when it differs. */}
+                    {w?.plasmaRack && w.plasmaRackTorpedoes != null && (
+                      <span style={{ color: '#86efac', fontSize: '0.9em', whiteSpace: 'nowrap' }}
+                            title={'type-D torpedoes aboard / rack capacity'
+                                 + ' — activated shown first (FP9.22)'
+                                 + (w.plasmaRackBoltUsed ? '. Bolt spent this turn (FP10.221)' : '')}>
+                        {w.plasmaRackActive != null && w.plasmaRackActive !== w.plasmaRackTorpedoes
+                          ? `${w.plasmaRackActive}✓/${w.plasmaRackTorpedoes}`
+                          : `${w.plasmaRackTorpedoes}`}
+                        /{w.plasmaRackCapacity ?? 4}
+                        {(w.plasmaRackReloadSets ?? 0) > 0 ? ` (+${w.plasmaRackReloadSets})` : ''}
+                        {w.plasmaRackBoltUsed ? ' •bolt used' : ''}
+                      </span>
+                    )}
                     <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
                       {unavailable ?? ''}
                     </span>
@@ -769,6 +827,51 @@ export default function FireOrdersPad({
                       </span>
                     )}
 
+                    {/* FP10.21: a plasma rack bolts in OFFENSIVE or DEFENSIVE mode, and the
+                        player must say which - firing IS the declaration and it binds the rack
+                        for the rest of the turn. Neither button starts selected on purpose: a
+                        default would spend one of the ship's two offensive places (FP10.242) or
+                        silently give up the other mode's reach, which is exactly the bug that
+                        let a rack bolt a cruiser defensively.
+
+                        A rack that has already fired this turn shows its committed mode instead,
+                        because FP10.21 does not let it change until the next. */}
+                    {w && picked.has(name) && w.plasmaRack && (
+                      <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}
+                            onClick={e => e.preventDefault()}>
+                        {w.plasmaRackMode && w.plasmaRackMode !== 'UNDECIDED' ? (
+                          <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>
+                            {w.plasmaRackMode === 'OFFENSIVE' ? 'offensive' : 'defensive'}
+                            {' '}(committed)
+                          </span>
+                        ) : (['OFFENSIVE', 'DEFENSIVE'] as const).map(m => {
+                          // FP10.212: defensive mode reaches "size-5 and smaller targets within
+                          // an effective range of six hexes". Size class counts UP as a unit
+                          // shrinks, so a cruiser at 3 is out of reach of it. Mirrored here as
+                          // an affordance; core is what actually refuses.
+                          const tooBig = m === 'DEFENSIVE' && target.sizeClass < 5;
+                          const tooFar = m === 'DEFENSIVE' && target.range > 6;
+                          return (
+                            <button
+                              key={m}
+                              className={modes[name] === m ? '' : 'secondary'}
+                              style={{ padding: '0 5px', fontSize: '0.72rem' }}
+                              disabled={tooBig || tooFar}
+                              title={tooBig ? 'Defensive mode engages size-5 and smaller (FP10.212)'
+                                   : tooFar ? 'Defensive mode reaches six hexes (FP10.212)'
+                                   : m === 'OFFENSIVE'
+                                     ? 'One torpedo a turn, any target (FP10.211)'
+                                     : 'One per impulse, small targets inside six hexes (FP10.212)'}
+                              onClick={e => { e.preventDefault();
+                                amend({ modes: { ...modes, [name]: m } }); }}
+                            >
+                              {m === 'OFFENSIVE' ? 'Off' : 'Def'}
+                            </button>
+                          );
+                        })}
+                      </span>
+                    )}
+
                     {/* The whole table, die by die — a single "up to N" was a worse
                         summary of it than the thing itself. */}
                     {hoveredWeapon === name && w && (
@@ -797,11 +900,18 @@ export default function FireOrdersPad({
                 </label>
               )}
               <button
-                disabled={picked.size === 0}
+                disabled={picked.size === 0 || racksNeedingMode.length > 0}
                 style={{ marginTop: 4 }}
                 onClick={addOrder}
+                title={racksNeedingMode.length > 0
+                  ? `Choose offensive or defensive for ${racksNeedingMode.join(', ')} (FP10.21)`
+                  : undefined}
               >
                 {(() => {
+                  if (racksNeedingMode.length > 0)
+                    return racksNeedingMode.length === 1
+                      ? `Choose a mode for ${racksNeedingMode[0]}`
+                      : `Choose a mode for ${racksNeedingMode.length} plasma racks`;
                   const total = [...picked].reduce((sum, n) => {
                     const w = attacker.weapons.find(x => x.name === n);
                     return sum + (w ? shotsFor(w) : 1);

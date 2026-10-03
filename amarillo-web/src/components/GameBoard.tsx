@@ -2869,6 +2869,9 @@ export default function GameBoard({ session, onLeave }: Props) {
         weaponName: o.weaponName, droneIndex: o.droneIndex ?? 0,
         pseudo: o.pseudo ?? false, fastLoad: o.fastLoad ?? false,
         facing: o.facing ?? 0, shuttleName: o.shuttleName, speed: o.speed ?? 0,
+        // FP10.21: a plasma rack's mode travels with the sealed order, because firing IS the
+        // declaration and it binds the rack for the turn.
+        plasmaRackMode: o.plasmaRackMode,
       })),
     });
     if (!res.success) {

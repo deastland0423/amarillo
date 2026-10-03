@@ -120,13 +120,29 @@ function plasmaStrengthAtRange(plasmaType: string | null, range: number): number
   return table[r];
 }
 
-/** Preview for a plasma bolt at a given range. plasmaType = "F" | "G" | "S" | "R" | "D". */
-export function getPlasmaBoltPreview(plasmaType: string | null, range: number): DmgRow[] {
-  if (range >= PLASMA_BOLT_HIT_CHART.length)
+/**
+ * Preview for a plasma bolt. plasmaType = "F" | "G" | "S" | "R" | "D".
+ *
+ * TWO ranges, because the rules use two: FP8.42 bases the to-hit on the EFFECTIVE range while
+ * FP8.43 bases the damage on the TRUE range ("one-half of the warhead strength of the
+ * corresponding plasma torpedo... at the true range to the target"). A scanner makes a bolt
+ * harder to land, not weaker when it lands.
+ *
+ * This took one range for both and used it for each, so with a scanner in play the preview showed
+ * a BETTER chance of hitting than the shot actually had - the mirror image of the bug the Java
+ * launcher had, which read damage off the adjusted range. Both are now the same split.
+ * `adjustedRange` defaults to `range` for callers with no scanner to apply.
+ */
+export function getPlasmaBoltPreview(
+  plasmaType: string | null,
+  range: number,
+  adjustedRange: number = range,
+): DmgRow[] {
+  if (adjustedRange >= PLASMA_BOLT_HIT_CHART.length)
     return [{ roll: '1–6', damage: 0 }];
   const strength  = plasmaStrengthAtRange(plasmaType, range);
   const boltDmg   = Math.floor(strength / 2);
-  const hitOn     = PLASMA_BOLT_HIT_CHART[range];
+  const hitOn     = PLASMA_BOLT_HIT_CHART[adjustedRange];
   return hitOrMissPreview(hitOn, boltDmg);
 }
 

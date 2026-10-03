@@ -19,13 +19,20 @@ export default function WeaponDamageTooltip({
   adjustedRange: number;
   directFire:    boolean;
 }) {
-  const rows = w.launcherType
-    ? getPlasmaBoltPreview(w.plasmaType, range)
+  // A plasma rack bolts a type-D (FP10.221), so it previews as a plasma bolt even though it is
+  // no launcher - plasmaRack rather than launcherType, which the rack deliberately does not set
+  // because the EA dialog keys hold and arming controls off that field and a rack has neither.
+  const rows = w.plasmaRack
+    ? getPlasmaBoltPreview('D', range, adjustedRange)
+    : w.launcherType
+    ? getPlasmaBoltPreview(w.plasmaType, range, adjustedRange)
     : getWeaponDamagePreview(w.name, w.armingType, range, adjustedRange, directFire);
   if (!rows) return null;
 
   const isRollTable = rows.length === 6;
-  const label       = w.launcherType
+  const label       = w.plasmaRack
+    ? ' — type-D bolt'
+    : w.launcherType
     ? ` — ${w.plasmaType ?? w.launcherType} bolt`
     : w.armingType && w.armingType !== 'STANDARD'
       ? ` (${w.armingType.toLowerCase()})`
