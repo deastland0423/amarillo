@@ -160,23 +160,28 @@ public class ShuttleBay {
     }
 
     /**
-     * J4.62/J4.621: boxes in this bay that have a ready rack while carrying no fighter of their
-     * own - the casual carrier's case, which is "most carrier escorts, the Hydran Pegasus and
-     * Gendarme, and many WYN ships".
+     * J4.62/J4.621: boxes in this bay that can SERVICE a fighter while carrying none of their own -
+     * the casual carrier's case, "most carrier escorts, the Hydran Pegasus and Gendarme, and many
+     * WYN ships".
      * <p>
-     * Held as a COUNT until the scenario year is known, because J4.621 makes the carrier's
-     * fighters decide what the racks serve and nothing at construction time knows the year. The
-     * racks themselves are fitted by {@code FighterComplement.reseat}, beside the re-seating it
-     * already does for the same reason.
+     * J4.8's term: "only one with 'appropriate facilities' can service that fighter". Which fitting
+     * a box actually gets - ready rack, photon freezer, plasma-F stasis box, fusion or hellbore
+     * store (J4.73) - depends on the fighter it serves and is decided when the facilities are
+     * fitted, not here.
+     * <p>
+     * Held as a COUNT until the scenario year is known, because J4.621 makes the carrier's fighters
+     * decide what they service and nothing at construction time knows the year. The fitting happens
+     * in {@code FighterComplement.reseat}, beside the re-seating it already does for the same
+     * reason.
      */
-    private int readyRackBoxes;
+    private int fighterServiceFacilities;
 
-    public int getReadyRackBoxes() {
-        return readyRackBoxes;
+    public int getFighterServiceFacilities() {
+        return fighterServiceFacilities;
     }
 
-    public void setReadyRackBoxes(int boxes) {
-        this.readyRackBoxes = Math.max(0, boxes);
+    public void setFighterServiceFacilities(int boxes) {
+        this.fighterServiceFacilities = Math.max(0, boxes);
     }
 
     /** True if this bay has a balcony at all. */

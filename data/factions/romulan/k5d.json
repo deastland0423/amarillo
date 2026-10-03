@@ -55,7 +55,7 @@
   "carrierClass": "CASUAL",
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"], "readyRacks": 2,
+    { "shuttles": ["admin", "admin"], "fighterServiceFacilities": 2,
       "fighters": { "line": "romulan-gladiator" } }
   ],
 

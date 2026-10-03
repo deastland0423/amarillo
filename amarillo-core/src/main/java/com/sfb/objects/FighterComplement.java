@@ -295,7 +295,7 @@ public final class FighterComplement {
             // which would otherwise tell the player every scenario that a line he never asked to
             // seat has nothing available.
             if (complement.total() == 0) {
-                equipReadyRacks(bay, complement, year, ship.getReadyRackFighterType());
+                equipFighterServiceFacilities(bay, complement, year, ship.getFighterServiceType());
                 continue;
             }
             if (complement.typesFor(year).isEmpty()) {
@@ -332,9 +332,9 @@ public final class FighterComplement {
      * rules do not say; what matters is that a rack lives in a box, so it is destroyed with the
      * box (J4.831) exactly as a carrier's is.
      */
-    static void equipReadyRacks(com.sfb.systemgroups.ShuttleBay bay, FighterComplement complement,
+    static void equipFighterServiceFacilities(com.sfb.systemgroups.ShuttleBay bay, FighterComplement complement,
             int year, String chosen) {
-        int boxes = bay.getReadyRackBoxes();
+        int boxes = bay.getFighterServiceFacilities();
         if (boxes <= 0)
             return;
         ShuttleCatalog.LineEra era = ShuttleCatalog.eraFor(complement.getLine(), year);

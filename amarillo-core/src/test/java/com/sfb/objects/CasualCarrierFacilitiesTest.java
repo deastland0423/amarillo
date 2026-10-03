@@ -14,7 +14,7 @@ import com.sfb.systemgroups.ShuttleBay;
 import com.sfb.systemgroups.ShuttleSpace;
 
 /**
- * Ready racks on a ship that carries no fighters — the casual carrier (J4.62).
+ * Fighter service facilities on a ship that carries no fighters — the casual carrier (J4.62).
  *
  * <h2>What the rules say, and what had to change</h2>
  * J4.62: "Some ships have ready racks for fighters, and may even carry one or two, but are not
@@ -24,10 +24,10 @@ import com.sfb.systemgroups.ShuttleSpace;
  * <p>A rack used to be DERIVED FROM THE FIGHTER IN THE BOX, so a ship with no fighters could not
  * have one at all. Three pieces close that:
  * <ul>
- *   <li>the bay declares how many of its boxes have racks — a count of BOXES, because J4.822 puts
- *       a rack in a box and J4.831 destroys it with the box, so an escort's rack takes damage
- *       exactly as a carrier's does. G33.43 shows the numbers differ ("four shuttle boxes with two
- *       ready racks"), so it cannot be inferred;</li>
+ *   <li>the bay declares how many of its boxes can SERVICE a fighter — a count of BOXES, because
+ *       J4.822 puts the fitting in a box and J4.831 destroys it with the box, so an escort's
+ *       facilities take damage exactly as a carrier's do. G33.43 shows the numbers differ ("four
+ *       shuttle boxes with two ready racks"), so it cannot be inferred;</li>
  *   <li>the bay names a LINE and no counts, because J4.621 makes the carrier's fighters decide
  *       what the racks serve and a literal fighter type would be wrong in every year but one;</li>
  *   <li>the player picks the actual MODEL as a Commander's Option, which is sound there precisely
@@ -35,13 +35,15 @@ import com.sfb.systemgroups.ShuttleSpace;
  * </ul>
  *
  * <h2>Why it is FACILITIES and not just racks</h2>
- * A ready rack is one of four things a fighter box can hold. J4.73: "Federation ships have a
+ * J4.8 gives the general term and puts it in scare quotes itself: "Any ship can recover a fighter,
+ * but only one with 'appropriate facilities' can service that fighter." A ready rack is one of the
+ * four species. J4.73: "Federation ships have a
  * 'photon freezer' to supply photon torpedoes for their A-10 attack shuttles; Romulan, ISC, and
  * Gorn ships have stasis boxes to store extra plasma-F torpedoes. Hydran ships have facilities to
  * store charges for fusion beams and hellbores." Which one a box gets depends entirely on what its
  * fighter carries — so an escort supporting a plasma-F fighter needs a capacitor and has no rack.
  */
-public class CasualCarrierRacksTest {
+public class CasualCarrierFacilitiesTest {
 
     private ShipSpec k5dSpec;
 
@@ -56,7 +58,7 @@ public class CasualCarrierRacksTest {
     /** The K5D as a scenario would build it: a year, and optionally a chosen fighter model. */
     private Ship k5d(int year, String chosenModel) {
         Ship ship = ShipLibrary.createShip(k5dSpec);
-        ship.setReadyRackFighterType(chosenModel);
+        ship.setFighterServiceType(chosenModel);
         FighterComplement.reseat(ship, year);
         return ship;
     }
@@ -85,7 +87,7 @@ public class CasualCarrierRacksTest {
             assertFalse("no fighter aboard",
                     box.getShuttle() instanceof com.sfb.objects.shuttles.Fighter);
         assertEquals("two boxes declared with racks", 2,
-                ship.getShuttles().getBays().get(0).getReadyRackBoxes());
+                ship.getShuttles().getBays().get(0).getFighterServiceFacilities());
     }
 
     /** And it has the racks, which is the thing that was impossible before. */

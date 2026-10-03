@@ -313,22 +313,30 @@ public class ShipSpec {
          */
         public int          balconyPositions;
         /**
-         * J4.62/J4.621: how many of THIS bay's shuttle boxes have a ready rack, on a ship that
+         * J4.62/J4.621: how many of THIS bay's shuttle boxes can SERVICE a fighter, on a ship that
          * carries no fighters of its own - a "casual carrier", which J4.62 says is "most carrier
          * escorts, the Hydran Pegasus and Gendarme, and many WYN ships".
          * <p>
-         * A count of BOXES, not of free-floating racks, and that is the point: J4.822 puts a rack
-         * in a shuttle box and J4.831 destroys it with the box, so an escort's rack takes damage
-         * exactly as a carrier's does. G33.43 shows the two numbers differ - an escort with "four
-         * shuttle boxes with two ready racks" - so this cannot be inferred from the box count.
+         * Named for J4.8's own general term rather than for any one fitting: "Any ship can recover
+         * a fighter, but only one with 'appropriate facilities' can service that fighter." A ready
+         * rack is only ONE of the four species J4.73 lists - photon freezer, plasma-F stasis box,
+         * fusion and hellbore stores are the others - and which one a box gets depends on the
+         * fighter it serves, so a Hydran escort declaring this gets fusion capacitors and no rack
+         * at all. Calling the field {@code readyRacks} made that read as a contradiction.
          * <p>
-         * What the racks SERVE is not declared here. J4.621: "the fighters on the carrier will
+         * A count of BOXES, and that is the point: J4.822 puts the fitting in a shuttle box and
+         * J4.831 destroys it with the box, so an escort's facilities take damage exactly as a
+         * carrier's do and need no separate answer on the DAC. G33.43 shows the two numbers differ
+         * - an escort with "four shuttle boxes with two ready racks" - so this cannot be inferred
+         * from the box count.
+         * <p>
+         * What they SERVICE is not declared here. J4.621: "the fighters on the carrier will
          * determine what type of ready racks are on the escort", so the bay names a {@code
-         * fighters} LINE with no counts, the player picks a role as a Commander's Option, and the
-         * scenario year resolves the pair to a type. Naming a fighter type here would be wrong in
-         * every year but one.
+         * fighters} LINE with no counts, the player picks the actual model as a Commander's Option,
+         * and the scenario year resolves it. Naming a fighter type HERE would be wrong in every
+         * year but one; naming it in a COI choice is right, because the year is settled by then.
          */
-        public int          readyRacks;
+        public int          fighterServiceFacilities;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -556,7 +564,7 @@ public class ShipSpec {
                 // A role-based complement forces the object form, since the plain list has
                 // nowhere to carry it.
                 if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null
-                        || bay.balconyPositions > 0 || bay.readyRacks > 0) {
+                        || bay.balconyPositions > 0 || bay.fighterServiceFacilities > 0) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
                     if (bay.launchTubes > 0)
@@ -568,8 +576,8 @@ public class ShipSpec {
                     if (bay.balconyPositions > 0)
                         bayMap.put("balconyPositions", bay.balconyPositions);
                     // J4.62: a casual carrier's racks, which likewise force the object form.
-                    if (bay.readyRacks > 0)
-                        bayMap.put("readyRacks", bay.readyRacks);
+                    if (bay.fighterServiceFacilities > 0)
+                        bayMap.put("fighterServiceFacilities", bay.fighterServiceFacilities);
                     if (bay.fighters != null) {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);
