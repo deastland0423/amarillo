@@ -226,6 +226,39 @@ public class ShuttleSpace {
         }
     }
 
+    /**
+     * Seat {@code fighter} and re-derive this box's equipment from scratch, as though no
+     * fighter had ever sat here. SETUP ONLY — see the warning below.
+     * <p>
+     * {@link #setShuttle} deliberately learns the capacitor and ready rack from the FIRST
+     * occupant and keeps them: the SSD marks the box, not the craft, so a Stinger that
+     * launches must leave its charges behind rather than take them with it. That is right
+     * during play and wrong at setup, because {@code FighterComplement.reseat} changes which
+     * fighter a box holds — and a box that keeps the old fighter's fittings then services the
+     * new one by the wrong rule.
+     * <p>
+     * It was wrong on 393 boxes across fifteen hulls and five factions. A Kzinti CV reseated
+     * to Y180 flies TADS with six rails apiece and kept the AAS's two-drone rack, so it
+     * reloaded a third of a squadron; a Federation CVA reseated back to Y167 kept the A-10's
+     * PHOTON capacitor under an F-4 that has no photon; a Hydran RN+ box that should bank
+     * eight points of fusion charge (J4.831) banked one, because a hellbore Stinger had sat
+     * there first. Every one of them looked like a working carrier.
+     * <p>
+     * <b>Never call this during play.</b> A fighter landing in a box goes through
+     * {@link #setShuttle}, and re-deriving there would hand it a full capacitor and a full
+     * rack for free — J4.886's opening stock, granted mid-scenario, every time anything landed.
+     */
+    public void reequipFor(Shuttle fighter) {
+        if (destroyed)
+            return;
+        capacitorCapacity = -1;          // the sentinels setShuttle reads, back to "never seated"
+        capacitorCharges = -1;
+        capacitorKind = CapacitorKind.NONE;
+        capacitorEnergyBanked = 0;
+        readyRack = null;
+        setShuttle(fighter);
+    }
+
     public DroneRack getDroneRack() { return droneRack; }
     public void setDroneRack(DroneRack droneRack) { this.droneRack = droneRack; }
 

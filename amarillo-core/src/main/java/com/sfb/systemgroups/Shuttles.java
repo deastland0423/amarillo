@@ -302,6 +302,31 @@ public class Shuttles implements Systems {
     }
 
     /**
+     * Re-stock the hold for the fighters the ship is NOW carrying. SETUP ONLY, after a
+     * {@code FighterComplement.reseat}.
+     * <p>
+     * {@link #stockDroneStore} runs once, while the ship is built, and J4.72 makes the figure
+     * it computes depend on what is already forward in the ready racks. Re-seating a bay for a
+     * later era changes that, so the hold has to be worked out again — in BOTH directions:
+     * <ul>
+     *   <li>a Romulan KRV reseated to Y183 flies G-Ds with four rails apiece where the G-F had
+     *       two, so twenty spaces sit forward against the ten the hold was sized for: seventy
+     *       spaces of torpedoes in a sixty-space ship,</li>
+     *   <li>and a Warhawk, whose Y165 Gladiator-1s carry a plasma-F and no rails at all, held
+     *       NOTHING — there were no rails to stock for when it was built. Reseated to Y183 its
+     *       G-3Ks have two rails each and fifty declared spaces of empty hold, so they fired
+     *       the two torpedoes in the box and could never reload.</li>
+     * </ul>
+     * Rebuilt rather than adjusted, because the hold's contents are derived from the racks'
+     * designs and the proportions change with the squadron.
+     */
+    public void restockDroneStore() {
+        if (droneStore == null)
+            return;
+        stockDroneStore(droneStore.capacitySpaces());
+    }
+
+    /**
      * What the ship's drone fighters are built around — one entry per rail, of what that rail
      * is designed to carry. The quartermaster's stocking list, and the proportions a mixed
      * squadron actually needs.

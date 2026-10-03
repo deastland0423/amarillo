@@ -241,7 +241,12 @@ public final class FighterComplement {
                     + ShuttleCatalog.displayNameOf(type) + "-" + n;
             Shuttle fighter = ShuttleBay.buildShuttle(type, name);
             if (i < freed.size())
-                freed.get(i).setShuttle(fighter);
+                // reequipFor, not setShuttle: the box must re-derive its capacitor and ready
+                // rack for the fighter it is actually holding now. setShuttle keeps what the
+                // FIRST occupant taught it, which is right in play and wrong here — a bay
+                // re-seated for a later era otherwise services the new squadron with the old
+                // one's fittings.
+                freed.get(i).reequipFor(fighter);
             else
                 bay.addShuttle(fighter, 0);   // more fighters than spaces: widen the bay
             i++;
@@ -293,6 +298,11 @@ public final class FighterComplement {
             }
             complement.applyTo(bay, year, "", typeCount);
         }
+        // The hold is sized against what the ready racks hold (J4.72), and re-seating just
+        // changed that. Once, after every bay, rather than per bay: the figure is a property
+        // of the whole ship, so computing it while half the bays still hold the old era's
+        // fighters would bank the wrong total.
+        ship.getShuttles().restockDroneStore();
         return notes;
     }
 
