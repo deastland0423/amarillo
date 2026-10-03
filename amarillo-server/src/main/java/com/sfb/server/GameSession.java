@@ -2069,6 +2069,40 @@ public class GameSession {
                 return r;
             }
 
+            case "LAUNCH_FIGHTER_PLASMA": {
+                // A plasma-D leaves a RAIL, so this looks like LAUNCH_DRONE rather than the
+                // ship's plasma action - but it is its own action because FP9.22 gates it on
+                // activation energy and the payload is a torpedo, not a drone.
+                com.sfb.objects.shuttles.Shuttle pdCraft =
+                        findLaunchedShuttle(request.getShipName());
+                if (!(pdCraft instanceof com.sfb.objects.shuttles.Fighter pdFighter))
+                    return ActionResult.fail("Fighter not found on the map: "
+                            + request.getShipName());
+                Unit pdTarget = findUnit(request.getTargetName());
+                if (pdTarget == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                String pdRailName = request.getWeaponNames() != null
+                        && !request.getWeaponNames().isEmpty()
+                        ? request.getWeaponNames().get(0) : null;
+                com.sfb.weapons.DroneRail pdRail = null;
+                for (com.sfb.weapons.Weapon w : pdFighter.getWeapons().fetchAllWeapons())
+                    if (w instanceof com.sfb.weapons.DroneRail dr && dr.isPlasmaD()
+                            && (pdRailName == null || w.getName().equalsIgnoreCase(pdRailName))
+                            && dr.isLoaded() && pdRail == null)
+                        pdRail = dr;
+                // Deliberately LOADED rather than canLaunchTorpedo: an unactivated torpedo
+                // should earn FP9.22's refusal from core, naming the rule, rather than the
+                // bare "no loaded rail" a stricter lookup here would give.
+                if (pdRail == null)
+                    return ActionResult.fail(pdFighter.getName() + " has no loaded plasma-D rail"
+                            + (pdRailName == null ? "" : " called " + pdRailName));
+                ActionResult pdRes = game.launchFighterPlasmaD(
+                        pdFighter, pdTarget, pdRail, request.getFacing());
+                if (pdRes.isSuccess())
+                    appendCombatLog(pdFighter.getName() + " launched a plasma torpedo");
+                return pdRes;
+            }
+
             case "LAUNCH_DRONE": {
                 // A fighter launches from its own rail, and by different rules: one drone a
                 // turn (J4.431), its own lock-on, and the half-turn wait since it launched

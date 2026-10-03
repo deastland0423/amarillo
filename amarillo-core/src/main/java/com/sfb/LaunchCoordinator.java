@@ -499,6 +499,105 @@ class LaunchCoordinator {
     }
 
     /**
+     * Launch a type-D plasma torpedo from a fighter's rail (FP9.2).
+     * <p>
+     * A sibling of {@link #launchFighterDrone}, not of {@link #launchPlasma}, and the split is
+     * the point: the MOUNT is a rail, so the fighter-side conditions are a drone launch's -
+     * crippled, tractored, the half-turn after its own launch - while what leaves the rail is a
+     * seeking plasma torpedo and is placed exactly as a ship's is.
+     *
+     * <h2>What it checks that a drone launch does not</h2>
+     * FP9.22's gate: "The weapon cannot be launched until it has been activated." A torpedo
+     * sitting on the rail unpaid-for is refused here rather than silently flying.
+     *
+     * <h2>What it does NOT check, and why</h2>
+     * J4.24's drone firing rate - one a turn, two only under J4.241's conditions - is a rule
+     * about DRONES, and a plasma-D is not one. J4.825 shares the drone rules for "rearming and
+     * storage" only, and Annex #4 lists Pl-Ds in the drone column by its own admission "to
+     * avoid confusing them with the plasma-Fs", which is a presentation choice rather than a
+     * rule. No rule in FP9.2, FP9.3 or FP10.3 gives a fighter's plasma-Ds a rate of their own.
+     * <p>
+     * So a G-F may send both torpedoes in one impulse. J1.341's half-turn after the fighter's
+     * own launch still bites, and that is the only spacing there is. Flagged rather than
+     * assumed: if a rate does apply, it belongs beside the J4.242 flags where the other
+     * per-fighter launch limits live.
+     * <p>
+     * Nor a lock-on (D6.121), nor control capacity (J4.25), matching {@link #launchPlasma}: a
+     * plasma torpedo finds its own way once launched, where a drone must be guided.
+     */
+    public ActionResult launchFighterPlasmaD(com.sfb.objects.shuttles.Fighter fighter,
+            Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        ActionResult emBlock = emLaunchBlock(fighter, "a plasma torpedo");
+        if (emBlock != null)
+            return emBlock;
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        if (target == null)
+            return ActionResult.fail("No target");
+        if (fighter.isCrippled())
+            return ActionResult.fail(fighter.getName()
+                    + " is crippled - external weapons are dropped (J1.332)");
+        if (fighter.isTractored())
+            return ActionResult.fail(fighter.getName() + " is held in a tractor beam and"
+                    + " cannot launch seeking weapons (J1.6202)");
+        int wait = fighter.impulsesUntilSeekers(game.getAbsoluteImpulse());
+        if (wait > 0)
+            return ActionResult.fail(fighter.getName() + " cannot launch seeking weapons for "
+                    + wait + " more impulse" + (wait == 1 ? "" : "s")
+                    + " - half a turn since launch (J1.341)");
+
+        if (rail == null || !rail.isFunctional())
+            return ActionResult.fail("That rail is destroyed");
+        if (!rail.isPlasmaD())
+            return ActionResult.fail(rail.getName() + " is a drone rail, not a plasma-D rail");
+        if (!rail.isLoaded())
+            return ActionResult.fail(rail.getName() + " is empty");
+        if (!rail.canLaunchTorpedo())
+            return ActionResult.fail(rail.getName() + "'s torpedo has not been activated"
+                    + " - half an energy point, and it cannot be launched without it (FP9.22)");
+
+        int torpFacing = launchFacingFor(fighter, target, facing);
+        if (torpFacing == 0 && facing > 0)
+            return badFacing(facing);
+        ActionResult torpArc = seekerArcBlock(fighter, target, torpFacing, rail.getName());
+        if (torpArc != null)
+            return torpArc;
+
+        PlasmaTorpedo torpedo = rail.removeTorpedo();
+        torpedo.setName(fighter.getName() + "-Plasma-" + game.nextSeekerSeq());
+        torpedo.setLocation(fighter.getLocation());
+        torpedo.setFacing(torpFacing);
+
+        // J3.201: a target with an active weasel up takes the torpedo onto the decoy instead.
+        Unit torpTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                torpTarget = ww;
+        }
+        torpedo.setTarget(torpTarget);
+        torpedo.setController(fighter);
+        torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        if (torpTarget instanceof Ship) {
+            com.sfb.systemgroups.CloakingDevice targetCloak =
+                    ((Ship) torpTarget).getCloakingDevice();
+            if (targetCloak != null && targetCloak.breaksLockOn())
+                torpedo.setCloakLockRetained(true);
+        }
+        seekers.add(torpedo);
+        // No lock-on sweep and no scout blinds, which the fighter DRONE launch also skips:
+        // checkLockOnsForNewUnit asks a SHIP what it can now see, and G24.1342 blinds a
+        // scout's own channels. A fighter has neither to offer.
+        List<String> lockLog = java.util.Collections.emptyList();
+        String msg = fighter.getName() + " launched plasma-" + torpedo.getPlasmaType()
+                + " at " + target.getName() + " (FP9.2)";
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
+    }
+
+    /**
      * Launch a plasma torpedo from the given launcher at the target.
      * The launcher must be armed. The torpedo is placed at the launcher's
      * location, faced toward the target, and added to the active seekers list.

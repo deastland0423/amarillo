@@ -3268,6 +3268,18 @@ public class Game {
         return launchCoordinator.launchFighterDrone(fighter, target, rail, facing);
     }
 
+    /**
+     * A fighter launches a type-D plasma torpedo from one of its rails (FP9.2).
+     * <p>
+     * Separate from the drone launch because the payload is a seeking plasma torpedo, and
+     * because FP9.22 will not let it go until the half point of activation energy has been
+     * paid. See {@link LaunchCoordinator#launchFighterPlasmaD}.
+     */
+    public ActionResult launchFighterPlasmaD(com.sfb.objects.shuttles.Fighter fighter,
+            Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterPlasmaD(fighter, target, rail, facing);
+    }
+
     /** Launch an armed plasma torpedo (FP1.0). */
     public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
         return launchCoordinator.launchPlasma(launcher, target, weapon, fastLoad, facing);
