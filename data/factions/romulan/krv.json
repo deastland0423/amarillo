@@ -75,6 +75,8 @@
     { "type": "Phaser3", "designator": "6", "arcs": ["R", "RR"] },
     { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
+    { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
   ]
 }

@@ -715,6 +715,16 @@ public class ScenarioLoader {
             }
         }
 
+        // FP10.312: "Along with the Y175 drone rack refits, each plasma rack has two sets of
+        // reloads; there is no extra cost for this." Universal like the ADD upgrade above and
+        // for the same reason - the rule is about the weapon, not the navy that mounts it - so
+        // it sits before the per-ship override and the faction defaults rather than inside
+        // them. A Gorn, ISC, Romulan or Orion rack (FP10.15) all get it.
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.PlasmaRack pr)
+                pr.applyY175Refit();
+        }
+
         // Explicit per-ship override list takes precedence over faction defaults
         if (shipSpec.y175Upgrades != null) {
             if (shipSpec.y175Upgrades.refitCost != 0) {

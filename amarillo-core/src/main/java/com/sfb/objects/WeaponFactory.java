@@ -118,6 +118,15 @@ public final class WeaponFactory {
                 rack.setAmmo(ammo);
                 return rack;
             }
+            case "PlasmaRack": {
+                // FP10.0, the ship-mounted type-D launcher. Capacity is fixed at four by
+                // FP10.14 and reload sets at one by FP10.312, so neither is read from data -
+                // a ship file cannot declare a bigger one because the rule forbids it.
+                com.sfb.weapons.PlasmaRack pr = new com.sfb.weapons.PlasmaRack();
+                pr.setArcs(arcMask);
+                pr.setDesignator(ws.designator);
+                return pr;
+            }
             case "PhaserG": {
                 PhaserG pg = new PhaserG();
                 pg.setArcs(arcMask);
