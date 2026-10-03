@@ -144,6 +144,19 @@ public class Shuttles implements Systems {
      * J4.463: how many EW fighters this carrier may field, from the complement it was
      * DESIGNED for — under eight, none at all; under sixteen, one; sixteen to
      * twenty-four, two; twenty-five or more, three.
+     * <p>
+     * <b>Deliberately not enforced, and not an oversight.</b> Nothing in production reads this;
+     * it is here to be asked, by a fleet validator or a COI screen, never to refuse a ship its
+     * own file declares. The owner's ruling (2026-10-03): the rulebook is full of hulls that are
+     * explicit exceptions, and not every SSD has been entered yet, so a ship that breaks the
+     * allowance must still be able to EXIST. A cap hard-wired here cannot be argued with by a
+     * ship file.
+     * <p>
+     * The half of J4.463 that IS enforced is the per-squadron one, in
+     * {@code Squadron.refusal} — a squadron may hold only one EW fighter — and that bites at
+     * runtime because it governs organisation rather than design. Every carrier in the data
+     * currently sits at or under its allowance anyway, the SSDs having already applied the rule,
+     * so enforcing it here would add only a way to be wrong.
      */
     public int allowedEwFighters() {
         int designed = designedFighterComplement;
