@@ -800,17 +800,37 @@ public class ScenarioLoader {
     /**
      * Apply weapon status initial conditions to a ship (S4.10–S4.13).
      */
+    /**
+     * FP10.25: how many of each plasma rack's torpedoes are active at this weapon status.
+     * <p>
+     * "Status 0: torpedoes inactive. Status 1: torpedoes inactive. Status II: one torpedo per
+     * rack is active. Status III: all torpedoes on racks are active."
+     * <p>
+     * Called on every branch including 0 and 1, where it happens to set nothing: a rack arrives
+     * full of torpedoes (J4.886) but with none ACTIVATED, so the constructor already agrees with
+     * the rule at those statuses. The call is there so the ladder is stated in one place and is
+     * total, rather than relying on a default matching a rule it does not cite - but it is not
+     * load-bearing today, and a mutation test removing it correctly fails nothing.
+     */
+    private static void applyPlasmaRackStatus(Ship ship, int weaponStatus) {
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.PlasmaRack rack)
+                rack.applyWeaponStatus(weaponStatus);
+    }
+
     static void applyWeaponStatus(Ship ship, int weaponStatus) {
         ship.setWeaponStatus(weaponStatus);
         switch (weaponStatus) {
             case 0:
                 // WS-0: phasers not energized — caps cannot hold energy yet
                 ship.setCapacitorsCharged(false);
+                applyPlasmaRackStatus(ship, weaponStatus);
                 break;
             case 1:
                 // WS-1: phasers energized, caps empty, fire control active
                 ship.setCapacitorsCharged(true);
                 ship.setActiveFireControl(true);
+                applyPlasmaRackStatus(ship, weaponStatus);
                 break;
             case 2:
             case 3:
@@ -832,6 +852,11 @@ public class ScenarioLoader {
                         ((com.sfb.weapons.ESG) w).setStoredEnergy(esgInitial);
                     }
                 }
+                // FP10.25: a plasma rack's torpedoes are ACTIVATED by weapon status, not armed -
+                // "Status II: one torpedo per rack is active. Status III: all torpedoes on racks
+                // are active." So this is not the all-but-final-arming-turn treatment the heavy
+                // weapons get below; the rack has no arming schedule to be partway through.
+                applyPlasmaRackStatus(ship, weaponStatus);
                 // WS-2: all-but-final arming turn completed (S4.12).
                 // armingTurn = totalArmingTurns - 1 for all eligible heavy weapons.
                 // Excludes Disruptors (always ready) and Fusion beams (not multi-turn).
