@@ -287,4 +287,70 @@ public class HeavyFighterCapacitorTest {
     public void theUnarmedEwFighterStillWantsNoCrew() {
         assertFalse(FighterArming.needsArming(fighter("g1_e", "G1E-1")));
     }
+
+    // ---------------------------------------------------------------- a real carrier
+
+    /**
+     * The whole chain on a real hull: ship file to seated squadron to armed torpedo.
+     * <p>
+     * Every test above builds a box by hand, which proves the rules and not the plumbing. The
+     * Romulan Warhawk is the first carrier to fly plasma fighters, and the step that was broken
+     * until J4.86 was implemented sits exactly here - between a ship file naming a fighter line
+     * and a box knowing what capacitor it has. A carrier whose boxes came out with
+     * {@code NONE} would pass every other test in this class.
+     */
+    @Test
+    public void theWarhawksSquadronArmsFromItsOwnBoxes() throws Exception {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.Ship wh = com.sfb.objects.ShipLibrary.createShip(
+                com.sfb.objects.ShipLibrary.get("Romulan", "WH"));
+        assertNotNull("fixture: the Warhawk should be in the library", wh);
+
+        int gladiators = 0;
+        for (ShuttleBay bay : wh.getShuttles().getBays())
+            for (ShuttleSpace box : bay.getSpaces()) {
+                com.sfb.objects.shuttles.Shuttle craft = box.getShuttle();
+                if (craft == null || !(craft instanceof Fighter))
+                    continue;
+                gladiators++;
+
+                assertEquals(craft.getName() + "'s box needs a storage facility (J4.862)",
+                        ShuttleSpace.CapacitorKind.PLASMA_F, box.getCapacitorKind());
+                assertEquals("holding one torpedo at scenario start (J4.886)",
+                        1, box.getCapacitorCharges());
+                assertTrue(craft.getName() + " is built empty, so a crew has work (J4.863)",
+                        FighterArming.needsArming(craft));
+
+                FighterArming.Load load = FighterArming.load(box, craft,
+                        FighterArming.HALF_ACTIONS_PER_ACTION);
+
+                assertEquals("one action apiece", FighterArming.HALF_ACTIONS_PER_ACTION,
+                        load.halfActionsUsed());
+                assertTrue(craft.getName() + " should be carrying a torpedo now",
+                        plasmaOf((Fighter) craft).isLoaded());
+                assertEquals("drawn from its own box", 0, box.getCapacitorCharges());
+            }
+
+        assertEquals("the Warhawk's five Gladiators", 5, gladiators);
+    }
+
+    /** Its admin shuttle shares the bay and must NOT acquire a storage facility (J4.862). */
+    @Test
+    public void theWarhawksAdminShuttleGetsNoStorageFacility() throws Exception {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("../data/factions");
+        com.sfb.objects.Ship wh = com.sfb.objects.ShipLibrary.createShip(
+                com.sfb.objects.ShipLibrary.get("Romulan", "WH"));
+
+        int admins = 0;
+        for (ShuttleBay bay : wh.getShuttles().getBays())
+            for (ShuttleSpace box : bay.getSpaces()) {
+                com.sfb.objects.shuttles.Shuttle craft = box.getShuttle();
+                if (craft == null || craft instanceof Fighter)
+                    continue;
+                admins++;
+                assertEquals(ShuttleSpace.CapacitorKind.NONE, box.getCapacitorKind());
+                assertEquals(0, box.capacitorCapacity());
+            }
+        assertEquals("one admin shuttle aboard", 1, admins);
+    }
 }
