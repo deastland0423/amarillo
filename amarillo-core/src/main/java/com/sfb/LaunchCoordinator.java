@@ -754,6 +754,129 @@ class LaunchCoordinator {
         return ActionResult.ok(msg);
     }
 
+    /**
+     * Launch a type-D torpedo from a plasma rack as a SEEKING weapon (FP10.0, FP10.222).
+     * <p>
+     * A sibling of {@link #launchPlasma}, and the differences are all the rack's: no arming to
+     * check (FP9.22's activation instead, which the rack enforces), no fast-load, no pseudo
+     * (FP9.13) - and a MODE, which the caller must name because choosing it is the player's
+     * decision and it binds for the rest of the turn (FP10.21).
+     *
+     * <h2>What the mode costs beyond the rack's own rules</h2>
+     * The rack itself knows its rates and its target restrictions. What it cannot know is
+     * FP10.242 - "a ship armed with plasma racks may not use more than two of those racks in
+     * offensive mode during a given turn" - because that is per FIRING SHIP and a rack cannot see
+     * its neighbours. So the ship is asked before the rack commits, and told afterwards.
+     *
+     * @param mode OFFENSIVE or DEFENSIVE; UNDECIDED is refused, since firing IS the declaration
+     */
+    public ActionResult launchPlasmaRack(Ship launcher, Unit target,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a plasma torpedo");
+        if (emBlock != null)
+            return emBlock;
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Plasma can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
+            return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses"
+                    + " (C6.5473)");
+        // G7.91: a tractored ship may only send plasma at the ship holding it.
+        if (launcher.isTractored() && target instanceof Ship
+                && target != launcher.getTractoringUnit())
+            return ActionResult.fail("Tractored ships may only fire plasma at the holding ship"
+                    + " (G7.91)");
+        if (rack == null)
+            return ActionResult.fail("No plasma rack specified");
+
+        // The rack's own rules: mode commitment, the two rates, activation, ammunition,
+        // reloading. All of FP10.21/FP10.211/FP10.212/FP10.23/FP9.22 in one answer.
+        String refusal = rack.launchRefusal(mode);
+        if (refusal != null)
+            return ActionResult.fail(refusal);
+
+        // FP10.12: "If fired as seeking weapons, they can engage any target in this arc." The
+        // rack's declared 180 degrees, with no narrowing - FP8.35 lists the rack as the exception
+        // to the swivel-launcher bolt arcs and FP10.12 says why.
+        int bearing = MapUtils.getBearing(launcher, target);
+        if (bearing > 0) {
+            int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
+            if (!ArcUtils.inArc(relBearing, rack.getArcs()))
+                return ActionResult.fail(rack.getName() + " cannot target " + target.getName()
+                        + " — outside the rack's arc");
+        }
+
+        // FP10.212's target restrictions, which are what defensive mode PAYS for its rate. Range
+        // is measured to the firing ship, as the rule states it.
+        int range = MapUtils.getRange(launcher.getLocation(), target.getLocation());
+        String targetRefusal = rack.targetRefusal(mode, target.getSizeClass(), range);
+        if (targetRefusal != null)
+            return ActionResult.fail(targetRefusal);
+
+        // FP10.242, which belongs to the ship. Asked BEFORE the rack commits, so a refusal does
+        // not leave a rack stuck in a mode it was not allowed to enter.
+        if (mode == com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE) {
+            String fireControl = launcher.plasmaRackOffensiveRefusal(
+                    game.getClock().getTurn(), rack.getDesignator());
+            if (fireControl != null)
+                return ActionResult.fail(fireControl);
+        }
+
+        int torpFacing = launchFacingFor(launcher, target, facing);
+        if (torpFacing == 0 && facing > 0)
+            return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
+                    + " may face (1, 5, 9, 13, 17, 21)");
+        ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, rack.getName());
+        if (torpArc != null)
+            return torpArc;
+
+        PlasmaTorpedo torpedo = rack.launch(mode);
+        if (torpedo == null)
+            return ActionResult.fail(rack.getName() + " failed to launch");
+        if (mode == com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE)
+            launcher.recordPlasmaRackOffensive(game.getClock().getTurn(), rack.getDesignator());
+
+        // J3.41: launching a seeking weapon voids the launcher's own weasel.
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        torpedo.setName(launcher.getName() + "-PlD-" + game.nextSeekerSeq());
+        torpedo.setLocation(launcher.getLocation());
+        torpedo.setFacing(torpFacing);
+        // J3.201: a target with a live weasel takes the torpedo onto the decoy instead.
+        Unit torpTarget = target;
+        if (target instanceof Ship) {
+            com.sfb.objects.shuttles.WildWeaselShuttle ww = ((Ship) target).getActiveWildWeasel();
+            if (ww != null && !ww.isPostExplosion())
+                torpTarget = ww;
+        }
+        torpedo.setTarget(torpTarget);
+        torpedo.setController(launcher);
+        torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
+        torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
+        if (torpTarget instanceof Ship) {
+            com.sfb.systemgroups.CloakingDevice targetCloak =
+                    ((Ship) torpTarget).getCloakingDevice();
+            if (targetCloak != null && targetCloak.breaksLockOn())
+                torpedo.setCloakLockRetained(true);
+        }
+        seekers.add(torpedo);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, torpedo);
+
+        // G24.1342: launching a plasma torpedo blinds one of the launcher's scout channels, and a
+        // rack's torpedo is a plasma torpedo - FP9.17, "it is identified as a plasma torpedo".
+        game.queueScoutBlinds(launcher, 1);
+        game.enterBlindChoiceIfPending();
+
+        String msg = launcher.getName() + " launched a plasma-D from " + rack.getName()
+                + " in " + mode.name().toLowerCase() + " mode at " + target.getName();
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
+    }
+
     public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
         ActionResult emBlock = emLaunchBlock(launcher, "a pseudo plasma torpedo");
         if (emBlock != null)

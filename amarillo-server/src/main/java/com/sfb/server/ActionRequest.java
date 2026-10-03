@@ -57,6 +57,14 @@ public class ActionRequest {
     private Map<String, Integer> fighterCapacitorsByBox;
     /** FP9.22: type-D activation energy, in half points - fractional, unlike every other line. */
     private double plasmaActivationEnergy;
+    /**
+     * FP10.21: which mode a plasma rack is being fired in - "OFFENSIVE" or "DEFENSIVE".
+     * <p>
+     * Named rather than inferred, because the choice is the player's and it binds the rack for the
+     * rest of the turn. A field of its own rather than reusing {@code action}, which already means
+     * something else on other requests.
+     */
+    private String plasmaRackMode;
     private Map<String, Integer> esgEnergy;             // ESG designator → energy allocated this turn (G23.21)
     private java.util.List<String> poweredChannels;     // scout channel designators to power this turn (G24.14)
     private int                 scoutEwPoints;          // ALLOCATE: EW points the scout generates to lend (G24.211)
@@ -151,6 +159,8 @@ public class ActionRequest {
     public boolean isCloakPaid()                   { return cloakPaid; }
     public void    setCloakPaid(boolean cloakPaid) { this.cloakPaid = cloakPaid; }
 
+    public String  getPlasmaRackMode()                        { return plasmaRackMode; }
+    public void    setPlasmaRackMode(String m)                { this.plasmaRackMode = m; }
     public double  getPlasmaActivationEnergy()                { return plasmaActivationEnergy; }
     public void    setPlasmaActivationEnergy(double e)        { this.plasmaActivationEnergy = e; }
     public Map<String, Integer> getFighterCapacitorsByBox()   { return fighterCapacitorsByBox; }

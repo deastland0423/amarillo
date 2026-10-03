@@ -2174,6 +2174,46 @@ public class GameSession {
                 return droneRes;
             }
 
+            case "LAUNCH_PLASMA_RACK": {
+                Ship attacker = findShip(request.getShipName());
+                if (attacker == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+                String rackName = request.getWeaponNames() != null
+                        && !request.getWeaponNames().isEmpty()
+                        ? request.getWeaponNames().get(0) : null;
+                if (rackName == null)
+                    return ActionResult.fail("No plasma rack specified");
+                com.sfb.weapons.PlasmaRack rack = attacker.getWeapons().fetchAllWeapons().stream()
+                        .filter(w -> w instanceof com.sfb.weapons.PlasmaRack
+                                && w.getName().equalsIgnoreCase(rackName))
+                        .map(w -> (com.sfb.weapons.PlasmaRack) w)
+                        .findFirst().orElse(null);
+                if (rack == null)
+                    return ActionResult.fail("Plasma rack not found: " + rackName);
+                // FP10.21: the mode is the player's declaration, so it is required rather than
+                // defaulted - picking for them would spend one of the ship's two offensive places
+                // under FP10.242, or give away the reach the other mode would have had.
+                com.sfb.weapons.PlasmaRack.RackMode mode;
+                try {
+                    mode = com.sfb.weapons.PlasmaRack.RackMode.valueOf(
+                            String.valueOf(request.getPlasmaRackMode()).toUpperCase());
+                } catch (IllegalArgumentException | NullPointerException e) {
+                    return ActionResult.fail("Specify offensive or defensive mode (FP10.21)");
+                }
+                if (mode == com.sfb.weapons.PlasmaRack.RackMode.UNDECIDED)
+                    return ActionResult.fail("Specify offensive or defensive mode (FP10.21)");
+                ActionResult rackRes = game.launchPlasmaRack(
+                        attacker, target, rack, mode, request.getFacing());
+                if (rackRes.isSuccess())
+                    // The MODE is not published: a seeking torpedo at a small target is legal in
+                    // either, so saying which would tell an opponent what the shot does not.
+                    appendCombatLog(attacker.getName() + " launched a plasma torpedo");
+                return rackRes;
+            }
+
             case "LAUNCH_PLASMA": {
                 Ship attacker = findShip(request.getShipName());
                 if (attacker == null)

@@ -3281,6 +3281,15 @@ public class Game {
     }
 
     /** Launch an armed plasma torpedo (FP1.0). */
+    /**
+     * Launch a type-D from a plasma rack as a seeking weapon (FP10.0). The MODE is the caller's to
+     * name: FP10.21 makes the first firing of a turn the declaration and it binds until the next.
+     */
+    public ActionResult launchPlasmaRack(Ship launcher, Unit target,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        return launchCoordinator.launchPlasmaRack(launcher, target, rack, mode, facing);
+    }
+
     public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
         return launchCoordinator.launchPlasma(launcher, target, weapon, fastLoad, facing);
     }
