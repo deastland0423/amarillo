@@ -40,7 +40,9 @@ import com.sfb.weapons.Weapon;
  *       action."</li>
  *   <li><b>J4.881</b>, which is what prices the plasma: "there is no difference whatsoever in
  *       arming the type-F plasma torpedo on a ship than in arming one to be held for use by a
- *       fighter."</li>
+ *       fighter." A ship's type-F is 1 + 1 + 3 over three turns, so the box's is too - derived
+ *       from {@code Constants.fArmingCost} rather than restated, since the rule says identical
+ *       rather than similar.</li>
  *   <li><b>J4.882</b> "The ship cannot reload the fighter directly, but must reload the storage
  *       capacitor." Two steps, always.</li>
  * </ul>
@@ -146,20 +148,53 @@ public class HeavyFighterCapacitorTest {
         assertEquals("two to go", 2, box.capacitorPowerWanted());
     }
 
-    /** J4.881 prices the plasma the same as a ship's: four points over two turns. */
+    /**
+     * J4.881 prices the plasma exactly as a ship's type-F: <b>1 + 1 + 3 over three turns</b>,
+     * five points in all (owner's correction, 2026-10-02).
+     * <p>
+     * The instalments are asserted one at a time, because the shape is the point and it is
+     * unlike every other capacitor in the game. {@code Constants.fArmingCost} is {1, 3, 0},
+     * which is NOT a per-turn schedule: the first figure is the per-turn rolling cost and the
+     * second the final burst. Reading it as "1 then 3 over two turns" is how this was first
+     * written wrong - four points in two turns, short on both counts - and a test that only
+     * checked the end state would have passed either way.
+     */
     @Test
-    public void thePlasmaStorageFacilityIsPricedLikeAShipsTypeF() {
+    public void thePlasmaStorageFacilityArmsOnePlusOnePlusThree() {
         Fighter g1 = fighter("g1", "G1-1");
         ShuttleSpace box = new ShuttleSpace(g1);
         box.setCapacitorCharges(0);
 
-        assertEquals(ShuttleSpace.POWER_PER_PLASMA_F_CHARGE, 4);
-        assertEquals("rate-limited, so it cannot fill in one turn", 2,
-                box.capacitorPowerWanted());
-        box.addCapacitorEnergy(2);
-        box.addCapacitorEnergy(2);
+        assertEquals("five points in all", 5, ShuttleSpace.POWER_PER_PLASMA_F_CHARGE);
 
-        assertEquals(1, box.getCapacitorCharges());
+        assertEquals("turn one: one point, the rolling cost", 1, box.capacitorPowerWanted());
+        box.addCapacitorEnergy(1);
+        assertEquals(0, box.getCapacitorCharges());
+
+        assertEquals("turn two: one more", 1, box.capacitorPowerWanted());
+        box.addCapacitorEnergy(1);
+        assertEquals(0, box.getCapacitorCharges());
+
+        assertEquals("turn three: the three-point burst", 3, box.capacitorPowerWanted());
+        box.addCapacitorEnergy(3);
+
+        assertEquals("armed on the third turn", 1, box.getCapacitorCharges());
+    }
+
+    /**
+     * And the rate refuses to be rushed. Offering the whole five points on turn one buys one
+     * point of it, which is what makes the three turns three turns.
+     */
+    @Test
+    public void thePlasmaFacilityCannotBeFilledInOneTurn() {
+        Fighter g1 = fighter("g1", "G1-1");
+        ShuttleSpace box = new ShuttleSpace(g1);
+        box.setCapacitorCharges(0);
+
+        box.addCapacitorEnergy(5);
+
+        assertEquals("only the rolling point was taken", 1, box.getCapacitorEnergyBanked());
+        assertEquals(0, box.getCapacitorCharges());
     }
 
     // ---------------------------------------------------------------- the crew moves it across

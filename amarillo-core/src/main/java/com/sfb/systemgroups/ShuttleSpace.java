@@ -67,23 +67,33 @@ public class ShuttleSpace {
     public static final int PLASMA_F_CAPACITOR = 1;
 
     /**
-     * Four points over two turns, at two a turn, for both.
-     * <p>
-     * J4.881 is the general rule: "The cost of arming a weapon to be held for later use by a
-     * fighter ... is the same as arming the same weapon on the ship ... there is no difference
-     * whatsoever in arming the type-F plasma torpedo on a ship than in arming one to be held
-     * for use by a fighter." J4.852 then says it again for the photon in as many words: "two
-     * points of warp power for two consecutive turns, but overloads are not allowed".
-     * <p>
-     * A ship's type-F arms 1 then 3 ({@code Constants.fArmingCost}) rather than 2 and 2. The
-     * TOTAL and the two-turn duration are the same, and those are the only parts of the
-     * schedule a storage facility's books can express - it is a freezer, not a launcher, with
-     * no rolling delay or overload state to misreport. Flattening the instalments is therefore
-     * a simplification nothing can observe, and it is noted here rather than hidden.
+     * J4.852, in as many words: "two points of warp power for two consecutive turns, but
+     * overloads are not allowed" - the same as a photon tube, so four points and two turns.
      */
     public static final int POWER_PER_PHOTON_CHARGE = 4;
-    public static final int POWER_PER_PLASMA_F_CHARGE = 4;
-    public static final int BIG_CAPACITOR_POWER_PER_TURN = 2;
+    public static final int PHOTON_POWER_PER_TURN = 2;
+
+    /**
+     * A type-F plasma torpedo: 1 + 1 + 3 over THREE turns, five points in all.
+     * <p>
+     * DERIVED from the ship's own figures rather than restated, because J4.881 does not say
+     * "similar to", it says identical: "there is no difference whatsoever in arming the type-F
+     * plasma torpedo on a ship than in arming one to be held for use by a fighter." So the
+     * numbers come from {@code Constants.fArmingCost} and the launcher's arming turns, and a
+     * change to the ship's plasma automatically reaches the fighter box.
+     * <p>
+     * {@code fArmingCost[0]} is the per-turn rolling cost and {@code fArmingCost[1]} the final
+     * burst, which is the part worth saying out loud: the array is NOT a per-turn schedule,
+     * and reading it as "1 then 3 over two turns" is how this constant was first written wrong
+     * in both total and duration (owner's correction, 2026-10-02).
+     */
+    private static final int PLASMA_F_ARMING_TURNS = 3;   // PlasmaLauncher.totalArmingTurns()
+    public static final int PLASMA_F_ROLLING_POWER_PER_TURN =
+            com.sfb.constants.Constants.fArmingCost[0];
+    public static final int PLASMA_F_FINAL_BURST =
+            com.sfb.constants.Constants.fArmingCost[1];
+    public static final int POWER_PER_PLASMA_F_CHARGE =
+            PLASMA_F_ROLLING_POWER_PER_TURN * (PLASMA_F_ARMING_TURNS - 1) + PLASMA_F_FINAL_BURST;
 
     /** The most a hellbore box will take in one turn, which is what makes it take two. */
     public static final int HELLBORE_POWER_PER_TURN = 2;
@@ -356,10 +366,17 @@ public class ShuttleSpace {
     private int maxCapacitorPowerPerTurn() {
         switch (capacitorKind) {
             case HELLBORE: return HELLBORE_POWER_PER_TURN;
-            // The rate is what makes a four-point charge take the two turns its rule gives it
-            // (J4.834, J4.852, and J4.881 for the plasma). Without it the box would fill in one.
-            case PHOTON:
-            case PLASMA_F: return BIG_CAPACITOR_POWER_PER_TURN;
+            // The rate is what makes a charge take the turns its rule gives it. Without one
+            // the box would fill the moment the energy existed (J4.834, J4.852).
+            case PHOTON:   return PHOTON_POWER_PER_TURN;
+            // The plasma's rate CHANGES partway, which no other capacitor's does: a type-F
+            // rolls at one point a turn and then takes a three-point burst to finish
+            // (Constants.fArmingCost). A single ceiling cannot express 1 + 1 + 3 - a cap of
+            // three would let it finish in two turns, and a cap of one would take five - so
+            // the ceiling is read off how much is already banked.
+            case PLASMA_F: return capacitorEnergyBanked
+                    < PLASMA_F_ROLLING_POWER_PER_TURN * (PLASMA_F_ARMING_TURNS - 1)
+                            ? PLASMA_F_ROLLING_POWER_PER_TURN : PLASMA_F_FINAL_BURST;
             default:       return Integer.MAX_VALUE;
         }
     }
