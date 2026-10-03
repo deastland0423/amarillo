@@ -129,6 +129,54 @@ class DamageResolver {
      *
      * @return log lines describing how damage was distributed.
      */
+    /**
+     * Why this plasma rack may not bolt this target, or null if it may (FP10.21, FP10.212,
+     * FP10.24).
+     * <p>
+     * Everything here needs the TARGET or the SHIP, which is why it cannot live on the rack.
+     * {@code PlasmaRack.bolt} already enforces the rack's own state — ammunition, activation,
+     * the rates, FP10.221's one bolt a turn — and is asked first by way of {@code boltRefusal},
+     * so this adds only what the rack is blind to:
+     * <ul>
+     *   <li><b>the MODE.</b> FP10.21 makes firing the declaration and it binds for the turn, so a
+     *       rack that has not fired needs the player to have said. There is deliberately no
+     *       default: answering DEFENSIVE is exactly what let a rack bolt a cruiser.</li>
+     *   <li><b>FP10.212's targets</b> — size-5 and smaller within six hexes — which is what
+     *       defensive mode pays for its rate.</li>
+     *   <li><b>FP10.242</b>, at most two of the SHIP's racks in offensive mode in a turn, asked
+     *       before the rack commits so a refusal leaves it free rather than stuck.</li>
+     *   <li><b>FP10.241</b>, at most one type-D bolt at a size-4-or-larger target per turn, per
+     *       firing ship rather than per rack.</li>
+     * </ul>
+     * A non-ship firer (a fighter, an MRS) reaches none of FP10.24: those limits are a ship's fire
+     * control, and FP9.37 bars a fighter from bolting a type-D at all.
+     */
+    private String plasmaRackBoltBlock(com.sfb.weapons.PlasmaRack rack, Unit attacker,
+            Unit target, int range) {
+        com.sfb.weapons.PlasmaRack.RackMode mode = rack.modeForDirectFire();
+        if (mode == null)
+            return "needs a mode before it can bolt - offensive or defensive (FP10.21)";
+
+        String own = rack.boltRefusal(mode);
+        if (own != null)
+            return own;
+
+        String targetBlock = rack.targetRefusal(mode, target.getSizeClass(), range);
+        if (targetBlock != null)
+            return targetBlock;
+
+        if (!(attacker instanceof Ship firingShip))
+            return null;
+        int turn = game.getClock().getTurn();
+        if (mode == com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE) {
+            String fireControl =
+                    firingShip.plasmaRackOffensiveRefusal(turn, rack.getDesignator());
+            if (fireControl != null)
+                return fireControl;
+        }
+        return firingShip.plasmaRackBoltRefusal(turn, target.getSizeClass());
+    }
+
     /** True if the ship generates at least one active ESG field (G23.84). */
     private boolean hasActiveEsg(Ship ship) {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
@@ -732,6 +780,25 @@ class DamageResolver {
             // under FD3.7 — when that is built, the rack will be a DirectFire in that mode
             // and this guard will stop applying to it on its own, rather than standing in
             // the way as a hardcoded "racks cannot fire".
+            // A plasma rack's bolt is governed by three things the RACK cannot see from inside
+            // itself: which mode the player chose, what the target is, and what the rest of the
+            // SHIP's racks have already done (FP10.24). Without this the rack fired on its own
+            // say-so — and did: a size-class-3 cruiser bolted in DEFENSIVE mode for 5 damage,
+            // which FP10.212 forbids outright.
+            //
+            // BEFORE the capability guard below, not after, so a rack always gets a rack-shaped
+            // reason. That guard's line is "it launches seeking weapons", which is true of a drone
+            // rack and misleading here: a rack with no activated torpedo answers false to
+            // canBeFiredAtTarget and would have been told it is a launcher rather than that it
+            // needs half a point (FP9.22).
+            if (w instanceof com.sfb.weapons.PlasmaRack) {
+                String block = plasmaRackBoltBlock(
+                        (com.sfb.weapons.PlasmaRack) w, attacker, target, range);
+                if (block != null) {
+                    log.append("  ").append(w.getName()).append("  ").append(block).append("\n");
+                    continue;
+                }
+            }
             if (!(w instanceof DirectFire) || !((DirectFire) w).canBeFiredAtTarget()) {
                 log.append("  ").append(w.getName())
                         .append("  cannot be fired at a target — it launches seeking weapons\n");
@@ -773,6 +840,18 @@ class DamageResolver {
                     dmg = ((com.sfb.weapons.Hellbore) w).fireDirect(adjustedRange);
                 } else {
                     dmg = ((DirectFire) w).fire(range, adjustedRange);
+                    // Booked AFTER the shot, so a refusal never spends an allowance. FP10.241
+                    // counts bolts at large targets per SHIP and FP10.242 counts which racks
+                    // went offensive — both of which this volley may just have changed.
+                    if (w instanceof com.sfb.weapons.PlasmaRack rack
+                            && attacker instanceof Ship firingShip) {
+                        int boltTurn = game.getClock().getTurn();
+                        firingShip.recordPlasmaRackBolt(boltTurn, target.getSizeClass());
+                        if (rack.getModeThisTurn()
+                                == com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE)
+                            firingShip.recordPlasmaRackOffensive(
+                                    boltTurn, rack.getDesignator());
+                    }
                 }
                 if (isFusionSuicide)
                     fusionSuicideFired = true;

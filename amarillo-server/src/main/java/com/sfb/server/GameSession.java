@@ -2887,6 +2887,22 @@ public class GameSession {
                         ((com.sfb.weapons.FighterFusion) w)
                                 .setShotMode(com.sfb.weapons.FighterFusion.ShotMode.SINGLE);
                 }
+                // FP10.21: which mode a plasma rack bolts in. The same per-weapon shotModes map
+                // the fusion uses, rather than a field of its own - a fire order carrying a
+                // per-weapon choice already has a place to put one.
+                //
+                // Declared only; it is CONSUMED by the shot, and a rack that has already fired
+                // this turn ignores it, since FP10.21 does not let the mode change until the next.
+                if (w instanceof com.sfb.weapons.PlasmaRack rack) {
+                    String mode = shotModes.get(w.getName());
+                    try {
+                        rack.declareBoltMode(com.sfb.weapons.PlasmaRack.RackMode
+                                .valueOf(String.valueOf(mode).toUpperCase()));
+                    } catch (IllegalArgumentException | NullPointerException ignored) {
+                        // Left undeclared, which the fire path refuses by name. Not an error
+                        // here: a volley may legitimately name racks that are already committed.
+                    }
+                }
             }
         }
 

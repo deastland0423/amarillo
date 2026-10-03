@@ -37,6 +37,20 @@ public class PlasmaRackBoltTest {
         rack.setClock(clock);
         rack.setDesignator("1");
         rack.activate(rack.activationEnergyWanted());
+        // fire() no longer defaults a mode - that silent DEFENSIVE default is what let a rack
+        // bolt a cruiser through the ordinary fire path (see PlasmaRackBoltFirePathTest). Every
+        // test here is about the BOLT rather than about the declaration, so the fixture declares
+        // one; the tests that care about the mode itself set their own.
+        rack.declareBoltMode(PlasmaRack.RackMode.OFFENSIVE);
+    }
+
+    /** Declare the mode a bolt needs, for a rack this test made itself. */
+    private static PlasmaRack ready(PlasmaRack r, TurnTracker clock, String designator) {
+        r.setClock(clock);
+        r.setDesignator(designator);
+        r.activate(r.activationEnergyWanted());
+        r.declareBoltMode(PlasmaRack.RackMode.OFFENSIVE);
+        return r;
     }
 
     private void advanceTo(int absoluteImpulse) {
@@ -68,10 +82,7 @@ public class PlasmaRackBoltTest {
         // on an empty set of observations.
         java.util.Set<Integer> hits = new java.util.TreeSet<>();
         for (int attempt = 0; attempt < 40; attempt++) {
-            PlasmaRack fresh = new PlasmaRack();
-            fresh.setClock(clock);
-            fresh.setDesignator("x");
-            fresh.activate(fresh.activationEnergyWanted());
+            PlasmaRack fresh = ready(new PlasmaRack(), clock, "x");
             int damage = fresh.fire(range);
             if (damage > 0)
                 hits.add(damage);
@@ -109,10 +120,7 @@ public class PlasmaRackBoltTest {
         // And the other way round, to show the adjusted range is not simply ignored: at an
         // adjusted range beyond the chart there is no to-hit number at all, so it must throw
         // even though the TRUE range is point blank.
-        PlasmaRack other = new PlasmaRack();
-        other.setClock(clock);
-        other.setDesignator("y");
-        other.activate(other.activationEnergyWanted());
+        PlasmaRack other = ready(new PlasmaRack(), clock, "y");
         try {
             other.fire(0, 99);
             fail("an adjusted range off the FP8.42 chart has no to-hit number");
@@ -145,8 +153,8 @@ public class PlasmaRackBoltTest {
     @Test
     public void aRackBoltsOnlyOncePerTurnEvenInDefensiveMode() throws Exception {
         advanceTo(5);
-        rack.fire(3);                                  // the turn's bolt
-        rack.launch(PlasmaRack.RackMode.DEFENSIVE);    // settle the mode as defensive
+        rack.declareBoltMode(PlasmaRack.RackMode.DEFENSIVE);   // this test is about defensive mode
+        rack.fire(3);                                  // the turn's bolt, in defensive mode
 
         clock.nextImpulse();   // a new impulse, so the per-impulse rate is satisfied
         String refusal = rack.boltRefusal(PlasmaRack.RackMode.DEFENSIVE);
@@ -200,10 +208,15 @@ public class PlasmaRackBoltTest {
     @Test
     public void fireRefusesWhatBoltRefusalWouldHaveRefused() throws Exception {
         advanceTo(5);
+        rack.declareBoltMode(PlasmaRack.RackMode.DEFENSIVE);
         rack.fire(3);                       // the turn's one bolt (FP10.221)
         clock.nextImpulse();
 
         try {
+            // Declared afresh: a declaration is consumed by the shot it was made for, so this
+            // must be refused by FP10.221 rather than for want of a mode. Defensive, which the
+            // rack is now committed to, so the mode itself cannot be the reason either.
+            rack.declareBoltMode(PlasmaRack.RackMode.DEFENSIVE);
             rack.fire(3);
             fail("fire must not bypass FP10.221");
         } catch (com.sfb.exceptions.WeaponUnarmedException expected) {

@@ -130,6 +130,20 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
     private int boltsThisTurn;
 
     /**
+     * The mode a player has declared for a bolt that has not been fired yet (FP10.21).
+     * <p>
+     * Needed because the fire path is a VOLLEY: {@code Game.fireWeapons} takes a list of weapons
+     * and a target, with nowhere to carry a per-weapon choice, and a bolt is a firing so it settles
+     * the mode for the turn. Defaulting it is what let a rack bolt a cruiser in defensive mode,
+     * which FP10.212 forbids.
+     * <p>
+     * ONE SHOT: cleared the moment it is consumed, so a declaration cannot leak into a later volley
+     * the player made no choice for, and cleared again at the turn boundary. Null means nothing has
+     * been declared, which is a refusal rather than a default.
+     */
+    private RackMode declaredBoltMode;
+
+    /**
      * The absolute impulse this rack last fired on, or far in the past.
      * <p>
      * Outlives the turn on purpose. FP10.211's offensive shot may not come "within 1/4 turn of
@@ -449,7 +463,12 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
     @Override
     public int fire(int realRange, int adjustedRange)
             throws WeaponUnarmedException, TargetOutOfRangeException {
-        return bolt(effectiveModeForDirectFire(), realRange, adjustedRange);
+        RackMode mode = modeForDirectFire();
+        if (mode == null)
+            throw new WeaponUnarmedException(getName() + " needs a mode before it can bolt -"
+                    + " offensive or defensive (FP10.21)");
+        declaredBoltMode = null;      // one shot: a declaration never outlives its volley
+        return bolt(mode, realRange, adjustedRange);
     }
 
     /**
@@ -471,8 +490,31 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
      * through {@link #bolt}, because choosing offensive mode spends one of the ship's two places
      * under FP10.242 and that is not a decision to make by default.
      */
-    private RackMode effectiveModeForDirectFire() {
-        return modeThisTurn == RackMode.UNDECIDED ? RackMode.DEFENSIVE : modeThisTurn;
+    /**
+     * Declare the mode for the next bolt (FP10.21). A rack already committed this turn ignores it:
+     * the mode cannot change until the next turn, so the declaration cannot override it.
+     */
+    public void declareBoltMode(RackMode mode) {
+        this.declaredBoltMode = mode == RackMode.UNDECIDED ? null : mode;
+    }
+
+    public RackMode getDeclaredBoltMode() {
+        return declaredBoltMode;
+    }
+
+    /**
+     * Which mode a bare {@link #fire} call means, or null if the player has not said.
+     * <p>
+     * The committed mode if the rack has already fired this turn, since FP10.21 does not let it
+     * change. Otherwise whatever was declared for this shot. Otherwise NULL — and that is the fix
+     * for a real bug: this used to answer DEFENSIVE, so a rack fired through the ordinary fire path
+     * silently committed to defensive mode and bolted a size-class-3 cruiser for 5 damage, which
+     * FP10.212 forbids outright.
+     */
+    public RackMode modeForDirectFire() {
+        if (modeThisTurn != RackMode.UNDECIDED)
+            return modeThisTurn;
+        return declaredBoltMode;
     }
 
     /**
@@ -580,6 +622,7 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
         modeThisTurn = RackMode.UNDECIDED;
         firedThisTurn = 0;
         boltsThisTurn = 0;
+        declaredBoltMode = null;
         reloadingThisTurn = false;
     }
 
