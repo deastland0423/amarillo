@@ -20,6 +20,8 @@ public class CoiRequest {
     public int    extraCommandoSquads  = 0;
     public int    extraTBombs          = 0;
     public int    extraDeckCrews       = 0;   // S3.2/J4.816: capable carriers only
+    /** J4.621: which fighter model a casual carrier's fighter facilities serve. Free. */
+    public String fighterFacilityType;
     /** S4.10-S4.12: which fighters start ready, in order of preference. */
     public List<String> armedFighters = new ArrayList<>();
 
@@ -68,6 +70,7 @@ public class CoiRequest {
         out.extraCommandoSquads  = extraCommandoSquads;
         out.extraTBombs          = extraTBombs;
         out.extraDeckCrews       = extraDeckCrews;
+        out.fighterFacilityType  = fighterFacilityType;
         out.armedFighters        = new ArrayList<>(armedFighters);
 
         for (Map.Entry<String, List<String>> entry : droneRackLoadouts.entrySet()) {

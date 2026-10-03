@@ -262,6 +262,20 @@ public class ScenarioLoader {
     public static void applyCoi(Ship ship, CoiLoadout loadout, ScenarioSpec spec) {
         if (loadout == null) return;
 
+        // J4.621: which fighter model a casual carrier's facilities serve. Done FIRST and
+        // separately from the budget below, because it costs nothing - the drones and chaff come
+        // with the ship ("enough... to re-arm those fighters three times") and only special
+        // drones and speed upgrades are bought.
+        //
+        // A re-fit rather than a first fitting: the facilities were already built with the ship,
+        // from the line's standard fighter, because nothing at construction time knows what the
+        // player will choose. An unavailable or absent choice falls back to that same standard
+        // fighter, which refitFacilities validates.
+        if (loadout.fighterFacilityType != null && !loadout.fighterFacilityType.isBlank()) {
+            ship.setFighterFacilityType(loadout.fighterFacilityType);
+            com.sfb.objects.FighterComplement.refitFacilities(ship, spec.year);
+        }
+
         int budgetPercent = spec.commanderOptions != null
                 ? spec.commanderOptions.budgetPercent
                 : CoiBudget.DEFAULT_PERCENT;

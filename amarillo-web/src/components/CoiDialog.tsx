@@ -82,6 +82,12 @@ interface ShipCoi {
   antiDroneLoadouts:    Record<number, number>;     // rackIndex → anti-drone rounds (FD3.70)
   shuttlePrep:          Record<string, ShuttlePrep | null>; // shuttleName → prep or null (not selected)
   optionMounts:         Record<string, string>;     // mount designator → option name (G15.4)
+  /**
+   * J4.621: which fighter model this ship's fighter facilities serve. '' means "not chosen",
+   * which leaves the line's standard fighter — the server treats absent and unavailable the
+   * same way, so there is nothing to represent for a default beyond the empty string.
+   */
+  fighterFacilityType:  string;
 }
 
 function defaultShipCoi(): ShipCoi {
@@ -98,6 +104,7 @@ function defaultShipCoi(): ShipCoi {
     antiDroneLoadouts:    {},
     shuttlePrep:          {},
     optionMounts:         {},
+    fighterFacilityType:  '',
   };
 }
 
@@ -325,6 +332,35 @@ function ShipCoiPanel({
           </label>
           <Stepper value={coi.extraDeckCrews} min={0} max={ship.maxExtraDeckCrews ?? 0}
             onChange={n => setNum('extraDeckCrews', n)} />
+        </div>
+      )}
+
+      {/* J4.62/J4.621: a casual carrier's fighter facilities. The escort has the apparatus to
+          service a carrier's fighters and none of its own, and J4.621 says the carrier's fighters
+          decide what the apparatus is for — so the player names the model here, where the
+          scenario year is settled and the list can be the actual fighters the line fields.
+          Free: J4.621 gives a casual carrier its drones and chaff with the ship. */}
+      {ship.fighterFacilities && ship.fighterFacilities.models.length > 0 && (
+        <div className="coi-row">
+          <label className="coi-label">
+            Fighter facilities ({ship.fighterFacilities.count} box
+            {ship.fighterFacilities.count === 1 ? '' : 'es'}) — J4.621
+          </label>
+          <select
+            value={coi.fighterFacilityType}
+            onChange={e => onChange({ ...coi, fighterFacilityType: e.target.value })}
+          >
+            <option value="">
+              {(() => {
+                const def = ship.fighterFacilities!.models
+                  .find(m => m.type === ship.fighterFacilities!.defaultType);
+                return def ? `Standard (${def.name})` : 'Standard';
+              })()}
+            </option>
+            {ship.fighterFacilities.models.map(m => (
+              <option key={m.type} value={m.type}>{m.name}</option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -844,6 +880,9 @@ export default function CoiDialog({ sides, onSubmit, onSkip, busy }: Props) {
         extraCommandoSquads:  coi.extraCommandoSquads,
         extraTBombs:          coi.extraTBombs,
         extraDeckCrews:       coi.extraDeckCrews,
+        // Omitted rather than sent empty: the server reads absent as "keep the standard fighter".
+        ...(coi.fighterFacilityType
+              ? { fighterFacilityType: coi.fighterFacilityType } : {}),
         armedFighters:        coi.armedFighters,
         droneRackLoadouts:    rackLoadouts,
         antiDroneLoadouts,

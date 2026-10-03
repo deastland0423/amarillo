@@ -315,6 +315,53 @@ public final class FighterComplement {
     }
 
     /**
+     * The fighter models a casual carrier's facilities could be built for in {@code year}, in
+     * seating order (J4.621) - what a Commander's Option list offers.
+     * <p>
+     * Only models that NEED a facility. J4.898 lets EW pods be loaded "in any fighter box... or in
+     * a non-fighter box", so a pure EW fighter has no facility of its own and offering it would
+     * equip a ship with nothing while it declared two. Note this is derived rather than a rule
+     * about EW: the Y183 Romulan G-D-E carries two plasma-D rails and IS offered.
+     *
+     * @return role to catalogue type, ordered, empty if the line had not begun
+     */
+    public static Map<String, String> facilityModelsFor(String line, int year) {
+        Map<String, String> models = new LinkedHashMap<>();
+        ShuttleCatalog.LineEra era = ShuttleCatalog.eraFor(line, year);
+        if (era == null)
+            return models;
+        for (Map.Entry<String, String> e : era.roles().entrySet())
+            if (com.sfb.systemgroups.ShuttleSpace.needsFighterFacility(e.getValue()))
+                models.put(e.getKey(), e.getValue());
+        return models;
+    }
+
+    /**
+     * Re-fit a casual carrier's facilities for the model the player chose (J4.621).
+     * <p>
+     * A second pass, because the two halves arrive at different times: the facilities are built
+     * with the ship, from the line's standard fighter, and the Commander's Option naming a model
+     * is applied afterwards. So this clears what the first pass derived and fits the choice.
+     * <p>
+     * SETUP ONLY, and only on a bay that declares facilities - a carrier's own boxes, equipped
+     * from the fighters sitting in them, are never touched.
+     */
+    public static void refitFacilities(com.sfb.objects.Ship ship, int year) {
+        if (ship == null || ship.getShuttles() == null || year <= 0)
+            return;
+        for (ShuttleBay bay : ship.getShuttles().getBays()) {
+            if (bay.getFighterFacilities() <= 0)
+                continue;
+            FighterComplement complement = bay.getFighterComplement();
+            if (complement == null)
+                continue;
+            for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces())
+                box.clearFighterFacilities();
+            equipFighterFacilities(bay, complement, year, ship.getFighterFacilityType());
+        }
+    }
+
+    /**
      * Fit a casual carrier's ready racks (J4.62, J4.621), on a bay that seats no fighters.
      * <p>
      * J4.621: "the fighters on the carrier will determine what type of ready racks are on the

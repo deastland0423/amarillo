@@ -916,6 +916,39 @@ public class GameController {
                     s.put("heavyWeapons", heavy);
                     s.put("droneRacks", drones);
 
+                    // J4.62/J4.621: a casual carrier's fighter facilities, and which models they
+                    // could be built for in THIS scenario's year. Absent on every other ship, so
+                    // the dialog shows nothing rather than an empty control.
+                    int facilities = 0;
+                    String facilityLine = null;
+                    for (com.sfb.systemgroups.ShuttleBay bay : ship.getShuttles().getBays()) {
+                        facilities += bay.getFighterFacilities();
+                        if (bay.getFighterFacilities() > 0 && bay.getFighterComplement() != null)
+                            facilityLine = bay.getFighterComplement().getLine();
+                    }
+                    if (facilities > 0 && facilityLine != null) {
+                        Map<String, Object> ff = new java.util.LinkedHashMap<>();
+                        ff.put("count", facilities);
+                        ff.put("line", facilityLine);
+                        List<Map<String, Object>> models = new ArrayList<>();
+                        Map<String, String> byRole = com.sfb.objects.FighterComplement
+                                .facilityModelsFor(facilityLine, spec.year);
+                        for (Map.Entry<String, String> m : byRole.entrySet()) {
+                            Map<String, Object> entry2 = new java.util.LinkedHashMap<>();
+                            entry2.put("role", m.getKey());
+                            entry2.put("type", m.getValue());
+                            // The name the player knows it by - "Gladiator-SF", not "gsf".
+                            entry2.put("name",
+                                    com.sfb.objects.ShuttleCatalog.displayNameOf(m.getValue()));
+                            models.add(entry2);
+                        }
+                        ff.put("models", models);
+                        // The standard fighter, which is what the ship has if nobody chooses.
+                        ff.put("defaultType", byRole.get(
+                                com.sfb.objects.ShuttleCatalog.LineEra.STANDARD));
+                        s.put("fighterFacilities", ff);
+                    }
+
                     // Orion option mounts (G15.4) — empty for non-Orion ships. Each
                     // mount lists the options legal for it (position/size/year/etc.),
                     // filtered against the same validator that equips them.

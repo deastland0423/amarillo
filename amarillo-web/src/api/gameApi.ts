@@ -353,6 +353,21 @@ export interface CoiShipData {
   maxDroneSpeed:       number | null;
   heavyWeapons:        CoiHeavyWeapon[];
   droneRacks:          CoiDroneRack[];
+  /**
+   * J4.62/J4.621: a casual carrier's fighter facilities — an escort with the apparatus to service
+   * a carrier's fighters and none of its own. Absent on every other ship, so the control is simply
+   * not rendered rather than rendered empty.
+   *
+   * `models` are the fighters the hull's LINE fields in this scenario's year, filtered to those a
+   * facility can be built for: J4.898 lets EW pods be loaded in any box at all, so a pure EW
+   * fighter has no facility of its own and offering it would equip the ship with nothing.
+   */
+  fighterFacilities?:  {
+    count:       number;
+    line:        string;
+    defaultType: string | null;
+    models:      { role: string; type: string; name: string }[];
+  };
   availableDroneTypes: CoiDroneType[];
   convertibleShuttles: { name: string; types: string[] }[];
   maxPreparedShuttles: number;        // WS2=1, WS3=2, else 0

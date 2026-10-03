@@ -276,6 +276,49 @@ public class ShuttleSpace {
     }
 
     /**
+     * Whether a box built for {@code catalogueType} would have any rearming facility at all
+     * (J4.73, J4.898).
+     * <p>
+     * Not every fighter needs one. J4.898: "Electronic warfare pods can be added to any fighters
+     * in any fighter box... or in a non-fighter box" - so a pure EW fighter, carrying pods, a
+     * phaser and nothing else, is serviced anywhere and has no facility of its own. Its phasers
+     * are recharged from its own engine (J4.44), never by the carrier.
+     * <p>
+     * Exists so a Commander's Option list can offer only models a facility can be built FOR.
+     * Offering one that needs none would equip the ship with nothing while it declared two.
+     */
+    public static boolean needsFighterFacility(String catalogueType) {
+        if (catalogueType == null || catalogueType.isBlank())
+            return false;
+        Shuttle pattern;
+        try {
+            pattern = com.sfb.objects.shuttles.CataloguedFighter.of(catalogueType);
+        } catch (RuntimeException e) {
+            return false;
+        }
+        return ReadyRack.forFighter(pattern) != null || kindFor(pattern) != CapacitorKind.NONE;
+    }
+
+    /**
+     * Strip this box's rearming facilities back to unequipped. SETUP ONLY.
+     * <p>
+     * Needed because the facilities are fitted when a ship is built and the player's choice of
+     * which fighter they serve arrives LATER, with the Commander's Options - so a second pass has
+     * to be able to replace what the first pass derived from the default. Never during play: the
+     * facilities are part of the box (J4.887), and the only thing that takes them away in a game
+     * is the box being destroyed (J4.831).
+     */
+    public void clearFighterFacilities() {
+        if (destroyed)
+            return;
+        readyRack = null;
+        capacitorKind = CapacitorKind.NONE;
+        capacitorCapacity = -1;
+        capacitorCharges = -1;
+        capacitorEnergyBanked = 0;
+    }
+
+    /**
      * Equip this box with the rearming facilities a carrier's box for {@code catalogueType} would
      * have, with no such fighter aboard (J4.62, J4.73, J4.822).
      * <p>

@@ -49,6 +49,22 @@ public class CoiLoadout {
     public int extraDeckCrews = 0;
 
     /**
+     * J4.621: which fighter MODEL this ship's fighter facilities are stocked for - a casual
+     * carrier's choice, free of charge.
+     * <p>
+     * "The fighters on the carrier will determine what type of ready racks are on the escort, and
+     * this will in turn determine the numbers of drones held in the racks." A concrete catalogue
+     * type rather than a role, which is sound HERE although it would be wrong in a ship file: a
+     * Commander's Option is chosen for one scenario with the year settled, so the player can be
+     * offered the actual fighters the line fields that year. Null means the line's standard one.
+     * <p>
+     * Not priced. J4.621 gives a casual carrier its drones and chaff for nothing ("enough drones
+     * and chaff pods to re-arm those fighters... three times"); only SPECIAL drones and speed
+     * upgrades cost, and those are the existing drone lines.
+     */
+    public String fighterFacilityType;
+
+    /**
      * Which fighters start ready, in the player's order of preference (S4.10-S4.12).
      * <p>
      * Free: readiness is what the weapon status already bought, not something else to buy.
