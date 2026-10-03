@@ -22,7 +22,9 @@ import com.sfb.objects.shuttles.Fighter;
  * (type-VI) drone." The AND is the whole rule. Read as an OR it would let a fighter split
  * two standard drones between two targets, which is the case the rule exists to forbid.
  * <p>
- * J4.242 then exempts particular fighters, and the TAAS is the one we have: it may violate
+ * J4.242 then exempts particular fighters. The TAAS is the one the BEHAVIOUR tests below are
+ * written against; the roster section near the end covers which other fighters hold which
+ * exemption, the F-14's B-without-A being the one most easily misread. It may violate
  * B in any case, and A whenever the two do not leave on the same impulse.
  */
 public class DroneLaunchRateTest {
@@ -169,6 +171,77 @@ public class DroneLaunchRateTest {
 
         assertTrue(taas.mayLaunchAtDifferentTargets());
         assertTrue(taas.mayLaunchTwoStandardDrones());
+    }
+
+    // -------------------------------------------------------------------------
+    // J4.242's roster: WHICH fighters have WHICH exemption
+    // -------------------------------------------------------------------------
+
+    /**
+     * The subtle one. J4.242: "the F-14 (which can ignore restriction B...)" — B only. It
+     * may launch two standard drones, but they must still go at the SAME target, because the
+     * rule grants it nothing against condition A.
+     * <p>
+     * Easy to get wrong in both directions: the F-15 two lines later gets both, and a reader
+     * skimming the sentence grants the F-14 the pair. These fighters went years with neither
+     * flag set, which nothing caught, because the flags live in hand-authored data.
+     */
+    @Test
+    public void theF14IgnoresRestrictionBAndOnlyB() {
+        for (String type : new String[] { "f14", "f14a", "f14b", "f14_e" }) {
+            Fighter f = CataloguedFighter.of(type);
+            assertNotNull(type + " is not in the catalogue", f);
+            assertTrue(type + ": J4.242 waives B for the F-14",
+                    f.mayLaunchTwoStandardDrones());
+            assertFalse(type + ": J4.242 does NOT waive A for the F-14 — its pair still"
+                    + " goes at one target", f.mayLaunchAtDifferentTargets());
+        }
+    }
+
+    /**
+     * J4.242: "the F-15 and TAAS (which can violate A if the drones are not launched on the
+     * same impulse, and which can violate B in any case)". Both, like the TAAS above — and
+     * the A exemption is conditional on the impulse, which
+     * {@code aTaasStillMayNotSplitThemOnTheSameImpulse} pins.
+     */
+    @Test
+    public void theF15GetsBothExemptions() {
+        for (String type : new String[] { "f15", "f15c", "f15_e" }) {
+            Fighter f = CataloguedFighter.of(type);
+            assertNotNull(type + " is not in the catalogue", f);
+            assertTrue(type + ": A", f.mayLaunchAtDifferentTargets());
+            assertTrue(type + ": B", f.mayLaunchTwoStandardDrones());
+        }
+    }
+
+    /** J4.242: "the Z-Y (which can violate both)". */
+    @Test
+    public void theZyGetsBothExemptions() {
+        for (String type : new String[] { "zy", "zy_e", "zyb", "zyc" }) {
+            Fighter f = CataloguedFighter.of(type);
+            assertNotNull(type + " is not in the catalogue", f);
+            assertTrue(type + ": A", f.mayLaunchAtDifferentTargets());
+            assertTrue(type + ": B", f.mayLaunchTwoStandardDrones());
+        }
+    }
+
+    /**
+     * The A-10 gets NEITHER, which its cross-reference makes easy to assume otherwise.
+     * J4.242 ends "The A-10 is covered under (J10.43)", and J10.43 turns out to be about
+     * something else entirely: "MULTIPLE WEAPONS: There is no restriction or interaction
+     * between firing weapons of different types... These limits also apply to the A-10." That
+     * is about firing its photon AND its drones in one impulse, not about the two-drone
+     * conditions, so the A-10 keeps J4.241 in full.
+     */
+    @Test
+    public void theA10GetsNeitherExemption() {
+        for (String type : new String[] { "a10", "a10_e" }) {
+            Fighter f = CataloguedFighter.of(type);
+            assertNotNull(type + " is not in the catalogue", f);
+            assertFalse(type + ": J10.43 is about multiple weapon types, not J4.241's A",
+                    f.mayLaunchAtDifferentTargets());
+            assertFalse(type + ": nor its B", f.mayLaunchTwoStandardDrones());
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -164,6 +164,45 @@ public class FighterEwPairingTest {
                 misplaced.isEmpty());
     }
 
+    // ------------------------------------------------- the same drone exemptions
+
+    /**
+     * An EW fighter must hold the same J4.242 drone exemptions as the fighter it flies with.
+     * <p>
+     * J4.43 is the reason: an EW fighter is a two-seat version, and the two-seater "has the
+     * same performance" as the standard one, differing only in control capacity. So an F-15E
+     * that could not split its pair when an F-15 can would be a difference the rules do not
+     * grant.
+     * <p>
+     * This is the guard for the mistake that prompted it. The exemptions live in hand-authored
+     * data, one flag per catalogue row, and applying them to a programme means remembering
+     * every variant AND its EW twin - four rows for the F-14, three for the F-15, four for the
+     * Z-Y. Forgetting the {@code _e} is the natural slip, and nothing else would notice.
+     */
+    @Test
+    public void everyEwFighterSharesItsSquadronsDroneExemptions() {
+        List<String> mismatched = new ArrayList<>();
+        for (String[] pair : pairs()) {
+            com.sfb.objects.shuttles.Fighter combat =
+                    com.sfb.objects.shuttles.CataloguedFighter.of(pair[1]);
+            com.sfb.objects.shuttles.Fighter ew =
+                    com.sfb.objects.shuttles.CataloguedFighter.of(pair[2]);
+            if (combat == null || ew == null)
+                continue;
+            if (combat.mayLaunchAtDifferentTargets() != ew.mayLaunchAtDifferentTargets())
+                mismatched.add("  " + pair[0] + ": " + pair[1] + " A="
+                        + combat.mayLaunchAtDifferentTargets() + " but " + pair[2] + " A="
+                        + ew.mayLaunchAtDifferentTargets());
+            if (combat.mayLaunchTwoStandardDrones() != ew.mayLaunchTwoStandardDrones())
+                mismatched.add("  " + pair[0] + ": " + pair[1] + " B="
+                        + combat.mayLaunchTwoStandardDrones() + " but " + pair[2] + " B="
+                        + ew.mayLaunchTwoStandardDrones());
+        }
+        assertTrue("EW fighters whose J4.242 exemptions differ from the fighters they fly"
+                + " with (J4.43: the two-seat version has the same performance):\n"
+                + String.join("\n", mismatched), mismatched.isEmpty());
+    }
+
     // ---------------------------------------------------------------- the fixture itself
 
     /** The guard is worthless if it never looks at anything. */
