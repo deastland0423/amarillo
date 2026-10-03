@@ -5,6 +5,7 @@ public enum PlasmaType {
 	D("D"),
 	F("F"),
 	G("G"),
+	K("K"),
 	S("S"),
 	R("R");
 

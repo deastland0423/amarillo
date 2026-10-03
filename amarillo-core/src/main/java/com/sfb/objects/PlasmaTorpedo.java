@@ -47,6 +47,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
             1, 0 };
     private static final int[] PLASMA_D_DAMAGE_BY_RANGE = { 10, 10, 10, 10, 10, 10, 8, 8, 8, 8, 8, 5, 5, 2, 2, 1, 0 };
 
+    private static final int[] PLASMA_K_DAMAGE_BY_RANGE = { 5, 5, 5, 5, 5, 5, 4, 4, 2, 2, 1 };
+
     private static final int SPEED = 32;
 
     /** Minimal instance for client-side rendering only — no game logic. */
@@ -147,6 +149,8 @@ public class PlasmaTorpedo extends Unit implements Seeker {
                 return PLASMA_G_DAMAGE_BY_RANGE;
             case D:
                 return PLASMA_D_DAMAGE_BY_RANGE;
+            case K:
+                return PLASMA_K_DAMAGE_BY_RANGE;
             case F:
 
             default:
