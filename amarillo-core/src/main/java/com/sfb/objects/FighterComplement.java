@@ -290,6 +290,14 @@ public final class FighterComplement {
             FighterComplement complement = bay.getFighterComplement();
             if (complement == null)
                 continue;
+            // J4.62: a casual carrier declares a LINE and no counts - the line is there to say
+            // what its ready racks serve, not to seat anybody. Skipped before the note below,
+            // which would otherwise tell the player every scenario that a line he never asked to
+            // seat has nothing available.
+            if (complement.total() == 0) {
+                equipReadyRacks(bay, complement, year, ship.getReadyRackFighterType());
+                continue;
+            }
             if (complement.typesFor(year).isEmpty()) {
                 notes.add("Fighters: line '" + complement.getLine()
                         + "' has nothing available in Y" + year
@@ -304,6 +312,55 @@ public final class FighterComplement {
         // fighters would bank the wrong total.
         ship.getShuttles().restockDroneStore();
         return notes;
+    }
+
+    /**
+     * Fit a casual carrier's ready racks (J4.62, J4.621), on a bay that seats no fighters.
+     * <p>
+     * J4.621: "the fighters on the carrier will determine what type of ready racks are on the
+     * escort, and this will in turn determine the numbers of drones held in the racks." The player
+     * says which model as a Commander's Option — by then the scenario year is known, so the choice
+     * is a concrete fighter rather than a role, and the dropdown can only offer what the line
+     * actually fields that year.
+     * <p>
+     * {@code chosen} is validated against the line here rather than trusted: a stored choice
+     * outlives the scenario it was made for, and a Y183 escort must not end up with racks for a
+     * fighter retired in Y177. An absent or unavailable choice falls back to the line's
+     * {@code superiority} fighter, which is the role everything else already falls back to.
+     * <p>
+     * The racks go in the FIRST {@code n} undestroyed boxes. Which boxes is arbitrary and the
+     * rules do not say; what matters is that a rack lives in a box, so it is destroyed with the
+     * box (J4.831) exactly as a carrier's is.
+     */
+    static void equipReadyRacks(com.sfb.systemgroups.ShuttleBay bay, FighterComplement complement,
+            int year, String chosen) {
+        int boxes = bay.getReadyRackBoxes();
+        if (boxes <= 0)
+            return;
+        ShuttleCatalog.LineEra era = ShuttleCatalog.eraFor(complement.getLine(), year);
+        if (era == null)
+            return;                    // the line had not begun; no racks to fit
+
+        String type = null;
+        if (chosen != null && !chosen.isBlank() && era.roles().containsValue(chosen))
+            type = chosen;
+        if (type == null)
+            type = era.typeFor(ShuttleCatalog.LineEra.STANDARD);
+        if (type == null)
+            return;
+
+        int fitted = 0;
+        for (com.sfb.systemgroups.ShuttleSpace box : bay.getSpaces()) {
+            if (fitted >= boxes)
+                break;
+            if (box.isDestroyed())
+                continue;
+            // Facilities, not just a rack: a plasma-F or photon fighter is rearmed from a
+            // capacitor in the box (J4.73) and has no ready rack at all, so equipping only racks
+            // left a Romulan escort supporting the assault fighter with nothing.
+            if (box.fitFacilitiesFor(type))
+                fitted++;
+        }
     }
 
     @Override

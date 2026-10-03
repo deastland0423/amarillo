@@ -259,6 +259,78 @@ public class ShuttleSpace {
         setShuttle(fighter);
     }
 
+    /**
+     * Fit a ready rack into a box that has none (J4.62) - the casual carrier's case, where the
+     * rack is part of the box but no fighter is there to derive it from.
+     * <p>
+     * Refuses to replace an existing rack, and refuses on a destroyed box: J4.831 destroys a
+     * rack with its box, so a box that is gone cannot acquire one.
+     *
+     * @return true if a rack was fitted
+     */
+    public boolean fitReadyRack(ReadyRack rack) {
+        if (rack == null || destroyed || readyRack != null)
+            return false;
+        readyRack = rack;
+        return true;
+    }
+
+    /**
+     * Equip this box with the rearming facilities a carrier's box for {@code catalogueType} would
+     * have, with no such fighter aboard (J4.62, J4.73, J4.822).
+     * <p>
+     * A ready rack is only ONE of the four things a fighter box can hold, and which one depends
+     * entirely on what the fighter carries. J4.73 lists them: "Federation ships have a 'photon
+     * freezer' to supply photon torpedoes for their A-10 attack shuttles; Romulan, ISC, and Gorn
+     * ships have stasis boxes to store extra plasma-F torpedoes. Hydran ships have facilities to
+     * store charges for fusion beams and hellbores. These are within and part of the various
+     * shuttle (fighter) boxes on the SSD."
+     * <p>
+     * So a casual carrier's box supporting a drone or plasma-D fighter gets a {@link ReadyRack},
+     * one supporting a plasma-F or photon fighter gets the matching CAPACITOR, and a Hydran one
+     * gets a fusion or hellbore store. Equipping only the rack gave a Romulan escort nothing at
+     * all when the player picked the assault fighter, whose plasma-F is rearmed from a stasis box.
+     * <p>
+     * Full on arrival, per J4.886: a scenario opens with the stores forward. Nothing is overwritten
+     * — a box that already has facilities, because a fighter sat in it, keeps them.
+     *
+     * @return true if anything was fitted
+     */
+    public boolean fitFacilitiesFor(String catalogueType) {
+        if (destroyed || catalogueType == null || catalogueType.isBlank())
+            return false;
+        Shuttle pattern;
+        try {
+            pattern = com.sfb.objects.shuttles.CataloguedFighter.of(catalogueType);
+        } catch (RuntimeException e) {
+            return false;
+        }
+        boolean fitted = false;
+        if (readyRack == null) {
+            ReadyRack rack = ReadyRack.forFighter(pattern);
+            if (rack != null) {
+                readyRack = rack;
+                fitted = true;
+            }
+        }
+        // kind == NONE, not capacity < 0, and the difference is the whole bug: these boxes
+        // already hold an ADMIN SHUTTLE, so setShuttle has run and set the capacity to zero from
+        // an occupant that needs no capacitor. The "never seated" sentinel was already spent, and
+        // a Romulan escort supporting the assault fighter got no stasis box at all.
+        //
+        // A real capacitor is never NONE, so this cannot overwrite one.
+        if (capacitorKind == CapacitorKind.NONE) {
+            CapacitorKind kind = kindFor(pattern);
+            if (kind != CapacitorKind.NONE) {
+                capacitorKind = kind;
+                capacitorCapacity = capacityFor(pattern);
+                capacitorCharges = capacitorCapacity;   // J4.886: the box starts full
+                fitted = true;
+            }
+        }
+        return fitted;
+    }
+
     public DroneRack getDroneRack() { return droneRack; }
     public void setDroneRack(DroneRack droneRack) { this.droneRack = droneRack; }
 

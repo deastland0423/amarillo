@@ -1011,6 +1011,29 @@ public class Ship extends Unit implements DroneController {
 	/** D13.32: "but not more than four times per impulse", on top of the six. */
 	public static final int AEGIS_ID_PER_IMPULSE = 4;
 
+	/**
+	 * Which fighter model this ship's ready racks are stocked for (J4.621), chosen as a
+	 * Commander's Option. Null means the line's standard fighter for the year.
+	 * <p>
+	 * A concrete catalogue type rather than a role, and that is right HERE although it would be
+	 * wrong in a ship file: a COI choice is made for one scenario with the year already settled,
+	 * so the player can be offered the actual models the line fields that year - an F-14, a G-2,
+	 * an AAS - rather than an abstraction. A ship FILE naming a type would be wrong in every
+	 * year but one, which is why the line stays in the data and the model does not.
+	 * <p>
+	 * Validated against the line when the racks are fitted, never trusted: a stored choice
+	 * outlives the scenario it was made for.
+	 */
+	private String readyRackFighterType;
+
+	public String getReadyRackFighterType() {
+		return readyRackFighterType;
+	}
+
+	public void setReadyRackFighterType(String type) {
+		this.readyRackFighterType = type;
+	}
+
 	// -------------------------------------------------------------------------
 	// Type-D activation energy (FP9.22) — one line, every place a torpedo can sit
 	// -------------------------------------------------------------------------

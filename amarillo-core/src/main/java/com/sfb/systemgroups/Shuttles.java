@@ -73,6 +73,13 @@ public class Shuttles implements Systems {
                     Object balconyObj = bayObj.get("balconyPositions");
                     if (balconyObj instanceof Number)
                         bay.setBalconyPositions(((Number) balconyObj).intValue());
+                    // J4.62/J4.621: boxes in this bay that have a ready rack although no fighter
+                    // sits in them. Recorded now and EQUIPPED later, because what a rack serves
+                    // depends on the scenario year (J4.621) and nothing here knows it yet - the
+                    // same reason a carrier's complement is re-seated rather than built now.
+                    Object racksObj = bayObj.get("readyRacks");
+                    if (racksObj instanceof Number)
+                        bay.setReadyRackBoxes(((Number) racksObj).intValue());
                     // J4.4: fighters declared by role, filled in by the year below.
                     complement = com.sfb.objects.FighterComplement.fromBayMap(bayObj.get("fighters"));
                 } else {

@@ -159,6 +159,26 @@ public class ShuttleBay {
         this.balconyPositions = Math.max(0, positions);
     }
 
+    /**
+     * J4.62/J4.621: boxes in this bay that have a ready rack while carrying no fighter of their
+     * own - the casual carrier's case, which is "most carrier escorts, the Hydran Pegasus and
+     * Gendarme, and many WYN ships".
+     * <p>
+     * Held as a COUNT until the scenario year is known, because J4.621 makes the carrier's
+     * fighters decide what the racks serve and nothing at construction time knows the year. The
+     * racks themselves are fitted by {@code FighterComplement.reseat}, beside the re-seating it
+     * already does for the same reason.
+     */
+    private int readyRackBoxes;
+
+    public int getReadyRackBoxes() {
+        return readyRackBoxes;
+    }
+
+    public void setReadyRackBoxes(int boxes) {
+        this.readyRackBoxes = Math.max(0, boxes);
+    }
+
     /** True if this bay has a balcony at all. */
     public boolean hasBalcony() {
         return balconyPositions > 0;

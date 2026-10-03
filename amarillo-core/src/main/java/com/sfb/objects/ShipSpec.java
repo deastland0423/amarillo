@@ -312,6 +312,23 @@ public class ShipSpec {
          * space at all — see {@code ShuttleBay.getBalcony()} for what it is and is not.
          */
         public int          balconyPositions;
+        /**
+         * J4.62/J4.621: how many of THIS bay's shuttle boxes have a ready rack, on a ship that
+         * carries no fighters of its own - a "casual carrier", which J4.62 says is "most carrier
+         * escorts, the Hydran Pegasus and Gendarme, and many WYN ships".
+         * <p>
+         * A count of BOXES, not of free-floating racks, and that is the point: J4.822 puts a rack
+         * in a shuttle box and J4.831 destroys it with the box, so an escort's rack takes damage
+         * exactly as a carrier's does. G33.43 shows the two numbers differ - an escort with "four
+         * shuttle boxes with two ready racks" - so this cannot be inferred from the box count.
+         * <p>
+         * What the racks SERVE is not declared here. J4.621: "the fighters on the carrier will
+         * determine what type of ready racks are on the escort", so the bay names a {@code
+         * fighters} LINE with no counts, the player picks a role as a Commander's Option, and the
+         * scenario year resolves the pair to a type. Naming a fighter type here would be wrong in
+         * every year but one.
+         */
+        public int          readyRacks;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -539,7 +556,7 @@ public class ShipSpec {
                 // A role-based complement forces the object form, since the plain list has
                 // nowhere to carry it.
                 if (bay.launchTubes > 0 || bay.type != null || bay.fighters != null
-                        || bay.balconyPositions > 0) {
+                        || bay.balconyPositions > 0 || bay.readyRacks > 0) {
                     Map<String, Object> bayMap = new HashMap<>();
                     bayMap.put("shuttles", shuttles);
                     if (bay.launchTubes > 0)
@@ -550,6 +567,9 @@ public class ShipSpec {
                     // to carry it, and a bay with a balcony and nothing else would lose it.
                     if (bay.balconyPositions > 0)
                         bayMap.put("balconyPositions", bay.balconyPositions);
+                    // J4.62: a casual carrier's racks, which likewise force the object form.
+                    if (bay.readyRacks > 0)
+                        bayMap.put("readyRacks", bay.readyRacks);
                     if (bay.fighters != null) {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);

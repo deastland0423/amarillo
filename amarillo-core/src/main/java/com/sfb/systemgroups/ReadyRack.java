@@ -99,6 +99,41 @@ public class ReadyRack {
     }
 
     /**
+     * The rack a box would have been built with to SERVE this fighter type, with no such fighter
+     * aboard (J4.62, J4.621).
+     * <p>
+     * A casual carrier is the case {@link #forFighter} cannot express: J4.62 says "some ships have
+     * ready racks for fighters, and may even carry one or two, but are not carriers" - most carrier
+     * escorts, the Hydran Pegasus and Gendarme, many WYN ships. Their boxes hold administrative
+     * shuttles, or nothing, and the rack is still there. Deriving a rack from its occupant could
+     * never give them one.
+     * <p>
+     * J4.621 decides WHICH type: "the fighters on the carrier will determine what type of ready
+     * racks are on the escort, and this will in turn determine the numbers of drones held in the
+     * racks." So the type is resolved from the line and the scenario year exactly as a carrier's
+     * complement is, and the rack is then built as if that fighter were the occupant - same
+     * contents, same capacity, same J4.8222 restriction on what it will service.
+     *
+     * @param catalogueType the fighter type this rack is built for, e.g. "aas" or "gsf"
+     * @return the rack, or null if that type carries nothing a rack would hold
+     */
+    public static ReadyRack forType(String catalogueType) {
+        if (catalogueType == null || catalogueType.isBlank())
+            return null;
+        com.sfb.objects.shuttles.Fighter pattern;
+        try {
+            pattern = com.sfb.objects.shuttles.CataloguedFighter.of(catalogueType);
+        } catch (RuntimeException e) {
+            return null;              // not a fighter the catalogue knows
+        }
+        // Built from a throwaway instance of the fighter rather than from a parallel reading of
+        // the catalogue, so a rack and the craft it serves cannot drift apart - which is the
+        // whole of J4.8222 ("each ready rack holds the same drones that the fighter it is
+        // designed to service carries").
+        return forFighter(pattern);
+    }
+
+    /**
      * The rack a box would have been built with for this occupant, or null if the fighter
      * carries no drones (J4.822 only presumes a rack where one was needed).
      */
