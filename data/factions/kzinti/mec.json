@@ -62,6 +62,7 @@
   "crewData": {
     "totalCrew": 33,
     "boardingParties": 12,
+    "deckCrews": 2,
     "minCrew": 4
   },
 

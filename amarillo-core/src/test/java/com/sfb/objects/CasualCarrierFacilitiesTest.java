@@ -324,6 +324,86 @@ public class CasualCarrierFacilitiesTest {
         assertEquals(String.join("\n  ", wrong), List.of(), wrong);
     }
 
+    // ---------------------------------------------------------------- J4.814 deck crews
+
+    /**
+     * J4.814: "Carrier escorts (with ready racks but without fighters) and casual carriers have
+     * one deck crew per ready rack (minimum two deck crews)."
+     * <p>
+     * Correct by coincidence today and this makes it correct by construction: every escort in the
+     * data has one or two facilities, so {@code max(facilities, 2)} is 2 for all of them and the
+     * two-crew default happens to satisfy the rule. A three-facility escort would need three, and
+     * nothing would have said so.
+     */
+    @Test
+    public void everyCasualCarrierHasADeckCrewPerFacilityAndAtLeastTwo() {
+        List<String> wrong = new ArrayList<>();
+
+        for (ShipSpec spec : ShipLibrary.all()) {
+            Ship ship = ShipLibrary.createShip(spec);
+            if (ship.getShuttles() == null)
+                continue;
+            int facilities = 0;
+            for (ShuttleBay bay : ship.getShuttles().getBays())
+                facilities += bay.getFighterFacilities();
+            if (facilities == 0)
+                continue;
+
+            int needed = Math.max(facilities, 2);
+            int have = ship.getCrew().getDeckCrews();
+            if (have < needed)
+                wrong.add(spec.faction + " " + spec.type + ": " + facilities
+                        + " fighter facilities need " + needed + " deck crews, has " + have);
+        }
+
+        assertEquals("J4.814: one deck crew per facility, minimum two:" + "\n  "
+                + String.join("\n  ", wrong), List.of(), wrong);
+    }
+
+    /**
+     * And a casual carrier DECLARES its deck crews rather than leaning on the default.
+     * <p>
+     * Owner's ruling, and J4.814 is why it is more than a style preference. The rule has two
+     * separate sentences: "All ships NOT FORMALLY ASSIGNED a number of deck crews by Annex #7G are
+     * assumed to have two deck crews", and then "carrier escorts... have one deck crew per ready
+     * rack (minimum two)". An escort IS formally assigned, by the second sentence. Taking the
+     * default was treating "the annex is silent about this ship" as the same fact as "the rule
+     * assigns this ship two" - they coincide at 2 only while no escort has three facilities.
+     * <p>
+     * Read from the FILE rather than the built ship, because {@code Crew.init} defaults a missing
+     * value to two and by then the two cases are indistinguishable.
+     */
+    @Test
+    public void everyCasualCarrierDeclaresItsDeckCrews() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        List<String> wrong = new ArrayList<>();
+
+        java.io.File root = new java.io.File("../data/factions");
+        java.io.File[] factions = root.listFiles(java.io.File::isDirectory);
+        if (factions == null)
+            factions = new java.io.File[0];
+        for (java.io.File faction : factions) {
+            java.io.File[] files = faction.listFiles(f -> f.getName().endsWith(".json"));
+            if (files == null)
+                continue;
+            for (java.io.File f : files) {
+                com.fasterxml.jackson.databind.JsonNode root2 = mapper.readTree(f);
+                int facilities = 0;
+                for (com.fasterxml.jackson.databind.JsonNode bay : root2.path("shuttleBays"))
+                    facilities += bay.path("fighterFacilities").asInt(0);
+                if (facilities == 0)
+                    continue;
+                if (!root2.path("crewData").has("deckCrews"))
+                    wrong.add(f.getName() + " declares " + facilities
+                            + " fighter facilities but no deckCrews");
+            }
+        }
+
+        assertEquals("a ship whose deck crews are part of its function should say so (J4.814):"
+                + "\n  " + String.join("\n  ", wrong), List.of(), wrong);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static ReadyRack rackOf(Ship ship) {
