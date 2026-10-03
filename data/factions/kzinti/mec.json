@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "commandRating": 6,
   "isEscort": true,
+  "carrierClass": "CASUAL",
   "note": "War cruiser.",
   "tokenArt": "kzinti/cm.png",
   
@@ -54,7 +55,8 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "admin"], "fighterFacilities": 2,
+      "fighters": { "line": "kzinti-attack" } }
   ],
 
   "crewData": {

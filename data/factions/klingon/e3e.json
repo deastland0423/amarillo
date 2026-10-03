@@ -14,6 +14,7 @@
   "nimble": true,
   "commandRating": 3,
   "isEscort": true,
+  "carrierClass": "CASUAL",
   "aegis": "LIMITED",
   "tokenArt": "klingon/e3.png",
   
@@ -53,7 +54,8 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"] }
+    { "shuttles": ["admin"], "fighterFacilities": 1,
+      "fighters": { "line": "klingon-zegurnii" } }
   ],
 
   "crewData": {

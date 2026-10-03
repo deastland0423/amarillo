@@ -213,6 +213,117 @@ public class CasualCarrierFacilitiesTest {
         assertFalse("and cannot acquire another", box.fitFacilitiesFor("gsf"));
     }
 
+    // ---------------------------------------------------------------- the whole fleet
+
+    /**
+     * Every hull that DECLARES fighter facilities actually gets them, in every year its line runs.
+     * <p>
+     * The drift guard for escort data. A declared facility that quietly fits nothing is the exact
+     * failure this whole area kept producing: a count in a ship file, a line that resolves, and a
+     * ship that cannot service anything. It has three separate causes on record — a plasma-D rail
+     * answering null to {@code getDesignDrone}, a fighter whose heavy weapon lives in a capacitor
+     * rather than a rack, and a spent "never seated" sentinel on a box holding an admin shuttle.
+     * <p>
+     * Asserted as declared-equals-fitted rather than against any hull's numbers, so adding an
+     * escort cannot make the test wrong while the mechanism stays right.
+     */
+    @Test
+    public void everyDeclaredFacilityIsActuallyFitted() {
+        List<String> wrong = new ArrayList<>();
+
+        for (ShipSpec spec : ShipLibrary.all()) {
+            for (int year : new int[]{165, 170, 173, 177, 180, 183}) {
+                // Only years in which the hull exists. Asking a Y175 escort what it services in
+                // Y165 is asking about a ship that has not been built, and its line may not have
+                // begun either - the Klingon Zegurnii line starts in Y167. The relationship
+                // between the two is asserted on its own below rather than hidden by this filter.
+                if (spec.serviceYear > 0 && year < spec.serviceYear)
+                    continue;
+                Ship ship = ShipLibrary.createShip(spec);
+                if (ship.getShuttles() == null)
+                    continue;
+                int declared = 0;
+                for (ShuttleBay bay : ship.getShuttles().getBays())
+                    declared += bay.getFighterFacilities();
+                if (declared == 0)
+                    continue;
+
+                FighterComplement.reseat(ship, year);
+
+                int fitted = 0;
+                for (ShuttleSpace box : boxesOf(ship))
+                    if (box.getReadyRack() != null
+                            || box.getCapacitorKind() != ShuttleSpace.CapacitorKind.NONE)
+                        fitted++;
+                if (fitted < declared)
+                    wrong.add(spec.faction + " " + spec.type + " in Y" + year + ": declares "
+                            + declared + " fighter facilities, fitted " + fitted);
+            }
+        }
+
+        assertEquals("a declared fighter facility that fits nothing is a ship that cannot service"
+                + " anything (J4.62, J4.73):" + "\n  " + String.join("\n  ", wrong),
+                List.of(), wrong);
+    }
+
+    /**
+     * A hull with fighter facilities has a line that has BEGUN by the time the hull enters
+     * service.
+     * <p>
+     * The invariant the year filter above would otherwise hide. An escort commissioned before its
+     * navy's fighters exist can service nothing on the day it arrives, and the symptom would be
+     * indistinguishable from the mechanism being broken — which is exactly how the sweep first
+     * read, firing on four Klingon escorts in a year none of them existed in.
+     */
+    @Test
+    public void everyHullWithFacilitiesHasALineByItsServiceYear() {
+        List<String> wrong = new ArrayList<>();
+
+        for (ShipSpec spec : ShipLibrary.all()) {
+            Ship ship = ShipLibrary.createShip(spec);
+            if (ship.getShuttles() == null || spec.serviceYear <= 0)
+                continue;
+            for (ShuttleBay bay : ship.getShuttles().getBays()) {
+                if (bay.getFighterFacilities() <= 0 || bay.getFighterComplement() == null)
+                    continue;
+                String line = bay.getFighterComplement().getLine();
+                if (ShuttleCatalog.eraFor(line, spec.serviceYear) == null)
+                    wrong.add(spec.faction + " " + spec.type + " enters service in Y"
+                            + spec.serviceYear + " but line '" + line
+                            + "' has not begun by then");
+            }
+        }
+
+        assertEquals(String.join("\n  ", wrong), List.of(), wrong);
+    }
+
+    /**
+     * And a hull declaring facilities is a casual carrier (J4.62), not merely an escort.
+     * <p>
+     * Two different questions, kept apart on purpose: {@code carrierClass} is the J4.61/J4.62
+     * capability and {@code isEscort} is S8.311 fleet legality. J4.62's casual carriers include
+     * "most carrier escorts, the Hydran Pegasus and Gendarme, and many WYN ships" — so the
+     * Pegasus is a casual carrier and no escort, and neither flag can stand in for the other.
+     */
+    @Test
+    public void everyHullWithFacilitiesIsACasualCarrier() {
+        List<String> wrong = new ArrayList<>();
+
+        for (ShipSpec spec : ShipLibrary.all()) {
+            Ship ship = ShipLibrary.createShip(spec);
+            if (ship.getShuttles() == null)
+                continue;
+            int declared = 0;
+            for (ShuttleBay bay : ship.getShuttles().getBays())
+                declared += bay.getFighterFacilities();
+            if (declared > 0 && ship.getCarrierClass() == CarrierClass.NONE)
+                wrong.add(spec.faction + " " + spec.type
+                        + " has fighter facilities but carrierClass NONE");
+        }
+
+        assertEquals(String.join("\n  ", wrong), List.of(), wrong);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static ReadyRack rackOf(Ship ship) {

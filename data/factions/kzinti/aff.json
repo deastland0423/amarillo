@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "commandRating": 3,
   "isEscort": true,
+  "carrierClass": "CASUAL",
   "aegis": "FULL",
   "tokenArt": "kzinti/cm.png",
   
@@ -54,7 +55,8 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"] }
+    { "shuttles": ["admin"], "fighterFacilities": 1,
+      "fighters": { "line": "kzinti-attack" } }
   ],
 
   "crewData": {

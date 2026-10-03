@@ -12,6 +12,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "isEscort": true,
+  "carrierClass": "CASUAL",
   "commandRating": 6,
   "aegis": "LIMITED",
   "tokenArt": "klingon/d5.png",
@@ -54,7 +55,8 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "admin"], "fighterFacilities": 2,
+      "fighters": { "line": "klingon-zegurnii" } }
   ],
 
   "crewData": {
