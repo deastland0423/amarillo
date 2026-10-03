@@ -7,6 +7,7 @@ import com.sfb.weapons.FighterDisruptor;
 import com.sfb.weapons.FighterPhoton;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
+import com.sfb.weapons.FighterPlasmaF;
 import com.sfb.weapons.Weapon;
 
 /**
@@ -97,6 +98,24 @@ public final class FighterArming {
         int loaded = 0;
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
             if (w instanceof DroneRail rail && isArmable(rail) && rail.getDrone() != null)
+                loaded++;
+        return loaded;
+    }
+
+    /**
+     * Type-D torpedoes this fighter is holding, in the units a plasma ready rack counts.
+     * <p>
+     * The plasma twin of {@link #dronesCarriedBy}, and a separate method rather than a widening
+     * of that one because the two must never be added together: J4.825 forbids any fighter to
+     * carry drones and type-Ds at once, so a craft answers above zero to exactly one of them.
+     * Asks {@code isLoaded()}, never {@code getDrone() != null} - a loaded plasma-D rail answers
+     * null to the latter, which is correct and is why the drone count skips it.
+     */
+    public static int plasmaDsCarriedBy(Shuttle fighter) {
+        int loaded = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail && isArmable(rail) && rail.isPlasmaD()
+                    && rail.isLoaded())
                 loaded++;
         return loaded;
     }
@@ -745,6 +764,27 @@ public final class FighterArming {
                 hb.reload();
             else if (w instanceof FighterFusion ff)
                 while (ff.loadCharge()) { /* to the top */ }
+            else if (w instanceof FighterDisruptor fd)
+                while (fd.loadCharge()) { /* J4.842, to the top */ }
+            else if (w instanceof FighterPhoton fp)
+                while (fp.loadCharge()) { /* J4.852, one torpedo per box */ }
+            else if (w instanceof FighterPlasmaF pf) {
+                if (!pf.isLoaded())
+                    pf.loadTorpedo();          // J4.862
+            }
+            // A PLASMA_D rail before the drone case, and that order is the whole point: a
+            // plasma-D rail has NO design drone, so the drone branch's
+            // getDesignDrone() != null skips it and the rail was left empty. That is the fourth
+            // site this exact trap has been found in - ReadyRack.forFighter,
+            // Shuttles.droneLoadoutPattern and FighterArming.halfActionsFor were the first
+            // three - and here it meant armOccupantFully() did nothing at all for a Gladiator-F:
+            // the ready rack stayed full, the rails stayed empty, needsArming stayed true.
+            else if (w instanceof DroneRail rail && isArmable(rail) && rail.isPlasmaD()) {
+                if (!rail.isLoaded())
+                    rail.loadTorpedo(new com.sfb.objects.PlasmaTorpedo(
+                            com.sfb.properties.PlasmaType.D,
+                            com.sfb.properties.WeaponArmingType.STANDARD));
+            }
             else if (w instanceof DroneRail rail && isArmable(rail)
                     && rail.getDrone() == null && rail.getDesignDrone() != null)
                 rail.loadDrone(new com.sfb.objects.Drone(rail.getDesignDrone()));

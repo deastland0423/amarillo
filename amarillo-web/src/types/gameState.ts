@@ -71,6 +71,17 @@ export interface WeaponState {
   addShots?:         number;  // ADD only: shots remaining in current load
   addReloads?:       number;  // ADD only: reserve shots remaining
   addCapacity?:      number;  // ADD only: shots per full load
+  // Plasma rack (FP10.0). Every one optional, because the server sends null rather than a
+  // default on weapons that are not racks AND on a rack an enemy is looking at — so the guard
+  // is always `!= null`, never a falsy check: a rack holding 0 torpedoes is a real state and
+  // tells you it is empty, while undefined means you are not allowed to know.
+  plasmaRack?:           boolean; // true if this weapon is a PL-D rack
+  plasmaRackCapacity?:   number;  // FP10.1/FP10.14: always 4 on a non-base
+  plasmaRackTorpedoes?:  number;  // owner only: how many are left
+  plasmaRackActive?:     number;  // owner only: of those, how many are paid for (FP9.22)
+  plasmaRackReloadSets?: number;  // owner only: FP10.312, one or two from Y175
+  plasmaRackMode?:       string;  // owner only: UNDECIDED | OFFENSIVE | DEFENSIVE
+  plasmaRackBoltUsed?:   boolean; // owner only: FP10.221, the turn's one bolt is spent
 }
 
 export interface ReloadPoolEntry {
@@ -222,6 +233,8 @@ export interface ShipObject extends MapObjectBase {
   capacitorsCharged:  boolean;
   // J4.832: power the fighter box capacitors could still take. 0 = nothing to buy.
   fighterCapacitorRoom?: number;
+  /** FP9.22: half points needed to activate every type-D torpedo aboard. Owner only. */
+  plasmaActivationRoom?: number;
   /**
    * J4.7: spaces of spare drones this carrier holds for its fighters, and how much is still
    * in the hold. Absent on a ship that declares no storage — which is not a carrier that has

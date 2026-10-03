@@ -75,6 +75,14 @@ public class Energy {
 	private int fighterCapacitors;
 
 	/**
+	 * FP9.22 activation energy allocated this turn, in HALF points - the only fractional line in
+	 * the allocation, which is why it is a double where its neighbours are ints. "1/2 of an
+	 * energy point (reserve or allocated) per torpedo", and a torpedo is all or nothing, so the
+	 * fractions are real rather than an artefact of averaging.
+	 */
+	private double plasmaActivation;
+
+	/**
 	 * J4.817: which fighter boxes the deck crews work in this turn, by box id.
 	 * <p>
 	 * Costs no energy — crews are their own budget — but it is decided at Energy Allocation
@@ -313,6 +321,15 @@ public class Energy {
 
 	public void setCloakPaid(boolean cloakPaid) {
 		this.cloakPaid = cloakPaid;
+	}
+
+	/** FP9.22 activation energy allocated this turn (half a point per torpedo). */
+	public double getPlasmaActivation() {
+		return plasmaActivation;
+	}
+
+	public void setPlasmaActivation(double plasmaActivation) {
+		this.plasmaActivation = Math.max(0, plasmaActivation);
 	}
 
 	public int getFighterCapacitors() {

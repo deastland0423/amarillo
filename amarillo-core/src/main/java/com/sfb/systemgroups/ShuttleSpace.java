@@ -277,7 +277,20 @@ public class ShuttleSpace {
         FighterArming.armFully(shuttle);
         capacitorCharges = Math.max(0,
                 capacitorCapacity() - FighterArming.chargesCarriedBy(shuttle));
-        if (readyRack != null) {
+        if (readyRack != null && readyRack.isPlasmaD()) {
+            // J4.825/FP9.21: a plasma rack's load is a COUNT, so the subtraction is arithmetic
+            // rather than a list of objects. Back to full, then one out for every torpedo now on
+            // a rail - the fighter's load came out of this box (J4.8224).
+            //
+            // A branch of its own because put()/take() are drone methods and answer false on a
+            // plasma rack, so the drone path below silently balanced nothing: a Gladiator-F armed
+            // from a full rack left the rack still full, and the box held two torpedoes that were
+            // also on the fighter.
+            while (readyRack.plasmaDMissing() > 0)
+                readyRack.putPlasmaD();
+            for (int i = FighterArming.plasmaDsCarriedBy(shuttle); i > 0; i--)
+                readyRack.takePlasmaD();
+        } else if (readyRack != null) {
             // Refill from the rails' own designs, so a mixed fighter's rack comes back
             // with drones each of its rails can take.
             for (com.sfb.weapons.Weapon w : shuttle.getWeapons().fetchAllWeapons())

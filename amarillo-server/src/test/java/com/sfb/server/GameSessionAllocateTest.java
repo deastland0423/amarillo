@@ -587,4 +587,91 @@ class GameSessionAllocateTest {
         ActionRequest req = allocate("USS Enterprise");
         assertTrue(session.executeAction(req).isSuccess());
     }
+
+    // -------------------------------------------------------------------------
+    // Type-D activation energy (FP9.22) — half points, the only fractional line
+    // -------------------------------------------------------------------------
+
+    /** Fit a plasma rack to the Federation CA, which is simply a hull to hang it on. */
+    private com.sfb.weapons.PlasmaRack fitAPlasmaRack() {
+        com.sfb.weapons.PlasmaRack rack = new com.sfb.weapons.PlasmaRack();
+        rack.setDesignator("1");
+        fed.getWeapons().addWeapon(rack);
+        return rack;
+    }
+
+    /**
+     * FP9.22: "1/2 of an energy point (reserve or allocated) per torpedo." A full rack of four
+     * therefore takes two points, and buying them activates all four.
+     */
+    @Test
+    void plasmaActivation_buysTorpedoesAtHalfAPointEach() {
+        com.sfb.weapons.PlasmaRack rack = fitAPlasmaRack();
+        assertEquals(0, rack.getActiveTorpedoes());
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaActivationEnergy(2.0);
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        // The allocation is SPENT at the start of the turn, not when it is submitted - the same
+        // reason squadronEw_... above steps the turn before asserting.
+        fed.startTurn();
+        assertEquals(4, rack.getActiveTorpedoes(), "two points, four torpedoes");
+    }
+
+    /** Half a point buys exactly one, which is what makes the line fractional at all. */
+    @Test
+    void plasmaActivation_ofHalfAPoint_buysOneTorpedo() {
+        com.sfb.weapons.PlasmaRack rack = fitAPlasmaRack();
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaActivationEnergy(0.5);
+
+        assertTrue(session.executeAction(req).isSuccess());
+        fed.startTurn();
+        assertEquals(1, rack.getActiveTorpedoes());
+    }
+
+    /**
+     * Bounded by what is actually waiting, so a client asking for more cannot burn energy into
+     * nothing — the same guard the fighter capacitor line gets, and for the same reason.
+     */
+    @Test
+    void plasmaActivation_beyondWhatIsWaiting_isTrimmed() {
+        com.sfb.weapons.PlasmaRack rack = fitAPlasmaRack();
+
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaActivationEnergy(50.0);
+
+        assertTrue(session.executeAction(req).isSuccess());
+        fed.startTurn();
+        assertEquals(4, rack.getActiveTorpedoes(), "four is all it holds (FP10.14)");
+    }
+
+    /**
+     * A ship with no type-D anywhere aboard is refused rather than silently charged. The
+     * Federation CA has neither a plasma rack nor a fighter that carries one.
+     */
+    @Test
+    void plasmaActivation_withNoTypeDsAboard_isRefused() {
+        ActionRequest req = allocate("USS Enterprise");
+        req.setPlasmaActivationEnergy(1.0);
+
+        ActionResult result = session.executeAction(req);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getMessage().contains("FP9.22"), result.getMessage());
+    }
+
+    /** Omitting the line leaves everything inactive rather than activating by default. */
+    @Test
+    void plasmaActivation_isOptional() {
+        com.sfb.weapons.PlasmaRack rack = fitAPlasmaRack();
+
+        assertTrue(session.executeAction(allocate("USS Enterprise")).isSuccess());
+        fed.startTurn();
+        assertEquals(0, rack.getActiveTorpedoes());
+    }
 }

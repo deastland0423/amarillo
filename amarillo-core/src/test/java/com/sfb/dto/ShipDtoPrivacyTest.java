@@ -62,6 +62,10 @@ public class ShipDtoPrivacyTest {
         // How spent the fighters in his bays are, by way of what their box capacitors
         // still have room for (J4.832)
         "fighterCapacitorRoom",
+        // FP9.22: how many type-D torpedoes aboard are still waiting to be paid for. An arming
+        // state, and one that spans the ship's plasma racks and its fighters' rails together, so
+        // it would say both how ready the racks are and how ready the squadron is.
+        "plasmaActivationRoom",
         // The carrier's drone supply (J4.7) and what is left of it. How many more strikes he
         // can mount is exactly the thing a carrier duel turns on, and G4.233 keeps even the
         // types in the crates off a scan.
@@ -150,7 +154,15 @@ public class ShipDtoPrivacyTest {
         "readyToFire", "plasmaType", "pseudoPlasmaReady", "isRolling", "chargesRemaining",
         "esgStoredEnergy",
         // Ammunition remaining, hidden like the drones in a rack
-        "addShots", "addReloads"
+        "addShots", "addReloads",
+        // A plasma rack's live state (FP10.0). What is left in it and what has been paid for
+        // under FP9.22 are ammunition and arming, both already settled questions. The MODE is
+        // the arguable one and is withheld on purpose: a seeking torpedo sent at a fighter five
+        // hexes out is legal in either mode, so the shot does not reveal it, while knowing a
+        // rack is DEFENSIVE tells an opponent it can fire again next impulse and cannot engage
+        // their cruiser at all (FP10.211, FP10.212).
+        "plasmaRackTorpedoes", "plasmaRackActive", "plasmaRackReloadSets", "plasmaRackMode",
+        "plasmaRackBoltUsed"
     ));
 
     private static final Set<String> WEAPON_PUBLIC = new HashSet<>(Arrays.asList(
@@ -162,6 +174,8 @@ public class ShipDtoPrivacyTest {
         "eptCost", "rollingCost", "canFireDouble",
         // What a full ADD load holds is on the SSD; what is left in it is not
         "addCapacity",
+        // The same split for a plasma rack: the SSD prints the PL-D box and its four spaces
+        "plasmaRack", "plasmaRackCapacity",
         // Scout channels: what a channel is doing and lending is public by ruling
         "scoutChannel", "channelPowered", "channelBlinded", "channelFunction",
         "channelLendTarget", "channelLentEcm", "channelLentEccm", "channelBreakAttempts",

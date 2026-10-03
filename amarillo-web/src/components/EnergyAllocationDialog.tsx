@@ -77,6 +77,15 @@ interface ShipAlloc {
   ecm:                  number;   // ECM points (hide)
   eccm:                 number;   // ECCM points (seek)
   tractorEnergy:        number;   // energy pool for tractor beams (G7.15)
+  /**
+   * FP9.22: energy to activate type-D plasma torpedoes, at half a point each.
+   *
+   * The only fractional line on this form, and genuinely so: a torpedo is activated or it is
+   * not, so the halves cannot be rounded away. One figure covers the ship's own plasma racks and
+   * its fighters' rails together, because FP9.22 is one rule with both homes and a player paying
+   * it is not choosing between them.
+   */
+  plasmaActivation:     number;
   erraticManeuvers:     number;   // energy bought for Erratic Maneuvers (C10.11)
   shuttleSpeeds:        Record<string, number>;  // shuttle name → speed (active shuttles only)
   /**
@@ -193,6 +202,7 @@ function defaultAlloc(ship: ShipObject, myShuttles: ShuttleObject[] = []): ShipA
     ecm:               0,
     eccm:              0,
     tractorEnergy:     0,
+    plasmaActivation:  0,
     erraticManeuvers:  0,
     shuttleSpeeds,
     podEw,
@@ -261,6 +271,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   const ssHold    = Object.values(alloc.suicideHold   ?? {}).filter(Boolean).length;
   const wwCost    = alloc.wwCharge.size;  // 1 energy per WW shuttle being charged
   const tractorCost = alloc.tractorEnergy;
+  const plasmaAct   = alloc.plasmaActivation;   // FP9.22, half a point a torpedo
   // C10.11: EM is a flat price — six hexes of movement cost, three if nimble — and it
   // counts against the power budget like anything else bought at allocation.
   const emCost = alloc.erraticManeuvers;
@@ -271,7 +282,7 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
   // are ON TOP of the ship's own — the rule is explicit that the same points cannot serve both.
   const squadronEwCost = Object.values(alloc.squadronEw ?? {})
     .reduce((a, p) => a + p.ecm + p.eccm, 0);
-  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels + squadronEwCost + figCaps;
+  const spent = ls + fc + mv + imp + sh + cap + arm + genReinf + specReinf + trans + cloak + recharge + het + tac + sublTac + ew + ssArming + ssHold + wwCost + tractorCost + emCost + esg + channels + squadronEwCost + figCaps + plasmaAct;
   // G15.2 engine doubling — a doubled engine outputs an extra copy of its available boxes this turn.
   const doublingBonus =
       (alloc.doubleLwarp   ? (ship.availableLWarp   ?? 0) : 0) +
@@ -594,6 +605,7 @@ export default function EnergyAllocationDialog({
           ecm:                   a.ecm,
           eccm:                  a.eccm,
           tractorEnergy:         a.tractorEnergy,
+          plasmaActivationEnergy: a.plasmaActivation,
           erraticManeuvers:      a.erraticManeuvers,
           generalReinforcement:  a.generalReinf,
           specificReinforcement: a.specificReinf,
@@ -982,6 +994,30 @@ export default function EnergyAllocationDialog({
               <Stepper value={alloc.tractorEnergy} min={0} max={ship.totalPower}
                 onChange={v => setAlloc(a => ({ ...a, tractorEnergy: v }))}
                 label="Energy pool (G7.15)" />
+            </Collapsible>
+          </div>
+        )}
+
+        {/* ---- Type-D activation (FP9.22) ----
+            Shown only when there is actually a torpedo waiting, which keeps it off every ship
+            that has no type-D aboard. plasmaActivationRoom already counts the racks and the
+            fighters' rails together and is zero for an enemy, so this never appears on a ship
+            whose state the viewer is not entitled to. */}
+        {(ship.plasmaActivationRoom ?? 0) > 0 && (
+          <div className="ea-section">
+            <Collapsible title={`PLASMA-D ACTIVATION  (${alloc.plasmaActivation > 0
+              ? `${Math.round(alloc.plasmaActivation / 0.5)} torpedo${
+                  Math.round(alloc.plasmaActivation / 0.5) === 1 ? '' : 'es'} for ${
+                  alloc.plasmaActivation}`
+              : 'none bought'})`} color="#86efac">
+              <Stepper value={alloc.plasmaActivation} min={0}
+                max={ship.plasmaActivationRoom ?? 0} step={0.5}
+                onChange={v => setAlloc(a => ({ ...a, plasmaActivation: v }))}
+                label="Half a point per torpedo (FP9.22)" />
+              <div className="ea-note">
+                A type-D cannot be launched until it is activated. The ship&apos;s own plasma
+                racks are paid for first, then its fighters&apos; rails.
+              </div>
             </Collapsible>
           </div>
         )}

@@ -118,6 +118,22 @@ public class GameStateDto {
         public String plasmaType; // PlasmaLauncher only: currently arming torpedo type ("F","G","S","R") or null
         public String launcherType; // PlasmaLauncher only: fixed launcher type ("F","G","S","R") or null
         public boolean pseudoPlasmaReady; // PlasmaLauncher only: can still fire a pseudo?
+        /**
+         * Plasma rack (FP10.0). Boxed, every one of them, so "not applicable" can be said: a
+         * primitive would arrive as 0 or false on every phaser and photon in the fleet and the
+         * client could not tell a rack holding nothing from a weapon that is not a rack.
+         * <p>
+         * {@code plasmaRack} and {@code plasmaRackCapacity} are what the SSD prints, so both are
+         * public - the same split {@code addCapacity} already makes against {@code addShots}.
+         * Everything else is the rack's current state and is owner-only.
+         */
+        public Boolean plasmaRack;             // true if this weapon is a PL-D rack
+        public Integer plasmaRackCapacity;     // FP10.1/FP10.14: always 4 on a non-base
+        public Integer plasmaRackTorpedoes;    // how many are left in it
+        public Integer plasmaRackActive;       // of those, how many are paid for (FP9.22)
+        public Integer plasmaRackReloadSets;   // FP10.312: one, or two from Y175
+        public String  plasmaRackMode;         // FP10.21: UNDECIDED / OFFENSIVE / DEFENSIVE
+        public Boolean plasmaRackBoltUsed;     // FP10.221: the turn's one bolt is spent
         public boolean isHeavy; // true for HeavyWeapon (disruptors, plasma, photon)
         // Energy-allocation helpers for heavy weapons
         public int armingCost; // energy to arm (standard, unarmed)
@@ -427,6 +443,18 @@ public class GameStateDto {
          * .capacitorRoom; this stays only as a cheap "is there anything to buy at all".
          */
         public int fighterCapacitorRoom;
+        /**
+         * FP9.22: what it would cost to activate every type-D torpedo aboard, in half points.
+         * <p>
+         * A single figure covering the ship's plasma racks AND its fighters' rails, because
+         * FP9.22 is one rule with those homes and a player allocating the energy is not choosing
+         * between them. Unlike {@code fighterCapacitorRoom} this IS a spendable pool: any half
+         * point buys any waiting torpedo, so the total is a real quantity.
+         * <p>
+         * Owner-only. How ready a ship's seeking weapons are is the arming question, and the
+         * ruling on that is settled.
+         */
+        public double plasmaActivationRoom;
         /**
          * J4.7: spaces of spare drones this carrier holds for its fighters, and how much of
          * that supply is still in the hold. Both null on a ship that declares no storage,
@@ -1425,6 +1453,7 @@ public class GameStateDto {
         dto.phaserCapacitorMax = ship.getWeapons().getAvailablePhaserCapacitor();
         dto.capacitorsCharged = ship.isCapacitorsCharged();
         dto.fighterCapacitorRoom = ship.getShuttles().capacitorPowerWanted();
+        dto.plasmaActivationRoom = ship.plasmaActivationWanted();
         com.sfb.systemgroups.DroneStore droneStore = ship.getShuttles().getDroneStore();
         if (droneStore != null) {
             dto.droneStorageSpaces = droneStore.capacitySpaces();
@@ -1689,6 +1718,15 @@ public class GameStateDto {
                         wd.esgRadius = esg.getAnnouncedRadius(); // owner sees where it will form
                     }
                 }
+            }
+            if (w instanceof com.sfb.weapons.PlasmaRack rack) {
+                wd.plasmaRack = true;
+                wd.plasmaRackCapacity = com.sfb.weapons.PlasmaRack.CAPACITY;
+                wd.plasmaRackTorpedoes = rack.getTorpedoes();
+                wd.plasmaRackActive = rack.getActiveTorpedoes();
+                wd.plasmaRackReloadSets = rack.getReloadSets();
+                wd.plasmaRackMode = rack.getModeThisTurn().name();
+                wd.plasmaRackBoltUsed = rack.getBoltsThisTurn() > 0;
             }
             if (w instanceof com.sfb.weapons.PlasmaLauncher) {
                 com.sfb.weapons.PlasmaLauncher pl = (com.sfb.weapons.PlasmaLauncher) w;
@@ -2149,6 +2187,7 @@ public class GameStateDto {
         dto.phaserCapacitor = 0;          // the SSD maximum stays public
         dto.capacitorsCharged = false;
         dto.fighterCapacitorRoom = 0;     // how spent his fighters are is his business
+        dto.plasmaActivationRoom = 0;     // FP9.22: an arming state, and those are private
         // How many more strikes he can mount (J4.7), and G4.233 for what is in the crates.
         dto.droneStorageSpaces = null;
         dto.droneStorageHeld = null;
@@ -2231,6 +2270,21 @@ public class GameStateDto {
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
                 wd.addShots = null;
                 wd.addReloads = null;   // addCapacity is on the SSD and stays
+
+                // A plasma rack's current state. That it IS a rack and how much it holds when
+                // full are printed on the SSD and stay; what is left in it, what has been paid
+                // for under FP9.22, and which mode it committed to this turn do not.
+                //
+                // The MODE is the one worth arguing about, and it is withheld deliberately. A
+                // rack firing a seeking torpedo at a fighter five hexes out could be in either
+                // mode, so the shot does not give it away - while knowing it is DEFENSIVE tells
+                // an opponent it may fire again next impulse and cannot touch their cruiser at
+                // all. That is a real tactical disclosure the observed shot does not imply.
+                wd.plasmaRackTorpedoes = null;
+                wd.plasmaRackActive = null;
+                wd.plasmaRackReloadSets = null;
+                wd.plasmaRackMode = null;
+                wd.plasmaRackBoltUsed = null;
             }
     }
 

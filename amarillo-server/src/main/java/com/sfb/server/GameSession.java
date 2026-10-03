@@ -1214,6 +1214,19 @@ public class GameSession {
                             Math.min(request.getFighterCapacitorEnergy(), room));
                 }
 
+                // Type-D activation energy (FP9.22): half a point per torpedo, for the ship's
+                // own plasma racks and its fighters' rails alike. Bounded by what is actually
+                // inactive aboard, so a client asking for more cannot burn energy into nothing -
+                // the same guard the capacitor line gets, and for the same reason.
+                if (request.getPlasmaActivationEnergy() > 0) {
+                    double room = ship.plasmaActivationWanted();
+                    if (room <= 0)
+                        return ActionResult.fail(ship.getName()
+                                + " has no type-D torpedo awaiting activation (FP9.22)");
+                    e.setPlasmaActivation(
+                            Math.min(request.getPlasmaActivationEnergy(), room));
+                }
+
                 // Transporter energy
                 if (request.getTransUses() > 0) {
                     e.setTransporters(request.getTransUses()

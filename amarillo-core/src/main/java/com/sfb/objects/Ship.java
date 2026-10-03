@@ -519,6 +519,13 @@ public class Ship extends Unit implements DroneController {
 			shuttles.rechargeCapacitors(energyAllocated.getFighterCapacitors());
 		}
 
+		// Type-D activation (FP9.22), which is NOT a capacitor and is a separate line for that
+		// reason: a capacitor belongs to the box and outlives the fighter, an activation belongs
+		// to one torpedo on one mount and dies with it (FP10.33). One line covers the ship's own
+		// plasma racks and its fighters' rails alike.
+		if (energyAllocated.getPlasmaActivation() > 0)
+			activatePlasmaTorpedoes(energyAllocated.getPlasmaActivation());
+
 		// Transporters
 		if (energyAllocated.getTransporters() > 0) {
 			transporters.bankEnergy(energyAllocated.getTransporters());
@@ -1003,6 +1010,63 @@ public class Ship extends Unit implements DroneController {
 
 	/** D13.32: "but not more than four times per impulse", on top of the six. */
 	public static final int AEGIS_ID_PER_IMPULSE = 4;
+
+	// -------------------------------------------------------------------------
+	// Type-D activation energy (FP9.22) — one line, every place a torpedo can sit
+	// -------------------------------------------------------------------------
+
+	/**
+	 * What it would cost to activate every type-D torpedo aboard (FP9.22) — the Energy
+	 * Allocation line's ceiling.
+	 * <p>
+	 * ONE line rather than one per system, because FP9.22 is one rule with three homes: "When
+	 * placed on a fighter ready rack, plasma rack, or fighter, they can be activated, which
+	 * requires 1/2 of an energy point (reserve or allocated) per torpedo." A player allocating
+	 * activation energy is not thinking about which mount it lands on, and the rule gives no
+	 * reason to make them.
+	 * <p>
+	 * Two of those three homes are covered: the fighters' rails, via
+	 * {@code Shuttles.plasmaDActivationWanted}, and the ship's own plasma racks. The READY RACK
+	 * is deliberately not, and FP10.33 is why - "an activated torpedo automatically switches
+	 * itself off when unloaded from a rack/fighter and requires new activation energy after being
+	 * installed on another rack/fighter" - so a torpedo activated in the ready rack loses it the
+	 * moment a deck crew moves it onto the fighter. Paying there buys nothing, which is why there
+	 * is no activation flag on {@code ReadyRack} to spend it on.
+	 */
+	public double plasmaActivationWanted() {
+		double wanted = shuttles == null ? 0 : shuttles.plasmaDActivationWanted();
+		for (Weapon w : weapons.fetchAllWeapons())
+			if (w instanceof com.sfb.weapons.PlasmaRack rack)
+				wanted += rack.activationEnergyWanted();
+		return wanted;
+	}
+
+	/**
+	 * Spend energy activating type-D torpedoes (FP9.22), half a point each, anywhere aboard.
+	 * <p>
+	 * The ship's own racks are served FIRST, then the fighters' rails. A rack's torpedo can be
+	 * fired this turn by the ship itself; a fighter's cannot be used until the fighter launches,
+	 * which J1.341 delays. So when there is not enough energy for everything, the torpedoes that
+	 * could matter this turn are the ones that get it.
+	 * <p>
+	 * FP10.32 allows this energy "during energy allocation or by reserve power at any point after
+	 * loading and before firing", so one method serves both pockets - the caller knows which it
+	 * came from and the rule does not care.
+	 *
+	 * @return energy actually spent, which is below what was offered when there was nothing left
+	 *         to buy or only a part-charge remained
+	 */
+	public double activatePlasmaTorpedoes(double energy) {
+		double spent = 0;
+		for (Weapon w : weapons.fetchAllWeapons()) {
+			if (!(w instanceof com.sfb.weapons.PlasmaRack rack))
+				continue;
+			spent += rack.activate(energy - spent);
+		}
+		if (shuttles != null)
+			spent += shuttles.activatePlasmaDs(energy - spent);
+		return spent;
+	}
 
 	// -------------------------------------------------------------------------
 	// Plasma rack fire control limits (FP10.24)
