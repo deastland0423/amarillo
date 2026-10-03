@@ -40,27 +40,27 @@
   "fighterLinesNote": "J4.4: which fighter fills each role in a carrier's bay is decided by the YEAR, not by the ship. A carrier declares how many of each role it carries (see a ship file's shuttleBays.fighters) and the latest entry whose 'from' year has arrived supplies the types. A role this era has no type for falls back to 'standard' - which is how a Hydran RN carries nine Stinger-1s in Y134 and six Stinger-2s, two Stinger-Hs and one Stinger-E in Y170 from one declaration.",
   "fighterLines": {
     "federation-fighter": [
-      { "from": 167, "superiority": "f4",  "ew": "f4_e" },
-      { "from": 171, "superiority": "f4",  "ew": "f4_e",  "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e" },
-      { "from": 172, "superiority": "f4",  "ew": "f4_e",  "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
-      { "from": 173, "superiority": "f18", "ew": "f18_e", "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
-      { "from": 177, "superiority": "f18b", "ew": "f18b_e", "elite": "f14a", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 167, "superiority": "f4",    "ew": "f4_e" },
+      { "from": 171, "superiority": "f4",    "ew": "f4_e",   "elite": "f14",  "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e" },
+      { "from": 172, "superiority": "f4",    "ew": "f4_e",   "elite": "f14",  "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 173, "superiority": "f18",   "ew": "f18_e",  "elite": "f14",  "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 177, "superiority": "f18b",  "ew": "f18b_e", "elite": "f14a", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
       { "from": 180, "superiority": "f18b+", "ew": "f18b_e", "elite": "f14a", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
-      { "from": 183, "superiority": "f18c", "ew": "f18b_e", "elite": "f14b", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15c", "attack_ew": "f15_e" }
+      { "from": 183, "superiority": "f18c",  "ew": "f18b_e", "elite": "f14b", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15c", "attack_ew": "f15_e" }
     ],
     "klingon-zegurnii": [
-      { "from": 167, "superiority": "z2",   "ew": "z2_e", "attack": "z1"   },
-      { "from": 172, "superiority": "z2",   "ew": "z2_e", "attack": "z1v", "assault": "zd"   },
-      { "from": 173, "superiority": "zv",   "ew": "zv_e", "attack": "zp", "assault": "zd"   },
-      { "from": 177, "superiority": "zy",   "ew": "zy_e", "attack": "zp", "assault": "zd"   },
-      { "from": 180, "superiority": "zyb",   "ew": "zy_e", "attack": "zp", "assault": "zd"   },
-      { "from": 183, "superiority": "zyc",   "ew": "zy_e", "attack": "zpc", "assault": "zdc"   }
+      { "from": 167, "superiority": "z2",  "ew": "z2_e", "attack": "z1"   },
+      { "from": 172, "superiority": "z2",  "ew": "z2_e", "attack": "z1v", "assault": "zd"   },
+      { "from": 173, "superiority": "zv",  "ew": "zv_e", "attack": "zp",  "assault": "zd"   },
+      { "from": 177, "superiority": "zy",  "ew": "zy_e", "attack": "zp",  "assault": "zd"   },
+      { "from": 180, "superiority": "zyb", "ew": "zy_e", "attack": "zp",  "assault": "zd"   },
+      { "from": 183, "superiority": "zyc", "ew": "zy_e", "attack": "zpc", "assault": "zdc"   }
     ],
     "romulan-gladiator": [
-      { "from": 165, "superiority": "gf", "ew": "gf_e", "assault": "g1", "assault_ew": "g1_e" },
-      { "from": 173, "superiority": "gsf", "ew": "gsf_e", "assault": "g2", "assault_ew": "g2_e" },
+      { "from": 165, "superiority": "gf",   "ew": "gf_e",   "assault": "g1", "assault_ew": "g1_e" },
+      { "from": 173, "superiority": "gsf",  "ew": "gsf_e",  "assault": "g2", "assault_ew": "g2_e" },
       { "from": 180, "superiority": "gfsf", "ew": "gfsf_e", "assault": "g3", "assault_ew": "g3_e" },
-      { "from": 183, "superiority": "gd", "ew": "gd_e", "assault": "g3k", "assault_ew": "g3k_e" }
+      { "from": 183, "superiority": "gd",   "ew": "gd_e",   "assault": "g3k", "assault_ew": "g3k_e" }
     ],
     "kzinti-attack": [
       { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
@@ -72,15 +72,17 @@
     ],
     "hydran-stinger": [
       { "from": 134, "superiority": "stinger1" },
-      { "from": 170, "superiority": "stinger2", "assault": "stingerh", "ew": "stinger_e" }
+      { "from": 170, "superiority": "stinger2", "assault": "stingerh", "ew": "stinger_e" },
+      { "from": 180, "superiority": "stinger3", "assault": "stingerh", "ew": "stinger_e" }
     ]
   },
 
   "shuttles": [
-    { "type": "admin",      "name": "Admin Shuttle",                             "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 6,  "crippled": 4 , "canWeasel": true, "scatterPackSize": 6 , "canSuicide": true, "shortName": "Admin", "designation": "Admin" },
-    { "type": "gas",        "name": "General Assault Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 8,  "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS", "designation": "GAS" },
-    { "type": "hts",        "name": "Heavy Transport Shuttle",                   "kind": "shuttle",    "factions": ["any"],    "year": 125, "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS", "designation": "HTS" },
+    { "type": "admin", "name": "Admin Shuttle",           "kind": "shuttle", "factions": ["any"], "year": 125, "speed": 6,  "hull": 6,  "crippled": 4 , "canWeasel": true, "scatterPackSize": 6 , "canSuicide": true, "shortName": "Admin", "designation": "Admin" },
+    { "type": "gas",   "name": "General Assault Shuttle", "kind": "shuttle", "factions": ["any"], "year": 125, "speed": 6,  "hull": 8,  "crippled": 6 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "GAS", "designation": "GAS" },
+    { "type": "hts",   "name": "Heavy Transport Shuttle", "kind": "shuttle", "factions": ["any"], "year": 125, "speed": 6,  "hull": 12, "crippled": 8 , "canWeasel": true, "scatterPackSize": 0 , "canSuicide": false, "shortName": "HTS", "designation": "HTS" },
 
+    
     { "type": "f4", "name": "F-4 Phantom Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 167, "speed": 8,  "hull": 9,  "crippled": 6, "bpv": 7,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-4", "designation": "F4",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
@@ -435,6 +437,11 @@
                    { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
 
     { "type": "stinger2", "name": "Stinger-2",                                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-2", "designation": "Stinger2",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+
+    { "type": "stinger3", "name": "Stinger-3",                                 "kind": "fighter",    "factions": ["hydran"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-3", "designation": "Stinger3",
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
                    { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
