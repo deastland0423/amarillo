@@ -607,25 +607,48 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 	 */
 	@Override
 	public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+		return fire(range, range);
+	}
+
+	/**
+	 * Bolt a torpedo, with the two ranges kept apart (FP8.42, FP8.43).
+	 *
+	 * The to-hit comes from the EFFECTIVE range - FP8.42: "The probability of a hit is based on
+	 * the effective range to the target" - and the damage from the TRUE range - FP8.43: "one-half
+	 * of the warhead strength of the corresponding plasma torpedo (S-bolt = S-torpedo) at the
+	 * true range to the target."
+	 *
+	 * This override is the fix for a real bug rather than tidying. DirectFire's default
+	 * implementation passes adjustedRange to fire(int), which is right for a variable-damage
+	 * weapon like a phaser and wrong for every hit-or-miss one - Photon, Disruptor and
+	 * FighterPhoton all override it for exactly this reason, and the plasma launcher did not. So
+	 * a scanner used to make a plasma bolt both harder to land AND weaker when it landed, taking
+	 * the damage off the inflated range: a scout showing a ship four hexes further away cost a
+	 * plasma-R bolt ten points of warhead it should have kept.
+	 */
+	@Override
+	public int fire(int realRange, int adjustedRange)
+			throws WeaponUnarmedException, TargetOutOfRangeException {
 		if (!armed)
 			throw new WeaponUnarmedException("Plasma launcher is not armed");
 		if (pseudoLastImpulseFired == clock.getImpulse())
 			throw new WeaponUnarmedException("Cannot fire real plasma and pseudo-plasma in the same impulse");
-		if (range >= BOLT_HIT_CHART.length)
+		int needs = boltHitNeeds(adjustedRange);
+		if (needs < 0)
 			throw new TargetOutOfRangeException("Target out of range for plasma bolt");
 
 		PlasmaTorpedo temp = new PlasmaTorpedo(plasmaType, WeaponArmingType.STANDARD);
-		for (int i = 0; i < range; i++)
+		for (int i = 0; i < realRange; i++)
 			temp.incrementDistance();
 		int tableValue = temp.getCurrentStrength();
 		int boltDamage = tableValue / 2;
 
 		if (boltDamage <= 0)
-			throw new TargetOutOfRangeException("Plasma bolt has no strength at range " + range);
+			throw new TargetOutOfRangeException("Plasma bolt has no strength at range " + realRange);
 
 		int roll = new DiceRoller().rollOneDie();
 		setLastRoll(roll);
-		int hit = roll <= BOLT_HIT_CHART[range] ? boltDamage : 0;
+		int hit = roll <= needs ? boltDamage : 0;
 		registerFire();
 		reset();
 		return hit;
