@@ -233,4 +233,59 @@ public class NonAdminWildWeaselTest {
                 r.isSuccess());
         assertNull(launcher.getActiveWildWeasel());
     }
+
+    // ------------------------------------------------- a weasel answers for what it is
+
+    /**
+     * A launched weasel is built FROM the charged shuttle and deliberately does not copy its
+     * charge counter {— nothing on the map needs one. Pinned because it is the reason the
+     * next test has to exist: the counter is what the BASE class answers
+     * {@code specialRole()} from, so without an override of its own this class reported no
+     * special role at all.
+     */
+    @Test
+    public void aLaunchedWeaselCarriesNoChargeCounter() {
+        charged(new AdminShuttle(), "Alpha 1");
+        readyToLaunch();
+        assertTrue(game.launchWildWeasel(launcher, "Alpha 1", 1, 0).isSuccess());
+
+        WildWeaselShuttle ww = launcher.getActiveWildWeasel();
+        assertNotNull(ww);
+        assertEquals("the charge is not carried onto the map", 0, ww.getWwChargeCount());
+        assertFalse(ww.isWwReady());
+    }
+
+    /**
+     * And it still reports its role, from the class rather than the counter.
+     * <p>
+     * No live path asked this when it was written: a WildWeaselShuttle is only ever built at
+     * launch and goes straight onto the map, while every caller of {@code specialRole()}
+     * looks at craft in a BAY. The override is there so the first thing to put a weasel in a
+     * bay — a mid-game reload restoring state is the obvious candidate — does not find the
+     * ordinary-launch refusal, the J1.534 balcony bar and the hangar's own listing all
+     * treating it as a plain shuttle.
+     */
+    @Test
+    public void aLaunchedWeaselStillReportsItsRole() {
+        charged(new AdminShuttle(), "Alpha 1");
+        readyToLaunch();
+        assertTrue(game.launchWildWeasel(launcher, "Alpha 1", 1, 0).isSuccess());
+
+        WildWeaselShuttle ww = launcher.getActiveWildWeasel();
+
+        assertEquals("Wild Weasel", ww.specialRole());
+    }
+
+    /**
+     * The charged shuttle in the bay reports the same role from the OTHER direction — the
+     * counter — which is what makes a weasel recognisable before it is converted (J3.18).
+     * Both answers have to work, and they are reached by different code.
+     */
+    @Test
+    public void aShuttleBeingChargedReportsTheRoleToo() {
+        Shuttle base = charged(new GASShuttle(), "Alpha 1");
+
+        assertEquals("Wild Weasel", base.specialRole());
+        assertTrue("a GAS may serve (J3.18)", base.canBecomeWildWeasel());
+    }
 }

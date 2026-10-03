@@ -75,6 +75,27 @@ public class WildWeaselShuttle extends Shuttle {
     @Override public boolean canBecomeScatterPack() { return false; }
     @Override public boolean canBecomeWildWeasel()  { return false; }
 
+    /**
+     * Always a weasel, whatever its charge counter says.
+     * <p>
+     * The base implementation answers from {@code wwChargeCount}, which is right for the craft
+     * being PREPARED as a weasel - still an admin shuttle of the same type, with nothing but
+     * the counter to distinguish it (J3.18). But this class is the weasel itself, and it is
+     * built from the base shuttle without copying that counter, so it was answering "no
+     * special role" while being, by class, the most special-roled craft there is.
+     * <p>
+     * No live path reached it: a WildWeaselShuttle is only ever constructed at launch and goes
+     * straight onto the map, and all three callers of specialRole() look at craft in a BAY. So
+     * this changes no behaviour today - it removes a trap. Every role-based gate (the ordinary
+     * launch's refusal, the balcony's J1.534 bar, the hangar's own listing) would have treated
+     * a bayed weasel as an ordinary shuttle, and the first thing to put one in a bay will be
+     * something like a mid-game reload restoring state.
+     */
+    @Override
+    public String specialRole() {
+        return "Wild Weasel";
+    }
+
     /** Unmanned: a decoy flies empty (J3.0). Revealed by identification (G4.233). */
     @Override
     public boolean isManned() {

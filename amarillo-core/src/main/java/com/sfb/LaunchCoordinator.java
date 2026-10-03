@@ -876,13 +876,16 @@ class LaunchCoordinator {
      * J1.534: "Scatter-packs can be held on the balcony; suicide shuttles and wild weasels
      * cannot."
      * <p>
-     * Both questions have to be asked, which is the lesson this method exists to hold. The
-     * CLASS catches a craft already converted - a {@link com.sfb.objects.shuttles.WildWeaselShuttle}
-     * does not override {@code specialRole()}, so asking only the role let one straight out
-     * onto the balcony. The ROLE catches a craft still being prepared - a shuttle charging as
-     * a weasel is an ordinary admin shuttle of the same type (J3.18), so asking only the class
-     * let THAT one out. Each check alone was a bug; the first version of this slice swapped one
-     * for the other and slice two's own test caught it.
+     * Asking the ROLE is what matters: a shuttle being CHARGED as a weasel is an ordinary
+     * admin shuttle of the same type (J3.18), and {@code specialRole()} is the only thing that
+     * knows otherwise, so a check by class alone let it straight out onto the balcony.
+     * <p>
+     * The class checks below are belt to that braces and are kept deliberately. They were once
+     * the only protection, and when this method first swapped them for the role question a
+     * converted weasel walked out instead - {@code WildWeaselShuttle} did not override
+     * {@code specialRole()} at the time, which slice two's own test caught within the build.
+     * That class now answers for itself, so either check alone would do; two is cheap, and the
+     * next craft to gain a role may well arrive before it gains an override.
      * <p>
      * The scatter pack is the one role the rule allows out there, so it is named as the
      * exception rather than either check being weakened.
