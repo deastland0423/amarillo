@@ -56,6 +56,9 @@
       { "from": 180, "superiority": "zyb",   "ew": "zy_e", "attack": "zp", "assault": "zd"   },
       { "from": 183, "superiority": "zyc",   "ew": "zy_e", "attack": "zpc", "assault": "zdc"   }
     ],
+    "romulan-gladiator": [
+      { "from": 165, "assault": "g1", "assault_ew": "g1_e" }
+    ],
     "kzinti-attack": [
       { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
       { "from": 172, "superiority": "aas",   "ew": "aas_e", "assault": "das"   },
@@ -322,6 +325,14 @@
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] },
+
+    { "type": "g1", "name": "Gladiator-1 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 4,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1", "designation": "G1",
+      "weapons": [ 
+        { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"], "launchDirections": ["1"] } 
+      ] },
+
+    { "type": "g1_e", "name": "Gladiator-1 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1E", "designation": "G1E", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ ] },
 
 
     { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",

@@ -287,6 +287,14 @@ public final class ShuttleCatalog {
             ws.railType = w.path("railType").asText(null);
             ws.rackType = w.path("rackType").asText(null);
             ws.plasmaType = w.path("plasmaType").asText(null);
+            // A fighter's plasma launches forward (launchDirections ["1"]), and this parse
+            // dropped the key silently until a fighter had a launcher to need it.
+            if (w.has("launchDirections")) {
+                List<String> dirs = new ArrayList<>();
+                for (JsonNode dir : w.path("launchDirections"))
+                    dirs.add(dir.asText());
+                ws.launchDirections = dirs;
+            }
             ws.range = w.path("range").asInt(0);
             ws.spaces = w.path("spaces").asInt(0);
             ws.addType = w.path("addType").asText(null);

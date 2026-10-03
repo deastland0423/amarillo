@@ -102,15 +102,53 @@ public class FighterRoleNameTest {
                 FighterComplement.ROLES.contains(ShuttleCatalog.LineEra.STANDARD));
     }
 
-    /** Every line must offer the fallback role in every era, or omissions resolve to nothing. */
+    /**
+     * A line that offers SEVERAL combat programmes must offer the fallback role in every era,
+     * or an era omitting one resolves to nothing.
+     * <p>
+     * The fallback is a feature for mixed lines across time: it is what lets an {@code attack}
+     * slot fly standard fighters until an attack fighter exists (see
+     * {@code attackSlotsFlyStandardFightersUntilAnAttackFighterExists}). A line with ONE
+     * combat programme has nothing to fall back to and never omits anything, and the Romulan
+     * Gladiator is that case - a single assault programme from Y165, with no Romulan
+     * superiority fighter to name. Demanding one there would mean either inventing a
+     * superiority entry pointing at an assault fighter, which seats the wrong craft silently,
+     * or leaving the guard red on correct data.
+     * <p>
+     * Nothing is lost by the exemption, because the failure it protects against is covered
+     * from both sides already: {@code noShipDeclaresARoleItsLineNeverOffers} reads the eras'
+     * DECLARED keys, so a bay asking a specialist line for a role it never had still fails,
+     * and {@code noEraDropsARoleAnEarlierOneHad} catches a role going missing mid-line.
+     */
     @Test
-    public void everyEraOffersTheFallbackRole() {
-        for (String line : ShuttleCatalog.lineNames())
+    public void everyMultiRoleLineOffersTheFallbackRole() {
+        for (String line : ShuttleCatalog.lineNames()) {
+            java.util.Set<String> combatRoles = new java.util.LinkedHashSet<>();
             for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line))
-                assertTrue(line + " era from Y" + era.from + " has no '"
-                                + ShuttleCatalog.LineEra.STANDARD
+                for (String role : era.roles().keySet())
+                    if (!FighterComplement.isEwRole(role))
+                        combatRoles.add(role);
+            if (combatRoles.size() <= 1)
+                continue;   // a specialist line: nothing to fall back to, nothing omitted
+
+            for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line))
+                assertTrue(line + " offers " + combatRoles + " but its era from Y" + era.from
+                                + " has no '" + ShuttleCatalog.LineEra.STANDARD
                                 + "' entry, so any role it omits resolves to nothing: " + era,
                         era.hasOwnTypeFor(ShuttleCatalog.LineEra.STANDARD));
+        }
+    }
+
+    /**
+     * And the exemption is not a hole: a specialist line must still offer SOMETHING in every
+     * era, or a bay pointed at it seats nothing at all.
+     */
+    @Test
+    public void everyEraOffersAtLeastOneRole() {
+        for (String line : ShuttleCatalog.lineNames())
+            for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line))
+                assertFalse(line + " era from Y" + era.from + " names no role at all",
+                        era.roles().isEmpty());
     }
 
     // ------------------------------------------------- the assault role, end to end

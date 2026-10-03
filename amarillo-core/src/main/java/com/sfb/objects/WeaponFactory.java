@@ -15,6 +15,7 @@ import com.sfb.weapons.FighterDisruptor;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.FighterPhoton;
+import com.sfb.weapons.FighterPlasmaF;
 import com.sfb.weapons.Fusion;
 import com.sfb.weapons.Hellbore;
 import com.sfb.weapons.Phaser1;
@@ -185,6 +186,19 @@ public final class WeaponFactory {
                 fp.setArcs(arcMask);
                 fp.setDesignator(ws.designator);
                 return fp;
+            }
+            case "FighterPlasmaF": {
+                // Always type F (J4.27), so plasmaType is not read - a data file naming
+                // anything else would be declaring a weapon no fighter carries.
+                FighterPlasmaF fpf = new FighterPlasmaF();
+                fpf.setArcs(arcMask);
+                fpf.setDesignator(ws.designator);
+                // Same launch-direction handling a ship's launcher gets: the ARC is what the
+                // torpedo may be launched at, the DIRECTION is the facing it leaves on, and a
+                // fighter's is forward.
+                if (ws.launchDirections != null && !ws.launchDirections.isEmpty())
+                    fpf.setLaunchDirections(ArcUtils.calculateMask(ws.launchDirections));
+                return fpf;
             }
             /*
              * A rail is not a rack: the RAIL decides what will fit on it and what that costs
