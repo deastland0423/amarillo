@@ -42,7 +42,13 @@ import com.sfb.systemgroups.ShuttleBay;
  *     Romulans and Gorns. The annex labels these "A" and calls them "single-space assault
  *     fighters". Mostly the largest carriers and bases, but NOT enforced by size class — the
  *     annex gives the size class 3 Klingon D6V one.</li>
- * <li><b>ew</b> — the electronic warfare fighter (J4.463 caps how many a carrier may field).</li>
+ * <li><b>elite</b> — a superiority fighter of its own programme, flown by very few hulls and
+ *     evolving on its own schedule rather than with the standard line. The Federation F-14 is
+ *     the case: F-14, F-14A, F-14B, carried by the CVA while everything else flies the F-4 to
+ *     F-18 progression.</li>
+ * <li><b>ew</b> — the electronic warfare fighter (J4.463 caps how many a carrier may field).
+ *     A bay flying ONE programme names this and nothing more. A bay flying two names
+ *     {@code <role>_ew} instead, to say which programme its EW fighter belongs to.</li>
  * </ul>
  * <b>heavy</b> is deliberately NOT a role. The annex labels two-space heavy fighters "H", and a
  * craft occupying two shuttle boxes breaks the bay's one-craft-per-space model; J4.463 also
@@ -62,8 +68,47 @@ public final class FighterComplement {
      * The hand-written data disagreed with itself on this: the Kzinti carriers listed their EW
      * fighter last and the Hydran RN+ listed it first. One order had to win.
      */
-    public static final List<String> ROLES =
-            List.of("superiority", "attack", "assault", "ew");
+    public static final List<String> COMBAT_ROLES =
+            List.of("superiority", "elite", "attack", "assault");
+
+    /**
+     * The generic EW key: "this line's EW fighter", whichever programme that is. Every bay
+     * flying a single programme uses this and nothing more.
+     */
+    public static final String EW = "ew";
+
+    /**
+     * The EW variant of a particular programme, e.g. {@code elite_ew}.
+     * <p>
+     * Derived rather than enumerated, and that is the point. A bay flying two programmes has
+     * to say WHICH one its EW fighter belongs to: the Federation CVA carries an F-14 squadron
+     * and an A-10 squadron split across two bays of twelve, so one bay's EW fighter is an
+     * F-14E and the other's an A-10E. Naming each pair by hand would mean inventing a second
+     * name every time a programme is added, and forgetting one is the silent kind of mistake
+     * {@code FighterRoleNameTest} exists to catch.
+     */
+    public static String ewRoleFor(String combatRole) {
+        return combatRole + "_" + EW;
+    }
+
+    /**
+     * Every key a bay or a line era may name, in SEATING order: the combat roles first, then
+     * every EW key.
+     */
+    public static final List<String> ROLES = buildRoles();
+
+    private static List<String> buildRoles() {
+        List<String> all = new ArrayList<>(COMBAT_ROLES);
+        all.add(EW);
+        for (String role : COMBAT_ROLES)
+            all.add(ewRoleFor(role));
+        return List.copyOf(all);
+    }
+
+    /** Every EW key, generic and programme-specific alike. */
+    public static boolean isEwRole(String role) {
+        return EW.equals(role) || role.endsWith("_" + EW);
+    }
 
     private final String line;
     private final Map<String, Integer> counts;
@@ -88,9 +133,19 @@ public final class FighterComplement {
         return n;
     }
 
-    /** How many EW fighters this complement calls for — what J4.463 caps. */
+    /**
+     * How many EW fighters this complement calls for — what J4.463 caps.
+     * <p>
+     * Every EW key, not just the generic one: a bay naming {@code elite_ew} is still fielding
+     * an EW fighter, and a cap that counted only {@code ew} would let a carrier field one of
+     * each programme's EW variant and call it none.
+     */
     public int ewCount() {
-        return countOf("ew");
+        int n = 0;
+        for (String role : ROLES)
+            if (isEwRole(role))
+                n += countOf(role);
+        return n;
     }
 
     /**

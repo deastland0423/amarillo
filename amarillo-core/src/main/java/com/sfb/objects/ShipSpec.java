@@ -238,8 +238,34 @@ public class ShipSpec {
          * Doctrine for whoever authors the data, not a constraint the engine imposes.
          */
         public int assault;
-        /** EW fighters (J4.463 caps how many a carrier may field). */
+        /**
+         * ELITE fighters: a superiority type on its own programme, flown by very few hulls and
+         * evolving on its own schedule. The Federation F-14 is the case - F-14, F-14A, F-14B,
+         * carried by the CVA while every other carrier flies the F-4 to F-18 progression. A
+         * role rather than a line of its own because a bay MIXES programmes: the CVA's two
+         * bays hold six elite and six assault fighters apiece.
+         */
+        public int elite;
+        /**
+         * EW fighters (J4.463 caps how many a carrier may field), of whatever kind the line
+         * flies. Enough for a bay with one programme in it.
+         */
         public int ew;
+        /**
+         * The EW fighter of a NAMED programme, for a bay that flies two and so cannot leave it
+         * to the line. The CVA carries an F-14 squadron and an A-10 squadron across two bays
+         * of twelve, so one bay's EW fighter is an F-14E ({@code elite_ew}) and the other's an
+         * A-10E ({@code assault_ew}).
+         * <p>
+         * Spelled out as fields rather than held in a map on purpose: a map would accept
+         * {@code assualt_ew} and seat no fighters at all, silently. These keep
+         * {@code ShipJsonKeyGuardTest} able to fail the build on a typo, which is the failure
+         * this data has had most often.
+         */
+        public int superiority_ew;
+        public int elite_ew;
+        public int attack_ew;
+        public int assault_ew;
 
         /**
          * NOT a role: a HEAVY fighter is the two-space category the annex labels "H", and it
@@ -248,7 +274,8 @@ public class ShipSpec {
          * reserved — see the fighter-lines notes.
          */
         public int total() {
-            return superiority + attack + assault + ew;
+            return superiority + elite + attack + assault
+                 + ew + superiority_ew + elite_ew + attack_ew + assault_ew;
         }
     }
 
@@ -527,9 +554,14 @@ public class ShipSpec {
                         Map<String, Object> f = new HashMap<>();
                         f.put("line", bay.fighters.line);
                         f.put("superiority", bay.fighters.superiority);
+                        f.put("elite", bay.fighters.elite);
                         f.put("attack", bay.fighters.attack);
                         f.put("assault", bay.fighters.assault);
                         f.put("ew", bay.fighters.ew);
+                        f.put("superiority_ew", bay.fighters.superiority_ew);
+                        f.put("elite_ew", bay.fighters.elite_ew);
+                        f.put("attack_ew", bay.fighters.attack_ew);
+                        f.put("assault_ew", bay.fighters.assault_ew);
                         bayMap.put("fighters", f);
                     }
                     bayList.add(bayMap);

@@ -30,7 +30,7 @@
     "rightWarp": 15,
     "centerWarp": 15,
     "impulse": 6,
-    "apr": 2,
+    "apr": 5,
     "battery": 5
   },
   
@@ -58,8 +58,8 @@
 
   "shuttleBays": [
     { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"] },
-    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 }, "balconyPositions": 6 },
-    { "fighters": {"line": "federation-fighter", "superiority": 5, "assault": 6, "ew": 1 }, "balconyPositions": 6 }
+    { "fighters": {"line": "federation-fighter", "elite": 6, "assault": 5, "assault_ew": 1 }, "balconyPositions": 6 },
+    { "fighters": {"line": "federation-fighter", "elite": 5, "assault": 6, "elite_ew": 1 }, "balconyPositions": 6 }
   ],
 
   "crewData": {
@@ -83,6 +83,8 @@
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]
 }
