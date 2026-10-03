@@ -43,7 +43,10 @@
       { "from": 167, "superiority": "f4",  "ew": "f4_e" },
       { "from": 171, "superiority": "f4",  "ew": "f4_e",  "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e" },
       { "from": 172, "superiority": "f4",  "ew": "f4_e",  "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
-      { "from": 173, "superiority": "f18", "ew": "f18_e", "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" }
+      { "from": 173, "superiority": "f18", "ew": "f18_e", "elite": "f14", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 177, "superiority": "f18b", "ew": "f18b_e", "elite": "f14a", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 180, "superiority": "f18b+", "ew": "f18b_e", "elite": "f14a", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15", "attack_ew": "f15_e" },
+      { "from": 183, "superiority": "f18c", "ew": "f18b_e", "elite": "f14b", "elite_ew": "f14_e", "assault": "a10", "assault_ew": "a10_e", "attack": "f15c", "attack_ew": "f15_e" }
     ],
     "klingon-zegurnii": [
       { "from": 167, "superiority": "z2",   "ew": "z2_e", "attack": "z1"   },
@@ -102,6 +105,44 @@
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
 
+    { "type": "f18b", "name": "F-18B Hornet Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 177, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 9,  "canWeasel": false, "scatterPackSize": 3, "canSuicide": false, "shortName": "F-18B", "designation": "F18B",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "f18b_e", "name": "F-18BE Hornet Fighter (EW)",         "kind": "fighter",    "factions": ["federation"], "year": 177, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 1, "canSuicide": false, "shortName": "F-18BE", "designation": "F18BE", "ewPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" } ] },
+
+    { "type": "f18b+", "name": "F-18B+ Hornet Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 180, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 11,  "canWeasel": false, "scatterPackSize": 5, "canSuicide": false, "shortName": "F-18B+", "designation": "F18B+",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" }, 
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" } 
+                 ] },
+
+    { "type": "f18c", "name": "F-18C Hornet Fighter",         "kind": "fighter",    "factions": ["federation"], "year": 183, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 6, "canSuicide": false, "shortName": "F-18C", "designation": "F18C",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "STANDARD" }, 
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" } 
+                 ] },
+
     { "type": "a10", "name": "A-10 Warthog Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 171, "speed": 10,  "hull": 16,  "crippled": 11, "bpv": 10,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "A-10", "designation": "A10",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "Phaser3", "designator": "2", "arcs": ["RA"] },
@@ -132,6 +173,28 @@
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" }
                   ] },
 
+    { "type": "f14a", "name": "F-14A Tomcat Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 177, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 13,  "canWeasel": false, "scatterPackSize": 5, "canSuicide": false, "shortName": "F-14A", "designation": "F14A",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" }
+                  ] },
+
+    { "type": "f14b", "name": "F-14B Tomcat Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 15,  "canWeasel": false, "scatterPackSize": 7, "canSuicide": false, "shortName": "F-14B", "designation": "F14B",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "LIGHT" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "SPECIAL" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "SPECIAL" }
+                  ] },
+
     { "type": "f15", "name": "F-15 Eagle Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 172, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 12,  "canWeasel": false, "scatterPackSize": 6, "canSuicide": false, "shortName": "F-15", "designation": "F15",
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
@@ -152,6 +215,18 @@
                    { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "STANDARD" },
                     { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "LIGHT" },
                     { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "LIGHT" },
+                    { "type": "DroneRail", "designator": "G", "arcs": ["FA"], "railType": "LIGHT" },
+                    { "type": "DroneRail", "designator": "H", "arcs": ["FA"], "railType": "LIGHT" }
+                  ] },
+
+    { "type": "f15c", "name": "F-15C Eagle Fighter",                  "kind": "fighter",    "factions": ["federation"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 13,  "canWeasel": false, "scatterPackSize": 7, "canSuicide": false, "shortName": "F-15C", "designation": "F15C",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "D", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "E", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "F", "arcs": ["FA"], "railType": "STANDARD" },
                     { "type": "DroneRail", "designator": "G", "arcs": ["FA"], "railType": "LIGHT" },
                     { "type": "DroneRail", "designator": "H", "arcs": ["FA"], "railType": "LIGHT" }
                   ] },
