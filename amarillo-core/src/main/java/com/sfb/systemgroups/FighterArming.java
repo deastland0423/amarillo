@@ -115,6 +115,10 @@ public final class FighterArming {
                 half += FighterPhoton.FULL_CHARGES * HALF_ACTIONS_PER_PHOTON_CHARGE;
             else if (w instanceof com.sfb.weapons.FighterPlasmaF)
                 half += HALF_ACTIONS_PER_PLASMA_F;
+            else if (w instanceof DroneRail rail && rail.isPlasmaD())
+                // J4.825 sends a type-D through the drone procedure, and J4.82 prices a
+                // one-space drone at a whole action. One torpedo, one action.
+                half += rail.isLoaded() ? 0 : HALF_ACTIONS_PER_DRONE_SPACE;
             else if (w instanceof DroneRail rail && isArmable(rail))
                 half += halfActionsFor(rail);
         }
@@ -261,6 +265,10 @@ public final class FighterArming {
         if (plasma != Load.NOTHING)
             return plasma;
 
+        Load plasmaD = loadPlasmaDRails(box, fighter, halfActionBudget);
+        if (plasmaD != Load.NOTHING)
+            return plasmaD;
+
         if (dronesCarriedBy(fighter) < railsOf(fighter).size())
             return loadDrones(box, fighter, halfActionBudget);
 
@@ -394,6 +402,50 @@ public final class FighterArming {
     }
 
     /**
+     * Put type-D plasma torpedoes from the box's ready rack onto the fighter's rails (J4.825).
+     * <p>
+     * The drone procedure, because J4.825 says so: "The rearming and storage rules for drones
+     * are used for type-D plasma torpedoes." So the supply is the box's ready rack, never the
+     * ship directly (J4.881), and J4.82 prices a one-space item at a whole action.
+     * <p>
+     * The torpedo arrives INERT. FP9.22's half point of activation energy is the ship's to
+     * pay and is not a deck crew's business - a crew that activated one on the way past would
+     * be spending energy nobody allocated.
+     */
+    private static Load loadPlasmaDRails(ShuttleSpace box, Shuttle fighter,
+            int halfActionBudget) {
+        ReadyRack rack = box.getReadyRack();
+        if (rack == null || !rack.isPlasmaD())
+            return Load.NOTHING;
+
+        int budget = halfActionBudget;
+        int loaded = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
+            if (!(w instanceof DroneRail rail) || !rail.isPlasmaD() || rail.isLoaded())
+                continue;
+            if (budget < HALF_ACTIONS_PER_DRONE_SPACE)
+                break;                      // a torpedo is a whole action or nothing (J4.8174)
+            if (!rack.takePlasmaD())
+                break;                      // the rack is empty; the stores are another job
+            rail.loadTorpedo(new com.sfb.objects.PlasmaTorpedo(
+                    com.sfb.properties.PlasmaType.D,
+                    com.sfb.properties.WeaponArmingType.STANDARD));
+            budget -= HALF_ACTIONS_PER_DRONE_SPACE;
+            loaded++;
+        }
+        if (loaded == 0)
+            return rack.isEmpty() && fighter != null
+                    ? new Load(0, 0, fighter.getName() + ": plasma-D ready rack empty, rails"
+                            + " not loaded (J4.825)")
+                    : Load.NOTHING;
+
+        return new Load(loaded * HALF_ACTIONS_PER_DRONE_SPACE, loaded, fighter.getName()
+                + ": " + loaded + " type-D plasma torpedo" + (loaded == 1 ? "" : "es")
+                + " loaded from the ready rack, " + rack.count() + " left (J4.825)"
+                + " — still needing activation (FP9.22)");
+    }
+
+    /**
      * Reload a fighter photon from its box's capacitor (J4.85).
      * <p>
      * J4.853 prices it at "a single deck crew action", so it is all or nothing like the
@@ -498,6 +550,32 @@ public final class FighterArming {
         ReadyRack rack = box.getReadyRack();
         if (rack == null || store == null || halfActionBudget <= 0 || rack.isFull())
             return Load.NOTHING;
+
+        // A plasma-D rack draws torpedoes from the same hold the drones come out of (J4.825),
+        // at the same action a space (J4.821).
+        if (rack.isPlasmaD()) {
+            if (store.plasmaDCount() <= 0)
+                return new Load(0, 0, box.getShuttle() == null ? null
+                        : box.getShuttle().getName() + ": no type-D torpedoes in the stores,"
+                                + " ready rack not refilled (J4.825)");
+            int pdBudget = halfActionBudget;
+            int pdMoved = 0;
+            while (pdBudget >= HALF_ACTIONS_PER_DRONE_SPACE && rack.plasmaDMissing() > 0
+                    && store.takePlasmaD()) {
+                if (!rack.putPlasmaD()) {
+                    store.putPlasmaD();     // back in the hold; it never left the ship
+                    break;
+                }
+                pdBudget -= HALF_ACTIONS_PER_DRONE_SPACE;
+                pdMoved++;
+            }
+            if (pdMoved == 0)
+                return Load.NOTHING;
+            return new Load(pdMoved * HALF_ACTIONS_PER_DRONE_SPACE, pdMoved,
+                    (box.getShuttle() == null ? "box" : box.getShuttle().getName())
+                            + ": " + pdMoved + " type-D torpedo" + (pdMoved == 1 ? "" : "es")
+                            + " moved to the ready rack (J4.825)");
+        }
         if (store.isEmpty())
             return new Load(0, 0, box.getShuttle() == null ? null
                     : box.getShuttle().getName() + ": drone stores empty, ready rack not"

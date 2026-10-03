@@ -83,9 +83,53 @@ public class DroneStore {
     /** Spaces this carrier's supply runs to in total (J4.7). */
     public double capacitySpaces() { return capacitySpaces; }
 
+    // ------------------------------------------------- type-D plasma torpedoes (J4.825)
+
+    /**
+     * Type-D plasma torpedoes in the hold, as a count.
+     * <p>
+     * The SAME pool as the drones, not a second store. J4.7 gives a carrier one holding
+     * measured in spaces, and J4.825 makes a type-D "the same size as a one-space drone" and
+     * puts it under the drone storage rules - so a torpedo occupies a space of this hold like
+     * anything else in it. A count rather than objects because FP9.18 denies them variants:
+     * one type-D is any other.
+     */
+    private int plasmaDHeld;
+
+    public int plasmaDCount() { return plasmaDHeld; }
+
+    /**
+     * Stock torpedoes into the spaces left, up to {@code spaces} of them.
+     *
+     * @return how many were stocked
+     */
+    public int stockPlasmaDs(double spaces) {
+        int room = (int) Math.floor(Math.min(spaces, capacitySpaces() - spacesHeld()));
+        if (room <= 0)
+            return 0;
+        plasmaDHeld += room;
+        return room;
+    }
+
+    /** Take one out, or false if there are none. */
+    public boolean takePlasmaD() {
+        if (plasmaDHeld <= 0)
+            return false;
+        plasmaDHeld--;
+        return true;
+    }
+
+    /** Put one back - it never left the ship. */
+    public void putPlasmaD() {
+        plasmaDHeld++;
+    }
+
     /** Spaces still in the hold — what a rack can still be refilled from. */
+    /**
+     * Spaces in use, drones and torpedoes together - they share the hold (J4.7, J4.825).
+     */
     public double spacesHeld() {
-        double total = 0;
+        double total = plasmaDHeld;     // one space apiece (FP9.21)
         for (Drone d : reserve)
             total += d.getRackSize();
         return total;
@@ -93,7 +137,14 @@ public class DroneStore {
 
     public int count() { return reserve.size(); }
 
-    public boolean isEmpty() { return reserve.isEmpty(); }
+    /**
+     * Nothing in the hold at all - drones AND torpedoes, since they share it (J4.825).
+     * <p>
+     * Counting only the drones made this answer "empty" on a ship whose entire stores were
+     * type-D torpedoes, which is how the Romulan KRV's deck crews found no refilling to do
+     * beside sixty spaces of them.
+     */
+    public boolean isEmpty() { return reserve.isEmpty() && plasmaDHeld <= 0; }
 
     /**
      * Take the largest drone the hold has that this rail's slot can carry, or null if it

@@ -46,6 +46,50 @@ public class ReadyRack {
 
     private final List<Drone> drones = new ArrayList<>();
 
+    /**
+     * A plasma-D rack (J4.825): {@code capacity} torpedoes, held as a count.
+     * <p>
+     * Starts FULL, as a drone rack does, and for the same reason - J4.886 has a scenario open
+     * with the stores forward and the fighters empty (J4.8223), so everything the fighter is
+     * not carrying is in its box.
+     */
+    private ReadyRack(String servesFighterType, int plasmaDCapacity) {
+        this.servesFighterType = servesFighterType;
+        this.design = List.of();
+        this.capacity = plasmaDCapacity;
+        this.plasmaD = true;
+        this.plasmaDHeld = plasmaDCapacity;
+    }
+
+    /** True if this rack holds type-D plasma torpedoes rather than drones. */
+    private boolean plasmaD;
+
+    /** Torpedoes in a plasma-D rack. Meaningless on a drone rack, where it stays zero. */
+    private int plasmaDHeld;
+
+    public boolean isPlasmaD() { return plasmaD; }
+
+    /** Torpedoes this rack is short of its full load. */
+    public int plasmaDMissing() {
+        return plasmaD ? Math.max(0, capacity - plasmaDHeld) : 0;
+    }
+
+    /** Take one torpedo out to load onto a fighter, or false if the rack is empty. */
+    public boolean takePlasmaD() {
+        if (!plasmaD || plasmaDHeld <= 0)
+            return false;
+        plasmaDHeld--;
+        return true;
+    }
+
+    /** Put one back - a refill from stores, or a torpedo taken off a fighter. */
+    public boolean putPlasmaD() {
+        if (!plasmaD || plasmaDHeld >= capacity)
+            return false;
+        plasmaDHeld++;
+        return true;
+    }
+
     private ReadyRack(String servesFighterType, List<DroneType> stock) {
         this.servesFighterType = servesFighterType;
         this.capacity = stock.size();
@@ -77,6 +121,23 @@ public class ReadyRack {
             if (w instanceof DroneRail rail && rail.getDesignDrone() != null
                     && !rail.hasEwPod())
                 stock.add(rail.getDesignDrone());
+
+        // J4.825 puts type-D plasma torpedoes under the drone storage rules, so a plasma-D
+        // fighter's box gets a ready rack exactly as a drone fighter's does - one torpedo per
+        // rail. It is a COUNT rather than a list because FP9.18 says they have no variants:
+        // "Pl-Ds, like other plasmas, do not have guidance options, different speeds, or
+        // warhead modules as drones do." One type-D is any other, so there is nothing to
+        // distinguish and no DroneType to stand in for them.
+        //
+        // Never both kinds in one rack: J4.825 forbids a fighter carrying drones and type-Ds
+        // at once, so the rack is one or the other, as its fighter is.
+        int plasmaRails = 0;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRail rail && rail.isPlasmaD())
+                plasmaRails++;
+        if (plasmaRails > 0)
+            return new ReadyRack(fighter.getCatalogType(), plasmaRails);
+
         if (stock.isEmpty())
             return null;
         // Keyed on the CATALOGUE type, not the Java class name. J4.8222 makes a ready rack
@@ -91,11 +152,11 @@ public class ReadyRack {
 
     public int capacity() { return capacity; }
 
-    public int count() { return drones.size(); }
+    public int count() { return plasmaD ? plasmaDHeld : drones.size(); }
 
-    public boolean isFull() { return drones.size() >= capacity; }
+    public boolean isFull() { return count() >= capacity; }
 
-    public boolean isEmpty() { return drones.isEmpty(); }
+    public boolean isEmpty() { return count() == 0; }
 
     /** J4.8222: this rack services one kind of fighter and no other. */
     public boolean serves(Shuttle fighter) {
@@ -147,6 +208,10 @@ public class ReadyRack {
 
     /** Spaces the drones in here take up — what the fighter's load is measured in (FD7.211). */
     public double spaces() {
+        // FP9.21/J4.825: a type-D is "the same size as a one-space drone", so a torpedo is a
+        // space and the arithmetic is the count.
+        if (plasmaD)
+            return plasmaDHeld;
         double total = 0;
         for (Drone d : drones)
             total += d.getRackSize();

@@ -284,10 +284,21 @@ public class Shuttles implements Systems {
         if (!(declared instanceof Number n) || n.doubleValue() <= 0)
             return;
         droneStore = new DroneStore(n.doubleValue());
+        double room = droneStore.capacitySpaces() - spacesCommittedForward();
         List<com.sfb.objects.DroneType> pattern = droneLoadoutPattern();
-        if (pattern.isEmpty())
-            return;   // nothing aboard that takes drones; the hold stays empty
-        droneStore.stock(pattern, droneStore.capacitySpaces() - spacesCommittedForward());
+        if (!pattern.isEmpty())
+            droneStore.stock(pattern, room);
+
+        // And type-D plasma torpedoes, which share the hold (J4.825). A ship whose fighters
+        // carry them has nothing in the drone pattern at all - a plasma-D rail has no design
+        // DRONE - so without this the Romulan KRV declared sixty spaces of stores and stocked
+        // an empty hold, leaving five Gladiator-Fs that could never be armed.
+        // ROOM, not capacity: J4.72 counts what is already forward in the ready racks and on
+        // the fighters against the declared total rather than on top of it. Stocking to
+        // capacity here put sixty torpedoes in the hold beside the ten already racked, which
+        // is seventy spaces of a sixty-space hold.
+        if (plasmaDRailCount() > 0)
+            droneStore.stockPlasmaDs(room - droneStore.spacesHeld());
     }
 
     /**
@@ -295,6 +306,21 @@ public class Shuttles implements Systems {
      * is designed to carry. The quartermaster's stocking list, and the proportions a mixed
      * squadron actually needs.
      */
+    /** Plasma-D rails across every fighter aboard - whether this ship stocks torpedoes. */
+    private int plasmaDRailCount() {
+        int rails = 0;
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace box : bay.getSpaces()) {
+                com.sfb.objects.shuttles.Shuttle occupant = box.getShuttle();
+                if (occupant == null)
+                    continue;
+                for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
+                    if (w instanceof com.sfb.weapons.DroneRail rail && rail.isPlasmaD())
+                        rails++;
+            }
+        return rails;
+    }
+
     private List<com.sfb.objects.DroneType> droneLoadoutPattern() {
         List<com.sfb.objects.DroneType> pattern = new ArrayList<>();
         for (ShuttleBay bay : bays)
@@ -724,6 +750,13 @@ public class Shuttles implements Systems {
      * bounded by what the hold can actually supply.
      */
     private static int refillHalfActionsWanted(ShuttleSpace box, DroneStore store) {
+        // A plasma-D rack counts torpedoes, each one space (FP9.21), and has no DroneType
+        // slots to measure - so slotsMissing would report nothing to do beside an empty rack.
+        if (box.getReadyRack().isPlasmaD()) {
+            double torpedoes = Math.min(box.getReadyRack().plasmaDMissing(),
+                    store.plasmaDCount());
+            return (int) Math.round(torpedoes * FighterArming.HALF_ACTIONS_PER_ACTION);
+        }
         double spaces = 0;
         for (com.sfb.objects.DroneType want : box.getReadyRack().slotsMissing())
             spaces += want.rack;

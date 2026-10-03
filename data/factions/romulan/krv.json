@@ -1,0 +1,80 @@
+{
+  "faction": "Romulan",
+  "type": "KRV",
+  "typeName": "Carrier",
+  "line": "CA",
+  "name": "RIS Proconsul",
+  "carrierClass": "CAPABLE",  
+  "serviceYear": 172,
+  "bpv": 142,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 8,
+  "droneStorageSpaces": 60,
+  "requiresEscort": true,
+  "tokenArt": "romulan/kr.png",
+
+  "shields": [30, 22, 15, 13, 15, 22],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 7
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 6,
+    "labs": 4,
+    "probes": 1,
+    "cloakCost": 20
+  },
+
+  "shuttleBays": [
+    { "fighters": { "line": "romulan-gladiator", "superiority": 5, "ew": 1 } },
+    { "shuttles": ["admin", "admin"], "fighters": { "line": "romulan-gladiator", "assault": 4 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 44,
+    "boardingParties": 6,
+    "deckCrews": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
+  ]
+}
