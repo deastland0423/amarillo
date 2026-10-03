@@ -75,6 +75,42 @@ class LaunchCoordinator {
                 + " while conducting Erratic Maneuvers (C10.511)");
     }
 
+    /**
+     * Whether chaff can distract this seeker at all (D11.32).
+     * <p>
+     * The rule names its list: "all drones (including dogfight drones and seeking shuttles)
+     * and type-D plasma torpedoes (FP9.18) and type-K plasma torpedoes (FP13.51) targeted on
+     * that fighter lose their tracking".
+     * <p>
+     * So NOT the heavy plasmas. FP9.18 is blunt about why the type-D is in the list at all:
+     * "Type-D torpedoes, having relatively unsophisticated warheads, can be distracted by
+     * chaff (D11.0). No other plasma torpedoes can be distracted by chaff. <b>This is the only
+     * way (in combat) that a Pl-D is like a drone.</b>"
+     * <p>
+     * Until this existed, dropChaff removed EVERY seeker tracking the shuttle, so a fighter
+     * with one pack could shrug off a plasma-G, -S, -R or -F. That it never came up in play is
+     * luck: the chaff rule is old and the first plasma-armed fighter is new.
+     */
+    private static boolean distractedByChaff(Seeker seeker) {
+        if (seeker == null || seeker.getSeekerType() == null)
+            return false;
+        switch (seeker.getSeekerType()) {
+            case DRONE:
+            case SHUTTLE:   // D11.32's "seeking shuttles" - a suicide shuttle or scatter pack
+                return true;
+            case PLASMA:
+                // Only the small ones. A torpedo that cannot say which type it is cannot be
+                // shown to be distractible, so it is not.
+                if (!(seeker instanceof PlasmaTorpedo torpedo)
+                        || torpedo.getPlasmaType() == null)
+                    return false;
+                return torpedo.getPlasmaType() == com.sfb.properties.PlasmaType.D
+                        || torpedo.getPlasmaType() == com.sfb.properties.PlasmaType.K;
+            default:
+                return false;
+        }
+    }
+
     public ActionResult dropChaff(com.sfb.objects.shuttles.Shuttle shuttle) {
         if (game.getCurrentPhase() != Game.ImpulsePhase.ACTIVITY)
             return ActionResult.fail("Chaff can only be dropped during the Activity phase (D11.31)");
@@ -98,9 +134,10 @@ class LaunchCoordinator {
                     + shuttle.getChaffPacks() + " pack(s) remaining");
         }
 
-        // Roll 1–4: all seekers targeting this shuttle lose tracking
+        // Roll 1-4: the seekers D11.32 names, and only those.
         List<Seeker> distracted = seekers.stream()
                 .filter(s -> shuttle.equals(s.getTarget()))
+                .filter(LaunchCoordinator::distractedByChaff)
                 .collect(java.util.stream.Collectors.toList());
 
         StringBuilder sb = new StringBuilder(shuttle.getName() + " dropped chaff (roll " + roll
