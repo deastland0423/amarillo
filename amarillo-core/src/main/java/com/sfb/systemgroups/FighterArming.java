@@ -4,6 +4,7 @@ import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.weapons.DroneRail;
 import com.sfb.weapons.FighterDisruptor;
+import com.sfb.weapons.FighterPhoton;
 import com.sfb.weapons.FighterFusion;
 import com.sfb.weapons.FighterHellbore;
 import com.sfb.weapons.Weapon;
@@ -44,6 +45,14 @@ public final class FighterArming {
     private static final int HALF_ACTIONS_PER_DISRUPTOR_CHARGE = 2;
     private static final int HALF_ACTIONS_PER_DRONE_SPACE = 2;      // J4.82
 
+    /**
+     * J4.853: "Reloading a shuttle with a photon torpedo is a single deck crew action."
+     * J4.863 says the same for a type-F plasma torpedo. A whole action, like the hellbore and
+     * the disruptor charge - so a budget short of one buys nothing at all (J4.8174).
+     */
+    private static final int HALF_ACTIONS_PER_PHOTON_CHARGE = 2;    // J4.853
+    private static final int HALF_ACTIONS_PER_PLASMA_F = 2;         // J4.863
+
     private FighterArming() {}
 
     // -------------------------------------------------------------------------
@@ -68,6 +77,12 @@ public final class FighterArming {
                 charges += ff.getChargesRemaining();
             else if (w instanceof FighterDisruptor fd)
                 charges += fd.getChargesRemaining();
+            else if (w instanceof FighterPhoton fp)
+                charges += fp.getChargesRemaining();
+            else if (w instanceof com.sfb.weapons.FighterPlasmaF fpf)
+                // A loaded torpedo is the one charge its box holds (J4.862). Counted the same
+                // way, so a Gladiator that starts armed has taken its box's torpedo (J4.886).
+                charges += fpf.isLoaded() ? 1 : 0;
         }
         return charges;
     }
@@ -96,6 +111,10 @@ public final class FighterArming {
                 half += FighterFusion.FULL_CHARGES * HALF_ACTIONS_PER_FUSION_CHARGE;
             else if (w instanceof FighterDisruptor)
                 half += FighterDisruptor.FULL_CHARGES * HALF_ACTIONS_PER_DISRUPTOR_CHARGE;
+            else if (w instanceof FighterPhoton)
+                half += FighterPhoton.FULL_CHARGES * HALF_ACTIONS_PER_PHOTON_CHARGE;
+            else if (w instanceof com.sfb.weapons.FighterPlasmaF)
+                half += HALF_ACTIONS_PER_PLASMA_F;
             else if (w instanceof DroneRail rail && isArmable(rail))
                 half += halfActionsFor(rail);
         }
@@ -232,6 +251,16 @@ public final class FighterArming {
         if (disruptor != Load.NOTHING)
             return disruptor;
 
+        // Same reasoning for the other heavy weapons: an A-10 carries a photon AND drone
+        // rails, and the photon is why the carrier embarked it.
+        Load photon = loadPhoton(box, fighter, halfActionBudget);
+        if (photon != Load.NOTHING)
+            return photon;
+
+        Load plasma = loadPlasmaF(box, fighter, halfActionBudget);
+        if (plasma != Load.NOTHING)
+            return plasma;
+
         if (dronesCarriedBy(fighter) < railsOf(fighter).size())
             return loadDrones(box, fighter, halfActionBudget);
 
@@ -362,6 +391,63 @@ public final class FighterArming {
         return new Load(loaded * HALF_ACTIONS_PER_DISRUPTOR_CHARGE, loaded, fighter.getName()
                 + ": " + loaded + " disruptor charge" + (loaded == 1 ? "" : "s") + " loaded, "
                 + box.getCapacitorCharges() + " left in the box (J4.843)");
+    }
+
+    /**
+     * Reload a fighter photon from its box's capacitor (J4.85).
+     * <p>
+     * J4.853 prices it at "a single deck crew action", so it is all or nothing like the
+     * hellbore. The torpedo comes from the box and never from the ship directly (J4.882: "The
+     * ship cannot reload the fighter directly, but must reload the storage capacitor").
+     * <p>
+     * Loaded as a STANDARD torpedo. J4.854 lets the fuse be set "at the time the charge is
+     * loaded on the fighter", so proximity is a choice the player owns rather than something
+     * a deck crew pass should decide for them; {@code FighterPhoton.setProximity} is the later
+     * change, which J4.854 prices at another deck crew action.
+     */
+    private static Load loadPhoton(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {
+        FighterPhoton photon = null;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof FighterPhoton fp && fp.isFunctional()
+                    && fp.getChargesRemaining() < FighterPhoton.FULL_CHARGES)
+                photon = fp;
+        if (photon == null)
+            return Load.NOTHING;
+        if (halfActionBudget < HALF_ACTIONS_PER_PHOTON_CHARGE)
+            return Load.NOTHING;
+        if (box.drawCharges(1) == 0)
+            return new Load(0, 0, fighter.getName()
+                    + ": photon capacitor empty, not reloaded (J4.852)");
+        if (!photon.loadCharge()) {
+            box.setCapacitorCharges(box.getCapacitorCharges() + 1);  // it would not take it
+            return Load.NOTHING;
+        }
+        return new Load(HALF_ACTIONS_PER_PHOTON_CHARGE, 1, fighter.getName()
+                + ": photon reloaded from the fighter box capacitor (J4.853)");
+    }
+
+    /**
+     * Reload a fighter's type-F plasma torpedo from its box's storage facility (J4.86).
+     * <p>
+     * J4.863: "a single deck crew action", the same all-or-nothing shape. J4.861 is the reason
+     * a carrier is needed at all: "the fighters cannot rearm plasma torpedoes themselves".
+     */
+    private static Load loadPlasmaF(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {
+        com.sfb.weapons.FighterPlasmaF launcher = null;
+        for (Weapon w : fighter.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.FighterPlasmaF f && f.isFunctional()
+                    && !f.isLoaded())
+                launcher = f;
+        if (launcher == null)
+            return Load.NOTHING;
+        if (halfActionBudget < HALF_ACTIONS_PER_PLASMA_F)
+            return Load.NOTHING;
+        if (box.drawCharges(1) == 0)
+            return new Load(0, 0, fighter.getName()
+                    + ": plasma storage facility empty, not reloaded (J4.862)");
+        launcher.loadTorpedo();
+        return new Load(HALF_ACTIONS_PER_PLASMA_F, 1, fighter.getName()
+                + ": type-F plasma torpedo loaded from the fighter box (J4.863)");
     }
 
     private static Load loadFusions(ShuttleSpace box, Shuttle fighter, int halfActionBudget) {

@@ -46,7 +46,7 @@ public class ShuttleSpace {
      * been silently priced as a fusion box at a point a charge, half the rule's price, with no
      * per-turn limit.
      */
-    public enum CapacitorKind { NONE, FUSION, HELLBORE, DISRUPTOR }
+    public enum CapacitorKind { NONE, FUSION, HELLBORE, DISRUPTOR, PHOTON, PLASMA_F }
 
     /** J4.832: a fusion charge costs the ship one point, so 8 fills a fusion box. */
     public static final int POWER_PER_FUSION_CHARGE = 1;
@@ -56,6 +56,34 @@ public class ShuttleSpace {
      * never fewer than two turns. Hence the banking: the first turn's points buy no charge.
      */
     public static final int POWER_PER_HELLBORE_CHARGE = 4;
+
+    /**
+     * J4.852: a photon fighter's box holds "a capacitor for a single photon torpedo", and
+     * J4.862 gives a plasma-F fighter's box "a storage facility ... for a single type-F plasma
+     * torpedo". One apiece, like the hellbore and for the same reason: the fighter carries one
+     * heavy weapon and the box holds one reload for it.
+     */
+    public static final int PHOTON_CAPACITOR = 1;
+    public static final int PLASMA_F_CAPACITOR = 1;
+
+    /**
+     * Four points over two turns, at two a turn, for both.
+     * <p>
+     * J4.881 is the general rule: "The cost of arming a weapon to be held for later use by a
+     * fighter ... is the same as arming the same weapon on the ship ... there is no difference
+     * whatsoever in arming the type-F plasma torpedo on a ship than in arming one to be held
+     * for use by a fighter." J4.852 then says it again for the photon in as many words: "two
+     * points of warp power for two consecutive turns, but overloads are not allowed".
+     * <p>
+     * A ship's type-F arms 1 then 3 ({@code Constants.fArmingCost}) rather than 2 and 2. The
+     * TOTAL and the two-turn duration are the same, and those are the only parts of the
+     * schedule a storage facility's books can express - it is a freezer, not a launcher, with
+     * no rolling delay or overload state to misreport. Flattening the instalments is therefore
+     * a simplification nothing can observe, and it is noted here rather than hidden.
+     */
+    public static final int POWER_PER_PHOTON_CHARGE = 4;
+    public static final int POWER_PER_PLASMA_F_CHARGE = 4;
+    public static final int BIG_CAPACITOR_POWER_PER_TURN = 2;
 
     /** The most a hellbore box will take in one turn, which is what makes it take two. */
     public static final int HELLBORE_POWER_PER_TURN = 2;
@@ -302,6 +330,8 @@ public class ShuttleSpace {
         switch (capacitorKind) {
             case HELLBORE:  return POWER_PER_HELLBORE_CHARGE;
             case DISRUPTOR: return POWER_PER_DISRUPTOR_CHARGE;
+            case PHOTON:    return POWER_PER_PHOTON_CHARGE;
+            case PLASMA_F:  return POWER_PER_PLASMA_F_CHARGE;
             default:        return POWER_PER_FUSION_CHARGE;
         }
     }
@@ -324,8 +354,14 @@ public class ShuttleSpace {
     }
 
     private int maxCapacitorPowerPerTurn() {
-        return capacitorKind == CapacitorKind.HELLBORE
-                ? HELLBORE_POWER_PER_TURN : Integer.MAX_VALUE;
+        switch (capacitorKind) {
+            case HELLBORE: return HELLBORE_POWER_PER_TURN;
+            // The rate is what makes a four-point charge take the two turns its rule gives it
+            // (J4.834, J4.852, and J4.881 for the plasma). Without it the box would fill in one.
+            case PHOTON:
+            case PLASMA_F: return BIG_CAPACITOR_POWER_PER_TURN;
+            default:       return Integer.MAX_VALUE;
+        }
     }
 
     /**
@@ -336,7 +372,9 @@ public class ShuttleSpace {
      * same turn" — and a fusion charge costs a single point, so nothing is ever left over.
      */
     private boolean banksAcrossTurns() {
-        return capacitorKind == CapacitorKind.HELLBORE;
+        return capacitorKind == CapacitorKind.HELLBORE
+                || capacitorKind == CapacitorKind.PHOTON
+                || capacitorKind == CapacitorKind.PLASMA_F;
     }
 
     /**
@@ -393,6 +431,8 @@ public class ShuttleSpace {
             case HELLBORE:  return HELLBORE_CAPACITOR;
             case FUSION:    return FUSION_CAPACITOR;
             case DISRUPTOR: return DISRUPTOR_CAPACITOR;
+            case PHOTON:    return PHOTON_CAPACITOR;
+            case PLASMA_F:  return PLASMA_F_CAPACITOR;
             default:        return 0;
         }
     }
@@ -404,8 +444,10 @@ public class ShuttleSpace {
      * hellbore one — the original code had the same ordering for the same reason, as two
      * separate loops.
      * <p>
-     * J4.85's photon fighters and J4.86's plasma-F ones still fall through to NONE. That stays
-     * a gap waiting for those fighters rather than a ruling about them.
+     * The photon and plasma-F boxes come last, which costs nothing: a fighter carries one
+     * heavy weapon, so no craft can match two of these tests. They were a documented gap here
+     * until those fighters existed - the A-10 and the Gladiator - and closing it is what gives
+     * a deck crew anything to do for either (J4.85, J4.86).
      */
     private static CapacitorKind kindFor(Shuttle occupant) {
         for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
@@ -417,6 +459,12 @@ public class ShuttleSpace {
         for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.FighterDisruptor)
                 return CapacitorKind.DISRUPTOR;
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.FighterPhoton)
+                return CapacitorKind.PHOTON;
+        for (com.sfb.weapons.Weapon w : occupant.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.FighterPlasmaF)
+                return CapacitorKind.PLASMA_F;
         return CapacitorKind.NONE;
     }
 
