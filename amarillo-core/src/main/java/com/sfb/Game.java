@@ -3302,6 +3302,15 @@ public class Game {
     }
 
     /**
+     * The same procedure, landing the craft on the BALCONY (J1.620: "the shuttle may be pulled
+     * into the bay (or onto the balcony or mech-link) and landed"). Free of the hatch, and it
+     * needs only a position rather than an empty shuttle box.
+     */
+    public ActionResult beginShuttleRecovery(Ship ship, String shuttleName, boolean toBalcony) {
+        return launchCoordinator.beginRecovery(ship, shuttleName, toBalcony);
+    }
+
+    /**
      * Package hook for ShuttleMover: pull a recovered shuttle aboard, or null if
      * the bay is not ready.
      */

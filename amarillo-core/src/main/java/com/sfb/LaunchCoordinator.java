@@ -1204,6 +1204,29 @@ class LaunchCoordinator {
      * drones (J1.6216 — structurally impossible here).
      */
     ActionResult beginRecovery(Ship ship, String shuttleName) {
+        return beginRecovery(ship, shuttleName, false);
+    }
+
+    /**
+     * As above, but landing the craft on the BALCONY instead of in a bay (J1.620).
+     * <p>
+     * The rule names it outright: "At this point, the shuttle may be pulled into the bay (or
+     * onto the balcony or mech-link) and landed." It is also the "any method" half of J1.532,
+     * which lets a ship land on the balcony by any means it could land in the hangar.
+     * <p>
+     * J1.62's third condition asks for "an available (empty) shuttle box in one of its bays",
+     * and adds "see (J1.62), (J1.64), (J1.65), and (J1.66) for exceptions" - the balcony and
+     * the mech-link being what those exceptions are about. A free POSITION stands in for the
+     * empty box when the balcony is the declared destination; demanding both would make the
+     * clause that permits this unreachable on a full ship, which is exactly the ship most
+     * likely to want it.
+     * <p>
+     * J1.531 bars enemy craft from a balcony in the same breath as it bars them from landing:
+     * "enemy shuttles cannot land or be brought down on the balcony." Brought DOWN is this
+     * procedure by name, and the friendly check below already refuses it (J1.6214), so no
+     * separate guard is needed - but that is the rule it is serving here.
+     */
+    ActionResult beginRecovery(Ship ship, String shuttleName, boolean toBalcony) {
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Recovery can only be declared during the Activity phase");
 
@@ -1225,8 +1248,25 @@ class LaunchCoordinator {
         if (shipTeam == null || !shipTeam.equals(shuttleTeam))
             return ActionResult.fail("Only friendly shuttles may use the special recovery procedure (J1.6214)");
 
+        if (toBalcony) {
+            boolean anyBalcony = false;
+            for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays())
+                if (b.hasBalcony())
+                    anyBalcony = true;
+            if (!anyBalcony)
+                return ActionResult.fail(ship.getName() + " has no balcony (J1.53)");
+
+            // J1.534, asked the same way the bay/balcony transfer asks it.
+            String barred = barredFromBalcony(shuttle);
+            if (barred != null)
+                return ActionResult.fail(shuttleName + " is prepared as a " + barred
+                        + " and cannot be held on the balcony (J1.534)");
+        }
+
         shuttle.setBeingRecovered(true);
+        shuttle.setRecoverToBalcony(toBalcony);
         return ActionResult.ok(ship.getName() + " begins recovering " + shuttleName
+                + " onto its " + (toBalcony ? "balcony" : "bay")
                 + " — shuttle shut down, pulled one hex closer each impulse (J1.621)");
     }
 
@@ -1238,15 +1278,46 @@ class LaunchCoordinator {
      */
     String completeRecovery(Ship ship, com.sfb.objects.shuttles.Shuttle shuttle) {
         int impulse = game.getAbsoluteImpulse();
+        boolean toBalcony = shuttle.isRecoverToBalcony();
+
         com.sfb.systemgroups.ShuttleBay bay = null;
         for (com.sfb.systemgroups.ShuttleBay b : ship.getShuttles().getBays()) {
-            if (b.getEmptySpaceCount() > 0 && b.canLaunch(impulse)) {
+            // The balcony needs a free POSITION and no hatch at all; a bay needs an empty box
+            // and a ready hatch. Either way, finding nowhere means holding at Range 0 and
+            // trying again next impulse (J1.6213), which is why this returns null rather than
+            // failing the procedure.
+            boolean ready = toBalcony
+                    ? b.hasBalcony() && b.balconyFree() > 0
+                    : b.getEmptySpaceCount() > 0 && b.canLaunch(impulse);
+            if (ready) {
                 bay = b;
                 break;
             }
         }
         if (bay == null)
             return null;
+
+        if (toBalcony) {
+            // No markUsed: J1.53 puts landings ON the balcony in its free, unlimited clause,
+            // and the craft never passes through a hatch to get there. Nothing disembarks
+            // either - the craft is outside the hull, and J1.531 stops all other work on it.
+            bay.park(shuttle);
+            activeShuttles.remove(shuttle);
+            if (ship.getTractors() != null
+                    && ship.getTractors().getTractoredUnits().contains(shuttle))
+                ship.getTractors().releaseTractor(shuttle); // also clears beingRecovered
+            shuttle.setBeingRecovered(false);
+            shuttle.setLocation(null);
+            shuttle.setParentShipName(ship.getName());
+            game.clearChasersOf(shuttle, "target recovered onto " + ship.getName() + "'s balcony");
+            for (com.sfb.objects.Ship s : game.getShips())
+                s.removeLockOn(shuttle);
+            StringBuilder parkNote = new StringBuilder();
+            for (String line : game.orphanSeekersOf(shuttle))
+                parkNote.append("\n  ").append(line);
+            return shuttle.getName() + " recovered onto " + ship.getName()
+                    + "'s balcony (J1.620)" + parkNote;
+        }
 
         bay.markUsed(impulse);
         String disembark = disembarkHold(ship, shuttle);

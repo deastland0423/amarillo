@@ -1762,6 +1762,24 @@ public class GameSession {
                 return game.removeGuard(ship, targetCode); // secret — not logged
             }
 
+            case "BEGIN_RECOVERY_TO_BALCONY": {
+                // J1.620: the same tractor recovery, landing on the balcony instead of in a
+                // bay. Its own action rather than a flag on BEGIN_RECOVERY, for the reason
+                // LAND_ON_BALCONY is its own action: the destination is the player's call and
+                // it is a real trade (no hatch and no box needed, but J1.531 then puts the
+                // craft one rear-hull point from destruction).
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String balconyRec = request.getAction(); // shuttle name in action field
+                if (balconyRec == null || balconyRec.isBlank())
+                    return ActionResult.fail("No shuttle specified");
+                ActionResult r = game.beginShuttleRecovery(ship, balconyRec, true);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "BEGIN_RECOVERY": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)

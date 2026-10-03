@@ -230,6 +230,30 @@ public abstract class Shuttle extends Unit {
 
 	public void setBeingRecovered(boolean beingRecovered) {
 		this.beingRecovered = beingRecovered;
+		// The destination belongs to the procedure, not to the craft, so it goes when the
+		// procedure does - including the several places a broken tractor link ends it
+		// (J1.6221). A stale flag would send the NEXT recovery somewhere unasked.
+		if (!beingRecovered)
+			this.recoverToBalcony = false;
+	}
+
+	/**
+	 * J1.620: where this tractor recovery is taking the craft. "At this point, the shuttle may
+	 * be pulled into the bay (or onto the balcony or mech-link) and landed."
+	 * <p>
+	 * Declared with the recovery rather than decided on arrival. The rule reads the choice as
+	 * made at the moment of landing, but the landing itself resolves inside movement with no
+	 * player present, and the only faithful alternative would be an interrupt phase for a
+	 * question whose answer never changes mid-pull.
+	 */
+	private boolean recoverToBalcony = false;
+
+	public boolean isRecoverToBalcony() {
+		return recoverToBalcony;
+	}
+
+	public void setRecoverToBalcony(boolean toBalcony) {
+		this.recoverToBalcony = toBalcony;
 	}
 
 	// Planet landing procedure (P2.4). While IN_ATMOSPHERE or LANDED the shuttle
