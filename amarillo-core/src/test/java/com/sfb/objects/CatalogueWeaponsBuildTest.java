@@ -57,6 +57,39 @@ public class CatalogueWeaponsBuildTest {
     }
 
     /**
+     * A fighter with NO weapons must at least be an EW platform.
+     * <p>
+     * An empty {@code weapons} array is ambiguous on its face: it is how the Romulan G-1E is
+     * written, which carries nothing but two fixed EW pods and is a pure EW platform by
+     * design (owner's ruling, 2026-10-02) - and it is also exactly what a half-finished row
+     * looks like. Nothing else in the catalogue would notice the difference.
+     * <p>
+     * The invariant that separates them is purpose: a fighter costs BPV and takes a shuttle
+     * box, so one that can neither shoot nor generate EW is not a design, it is an omission.
+     * Deliberately not a list of permitted hulls - a whitelist would need editing every time
+     * a legitimate EW platform was added, which makes it a chore that fires on good work.
+     * <p>
+     * SHUTTLES are exempt and not by special case: admin, GAS and HTS craft carry no weapons
+     * because carrying things is what they are for, and {@code kind} already says so.
+     */
+    @Test
+    public void everyUnarmedFighterIsAnEwPlatform() {
+        List<String> pointless = new ArrayList<>();
+        for (ShuttleCatalog.Entry entry : ShuttleCatalog.all()) {
+            if (!"fighter".equals(entry.kind))
+                continue;
+            if (!entry.loadout.weapons().isEmpty())
+                continue;
+            int pods = entry.loadout.ewPods() + entry.loadout.fixedEwPods();
+            if (pods <= 0)
+                pointless.add("  " + entry.type + " has no weapons and no EW pods");
+        }
+        assertTrue("fighters that can neither shoot nor generate EW — either the weapons"
+                + " array was forgotten, or the row is not finished:" + "\n"
+                + String.join("\n", pointless), pointless.isEmpty());
+    }
+
+    /**
      * A craft the catalogue gives weapons to must end up holding them. The check above proves
      * the factory can build each recipe; this proves the built weapon reaches the craft, which
      * is a different step and the one a caller actually depends on.
