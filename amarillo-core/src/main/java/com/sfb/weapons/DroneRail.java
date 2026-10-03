@@ -206,10 +206,83 @@ public class DroneRail extends DroneRack {
      * a separate half point of energy.
      */
     public void loadTorpedo(com.sfb.objects.PlasmaTorpedo loaded) {
+        loadTorpedo(loaded, false);
+    }
+
+    /**
+     * As above, saying whether it arrives already activated.
+     * <p>
+     * FP9.22's last clause is the reason this exists: "Torpedoes on fighters assumed to be
+     * loaded before a scenario (due to weapon status) are assumed to be active." A torpedo a
+     * deck crew puts on mid-game is NOT - it needs its half point first.
+     */
+    public void loadTorpedo(com.sfb.objects.PlasmaTorpedo loaded, boolean alreadyActive) {
         if (!isPlasmaD())
             throw new IllegalStateException(getName() + " is a " + railType
                     + " rail and cannot carry a plasma torpedo (FP9.2)");
         this.torpedo = loaded;
+        this.torpedoActivated = loaded != null && alreadyActive;
+    }
+
+    // ------------------------------------------------- activation (FP9.22, FP10.32)
+
+    /**
+     * FP9.22: "When placed on a fighter ready rack, plasma rack, or fighter, they can be
+     * activated, which requires 1/2 of an energy point (reserve or allocated) per torpedo. The
+     * weapon cannot be launched until it has been activated."
+     * <p>
+     * Half a point, which is why this is a constant rather than an int somewhere: the fighter
+     * energy accounting elsewhere deals in whole points, and a figure of 1 here would double
+     * what a carrier pays to make its squadron dangerous.
+     */
+    public static final double ACTIVATION_ENERGY = 0.5;
+
+    /**
+     * Activation belongs to the TORPEDO IN THIS MOUNT, not to the torpedo itself, which is
+     * what FP10.33 requires: "an activated torpedo automatically switches itself off when
+     * unloaded from a rack/fighter and requires new activation energy after being installed on
+     * another rack/fighter." Keeping the flag on the rail gets that for nothing - the torpedo
+     * carries no state to leak into its next mount.
+     */
+    private boolean torpedoActivated;
+
+    public boolean isTorpedoActivated() {
+        return torpedoActivated;
+    }
+
+    /**
+     * Spend energy activating the torpedo on this rail.
+     * <p>
+     * FP10.32 says where the energy may come from: "This can be supplied during energy
+     * allocation or by reserve power at any point after loading and before firing. Torpedoes
+     * activated by reserve power can be fired immediately (within the Sequence of Play)." So
+     * there is no timing restriction to enforce here - any point before firing will do, which
+     * is why this takes energy and not an impulse.
+     *
+     * @param energy energy offered
+     * @return true if the torpedo is now active; false if there was nothing to activate, it
+     *         was active already, or the energy was short of half a point
+     */
+    public boolean activateTorpedo(double energy) {
+        if (!isPlasmaD() || torpedo == null || torpedoActivated)
+            return false;
+        if (energy + 1e-9 < ACTIVATION_ENERGY)
+            return false;
+        torpedoActivated = true;
+        return true;
+    }
+
+    /** Energy this rail still needs before its torpedo could be fired, or zero. */
+    public double activationEnergyWanted() {
+        return isPlasmaD() && torpedo != null && !torpedoActivated ? ACTIVATION_ENERGY : 0;
+    }
+
+    /**
+     * FP9.22: "The weapon cannot be launched until it has been activated." The gate a launch
+     * asks, so a loaded-but-inert torpedo is refused rather than fired.
+     */
+    public boolean canLaunchTorpedo() {
+        return isPlasmaD() && torpedo != null && torpedoActivated;
     }
 
     public com.sfb.objects.PlasmaTorpedo getTorpedo() {
@@ -220,6 +293,8 @@ public class DroneRail extends DroneRack {
     public com.sfb.objects.PlasmaTorpedo removeTorpedo() {
         com.sfb.objects.PlasmaTorpedo was = torpedo;
         torpedo = null;
+        // FP10.33: it switches itself off on the way out, and the next mount pays again.
+        torpedoActivated = false;
         return was;
     }
 

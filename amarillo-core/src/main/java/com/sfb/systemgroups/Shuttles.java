@@ -398,6 +398,68 @@ public class Shuttles implements Systems {
     }
 
     /**
+     * Energy this ship's squadron still needs to activate its type-D plasma torpedoes
+     * (FP9.22), at half a point apiece.
+     * <p>
+     * The Energy Allocation line's ceiling, as {@link #capacitorPowerWanted} is for box
+     * capacitors - and a separate line because it is a separate thing: a capacitor belongs to
+     * the BOX and survives the fighter leaving, while an activation belongs to a torpedo on a
+     * particular mount and dies with it (FP10.33).
+     * <p>
+     * Counts the craft parked on a balcony as well as those in boxes. A parked fighter is one
+     * J1.53 lets a carrier launch at once, and FP10.32 allows activation "at any point after
+     * loading and before firing" - so a torpedo out on the track is precisely one worth paying
+     * for. Nothing in J1.531's list of what cannot be done out there touches it: that bars
+     * rearming and repair by deck crews, and this is the ship's own energy.
+     */
+    public double plasmaDActivationWanted() {
+        double wanted = 0;
+        for (ShuttleBay bay : bays) {
+            for (com.sfb.objects.shuttles.Shuttle craft : bay.getInventory())
+                wanted += activationWantedBy(craft);
+            for (com.sfb.objects.shuttles.Shuttle craft : bay.getBalcony())
+                wanted += activationWantedBy(craft);
+        }
+        return wanted;
+    }
+
+    private static double activationWantedBy(com.sfb.objects.shuttles.Shuttle craft) {
+        double wanted = 0;
+        for (com.sfb.weapons.Weapon w : craft.getWeapons().fetchAllWeapons())
+            if (w instanceof com.sfb.weapons.DroneRail rail)
+                wanted += rail.activationEnergyWanted();
+        return wanted;
+    }
+
+    /**
+     * Spend energy activating type-D torpedoes (FP9.22), half a point each.
+     * <p>
+     * Rails are activated in order and each is all-or-nothing: half a point buys one torpedo
+     * or none, so an odd quarter point left at the end buys nothing rather than half-arming
+     * something. FP10.32 lets this energy be allocated OR drawn from reserve at any time
+     * before firing, so the same method serves both - the caller knows which pocket it came
+     * from, and the rule does not care.
+     *
+     * @return energy actually spent, which a short offer leaves below what was handed in
+     */
+    public double activatePlasmaDs(double energy) {
+        double spent = 0;
+        for (ShuttleBay bay : bays) {
+            java.util.List<com.sfb.objects.shuttles.Shuttle> craft =
+                    new java.util.ArrayList<>(bay.getInventory());
+            craft.addAll(bay.getBalcony());
+            for (com.sfb.objects.shuttles.Shuttle c : craft)
+                for (com.sfb.weapons.Weapon w : c.getWeapons().fetchAllWeapons())
+                    if (w instanceof com.sfb.weapons.DroneRail rail
+                            && rail.activationEnergyWanted() > 0
+                            && energy - spent + 1e-9 >= com.sfb.weapons.DroneRail.ACTIVATION_ENERGY
+                            && rail.activateTorpedo(com.sfb.weapons.DroneRail.ACTIVATION_ENERGY))
+                        spent += com.sfb.weapons.DroneRail.ACTIVATION_ENERGY;
+        }
+        return spent;
+    }
+
+    /**
      * Spend allocated power refilling fighter box capacitors (J4.832).
      * <p>
      * Boxes are filled in order, each to the top before the next is touched, because a player
