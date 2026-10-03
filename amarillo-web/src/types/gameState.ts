@@ -173,6 +173,14 @@ export interface ShuttleBayState {
   emptySpaces:     number;
   shuttles:        ShuttleInBayState[];
   spaces:          ShuttleSpaceState[];
+  /** J1.53: positions on this bay's outside balcony. 0 on almost every bay. */
+  balconyPositions: number;
+  /**
+   * The craft parked out there, shaped exactly like the ones in boxes because the owner acts
+   * on them in the same ways. Never null from the server, but optional here so an older
+   * snapshot in flight does not break the render.
+   */
+  balcony?:        ShuttleInBayState[];
 }
 
 export interface DroneRackState {

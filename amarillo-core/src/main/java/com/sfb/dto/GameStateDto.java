@@ -380,6 +380,27 @@ public class GameStateDto {
         public int emptySpaces;
         public List<ShuttleInBayDto> shuttles; // occupied spaces only (for launch UI)
         public List<ShuttleSpaceDto> spaces; // all spaces (for DAC damage UI)
+        /**
+         * J1.53: how many craft this bay's outside balcony can hold. Zero for almost every
+         * bay, so the client can treat a zero as "this bay has no balcony" and show nothing.
+         * <p>
+         * It never falls: a balcony position cannot be destroyed (owner's ruling), unlike the
+         * shuttle boxes beside it.
+         */
+        public int balconyPositions;
+        /**
+         * The craft parked out there, reported exactly as the ones in boxes are, because the
+         * owner acts on them in the same ways: bring it in, or launch it.
+         * <p>
+         * Owner-only, like everything else in this DTO - ShipDto.shuttleBays is redacted for
+         * enemies whole (see ShipDtoPrivacyTest), which is also what keeps the deferred
+         * question of what an ENEMY may see of a balcony deferred. When that is taken up, the
+         * owner's note was that phase one is a COUNT and nothing more.
+         * <p>
+         * Empty, never null, so the client can iterate without a guard. A parked craft is
+         * deliberately absent from {@link #shuttles} and {@link #spaces}: it holds no box.
+         */
+        public List<ShuttleInBayDto> balcony = new ArrayList<>();
     }
 
     public static class ShipDto extends MapObjectDto {
@@ -1780,6 +1801,9 @@ public class GameStateDto {
             bd.emptySpaces = bay.getEmptySpaceCount();
             bd.shuttles = new ArrayList<>();
             bd.spaces = new ArrayList<>();
+            bd.balconyPositions = bay.getBalconyPositions();
+            for (com.sfb.objects.shuttles.Shuttle parked : bay.getBalcony())
+                bd.balcony.add(shuttleInBayDto(parked, bay, game));
             List<com.sfb.systemgroups.ShuttleSpace> baySpaces = bay.getSpaces();
             for (int j = 0; j < baySpaces.size(); j++) {
                 com.sfb.systemgroups.ShuttleSpace space = baySpaces.get(j);
@@ -1822,76 +1846,7 @@ public class GameStateDto {
                 }
                 com.sfb.objects.shuttles.Shuttle s = space.getShuttle();
                 if (s != null) {
-                    ShuttleInBayDto sd = new ShuttleInBayDto();
-                    sd.name = s.getName();
-                    // The CATALOGUE key, not the Java class name. The client keys its hangar and
-                    // launch pad on this string, and deriving it from the class worked only while
-                    // every fighter had a class of its own — once they became catalogue rows, each
-                    // one would have reported "cataloguedfighter". The catalogue key is what the
-                    // ship files, the fighter lines and the arming rules all already use.
-                    sd.type = s.dtoType();
-                    sd.maxSpeed = s.getMaxSpeed();
-                    sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
-                    sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
-                    sd.armingState = com.sfb.systemgroups.FighterArming.armingState(s);
-                    if (s instanceof com.sfb.objects.shuttles.Fighter bayFighter) {
-                        sd.squadronName = bayFighter.getSquadron() != null
-                                ? bayFighter.getSquadron().getName() : null;
-                        if (bayFighter.getEwPods() > 0) {
-                            sd.ewPods = bayFighter.getEwPods();
-                            sd.podEcm = bayFighter.getPodEcm();
-                            sd.podEccm = bayFighter.getPodEccm();
-                            sd.podEwDeclared = bayFighter.isPodEwDeclaredThisTurn();
-                            sd.podsActive = bayFighter.arePodsActive();
-                        }
-                    }
-                    for (com.sfb.weapons.Weapon fw : s.getWeapons().fetchAllWeapons()) {
-                        if (!(fw instanceof com.sfb.weapons.DroneRail rail))
-                            continue;
-                        if (sd.rails == null)
-                            sd.rails = new ArrayList<>();
-                        FighterRailDto rd2 = new FighterRailDto();
-                        rd2.railType = rail.getRailType() == null
-                                ? null : rail.getRailType().name();
-                        if (rail.getDrone() != null) {
-                            rd2.drone = rail.getDrone().getDroneType().name();
-                            rd2.spaces = rail.getDrone().getRackSize();
-                        }
-                        sd.rails.add(rd2);
-                    }
-                    if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
-                        com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
-                        sd.armed = ss.isArmed();
-                        sd.armingTurnsComplete = ss.getArmingTurnsComplete();
-                        sd.lastArmingEnergy = ss.getLastArmingEnergy();
-                        sd.warheadDamage = ss.getWarheadDamage();
-                    } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
-                        // BEFORE the weasel branch. A pack built from an admin shuttle keeps
-                        // that catalogue type, and canBecomeWildWeasel() reads the catalogue
-                        // (J3.18) — so the pack answered TRUE, took the weasel branch, and
-                        // never reported its payload. The launch list needs a payload, so a
-                        // perfectly good pack could not be launched at all.
-                        com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
-                        sd.payload = sp.getPayload().stream()
-                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
-                                .collect(java.util.stream.Collectors.toList());
-                        sd.pendingPayload = sp.getPendingPayload().stream()
-                                .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
-                                .collect(java.util.stream.Collectors.toList());
-                        sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
-                    } else if (s.canBecomeWildWeasel()) {
-                        sd.wwChargeCount = s.getWwChargeCount();
-                        sd.wwReady = s.isWwReady();
-                    }
-                    // FD7.11, for any craft that qualifies — an unconverted admin shuttle
-                    // included, since loading it is how it becomes a pack. A converted pack
-                    // answers for itself, its capacity belonging to the type it was built
-                    // from rather than to the role.
-                    if (s instanceof com.sfb.objects.shuttles.ScatterPack pack)
-                        sd.maxDroneSpaces = pack.getMaxDroneSpaces();
-                    else if (s.canBecomeScatterPack())
-                        sd.maxDroneSpaces = s.scatterPackSpaces();
-                    sd.specialRole = s.specialRole();
+                    ShuttleInBayDto sd = shuttleInBayDto(s, bay, game);
                     spaceDto.armed = s.isArmed();
                     spaceDto.shuttle = sd;
                     bd.shuttles.add(sd);
@@ -1902,6 +1857,92 @@ public class GameStateDto {
         }
 
         return dto;
+    }
+
+    /**
+     * One craft aboard a ship, as the owner's hangar sees it.
+     * <p>
+     * Extracted so the BALCONY can report its craft the same way the boxes do (J1.53). It was
+     * sixty inline lines in the bay loop, and a second copy for parked craft would have gone
+     * stale the first time a field was added to one and not the other - which, given how much
+     * of this is per-role special casing, would have been soon.
+     *
+     * @param bay the craft's own bay, which answers whether it can launch right now - for a
+     *            parked craft that is always yes (J1.53), and the bay knows it
+     */
+    private static ShuttleInBayDto shuttleInBayDto(com.sfb.objects.shuttles.Shuttle s,
+            ShuttleBay bay, com.sfb.Game game) {
+        ShuttleInBayDto sd = new ShuttleInBayDto();
+        sd.name = s.getName();
+        // The CATALOGUE key, not the Java class name. The client keys its hangar and
+        // launch pad on this string, and deriving it from the class worked only while
+        // every fighter had a class of its own — once they became catalogue rows, each
+        // one would have reported "cataloguedfighter". The catalogue key is what the
+        // ship files, the fighter lines and the arming rules all already use.
+        sd.type = s.dtoType();
+        sd.maxSpeed = s.getMaxSpeed();
+        sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
+        sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());
+        sd.armingState = com.sfb.systemgroups.FighterArming.armingState(s);
+        if (s instanceof com.sfb.objects.shuttles.Fighter bayFighter) {
+            sd.squadronName = bayFighter.getSquadron() != null
+                    ? bayFighter.getSquadron().getName() : null;
+            if (bayFighter.getEwPods() > 0) {
+                sd.ewPods = bayFighter.getEwPods();
+                sd.podEcm = bayFighter.getPodEcm();
+                sd.podEccm = bayFighter.getPodEccm();
+                sd.podEwDeclared = bayFighter.isPodEwDeclaredThisTurn();
+                sd.podsActive = bayFighter.arePodsActive();
+            }
+        }
+        for (com.sfb.weapons.Weapon fw : s.getWeapons().fetchAllWeapons()) {
+            if (!(fw instanceof com.sfb.weapons.DroneRail rail))
+                continue;
+            if (sd.rails == null)
+                sd.rails = new ArrayList<>();
+            FighterRailDto rd2 = new FighterRailDto();
+            rd2.railType = rail.getRailType() == null
+                    ? null : rail.getRailType().name();
+            if (rail.getDrone() != null) {
+                rd2.drone = rail.getDrone().getDroneType().name();
+                rd2.spaces = rail.getDrone().getRackSize();
+            }
+            sd.rails.add(rd2);
+        }
+        if (s instanceof com.sfb.objects.shuttles.SuicideShuttle) {
+            com.sfb.objects.shuttles.SuicideShuttle ss = (com.sfb.objects.shuttles.SuicideShuttle) s;
+            sd.armed = ss.isArmed();
+            sd.armingTurnsComplete = ss.getArmingTurnsComplete();
+            sd.lastArmingEnergy = ss.getLastArmingEnergy();
+            sd.warheadDamage = ss.getWarheadDamage();
+        } else if (s instanceof com.sfb.objects.shuttles.ScatterPack) {
+            // BEFORE the weasel branch. A pack built from an admin shuttle keeps
+            // that catalogue type, and canBecomeWildWeasel() reads the catalogue
+            // (J3.18) — so the pack answered TRUE, took the weasel branch, and
+            // never reported its payload. The launch list needs a payload, so a
+            // perfectly good pack could not be launched at all.
+            com.sfb.objects.shuttles.ScatterPack sp = (com.sfb.objects.shuttles.ScatterPack) s;
+            sd.payload = sp.getPayload().stream()
+                    .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                    .collect(java.util.stream.Collectors.toList());
+            sd.pendingPayload = sp.getPendingPayload().stream()
+                    .map(d -> d.getDroneType() != null ? d.getDroneType().name() : "Unknown")
+                    .collect(java.util.stream.Collectors.toList());
+            sd.committedSpaces = sp.getPayloadSpaces() + sp.getPendingSpaces();
+        } else if (s.canBecomeWildWeasel()) {
+            sd.wwChargeCount = s.getWwChargeCount();
+            sd.wwReady = s.isWwReady();
+        }
+        // FD7.11, for any craft that qualifies — an unconverted admin shuttle
+        // included, since loading it is how it becomes a pack. A converted pack
+        // answers for itself, its capacity belonging to the type it was built
+        // from rather than to the role.
+        if (s instanceof com.sfb.objects.shuttles.ScatterPack pack)
+            sd.maxDroneSpaces = pack.getMaxDroneSpaces();
+        else if (s.canBecomeScatterPack())
+            sd.maxDroneSpaces = s.scatterPackSpaces();
+        sd.specialRole = s.specialRole();
+        return sd;
     }
 
     /**

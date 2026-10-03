@@ -21,6 +21,7 @@ import { ControlOverflowDialog } from './ControlOverflowDialog';
 import { FacingPicker } from './FacingPicker';
 import { Stepper } from './Stepper';
 import { channelLendCeiling } from './scoutLending';
+import { shipHasFreeBalcony } from './balcony';
 
 interface Props {
   session: LobbyResult;
@@ -321,6 +322,7 @@ function isCloakOperating(ship: ShipObject): boolean {
 
 function ShuttleMovementPanel({
   shuttle, isMine, canMove, phase, onMove, onHet, onClose, canLand, onLand,
+  canLandOnBalcony, onLandOnBalcony,
   onLoadPersonnel, onUnloadPersonnel, onDesignateEwSource,
 }: {
   shuttle:  ShuttleObject;
@@ -332,6 +334,9 @@ function ShuttleMovementPanel({
   onClose:  () => void;
   canLand:  boolean;
   onLand:   () => void;
+  /** J1.532: the ship in this hex has a free balcony position to land on. */
+  canLandOnBalcony: boolean;
+  onLandOnBalcony:  () => void;
   onLoadPersonnel:   () => void;
   onUnloadPersonnel: () => void;
   onTacTurn?: (facing: number, sublight: boolean) => void;
@@ -553,9 +558,28 @@ function ShuttleMovementPanel({
               className="action-strip-btn"
               style={{ marginTop: 6, borderColor: '#3fb950', color: '#3fb950', width: '100%' }}
               onClick={onLand}
-              title="Land aboard the friendly ship in this hex (J1.61)"
+              title="Land aboard the friendly ship in this hex (J1.61) — uses a hatch and a shuttle box, one craft every two impulses (J1.50)"
             >
               Land Aboard
+            </button>
+          )}
+
+          {/*
+            J1.532: the same landing, onto the balcony instead. Offered as its own button
+            rather than chosen for the player, because the two are a real trade and the
+            rules price them differently: the hatch landing above is limited to one craft
+            every two impulses but puts the craft safely in a box, while this one is free
+            and unlimited — a whole strike group can come home on one impulse — and leaves
+            the craft where a single rear-hull damage point destroys it outright (J1.531).
+          */}
+          {canLandOnBalcony && (
+            <button
+              className="action-strip-btn"
+              style={{ marginTop: 6, borderColor: '#f0c040', color: '#f0c040', width: '100%' }}
+              onClick={onLandOnBalcony}
+              title="Land on the balcony (J1.532) — free and unlimited this impulse, but a rear-hull hit then destroys the craft (J1.531)"
+            >
+              Land on Balcony
             </button>
           )}
 
@@ -3548,6 +3572,31 @@ export default function GameBoard({ session, onLeave }: Props) {
     return (carrier as ShipObject | undefined) ?? null;
   }
 
+  /**
+   * The ship in this craft's hex that could take it on a BALCONY (J1.532) - same conditions
+   * as a hangar landing, plus a free position. A bay with balconyPositions 0 has no balcony
+   * at all, which is almost every bay.
+   */
+  function balconyCarrierFor(shuttle: ShuttleObject | null): ShipObject | null {
+    const carrier = landableCarrierFor(shuttle);
+    if (!carrier) return null;
+    return shipHasFreeBalcony(carrier) ? carrier : null;
+  }
+
+  async function handleLandOnBalcony() {
+    const carrier = balconyCarrierFor(liveShuttle);
+    if (!liveShuttle || !carrier) return;
+    const res = await gameApi.submitAction(session.gameId, session.playerToken, {
+      type: 'LAND_ON_BALCONY', shipName: carrier.name, action: liveShuttle.name,
+    });
+    if (!res.success) {
+      setActionError(res.message);
+    } else {
+      addLog(res.message, 'combat');
+      setSelected(null);
+    }
+  }
+
   /** Names of my shuttles currently held in any tractor (recovery candidates). */
   const heldFriendlyShuttles = new Set(
     (gameState?.mapObjects ?? [])
@@ -4401,6 +4450,8 @@ export default function GameBoard({ session, onLeave }: Props) {
             onClose={() => setSelected(null)}
             canLand={phase === 'Activity' && !!landableCarrierFor(liveShuttle)}
             onLand={handleLandShuttle}
+            canLandOnBalcony={phase === 'Activity' && !!balconyCarrierFor(liveShuttle)}
+            onLandOnBalcony={handleLandOnBalcony}
             onLoadPersonnel={handleLoadPersonnel}
             onUnloadPersonnel={handleUnloadPersonnel}
           />

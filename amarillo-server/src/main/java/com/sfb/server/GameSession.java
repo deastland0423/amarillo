@@ -1788,6 +1788,37 @@ public class GameSession {
                 return r;
             }
 
+            case "MOVE_TO_BALCONY": {
+                // J1.53: out of a box, onto the bay's balcony. Costs the bay a hatch, which is
+                // why it belongs with the hangar operations rather than with the launch pad.
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String outName = request.getAction(); // shuttle name in action field
+                if (outName == null || outName.isBlank())
+                    return ActionResult.fail("No shuttle specified");
+                ActionResult r = game.moveToBalcony(ship, outName);
+                // Publicly a craft appearing on the hull, with no word of WHAT it is: the same
+                // reticence the launch log keeps, and for the same reason (J1.534 lets a
+                // scatter pack sit out there looking like anything else).
+                if (r.isSuccess())
+                    appendCombatLog(ship.getName() + " moved a shuttle onto its balcony");
+                return r;
+            }
+
+            case "MOVE_FROM_BALCONY": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                String inName = request.getAction();
+                if (inName == null || inName.isBlank())
+                    return ActionResult.fail("No shuttle specified");
+                ActionResult r = game.moveFromBalcony(ship, inName);
+                if (r.isSuccess())
+                    appendCombatLog(ship.getName() + " brought a shuttle in from its balcony");
+                return r;
+            }
+
             case "LAND_ON_BALCONY": {
                 // J1.532: landing on the balcony is free and unlimited, unlike LAND_SHUTTLE
                 // which takes a hatch and a shuttle box. Separate actions because the choice

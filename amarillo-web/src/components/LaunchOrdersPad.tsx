@@ -9,6 +9,7 @@ import { useDraggable } from '../hooks/useDraggable';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import { allowedFacingsFromMask, bearsOn, hexGetBearingBetween } from '../hex/geometry';
 import { FacingPicker } from './FacingPicker';
+import { launchableCraft, parkedCraftNames, hasBalcony, balconyFreeOn } from './balcony';
 
 /**
  * The Launch Orders pad — launches, sealed and revealed together (Annex #2, 6B).
@@ -275,6 +276,14 @@ export default function LaunchOrdersPad({
    * same impulse are two orders, and each names its own speed on the wire.
    */
   const [speeds, setSpeeds] = useState<Record<string, number>>({});
+  /**
+   * J1.53 bay/balcony transfers are sent as they are clicked, not drafted into the sealed
+   * round below. They are hangar work rather than a combat declaration - nothing is revealed
+   * simultaneously - and the hatch one spends immediately changes which launches are still
+   * possible this impulse, which the player needs to see before composing the rest.
+   */
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferring, setTransferring] = useState(false);
   const drag = useDraggable(savedPosition());
 
   useEffect(() => {
@@ -382,7 +391,19 @@ export default function LaunchOrdersPad({
   const plasma = (ship?.weapons ?? []).filter(w =>
     w.launcherType && w.functional && (w.armed || w.pseudoPlasmaReady || w.canFastLoad));
   const racks = (ship?.droneRacks ?? []).filter(r => r.functional && r.canFire && r.drones.length > 0);
-  const bayCraft = (ship?.shuttleBays ?? []).flatMap(b => b.shuttles);
+  /**
+   * Everything the ship could launch: what is in its boxes PLUS what is parked on a balcony
+   * (J1.53).
+   *
+   * The balcony half is not a nicety. A parked craft is deliberately absent from a bay's
+   * `shuttles`, which lists the occupied BOXES - so a pad reading only that lost every parked
+   * craft from its launch list, and the one launch the rules make free and unlimited was the
+   * one the player could not give. The server had the same gap by the same route, in the
+   * lookup behind LAUNCH_SHUTTLE.
+   */
+  const bayCraft = launchableCraft(ship?.shuttleBays);
+  /** Who is outside, so a launch row can say that its launch is the free one (J1.53). */
+  const parkedNames = parkedCraftNames(ship?.shuttleBays);
   const suicideReady = bayCraft.filter(s => s.type === 'suicide' && s.armed && s.canLaunch);
   const packsReady   = bayCraft.filter(s => s.type === 'scatterpack' && s.canLaunch
                                        && (s.payload?.length ?? 0) > 0);
@@ -400,6 +421,20 @@ export default function LaunchOrdersPad({
     const set = speeds[craft.name];
     return set === undefined ? craft.effectiveMaxSpeed
                              : Math.max(0, Math.min(craft.effectiveMaxSpeed, set));
+  }
+
+  /** Move one craft between a bay and its balcony, immediately (J1.53). */
+  async function transfer(type: 'MOVE_TO_BALCONY' | 'MOVE_FROM_BALCONY', craft: string) {
+    if (!attacker || transferring) return;
+    setTransferring(true);
+    setTransferError(null);
+    const res = await gameApi.submitAction(gameId, playerToken, {
+      type, shipName: attacker.name, action: craft,
+    });
+    setTransferring(false);
+    // The refusal is where the rule is: J1.532's spent hatch, J1.534's barred roles, a full
+    // balcony. Shown verbatim rather than reworded, so the player gets the rule number.
+    if (!res.success) setTransferError(res.message);
   }
 
   /** One craft's speed, bounded by its own cap rather than by the fastest thing in the bay. */
@@ -909,6 +944,13 @@ export default function LaunchOrdersPad({
                       {craft.name}
                     </span>
                     <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
+                    {/* A parked craft launches free and unlimited (J1.53), so it is worth
+                        saying which rows those are: they do not queue for the hatch and do
+                        not compete with each other. */}
+                    {parkedNames.has(craft.name) && (
+                      <span title="On the balcony — launches free, any number this impulse (J1.53)"
+                            style={{ fontSize: '0.85em', color: '#f0c040' }}>balcony</span>
+                    )}
                     {/* Which of these is worth sending this impulse — the whole reason a
                         player opens this pad on impulse 1 with a bay full of fighters. */}
                     {armingOf(craft) && (
@@ -956,6 +998,62 @@ export default function LaunchOrdersPad({
                                 speed: speedOf(craft),
                               })}>launch</button>
                     </span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/*
+              J1.53 bay/balcony transfers. Here rather than in the Hangar drawer because that
+              drawer is Energy Allocation work, committed with the ALLOCATE, and a transfer is
+              an Activity-phase action spending the bay's hatch this impulse - the same hatch
+              a launch above would want (J1.532). Sent on click, not drafted.
+            */}
+            {attacker && hasBalcony(ship?.shuttleBays) && (
+              <>
+                <div style={{ ...COL_TITLE, marginTop: 8 }}>Balcony (J1.53)</div>
+                {transferError && (
+                  <div style={{ fontSize: '0.85em', color: '#f85149', marginBottom: 4 }}>
+                    {transferError}
+                  </div>
+                )}
+                {(ship?.shuttleBays ?? []).map((bay, i) => bay.balconyPositions === 0 ? null : (
+                  <div key={`balcony-${bay.bayIndex}`} style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: '0.85em', color: '#8b949e' }}>
+                      Bay {i + 1} - {(bay.balcony?.length ?? 0)}/{bay.balconyPositions} parked
+                      {!bay.canLaunch && ' - hatch spent this cycle (J1.532)'}
+                    </div>
+                    {(bay.balcony ?? []).map(craft => (
+                      <div key={craft.name} style={{ ...ROW, cursor: 'default' }}>
+                        <span>{craft.name}</span>
+                        <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
+                        <span style={{ marginLeft: 'auto' }}>
+                          <button style={{ padding: '0 6px' }}
+                                  disabled={transferring || bay.emptySpaces === 0}
+                                  title={bay.emptySpaces === 0
+                                    ? 'No free shuttle box to come back to (J1.416)'
+                                    : 'Bring it inside - costs the hatch (J1.532)'}
+                                  onClick={() => transfer('MOVE_FROM_BALCONY', craft.name)}>
+                            bring in
+                          </button>
+                        </span>
+                      </div>
+                    ))}
+                    {bay.shuttles.filter(c => !c.specialRole || c.type === 'scatterpack')
+                      .map(craft => (
+                      <div key={`out-${craft.name}`} style={{ ...ROW, cursor: 'default' }}>
+                        <span style={{ color: '#8b949e' }}>{craft.name}</span>
+                        <span style={{ color: '#8b949e', fontSize: '0.9em' }}>{craft.type}</span>
+                        <span style={{ marginLeft: 'auto' }}>
+                          <button style={{ padding: '0 6px' }}
+                                  disabled={transferring || balconyFreeOn(bay) === 0}
+                                  title="Move it out onto the balcony - costs the hatch (J1.532), and a rear-hull hit then destroys it (J1.531)"
+                                  onClick={() => transfer('MOVE_TO_BALCONY', craft.name)}>
+                            to balcony
+                          </button>
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </>
