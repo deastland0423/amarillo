@@ -71,6 +71,7 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 	private int armingTurn = 0;
 	private boolean armed = false; // True if the weapon is armed and ready to fire.
 	private boolean cooldown = false; // Weapon must have a cooldown turn between firing turns.
+	private boolean holdingSystem = true; // E7.5: the Y168 Hydran refit. See setHoldingSystem.
 
 	public Fusion() {
 		setDacHitLocaiton("torp");
@@ -89,6 +90,18 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 		// If the weapon is not armed as STANDARD, it can't be
 		// held and is simply discharged.
 		if (!(armingType == WeaponArmingType.STANDARD)) {
+			reset();
+		}
+
+		// E7.23: before the E7.5 refit a fusion could not be held at all - it "had to be
+		// fired or discharged (E1.24) shortly after (i.e. on the turn that) they were armed.
+		// If the weapon is not fired on the turn it is armed, the energy is lost, but the
+		// weapon does not need to cool and can be armed and fired during the next turn."
+		// So: discharge, and deliberately NO putOnCooldown() - reset() leaves the cooldown
+		// flag alone, which is exactly the rule. A pre-refit Hydran therefore cannot arm on
+		// the approach and release at range 1; it arms in the open and fires that turn or
+		// loses the energy, which is most of what makes an early Hydran hard to fly.
+		if (!holdingSystem && armed) {
 			reset();
 		}
 	}
@@ -139,9 +152,44 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 		return true;
 	}
 
-	/** Fusion standard hold costs 1 energy; other modes cannot be held. */
+	/**
+	 * E7.5: whether this fusion has the holding system. False is the pre-Y168 state (E7.23).
+	 * <p>
+	 * <b>Why this defaults to true.</b> The refit is free and was on "virtually all fusion-armed
+	 * ships" by Y169 (E7.5), so the data deliberately does not declare it - a ship file would
+	 * only be able to get it wrong. The year is the only thing that decides, and the scenario
+	 * loader is the only layer that knows a year, so {@code ScenarioLoader.applyFusionHolding}
+	 * sets this explicitly in BOTH directions on every build. The default therefore governs only
+	 * a ship built with no year at all - a catalogue listing or a unit test - where the modern
+	 * state is the right answer. Same shape as the ESG capacitor refit beside it (G23.24).
+	 * <p>
+	 * Not yet modelled: <b>E7.54</b> restricts the system to ships and bases of size class 4 or
+	 * larger and forbids it on PFs, with fusion-armed fighters using the parallel J4.83 charges
+	 * instead (which is what {@code FighterFusion} already does). Every fusion-armed hull in the
+	 * data is SC2-SC4, so that clause binds nothing until PFs arrive.
+	 */
+	public boolean hasHoldingSystem() {
+		return holdingSystem;
+	}
+
+	/** E7.5. See {@link #hasHoldingSystem()} for why the scenario loader always sets this. */
+	public void setHoldingSystem(boolean present) {
+		this.holdingSystem = present;
+	}
+
+	/**
+	 * E7.51: a standard fusion holds for 1 energy a turn; overloads cannot be held (E7.52),
+	 * and neither can anything without the E7.5 refit.
+	 * <p>
+	 * Zero is the whole cross-tier signal that holding is unavailable: the DTO copies this to
+	 * {@code holdCost} and the energy dialog offers a Hold button only where it is positive, so
+	 * a pre-refit fusion stops being offered the choice without the server or the client
+	 * knowing anything about Y168.
+	 */
 	@Override
 	public int holdEnergyCost() {
+		if (!holdingSystem)
+			return 0;
 		return (armed && armingType == WeaponArmingType.STANDARD) ? 1 : 0;
 	}
 
@@ -151,6 +199,11 @@ public class Fusion extends VariableDamageWeapon implements DirectFire, HeavyWea
 		// Can't hold the weapon if it isn't armed.
 		if (!isArmed()) {
 			throw new WeaponUnarmedException("Weapon is unamred.");
+		}
+
+		// E7.23: no holding system, no holding - the weapon discharges at end of turn.
+		if (!holdingSystem) {
+			return false;
 		}
 
 		// Can't hold overloaded (or suicide overloaded) fusions.

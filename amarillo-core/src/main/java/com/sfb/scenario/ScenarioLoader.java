@@ -82,6 +82,7 @@ public class ScenarioLoader {
         applyFighterComplement(ship, year);
         applyYearUpgrades(ship, faction, year, shipSpec);
         applyEsgCapacitors(ship, year);
+        applyFusionHolding(ship, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -116,6 +117,30 @@ public class ScenarioLoader {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof com.sfb.weapons.ESG) {
                 ((com.sfb.weapons.ESG) w).setHasCapacitor(hasCapacitors);
+            }
+        }
+    }
+
+    /**
+     * E7.5: fit the fusion holding system by scenario year. The Hydrans developed it in Y168 and
+     * "had installed it on virtually all fusion-armed ships by the time the Hydrans entered the
+     * General War in Y169", and "there is no cost for this refit".
+     * <p>
+     * Universal rather than faction-keyed, like the ADD and plasma-rack upgrades in
+     * {@code applyYearUpgrades} and for the same reason: the rule is about the WEAPON, so anyone
+     * who ever mounts a fusion gets it on the same date. Its own method rather than a branch
+     * inside {@code applyYearUpgrades}, because that one returns early below Y175.
+     * <p>
+     * Set in BOTH directions, exactly as {@code applyEsgCapacitors} does, so the loader is the
+     * single authority and a Y134 hull cannot inherit the modern default. Before this existed
+     * the four Y134 Hydran hulls - Hunter, Lancer, Ranger and Small Q-Ship - could hold their
+     * fusions in a pre-refit scenario, which E7.23 forbids outright.
+     */
+    static void applyFusionHolding(Ship ship, int year) {
+        boolean hasHolding = year >= 168;
+        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
+            if (w instanceof com.sfb.weapons.Fusion fusion) {
+                fusion.setHoldingSystem(hasHolding);
             }
         }
     }
