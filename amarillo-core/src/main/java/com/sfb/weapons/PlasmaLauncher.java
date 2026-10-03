@@ -32,6 +32,21 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1 // range 21-30
 	};
 
+	/**
+	 * FP8.42's to-hit table, shared with the plasma rack (FP10.0).
+	 * <p>
+	 * The probability is "based on the effective range to the target" and nothing else - not on
+	 * which type of torpedo is being bolted - so one table serves every plasma bolt in the game
+	 * and the rack reads it here rather than keeping a copy that could drift.
+	 *
+	 * @return the highest die that hits at this range, or -1 if a bolt cannot reach
+	 */
+	static int boltHitNeeds(int range) {
+		if (range < 0 || range >= BOLT_HIT_CHART.length)
+			return -1;
+		return BOLT_HIT_CHART[range];
+	}
+
 	PlasmaType launcherType = null; // The type of launcher, which will also be the max size plasma that can be
 																	// launched.
 	PlasmaType plasmaType = null; // The type of plasma in the launcher.

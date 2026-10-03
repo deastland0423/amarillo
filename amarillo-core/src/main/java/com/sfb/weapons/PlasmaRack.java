@@ -1,5 +1,7 @@
 package com.sfb.weapons;
 
+import com.sfb.exceptions.TargetOutOfRangeException;
+import com.sfb.exceptions.WeaponUnarmedException;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.properties.PlasmaType;
@@ -39,7 +41,7 @@ import com.sfb.properties.WeaponArmingType;
  * is any other, so there is nothing to distinguish and a {@link PlasmaTorpedo} is minted at
  * launch.
  */
-public class PlasmaRack extends Weapon implements Launcher {
+public class PlasmaRack extends Weapon implements Launcher, DirectFire {
 
     /**
      * FP10.1: "holding four one-space type-D plasma torpedoes", and FP10.14 makes that final —
@@ -115,6 +117,17 @@ public class PlasmaRack extends Weapon implements Launcher {
 
     /** Torpedoes this rack has sent this turn — the offensive mode limit is one (FP10.211). */
     private int firedThisTurn;
+
+    /**
+     * Torpedoes this rack has BOLTED this turn (FP10.221).
+     * <p>
+     * Counted separately from {@link #firedThisTurn} because it is the one limit the mode does
+     * not already imply: "In either mode, the rack can fire a maximum of one torpedo per turn as
+     * a plasma bolt." Offensive mode fires once a turn anyway, so this binds only in DEFENSIVE
+     * mode, where a rack may otherwise fire every impulse — four torpedoes at a drone wave, of
+     * which at most one may be a bolt.
+     */
+    private int boltsThisTurn;
 
     /**
      * The absolute impulse this rack last fired on, or far in the past.
@@ -351,6 +364,199 @@ public class PlasmaRack extends Weapon implements Launcher {
         return canLaunch(RackMode.DEFENSIVE) || canLaunch(RackMode.OFFENSIVE);
     }
 
+    // ---------------------------------------------------------------- the other means (FP10.22)
+
+    public int getBoltsThisTurn() {
+        return boltsThisTurn;
+    }
+
+    /**
+     * Why this rack may not BOLT a torpedo in {@code mode} right now, or null if it may
+     * (FP10.22, FP10.221).
+     * <p>
+     * FP10.22 makes bolt and seeking two "means" of using the same torpedo, so everything that
+     * refuses a launch refuses a bolt too - the mode commitment, the rates, the activation, the
+     * ammunition - and {@link #launchRefusal} is asked first rather than restated.
+     * <p>
+     * On top of that, FP10.221: "In either mode, the rack can fire a maximum of one torpedo per
+     * turn as a plasma bolt." The only limit the rates do not already imply, and it bites in
+     * defensive mode, where the rack may fire on every impulse but bolt on only one of them.
+     * <p>
+     * FP10.22's other clause - "During a given impulse, a rack can use only one means" - needs
+     * nothing here: one shot per impulse in defensive mode and one per turn in offensive both
+     * make it impossible to use two means in an impulse anyway. It would start to matter under
+     * FP10.13's aegis steps, which are deferred.
+     */
+    public String boltRefusal(RackMode mode) {
+        String common = launchRefusal(mode);
+        if (common != null)
+            return common;
+        if (boltsThisTurn >= 1)
+            return getName() + " has already bolted a torpedo this turn - a rack may bolt one"
+                    + " per turn in either mode (FP10.221)";
+        return null;
+    }
+
+    public boolean canBolt(RackMode mode) {
+        return boltRefusal(mode) == null;
+    }
+
+    /**
+     * Why {@code mode} may not be used against a target of this size at this range, or null if
+     * it may (FP10.211, FP10.212).
+     * <p>
+     * This is what the mode choice actually buys. Defensive mode trades reach for rate: "Plasma
+     * racks may fire in this mode at size-5 and smaller targets within an effective range of six
+     * hexes from the firing ship." Offensive mode has "no restrictions as to target type or range
+     * other than the capabilities of the weapon itself and (FP10.24)".
+     * <p>
+     * Size class counts UP as a unit gets smaller - a shuttle is 6, a cruiser 3 - so "size-5 and
+     * smaller" is {@code sizeClass >= 5}. The complement of FP10.241's "size-4 or larger", which
+     * is deliberate: the per-ship bolt limit covers exactly the targets defensive mode cannot
+     * engage.
+     *
+     * @param targetSizeClass the target's size class
+     * @param range           effective range, which is what FP10.212 measures
+     */
+    public String targetRefusal(RackMode mode, int targetSizeClass, int range) {
+        if (mode != RackMode.DEFENSIVE)
+            return null;              // FP10.211: offensive mode restricts nothing itself
+        if (targetSizeClass < DEFENSIVE_MAX_TARGET_SIZE)
+            return getName() + " is in defensive mode, which engages size-5 and smaller targets"
+                    + " only (FP10.212)";
+        if (range > DEFENSIVE_RANGE)
+            return getName() + " is in defensive mode, which reaches six hexes (FP10.212)";
+        return null;
+    }
+
+    /**
+     * Bolt one torpedo (FP8.43): "the amount of damage scored (if the torpedo hits) is equal to
+     * one-half of the warhead strength of the corresponding plasma torpedo (S-bolt = S-torpedo)
+     * at the true range to the target. Retain fractions throughout the calculation, then drop
+     * all remaining fractions before applying any damage."
+     * <p>
+     * Both ranges matter and they are not the same range, which is why the two-argument form is
+     * the real implementation: FP8.42 bases the to-hit on the EFFECTIVE range, FP8.43 bases the
+     * damage on the TRUE range. A scanner should make a bolt harder to hit with, not weaker when
+     * it lands.
+     * <p>
+     * Note on arcs: FP8.35 narrows a swivel launcher's bolt arc (LS becomes L+LF) but lists the
+     * rack as the exception in the same table - "LS for plas-D-rack" - and FP10.12 says why: "The
+     * bolt arcs for plasma racks are less restrictive than those for plasma torpedoes due to the
+     * nature of the system." So the rack bolts across its whole declared 180 degrees, and no
+     * narrowing is applied anywhere here.
+     */
+    @Override
+    public int fire(int realRange, int adjustedRange)
+            throws WeaponUnarmedException, TargetOutOfRangeException {
+        return bolt(effectiveModeForDirectFire(), realRange, adjustedRange);
+    }
+
+    /**
+     * Single-range form, for callers with no scanner adjustment to apply. Delegates so the
+     * to-hit and the damage cannot drift apart: FP8.42 and FP8.43 read the same number only when
+     * there is no scanner in play.
+     */
+    @Override
+    public int fire(int range) throws WeaponUnarmedException, TargetOutOfRangeException {
+        return fire(range, range);
+    }
+
+    /**
+     * Which mode a bare {@link #fire} call is taken to mean.
+     * <p>
+     * The committed one if the rack has already fired this turn, since FP10.21 does not let it
+     * change; otherwise DEFENSIVE, matching {@link #launch(int)} and for the same reason - it is
+     * the mode the weapon exists for (FP10.0). A caller that means an offensive bolt says so
+     * through {@link #bolt}, because choosing offensive mode spends one of the ship's two places
+     * under FP10.242 and that is not a decision to make by default.
+     */
+    private RackMode effectiveModeForDirectFire() {
+        return modeThisTurn == RackMode.UNDECIDED ? RackMode.DEFENSIVE : modeThisTurn;
+    }
+
+    /**
+     * Bolt one torpedo in {@code mode} (FP8.43, FP10.22).
+     * <p>
+     * This is the real implementation and {@link #fire} delegates to it, rather than the other way
+     * round, for two reasons. It must ENFORCE the rules rather than trust the caller to have asked
+     * {@link #boltRefusal} first - {@code DroneRack.fire} guards itself the same way, throwing
+     * {@link WeaponUnarmedException} with the rule cited - and it must SETTLE the mode, because
+     * FP10.21 makes the first firing of a turn the declaration and a bolt is a firing.
+     * <p>
+     * Both ranges matter and they are not the same range: FP8.42 bases the to-hit on the EFFECTIVE
+     * range, FP8.43 the damage on the TRUE range - "one-half of the warhead strength of the
+     * corresponding plasma torpedo (S-bolt = S-torpedo) at the true range to the target. Retain
+     * fractions throughout the calculation, then drop all remaining fractions." A scanner makes a
+     * bolt harder to land, not weaker when it lands.
+     * <p>
+     * Note on arcs: FP8.35 narrows a swivel launcher's bolt arc (LS becomes L+LF) but names the
+     * rack as the exception in that very table - "LS for plas-D-rack" - and FP10.12 says why:
+     * "The bolt arcs for plasma racks are less restrictive than those for plasma torpedoes due to
+     * the nature of the system." So the rack bolts across its whole declared 180 degrees and no
+     * narrowing is applied anywhere here.
+     *
+     * @return the damage scored, or 0 on a miss
+     */
+    public int bolt(RackMode mode, int realRange, int adjustedRange)
+            throws WeaponUnarmedException, TargetOutOfRangeException {
+        String refusal = boltRefusal(mode);
+        if (refusal != null)
+            throw new WeaponUnarmedException(refusal);
+
+        int needs = PlasmaLauncher.boltHitNeeds(adjustedRange);
+        if (needs < 0)
+            throw new TargetOutOfRangeException(
+                    getName() + " cannot bolt at an effective range of " + adjustedRange);
+
+        // FP8.43's "corresponding plasma torpedo... at the true range": a type-D walked out to
+        // the real range, so the rack and a type-D seeker agree on strength by construction
+        // rather than by a copied table.
+        PlasmaTorpedo reference = new PlasmaTorpedo(PlasmaType.D, WeaponArmingType.STANDARD);
+        for (int i = 0; i < realRange; i++)
+            reference.incrementDistance();
+        int boltDamage = reference.getCurrentStrength() / 2;
+        if (boltDamage <= 0)
+            throw new TargetOutOfRangeException(
+                    getName() + " has no warhead strength at range " + realRange);
+
+        torpedoes--;
+        activeTorpedoes--;
+        firedThisTurn++;
+        boltsThisTurn++;
+        lastFiredImpulse = clock.getImpulse();
+        // registerFire rather than setLastImpulseFired alone: a bolt IS direct fire, so the
+        // generic bookkeeping applies - the turn it happened, the shot count, and D13.22's
+        // "fired under aegis" flag that stops a weapon firing both ways in one impulse.
+        registerFire();
+        // FP10.21: a bolt is a firing, so it settles the mode exactly as a launch does.
+        modeThisTurn = mode;
+
+        int roll = new com.sfb.utilities.DiceRoller().rollOneDie();
+        setLastRoll(roll);
+        return roll <= needs ? boltDamage : 0;
+    }
+
+    /**
+     * Whether a bolt is possible at all this impulse. The mode is not known until the shot, so
+     * this answers for either - a guard asking "can this be shot" wants to know it is loaded,
+     * activated, not reloading and has its bolt for the turn, which is what both share.
+     */
+    @Override
+    public boolean canBeFiredAtTarget() {
+        return canBolt(RackMode.DEFENSIVE) || canBolt(RackMode.OFFENSIVE);
+    }
+
+    /**
+     * A rack is SHOT only as a bolt launcher, so its readiness to fire at a target is that
+     * question and not {@link #canFire()}, which asks whether it may send a SEEKER. The same
+     * split {@code DroneRack} makes between launching a drone and firing an anti-drone.
+     */
+    @Override
+    public boolean readyToFireAtTarget() {
+        return canBeFiredAtTarget();
+    }
+
     /**
      * The per-turn reset. {@code cleanUp} rather than a {@code startTurn} of its own, because
      * this is the hook {@code Weapons.cleanUp} already calls for every weapon at the turn
@@ -373,6 +579,7 @@ public class PlasmaRack extends Weapon implements Launcher {
         // finds the rack undecided, while the timestamps above do not move.
         modeThisTurn = RackMode.UNDECIDED;
         firedThisTurn = 0;
+        boltsThisTurn = 0;
         reloadingThisTurn = false;
     }
 

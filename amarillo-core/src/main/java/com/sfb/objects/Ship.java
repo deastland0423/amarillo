@@ -1004,6 +1004,108 @@ public class Ship extends Unit implements DroneController {
 	/** D13.32: "but not more than four times per impulse", on top of the six. */
 	public static final int AEGIS_ID_PER_IMPULSE = 4;
 
+	// -------------------------------------------------------------------------
+	// Plasma rack fire control limits (FP10.24)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * FP10.24's limits are per FIRING SHIP, not per rack, which is why they live here and not on
+	 * {@code PlasmaRack}: "Due to fire control restrictions, a ship with one or more plasma racks
+	 * is under the following limitations." A rack cannot enforce them because it cannot see what
+	 * its neighbours did.
+	 * <p>
+	 * Kept as turn-stamped counters rather than fields something has to remember to clear, the
+	 * same way the aegis identification counters above work: a count that belongs to a turn other
+	 * than the one being asked about reads as zero, so a missed reset cannot carry a limit into
+	 * the next turn. That failure mode is not hypothetical - Game's own comment records
+	 * "J4.241's two drones a turn became two a game" from exactly it.
+	 */
+	public static final int PLASMA_RACK_BOLTS_AT_LARGE_TARGETS_PER_TURN = 1;
+
+	/** FP10.242: "may not use more than two of those racks in offensive mode during a given turn." */
+	public static final int PLASMA_RACKS_IN_OFFENSIVE_MODE_PER_TURN = 2;
+
+	/**
+	 * FP10.241's threshold: "a size-4 or larger target". Size class counts UP as a unit gets
+	 * smaller, so size-4-or-larger is {@code sizeClass <= 4} - and it is the exact complement of
+	 * FP10.212's "size-5 and smaller", which is what defensive mode may engage.
+	 */
+	public static final int PLASMA_RACK_LARGE_TARGET_MAX_SIZE_CLASS = 4;
+
+	private int plasmaRackBoltTurn = Integer.MIN_VALUE;
+	private int plasmaRackBoltsAtLargeTargets;
+	private int plasmaRackOffensiveTurn = Integer.MIN_VALUE;
+	/** Which racks went offensive this turn, by designator - FP10.242 counts RACKS, not shots. */
+	private final java.util.Set<String> plasmaRacksOffensiveThisTurn = new java.util.LinkedHashSet<>();
+
+	/**
+	 * Why this ship may not bolt a type-D at a target of this size this turn, or null if it may
+	 * (FP10.241).
+	 * <p>
+	 * "A ship armed with plasma racks may not fire more than one type-D plasma bolt at a size-4
+	 * or larger target during any given turn. This restriction is per firing ship, not per rack...
+	 * The ship can fire one bolt from one rack at one size class four target during a given turn,
+	 * not one bolt each at four different targets, or one bolt each from two or more racks at a
+	 * target."
+	 * <p>
+	 * Both halves of that last sentence are the same limit seen from two sides, so this counts
+	 * BOLTS AT LARGE TARGETS and ignores which rack fired and which target was hit. Bolts at
+	 * size-5 and smaller are not limited here at all - FP10.221 already allows each rack only one
+	 * bolt a turn, and this clause is about fire control for the big shots.
+	 */
+	public String plasmaRackBoltRefusal(int turn, int targetSizeClass) {
+		if (targetSizeClass > PLASMA_RACK_LARGE_TARGET_MAX_SIZE_CLASS)
+			return null;              // FP10.241 only covers size-4 or larger
+		int used = plasmaRackBoltTurn == turn ? plasmaRackBoltsAtLargeTargets : 0;
+		if (used >= PLASMA_RACK_BOLTS_AT_LARGE_TARGETS_PER_TURN)
+			return getName() + " has already bolted a type-D at a size-4 or larger target this"
+					+ " turn - one per ship, not per rack (FP10.241)";
+		return null;
+	}
+
+	public void recordPlasmaRackBolt(int turn, int targetSizeClass) {
+		if (targetSizeClass > PLASMA_RACK_LARGE_TARGET_MAX_SIZE_CLASS)
+			return;
+		if (plasmaRackBoltTurn != turn) {
+			plasmaRackBoltTurn = turn;
+			plasmaRackBoltsAtLargeTargets = 0;
+		}
+		plasmaRackBoltsAtLargeTargets++;
+	}
+
+	/**
+	 * Why {@code designator}'s rack may not go into offensive mode this turn, or null if it may
+	 * (FP10.242): "A ship armed with plasma racks may not use more than two of those racks in
+	 * offensive mode during a given turn."
+	 * <p>
+	 * A rack already counted this turn is always allowed through, so asking twice about the same
+	 * rack never refuses it - the limit is on how many DIFFERENT racks go offensive, and a rack
+	 * that has committed to offensive mode has already spent its place.
+	 */
+	public String plasmaRackOffensiveRefusal(int turn, String designator) {
+		java.util.Set<String> used = plasmaRackOffensiveTurn == turn
+				? plasmaRacksOffensiveThisTurn : java.util.Set.of();
+		if (used.contains(designator))
+			return null;
+		if (used.size() >= PLASMA_RACKS_IN_OFFENSIVE_MODE_PER_TURN)
+			return getName() + " already has " + used.size() + " plasma racks in offensive mode"
+					+ " this turn, which is all its fire control manages (FP10.242)";
+		return null;
+	}
+
+	public void recordPlasmaRackOffensive(int turn, String designator) {
+		if (plasmaRackOffensiveTurn != turn) {
+			plasmaRackOffensiveTurn = turn;
+			plasmaRacksOffensiveThisTurn.clear();
+		}
+		plasmaRacksOffensiveThisTurn.add(designator);
+	}
+
+	/** Racks this ship has committed to offensive mode this turn (FP10.242). */
+	public int plasmaRacksInOffensiveMode(int turn) {
+		return plasmaRackOffensiveTurn == turn ? plasmaRacksOffensiveThisTurn.size() : 0;
+	}
+
 	/** D13.321: a repeat attempt on the same seeker is one easier. */
 	public static final int AEGIS_ID_REPEAT_BONUS = 1;
 
