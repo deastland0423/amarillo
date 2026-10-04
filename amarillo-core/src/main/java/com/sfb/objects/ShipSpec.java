@@ -121,6 +121,27 @@ public class ShipSpec {
      * have not read: its racks hold what they hold and cannot be refilled.
      */
     public double droneStorageSpaces;
+
+    /**
+     * FD2.445: spaces of spare drones a cargo box holds, when this ship's description says its
+     * cargo boxes carry drones. <b>Null means they do not</b> — which is almost every hull.
+     * <p>
+     * Opt-in because the rule is: "Some drone-armed ships have cargo boxes to store extra drones.
+     * Unless otherwise specified a cargo box will hold 50 spaces of spare drones. It does not have
+     * them automatically, however, unless specified in the ship description." Deriving
+     * {@code cargo * 50} for everything would give the Hydran Caravan's 32 freight boxes 1600
+     * spaces of drones, and the Federation CVL's ten survey boxes 500 on top of the 250 of FIGHTER
+     * supply it already has.
+     * <p>
+     * A rate rather than a total, so it cannot drift from the hull. The D5D's SSD reads "This ship
+     * has 200 spaces of extra drones in its cargo boxes (50/box)" — four boxes at 50, and the 200
+     * follows. {@code Integer} rather than {@code int} so "says nothing" and "says none" stay
+     * different facts.
+     * <p>
+     * NOT the same thing as {@link #droneStorageSpaces}, which is FD2.443/J4.7 fighter supply and
+     * is not linked to cargo boxes at all. See {@link com.sfb.systemgroups.CargoDroneStore}.
+     */
+    public Integer cargoDroneSpacesPerBox;
     /**
      * Heavy battlecruiser. No more than one may be in a battle force, though it needs no
      * squadron of followers and may be there alongside the one allowed size class 2 ship
@@ -485,6 +506,8 @@ public class ShipSpec {
             m.put("carrierclass", carrierClass);
         if (droneStorageSpaces > 0)
             m.put("dronestoragespaces", droneStorageSpaces);
+        if (cargoDroneSpacesPerBox != null)
+            m.put("cargodronespacesperbox", cargoDroneSpacesPerBox);
         if (isBCH)
             m.put("isbch", true);
         if (stealthBonus > 0)

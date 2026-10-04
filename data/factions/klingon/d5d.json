@@ -13,7 +13,7 @@
   "bonusHets": 1,
   "commandRating": 6,
   "aegis": "LIMITED",
-  "droneStorageSpaces": 200,
+  "cargoDroneSpacesPerBox": 50,
   "aegisWeapons": ["ADD", "Phaser3"],
   "tokenArt": "klingon/d5.png",
   

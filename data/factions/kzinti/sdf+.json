@@ -9,6 +9,7 @@
   "epv": 91,
   "turnMode": "A",
   "sizeClass": 4,
+  "cargoDroneSpacesPerBox": 50,
   "moveCost": 0.3333333,
   "breakdown": 5,
   "bonusHets": 1,

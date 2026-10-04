@@ -58,6 +58,9 @@ public class Ship extends Unit implements DroneController {
 	private DAC dac = new DAC(); // Damage Allocation Chart
 	private Shields shields = new Shields(); // Shield systems
 	private HullBoxes hullBoxes = new HullBoxes(); // Hull boxes
+	// FD2.445: spare drones in the cargo boxes. Null when the ship declares none, which
+	// is almost every hull - cargo boxes do not hold drones unless the ship says so.
+	private com.sfb.systemgroups.CargoDroneStore cargoDroneStore = null;
 	private int stealthBonus = 0; // Orion Stealth Bonus in ECM points (G15.8); 0 if none
 	private boolean enginesDoublingCapable = true; // G15.28: true unless JSON says otherwise (freighters, the one non-doubling warship)
 	private java.util.List<OptionMount> optionMounts = new java.util.ArrayList<>(); // G15.4 "OPT" mounts
@@ -277,6 +280,11 @@ public class Ship extends Unit implements DroneController {
 		// Subsystem values
 		shields.init(values);
 		hullBoxes.init(values);
+		// After hullBoxes: the store is sized from the box count it just read.
+		Object perBox = values.get("cargodronespacesperbox");
+		cargoDroneStore = perBox == null ? null
+				: new com.sfb.systemgroups.CargoDroneStore(
+						hullBoxes.getAvailableCargo(), ((Number) perBox).intValue());
 		powerSystems.init(values);
 		controlSpaces.init(values);
 		specialFunctions.init(values);
@@ -1917,6 +1925,11 @@ public class Ship extends Unit implements DroneController {
 		return this.hullBoxes;
 	}
 
+	/** FD2.445 spare drones in the cargo boxes, or null if this ship declares none. */
+	public com.sfb.systemgroups.CargoDroneStore getCargoDroneStore() {
+		return cargoDroneStore;
+	}
+
 	/// POWER SYSTEMS ///
 	public PowerSystems getPowerSystems() {
 		return powerSystems;
@@ -2867,8 +2880,19 @@ public class Ship extends Unit implements DroneController {
 				return specialFunctions.damageSensor() ? "sensor HIT" : null;
 			case "damcon":
 				return specialFunctions.damageDamCon() ? "damcon HIT" : null;
-			case "cargo":
-				return hullBoxes.damageCargo() ? "cargo HIT" : null;
+			case "cargo": {
+				if (!hullBoxes.damageCargo())
+					return null;
+				// FD2.445: "These drones are lost when the cargo boxes are destroyed."
+				// Reported so the loss is visible - a silent 50 spaces going missing is
+				// exactly the kind of thing nobody notices until a reload fails.
+				if (cargoDroneStore != null) {
+					int lost = cargoDroneStore.loseOneBox();
+					if (lost > 0)
+						return "cargo HIT (" + lost + " spaces of drones lost)";
+				}
+				return "cargo HIT";
+			}
 			case "fhull": {
 				boolean fAvail = hullBoxes.getAvailableFhull() > 0;
 				if (!hullBoxes.damageFhull())

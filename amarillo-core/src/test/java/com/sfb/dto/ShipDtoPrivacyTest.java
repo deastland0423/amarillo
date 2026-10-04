@@ -70,6 +70,10 @@ public class ShipDtoPrivacyTest {
         // can mount is exactly the thing a carrier duel turns on, and G4.233 keeps even the
         // types in the crates off a scan.
         "droneStorageSpaces", "droneStorageHeld",
+        // FD2.445 cargo drones. Same secret as the carrier supply above: how many reloads
+        // remain is how long he can keep launching. The cargo BOXES stay public - they are
+        // SSD boxes, and the hit that destroyed one was announced - but not their contents.
+        "cargoDroneSpaces", "cargoDroneSpacesHeld",
         "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",

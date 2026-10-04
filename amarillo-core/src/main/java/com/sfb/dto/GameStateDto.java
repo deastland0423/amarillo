@@ -465,6 +465,9 @@ public class GameStateDto {
          */
         public Double droneStorageSpaces;
         public Double droneStorageHeld;
+        // FD2.445 cargo-box drones. Null on every ship whose cargo boxes hold none.
+        public Integer cargoDroneSpaces;        // capacity, falling 50 a box as they die
+        public Integer cargoDroneSpacesHeld;    // what is actually still in the hold
         public boolean activeFireControl;
         public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
         public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
@@ -1459,6 +1462,11 @@ public class GameStateDto {
             dto.droneStorageSpaces = droneStore.capacitySpaces();
             dto.droneStorageHeld = droneStore.spacesHeld();
         }
+        com.sfb.systemgroups.CargoDroneStore cargoDrones = ship.getCargoDroneStore();
+        if (cargoDrones != null) {
+            dto.cargoDroneSpaces = cargoDrones.capacitySpaces();
+            dto.cargoDroneSpacesHeld = cargoDrones.spacesHeld();
+        }
         dto.activeFireControl = ship.isActiveFireControl();
         dto.usingEm = ship.isUsingEm();
         dto.erraticCost = ship.getPerformanceData().getErraticCost();
@@ -2191,6 +2199,11 @@ public class GameStateDto {
         // How many more strikes he can mount (J4.7), and G4.233 for what is in the crates.
         dto.droneStorageSpaces = null;
         dto.droneStorageHeld = null;
+        // FD2.445 cargo drones, same reasoning: how many reloads are left is how long he can
+        // keep shooting. The CARGO BOXES themselves stay public — they are SSD boxes and the
+        // damage that killed them was announced — but what is in them is not.
+        dto.cargoDroneSpaces = null;
+        dto.cargoDroneSpacesHeld = null;
 
         // Having BOUGHT Erratic Maneuvers is an intention; using them is a manoeuvre
         // everyone can see (C10.11 versus C10.0), so usingEm and the announcement stay.
