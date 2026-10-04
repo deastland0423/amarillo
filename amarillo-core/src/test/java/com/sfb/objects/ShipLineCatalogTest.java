@@ -129,6 +129,67 @@ public class ShipLineCatalogTest {
         assertEquals("CA", ship.getLine());
     }
 
+    // ------------------------------------------------------------ display order (fleet builder)
+
+    /**
+     * The catalogue's own file order is the fleet-builder shelf's display order, so it has to be
+     * a dense sequence with no repeats.
+     * <p>
+     * The shelf used to sort groups by the line CODE, which read as nonsense to a player: "BCH"
+     * sorts above "CA", so Heavy Battlecruiser came before Heavy Cruiser, and the freighters
+     * landed between Destroyer and Frigate. Order now comes from this file (owner's ordering,
+     * 2026-10-03) and {@code ShipLineCatalog.Entry.order} is the index, so reordering the file
+     * reorders the screen with nothing to renumber.
+     */
+    @Test
+    public void everyLineHasADistinctPlaceInTheDisplayOrder() {
+        List<ShipLineCatalog.Entry> all = ShipLineCatalog.all();
+        assumeTrue(!all.isEmpty());
+
+        Set<Integer> seen = new HashSet<>();
+        for (int i = 0; i < all.size(); i++) {
+            ShipLineCatalog.Entry e = all.get(i);
+            assertEquals(e.code + " should hold position " + i + " in catalogue order",
+                    i, e.order);
+            assertTrue(e.code + " repeats display order " + e.order, seen.add(e.order));
+        }
+    }
+
+    /**
+     * Civilian lines must be contiguous at the END of the catalogue.
+     * <p>
+     * The shelf marks only the FIRST civilian group and draws its dividing rule there, so a
+     * civilian line placed among the warships would put the warship/freighter rule in the middle
+     * of the warships — and a second block of them further down would get no rule at all. This is
+     * the invariant that lets the UI carry one boolean instead of a notion of sections.
+     */
+    @Test
+    public void civilianLinesComeLastAndStayTogether() {
+        List<ShipLineCatalog.Entry> all = ShipLineCatalog.all();
+        assumeTrue(!all.isEmpty());
+
+        boolean inCivilians = false;
+        List<String> wrong = new ArrayList<>();
+        for (ShipLineCatalog.Entry e : all) {
+            if (e.civilian) {
+                inCivilians = true;
+            } else if (inCivilians) {
+                wrong.add(e.code + " (a warship line) sits below a civilian line");
+            }
+        }
+        assertEquals("civilian lines must be contiguous at the end of shiplines.json: " + wrong,
+                List.of(), wrong);
+    }
+
+    /** An uncatalogued line sorts after every known one rather than to the top of the shelf. */
+    @Test
+    public void anUnknownLineSortsLastAndIsNotCivilian() {
+        assertEquals(Integer.MAX_VALUE, ShipLineCatalog.orderOf("NOPE"));
+        assertEquals(Integer.MAX_VALUE, ShipLineCatalog.orderOf(null));
+        assertFalse(ShipLineCatalog.isCivilian("NOPE"));
+        assertFalse(ShipLineCatalog.isCivilian(null));
+    }
+
     /** An unclassified ship reports no line rather than inventing one. */
     @Test
     public void anUnclassifiedShipHasNoLine() {

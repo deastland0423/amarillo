@@ -52,6 +52,8 @@ export interface CatalogShip {
   name:          string;
   line:          string;   // hull family, e.g. "CA"
   lineName:      string;   // "Heavy Cruiser"
+  lineOrder:     number;   // display order from shiplines.json; big warships first, civilians last
+  lineCivilian:  boolean;  // a freighter line: the shelf rules off above the first of these
   sizeClass:     number;
   serviceYear:   number;
   commandRating: number;

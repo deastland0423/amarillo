@@ -171,6 +171,10 @@ public class GameController {
             row.put("name", spec.name != null ? spec.name : "");
             row.put("line", spec.line != null ? spec.line : "");
             row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
+            // The shelf groups by line and orders those groups by the CATALOGUE's order
+            // (biggest warship down to smallest, then civilians), not alphabetically.
+            row.put("lineOrder", com.sfb.objects.ShipLineCatalog.orderOf(spec.line));
+            row.put("lineCivilian", com.sfb.objects.ShipLineCatalog.isCivilian(spec.line));
             row.put("sizeClass", spec.sizeClass);
             row.put("serviceYear", spec.serviceYear);
             row.put("commandRating", spec.commandRating);

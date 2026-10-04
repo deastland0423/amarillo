@@ -101,21 +101,34 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     return catalog
       .filter(s => chosen.has(s.faction))
       .filter(s => s.serviceYear <= spec.year)
-      .sort((a, b) => a.line.localeCompare(b.line)
+      // lineOrder, not the line CODE: alphabetically "BCH" sorts above "CA" and the freighters
+      // land between the destroyers and the frigates, which is nobody's mental model of a fleet.
+      // The order lives in shiplines.json so reordering the file reorders this screen.
+      .sort((a, b) => (a.lineOrder - b.lineOrder)
         || a.faction.localeCompare(b.faction)
         || a.type.localeCompare(b.type));
   }, [catalog, spec.factions, spec.year]);
 
-  /** Grouped by line, which is what makes a hundred hulls legible. */
+  /**
+   * Grouped by line, which is what makes a hundred hulls legible. `shelf` is already in display
+   * order and a Map keeps insertion order, so the groups come out biggest-first with the
+   * civilian hulls last — no second sort, and no list of line names to keep in step here.
+   */
   const shelfByLine = useMemo(() => {
-    const groups = new Map<string, CatalogShip[]>();
+    const groups = new Map<string, { ships: CatalogShip[]; civilian: boolean }>();
     for (const ship of shelf) {
       const key = ship.lineName || ship.line || 'Other';
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(ship);
+      if (!groups.has(key)) groups.set(key, { ships: [], civilian: !!ship.lineCivilian });
+      groups.get(key)!.ships.push(ship);
     }
     return [...groups.entries()];
   }, [shelf]);
+
+  /** The first civilian group gets the dividing rule drawn above it (never the first group). */
+  const firstCivilianLine = useMemo(() => {
+    const hit = shelfByLine.find(([, g]) => g.civilian);
+    return hit && shelfByLine[0][0] !== hit[0] ? hit[0] : null;
+  }, [shelfByLine]);
 
   const lookup = useCallback(
     (faction: string | undefined, type: string) =>
@@ -329,10 +342,12 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             <p className="subtitle">Choose an empire to see what it can field.</p>
           )}
 
-          {shelfByLine.map(([lineName, ships]) => (
-            <div key={lineName} className="fb-line-group">
+          {shelfByLine.map(([lineName, group]) => (
+            <div key={lineName}
+                 className={'fb-line-group'
+                   + (lineName === firstCivilianLine ? ' fb-line-group-civilian' : '')}>
               <div className="fb-line-header">{lineName}</div>
-              {ships.map(ship => (
+              {group.ships.map(ship => (
                 <button key={ship.faction + ship.type} className="fb-shelf-row"
                         onClick={() => addShip(ship)}>
                   <span className="fb-shelf-type">{ship.type}</span>

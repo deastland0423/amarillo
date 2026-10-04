@@ -11,7 +11,12 @@
     "list more than one, as CL does for the older Federation light cruisers that pay 3/4.",
     "An empty list means the cost is not fixed and is not checked: a tug pays by what it",
     "is hauling, so its cost varies with the number and size of its pods.",
-    "ShipLineCatalogTest enforces the agreement across every ship."
+    "ShipLineCatalogTest enforces the agreement across every ship.",
+    "",
+    "THE ORDER OF THIS LIST IS THE DISPLAY ORDER on the fleet-builder shelf: biggest warship",
+    "first down to the smallest, then the civilian hulls. Reorder here to reorder the screen.",
+    "civilian:true draws the shelf's dividing rule above the first such line, so the civilian",
+    "entries must stay together at the END of the list - ShipLineCatalogTest pins that."
   ],
   "lines": [
     { "code": "BB",  "name": "Battleship",          "moveCosts": [2.0] },
@@ -25,7 +30,7 @@
     { "code": "FF",  "name": "Frigate",             "moveCosts": [0.25, 0.3333333] },
     { "code": "FW",  "name": "War Frigate",         "moveCosts": [0.3333333] },
     { "code": "TUG", "name": "Tug",                 "moveCosts": [] },
-    { "code": "F-L", "name": "Large Freighter",     "moveCosts": [0.5] },
-    { "code": "F-S", "name": "Small Freighter",     "moveCosts": [0.3333333] }
+    { "code": "F-L", "name": "Large Freighter",     "moveCosts": [0.5],       "civilian": true },
+    { "code": "F-S", "name": "Small Freighter",     "moveCosts": [0.3333333], "civilian": true }
   ]
 }

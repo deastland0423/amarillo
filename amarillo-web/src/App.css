@@ -1940,6 +1940,16 @@ h3 {
 }
 
 .fb-line-group { margin-bottom: 0.75rem; }
+
+/* The warship/civilian divide: a rule above the first freighter group (shiplines.json
+   "civilian": true). Border rather than an <hr> so it cannot be left dangling when the
+   freighters are filtered out by the scenario year. */
+.fb-line-group-civilian {
+  border-top: 1px solid #484f58;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+}
+
 .fb-line-header {
   font-size: 0.72rem;
   text-transform: uppercase;

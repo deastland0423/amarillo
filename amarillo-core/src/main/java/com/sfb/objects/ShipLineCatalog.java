@@ -33,10 +33,31 @@ public final class ShipLineCatalog {
         public final String name;   // display name, e.g. "Heavy Cruiser"
         public final List<Double> moveCosts;  // costs ships of this line may pay; may be empty
 
-        Entry(String code, String name, List<Double> moveCosts) {
+        /**
+         * Position in the catalogue file, and therefore the order these read best in to a
+         * player: biggest warship first down to the smallest, then the civilian hulls.
+         * <p>
+         * The file's own order is the single source of truth, which is why this is an index
+         * rather than a hand-kept number in the JSON — reordering the file reorders the screen,
+         * with nothing to renumber and no way for the two to disagree. The fleet builder used to
+         * sort groups alphabetically, which put Heavy Battlecruiser above Heavy Cruiser and the
+         * freighters in the middle of the warships.
+         */
+        public final int order;
+
+        /**
+         * True for a non-combatant line — the freighters. The fleet-builder shelf draws its
+         * dividing rule above the first civilian group, so these must stay contiguous at the end
+         * of the file; {@code ShipLineCatalogTest} pins that.
+         */
+        public final boolean civilian;
+
+        Entry(String code, String name, List<Double> moveCosts, int order, boolean civilian) {
             this.code = code;
             this.name = name;
             this.moveCosts = List.copyOf(moveCosts);
+            this.order = order;
+            this.civilian = civilian;
         }
 
         @Override
@@ -56,11 +77,13 @@ public final class ShipLineCatalog {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(file);
         registry.clear();
+        int order = 0;
         for (JsonNode n : root.path("lines")) {
             List<Double> costs = new ArrayList<>();
             for (JsonNode c : n.path("moveCosts"))
                 costs.add(c.asDouble());
-            Entry e = new Entry(n.path("code").asText(), n.path("name").asText(), costs);
+            Entry e = new Entry(n.path("code").asText(), n.path("name").asText(), costs,
+                    order++, n.path("civilian").asBoolean(false));
             registry.put(e.code.toLowerCase(), e);
         }
         loaded = true;
@@ -112,6 +135,22 @@ public final class ShipLineCatalog {
         return false;
     }
 
+    /**
+     * Where this line sorts on screen, or a value after every catalogued line when the code is
+     * unknown — an uncatalogued line lands in a trailing "Other" group rather than at the top.
+     */
+    public static int orderOf(String code) {
+        Entry e = get(code);
+        return e == null ? Integer.MAX_VALUE : e.order;
+    }
+
+    /** True if this line is a non-combatant (the freighters). Unknown codes are not. */
+    public static boolean isCivilian(String code) {
+        Entry e = get(code);
+        return e != null && e.civilian;
+    }
+
+    /** Every line, in catalogue order. */
     public static List<Entry> all() {
         return Collections.unmodifiableList(new ArrayList<>(registry.values()));
     }
