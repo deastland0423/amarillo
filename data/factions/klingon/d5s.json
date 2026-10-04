@@ -1,0 +1,94 @@
+{
+  "faction": "Klingon",
+  "type": "D5S",
+  "typeName": "Scout Cruiser",
+  "line": "CW",
+  "name": "IKS Reader",
+  "serviceYear": 169,
+  "bpv": 100,
+  "epv": 120,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "aegis": "LIMITED",
+  "aegisWeapons": ["ADD", "Phaser3"],
+  "tokenArt": "klingon/d5.png",
+  
+  "shields": [30, 26, 26, 26, 26, 26],
+  
+  "hullBoxes": {
+    "fhull": 3,
+    "ahull": 6
+  },
+  
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
+
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 2,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
+    ]
+  }
+}
