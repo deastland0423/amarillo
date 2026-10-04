@@ -86,11 +86,13 @@ public class CarrierDeckCrewsTest {
     /**
      * Whether the FILE states a count, as opposed to the ship ending up with the default.
      * <p>
-     * CrewSpec.deckCrews is a primitive, so an absent key and a stated zero are the same
-     * value — which is harmless here, since no ship states zero deck crews on purpose.
+     * {@code CrewSpec.deckCrews} is an {@code Integer}, so this asks the real question. It used
+     * to be a primitive and this read {@code > 0}, which answered "states a count above zero" —
+     * indistinguishable from silence, and the same confusion that let {@code "deckCrews": 0}
+     * load as two.
      */
     private static boolean namesDeckCrews(ShipSpec spec) {
-        return spec.crewData != null && spec.crewData.deckCrews > 0;
+        return spec.crewData != null && spec.crewData.deckCrews != null;
     }
 
     private static File[] dirs(File root) {

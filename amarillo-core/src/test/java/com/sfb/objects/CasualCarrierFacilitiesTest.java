@@ -327,16 +327,35 @@ public class CasualCarrierFacilitiesTest {
     // ---------------------------------------------------------------- J4.814 deck crews
 
     /**
-     * J4.814: "Carrier escorts (with ready racks but without fighters) and casual carriers have
-     * one deck crew per ready rack (minimum two deck crews)."
+     * J4.814: one deck crew per ready rack. <b>Not</b> "minimum two" — see below.
+     *
+     * <h2>Why the minimum-two is NOT asserted here</h2>
+     * J4.814 sets up three tiers, and only the lower two are defaults:
+     * <ol>
+     *   <li>"All ships <b>not formally assigned a number of deck crews by Annex #7G</b> are
+     *       assumed to have two deck crews." So a ship the annex DOES assign a number to uses
+     *       that number, whatever it is.</li>
+     *   <li>"Carrier escorts (with ready racks but without fighters) and casual carriers have one
+     *       deck crew per ready rack (minimum two deck crews)." The derivation for an escort the
+     *       annex is silent about.</li>
+     *   <li>Everything else: two.</li>
+     * </ol>
+     * This guard used to assert {@code max(facilities, 2)}, which collapses tiers 1 and 2 — and
+     * the Hydran Escort Hunter is the counter-example that proved it wrong: <b>its SSD formally
+     * assigns one deck crew</b> (owner, 2026-10-03), which tier 1 permits outright and the old
+     * guard rejected as a violation.
      * <p>
-     * Correct by coincidence today and this makes it correct by construction: every escort in the
-     * data has one or two facilities, so {@code max(facilities, 2)} is 2 for all of them and the
-     * two-crew default happens to satisfy the rule. A three-facility escort would need three, and
-     * nothing would have said so.
+     * Since every ship file in this project declares its deck crews — pinned by
+     * {@link #everyCasualCarrierDeclaresItsDeckCrews()} — every hull here is formally assigned,
+     * so tier 2's minimum has nothing to apply to. What survives is the half that is about
+     * capability rather than defaults: a facility with no crew to work it can service nothing,
+     * so crews must at least match facilities. A two-facility escort with one crew still fails.
+     * <p>
+     * Same shape as the J4.463 ruling in {@code Shuttles.allowedEwFighters}: where a rule derives
+     * a number the data may also state, core must not refuse the stated one.
      */
     @Test
-    public void everyCasualCarrierHasADeckCrewPerFacilityAndAtLeastTwo() {
+    public void everyCasualCarrierHasADeckCrewPerFacility() {
         List<String> wrong = new ArrayList<>();
 
         for (ShipSpec spec : ShipLibrary.all()) {
@@ -349,14 +368,13 @@ public class CasualCarrierFacilitiesTest {
             if (facilities == 0)
                 continue;
 
-            int needed = Math.max(facilities, 2);
             int have = ship.getCrew().getDeckCrews();
-            if (have < needed)
+            if (have < facilities)
                 wrong.add(spec.faction + " " + spec.type + ": " + facilities
-                        + " fighter facilities need " + needed + " deck crews, has " + have);
+                        + " fighter facilities need " + facilities + " deck crews, has " + have);
         }
 
-        assertEquals("J4.814: one deck crew per facility, minimum two:" + "\n  "
+        assertEquals("J4.814: one deck crew per fighter facility:" + "\n  "
                 + String.join("\n  ", wrong), List.of(), wrong);
     }
 

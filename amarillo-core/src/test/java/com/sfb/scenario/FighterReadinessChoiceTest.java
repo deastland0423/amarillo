@@ -41,9 +41,16 @@ import com.sfb.systemgroups.ShuttleSpace;
  */
 public class FighterReadinessChoiceTest {
 
+    /**
+     * NB the path is a FILENAME, which is not the hull's identity — its {@code type} is. This
+     * broke on 2026-10-03 when the Hydran files were renamed to the "+" convention and
+     * {@code rnplus.json} became {@code rn+.json}: nine tests here failed with
+     * FileNotFoundException, and it was the only hardcoded ship path in the repo. Prefer
+     * {@code ShipLibrary.get("Hydran", "RN+")} in new tests, which survives a rename.
+     */
     private static Ship rangerRefit() throws Exception {
         Ship rn = ShipLibrary.createShip(
-                ShipSpec.fromJson(new File("../data/factions/hydran/rnplus.json")));
+                ShipSpec.fromJson(new File("../data/factions/hydran/rn+.json")));
         rn.setName("HMS Tenacity");
         return rn;
     }

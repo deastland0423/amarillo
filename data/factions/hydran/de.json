@@ -1,0 +1,74 @@
+{
+  "faction": "Hydran",
+  "type": "DE",
+  "typeName": "Escort Lancer",
+  "carrierClass": "CAPABLE",
+  "line": "DD",
+  "name": "HMS Assurance",
+  "serviceYear": 169,
+  "bpv": 80,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "isEscort": true,
+  "aegis": "LIMITED",
+  "commandRating": 4,
+  
+  "shields": [24, 18, 14, 12, 14, 18],
+  
+  "hullBoxes": {
+    "chull": 13
+  },
+  
+  "power": {
+    "centerWarp": 14,
+    "impulse": 3,
+    "apr": 3,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"], "launchTubes": 4, "type": "tunnel", "fighters": { "line": "hydran-stinger", "superiority": 6 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 22,
+    "boardingParties": 8,
+    "deckCrews": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA"] },
+    { "type": "PhaserG", "designator": "3", "arcs": ["FX"] },
+    { "type": "PhaserG", "designator": "4", "arcs": ["FX"] },
+    { "type": "PhaserG", "designator": "5", "arcs": ["FX"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["FULL"] },
+    { "type": "PhaserG", "designator": "7", "arcs": ["RA"] },
+    { "type": "PhaserG", "designator": "8", "arcs": ["RA"] }
+  ]
+}

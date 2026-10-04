@@ -366,7 +366,20 @@ public class ShipSpec {
     public static class CrewSpec {
         public int totalCrew;
         public int boardingParties;
-        public int deckCrews;
+        /**
+         * Deck crews (J4.814). <b>Integer, not int</b>, so that "the file says nothing" and "the
+         * file says none" are different facts.
+         * <p>
+         * As a primitive these were the same value, and two layers then conspired: the map build
+         * below dropped any count that was not {@code > 0}, and {@code Crew.init} turns an absent
+         * key into the J4.814 default of two. So {@code "deckCrews": 0} silently became TWO. Found
+         * 2026-10-03 while mutation-testing the facilities guard — a hull mutated to zero crews
+         * kept passing, because it was not actually running with zero.
+         * <p>
+         * This is the trap CLAUDE.md records for the DTO boundary, one layer further in: a
+         * primitive cannot say "not applicable", so it cannot say "deliberately none" either.
+         */
+        public Integer deckCrews;
         public int minCrew;
     }
 
@@ -613,7 +626,9 @@ public class ShipSpec {
             m.put("crew", crewData.totalCrew);
             m.put("boardingparties", crewData.boardingParties);
             m.put("minimumcrew", crewData.minCrew);
-            if (crewData.deckCrews > 0)
+            // != null, not > 0: a file stating zero deck crews must reach Crew as zero rather
+            // than being dropped here and defaulted back to two by Crew.init.
+            if (crewData.deckCrews != null)
                 m.put("deckcrews", crewData.deckCrews);
         }
 
