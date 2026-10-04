@@ -110,6 +110,31 @@ public class ShipSpec {
      * fighters without being carriers.
      */
     public String carrierClass;
+
+    /**
+     * G21.0 crew quality: "poor", "normal" or "outstanding". <b>Null means normal</b>, which is
+     * what the great majority of ships are — G21.0 reckons "a fleet organization of 100 ships might
+     * have ten poor crews and five outstanding ones at any given time".
+     * <p>
+     * A property of the HULL here because some ships are poor by design: the Klingon F5J Penal
+     * Frigate is crewed by prisoners. G21.0's own distribution talk is about assigning quality
+     * across a fleet at the start of a campaign ("dreadnoughts and all size class 2 ships never
+     * have outstanding crews. Bases and scouts always have average crews"), so a scenario-level
+     * override belongs beside this eventually — this is the floor, not the ceiling.
+     * <p>
+     * Parsed leniently by {@code Crew.init}, which treats anything it does not recognise as
+     * normal, so a typo costs the declaration rather than the load. The string rather than an enum
+     * matches {@link #aegis} and {@link #carrierClass}.
+     * <p>
+     * <b>Two sites honour it today</b> and both arrived from other rules rather than from G21:
+     * {@code BoardingResolver} shifts hit-and-run and boarding rolls (D7.72/D7.73), and
+     * {@code Game.collisionDie} has a poor crew lose the nimble die-shift (C11.33). G21.1 and
+     * G21.2's own adjustment lists — direct fire, manoeuvre, systems — are NOT built.
+     * <p>
+     * G21.142 keeps this off shuttles: "admin shuttle pilots are always treated as good", so
+     * {@code Game.crewQualityFor} answers for a Ship and nothing else.
+     */
+    public String crewQuality;
     /**
      * Spaces of spare drones this carrier holds for its fighters (J4.7).
      * <p>
@@ -504,6 +529,12 @@ public class ShipSpec {
             m.put("requiresescort", true);
         if (carrierClass != null)
             m.put("carrierclass", carrierClass);
+        // Absent means normal, so an unstated quality is simply left out of the map and
+        // Crew.init's default stands. Nothing had ever put this key in: the enum, the DTO field
+        // and both rules sites existed, and every ship in the game was NORMAL because no entry
+        // point reached them.
+        if (crewQuality != null)
+            m.put("crewquality", crewQuality);
         if (droneStorageSpaces > 0)
             m.put("dronestoragespaces", droneStorageSpaces);
         if (cargoDroneSpacesPerBox != null)
