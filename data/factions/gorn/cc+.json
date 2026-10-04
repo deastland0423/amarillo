@@ -11,6 +11,7 @@
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
+  "isLeader": true,
   "commandRating": 9,
 
   "shields": [30, 24, 24, 24, 24, 24],
