@@ -175,6 +175,18 @@ public class GameController {
             // (biggest warship down to smallest, then civilians), not alphabetically.
             row.put("lineOrder", com.sfb.objects.ShipLineCatalog.orderOf(spec.line));
             row.put("lineCivilian", com.sfb.objects.ShipLineCatalog.isCivilian(spec.line));
+            // An OUTER grouping where an empire has generations worth telling apart (Romulan
+            // Eagle/Kestrel/Hawk). Null on every ship that declares none, which is almost all
+            // of them, and the shelf then groups by line alone exactly as before.
+            if (spec.series != null && !spec.series.isBlank()) {
+                row.put("series", spec.series);
+                row.put("seriesName", com.sfb.objects.ShipLineCatalog.seriesNameOf(spec.series));
+                row.put("seriesOrder", com.sfb.objects.ShipLineCatalog.seriesOrderOf(spec.series));
+                com.sfb.objects.ShipLineCatalog.Series meta =
+                        com.sfb.objects.ShipLineCatalog.series(spec.series);
+                if (meta != null && !meta.about.isBlank())
+                    row.put("seriesAbout", meta.about);
+            }
             row.put("sizeClass", spec.sizeClass);
             row.put("serviceYear", spec.serviceYear);
             row.put("commandRating", spec.commandRating);

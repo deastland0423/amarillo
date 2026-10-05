@@ -54,6 +54,11 @@ export interface CatalogShip {
   lineName:      string;   // "Heavy Cruiser"
   lineOrder:     number;   // display order from shiplines.json; big warships first, civilians last
   lineCivilian:  boolean;  // a freighter line: the shelf rules off above the first of these
+  // An OUTER grouping, absent on almost every ship. Romulan Eagle/Kestrel/Hawk so far.
+  series?:       string;   // "KESTREL"
+  seriesName?:   string;   // "Kestrel series"
+  seriesOrder?:  number;   // catalogue order of the series section
+  seriesAbout?:  string;   // one line of history, for the section tooltip
   sizeClass:     number;
   serviceYear:   number;
   commandRating: number;

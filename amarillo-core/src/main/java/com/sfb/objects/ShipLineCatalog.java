@@ -66,7 +66,39 @@ public final class ShipLineCatalog {
         }
     }
 
+    /**
+     * One catalogued SERIES — a generation of hulls within an empire, used as an OUTER grouping on
+     * the fleet-builder shelf. Only the Romulans have them: Eagle, Kestrel, Hawk.
+     * <p>
+     * Separate from {@link Entry} because the two answer different questions. A line is what the
+     * leader rules compare (S8.36) and every ship has one; a series is presentation only, nothing
+     * reads it as a rule, and almost no ship has one. Sharing a type would invite a future rule to
+     * ask a series for a {@code moveCost}.
+     */
+    public static final class Series {
+        public final String code;      // as written in a ship file's "series", e.g. "KESTREL"
+        public final String faction;   // whose generations these are
+        public final String name;      // display name, e.g. "Kestrel series"
+        public final String about;     // one line of history, for a tooltip
+        /** Position in the catalogue file, and so the order the sections read in. */
+        public final int order;
+
+        Series(String code, String faction, String name, String about, int order) {
+            this.code = code;
+            this.faction = faction;
+            this.name = name;
+            this.about = about;
+            this.order = order;
+        }
+
+        @Override
+        public String toString() {
+            return code + " (" + name + ")";
+        }
+    }
+
     private static final Map<String, Entry> registry = new LinkedHashMap<>();
+    private static final Map<String, Series> seriesRegistry = new LinkedHashMap<>();
     private static boolean loaded = false;
 
     private ShipLineCatalog() {
@@ -77,6 +109,7 @@ public final class ShipLineCatalog {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(file);
         registry.clear();
+        seriesRegistry.clear();
         int order = 0;
         for (JsonNode n : root.path("lines")) {
             List<Double> costs = new ArrayList<>();
@@ -85,6 +118,13 @@ public final class ShipLineCatalog {
             Entry e = new Entry(n.path("code").asText(), n.path("name").asText(), costs,
                     order++, n.path("civilian").asBoolean(false));
             registry.put(e.code.toLowerCase(), e);
+        }
+        int seriesOrder = 0;
+        for (JsonNode n : root.path("series")) {
+            Series series = new Series(
+                    n.path("code").asText(), n.path("faction").asText(),
+                    n.path("name").asText(), n.path("about").asText(), seriesOrder++);
+            seriesRegistry.put(series.code.toUpperCase(), series);
         }
         loaded = true;
     }
@@ -148,6 +188,31 @@ public final class ShipLineCatalog {
     public static boolean isCivilian(String code) {
         Entry e = get(code);
         return e != null && e.civilian;
+    }
+
+    /** The series for a code, or null if it is not catalogued. */
+    public static Series series(String code) {
+        return code == null ? null : seriesRegistry.get(code.toUpperCase());
+    }
+
+    /** Display name for a series code, falling back to the code when uncatalogued. */
+    public static String seriesNameOf(String code) {
+        Series s = series(code);
+        return s == null ? code : s.name;
+    }
+
+    /**
+     * Where a series sorts on screen, or a value after every catalogued one when unknown — so an
+     * uncatalogued series lands in a trailing section rather than at the top.
+     */
+    public static int seriesOrderOf(String code) {
+        Series s = series(code);
+        return s == null ? Integer.MAX_VALUE : s.order;
+    }
+
+    /** Every series, in catalogue order. */
+    public static List<Series> allSeries() {
+        return Collections.unmodifiableList(new ArrayList<>(seriesRegistry.values()));
     }
 
     /** Every line, in catalogue order. */

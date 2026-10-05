@@ -1939,6 +1939,25 @@ h3 {
   margin-bottom: 0.75rem;
 }
 
+/* An empire's generations (shiplines.json "series") as outer sections — Romulan Eagle /
+   Kestrel / Hawk. A ship with no series renders in an unlabelled section with no header
+   and no indent, so every other empire looks exactly as it did before. */
+.fb-series-section { margin-bottom: 0.4rem; }
+.fb-series-header {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #e6edf3;
+  background: #1c2128;
+  border-left: 3px solid #f0c040;
+  padding: 0.3rem 0.5rem;
+  margin: 0.9rem 0 0.5rem;
+  cursor: help;              /* the title carries the one-line history */
+}
+.fb-series-section:first-child .fb-series-header { margin-top: 0; }
+/* Line groups sit inside their series, nudged in so the nesting reads at a glance. */
+.fb-series-header ~ .fb-line-group { margin-left: 0.5rem; }
+
 .fb-line-group { margin-bottom: 0.75rem; }
 
 /* The warship/civilian divide: a rule above the first freighter group (shiplines.json

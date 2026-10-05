@@ -31,6 +31,11 @@ public class ShipLineCatalogTest {
     public void loadCatalogue() throws Exception {
         assumeTrue("shiplines.json must exist", CATALOG.exists());
         ShipLineCatalog.load(CATALOG);
+        // The series guards below walk ShipLibrary. Loading it HERE and not relying on another
+        // test class having done so: the registry is static and never cleared, so without this
+        // those guards pass vacuously when the class runs alone and meaningfully in a full build —
+        // order-dependent, which is worse than either.
+        ShipLibrary.loadAllSpecs(FACTIONS.getPath());
     }
 
     @Test
@@ -188,6 +193,77 @@ public class ShipLineCatalogTest {
         assertEquals(Integer.MAX_VALUE, ShipLineCatalog.orderOf(null));
         assertFalse(ShipLineCatalog.isCivilian("NOPE"));
         assertFalse(ShipLineCatalog.isCivilian(null));
+    }
+
+    // ------------------------------------------------------------ series (outer shelf grouping)
+
+    /**
+     * Every series a ship declares must be one the catalogue knows, or the shelf shows a section
+     * headed by a raw code and nothing says why.
+     * <p>
+     * Stricter than the line check needs to be, because a series is NOT a rule: nothing reads it,
+     * so a typo would cost only a label and would never otherwise surface. That is exactly the
+     * kind of silence worth a guard — see the Romulan generations, added 2026-10-05.
+     */
+    @Test
+    public void everySeriesDeclaredByAShipIsCatalogued() throws Exception {
+        List<String> wrong = new ArrayList<>();
+        int declared = 0;
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if (spec.series == null || spec.series.isBlank())
+                continue;
+            declared++;
+            if (ShipLineCatalog.series(spec.series) == null)
+                wrong.add(spec.faction + " " + spec.type + " declares series '" + spec.series
+                        + "', which shiplines.json does not list");
+        }
+        assertEquals("uncatalogued series: " + wrong, List.of(), wrong);
+        // Non-vacuity: if nobody declares a series, the loop above proves nothing and should say
+        // so rather than reading green. The Romulans supply 38 of them.
+        assertTrue("some ship should declare a series for this to mean anything", declared > 0);
+    }
+
+    /** And each series is named, unique, and densely ordered, like the lines. */
+    @Test
+    public void everySeriesHasADistinctPlaceAndAName() {
+        List<ShipLineCatalog.Series> all = ShipLineCatalog.allSeries();
+        assumeTrue(!all.isEmpty());
+
+        Set<String> codes = new HashSet<>();
+        for (int i = 0; i < all.size(); i++) {
+            ShipLineCatalog.Series s = all.get(i);
+            assertFalse("a series needs a code", s.code == null || s.code.isBlank());
+            assertFalse(s.code + " needs a display name", s.name == null || s.name.isBlank());
+            assertFalse(s.code + " needs a faction", s.faction == null || s.faction.isBlank());
+            assertEquals(s.code + " should hold position " + i, i, s.order);
+            assertTrue("series code " + s.code + " is declared twice", codes.add(s.code));
+        }
+    }
+
+    /**
+     * A series belongs to ONE empire, and only that empire's ships may claim it. The shelf shows
+     * several factions at once, so a stray series on another navy's hull would file it under a
+     * generation it has nothing to do with.
+     */
+    @Test
+    public void noShipClaimsAnotherEmpiresSeries() {
+        List<String> wrong = new ArrayList<>();
+        for (ShipSpec spec : ShipLibrary.all()) {
+            ShipLineCatalog.Series s = ShipLineCatalog.series(spec.series);
+            if (s != null && !s.faction.equalsIgnoreCase(spec.faction))
+                wrong.add(spec.faction + " " + spec.type + " claims " + s.code
+                        + ", which belongs to the " + s.faction + "s");
+        }
+        assertEquals("ships claiming another empire's series: " + wrong, List.of(), wrong);
+    }
+
+    /** An uncatalogued series sorts last and keeps its code as its label, rather than throwing. */
+    @Test
+    public void anUnknownSeriesSortsLastAndKeepsItsCode() {
+        assertEquals(Integer.MAX_VALUE, ShipLineCatalog.seriesOrderOf("NOPE"));
+        assertEquals(Integer.MAX_VALUE, ShipLineCatalog.seriesOrderOf(null));
+        assertEquals("NOPE", ShipLineCatalog.seriesNameOf("NOPE"));
+        assertNull(ShipLineCatalog.series(null));
     }
 
     /** An unclassified ship reports no line rather than inventing one. */

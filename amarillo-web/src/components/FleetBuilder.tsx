@@ -15,6 +15,15 @@ const BLANK: FleetSpec = {
   name: '', factions: [], year: 180, budget: 1000, ships: [],
 };
 
+/**
+ * Where a ship's series sorts. A ship with none goes FIRST, so a mixed selection shows the
+ * un-serried empires above the Romulan generations rather than stranding them below three
+ * section headers they have nothing to do with.
+ */
+function seriesRank(ship: CatalogShip): number {
+  return ship.series ? (ship.seriesOrder ?? Number.MAX_SAFE_INTEGER) : -1;
+}
+
 /** Role badges, in the order they read best on a row. */
 function badgesFor(ship: CatalogShip): string[] {
   const out: string[] = [];
@@ -101,34 +110,66 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     return catalog
       .filter(s => chosen.has(s.faction))
       .filter(s => s.serviceYear <= spec.year)
-      // lineOrder, not the line CODE: alphabetically "BCH" sorts above "CA" and the freighters
-      // land between the destroyers and the frigates, which is nobody's mental model of a fleet.
-      // The order lives in shiplines.json so reordering the file reorders this screen.
-      .sort((a, b) => (a.lineOrder - b.lineOrder)
+      // Series first where a ship has one, then lineOrder. Sorting by lineOrder alone would
+      // interleave the generations, and sorting by the line CODE would be worse still:
+      // alphabetically "BCH" sorts above "CA" and the freighters land between the destroyers and
+      // the frigates, which is nobody's mental model of a fleet. Both orders live in
+      // shiplines.json, so reordering that file reorders this screen.
+      .sort((a, b) => (seriesRank(a) - seriesRank(b))
+        || (a.lineOrder - b.lineOrder)
         || a.faction.localeCompare(b.faction)
         || a.type.localeCompare(b.type));
   }, [catalog, spec.factions, spec.year]);
 
   /**
-   * Grouped by line, which is what makes a hundred hulls legible. `shelf` is already in display
-   * order and a Map keeps insertion order, so the groups come out biggest-first with the
-   * civilian hulls last — no second sort, and no list of line names to keep in step here.
+   * The shelf in two levels: series sections, each holding line groups.
+   *
+   * An empire whose hulls fall into generations gets an outer section per generation — the
+   * Romulans and their Eagle, Kestrel and Hawk series, where a player choosing a "Kestrel only"
+   * fleet would otherwise have to pick through 38 hulls by name. A ship declaring no series lands
+   * in a single unlabelled section, so every other empire renders exactly as it did before and
+   * mixed selections put the un-serried hulls together.
+   *
+   * `shelf` is already in display order and Maps keep insertion order, so both levels come out
+   * right with no second sort and no list of names to keep in step here.
    */
-  const shelfByLine = useMemo(() => {
-    const groups = new Map<string, { ships: CatalogShip[]; civilian: boolean }>();
-    for (const ship of shelf) {
-      const key = ship.lineName || ship.line || 'Other';
-      if (!groups.has(key)) groups.set(key, { ships: [], civilian: !!ship.lineCivilian });
-      groups.get(key)!.ships.push(ship);
-    }
-    return [...groups.entries()];
-  }, [shelf]);
+  const shelfBySeries = useMemo(() => {
+    type LineGroup = { name: string; ships: CatalogShip[]; civilian: boolean };
+    type Section   = { label: string | null; about?: string; lines: Map<string, LineGroup> };
 
-  /** The first civilian group gets the dividing rule drawn above it (never the first group). */
-  const firstCivilianLine = useMemo(() => {
-    const hit = shelfByLine.find(([, g]) => g.civilian);
-    return hit && shelfByLine[0][0] !== hit[0] ? hit[0] : null;
-  }, [shelfByLine]);
+    const sections = new Map<string, Section>();
+    for (const ship of shelf) {
+      const sectionKey = ship.series ?? '';
+      if (!sections.has(sectionKey))
+        sections.set(sectionKey, {
+          label: ship.series ? (ship.seriesName || ship.series) : null,
+          about: ship.seriesAbout,
+          lines: new Map(),
+        });
+      const section = sections.get(sectionKey)!;
+
+      const lineKey = ship.lineName || ship.line || 'Other';
+      if (!section.lines.has(lineKey))
+        section.lines.set(lineKey, {
+          name: lineKey, ships: [], civilian: !!ship.lineCivilian,
+        });
+      section.lines.get(lineKey)!.ships.push(ship);
+    }
+
+    // The first civilian line group WITHIN a section takes the dividing rule, never its first.
+    return [...sections.entries()].map(([key, section]) => {
+      const lines = [...section.lines.values()];
+      const firstCivilian = lines.find(l => l.civilian);
+      return {
+        key,
+        label: section.label,
+        about: section.about,
+        lines,
+        ruleAbove: firstCivilian && lines[0].name !== firstCivilian.name
+          ? firstCivilian.name : null,
+      };
+    });
+  }, [shelf]);
 
   const lookup = useCallback(
     (faction: string | undefined, type: string) =>
@@ -342,26 +383,35 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             <p className="subtitle">Choose an empire to see what it can field.</p>
           )}
 
-          {shelfByLine.map(([lineName, group]) => (
-            <div key={lineName}
-                 className={'fb-line-group'
-                   + (lineName === firstCivilianLine ? ' fb-line-group-civilian' : '')}>
-              <div className="fb-line-header">{lineName}</div>
-              {group.ships.map(ship => (
-                <button key={ship.faction + ship.type} className="fb-shelf-row"
-                        onClick={() => addShip(ship)}>
-                  <span className="fb-shelf-type">{ship.type}</span>
-                  <span className="fb-shelf-name">{ship.name}</span>
-                  <span className="fb-shelf-badges">
-                    {badgesFor(ship).map(b => <span key={b} className="badge">{b}</span>)}
-                  </span>
-                  <span className="fb-shelf-cost">
-                    {ship.cost}
-                    {ship.fighterBpv > 0 && (
-                      <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>
-                    )}
-                  </span>
-                </button>
+          {shelfBySeries.map(section => (
+            <div key={section.key || 'no-series'} className="fb-series-section">
+              {/* Only a ship that declares a series gets a header; everything else renders
+                  flush, exactly as the shelf did before series existed. */}
+              {section.label && (
+                <div className="fb-series-header" title={section.about}>{section.label}</div>
+              )}
+              {section.lines.map(group => (
+                <div key={group.name}
+                     className={'fb-line-group'
+                       + (group.name === section.ruleAbove ? ' fb-line-group-civilian' : '')}>
+                  <div className="fb-line-header">{group.name}</div>
+                  {group.ships.map(ship => (
+                    <button key={ship.faction + ship.type} className="fb-shelf-row"
+                            onClick={() => addShip(ship)}>
+                      <span className="fb-shelf-type">{ship.type}</span>
+                      <span className="fb-shelf-name">{ship.name}</span>
+                      <span className="fb-shelf-badges">
+                        {badgesFor(ship).map(b => <span key={b} className="badge">{b}</span>)}
+                      </span>
+                      <span className="fb-shelf-cost">
+                        {ship.cost}
+                        {ship.fighterBpv > 0 && (
+                          <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           ))}
