@@ -223,13 +223,27 @@ public class BalconyPositionTest {
     }
 
     /**
-     * And OUTSIDE the Gorn it stays rare: the Federation CVA and nothing else. The default
-     * must be zero, so a stray {@code balconyPositions} on some other faction's hull — or a
-     * key landing in the wrong bay — fails here rather than quietly granting a ship a
-     * system it does not have.
+     * And OUTSIDE the Gorn it stays rare. The default must be zero, so a stray
+     * {@code balconyPositions} on some other faction's hull — or a key landing in the wrong bay —
+     * fails here rather than quietly granting a ship a system it does not have.
+     *
+     * <h2>A roster on purpose, so adding one takes a decision</h2>
+     * This list is deliberately a roster rather than an invariant, which means every new balcony
+     * hull fails this test once. That is the point: a balcony is rare enough that a human should
+     * confirm the SSD gives it one, and it caught the Klingon C8V on the day it was added
+     * (2026-10-04). The owner's reason is why that one belongs here, and it is the sort of thing
+     * only the sheet can tell you:
+     *
+     * <blockquote>"This ship is strange. The two bays are stacked on top of each other. The upper
+     * bay uses tunnels to launch. The lower bay is close enough to the deck that it has
+     * balconies."</blockquote>
+     *
+     * So the asymmetry — four balcony positions on one fighter bay and none on the other, where
+     * the Federation CVA has six on each — is the geometry of the ship, not an omission. It is
+     * also why {@code balconyPositions} is per bay and not per ship.
      */
     @Test
-    public void outsideTheGornOnlyTheFederationCvaHasOne() {
+    public void outsideTheGornOnlyTheFederationCvaAndKlingonC8vHaveOne() {
         java.util.Set<String> withBalcony = new java.util.TreeSet<>();
         for (ShipSpec spec : ShipLibrary.all()) {
             if ("Gorn".equals(spec.faction))
@@ -240,7 +254,7 @@ public class BalconyPositionTest {
         }
 
         assertEquals("only the hulls whose SSDs give them one",
-                java.util.Set.of("Federation CVA"), withBalcony);
+                java.util.Set.of("Federation CVA", "Klingon C8V"), withBalcony);
     }
 
     /**

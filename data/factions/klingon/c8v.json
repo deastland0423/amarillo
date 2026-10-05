@@ -1,0 +1,100 @@
+{
+  "faction": "Klingon",
+  "type": "C8V",
+  "typeName": "Heavy Carrier",
+  "line": "DN",
+  "name": "IKS Terror",
+  "serviceYear": 174,
+  "carrierClass": "CAPABLE",
+  "bpv": 220,
+  "epv": 235,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "droneStorageSpaces": 500,
+  "requiresEscort": true,
+  "tokenArt": "klingon/c8.png",
+  
+  "shields": [44, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 20
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 8,
+    "apr": 5,
+    "battery": 8
+  },
+  
+  "control": {
+    "bridge": 4,
+    "emergency": 2,
+    "auxCon": 2,
+    "security": 4,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 1, 2, 3, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 8,
+    "tractors": 8,
+    "labs": 6,
+    "uim": 2,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin", "admin", "admin"], "fighters": {"line": "klingon-zegurnii", "superiority": 5, "ew": 1, "assault": 6 }, "balconyPositions": 4 },
+    { "shuttles": ["admin", "admin", "admin"], "fighters": {"line": "klingon-zegurnii", "superiority": 11, "ew": 1 }, "launchTubes": 3 }
+  ],
+
+  "crewData": {
+    "totalCrew": 66,
+    "boardingParties": 20,
+    "deckCrews": 24,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["LF", "L"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["LF", "L"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RF", "R"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["RF", "R"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["LF", "L", "5"] },
+    { "type": "Phaser2", "designator": "8", "arcs": ["LF", "L", "5"] },
+    { "type": "Phaser2", "designator": "9", "arcs": ["RF", "R", "21"] },
+    { "type": "Phaser2", "designator": "10", "arcs": ["RF", "R", "21"] },
+    { "type": "Phaser2", "designator": "11", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "14", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "15", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "E", "range": 40, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FA"] },
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
+  ]
+}
