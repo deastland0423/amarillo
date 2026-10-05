@@ -51,7 +51,9 @@
     "transporters": 3,
     "tractors": 3,
     "labs": 2,
-    "probes": 1
+    "probes": 1,
+    "derfacs": true,
+    "uim": 1
   },
 
   "shuttleBays": [

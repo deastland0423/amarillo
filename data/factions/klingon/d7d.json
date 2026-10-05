@@ -1,13 +1,11 @@
 {
   "faction": "Klingon",
-  "type": "D7N",
-  "typeName": "Diplomatic Cruiser",
+  "type": "D7D",
+  "typeName": "Drone Battlecruiser",
   "line": "CA",
-  "name": "IKS Dictator",
-  "carrierClass": "CASUAL",
-  "serviceYear": 137,
-  "bpv": 119,
-  "epv": 154,
+  "name": "IKS Asphyxiator",
+  "serviceYear": 176,
+  "bpv": 148,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -51,18 +49,16 @@
     "tractors": 3,
     "labs": 4,
     "probes": 1,
-    "uim": 1,
     "derfacs": true
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin"], "fighters": { "line": "klingon-zegurnii", "superiority": 1 } }
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
   ],
 
   "crewData": {
     "totalCrew": 45,
-    "boardingParties": 12,
-    "deckCrews": 1,
+    "boardingParties": 14,
     "minCrew": 4
   },
 
@@ -72,14 +68,14 @@
     { "type": "Phaser2", "designator": "3", "arcs": ["FX", "13"] },
     { "type": "Phaser2", "designator": "4", "arcs": ["LF", "L", "RR", "5"] },
     { "type": "Phaser2", "designator": "5", "arcs": ["RF", "R", "LR", "21"] },
-    { "type": "Phaser2", "designator": "6", "arcs": ["L", "LR"] },
-    { "type": "Phaser2", "designator": "7", "arcs": ["L", "LR"] },
-    { "type": "Phaser2", "designator": "8", "arcs": ["R", "RR"] },
-    { "type": "Phaser2", "designator": "9", "arcs": ["R", "RR"] },
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
-    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] }
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
   ]
 }

@@ -1,12 +1,12 @@
 {
   "faction": "Klingon",
-  "type": "D6S",
+  "type": "D6SB",
   "typeName": "Battlecruiser Scout",
   "line": "CA",
-  "name": "IKS Sentinel",
-  "serviceYear": 160,
-  "bpv": 100,
-  "epv": 130,
+  "name": "IKS Watcher",
+  "serviceYear": 165,
+  "bpv": 106,
+  "epv": 136,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -15,7 +15,7 @@
   "commandRating": 8,
   "tokenArt": "klingon/d6.png",
   
-  "shields": [30, 22, 15, 13, 15, 22],
+  "shields": [30, 22, 22, 22, 22, 22],
   
   "hullBoxes": {
     "fhull": 4,
@@ -74,8 +74,16 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]}
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 4,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
+    ]
+  }
 }

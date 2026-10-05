@@ -1,11 +1,13 @@
 {
   "faction": "Klingon",
-  "type": "D5",
-  "typeName": "War Cruiser",
+  "type": "D5V",
+  "typeName": "Light Carrier",
+  "carrierClass": "CAPABLE",
   "line": "CW",
-  "name": "IKS Klodode",
-  "serviceYear": 168,
-  "bpv": 110,
+  "name": "IKS Rampage",
+  "serviceYear": 170,
+  "bpv": 103,
+  "epv": 115,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
@@ -13,7 +15,9 @@
   "bonusHets": 1,
   "commandRating": 6,
   "aegis": "LIMITED",
-  "aegisWeapons": ["ADD", "Phaser3"],
+  "aegisWeapons": ["Phaser3"],
+  "droneStorageSpaces": 150,
+  "requiresEscort": true,
   "tokenArt": "klingon/d5.png",
   
   "shields": [30, 26, 26, 26, 26, 26],
@@ -27,7 +31,6 @@
     "leftWarp": 12,
     "rightWarp": 12,
     "impulse": 5,
-    "apr": 2,
     "battery": 3
   },
   
@@ -36,7 +39,7 @@
     "emergency": 1,
     "auxCon": 2,
     "security": 2,
-    "controlMod": 1.0
+    "controlMod": 2.0
   },
 
   "tables": {
@@ -51,16 +54,18 @@
     "tractors": 3,
     "labs": 2,
     "probes": 1,
-    "derfacs": true
+    "derfacs": true,
+    "uim": 1
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "admin"], "launchTubes": 2, "fighters": { "line": "klingon-zegurnii", "superiority": 11, "ew": 1 } }
   ],
 
   "crewData": {
-    "totalCrew": 40,
+    "totalCrew": 44,
     "boardingParties": 8,
+    "deckCrews": 12,
     "minCrew": 4
   },
 
@@ -76,19 +81,8 @@
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FH", "L"] },
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FH", "L"] },
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FH", "R"] },
-    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FH", "R"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
-    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FH", "R"] }
 
-  ],
+  ]
 
-  "y175Upgrades": {
-    "refitCost": 4,
-    "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
-    ]
-  }
 }
