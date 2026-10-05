@@ -1,24 +1,28 @@
 {
   "faction": "Romulan",
-  "type": "FHK",
-  "typeName": "Firehawk-K Heavy Cruiser",
+  "type": "SUP-A",
+  "typeName": "Superhawk-A Command Cruiser",
   "line": "CA",
-  "name": "RIS Praetor Karzan",
+  "name": "RIS Praetor Tacitus",
   "series": "HAWK",
-  "serviceYear": 174,
-  "bpv": 179,
+  "carrierClass": "CAPABLE",  
+  "serviceYear": 170,
+  "bpv": 192,
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 8,
+  "commandRating": 9,
+  "isLeader": true,
+  "requiresEscort": true,
+  "droneStorageSpaces": 50,
   "tokenArt": "romulan/fh.png",
 
   "shields": [34, 28, 24, 24, 24, 28],
   
   "hullBoxes": {
-    "fhull": 6,
+    "fhull": 8,
     "ahull": 10
   },
   
@@ -26,13 +30,14 @@
     "leftWarp": 8,
     "rightWarp": 8,
     "centerWarp": 16,
-    "impulse": 4,
+    "impulse": 6,
     "apr": 4,
-    "battery": 5
+    "battery": 8
   },
   
   "control": {
     "bridge": 2,
+    "flag": 3,
     "emergency": 1,
     "auxCon": 1,
     "controlMod": 1.0
@@ -47,19 +52,21 @@
 
   "auxiliary": {
     "transporters": 3,
-    "tractors": 2,
+    "tractors": 4,
     "labs": 2,
     "probes": 1,
-    "cloakCost": 18
+    "cloakCost": 20
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "admin"] }
+    { "shuttles": ["admin", "admin"], "fighters": { "line": "romulan-gladiator", "superiority": 4 } },
+    { "shuttles": ["admin", "admin"], "fighters": { "line": "romulan-gladiator", "assault": 4} }
   ],
 
   "crewData": {
-    "totalCrew": 40,
-    "boardingParties": 12,
+    "totalCrew": 45,
+    "boardingParties": 15,
+    "deckCrews": 8,
     "minCrew": 4
   },
 
@@ -69,9 +76,7 @@
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["FA", "L"] },
-    { "type": "Phaser1", "designator": "10", "arcs": ["FA", "L"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
-    { "type": "Phaser1", "designator": "11", "arcs": ["FA", "R"] },
     { "type": "Phaser3", "designator": "7", "arcs": ["L", "RA"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["R", "RA"] },
     { "type": "Phaser1", "designator": "9", "arcs": ["RX"] },
