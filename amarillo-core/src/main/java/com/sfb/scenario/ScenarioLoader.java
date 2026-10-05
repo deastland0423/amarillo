@@ -83,6 +83,7 @@ public class ScenarioLoader {
         applyYearUpgrades(ship, faction, year, shipSpec);
         applyEsgCapacitors(ship, year);
         applyFusionHolding(ship, year);
+        applyUimAvailability(ship, year);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -143,6 +144,46 @@ public class ScenarioLoader {
                 fusion.setHoldingSystem(hasHolding);
             }
         }
+    }
+
+    /** BPV a single UIM is worth (D6.5), read off the "u" refit variants. */
+    private static final int UIM_BPV = 5;
+
+    /** D6.5: the year the UIM became available. */
+    private static final int UIM_YEAR = 165;
+
+    /**
+     * D6.5: strip the UIM from a ship in a scenario earlier than Y165, and refund its BPV.
+     * <p>
+     * "The UIM became available (to the Klingons) about Y165"; the rule restates it as "available
+     * Y165 and later", and YD6.5 adds that it does not exist in the Early Years (Y80-Y120) at all.
+     * <p>
+     * Two Klingon hulls predate it and still carry one, which is correct data rather than an error:
+     * the <b>D7N (Y137)</b> and <b>D7C (Y143)</b> are long-lived hulls whose SSDs print the UIM,
+     * because they have one in any scenario from Y165 on. The owner read the D7N's sheet
+     * (2026-10-04): it "was shown with 1x UIM in the SSD, but there's a note stating that prior to
+     * Y165 it had no UIM and the BPV is 5 less".
+     * <p>
+     * So the module is a property of the YEAR, not of the hull, exactly like E7.5 fusion holding
+     * in {@code applyFusionHolding} above - and like that one, the ship file declares the modern
+     * state and the loader takes it away. The five points come straight from the refit variants,
+     * where fitting a UIM costs exactly that: D6K 126 / D6Ku 131, D7B 128 / D7Bu 133, D7K 131 /
+     * D7Ku 136, D7D 148 / D7Du 153. Removing it has to refund the same, or an early D7N is priced
+     * for equipment it is not carrying.
+     * <p>
+     * Charged per module. Only one-UIM hulls are exercised today - the two-UIM C8 and C9 are Y167
+     * and later, so they never reach this - and if a multi-UIM pre-Y165 hull ever appears the SSD
+     * should be checked rather than this assumption trusted.
+     * <p>
+     * DERFACS needs no equivalent: YE3.6 bars it from the Early Years too, but the earliest hull
+     * declaring it is the Kzinti TGT at Y130 and the Early Years end at Y120 (Y0.0).
+     */
+    static void applyUimAvailability(Ship ship, int year) {
+        if (year <= 0 || year >= UIM_YEAR)
+            return;
+        int removed = ship.removeUims();
+        if (removed > 0)
+            ship.setBattlePointValue(ship.getBattlePointValue() - removed * UIM_BPV);
     }
 
     /**

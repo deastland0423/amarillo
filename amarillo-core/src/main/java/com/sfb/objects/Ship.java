@@ -2210,6 +2210,18 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * D6.5: remove every UIM, for a scenario earlier than the device existed.
+	 *
+	 * @return how many were removed, so the caller can price them (five BPV each)
+	 */
+	public int removeUims() {
+		int had = uims.size();
+		uims.clear();
+		specialFunctions.removeUim();
+		return had;
+	}
+
+	/**
 	 * Rolls for HET breakdown, applies the HET if successful, and returns the
 	 * effective roll (after bonus HET modifier). Game.performHet() uses the roll
 	 * value for combat-log reporting; breakdown is indicated by

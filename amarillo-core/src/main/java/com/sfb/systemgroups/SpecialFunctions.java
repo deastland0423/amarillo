@@ -102,6 +102,20 @@ public class SpecialFunctions {
 	public int getUim() {
 		return availableUim;
 	}
+
+	/**
+	 * Strip the UIM entirely, as a pre-Y165 scenario does (D6.5: "available Y165 and later").
+	 * <p>
+	 * Zeroes the design count as well as the available one, so this is NOT damage - the module
+	 * was never fitted, and a repair must not bring back a device that does not exist yet.
+	 * Called only from {@code Ship.removeUims}, which clears the UIM objects in the same breath;
+	 * {@code Ship.hasUim} reads this count while {@code Ship.getActiveUim} walks that list, so
+	 * the two have to be taken away together or they disagree.
+	 */
+	public void removeUim() {
+		uim = 0;
+		availableUim = 0;
+	}
 	
 	public boolean hasUim() {
 		return availableUim != 0;
