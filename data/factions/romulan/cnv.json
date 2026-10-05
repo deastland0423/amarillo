@@ -5,6 +5,7 @@
   "line": "DN",
   "name": "RIS Colossus",
   "carrierClass": "CAPABLE",  
+  "series": "HAWK",
   "serviceYear": 175,
   "bpv": 220,
   "turnMode": "E",

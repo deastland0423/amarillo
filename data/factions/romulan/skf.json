@@ -1,9 +1,10 @@
 {
   "faction": "Romulan",
   "type": "SKF",
-  "typeName": "Skyhawk Scout",
+  "typeName": "Skyhawk-F Scout",
   "line": "DD",
   "name": "RIS Arrow",
+  "series": "HAWK",
   "serviceYear": 168,
   "bpv": 90,
   "epv": 110,

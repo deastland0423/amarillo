@@ -1,12 +1,13 @@
 {
   "faction": "Romulan",
-  "type": "SPA+",
-  "typeName": "Sparrowhawk-A Cruiser",
+  "type": "SPC",
+  "typeName": "Sparrowhawk-C Owl Scout",
   "line": "CW",
-  "name": "RIS Adversary",
+  "name": "RIS Owl",
   "series": "HAWK",
   "serviceYear": 168,
-  "bpv": 135,
+  "bpv": 114,
+  "epv": 130,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
@@ -15,7 +16,7 @@
   "commandRating": 6,
   "tokenArt": "romulan/sp.png",
 
-  "shields": [30, 24, 24, 24, 24, 24],
+  "shields": [30, 24, 20, 20, 20, 24],
   
   "hullBoxes": {
     "fhull": 7,
@@ -27,8 +28,8 @@
     "rightWarp": 8,
     "centerWarp": 8,
     "impulse": 4,
-    "apr": 3,
-    "battery": 5
+    "apr": 1,
+    "battery": 3
   },
   
   "control": {
@@ -46,9 +47,9 @@
   },
 
   "auxiliary": {
-    "transporters": 3,
-    "tractors": 2,
-    "labs": 2,
+    "transporters": 5,
+    "tractors": 4,
+    "labs": 6,
     "probes": 1,
     "cloakCost": 15
   },
@@ -58,7 +59,7 @@
   ],
 
   "crewData": {
-    "totalCrew": 36,
+    "totalCrew": 40,
     "boardingParties": 10,
     "minCrew": 4
   },
@@ -68,12 +69,14 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "L"] },
-    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
-    { "type": "Phaser3", "designator": "7", "arcs": ["L", "RA"] },
-    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RA"] },
-    { "type": "Phaser1", "designator": "9", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "RA"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["R", "RA"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["RX"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "4" },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]

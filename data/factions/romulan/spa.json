@@ -1,9 +1,10 @@
 {
   "faction": "Romulan",
   "type": "SPA",
-  "typeName": "Sparrowhawk Cruiser",
+  "typeName": "Sparrowhawk-A Cruiser",
   "line": "CW",
   "name": "RIS Adversary",
+  "series": "HAWK",
   "serviceYear": 168,
   "bpv": 125,
   "turnMode": "B",

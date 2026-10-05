@@ -1,9 +1,10 @@
 {
   "faction": "Romulan",
   "type": "SKA",
-  "typeName": "Skyhawk Destroyer",
+  "typeName": "Skyhawk-A Destroyer",
   "line": "DD",
   "name": "RIS Arrow",
+  "series": "HAWK",
   "serviceYear": 168,
   "bpv": 102,
   "turnMode": "A",

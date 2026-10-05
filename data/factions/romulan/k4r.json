@@ -1,31 +1,31 @@
 {
   "faction": "Romulan",
-  "type": "K5RB",
-  "typeName": "K5RB Frigate",
-  "line": "DD",
-  "name": "RIS Centaurii",
+  "type": "K4R",
+  "typeName": "K4R Escort",
+  "line": "FF",
+  "name": "RIS Firefly",
   "series": "KESTREL",
-  "serviceYear": 170,
-  "bpv": 64,
+  "serviceYear": 168,
+  "bpv": 60,
   "turnMode": "A",
   "sizeClass": 4,
-  "moveCost": 0.5,
+  "moveCost": 0.3333333,
   "breakdown": 4,
   "bonusHets": 1,
-  "commandRating": 4,
+  "commandRating": 3,
   
-  "shields": [21, 16, 16, 16, 16, 16],
+  "shields": [21, 12, 7, 5, 7, 12],
   
   "hullBoxes": {
-    "fhull": 3,
-    "ahull": 6
+    "fhull": 2,
+    "ahull": 4
   },
   
   "power": {
-    "leftWarp": 8,
-    "rightWarp": 8,
+    "leftWarp": 6,
+    "rightWarp": 6,
     "impulse": 2,
-    "apr": 2,
+    "apr": 1,
     "battery": 2
   },
   
@@ -44,10 +44,9 @@
   },
 
   "auxiliary": {
-    "transporters": 2,
+    "transporters": 1,
     "tractors": 1,
-    "labs": 2,
-    "cloakCost": 6,
+    "cloakCost": 5,
     "probes": 1
   },
 
@@ -56,8 +55,8 @@
   ],
 
   "crewData": {
-    "totalCrew": 20,
-    "boardingParties": 5,
+    "totalCrew": 13,
+    "boardingParties": 4,
     "minCrew": 4
   },
 
@@ -66,7 +65,6 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R", "13"] },
     { "type": "Phaser2", "designator": "3", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
-    { "type": "Phaser2", "designator": "5", "arcs": ["RX"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
 

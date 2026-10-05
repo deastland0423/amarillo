@@ -1,19 +1,20 @@
 {
   "faction": "Romulan",
-  "type": "WB+",
-  "typeName": "Warbird Cruiser",
+  "type": "SE",
+  "typeName": "Scout Eagle",
   "line": "CA",
-  "name": "RIS Avian Fury",
+  "name": "RIS Owl of the Halls",
   "series": "EAGLE",
-  "serviceYear": 140,
-  "bpv": 60,
+  "serviceYear": 166,
+  "bpv": 80,
+  "epv": 110,
   "turnMode": "D",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 8,
-  "tokenArt": "romulan/wb.png",
+  "tokenArt": "romulan/we.png",
 
   "shields": [25, 25, 25, 25, 25, 25],
   
@@ -23,8 +24,9 @@
   },
   
   "power": {
-    "impulse": 8,
-    "apr": 3,
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "impulse": 6,
     "battery": 6
   },
   
@@ -53,8 +55,8 @@
   ],
 
   "crewData": {
-    "totalCrew": 20,
-    "boardingParties": 5,
+    "totalCrew": 18,
+    "boardingParties": 4,
     "minCrew": 4
   },
 
@@ -63,6 +65,7 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] }
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
   ]
 }

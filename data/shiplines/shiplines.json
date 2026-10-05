@@ -16,7 +16,13 @@
     "THE ORDER OF THIS LIST IS THE DISPLAY ORDER on the fleet-builder shelf: biggest warship",
     "first down to the smallest, then the civilian hulls. Reorder here to reorder the screen.",
     "civilian:true draws the shelf's dividing rule above the first such line, so the civilian",
-    "entries must stay together at the END of the list - ShipLineCatalogTest pins that."
+    "entries must stay together at the END of the list - ShipLineCatalogTest pins that.",
+    "",
+    "SERIES are an OUTER grouping, used where one empire's hulls fall into generations worth",
+    "telling apart. A ship declares one with \"series\" and the shelf then puts its line groups",
+    "inside a series section. Only the Romulans have them so far; a ship that declares none is",
+    "grouped by line alone exactly as before, so no other empire is affected. File order is the",
+    "display order here too."
   ],
   "lines": [
     { "code": "BB",  "name": "Battleship",          "moveCosts": [2.0] },
@@ -32,5 +38,14 @@
     { "code": "TUG", "name": "Tug",                 "moveCosts": [] },
     { "code": "F-L", "name": "Large Freighter",     "moveCosts": [0.5],       "civilian": true },
     { "code": "F-S", "name": "Small Freighter",     "moveCosts": [0.3333333], "civilian": true }
+  ],
+
+  "series": [
+    { "code": "EAGLE",   "faction": "Romulan", "name": "Eagle series",
+      "about": "Their own pre-warp warships, retrofitted once the Klingons supplied warp technology" },
+    { "code": "KESTREL", "faction": "Romulan", "name": "Kestrel series",
+      "about": "Klingon hulls sold to them to bridge the gap while they learned the technology" },
+    { "code": "HAWK",    "faction": "Romulan", "name": "Hawk series",
+      "about": "Original Romulan designs, once they understood what they had been given" }
   ]
 }

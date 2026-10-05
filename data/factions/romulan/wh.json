@@ -5,6 +5,7 @@
   "line": "DD",
   "name": "RIS Talon",
   "carrierClass": "CAPABLE",  
+  "series": "EAGLE",
   "serviceYear": 165,
   "bpv": 60,
   "epv": 87,

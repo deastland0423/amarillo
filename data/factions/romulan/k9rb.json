@@ -1,0 +1,87 @@
+{
+  "faction": "Romulan",
+  "type": "K9RB",
+  "typeName": "Dreadnought",
+  "line": "DN",
+  "name": "IKS Behemoth",
+  "series": "KESTREL",
+  "serviceYear": 172,
+  "bpv": 269,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "romulan/c9.png",
+  
+  "shields": [44, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 22,
+    "cargo": 2
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 6,
+    "apr": 6,
+    "battery": 8
+  },
+  
+  "control": {
+    "bridge": 4,
+    "flag": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 1, 2, 3, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 8,
+    "tractors": 3,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin", "admin", "admin"] },
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 64,
+    "boardingParties": 20,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LF", "L"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RF", "R"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RF", "R"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["LF", "L", "5"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["RF", "R", "21"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["L", "LR"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["L", "LR"] },
+    { "type": "Phaser1", "designator": "11", "arcs": ["R", "RR"] },
+    { "type": "Phaser1", "designator": "12", "arcs": ["R", "RR"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+  ]
+}

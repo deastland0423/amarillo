@@ -27,6 +27,30 @@ public class ShipSpec {
      * data/shiplines/shiplines.json; what the leader rules (S8.36) compare.
      */
     public String line;
+
+    /**
+     * A generation of hulls within one empire, where an empire's ships fall into eras that are
+     * worth telling apart. Only the Romulans use it so far, and their history is why it exists:
+     * they never developed warp power themselves.
+     * <ul>
+     *   <li><b>EAGLE</b> — their own pre-warp warships, retrofitted with warp technology once the
+     *       Klingons supplied it. War Eagle, Warbird, Snipe, Battle Hawk, King Eagle.</li>
+     *   <li><b>KESTREL</b> — Klingon hulls sold to them to bridge the gap while they learned.
+     *       Every K-prefixed Romulan hull: K4R, K5R, K5S, K7R, KR, KRC, KRL, K9RB, KRV, K5D.</li>
+     *   <li><b>HAWK</b> — original Romulan designs, once they understood the technology.
+     *       Skyhawk, Sparrowhawk, Firehawk, Condor.</li>
+     * </ul>
+     * <b>Not a rule and not read by anything</b> — it is here so the lineage can be written down
+     * beside the ship, the same reason {@link #note} and {@link #typeName} are declared. Declared
+     * rather than PARKED in {@code ShipJsonKeyGuardTest} on that distinction: parked keys are
+     * systems awaiting code (OAKDISC, Tholian webs), and this is permanent description. If the
+     * series ever acquires a rules effect it becomes a catalogued vocabulary like {@link #line},
+     * with a guard; until then a typo costs nothing but the label.
+     * <p>
+     * Deliberately generic rather than {@code romulanSeries}: nothing about the field is Romulan,
+     * and another empire's generations would use it unchanged.
+     */
+    public String series;
     public String name;
     public String tokenArt;  // optional path to a PNG token image, e.g. "federation/constitution.png"
     public int serviceYear;

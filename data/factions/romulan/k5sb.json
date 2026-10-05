@@ -1,12 +1,13 @@
 {
   "faction": "Romulan",
-  "type": "K5RB",
-  "typeName": "K5RB Frigate",
+  "type": "K5SB",
+  "typeName": "K5S Scout",
   "line": "DD",
-  "name": "RIS Centaurii",
+  "name": "RIS Endeavor",
   "series": "KESTREL",
   "serviceYear": 170,
-  "bpv": 64,
+  "bpv": 65,
+  "epv": 90,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.5,
@@ -56,8 +57,8 @@
   ],
 
   "crewData": {
-    "totalCrew": 20,
-    "boardingParties": 5,
+    "totalCrew": 18,
+    "boardingParties": 4,
     "minCrew": 4
   },
 
@@ -67,8 +68,8 @@
     { "type": "Phaser2", "designator": "3", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "5", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
 
   ]
 }

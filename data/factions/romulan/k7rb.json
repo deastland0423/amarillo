@@ -1,12 +1,12 @@
 {
   "faction": "Romulan",
-  "type": "KRB",
-  "typeName": "KRB Cruiser",
+  "type": "K7RB",
+  "typeName": "Battlecruiser",
   "line": "CA",
-  "name": "RIS Talon",
+  "name": "RIS Fortis",
   "series": "KESTREL",
   "serviceYear": 170,
-  "bpv": 132,
+  "bpv": 166,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -26,7 +26,7 @@
     "leftWarp": 15,
     "rightWarp": 15,
     "impulse": 4,
-    "apr": 3,
+    "apr": 5,
     "battery": 4
   },
   
@@ -57,8 +57,8 @@
   ],
 
   "crewData": {
-    "totalCrew": 40,
-    "boardingParties": 10,
+    "totalCrew": 44,
+    "boardingParties": 12,
     "minCrew": 4
   },
 
@@ -66,11 +66,15 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FX", "13"] },
-    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
-    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
-    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
-    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "9", "arcs": ["R", "RR"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17","21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
   ]
 }

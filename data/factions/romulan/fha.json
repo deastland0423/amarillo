@@ -1,9 +1,10 @@
 {
   "faction": "Romulan",
   "type": "FHA",
-  "typeName": "Firehawk Heavy Cruiser",
+  "typeName": "Firehawk-A Heavy Cruiser",
   "line": "CA",
   "name": "RIS Praetor Maximus",
+  "series": "HAWK",
   "serviceYear": 171,
   "bpv": 174,
   "turnMode": "C",

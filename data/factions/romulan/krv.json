@@ -5,6 +5,7 @@
   "line": "CA",
   "name": "RIS Proconsul",
   "carrierClass": "CAPABLE",  
+  "series": "KESTREL",
   "serviceYear": 172,
   "bpv": 142,
   "turnMode": "B",

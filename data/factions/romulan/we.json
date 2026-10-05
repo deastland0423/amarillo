@@ -4,6 +4,7 @@
   "typeName": "War Eagle Cruiser",
   "line": "CA",
   "name": "RIS Senator",
+  "series": "EAGLE",
   "serviceYear": 162,
   "bpv": 100,
   "turnMode": "D",
