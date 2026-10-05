@@ -9,7 +9,7 @@
   "turnMode": "D",
   "sizeClass": 2,
   "moveCost": 1.5,
-  "breakdown": 5,
+  "breakdown": 3,
   "bonusHets": 1,
   "commandRating": 10,
   "tokenArt": "klingon/c8.png",
