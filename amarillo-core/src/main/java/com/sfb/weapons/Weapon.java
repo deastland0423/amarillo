@@ -30,6 +30,7 @@ public abstract class Weapon {
 	private int maxShotsPerTurn = 1; // How many times this weapon may fire per turn (default 1).
 	private int minImpulseGap = 8; // Minimum global impulses between shots (default 8).
 	private int shotsThisTurn = 0; // Shots fired so far this turn; reset by cleanUp().
+	private int shotsThisImpulse = 0; // Shots on lastImpulseFired; see getShotsThisImpulse.
 	private int lastRoll = 0; // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
 	private int ecmShift = 0; // Net ECM shift applied to this weapon's next fire() call; set by
 														// Game.fireWeapons()
@@ -261,10 +262,26 @@ public abstract class Weapon {
 	 * Register that this weapon fired on the current impulse and turn.
 	 */
 	protected void registerFire() {
+		// Count shots WITHIN the impulse before lastImpulseFired moves, so the counter
+		// resets itself whenever the impulse changes and nothing external has to clear it.
+		shotsThisImpulse = (lastImpulseFired == clock.getImpulse()) ? shotsThisImpulse + 1 : 1;
 		lastImpulseFired = clock.getImpulse();
 		lastTurnFired = clock.getTurn();
 		lastShotUnderAegis = firingUnderAegis;
 		shotsThisTurn++;
+	}
+
+	/**
+	 * Shots this weapon has put out on the impulse it last fired, counting the shot just
+	 * registered. Zero before it ever fires.
+	 * <p>
+	 * Exists for G24.1342, where a phaser-G blinds a scout channel only when it fires more
+	 * than once in one impulse. {@code shotsThisTurn} cannot answer that and
+	 * {@code lastImpulseFired} alone cannot either — after a shot resolves, every weapon that
+	 * just fired has {@code lastImpulseFired == now}.
+	 */
+	public int getShotsThisImpulse() {
+		return lastImpulseFired == clock.getImpulse() ? shotsThisImpulse : 0;
 	}
 
 	// --- D13.22: a weapon may not fire both ways in one impulse ---
@@ -304,6 +321,7 @@ public abstract class Weapon {
 	 */
 	public void cleanUp() {
 		shotsThisTurn = 0;
+		shotsThisImpulse = 0;
 		lastImpulseFired = -9;
 	}
 
