@@ -58,6 +58,14 @@ import static org.junit.Assert.*;
  * off the line would wrongly cap three hulls that are not heavy battlecruisers.
  *
  * <p>
+ * S8.333 settles that itself rather than leaving it to inference — <b>"The Kzinti CVS is not a BCH
+ * variant"</b>, in those words. It also decides the Lyran BC in advance of its entry: <b>"The Lyran
+ * BC is not a BCH variant, but is considered to be a BCH under this rule for all purposes"</b> — so
+ * when that hull arrives it takes {@code isBCH} despite not being one, since this flag exists to
+ * answer precisely "under this rule". The one-per-fleet list is KillerHawk, SuperHawk, RoyalHawk,
+ * NovaHawk, plus each empire's actual BCHs and the Lyran BC.
+ *
+ * <p>
  * The three Romulan hawks used to make the point in the other direction too,
  * sitting on the CA
  * line until the owner moved them on 2026-10-05 — which is the slip
