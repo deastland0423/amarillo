@@ -114,7 +114,7 @@ public final class FighterArming {
     public static int plasmaDsCarriedBy(Shuttle fighter) {
         int loaded = 0;
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail && isArmable(rail) && rail.isPlasmaD()
+            if (w instanceof DroneRail rail && isArmable(rail) && rail.carriesPlasma()
                     && rail.isLoaded())
                 loaded++;
         return loaded;
@@ -134,7 +134,7 @@ public final class FighterArming {
                 half += FighterPhoton.FULL_CHARGES * HALF_ACTIONS_PER_PHOTON_CHARGE;
             else if (w instanceof com.sfb.weapons.FighterPlasmaF)
                 half += HALF_ACTIONS_PER_PLASMA_F;
-            else if (w instanceof DroneRail rail && rail.isPlasmaD())
+            else if (w instanceof DroneRail rail && rail.carriesPlasma())
                 // J4.825 sends a type-D through the drone procedure, and J4.82 prices a
                 // one-space drone at a whole action. One torpedo, one action.
                 half += rail.isLoaded() ? 0 : HALF_ACTIONS_PER_DRONE_SPACE;
@@ -434,13 +434,13 @@ public final class FighterArming {
     private static Load loadPlasmaDRails(ShuttleSpace box, Shuttle fighter,
             int halfActionBudget) {
         ReadyRack rack = box.getReadyRack();
-        if (rack == null || !rack.isPlasmaD())
+        if (rack == null || !rack.carriesPlasma())
             return Load.NOTHING;
 
         int budget = halfActionBudget;
         int loaded = 0;
         for (Weapon w : fighter.getWeapons().fetchAllWeapons()) {
-            if (!(w instanceof DroneRail rail) || !rail.isPlasmaD() || rail.isLoaded())
+            if (!(w instanceof DroneRail rail) || !rail.carriesPlasma() || rail.isLoaded())
                 continue;
             if (budget < HALF_ACTIONS_PER_DRONE_SPACE)
                 break;                      // a torpedo is a whole action or nothing (J4.8174)
@@ -570,22 +570,27 @@ public final class FighterArming {
         if (rack == null || store == null || halfActionBudget <= 0 || rack.isFull())
             return Load.NOTHING;
 
-        // A plasma-D rack draws torpedoes from the same hold the drones come out of (J4.825),
-        // at the same action a space (J4.821).
-        if (rack.isPlasmaD()) {
-            if (store.plasmaDCount() <= 0)
+        // A plasma rack draws torpedoes from the same hold the drones come out of (J4.825),
+        // at the same action a space (J4.821). A type-K costs HALF a space in the hold and half
+        // an action to load (FP13.32), so both the budget and the draw go by the rack's type.
+        if (rack.carriesPlasma()) {
+            com.sfb.properties.PlasmaType kind = rack.plasmaType();
+            int actionsPerTorpedo = kind == com.sfb.properties.PlasmaType.K
+                    ? HALF_ACTIONS_PER_DRONE_SPACE / 2    // FP13.32: half an action for a type-K
+                    : HALF_ACTIONS_PER_DRONE_SPACE;
+            if (store.plasmaCount(kind) <= 0)
                 return new Load(0, 0, box.getShuttle() == null ? null
-                        : box.getShuttle().getName() + ": no type-D torpedoes in the stores,"
-                                + " ready rack not refilled (J4.825)");
+                        : box.getShuttle().getName() + ": no type-" + kind
+                                + " torpedoes in the stores, ready rack not refilled (J4.825)");
             int pdBudget = halfActionBudget;
             int pdMoved = 0;
-            while (pdBudget >= HALF_ACTIONS_PER_DRONE_SPACE && rack.plasmaDMissing() > 0
-                    && store.takePlasmaD()) {
+            while (pdBudget >= actionsPerTorpedo && rack.plasmaDMissing() > 0
+                    && store.takePlasma(kind)) {
                 if (!rack.putPlasmaD()) {
-                    store.putPlasmaD();     // back in the hold; it never left the ship
+                    store.putPlasma(kind);  // back in the hold; it never left the ship
                     break;
                 }
-                pdBudget -= HALF_ACTIONS_PER_DRONE_SPACE;
+                pdBudget -= actionsPerTorpedo;
                 pdMoved++;
             }
             if (pdMoved == 0)
@@ -779,10 +784,11 @@ public final class FighterArming {
             // Shuttles.droneLoadoutPattern and FighterArming.halfActionsFor were the first
             // three - and here it meant armOccupantFully() did nothing at all for a Gladiator-F:
             // the ready rack stayed full, the rails stayed empty, needsArming stayed true.
-            else if (w instanceof DroneRail rail && isArmable(rail) && rail.isPlasmaD()) {
+            else if (w instanceof DroneRail rail && isArmable(rail) && rail.carriesPlasma()) {
                 if (!rail.isLoaded())
+                    // The rail's own type, not always D: a K-rail takes a type-K (FP13.31).
                     rail.loadTorpedo(new com.sfb.objects.PlasmaTorpedo(
-                            com.sfb.properties.PlasmaType.D,
+                            rail.plasmaType(),
                             com.sfb.properties.WeaponArmingType.STANDARD));
             }
             else if (w instanceof DroneRail rail && isArmable(rail)

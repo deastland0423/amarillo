@@ -33,7 +33,26 @@ public class DroneRail extends DroneRack {
          * J4.825 again: "No fighter in the game can use both type-D plasmas and drones, so you
          * cannot load drones on a plasma-D-armed fighter (nor vice versa)."
          */
-        PLASMA_D(1.0);
+        PLASMA_D(1.0),
+        /**
+         * A type-K plasma rail — a "K-RAIL" in the rulebook's own words (FP13.31): "A few
+         * fighters (see racial sections) were designed to carry plasma-Ks on light rails,
+         * including the Gorn copy of the Shenyang F-7 (R6.F11)."
+         * <p>
+         * Half a space, because FP13.32 says "a plasma-K capsule is half of the size of a
+         * plasma-D" — so it also costs half a deck crew action to load.
+         * <p>
+         * Its OWN type rather than LIGHT-with-plasma, even though FP13.31 calls these light
+         * rails. A plain LIGHT rail means "one type-VI drone" (J4.232), and J4.28 keeps drones
+         * and plasma off each other's rails entirely, so overloading LIGHT would make it mean
+         * two incompatible things depending on which fighter it was bolted to.
+         * <p>
+         * Distinct from a type-D rail loaded with a K, which is a different thing and also
+         * legal: FP13.3 lets "a plasma-K replace a plasma-D on a launch rail (one for one) of a
+         * fighter... that carries plasma-Ds", without raising the launch rate. So a D-rail takes
+         * either; a K-rail only ever takes a K.
+         */
+        PLASMA_K(0.5);
 
         public final double capacity;
 
@@ -80,9 +99,9 @@ public class DroneRail extends DroneRack {
             case STANDARD -> com.sfb.objects.DroneType.TypeI;
             case SPECIAL -> com.sfb.objects.DroneType.TypeIII;
             case HEAVY -> com.sfb.objects.DroneType.TypeIV;
-            // A plasma-D rail has no design DRONE: J4.825 bars drones from such a fighter
+            // A plasma rail has no design DRONE: J4.825 bars drones from such a fighter
             // outright, so there is no ordinary drone load for a rack to reach for.
-            case PLASMA_D -> null;
+            case PLASMA_D, PLASMA_K -> null;
             default -> null;
         };
     }
@@ -101,12 +120,35 @@ public class DroneRail extends DroneRack {
      * enforces).
      */
     public boolean accepts(com.sfb.objects.Drone drone) {
-        if (isPlasmaD())
-            return false;   // J4.825: no drones on a plasma-D-armed fighter
+        if (carriesPlasma())
+            return false;   // J4.825 / J4.28: no drones on a plasma-armed fighter
         return drone != null && drone.getRackSize() <= railType.capacity;
     }
 
-    /** True if this rail carries type-D plasma torpedoes rather than drones (FP9.2). */
+    /**
+     * True if this rail carries plasma torpedoes rather than drones — a type-D rail (FP9.2) or a
+     * type-K rail (FP13.31). J4.28: plasma "use a unique type of launch rail which cannot carry
+     * drones", so this is the question nearly every caller means.
+     */
+    public boolean carriesPlasma() {
+        return railType == DroneRailType.PLASMA_D || railType == DroneRailType.PLASMA_K;
+    }
+
+    /**
+     * Which torpedo this rail is built for, or null on a drone rail.
+     * <p>
+     * A K-rail only ever takes a type-K; a D-rail is built for a type-D but may carry a type-K
+     * one for one instead (FP13.3), which is a LOADING choice and not a property of the rail.
+     */
+    public com.sfb.properties.PlasmaType plasmaType() {
+        return switch (railType) {
+            case PLASMA_D -> com.sfb.properties.PlasmaType.D;
+            case PLASMA_K -> com.sfb.properties.PlasmaType.K;
+            default -> null;
+        };
+    }
+
+    /** True only for a type-D rail (FP9.2). Prefer {@link #carriesPlasma()} unless the type matters. */
     public boolean isPlasmaD() {
         return railType == DroneRailType.PLASMA_D;
     }

@@ -53,40 +53,55 @@ public class ReadyRack {
      * with the stores forward and the fighters empty (J4.8223), so everything the fighter is
      * not carrying is in its box.
      */
-    private ReadyRack(String servesFighterType, int plasmaDCapacity) {
+    private ReadyRack(String servesFighterType, int plasmaCapacity,
+            com.sfb.properties.PlasmaType plasmaType) {
         this.servesFighterType = servesFighterType;
         this.design = List.of();
-        this.capacity = plasmaDCapacity;
-        this.plasmaD = true;
-        this.plasmaDHeld = plasmaDCapacity;
+        this.capacity = plasmaCapacity;
+        this.plasmaType = plasmaType;
+        this.plasmaHeld = plasmaCapacity;
     }
 
-    /** True if this rack holds type-D plasma torpedoes rather than drones. */
-    private boolean plasmaD;
+    /**
+     * Which plasma this rack stocks, or null if it holds drones.
+     * <p>
+     * A TYPE rather than a boolean, because FP13.31's K-rail fighters need their box stocked with
+     * type-Ks and J4.8222 makes a rack serve one kind of fighter and no other. Counted in
+     * TORPEDOES here, not spaces: a rack holds one per rail whatever size they are, and it is the
+     * carrier's hold that measures itself in spaces (FP13.33).
+     */
+    private com.sfb.properties.PlasmaType plasmaType;
 
-    /** Torpedoes in a plasma-D rack. Meaningless on a drone rack, where it stays zero. */
-    private int plasmaDHeld;
+    /** Torpedoes in a plasma rack. Meaningless on a drone rack, where it stays zero. */
+    private int plasmaHeld;
 
-    public boolean isPlasmaD() { return plasmaD; }
+    /** True if this rack holds plasma torpedoes of any type rather than drones. */
+    public boolean carriesPlasma() { return plasmaType != null; }
+
+    /** Which plasma this rack stocks, or null on a drone rack. */
+    public com.sfb.properties.PlasmaType plasmaType() { return plasmaType; }
+
+    /** True only for a type-D rack. Prefer {@link #carriesPlasma()} unless the type matters. */
+    public boolean isPlasmaD() { return plasmaType == com.sfb.properties.PlasmaType.D; }
 
     /** Torpedoes this rack is short of its full load. */
     public int plasmaDMissing() {
-        return plasmaD ? Math.max(0, capacity - plasmaDHeld) : 0;
+        return carriesPlasma() ? Math.max(0, capacity - plasmaHeld) : 0;
     }
 
     /** Take one torpedo out to load onto a fighter, or false if the rack is empty. */
     public boolean takePlasmaD() {
-        if (!plasmaD || plasmaDHeld <= 0)
+        if (!carriesPlasma() || plasmaHeld <= 0)
             return false;
-        plasmaDHeld--;
+        plasmaHeld--;
         return true;
     }
 
     /** Put one back - a refill from stores, or a torpedo taken off a fighter. */
     public boolean putPlasmaD() {
-        if (!plasmaD || plasmaDHeld >= capacity)
+        if (!carriesPlasma() || plasmaHeld >= capacity)
             return false;
-        plasmaDHeld++;
+        plasmaHeld++;
         return true;
     }
 
@@ -167,11 +182,17 @@ public class ReadyRack {
         // Never both kinds in one rack: J4.825 forbids a fighter carrying drones and type-Ds
         // at once, so the rack is one or the other, as its fighter is.
         int plasmaRails = 0;
+        com.sfb.properties.PlasmaType plasmaKind = null;
         for (Weapon w : fighter.getWeapons().fetchAllWeapons())
-            if (w instanceof DroneRail rail && rail.isPlasmaD())
+            if (w instanceof DroneRail rail && rail.carriesPlasma()) {
                 plasmaRails++;
+                // One kind per fighter, as J4.825 requires of drones and plasma: the first rail
+                // decides, and a mixed-plasma fighter does not exist in the data.
+                if (plasmaKind == null)
+                    plasmaKind = rail.plasmaType();
+            }
         if (plasmaRails > 0)
-            return new ReadyRack(fighter.getCatalogType(), plasmaRails);
+            return new ReadyRack(fighter.getCatalogType(), plasmaRails, plasmaKind);
 
         if (stock.isEmpty())
             return null;
@@ -187,7 +208,7 @@ public class ReadyRack {
 
     public int capacity() { return capacity; }
 
-    public int count() { return plasmaD ? plasmaDHeld : drones.size(); }
+    public int count() { return carriesPlasma() ? plasmaHeld : drones.size(); }
 
     public boolean isFull() { return count() >= capacity; }
 
@@ -244,9 +265,10 @@ public class ReadyRack {
     /** Spaces the drones in here take up — what the fighter's load is measured in (FD7.211). */
     public double spaces() {
         // FP9.21/J4.825: a type-D is "the same size as a one-space drone", so a torpedo is a
-        // space and the arithmetic is the count.
-        if (plasmaD)
-            return plasmaDHeld;
+        // space and the arithmetic is the count. A type-K is half of one (FP13.32), so a K-rack
+        // of the same torpedo count occupies half the spaces.
+        if (carriesPlasma())
+            return plasmaHeld * DroneStore.spacesPerTorpedo(plasmaType);
         double total = 0;
         for (Drone d : drones)
             total += d.getRackSize();

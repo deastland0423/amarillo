@@ -225,6 +225,38 @@ public class FighterLineTest {
     }
 
     /**
+     * And the CONVERSE: every catalogued fighter must be named by some line's era.
+     * <p>
+     * {@link #everyTypeNamedByEveryLineIsACataloguedFighter} above checks one direction only — a
+     * line may not name a fighter that does not exist. An ORPHAN is the other failure: a fighter
+     * sitting in the catalogue that no era ever names, so no carrier can seat it and no ship file
+     * can reach it. Nothing else fails, because every guard walks the LINES.
+     * <p>
+     * It happened on 2026-10-05: the Gorn G-18B and G-18B-E were entered with no Y182 era to name
+     * them, so a pair of fighters existed and could never fly. Same shape as a ship file whose
+     * faction+type nothing can look up, and the same reason it needs its own test.
+     * <p>
+     * Shuttles are deliberately exempt — admin, GAS, HTS and the rest are named by ship files
+     * directly rather than by a fighter line, so only {@code kind == "fighter"} is in scope.
+     */
+    @Test
+    public void everyCataloguedFighterIsNamedBySomeLine() {
+        java.util.Set<String> named = new java.util.TreeSet<>();
+        for (String line : ShuttleCatalog.lineNames())
+            for (ShuttleCatalog.LineEra era : ShuttleCatalog.lineEras(line))
+                named.addAll(era.roles().values());
+
+        java.util.List<String> orphans = new java.util.ArrayList<>();
+        for (ShuttleCatalog.Entry e : ShuttleCatalog.all())
+            if ("fighter".equals(e.kind) && !named.contains(e.type))
+                orphans.add(e.type);
+
+        assertFalse("fixture: the catalogue should hold some fighters", named.isEmpty());
+        assertEquals("catalogued fighters that no fighter line ever names, so nothing can seat"
+                + " them: " + orphans, java.util.List.of(), orphans);
+    }
+
+    /**
      * A role, once a line has one, must appear in every later era.
      * <p>
      * This is the hazard of writing eras as whole rows: each row repeats every role, so adding a

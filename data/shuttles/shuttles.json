@@ -74,6 +74,10 @@
       { "from": 134, "superiority": "stinger1" },
       { "from": 170, "superiority": "stinger2", "assault": "stingerh", "ew": "stinger_e" },
       { "from": 180, "superiority": "stinger3", "assault": "stingerh", "ew": "stinger_e" }
+    ],
+    "gorn-fighter" : [
+      { "from": 173, "superiority": "g18", "ew": "g18_e" },
+      { "from": 182, "superiority": "g18b", "ew": "g18b_e" }
     ]
   },
 
@@ -529,6 +533,32 @@
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" },
-                   { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] }
+                   { "type": "FighterDisruptor", "designator": "C", "arcs": ["FA"] } ] },
+
+    { "type": "g18", "name": "G-18 Hornet Fighter",         "kind": "fighter",    "factions": ["gorn"], "year": 173, "speed": 13,  "hull": 10,  "crippled": 7, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-18", "designation": "G18",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "g18_e", "name": "G-18E Hornet Fighter (EW)",         "kind": "fighter",    "factions": ["gorn"], "year": 173, "speed": 13,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-18E", "designation": "G18E", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" } ] },
+
+    { "type": "g18b", "name": "G-18B Hornet Fighter",         "kind": "fighter",    "factions": ["gorn"], "year": 182, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 12,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-18B", "designation": "G18B",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_D" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" } ] },
+
+    { "type": "g18b_e", "name": "G-18B Hornet Fighter (EW)",         "kind": "fighter",    "factions": ["gorn"], "year": 182, "speed": 15,  "hull": 10,  "crippled": 7, "bpv": 14,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-18BE", "designation": "G18BE", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "Phaser3", "designator": "2", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "PLASMA_K" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_K" } ] }
+
+
   ]
 }

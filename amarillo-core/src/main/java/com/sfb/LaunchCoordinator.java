@@ -589,7 +589,7 @@ class LaunchCoordinator {
 
         if (rail == null || !rail.isFunctional())
             return ActionResult.fail("That rail is destroyed");
-        if (!rail.isPlasmaD())
+        if (!rail.carriesPlasma())
             return ActionResult.fail(rail.getName() + " is a drone rail, not a plasma-D rail");
         if (!rail.isLoaded())
             return ActionResult.fail(rail.getName() + " is empty");

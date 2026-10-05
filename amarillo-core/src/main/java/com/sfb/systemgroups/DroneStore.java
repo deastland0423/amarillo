@@ -94,12 +94,40 @@ public class DroneStore {
      * anything else in it. A count rather than objects because FP9.18 denies them variants:
      * one type-D is any other.
      */
-    private int plasmaDHeld;
+    /**
+     * Plasma in the hold, measured in SPACES rather than torpedoes, because a type-D and a type-K
+     * are not the same size. A type-D is one space (FP9.21); a type-K is half of one (FP13.32:
+     * "a plasma-K capsule is half of the size of a plasma-D").
+     * <p>
+     * Spaces rather than two counters is the owner's model (2026-10-05) and it is the one FP13.33
+     * describes: "for each plasma-D replaced by a plasma-K on a fighter's ready rack/launch rail,
+     * TWO plasma-Ks can replace one plasma-D in a carrier's reload storage. Unlike drones, a
+     * player controlling a plasma carrier can choose the mix... irrespective of the number of
+     * plasma-Ds and/or plasma-Ks that are loaded." A free mix of two sizes in one pool is exactly
+     * a space total, and it is the same arithmetic the drone side already does with
+     * {@code Drone.getRackSize()} — a type-K is to a type-D what a type-VI is to a type-I.
+     */
+    private double plasmaSpaces;
 
-    public int plasmaDCount() { return plasmaDHeld; }
+    /** Spaces one torpedo of this type occupies in the hold. */
+    public static double spacesPerTorpedo(com.sfb.properties.PlasmaType type) {
+        return type == com.sfb.properties.PlasmaType.K ? 0.5 : 1.0;
+    }
+
+    /** How many torpedoes of this type the hold could still hand out. */
+    public int plasmaCount(com.sfb.properties.PlasmaType type) {
+        return (int) Math.floor(plasmaSpaces / spacesPerTorpedo(type));
+    }
+
+    /** Type-Ds the hold could hand out. Unchanged meaning for every existing caller. */
+    public int plasmaDCount() { return plasmaCount(com.sfb.properties.PlasmaType.D); }
 
     /**
-     * Stock torpedoes into the spaces left, up to {@code spaces} of them.
+     * Stock type-D torpedoes into the spaces left, up to {@code spaces} of them.
+     * <p>
+     * Stocked as type-Ds because that is what a carrier's supply IS: FP13.33 has the player
+     * declare some of it as type-Ks before the scenario, which is a COI choice and not a
+     * stocking one.
      *
      * @return how many were stocked
      */
@@ -107,29 +135,36 @@ public class DroneStore {
         int room = (int) Math.floor(Math.min(spaces, capacitySpaces() - spacesHeld()));
         if (room <= 0)
             return 0;
-        plasmaDHeld += room;
+        plasmaSpaces += room;
         return room;
     }
 
-    /** Take one out, or false if there are none. */
-    public boolean takePlasmaD() {
-        if (plasmaDHeld <= 0)
+    /** Take one torpedo of this type out, or false if the hold has not the space for it. */
+    public boolean takePlasma(com.sfb.properties.PlasmaType type) {
+        double cost = spacesPerTorpedo(type);
+        if (plasmaSpaces < cost)
             return false;
-        plasmaDHeld--;
+        plasmaSpaces -= cost;
         return true;
     }
 
-    /** Put one back - it never left the ship. */
-    public void putPlasmaD() {
-        plasmaDHeld++;
+    /** Put one torpedo of this type back - it never left the ship. */
+    public void putPlasma(com.sfb.properties.PlasmaType type) {
+        plasmaSpaces += spacesPerTorpedo(type);
     }
+
+    /** Take one type-D out, or false if there are none. */
+    public boolean takePlasmaD() { return takePlasma(com.sfb.properties.PlasmaType.D); }
+
+    /** Put one type-D back - it never left the ship. */
+    public void putPlasmaD() { putPlasma(com.sfb.properties.PlasmaType.D); }
 
     /** Spaces still in the hold — what a rack can still be refilled from. */
     /**
      * Spaces in use, drones and torpedoes together - they share the hold (J4.7, J4.825).
      */
     public double spacesHeld() {
-        double total = plasmaDHeld;     // one space apiece (FP9.21)
+        double total = plasmaSpaces;    // already in spaces: D = 1, K = 0.5 (FP9.21, FP13.32)
         for (Drone d : reserve)
             total += d.getRackSize();
         return total;
@@ -144,7 +179,7 @@ public class DroneStore {
      * type-D torpedoes, which is how the Romulan KRV's deck crews found no refilling to do
      * beside sixty spaces of them.
      */
-    public boolean isEmpty() { return reserve.isEmpty() && plasmaDHeld <= 0; }
+    public boolean isEmpty() { return reserve.isEmpty() && plasmaSpaces <= 0; }
 
     /**
      * Take the largest drone the hold has that this rail's slot can carry, or null if it
