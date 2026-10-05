@@ -2,6 +2,7 @@
   "faction": "Romulan",
   "type": "NHK",
   "typeName": "Novahawk-K Command Cruiser",
+  "isBCH": true,
   "line": "CA",
   "name": "RIS Nova Hawk",
   "series": "HAWK",
@@ -13,7 +14,6 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
-  "isLeader": true,
   "tokenArt": "romulan/fh.png",
 
   "shields": [34, 28, 24, 24, 24, 28],

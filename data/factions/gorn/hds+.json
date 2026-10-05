@@ -1,0 +1,77 @@
+{
+  "faction": "Gorn",
+  "type": "HDS+",
+  "typeName": "Heavy Destroyer Scout",
+  "line": "CW",
+  "name": "GCS Cyclopian",
+  "serviceYear": 175,
+  "bpv": 112,
+  "epv": 137,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+
+  "shields": [30, 24, 24, 24, 24, 24],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 8
+  },
+  
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 2,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 6, 4, 1, 0],
+    "scanner": [0, 0, 1, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "gas"], "balconyPositions": 2 },
+    { "shuttles": ["admin", "gas"], "balconyPositions": 2 }
+  ],
+
+  "crewData": {
+    "totalCrew": 30,
+    "boardingParties": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+  ]
+}

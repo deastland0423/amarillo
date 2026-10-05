@@ -1,24 +1,24 @@
 {
   "faction": "Gorn",
-  "type": "BDD",
-  "typeName": "Battle Destroyer",
-  "line": "DW",
-  "name": "GCS Rajath",
-  "serviceYear": 169,
-  "bpv": 96,
-  "turnMode": "B",
+  "type": "DDL",
+  "typeName": "Destroyer Leader",
+  "line": "DD",
+  "name": "GCS Thorn",
+  "serviceYear": 165,
+  "bpv": 100,
+  "turnMode": "C",
   "sizeClass": 4,
   "moveCost": 0.5,
-  "breakdown": 5,
+  "breakdown": 4,
   "bonusHets": 1,
+  "isLeader": true,
   "commandRating": 5,
 
-  "shields": [20, 20, 20, 20, 20, 20],
+  "shields": [20, 20, 16, 16, 16, 20],
   
   "hullBoxes": {
     "fhull": 2,
-    "ahull": 2,
-    "chull": 4
+    "ahull": 6
   },
   
   "power": {
@@ -32,7 +32,6 @@
   "control": {
     "bridge": 1,
     "emergency": 1,
-    "auxCon": 1,
     "controlMod": 1.0
   },
 
@@ -57,17 +56,18 @@
 
   "crewData": {
     "totalCrew": 24,
-    "boardingParties": 8,
+    "boardingParties": 10,
     "minCrew": 4
   },
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
-    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
-    { "type": "Phaser1", "designator": "4", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RA"], "launchDirections": ["1", "5", "9"] }
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["13", "17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9", "13"] }
   ]
 }

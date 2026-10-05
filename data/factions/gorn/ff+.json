@@ -1,0 +1,70 @@
+{
+  "faction": "Gorn",
+  "type": "FF+",
+  "typeName": "Frigate",
+  "line": "FF",
+  "name": "GCS Wrathful Judge",
+  "serviceYear": 170,
+  "bpv": 50,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 4,
+  "bonusHets": 1,
+  "commandRating": 3,
+
+  "shields": [16, 12, 12, 14, 12, 12],
+  
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 5
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 0],
+    "sensor": [6, 4, 1, 0],
+    "scanner": [0, 1, 5, 9],
+    "excess": 3
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 1,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["gas"], "balconyPositions": 1 },
+    { "shuttles": ["admin"], "balconyPositions": 1 }
+  ],
+
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 4,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] }
+  ]
+}
