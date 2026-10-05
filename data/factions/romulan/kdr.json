@@ -1,0 +1,80 @@
+{
+  "faction": "Romulan",
+  "type": "KDR",
+  "typeName": "War Cruiser",
+  "line": "CW",
+  "name": "RIS Treachery",
+  "series": "KESTREL",
+  "serviceYear": 174,
+  "bpv": 137,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 0.6666667,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 6,
+  "tokenArt": "romulan/d5.png",
+  
+  "shields": [30, 26, 26, 26, 26, 26],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 6
+  },
+  
+  "power": {
+    "leftWarp": 12,
+    "rightWarp": 12,
+    "impulse": 4,
+    "apr": 3,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 36,
+    "boardingParties": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LF", "L", "RR", "5"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["RF", "R", "LR", "21"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
+    { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
+    { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
+
+  ]
+
+}

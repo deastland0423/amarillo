@@ -230,20 +230,27 @@ public class BalconyPositionTest {
      * <h2>A roster on purpose, so adding one takes a decision</h2>
      * This list is deliberately a roster rather than an invariant, which means every new balcony
      * hull fails this test once. That is the point: a balcony is rare enough that a human should
-     * confirm the SSD gives it one, and it caught the Klingon C8V on the day it was added
-     * (2026-10-04). The owner's reason is why that one belongs here, and it is the sort of thing
-     * only the sheet can tell you:
+     * confirm the SSD gives it one. It has caught two so far, the Klingon C8V (2026-10-04) and the
+     * Romulan K7V (2026-10-05), and both turned out to be legitimate.
      *
-     * <blockquote>"This ship is strange. The two bays are stacked on top of each other. The upper
-     * bay uses tunnels to launch. The lower bay is close enough to the deck that it has
-     * balconies."</blockquote>
-     *
-     * So the asymmetry — four balcony positions on one fighter bay and none on the other, where
-     * the Federation CVA has six on each — is the geometry of the ship, not an omission. It is
-     * also why {@code balconyPositions} is per bay and not per ship.
+     * <h2>STACKED BAYS: the pattern behind the asymmetric ones</h2>
+     * Both are Klingon-built hulls whose two bays sit one above the other, and the owner's
+     * description is the same both times — of the C8V, "the two bays are stacked on top of each
+     * other. The upper bay uses tunnels to launch. The lower bay is close enough to the deck that
+     * it has balconies"; of the K7V, "the bottom bay gets some balcony space while the other just
+     * has a hatch."
+     * <p>
+     * So four positions on one fighter bay and none on the other is the geometry of the ship, not
+     * an omission — and it is why {@code balconyPositions} is per bay and not per ship. Contrast
+     * the Gorn, who have them symmetrically on every bay, and the Federation CVA with six on each
+     * of its two fighter bays and none on its admin bay. <b>Expect more Klingon-hull carriers to
+     * join this list</b>, the Romulan Kestrel series included, since those are Klingon hulls too.
+     * <p>
+     * The method name deliberately does NOT enumerate the roster: it was renamed on each of the
+     * first two additions, which is churn for nothing.
      */
     @Test
-    public void outsideTheGornOnlyTheFederationCvaAndKlingonC8vHaveOne() {
+    public void onlyTheHullsWhoseSsdGrantsOneHasABalconyOutsideTheGorn() {
         java.util.Set<String> withBalcony = new java.util.TreeSet<>();
         for (ShipSpec spec : ShipLibrary.all()) {
             if ("Gorn".equals(spec.faction))
@@ -254,7 +261,11 @@ public class BalconyPositionTest {
         }
 
         assertEquals("only the hulls whose SSDs give them one",
-                java.util.Set.of("Federation CVA", "Klingon C8V"), withBalcony);
+                java.util.Set.of(
+                        "Federation CVA",   // six on each fighter bay, none on the admin bay
+                        "Klingon C8V",      // stacked bays; four on the lower one
+                        "Romulan K7V"),     // stacked bays on a converted K7; four on the lower
+                withBalcony);
     }
 
     /**
