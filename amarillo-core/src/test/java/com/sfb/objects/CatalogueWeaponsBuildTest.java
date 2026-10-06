@@ -25,8 +25,12 @@ import com.sfb.weapons.Weapon;
  * <p>
  * This checks the catalogue rather than the factory, because the catalogue is the hand-authored
  * side: the factory's job is to know a fixed set of names, and the data's job is to use them.
- * A new weapon in a ship file is caught by {@code ShipJsonKeyGuardTest}'s sibling checks; this
- * is the shuttle half, which had none.
+ * <p>
+ * This is the shuttle half. It used to claim the ship half was "caught by
+ * {@code ShipJsonKeyGuardTest}'s sibling checks", which was wrong — that guard polices which
+ * <i>keys</i> a ship file may use, and a weapon's {@code type} is a <i>value</i>, so "Phaser1" and
+ * "Phasor1" are equally acceptable keys. The ship half had no guard at all until
+ * {@link ShipWeaponsBuildTest} (2026-10-05).
  */
 public class CatalogueWeaponsBuildTest {
 
