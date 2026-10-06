@@ -71,12 +71,62 @@ public final class CoiBudget {
         return ship.getEffectiveBpv() + carriedFighterBpv(ship);
     }
 
-    /** The most this ship may spend on options, at the scenario's percentage. */
+    /**
+     * The most this ship may spend on options: the scenario's percentage, plus S3.223's extra tenth
+     * if the hull is marked D%.
+     * <p>
+     * The bonus is applied HERE rather than in the no-argument overload, because every caller passes
+     * a percentage — FleetValidator, ScenarioLoader, the /coi endpoint and refusalFor all do — and a
+     * bonus that only reached the convenience overload would have been dead on arrival. The
+     * scenario's figure is the house rate; S3.223 is a property of the hull, and the hull's
+     * entitlement is what every one of those callers is actually asking for.
+     */
     public static double allowanceFor(Ship ship, int percent) {
-        return Math.floor(effectiveAdjustedCombatBpv(ship) * percent / 100.0);
+        return Math.floor(effectiveAdjustedCombatBpv(ship) * percentFor(ship, percent) / 100.0);
     }
 
-    /** The most this ship may spend on options, at the standard 20% (S3.2). */
+    /**
+     * S3.223: the extra tenth a "D%" ship gets, which may be spent on nothing but drones.
+     * <p>
+     * "Certain ships (marked 'D%' in the notes column on the Master Ship Chart) are allowed a higher
+     * percentage of special drones under (FD10.6). These ships may expend points up to 30% of the
+     * Effective Combat BPV on Commander's Option items, <b>but the extra 10% can only be spent for
+     * extra or improved drones</b>."
+     */
+    public static final int D_PERCENT_BONUS = 10;
+
+    /**
+     * The percentage this particular ship may spend, which is not always the scenario's.
+     * <p>
+     * Kept apart from {@link #allowanceFor(Ship, int)} because the two answer different questions:
+     * that one is "what is 20% of this hull", this one is "what is this hull allowed". A scenario
+     * that sets an unusual percentage still gets the D% ship's extra tenth on top, since S3.223
+     * grants it against the Effective Combat BPV and not against the house rate.
+     */
+    public static int percentFor(Ship ship, int scenarioPercent) {
+        return ship != null && ship.isDPercent()
+                ? scenarioPercent + D_PERCENT_BONUS : scenarioPercent;
+    }
+
+    /**
+     * The most of a D% ship's allowance that is reserved for drones, in points — zero on every
+     * other hull.
+     * <p>
+     * NOT ENFORCED YET, and deliberately exposed rather than quietly folded into the total: the
+     * ring-fence can only be checked once a loadout says which of its lines are drones, and the
+     * drone percentage caps it belongs with (FD10.622/FD10.632) are themselves unbuilt. A caller
+     * that spends the whole 30% on boarding parties is currently over-spending by this much, and
+     * this method is where that check will read from when the caps arrive.
+     */
+    public static double droneOnlyReserve(Ship ship) {
+        return ship != null && ship.isDPercent()
+                ? Math.floor(effectiveAdjustedCombatBpv(ship) * D_PERCENT_BONUS / 100.0) : 0;
+    }
+
+    /**
+     * The most this ship may spend on options, at the standard 20% (S3.2) — plus S3.223's extra
+     * tenth if the hull is marked D%.
+     */
     public static double allowanceFor(Ship ship) {
         return allowanceFor(ship, DEFAULT_PERCENT);
     }

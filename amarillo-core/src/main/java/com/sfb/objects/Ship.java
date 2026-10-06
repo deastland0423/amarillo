@@ -207,6 +207,8 @@ public class Ship extends Unit implements DroneController {
 	/** D13.22: weapon types this ship's aegis may control. Empty means all of them. */
 	private java.util.List<String> aegisWeaponTypes = java.util.List.of();
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
+	// Annex #3 "D%"/"DB": extra special-drone allowance and a 30% COI budget (FD10.622, S3.223)
+	private boolean dPercent = false;
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
@@ -260,6 +262,7 @@ public class Ship extends Unit implements DroneController {
 				? java.util.List.copyOf((java.util.List<String>) aegisWeaponList)
 				: java.util.List.of();
 		bch         = Boolean.TRUE.equals(values.get("isbch"));
+		dPercent    = Boolean.TRUE.equals(values.get("dpercent"));
 
 		// Calculated Ship Values
 		lifeSupportCost = Constants.LIFE_SUPPORT_COST[getSizeClass()];
@@ -1313,6 +1316,19 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public boolean isBCH() {
 		return bch;
+	}
+
+	/**
+	 * Annex #3's "D%"/"DB" marking (FD10.622, FD10.632, S3.223): this hull may carry a higher
+	 * proportion of special drones than its empire normally gets, and may spend 30% of its
+	 * Effective Combat BPV on Commander's Options instead of 20%, the extra tenth on drones only.
+	 * <p>
+	 * Only the chart-marked case. A Kzinti ship and a carrier with ten or more fighters get the
+	 * same allowance by their own clause in FD10.622, and neither needs this flag — see
+	 * {@code CoiBudget} for where the three are brought together.
+	 */
+	public boolean isDPercent() {
+		return dPercent;
 	}
 
 	/**

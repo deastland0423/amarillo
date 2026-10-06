@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "DF+",
   "typeName": "Drone Frigate",
+  "dPercent": true,
   "line": "FF",
   "name": "#421",
   "serviceYear": 134,

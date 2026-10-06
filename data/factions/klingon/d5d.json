@@ -2,6 +2,7 @@
   "faction": "Klingon",
   "type": "D5D",
   "typeName": "Drone Cruiser",
+  "dPercent": true,
   "line": "CW",
   "name": "IKS Crossbow",
   "serviceYear": 170,

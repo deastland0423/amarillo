@@ -2,6 +2,7 @@
   "faction": "Klingon",
   "type": "D6D",
   "typeName": "Drone Cruiser",
+  "dPercent": true,
   "line": "CA",
   "name": "IKS Cloudburst",
   "serviceYear": 135,

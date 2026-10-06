@@ -2,6 +2,7 @@
   "faction": "Kzinti",
   "type": "SDF",
   "typeName": "Scout Drone Frigate",
+  "dPercent": true,
   "line": "FF",
   "name": "KHS #173",
   "serviceYear": 160,

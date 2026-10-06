@@ -198,6 +198,31 @@ public class ShipSpec {
      */
     public boolean isBCH;
 
+    /**
+     * Annex #3's <b>"D%"</b> or <b>"DB"</b> marking: a unit allowed a higher proportion of special
+     * drones than its empire normally gets, and a bigger Commander's Option budget to buy them with.
+     *
+     * <p><b>Declared, not derived</b> — and that is the rulebook's own shape, not a shortcut. FD10.622
+     * and FD10.632 each list three exceptions to the ordinary caps, and only two of them can be
+     * computed: Kzinti ships are a faction check, carriers with ten or more fighters (or five heavy
+     * ones) come from the complement. The third is "any other unit with 'D%' or 'DB' in the notes
+     * column of the Master Ship Chart" — a CHART MARKING, so a boolean on the hull is the faithful
+     * representation of it rather than a workaround.
+     *
+     * <p><b>It does two things.</b> FD10.622/FD10.632 double the caps — Restricted 25% to 50%,
+     * Limited 10% to 20%. And S3.223 raises the Commander's Option budget from 20% of Effective
+     * Combat BPV to <b>30%</b>, with the extra tenth spendable only on "extra or improved drones".
+     *
+     * <p><b>One flag covers both markings.</b> They are different categories — D% is mostly carriers,
+     * PFTs and auxiliaries, DB the drone-bombardment ships — but FD10.622 grants them the same
+     * allowance, and FD10.671 settles the budget half outright: "a drone bombardment ship is treated
+     * as a D% ship (S3.223), i.e., as if it were a carrier with ten or more fighters."
+     *
+     * <p>The DB roster is in the Master Annex File's drone-storage table: Federation NCD, CAD, CLD,
+     * NDC, VDB; Klingon D5D, D5DX, D6D, DWD, DDP, P-D8; Kzinti DF, SDF, SDW, CD, MDC, YCD, YDF.
+     */
+    public boolean dPercent;
+
     public int[] shields;
 
     // --- Nested specs ---
@@ -565,6 +590,8 @@ public class ShipSpec {
             m.put("cargodronespacesperbox", cargoDroneSpacesPerBox);
         if (isBCH)
             m.put("isbch", true);
+        if (dPercent)
+            m.put("dpercent", true);
         if (stealthBonus > 0)
             m.put("stealthbonus", stealthBonus);
         if (canDoubleEngines != null)
