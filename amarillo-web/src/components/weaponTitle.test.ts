@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { WeaponState } from '../types/gameState';
 import { weaponTitle } from './weaponTitle';
 
-/** Only the three fields the title reads; the rest of WeaponState is irrelevant here. */
+/** Only the fields the title reads; the rest of WeaponState is irrelevant here. */
 function weapon(type: string | undefined, designator: string | undefined,
-                name = 'IGNORED'): WeaponState {
-  return { name, type, designator } as WeaponState;
+                name = 'IGNORED', rackType?: string): WeaponState {
+  return { name, type, designator, rackType } as WeaponState;
+}
+
+/** A drone rack as the server sends one: type "Drone", designator "Rack n", plus its rack type. */
+function rack(rackType: string, designator = 'Rack 1'): WeaponState {
+  return weapon('Drone', designator, `Drone-${designator}`, rackType);
 }
 
 describe('weaponTitle', () => {
@@ -59,6 +64,33 @@ describe('weaponTitle', () => {
       // Nor should the identity string leak in on its own — the hyphen is a wire-format artefact.
       expect(title, `'${title}' shows the identity string`).not.toContain(identity);
     }
+  });
+
+  /**
+   * A rack says which of the eight it is. The whole point: a type-C fires twice a turn, a type-G
+   * throws anti-drones, a type-D has magazines and no reloads, and "Drone Rack 1" said none of it.
+   */
+  it('names which drone rack it is', () => {
+    expect(weaponTitle(rack('TYPE_A'))).toBe('Type-A Drone Rack 1');
+    expect(weaponTitle(rack('TYPE_G', 'Rack 2'))).toBe('Type-G Drone Rack 2');
+    expect(weaponTitle(rack('TYPE_D'))).toBe('Type-D Drone Rack 1');
+    expect(weaponTitle(rack('TYPE_H', 'Rack 11'))).toBe('Type-H Drone Rack 11');
+  });
+
+  /** Transliterated from the enum, so a rack type nobody has written about still reads sensibly. */
+  it('handles a rack type it has never been told about', () => {
+    expect(weaponTitle(rack('TYPE_I'))).toBe('Type-I Drone Rack 1');
+  });
+
+  /** An unexpected shape says nothing rather than guessing — better plain than wrong. */
+  it('falls back when the rack type is not TYPE_x', () => {
+    expect(weaponTitle(rack('WHATEVER'))).toBe('Drone Rack 1');
+  });
+
+  /** And a weapon that is not a rack is untouched by any of it. */
+  it('leaves non-racks alone', () => {
+    expect(weaponTitle(weapon('Phaser1', '1'))).toBe('Phaser1 1');
+    expect(weaponTitle(weapon('ADD', 'ADD 1'))).toBe('ADD 1');
   });
 
   /** A weapon with no designator is just its kind, not a trailing space. */

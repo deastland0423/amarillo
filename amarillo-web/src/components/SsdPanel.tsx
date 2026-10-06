@@ -507,6 +507,28 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
  * acceleration limit, which is 10 from a standstill for every hull). If the number is wanted, it
  * comes from core. Until then the player gets the honest inputs.
  */
+/**
+ * The ship's drone racks, by type: "2 x type-A, 1 x type-G drone racks".
+ *
+ * A bare count told a buyer nothing — two type-As and two type-Gs are completely different ships to
+ * fly, since only the G throws anti-drones (FD3.7). Counted off `weapons` rather than `droneRacks`
+ * because the rack TYPE rides the weapon entry; `droneRacks` carries what is loaded, not what kind.
+ */
+function droneRackSummary(ship: ShipObject): string | null {
+  const byType = new Map<string, number>();
+  for (const w of ship.weapons ?? []) {
+    if (!w.rackType) continue;
+    const label = 'type-' + w.rackType.replace(/^TYPE_/, '');
+    byType.set(label, (byType.get(label) ?? 0) + 1);
+  }
+  if (byType.size === 0) return null;
+  const total = [...byType.values()].reduce((a, b) => a + b, 0);
+  const parts = [...byType.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, n]) => (n > 1 ? `${n} × ${label}` : label));
+  return `${parts.join(', ')} drone rack${total === 1 ? '' : 's'}`;
+}
+
 function SystemsBlock({ ship }: { ship: ShipObject }) {
   /** "n" when nothing can be lost, "n/m" once they differ — damage should be visible, not implied. */
   const pair = (now: number | undefined, max: number | undefined): string | null => {
@@ -581,7 +603,7 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
       ship.uimFunctional ? 'UIM' : null,
       ship.canDoubleEngines ? 'engine doubling' : null,
       ship.cloakState && ship.cloakState !== 'NONE' ? 'cloaking device' : null,
-      ship.droneRacks?.length ? `${ship.droneRacks.length} drone rack${ship.droneRacks.length === 1 ? '' : 's'}` : null,
+      droneRackSummary(ship),
       ship.droneStorageSpaces ? `${ship.droneStorageSpaces} spaces fighter drones` : null,
       ship.cargoDroneSpaces ? `${ship.cargoDroneSpaces} spaces cargo drones` : null,
       ship.tBombs ? `${ship.tBombs} T-bombs` : null,

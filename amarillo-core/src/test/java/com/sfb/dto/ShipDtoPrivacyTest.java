@@ -181,6 +181,10 @@ public class ShipDtoPrivacyTest {
         "eptCost", "rollingCost", "canFireDouble",
         // What a full ADD load holds is on the SSD; what is left in it is not
         "addCapacity",
+        // Which of the eight drone racks it is. On the SSD, and visible in play anyway — a type-C
+        // launching twice in a turn or a type-G throwing anti-drones announces itself. What is
+        // LOADED in it stays private; that is DroneRackDto's business, not this field's.
+        "rackType",
         // The same split for a plasma rack: the SSD prints the PL-D box and its four spaces
         "plasmaRack", "plasmaRackCapacity",
         // Scout channels: what a channel is doing and lending is public by ruling

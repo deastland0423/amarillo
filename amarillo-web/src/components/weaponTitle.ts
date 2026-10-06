@@ -40,9 +40,30 @@ import type { WeaponState } from '../types/gameState';
  * all three call sites can read it — not copied a fourth time into a view.
  */
 export function weaponTitle(w: WeaponState): string {
-  const kind = w.type ?? w.name;
+  const kind = rackKind(w) ?? w.type ?? w.name;
   const designator = w.designator ?? '';
   if (!designator) return kind;
   if (designator.toLowerCase().startsWith(kind.toLowerCase())) return designator;
   return `${kind} ${designator}`;
+}
+
+/**
+ * A drone rack says WHICH of the eight it is: "Type-A Drone" with designator "Rack 1" gives
+ * **"Type-A Drone Rack 1"**.
+ *
+ * Worth the words. The eight racks are not variations on a theme — FD3.3's type-C fires twice a
+ * turn, FD3.5's type-E carries eight dogfight drones and launches four times, FD3.7's type-G throws
+ * anti-drones, and FD3.4's type-D is a magazine launcher with no reloads at all — and "Drone Rack 1"
+ * conveyed none of that. In the fleet builder it is a buying decision; in battle it is a targeting
+ * one.
+ *
+ * Returns null for any weapon that is not a rack, so the ordinary path is untouched. Formatting
+ * TYPE_A as "Type-A" is a plain transliteration of the enum, not a lookup table that could fall
+ * behind it: a ninth rack type would read "Type-I" the day it was added.
+ */
+function rackKind(w: WeaponState): string | null {
+  if (!w.rackType) return null;
+  const letter = w.rackType.replace(/^TYPE_/, '');
+  if (letter === w.rackType) return null;   // an unexpected shape: say nothing rather than guess
+  return `Type-${letter} ${w.type ?? 'Drone'}`;
 }

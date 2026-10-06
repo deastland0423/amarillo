@@ -22,6 +22,12 @@ export interface WeaponState {
   designator?:       string;
   /** The kind on its own: "Phaser1", "Photon", "Disruptor30", "ADD", "Drone". */
   type?:             string;
+  /**
+   * Which drone rack this is — "TYPE_A" … "TYPE_H" — null on anything that is not one. Worth
+   * showing: the eight behave very differently (a type-C fires twice a turn, a type-G throws
+   * anti-drones, a type-D has magazines and no reloads), and "Drone Rack 1" said none of it.
+   */
+  rackType?:         string;
   armed:             boolean | null;   // null = not disclosed (an enemy's ship)
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null

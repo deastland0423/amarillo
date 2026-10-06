@@ -115,6 +115,15 @@ public class GameStateDto {
          */
         public String type;
         /**
+         * Which drone rack this is — "TYPE_A" … "TYPE_H" — or null on anything that is not a drone
+         * rack. The eight are not interchangeable and the differences are large: FD3.3 makes a
+         * type-C rapid-fire, FD3.5 gives a type-E eight dogfight drones at four launches a turn,
+         * FD3.7 lets a type-G fire anti-drones, and FD3.4's type-D is a magazine launcher with no
+         * reloads at all. Until 2026-10-06 this reached the client nowhere, so the fleet builder's
+         * viewer showed "Drone Rack 1" for all eight kinds alike.
+         */
+        public String rackType;
+        /**
          * Null means NOT DISCLOSED, which is what an enemy sees: whether a heavy weapon is
          * armed, and how, is the thing a player most wants to hide. A primitive would have
          * reported every enemy weapon as unarmed, trading a leak for a lie.
@@ -1672,6 +1681,8 @@ public class GameStateDto {
             wd.name = w.getName();
             wd.designator = w.getDesignator();
             wd.type = w.getType();
+            if (w instanceof com.sfb.weapons.DroneRack dr && dr.getRackType() != null)
+                wd.rackType = dr.getRackType().name();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
@@ -2334,6 +2345,8 @@ public class GameStateDto {
             wd.name = w.getName();
             wd.designator = w.getDesignator();
             wd.type = w.getType();
+            if (w instanceof com.sfb.weapons.DroneRack dr && dr.getRackType() != null)
+                wd.rackType = dr.getRackType().name();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
