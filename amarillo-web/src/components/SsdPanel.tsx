@@ -16,11 +16,20 @@ import { useDraggable } from '../hooks/useDraggable';
  * are different rules, and an overlay that stopped at maximum range would be
  * indistinguishable from one that stopped at the edge of the arc.
  *
- * It is built as a container with slots (identity, arc diagram, weapons, and later systems
- * and energy) because it is meant to grow into the ship status readout. Shields are the
- * obvious next panel: the ring of six hexes at radius 1 IS the six shield facings.
+ * It is built as a container with slots because it is meant to grow into the ship status
+ * readout. Built so far: identity, the arc diagram with the shield ring on it (the six hexes
+ * at radius 1 ARE the six facings), a facing preview, the weapon list, and a systems block —
+ * power, movement, hull, crew, command, support, special systems and the bays' contents.
  *
- * Two properties worth preserving as it grows:
+ * (This comment used to name shields as "the obvious next panel" long after they were drawn,
+ * and that nearly bought a reimplementation of a finished feature. Energy allocation is the
+ * next genuinely absent slot. Keep this list honest or delete it.)
+ *
+ * Three properties worth preserving as it grows:
+ *
+ *  - It FITS. The panel is position:fixed, so anything past the bottom of the window is
+ *    unreachable — no page scroll can retrieve it. The height is capped relative to where the
+ *    panel has been dragged and the body below the title bar scrolls; see panelBounds.
  *
  *  - It is LIVE. The caller looks the ship up in the current game state on every render, so
  *    this re-renders with the battle. A status readout showing values from the moment it
@@ -255,7 +264,8 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
   const vbHeight = (RADIUS + 1.2) * ROW_H;
 
   return (
-    <div style={{ ...panelStyle, left: drag.position.left, top: drag.position.top }}>
+    <div style={{ ...panelStyle, ...panelBounds(drag.position.top),
+                  left: drag.position.left, top: drag.position.top }}>
       {/* ---- identity ---------------------------------------------------- */}
       <div style={headerStyle} {...drag.handleProps} title="Drag to move">
         <div>
@@ -268,6 +278,11 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
         <button className="secondary" style={{ padding: '0 8px' }}
                 title="Close (Esc)" onClick={onClose}>✕</button>
       </div>
+
+      {/* Everything below the title bar scrolls as ONE region. The title bar stays put so the
+          close button and the drag grip are never scrolled away — which is the same reasoning
+          useDraggable uses to keep the handle on screen. */}
+      <div style={bodyStyle}>
       <div style={{ fontSize: '0.72rem', marginBottom: 6,
                     color: previewFacing == null ? '#888' : '#d29922' }}>
         {previewFacing == null
@@ -438,7 +453,10 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
         {weapons.length === 0 ? 'No weapons with a firing arc.'
           : 'Select a weapon to light its arc.'}
       </div>
-      <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+      {/* No inner scroll cap any more: the whole body scrolls as one region, and a nested
+          scrollbar here meant a long weapons list hid the systems block behind a second
+          scrollbar the reader had to notice first. */}
+      <div>
         {weapons.map(w => {
           const key = weaponKey(w);
           const isSelected = key === selected;
@@ -465,6 +483,7 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
 
       {/* ---- systems ----------------------------------------------------- */}
       <SystemsBlock ship={ship} />
+      </div>{/* end scrolling body */}
     </div>
   );
 }
@@ -615,6 +634,43 @@ const panelStyle: React.CSSProperties = {
   borderRadius: 6,
   padding: 10,
   boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+  // The panel is position:fixed, so content past the bottom of the window was simply
+  // unreachable — no page scroll could bring it back. It grew past a screen when the systems
+  // block arrived. A column with a scrolling body and a pinned header fixes it; the height cap
+  // itself is set per-render by panelBounds, because it depends on where the panel has been
+  // dragged to.
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+/**
+ * How tall the whole panel may be, given where its top edge currently sits.
+ *
+ * The cap goes on the PANEL, not on its body: bounding only the body leaves the panel free to
+ * exceed it by the height of the title bar and the padding, which is exactly enough to put the
+ * last line of the systems block back under the bottom edge. With the panel capped and the body
+ * allowed to shrink, the whole thing is guaranteed to fit.
+ *
+ * Measured from the panel's own top rather than as a flat share of the viewport, so dragging it
+ * down shortens it instead of pushing its foot off screen again. The 16px keeps it clear of the
+ * bottom edge, and the 200px floor stops a panel dragged almost to the bottom collapsing to a
+ * sliver — {@code useDraggable} only guarantees the HANDLE stays on screen, not the body.
+ */
+function panelBounds(top: number): React.CSSProperties {
+  return { maxHeight: `max(200px, calc(100vh - ${Math.max(0, top)}px - 16px))` };
+}
+
+/**
+ * The scrolling region: everything below the title bar.
+ *
+ * {@code minHeight: 0} is the load-bearing line. A flex child defaults to refusing to shrink below
+ * its content, so without it the body ignores the panel's cap and {@code overflowY} never engages —
+ * the panel simply grows and the bottom is unreachable again.
+ */
+const bodyStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflowY: 'auto',
 };
 
 const headerStyle: React.CSSProperties = {
