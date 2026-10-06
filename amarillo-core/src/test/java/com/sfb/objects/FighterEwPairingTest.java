@@ -40,7 +40,7 @@ public class FighterEwPairingTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /** The combat role an EW key accompanies: {@code elite_ew} to {@code elite}. */

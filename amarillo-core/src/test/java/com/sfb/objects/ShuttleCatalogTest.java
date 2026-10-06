@@ -26,9 +26,9 @@ public class ShuttleCatalogTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        File f = new File("../data/shuttles/shuttles.json");
-        assumeTrue("shuttles.json must exist", f.exists());
-        ShuttleCatalog.load(f);
+        File f = new File("../data/shuttles");
+        assumeTrue("the shuttle catalogue folder must exist", f.isDirectory());
+        ShuttleCatalog.loadAll(f);
     }
 
     @Test

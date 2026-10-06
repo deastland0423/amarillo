@@ -1,0 +1,32 @@
+{
+  "note": [
+    "Hydran shuttles and fighters. The shared documentation, and the craft any faction",
+    "may field, are in common.json."
+  ],
+  "fighterLines": {
+    "hydran-stinger": [
+      { "from": 134, "superiority": "stinger1" },
+      { "from": 170, "superiority": "stinger2", "assault": "stingerh", "ew": "stinger_e" },
+      { "from": 180, "superiority": "stinger3", "assault": "stingerh", "ew": "stinger_e" }
+    ]
+  },
+  "shuttles": [
+    { "type": "stinger1", "name": "Stinger-1",                                 "kind": "fighter",    "factions": ["hydran"], "year": 134, "speed": 12, "hull": 8,  "crippled": 6, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-1", "designation": "Stinger1",
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+    { "type": "stinger2", "name": "Stinger-2",                                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-2", "designation": "Stinger2",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+    { "type": "stinger3", "name": "Stinger-3",                                 "kind": "fighter",    "factions": ["hydran"], "year": 180, "speed": 15, "hull": 12, "crippled": 8, "bpv": 11, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-3", "designation": "Stinger3",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "A", "arcs": ["FA"] },
+                   { "type": "FighterFusion", "designator": "B", "arcs": ["FA"] } ] },
+    { "type": "stingerh", "name": "Stinger-H",                                 "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 10, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-H", "designation": "StingerH",
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
+                   { "type": "FighterHellbore", "designator": "H", "arcs": ["FA"] } ] },
+    { "type": "stinger_e", "name": "Stinger-E (EW)",                            "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 12, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-E", "designation": "StingerE", "fixedEwPods": 2, "twoSeater": true,
+      "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] } ] }
+  ]
+}

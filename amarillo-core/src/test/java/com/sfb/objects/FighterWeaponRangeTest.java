@@ -32,7 +32,7 @@ public class FighterWeaponRangeTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /** No fighter in the catalogue may carry a weapon reaching past fifteen hexes. */

@@ -219,12 +219,65 @@ public final class ShuttleCatalog {
     /** Fighter lines by name, each a list of eras in ascending year order. */
     private static final Map<String, List<LineEra>> fighterLines = new LinkedHashMap<>();
 
-    /** Load the catalogue from a shuttles.json file. Replaces anything already loaded. */
-    public static void load(File file) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode root = mapper.readTree(file);
+    /**
+     * Type keys claimed by more than one file in the last load, mapped to a description of which
+     * file lost. Empty when the folder is clean.
+     * <p>
+     * Only possible since the catalogue was split per faction (2026-10-06). One file cannot hold
+     * two entries for {@code f18}; seven files can, and the loser would vanish in silence — which
+     * is precisely how a Hydran hull once disappeared from {@code ShipLibrary}. The detection ships
+     * with the split rather than after it.
+     */
+    private static final Map<String, String> duplicates = new LinkedHashMap<>();
+
+    /** Type keys claimed twice in the last load. Empty when the data is clean. */
+    public static Map<String, String> duplicateKeys() {
+        return java.util.Collections.unmodifiableMap(duplicates);
+    }
+
+    /**
+     * Load every {@code *.json} in a directory into ONE catalogue.
+     * <p>
+     * The registry is cleared once here and NOT between files — the same choice
+     * {@code ShipLibrary.loadAllSpecs} documents, and the whole point of the split: each file adds
+     * its own empire's craft and fighter lines to a shared registry. A per-file clear would leave
+     * whichever file sorted last as the entire catalogue.
+     * <p>
+     * Files are taken in name order so a duplicate always reports the same winner, which keeps the
+     * failure reproducible rather than filesystem-dependent.
+     */
+    public static void loadAll(File dir) throws IOException {
+        File[] files = dir.listFiles((d, n) -> n.toLowerCase().endsWith(".json"));
+        if (files == null)
+            throw new IOException("Not a shuttle catalogue directory: " + dir);
+        java.util.Arrays.sort(files, java.util.Comparator.comparing(File::getName));
         registry.clear();
         fighterLines.clear();
+        duplicates.clear();
+        for (File f : files)
+            loadInto(f);
+        loaded = true;
+    }
+
+    /**
+     * Load one file, REPLACING anything already loaded.
+     * <p>
+     * Kept for a caller that genuinely wants a single file in isolation. Everything in the game
+     * should use {@link #loadAll} or {@link #loadDefault} instead: since the split, one file is one
+     * empire, and loading it alone leaves every other empire's craft uncatalogued — which reads as
+     * "that fighter does not exist" rather than as an error.
+     */
+    public static void load(File file) throws IOException {
+        registry.clear();
+        fighterLines.clear();
+        duplicates.clear();
+        loadInto(file);
+    }
+
+    /** Add one file's contents to whatever is already loaded. */
+    private static void loadInto(File file) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(file);
         JsonNode lines = root.path("fighterLines");
         for (java.util.Iterator<String> it = lines.fieldNames(); it.hasNext(); ) {
             String lineName = it.next();
@@ -239,7 +292,11 @@ public final class ShuttleCatalog {
                 eras.add(new LineEra(eraNode.path("from").asInt(0), byRole));
             }
             eras.sort(java.util.Comparator.comparingInt(e -> e.from));
-            fighterLines.put(lineName.toLowerCase(), eras);
+            String lineKey = lineName.toLowerCase();
+            if (fighterLines.containsKey(lineKey))
+                duplicates.put("fighterLine:" + lineKey,
+                        file.getName() + " re-declares a fighter line already loaded");
+            fighterLines.put(lineKey, eras);
         }
         for (JsonNode n : root.path("shuttles")) {
             List<String> factions = new ArrayList<>();
@@ -261,7 +318,11 @@ public final class ShuttleCatalog {
                     n.path("shortName").asText(null),
                     n.path("designation").asText(null),
                     loadoutFrom(n));
-            registry.put(e.type.toLowerCase(), e);
+            String key = e.type.toLowerCase();
+            if (registry.containsKey(key))
+                duplicates.put(key, file.getName() + " re-declares type '" + e.type
+                        + "', already catalogued; the earlier entry is replaced");
+            registry.put(key, e);
         }
         loaded = true;
     }
@@ -310,9 +371,9 @@ public final class ShuttleCatalog {
                 n.path("mayLaunchTwoStandardDrones").asBoolean(false));
     }
 
-    /** Convenience: load from the usual path under a data root. */
+    /** Convenience: load the whole catalogue folder under a data root. */
     public static void loadDefault(String dataRoot) throws IOException {
-        load(new File(dataRoot, "shuttles/shuttles.json"));
+        loadAll(new File(dataRoot, "shuttles"));
     }
 
     public static boolean isLoaded() {
@@ -328,8 +389,8 @@ public final class ShuttleCatalog {
      * makes every shuttle ineligible for everything.
      */
     private static final String[] DEFAULT_PATHS = {
-        "data/shuttles/shuttles.json",
-        "../data/shuttles/shuttles.json",
+        "data/shuttles",
+        "../data/shuttles",
     };
 
     /** Load from the standard location if nothing has loaded it yet. */
@@ -338,9 +399,11 @@ public final class ShuttleCatalog {
             return;
         for (String path : DEFAULT_PATHS) {
             File f = new File(path);
-            if (f.exists()) {
+            if (f.isDirectory()) {
                 try {
-                    load(f);
+                    // loadAll, not load: the catalogue is a FOLDER of per-faction files, and
+                    // load() would take whichever single file it was handed as the whole thing.
+                    loadAll(f);
                     return;
                 } catch (IOException e) {
                     System.err.println("Failed to read shuttle catalogue at " + path

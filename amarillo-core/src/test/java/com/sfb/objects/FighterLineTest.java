@@ -32,7 +32,7 @@ public class FighterLineTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /**

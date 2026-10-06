@@ -37,7 +37,7 @@ public class FederationSquadronTest {
     @Before
     public void loadData() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     private static Ship cva() {

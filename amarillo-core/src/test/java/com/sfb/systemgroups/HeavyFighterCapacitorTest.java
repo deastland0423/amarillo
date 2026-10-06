@@ -51,7 +51,7 @@ public class HeavyFighterCapacitorTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     private static Fighter fighter(String type, String name) {

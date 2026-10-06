@@ -31,7 +31,7 @@ public class KzintiCvaSquadronsTest {
 
     @Before
     public void loadTheCva() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
         cva = ShipLibrary.createShip(
                 ShipSpec.fromJson(new File("../data/factions/kzinti/cva.json")));
         cva.setName("KHS Ascendant");

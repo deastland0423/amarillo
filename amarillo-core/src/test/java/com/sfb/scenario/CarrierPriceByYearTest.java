@@ -37,7 +37,7 @@ public class CarrierPriceByYearTest {
     @Before
     public void loadData() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /** One Kzinti CVS bought into a fleet dated {@code year}. */

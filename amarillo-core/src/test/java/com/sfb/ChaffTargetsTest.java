@@ -55,7 +55,7 @@ public class ChaffTargetsTest {
     @Before
     public void setUp() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
         game = new Game();
 
         romulan = new Player();

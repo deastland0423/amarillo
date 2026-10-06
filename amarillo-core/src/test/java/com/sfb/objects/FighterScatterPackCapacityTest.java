@@ -36,7 +36,7 @@ public class FighterScatterPackCapacityTest {
 
     @Before
     public void loadCatalogue() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /** FD7.44 as the owner states it: standard 1, special 1, light a half. */

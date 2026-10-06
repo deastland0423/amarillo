@@ -50,7 +50,7 @@ public class PlasmaDActivationTest {
 
     @Before
     public void loadData() throws Exception {
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     private static DroneRail loadedRail() {

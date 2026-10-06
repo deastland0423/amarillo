@@ -26,7 +26,7 @@ public class EveryShipStillLoadsTest {
     @Before
     public void loadData() throws Exception {
         ShipLibrary.loadAllSpecs("../data/factions");
-        ShuttleCatalog.load(new File("../data/shuttles/shuttles.json"));
+        ShuttleCatalog.loadDefault("../data");
     }
 
     /** Every ship in the library builds, keeps its name, and ends up with no empty-typed craft. */
@@ -80,8 +80,11 @@ public class EveryShipStillLoadsTest {
      */
     @Test
     public void theCatalogueIsFoundFromEitherWorkingDirectory() {
-        assertTrue("from a module directory", new File("../data/shuttles/shuttles.json").exists());
-        assertTrue("from the repo root", new File("data/shuttles/shuttles.json").exists()
-                || new File("../data/shuttles/shuttles.json").exists());
+        // A DIRECTORY since the catalogue was split per faction: ensureLoaded walks the folder,
+        // and a check for the old single shuttles.json would pass on a leftover file while the
+        // real catalogue had moved.
+        assertTrue("from a module directory", new File("../data/shuttles").isDirectory());
+        assertTrue("from the repo root", new File("data/shuttles").isDirectory()
+                || new File("../data/shuttles").isDirectory());
     }
 }
