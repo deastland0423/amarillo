@@ -1995,6 +1995,51 @@ h3 {
   cursor: pointer;
 }
 .fb-shelf-row:hover { background: #21262d; border-color: #30363d; }
+
+/* The row is now two buttons: add (full width) and inspect (narrow, at the end). A nested
+   button would be invalid HTML, so they are siblings in a flex wrapper and the add button keeps
+   its width:100% so the shelf reads exactly as it did before inspect existed. */
+.fb-shelf-item { display: flex; align-items: center; gap: 0.2rem; }
+.fb-shelf-inspect {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  background: none;
+  border: 1px solid #30363d;
+  border-radius: 50%;
+  color: #8b949e;
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  /* Quiet until wanted: buying is the shelf's main verb and looking is the aside, so this must
+     not compete with the row it sits beside. */
+  opacity: 0.45;
+}
+.fb-shelf-item:hover .fb-shelf-inspect { opacity: 1; }
+.fb-shelf-inspect:hover { background: #21262d; border-color: #58a6ff; color: #58a6ff; }
+.fb-shelf-inspect:focus-visible { opacity: 1; outline: 2px solid #58a6ff; outline-offset: 1px; }
+
+/* While the hull is on its way from the server, or if it never arrives. */
+.fb-viewer-pending {
+  position: fixed;
+  left: 50%;
+  top: 2rem;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.5rem 0.8rem;
+  color: #8b949e;
+  font-size: 0.8rem;
+}
+
 .fb-shelf-type { font-weight: 600; color: #cdd9e5; }
 .fb-shelf-name { color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fb-shelf-badges { display: flex; gap: 0.25rem; }

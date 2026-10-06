@@ -3,6 +3,8 @@ import { gameApi } from '../api/gameApi';
 import type {
   CatalogShip, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
 } from '../api/gameApi';
+import type { ShipObject } from '../types/gameState';
+import SsdPanel from './SsdPanel';
 
 interface Props {
   playerName: string;
@@ -44,6 +46,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   const [error, setError]     = useState('');
   const [busy, setBusy]       = useState(false);
   const [saved, setSaved]     = useState('');
+  /**
+   * The hull being inspected, or null. Held separately from the shelf row that opened it because
+   * the viewer shows what the row cannot — shields, armament, bays — and that arrives from its own
+   * endpoint. `viewing` is the label to show while the fetch is in flight, so the panel can open
+   * immediately instead of after a round trip.
+   */
+  const [viewing, setViewing]   = useState<CatalogShip | null>(null);
+  const [viewShip, setViewShip] = useState<ShipObject | null>(null);
+  const [viewError, setViewError] = useState('');
 
   // ---- loading ----------------------------------------------------------
 
@@ -216,6 +227,31 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
       ...s,
       ships: [...s.ships, { faction: ship.faction, type: ship.type, name: ship.name, coiSpend: 0 }],
     }));
+  }
+
+  /**
+   * Open the viewer on a hull without buying it.
+   *
+   * The shelf's problem until now was that a row's only affordance WAS buying: the cheapest way to
+   * learn what a hull is was to add it and read the total. The panel opens on the click and fills
+   * when the fetch lands, so an unfamiliar ship costs a look rather than a purchase.
+   *
+   * The fleet's year goes with the request because S8.131 makes it decide a carrier's air wing, so
+   * the bays shown are the ones this fleet would actually fly.
+   */
+  function inspect(ship: CatalogShip) {
+    setViewing(ship);
+    setViewShip(null);
+    setViewError('');
+    gameApi.shipDetail(ship.faction, ship.type, spec.year)
+      .then(setViewShip)
+      .catch(e => setViewError(e instanceof Error ? e.message : String(e)));
+  }
+
+  function closeViewer() {
+    setViewing(null);
+    setViewShip(null);
+    setViewError('');
   }
 
   function removeShip(index: number) {
@@ -395,8 +431,12 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                      className={'fb-line-group'
                        + (group.name === section.ruleAbove ? ' fb-line-group-civilian' : '')}>
                   <div className="fb-line-header">{group.name}</div>
+                  {/* Two buttons, not one with a nested button — that is invalid HTML and React
+                      will warn. The add button keeps the whole row's width so the shelf still
+                      behaves as it did; inspect is a narrow sibling at the end. */}
                   {group.ships.map(ship => (
-                    <button key={ship.faction + ship.type} className="fb-shelf-row"
+                    <div key={ship.faction + ship.type} className="fb-shelf-item">
+                    <button className="fb-shelf-row"
                             onClick={() => addShip(ship)}>
                       <span className="fb-shelf-type">{ship.type}</span>
                       <span className="fb-shelf-name">{ship.name}</span>
@@ -410,6 +450,11 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                         )}
                       </span>
                     </button>
+                    <button className="fb-shelf-inspect"
+                            title={`View the ${ship.type} — arcs, shields and armament`}
+                            aria-label={`View the ${ship.type}`}
+                            onClick={() => inspect(ship)}>i</button>
+                    </div>
                   ))}
                 </div>
               ))}
@@ -477,6 +522,24 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           )}
         </div>
       </div>
+
+      {/* --- the ship viewer ---
+          SsdPanel is the battle map's own panel, reused rather than reimplemented: it draws the
+          arc diagram, the shield ring and the weapon list already, and a second copy would drift
+          from it. It drags itself and sits above the builder, so it needs no layout here.
+          `contacts` is empty because there is no battle to plot — the diagram then shows the
+          hull's own arcs and nothing else, which is exactly the question a buyer is asking. */}
+      {viewing && viewShip && (
+        <SsdPanel ship={viewShip} isMine contacts={[]} onClose={closeViewer} />
+      )}
+      {viewing && !viewShip && (
+        <div className="fb-viewer-pending">
+          {viewError
+            ? `Could not load the ${viewing.type}: ${viewError}`
+            : `Loading the ${viewing.type}…`}
+          <button className="fb-btn" onClick={closeViewer}>Close</button>
+        </div>
+      )}
     </div>
   );
 }

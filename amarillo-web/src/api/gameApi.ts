@@ -3,6 +3,8 @@
  * All paths are relative — Vite proxies /api → localhost:8080 in dev.
  */
 
+import type { ShipObject } from '../types/gameState';
+
 export interface GuardTarget {
   code:     string;            // wire code: "WEAPON:name", "TRACTOR:2", "SENSORS", ...
   label:    string;
@@ -455,6 +457,24 @@ export const gameApi = {
     if (year && year > 0) parts.push(`year=${year}`);
     const query = parts.length ? '?' + parts.join('&') : '';
     return request(`/api/games/ships${query}`);
+  },
+
+  /**
+   * One hull in full, for the fleet builder's ship viewer.
+   *
+   * Returns the same `ShipObject` the battle map renders, because the viewer renders it with the
+   * same `SsdPanel` — a catalogue-shaped response would be a second description of a ship and the
+   * two would drift. Nothing here is secret: SSDs are printed in the rulebook, which is why that
+   * panel has always worked on an enemy ship.
+   *
+   * `year` matters for the same reason it does on the shelf, and more visibly: S8.131 makes the
+   * date decide which fighters a carrier flies, so the bays come back with a different air wing in
+   * Y168 and Y183.
+   */
+  shipDetail(faction: string, type: string, year?: number): Promise<ShipObject> {
+    const query = year && year > 0 ? `?year=${year}` : '';
+    return request(`/api/games/ships/${encodeURIComponent(faction)}`
+      + `/${encodeURIComponent(type)}${query}`);
   },
 
   validateFleet(spec: FleetSpec): Promise<FleetValidation> {

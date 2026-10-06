@@ -208,6 +208,68 @@ public class GameController {
         return ResponseEntity.ok(out);
     }
 
+    /**
+     * One hull from the catalogue, in full, for the fleet-builder's ship viewer.
+     *
+     * <p><b>Why this returns a ShipDto and not a bespoke shape.</b> The viewer renders with
+     * {@code SsdPanel}, the same component the battle map opens on a live ship, so the preview is
+     * built the only way that cannot drift from it: make a one-ship {@link com.sfb.Game}, place the
+     * hull in it, and serialise through the ordinary {@link GameStateDto}. A hand-rolled catalogue
+     * shape would be a second description of a ship, and the two would disagree within a release —
+     * the lesson {@code weaponDamageTables.ts} already carries.
+     *
+     * <p><b>Why showing everything is correct here.</b> Nothing on a Ship Systems Display is secret:
+     * SSDs are printed in the rulebook, which is why {@code SsdPanel} has always worked on an enemy
+     * ship. So the snapshot is taken omniscient (null viewer team) deliberately, and that is not a
+     * hole in {@link GameStateDto#redactForEnemy}: this endpoint is addressed by <b>faction and
+     * type</b>, never by a live ship's id, so there is no live ship it could be pointed at. Keep it
+     * that way — taking an id here would make it exactly the back door it currently cannot be.
+     *
+     * <p>The {@code year} parameter is not cosmetic. S8.131 makes the date decide which fighters a
+     * carrier flies, so the same hull honestly shows a different air wing in Y168 and Y180, and a
+     * buyer cannot otherwise discover that before paying for it.
+     */
+    @GetMapping("/ships/{faction}/{type}")
+    public ResponseEntity<?> shipDetail(
+            @PathVariable String faction,
+            @PathVariable String type,
+            @RequestParam(name = "year", required = false, defaultValue = "0") int year) {
+        com.sfb.objects.ShipLibrary.loadAllSpecs("data/factions");
+        try {
+            if (!com.sfb.objects.ShipLineCatalog.isLoaded())
+                com.sfb.objects.ShipLineCatalog.loadDefault("data");
+        } catch (java.io.IOException e) {
+            System.err.println("Ship lines unavailable: " + e.getMessage());
+        }
+
+        com.sfb.objects.ShipSpec spec = com.sfb.objects.ShipLibrary.get(faction, type);
+        if (spec == null)
+            return ResponseEntity.notFound().build();
+
+        com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
+        com.sfb.objects.FighterComplement.reseat(ship, year);
+
+        com.sfb.Game preview = new com.sfb.Game();
+        preview.getShips().add(ship);
+        // startTurn() would be wrong — it runs the allocation queue — but it is also where ships
+        // normally have the clock injected, and several DTO fields ask the ship a question about
+        // the current impulse (aegis operation, EM announcements). So attach it by hand.
+        ship.attachClock(preview.getClock());
+        // A nominal berth, because SsdPanel draws its arc diagram around the ship's real hex and
+        // falls back to "off the map, no bearing to draw" without one. Mid-map on the default
+        // 42x32 board, comfortably more than the diagram's 5-hex radius from any edge, so no arc
+        // is clipped by the board rather than by its own shape. Facing 1 is up, so FA points the
+        // way a printed SSD does.
+        ship.setLocation(new com.sfb.properties.Location(21, 16));
+        ship.setFacing(1);
+
+        GameStateDto state = new GameStateDto(preview);
+        for (GameStateDto.MapObjectDto o : state.mapObjects)
+            if (o instanceof GameStateDto.ShipDto sd)
+                return ResponseEntity.ok(sd);
+        return ResponseEntity.notFound().build();
+    }
+
     // -------------------------------------------------------------------------
     // Validate a fleet against the patrol-scenario construction rules (S8.0)
     // -------------------------------------------------------------------------
