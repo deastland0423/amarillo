@@ -61,6 +61,45 @@ public class CarrierDeckCrewsTest {
     }
 
     /**
+     * A hull that declares a {@code carrierClass} names its deck crews, whether or not it is
+     * carrying fighters of its own.
+     *
+     * <p><b>Why the test above cannot see this.</b> That one asks "does this ship carry fighters?",
+     * and a CASUAL carrier by definition does not — its bays hold admin shuttles, and the facilities
+     * are there to service fighters belonging to other ships in the fleet (J4.62/J4.621). J4.814 and
+     * J4.897 still give it one deck crew per ready rack with a minimum of two, precisely because it
+     * does that work. So "carries fighters" and "has fighter facilities" are different questions and
+     * the first one misses every casual carrier.
+     *
+     * <p>Found by eye on 2026-10-06: the Federation DWA, a CASUAL carrier with three admin shuttles
+     * and no {@code deckCrews}, among 90 hulls that declare a carrierClass and 89 that got it right.
+     * It would have serviced nothing and reported the ordinary ship's two by default, with no error
+     * anywhere — the same silence as the rest of this file's subject.
+     */
+    @Test
+    public void everyHullWithFighterFacilitiesNamesItsDeckCrews() throws Exception {
+        List<String> silent = new ArrayList<>();
+        int facilities = 0;
+
+        for (File faction : dirs(FACTIONS)) {
+            for (File f : jsonFiles(faction)) {
+                ShipSpec spec = ShipSpec.fromJson(f);
+                if (spec == null || spec.carrierClass == null)
+                    continue;
+                facilities++;
+                if (!namesDeckCrews(spec))
+                    silent.add(faction.getName() + "/" + f.getName() + " is a "
+                            + spec.carrierClass + " carrier and names no deckCrews");
+            }
+        }
+
+        assertTrue("the library should have carrier-class hulls in it", facilities >= 20);
+        assertTrue("a hull with fighter facilities services fighters whether or not it carries any"
+                + " (J4.62/J4.621), and J4.814 gives it a crew per ready rack:\n  "
+                + String.join("\n  ", silent), silent.isEmpty());
+    }
+
+    /**
      * The J4.814 default is right for a ship that is not a carrier — stated as a test so that
      * an attempt to make the number mandatory everywhere fails here, not in eleven data files.
      */
