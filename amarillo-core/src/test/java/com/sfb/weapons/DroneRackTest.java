@@ -63,35 +63,37 @@ public class DroneRackTest {
     }
 
     /**
-     * FD3.41 / FD3.81: a magazine launcher draws "one drone from one magazine on each turn", which
-     * is one per MAGAZINE and not one per rack — so three for a type-D and five for a type-H,
-     * except that "the launcher cannot fire two drones within one-quarter turn even if from
-     * different magazines" allows only four launches in 32 impulses.
+     * FD3.41 / FD3.81: a magazine launcher fires ONCE a turn. "The launcher can draw one drone from
+     * one magazine on each turn. The magazine used is selected when the drone is launched." The
+     * magazines are a choice of which drone to throw, not three or five launchers — a type-D is
+     * "a single launcher with three separate magazines" (FD3.4), and the Kzinti TGT's two racks give
+     * that ship two drones a turn.
      *
-     * <p>That cap is the argument for the reading. Taken as one drone per rack per turn, the
-     * quarter-turn sentence would add nothing to the turn limit it sits beside; taken per magazine
-     * it does real work, and the five-magazine type-H is where it bites. Owner confirmed
-     * 2026-10-05. Before this, the Kzinti TGT fired a third of its rate.
-     *
-     * <p>Both counts are stand-ins for the live magazine count and must be derived once FD3.42's
-     * per-magazine damage exists — a type-D down to one magazine launches once.
+     * <p><b>The misreading this guards against</b>, which I made on 2026-10-05: that one drone "from
+     * one magazine" meant one per magazine, i.e. three a turn. The argument was that FD3.41's "cannot
+     * fire two drones within one-quarter turn even if from different magazines" would otherwise be
+     * saying nothing. It is saying plenty — FD3.0 already bars two launches inside a quarter turn
+     * "EVEN IF ON DIFFERENT TURNS", so when a launcher fires once a turn the only way two launches
+     * fall within a quarter turn is <b>across a turn boundary</b>, and the clause closes the
+     * "different magazines" loophole on that general rule. {@link DroneRackTurnBoundaryTest} exists
+     * for precisely that gap.
      */
     @Test
-    public void aMagazineLauncherFiresOncePerMagazineCappedByTheQuarterTurnGap() {
+    public void aMagazineLauncherStillFiresOnlyOnceATurn() {
         DroneRack typeD = new DroneRack(DroneRackType.TYPE_D);
-        assertEquals("FD3.41: one per magazine, three magazines", 3, typeD.getMaxShotsPerTurn());
+        assertEquals("FD3.41: one drone a turn, whichever magazine it came from",
+                1, typeD.getMaxShotsPerTurn());
         assertEquals("FD3.0: a quarter turn between launches", 8, typeD.getMinImpulseGap());
 
         DroneRack typeH = new DroneRack(DroneRackType.TYPE_H);
-        assertEquals("FD3.81: five magazines, but the quarter-turn gap allows only four launches"
-                + " in a 32-impulse turn", 4, typeH.getMaxShotsPerTurn());
+        assertEquals("FD3.81 is word-for-word FD3.41", 1, typeH.getMaxShotsPerTurn());
         assertEquals(8, typeH.getMinImpulseGap());
 
-        // The ordinary racks are untouched: a type-A is one launch a turn, and the gap is what
-        // every rack already shared.
+        // And the ordinary racks are unchanged, so the magazine types are not a special case here.
         DroneRack typeA = new DroneRack(DroneRackType.TYPE_A);
-        assertEquals("a type-A launches once a turn", 1, typeA.getMaxShotsPerTurn());
-        assertEquals(8, typeA.getMinImpulseGap());
+        assertEquals(1, typeA.getMaxShotsPerTurn());
+        assertEquals("FD3.3: a type-C is the rapid-fire one, two a turn at a twelve-impulse gap",
+                2, new DroneRack(DroneRackType.TYPE_C).getMaxShotsPerTurn());
     }
 
     /** An upgrade re-reads the table, so a refit cannot leave the old type's count behind. */
