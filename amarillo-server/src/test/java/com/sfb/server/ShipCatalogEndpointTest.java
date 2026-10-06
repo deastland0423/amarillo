@@ -221,6 +221,52 @@ class ShipCatalogEndpointTest {
                 "the year changes what is in the bays, not how many there are");
     }
 
+    /**
+     * The viewer's systems block reads every one of these, and a zero or null makes its row vanish
+     * silently rather than fail — the panel simply omits an empty line, which is right for a hull
+     * that genuinely lacks a system and wrong when the field was never populated. So pin the ones
+     * every warship must have.
+     *
+     * <p>This is the failure mode worth guarding: a preview ship is built outside the normal game
+     * setup, so a field that happens to be filled during {@code startTurn()} would read as zero here
+     * and nobody would see an error — only a shorter panel.
+     */
+    @Test
+    void thePreviewHullPopulatesWhatTheSystemsBlockReads() {
+        com.sfb.dto.GameStateDto.ShipDto ca = detail("Federation", "CA", 0);
+
+        assertTrue(ca.totalPower > 0, "no power at all");
+        assertTrue(ca.maxLWarp > 0 && ca.maxRWarp > 0, "a cruiser has warp engines");
+        assertTrue(ca.availableLWarp > 0, "undamaged warp should be available, not just maximal");
+        assertTrue(ca.maxImpulse > 0, "no impulse");
+        assertTrue(ca.lifeSupportCost > 0, "life support is never free");
+        assertTrue(ca.moveCost > 0, "no move cost");
+        assertNotNull(ca.turnMode, "no turn mode");
+        assertTrue(ca.maxFhull > 0 && ca.maxAhull > 0, "no hull boxes");
+        assertTrue(ca.availableCrewUnits > 0, "no crew");
+        assertTrue(ca.boardingParties > 0, "no boarding parties");
+        assertTrue(ca.commandRating > 0, "no command rating");
+        assertTrue(ca.totalTransporters > 0, "no transporters");
+        assertTrue(ca.availableLab > 0, "no labs");
+        assertNotNull(ca.aegisFitted, "aegis should say NONE, not be absent");
+    }
+
+    /**
+     * A carrier's bays come back with their craft named, which is the part of a carrier's price a
+     * buyer cannot see on the shelf at all — and the reason the year is threaded through.
+     */
+    @Test
+    void aCarriersBaysNameWhatIsInThem() {
+        com.sfb.dto.GameStateDto.ShipDto cva = detail("Federation", "CVA", 180);
+
+        assertNotNull(cva.shuttleBays);
+        assertFalse(cva.shuttleBays.isEmpty(), "a heavy carrier has bays");
+        long withCraft = cva.shuttleBays.stream()
+                .filter(b -> b.shuttles != null && !b.shuttles.isEmpty())
+                .count();
+        assertTrue(withCraft > 0, "every bay came back empty, so the viewer shows no air wing");
+    }
+
     /** An unknown hull is a 404 rather than an empty ship, so the viewer can say so. */
     @Test
     void anUnknownHullIsNotFound() {

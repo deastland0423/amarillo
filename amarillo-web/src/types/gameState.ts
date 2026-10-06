@@ -93,6 +93,8 @@ export interface ReloadPoolEntry {
 export interface ShuttleInBayState {
   name:                string;
   type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
+  /** The display name for the craft, e.g. "Stinger-1". Absent on plain shuttles; fall back to type. */
+  typeName?:           string;
   maxSpeed:            number;
   /** What a launch is actually capped at: maxSpeed less any point given to EM (C10.13). */
   effectiveMaxSpeed:   number;
@@ -242,6 +244,13 @@ export interface ShipObject extends MapObjectBase {
    */
   droneStorageSpaces?: number;
   droneStorageHeld?:   number;
+  /**
+   * FD2.445 cargo-box drones, for the ship's OWN racks — a DIFFERENT pool from the two above,
+   * which are the FD2.443/J4.7 supply for its FIGHTERS. Absent on a hull that declares none, so
+   * test with != null. Capacity falls 50 a box as the cargo boxes die.
+   */
+  cargoDroneSpaces?:      number;
+  cargoDroneSpacesHeld?:  number;
   // Power
   availableLWarp:   number;
   availableRWarp:   number;
@@ -260,6 +269,14 @@ export interface ShipObject extends MapObjectBase {
   skeleton:         boolean;
   reserveWarp:      number;
   hetCost:          number;
+  hetsThisTurn?:          number;
+  lastHetImpulse?:        number;
+  /**
+   * Absolute impulse the ship may move again on, after a breakdown or a failed HET (C6.54).
+   * Already sent by the server and already read by GameBoard — it was simply never declared here,
+   * which is the same ShipDto-versus-ShipObject drift the cargo-drone and aegis fields had.
+   */
+  immobileUntilImpulse?:  number;
   canDoubleEngines: boolean;   // G15.2 — Orion engine doubling available
   // Hull boxes
   availableFhull:   number;
@@ -300,6 +317,12 @@ export interface ShipObject extends MapObjectBase {
   cloakState?:              string;   // "NONE" | "INACTIVE" | "FADING_OUT" | "FULLY_CLOAKED" | "FADING_IN"
   cloakFadeStep?:           number;   // 1–5 during fade transitions
   cloakTransitionImpulse?:  number;
+  /** S8.36/C1.x: how large a fleet this hull can lead. 0 on a ship with no command ability. */
+  commandRating?:   number;
+  /** D6.124 scanner bonus. 0 on most hulls, so it is only worth showing when non-zero. */
+  scannerBonus?:    number;
+  /** D13: "NONE" | "LIMITED" | "FULL" — what aegis the HULL has, never derived from isEscort. */
+  aegisFitted?:     string;
   // Electronic warfare
   sensorRating:     number;
   ecmAllocated:     number;

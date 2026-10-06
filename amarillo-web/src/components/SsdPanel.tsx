@@ -462,6 +462,138 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
           );
         })}
       </div>
+
+      {/* ---- systems ----------------------------------------------------- */}
+      <SystemsBlock ship={ship} />
+    </div>
+  );
+}
+
+/**
+ * What the hull is, as against what it points at you.
+ *
+ * <p>Added for the fleet builder, where the question is "what am I buying?" rather than "where can
+ * it shoot?" — but it belongs on the battle panel too, which is what this component was always
+ * meant to grow into. Every figure is shown as {@code available/max} where damage can take it away,
+ * so the same block reads as a status board mid-battle and as a spec sheet in the shelf, where the
+ * two are equal.
+ *
+ * <h2>No derived numbers here, deliberately</h2>
+ * The figure a buyer most wants is "how fast can it go on all its power", and it is NOT computed
+ * here even though total power and move cost are both to hand. Dividing one by the other is a rules
+ * question — C12.38's cap, life support, fire control, reserve warp and the Orion engine-doubling
+ * case all bear on it — and this tier mirrors rules, never computes them. Core has no ship top-speed
+ * figure today ({@code maxSpeed} belongs to shuttles, and {@code maxSpeedNextTurn} is the
+ * acceleration limit, which is 10 from a standstill for every hull). If the number is wanted, it
+ * comes from core. Until then the player gets the honest inputs.
+ */
+function SystemsBlock({ ship }: { ship: ShipObject }) {
+  /** "n" when nothing can be lost, "n/m" once they differ — damage should be visible, not implied. */
+  const pair = (now: number | undefined, max: number | undefined): string | null => {
+    if (max == null || max === 0) return null;
+    return now === max ? String(max) : `${now ?? 0}/${max}`;
+  };
+  const join = (...parts: (string | null | undefined)[]) =>
+    parts.filter(p => p != null && p !== '').join(' · ');
+
+  const warp = join(
+    pair(ship.availableLWarp, ship.maxLWarp) && `L ${pair(ship.availableLWarp, ship.maxLWarp)}`,
+    pair(ship.availableCWarp, ship.maxCWarp) && `C ${pair(ship.availableCWarp, ship.maxCWarp)}`,
+    pair(ship.availableRWarp, ship.maxRWarp) && `R ${pair(ship.availableRWarp, ship.maxRWarp)}`,
+  );
+  const other = join(
+    pair(ship.availableImpulse, ship.maxImpulse) && `imp ${pair(ship.availableImpulse, ship.maxImpulse)}`,
+    pair(ship.availableApr, ship.maxApr) && `APR ${pair(ship.availableApr, ship.maxApr)}`,
+    pair(ship.availableAwr, ship.maxAwr) && `AWR ${pair(ship.availableAwr, ship.maxAwr)}`,
+    ship.availableBattery ? `batt ${ship.availableBattery}` : null,
+  );
+
+  const rows: Array<[string, string | null]> = [
+    ['Power', join(ship.totalPower ? `${ship.totalPower} total` : null, warp, other)],
+    // The two standing charges every turn starts with, so "total power" is not read as spendable.
+    ['Upkeep', join(
+      ship.lifeSupportCost ? `life support ${ship.lifeSupportCost}` : null,
+      ship.fireControlCost ? `fire control ${ship.fireControlCost}` : null,
+    )],
+    ['Movement', join(
+      ship.moveCost ? `${ship.moveCost} per hex` : null,
+      ship.turnMode ? `turn mode ${ship.turnMode}` : null,
+      ship.turnHexes ? `${ship.turnHexes} hex${ship.turnHexes === 1 ? '' : 'es'}` : null,
+      ship.hetCost ? `HET ${ship.hetCost}` : null,
+    )],
+    ['Hull', join(
+      pair(ship.availableFhull, ship.maxFhull) && `fore ${pair(ship.availableFhull, ship.maxFhull)}`,
+      pair(ship.availableAhull, ship.maxAhull) && `aft ${pair(ship.availableAhull, ship.maxAhull)}`,
+      pair(ship.availableChull, ship.maxChull) && `centre ${pair(ship.availableChull, ship.maxChull)}`,
+    )],
+    ['Crew', join(
+      ship.availableCrewUnits ? `${ship.availableCrewUnits} units` : null,
+      ship.minimumCrew ? `min ${ship.minimumCrew}` : null,
+      ship.boardingParties ? `${ship.boardingParties} boarding` : null,
+      ship.commandos ? `${ship.commandos} commandos` : null,
+      ship.availableDeckCrews ? `${ship.availableDeckCrews} deck` : null,
+      // G21.0: absent means normal, so saying so would be noise. Only the exceptions earn a word.
+      ship.crewQuality && ship.crewQuality !== 'NORMAL'
+        ? ship.crewQuality.toLowerCase() + ' quality' : null,
+    )],
+    ['Command', join(
+      ship.commandRating ? `rating ${ship.commandRating}` : null,
+      pair(ship.availableBridge, ship.maxBridge) && `bridge ${pair(ship.availableBridge, ship.maxBridge)}`,
+      pair(ship.availableFlag, ship.maxFlag) && `flag ${pair(ship.availableFlag, ship.maxFlag)}`,
+      pair(ship.availableAuxcon, ship.maxAuxcon) && `aux ${pair(ship.availableAuxcon, ship.maxAuxcon)}`,
+      pair(ship.availableEmer, ship.maxEmer) && `emer ${pair(ship.availableEmer, ship.maxEmer)}`,
+      ship.controlLimit ? `control ${ship.controlUsed ?? 0}/${ship.controlLimit}` : null,
+    )],
+    ['Support', join(
+      pair(ship.availableTransporters, ship.totalTransporters)
+        && `transporters ${pair(ship.availableTransporters, ship.totalTransporters)}`,
+      pair(ship.availableTractors, ship.totalTractors)
+        && `tractors ${pair(ship.availableTractors, ship.totalTractors)}`,
+      ship.availableLab ? `labs ${ship.availableLab}` : null,
+      ship.sensorRating ? `sensor ${ship.sensorRating}` : null,
+      ship.scannerBonus ? `scanner ${ship.scannerBonus}` : null,
+    )],
+    // Only what the hull actually has. A list of absent systems teaches nothing and would be
+    // longer than the list of present ones on every ship in the game.
+    ['Special', join(
+      ship.aegisFitted && ship.aegisFitted !== 'NONE' ? `aegis ${ship.aegisFitted.toLowerCase()}` : null,
+      ship.scoutEwPool ? `scout channels ${ship.scoutEwPool} EW` : null,
+      ship.uimFunctional ? 'UIM' : null,
+      ship.canDoubleEngines ? 'engine doubling' : null,
+      ship.cloakState && ship.cloakState !== 'NONE' ? 'cloaking device' : null,
+      ship.droneRacks?.length ? `${ship.droneRacks.length} drone rack${ship.droneRacks.length === 1 ? '' : 's'}` : null,
+      ship.droneStorageSpaces ? `${ship.droneStorageSpaces} spaces fighter drones` : null,
+      ship.cargoDroneSpaces ? `${ship.cargoDroneSpaces} spaces cargo drones` : null,
+      ship.tBombs ? `${ship.tBombs} T-bombs` : null,
+    )],
+  ];
+
+  // A carrier's air wing is much of what it costs, and it is invisible on the shelf. The bays are
+  // listed by their contents rather than counted, because "3 bays" says nothing a buyer can use.
+  const bayLines = (ship.shuttleBays ?? []).map(bay => {
+    const counts = new Map<string, number>();
+    for (const s of bay.shuttles ?? [])
+      counts.set(s.typeName ?? s.type ?? 'shuttle',
+        (counts.get(s.typeName ?? s.type ?? 'shuttle') ?? 0) + 1);
+    return [...counts.entries()].map(([t, n]) => (n > 1 ? `${n} × ${t}` : t)).join(', ');
+  }).filter(line => line !== '');
+
+  return (
+    <div style={{ marginTop: 8, borderTop: '1px solid #30363d', paddingTop: 6 }}>
+      {rows.filter(([, value]) => value).map(([label, value]) => (
+        <div key={label} style={{ display: 'flex', gap: 6, fontSize: '0.72rem', lineHeight: 1.6 }}>
+          <span style={{ flex: '0 0 4.4rem', color: '#6e7681' }}>{label}</span>
+          <span style={{ flex: 1, color: '#c9d1d9' }}>{value}</span>
+        </div>
+      ))}
+      {bayLines.map((line, i) => (
+        <div key={`bay${i}`} style={{ display: 'flex', gap: 6, fontSize: '0.72rem', lineHeight: 1.6 }}>
+          <span style={{ flex: '0 0 4.4rem', color: '#6e7681' }}>
+            {i === 0 ? `Bay${bayLines.length > 1 ? ' 1' : ''}` : `Bay ${i + 1}`}
+          </span>
+          <span style={{ flex: 1, color: '#c9d1d9' }}>{line}</span>
+        </div>
+      ))}
     </div>
   );
 }
