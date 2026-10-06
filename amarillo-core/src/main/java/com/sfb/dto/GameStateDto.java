@@ -257,6 +257,12 @@ public class GameStateDto {
     public static class ShuttleInBayDto {
         public String name;
         public String type; // "admin", "gas", "hts", "suicide", "scatterpack", "stinger1", etc.
+        /**
+         * What to call the craft on screen — "F-18E", "St-1", "GAS" — from the catalogue's
+         * {@code shortName}. {@link #type} is a KEY and must never be shown to a player.
+         * Null for a craft the catalogue does not know, so the client falls back to the key.
+         */
+        public String shortName;
         public int maxSpeed;
         /**
          * The speed a launch is ACTUALLY capped at — maxSpeed less any point given to
@@ -1926,6 +1932,12 @@ public class GameStateDto {
         // one would have reported "cataloguedfighter". The catalogue key is what the
         // ship files, the fighter lines and the arming rules all already use.
         sd.type = s.dtoType();
+        // What to CALL it. sd.type is the catalogue key — "stinger1", "f18b_e" — which the client
+        // keys its hangar on and which no player should ever be shown: the fleet-builder's ship
+        // viewer was listing a carrier's air wing as "stinger1" for want of this.
+        com.sfb.objects.ShuttleCatalog.Entry entry =
+                com.sfb.objects.ShuttleCatalog.get(s.dtoType());
+        sd.shortName = entry != null ? entry.shortName : null;
         sd.maxSpeed = s.getMaxSpeed();
         sd.effectiveMaxSpeed = s.effectiveMaxSpeed();
         sd.canLaunch = bay.canLaunch(s, game.getAbsoluteImpulse());

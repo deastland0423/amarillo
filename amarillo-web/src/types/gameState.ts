@@ -93,8 +93,13 @@ export interface ReloadPoolEntry {
 export interface ShuttleInBayState {
   name:                string;
   type:                string;   // "admin" | "gas" | "hts" | "stinger1" | "stinger2" | "stingerh" | "suicide" | "scatterpack"
-  /** The display name for the craft, e.g. "Stinger-1". Absent on plain shuttles; fall back to type. */
-  typeName?:           string;
+  /**
+   * What to CALL the craft on screen — "F-18E", "St-1", "GAS" — from the catalogue's shortName.
+   * `type` above is a KEY and must never be shown to a player: the ship viewer listed a carrier's
+   * air wing as "stinger1" until this arrived. Absent only for a craft the catalogue does not
+   * know, so fall back to `type` and accept the ugliness in that case.
+   */
+  shortName?:          string;
   maxSpeed:            number;
   /** What a launch is actually capped at: maxSpeed less any point given to EM (C10.13). */
   effectiveMaxSpeed:   number;

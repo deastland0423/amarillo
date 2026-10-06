@@ -591,9 +591,12 @@ function SystemsBlock({ ship }: { ship: ShipObject }) {
   // listed by their contents rather than counted, because "3 bays" says nothing a buyer can use.
   const bayLines = (ship.shuttleBays ?? []).map(bay => {
     const counts = new Map<string, number>();
-    for (const s of bay.shuttles ?? [])
-      counts.set(s.typeName ?? s.type ?? 'shuttle',
-        (counts.get(s.typeName ?? s.type ?? 'shuttle') ?? 0) + 1);
+    for (const s of bay.shuttles ?? []) {
+      // shortName is what the craft is CALLED; s.type is the catalogue KEY, and showing that was
+      // the bug — a carrier's air wing read as "stinger1, stinger1, admin".
+      const label = s.shortName ?? s.type ?? 'shuttle';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
     return [...counts.entries()].map(([t, n]) => (n > 1 ? `${n} × ${t}` : t)).join(', ');
   }).filter(line => line !== '');
 

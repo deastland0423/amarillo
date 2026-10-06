@@ -267,6 +267,40 @@ class ShipCatalogEndpointTest {
         assertTrue(withCraft > 0, "every bay came back empty, so the viewer shows no air wing");
     }
 
+    /**
+     * No craft in any bay of any hull is shown by its catalogue KEY.
+     *
+     * <p>{@code ShuttleInBayDto.type} is "stinger1", "f18b_e", "zy_e" — a lookup key the hangar and
+     * launch pad are built on, and the ship viewer was printing it verbatim, so a carrier's air wing
+     * read as "stinger1, stinger1, admin". {@code shortName} is what the craft is called.
+     *
+     * <p>Swept across every hull rather than spot-checked, because the failure is per-CATALOGUE-ENTRY:
+     * a fighter added without a {@code shortName} shows its key again and only on the ships that
+     * happen to carry it. The catalogue defaults shortName to the display name when the JSON omits
+     * it, so this should hold for anything the catalogue knows at all.
+     */
+    @Test
+    void noCraftInAnyBayIsLabelledWithItsCatalogueKey() {
+        java.util.List<String> keyed = new java.util.ArrayList<>();
+        int craftSeen = 0;
+        for (com.sfb.objects.ShipSpec spec : com.sfb.objects.ShipLibrary.all()) {
+            com.sfb.dto.GameStateDto.ShipDto dto = detail(spec.faction, spec.type, 180);
+            if (dto.shuttleBays == null) continue;
+            for (com.sfb.dto.GameStateDto.ShuttleBayDto bay : dto.shuttleBays) {
+                if (bay.shuttles == null) continue;
+                for (com.sfb.dto.GameStateDto.ShuttleInBayDto craft : bay.shuttles) {
+                    craftSeen++;
+                    if (craft.shortName == null || craft.shortName.isBlank())
+                        keyed.add(spec.faction + "/" + spec.type + " carries '" + craft.type
+                                + "' with no shortName");
+                }
+            }
+        }
+        assertTrue(craftSeen > 100, "fixture: should have swept plenty of craft, saw " + craftSeen);
+        assertEquals(java.util.List.of(), keyed,
+                "craft that would be shown by their catalogue key: " + keyed);
+    }
+
     /** An unknown hull is a 404 rather than an empty ship, so the viewer can say so. */
     @Test
     void anUnknownHullIsNotFound() {
