@@ -213,10 +213,27 @@ public class ShipSpec {
      * Limited 10% to 20%. And S3.223 raises the Commander's Option budget from 20% of Effective
      * Combat BPV to <b>30%</b>, with the extra tenth spendable only on "extra or improved drones".
      *
-     * <p><b>One flag covers both markings.</b> They are different categories — D% is mostly carriers,
-     * PFTs and auxiliaries, DB the drone-bombardment ships — but FD10.622 grants them the same
-     * allowance, and FD10.671 settles the budget half outright: "a drone bombardment ship is treated
-     * as a D% ship (S3.223), i.e., as if it were a carrier with ten or more fighters."
+     * <p><b>One flag covers both markings, but a DB ship is only CONDITIONALLY the same as a D% one.</b>
+     * They are different categories — D% is mostly carriers, PFTs and auxiliaries, DB the
+     * drone-bombardment ships (FD10.671 defines the marking) — and S3.222 gives a DB ship two modes:
+     *
+     * <ul>
+     *   <li><b>On an independent bombardment mission</b> it may be loaded entirely with type-III-XX
+     *       drones, but uses its <b>normal racial percentages</b> for special warheads — NOT the
+     *       doubled ones — and pays normal rack costs with free reloads plus 25% of the cost of the
+     *       drones in its cargo boxes. It trades the better caps for a cheap hold of heavy drones.
+     *   <li><b>Otherwise</b>, "a drone bombardment ship is treated as a D% ship (S3.223), i.e., as if
+     *       it were a carrier with ten or more fighters" — doubled caps and the 30% budget.
+     * </ul>
+     *
+     * <p><b>This flag implements the second branch, and that is correct while bombardment missions do
+     * not exist in this engine.</b> Nothing can assign one, so "not on such a mission" is true of every
+     * scenario we can express, and S3.222 says plainly what to do in that state. When missions arrive
+     * this becomes a two-state question and the first branch needs building — with FD10.671's trap in
+     * it: a type-III-XX is a two-space drone with a SINGLE payload space (FD10.24), so "six type-B
+     * drone racks would hold 36 spaces of drones but only eighteen payload spaces for warhead
+     * calculation purposes", and FD10.641 takes its percentages of warhead spaces. A bombardment load
+     * halves the basis the caps are reckoned against.
      *
      * <p>The DB roster is in the Master Annex File's drone-storage table: Federation NCD, CAD, CLD,
      * NDC, VDB; Klingon D5D, D5DX, D6D, DWD, DDP, P-D8; Kzinti DF, SDF, SDW, CD, MDC, YCD, YDF.

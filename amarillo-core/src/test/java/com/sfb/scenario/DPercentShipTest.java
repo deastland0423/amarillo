@@ -27,10 +27,8 @@ import static org.junit.Assert.*;
  * built yet, so the flag waits for them. S3.223 raises the option budget from 20% of Effective
  * Combat BPV to <b>30%</b>, and that half is live and tested here.
  *
- * <p>One flag serves both markings. They are different categories — D% is mostly carriers, PFTs and
- * auxiliaries; DB the drone-bombardment ships — but FD10.622 grants them the same allowance, and
- * FD10.671 settles the budget half outright: "a drone bombardment ship is treated as a D% ship
- * (S3.223), i.e., as if it were a carrier with ten or more fighters."
+ * <p>One flag serves both markings, but a DB ship is only <b>conditionally</b> the same as a D% one —
+ * see {@link #aDbShipIsOnlyADPercentShipWhileItIsNotBombarding()}.
  */
 public class DPercentShipTest {
 
@@ -156,6 +154,48 @@ public class DPercentShipTest {
                 CoiBudget.allowanceFor(droneFrigate, 20), 0.001);
         assertTrue("so the flag is worth real points on a Kzinti hull",
                 CoiBudget.allowanceFor(droneFrigate, 20) > Math.floor(basis * 20 / 100.0));
+    }
+
+    /**
+     * A DB ship equals a D% ship only while it is NOT on a bombardment mission — and this engine
+     * cannot put it on one, which is why the single-state flag is right for now.
+     *
+     * <p>The owner asked directly on 2026-10-06 whether the two markings are treated the same, and the
+     * flat answer I had been giving was wrong. <b>S3.222</b> gives a DB ship two modes:
+     *
+     * <ul>
+     *   <li><b>On an independent bombardment mission:</b> "might be loaded entirely with type-III-XX
+     *       drones (FD10.671), using their <b>normal racial drone percentages</b> for special
+     *       warheads... the ship pays the normal costs for its drone racks (with free reloads) and 25%
+     *       of the total cost of the drones in the cargo boxes." So it gives UP the doubled caps in
+     *       exchange for a cheap hold of heavy drones.
+     *   <li><b>Otherwise:</b> "If not on such a mission, a drone bombardment ship is treated as a D%
+     *       ship (S3.223), i.e., as if it were a carrier with ten or more fighters."
+     * </ul>
+     *
+     * <p>Nothing in this engine can assign a bombardment mission, so the second branch is true of every
+     * scenario it can express, and that is the branch {@code dPercent} implements. The assertion below
+     * is therefore about an ABSENCE: there is no mission concept to consult, so no second state can be
+     * entered by accident. The day missions arrive, this test is where the fork belongs — along with
+     * FD10.671's arithmetic trap, since a type-III-XX is two spaces with ONE payload space (FD10.24)
+     * and FD10.641 takes its percentages of payload spaces, halving the basis a bombardment load is
+     * judged against.
+     */
+    @Test
+    public void aDbShipIsOnlyADPercentShipWhileItIsNotBombarding() {
+        Ship db = built("Klingon", "D5D");
+
+        // The engine has no bombardment mission to be on, so the S3.222 branch cannot be reached and
+        // the flag is unconditional by construction rather than by a reading of the rule.
+        assertTrue("while no mission exists, S3.222's second branch is always the live one",
+                db.isDPercent());
+        assertEquals("so the 30% applies in every scenario we can currently build",
+                30, CoiBudget.percentFor(db, 20));
+
+        // If a mission concept ever appears, it must be asked here and this will stop compiling or
+        // stop passing. Deliberately no fake mission state is introduced to assert against: inventing
+        // one to test it would BE the feature, half-built, which is how allowedEwFighters and
+        // crewQuality both came to exist with no caller.
     }
 
     /**
