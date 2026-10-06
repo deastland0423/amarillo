@@ -62,6 +62,38 @@ public class DroneRackTest {
         assertEquals("FD3.43 names the type-H with the type-D", 0, typeH.getNumberOfReloads());
     }
 
+    /**
+     * FD3.41 / FD3.81: a magazine launcher draws "one drone from one magazine on each turn", which
+     * is one per MAGAZINE and not one per rack — so three for a type-D and five for a type-H,
+     * except that "the launcher cannot fire two drones within one-quarter turn even if from
+     * different magazines" allows only four launches in 32 impulses.
+     *
+     * <p>That cap is the argument for the reading. Taken as one drone per rack per turn, the
+     * quarter-turn sentence would add nothing to the turn limit it sits beside; taken per magazine
+     * it does real work, and the five-magazine type-H is where it bites. Owner confirmed
+     * 2026-10-05. Before this, the Kzinti TGT fired a third of its rate.
+     *
+     * <p>Both counts are stand-ins for the live magazine count and must be derived once FD3.42's
+     * per-magazine damage exists — a type-D down to one magazine launches once.
+     */
+    @Test
+    public void aMagazineLauncherFiresOncePerMagazineCappedByTheQuarterTurnGap() {
+        DroneRack typeD = new DroneRack(DroneRackType.TYPE_D);
+        assertEquals("FD3.41: one per magazine, three magazines", 3, typeD.getMaxShotsPerTurn());
+        assertEquals("FD3.0: a quarter turn between launches", 8, typeD.getMinImpulseGap());
+
+        DroneRack typeH = new DroneRack(DroneRackType.TYPE_H);
+        assertEquals("FD3.81: five magazines, but the quarter-turn gap allows only four launches"
+                + " in a 32-impulse turn", 4, typeH.getMaxShotsPerTurn());
+        assertEquals(8, typeH.getMinImpulseGap());
+
+        // The ordinary racks are untouched: a type-A is one launch a turn, and the gap is what
+        // every rack already shared.
+        DroneRack typeA = new DroneRack(DroneRackType.TYPE_A);
+        assertEquals("a type-A launches once a turn", 1, typeA.getMaxShotsPerTurn());
+        assertEquals(8, typeA.getMinImpulseGap());
+    }
+
     /** An upgrade re-reads the table, so a refit cannot leave the old type's count behind. */
     @Test
     public void upgradingARackTakesTheNewTypesReloadCount() {

@@ -113,6 +113,18 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 				setMinImpulseGap(12);
 				break;
 			case TYPE_D:
+				// FD3.41: "The launcher can draw one drone from one magazine on each turn...
+				// The launcher cannot fire two drones within one-quarter turn even if from
+				// different magazines." ONE PER MAGAZINE per turn, so three — not one per rack.
+				// The owner confirmed the reading 2026-10-05, and the type-H proves it: under a
+				// one-drone-per-rack reading the quarter-turn sentence says nothing that the turn
+				// limit had not, while per-magazine it does real work — a five-magazine type-H is
+				// held to FOUR launches by the gap (impulses 1, 9, 17, 25 of 32), not five.
+				//
+				// MUST BECOME DERIVED from the live magazine count once FD3.42 is built: a rack
+				// with one magazine shot away fires twice, not three times. Three is correct only
+				// for an undamaged rack, which is every rack we can currently model.
+				setMaxShotsPerTurn(3);
 				// FD3.4: one launcher with three separate magazines of four spaces each.
 				// FD3.43: "While type-D (and type-H) drone racks do not have formal reloads..."
 				// The magazines ARE the reload capacity, already loaded and launch-ready, which
@@ -128,12 +140,23 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 				this.numberOfReloads = 2;
 				break;
 			case TYPE_H:
-				// FD3.8: five magazines. FD3.43 names the type-H alongside the type-D as having
-				// no formal reloads, for the same reason — see TYPE_D above. FD2.45 calls it a
-				// "partial exception" rather than a full one, so if an H-rack hull is ever
-				// entered, read FD3.84 before assuming it matches the type-D exactly.
+				// FD3.8: a starbase-only launcher with FIVE magazines of four spaces.
+				// FD3.81 is word-for-word FD3.41, so one per magazine per turn — but the
+				// quarter-turn gap caps it at FOUR launches in 32 impulses, which is why that
+				// clause is in the rule at all. Also derived-not-fixed; see TYPE_D.
+				setMaxShotsPerTurn(4);
 				this.spaces = 20;
+				// FD3.84 is FD2.45's "partial exception", and it is the type-D's logic written
+				// out: "There are no reloads for type-H drone racks; the reload drones are loaded
+				// in the spare magazines." The free mirror still exists, it just lives INSIDE the
+				// rack — two magazines per launcher are paid for, two carry "proportional free
+				// reloads", and the fifth is never charged for speed upgrades.
 				this.numberOfReloads = 0;
+				// NOT MODELLED, and needed before any starbase is entered: FD3.81's fifth magazine
+				// holds eight type-VI drones and "if this magazine is selected, it can fire as a
+				// type-E drone rack (FD3.5)" — a dogfight magazine inside a drone rack. The other
+				// four take any type but no anti-drones. FD3.84 also makes starbases count as CVAs
+				// for racial drone percentages, excluding their type-VIs and anti-drones.
 				break;
 			case TYPE_E:
 				// FD3.5: eight dogfight drones — four spaces, since a type-VI is half a
