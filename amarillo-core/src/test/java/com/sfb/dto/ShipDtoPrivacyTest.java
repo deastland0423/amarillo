@@ -54,7 +54,10 @@ public class ShipDtoPrivacyTest {
         // Level E (D17.4), and an inactive one not detectable at all. D17 is not modelled, so
         // an enemy can never earn this. The firing COUNT is as revealing as the label — two
         // against four is precisely the limited/full distinction — so it is private too.
-        "aegisFitted", "aegisOperational", "aegisFirings",
+        // aegisPulsesRemaining leaks the same distinction one step further on: three extras
+        // against one IS full against limited, and it falls as they are spent, so it would also
+        // tell an opponent how many defensive shots a ship has left this impulse.
+        "aegisFitted", "aegisOperational", "aegisFirings", "aegisPulsesRemaining",
         // The energy held, NOT the boxes holding it: availableBattery is a box count and
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
@@ -166,7 +169,14 @@ public class ShipDtoPrivacyTest {
         // rack is DEFENSIVE tells an opponent it can fire again next impulse and cannot engage
         // their cruiser at all (FP10.211, FP10.212).
         "plasmaRackTorpedoes", "plasmaRackActive", "plasmaRackReloadSets", "plasmaRackMode",
-        "plasmaRackBoltUsed"
+        "plasmaRackBoltUsed",
+        // D13.22's two halves. Both are private for a reason that is not about the weapon at all:
+        // either field being PRESENT discloses that the ship has aegis, which D13.51 puts behind
+        // tactical intelligence Level E. (The restriction itself is printed in the D5's ship
+        // description, so it is not secret in the rulebook — the secret is which ship is running
+        // one.) aegisBarredThisImpulse would additionally say which guns have fired this impulse
+        // and under whose control.
+        "aegisControllable", "aegisBarredThisImpulse"
     ));
 
     private static final Set<String> WEAPON_PUBLIC = new HashSet<>(Arrays.asList(
@@ -514,5 +524,45 @@ public class ShipDtoPrivacyTest {
             assertNull(w.name + " fires no anti-drones and must not report a capacity",
                     w.addCapacity);
         }
+    }
+
+    /**
+     * The aegis pair (D13.22) is blank to an enemy and present to the owner.
+     *
+     * <p>A test of its own because the sweep above cannot reach it. That one walks only {@code
+     * isHeavy} weapons, and these two are set on every weapon of an aegis hull — but the fixture
+     * ship is a Federation CA with no aegis, so both fields are null in every view and the sweep
+     * would pass however the redaction behaved. So fit aegis deliberately and look.
+     *
+     * <p>What is being protected is not the restriction. The D5's is printed in its own ship
+     * description, so it is no secret which weapons a D5's aegis reaches. The secret is that this
+     * ship is running one at all, which D13.51 puts behind tactical intelligence Level E — and
+     * either field arriving with a value in it answers that question on its own.
+     */
+    @Test
+    public void theAegisWeaponPairIsBlankToAnEnemyAndPresentToTheOwner() {
+        fed.setAegisFitted(com.sfb.properties.AegisLevel.FULL);
+        fed.setActiveFireControl(true);
+        GameStateDto owner = new GameStateDto(game, "Federation");
+        GameStateDto enemy = new GameStateDto(game, "Klingon");
+
+        GameStateDto.ShipDto mine = (GameStateDto.ShipDto) owner.mapObjects.stream()
+                .filter(o -> "USS Enterprise".equals(o.name)).findFirst().orElseThrow();
+        GameStateDto.ShipDto theirs = (GameStateDto.ShipDto) enemy.mapObjects.stream()
+                .filter(o -> "USS Enterprise".equals(o.name)).findFirst().orElseThrow();
+
+        // Non-vacuity first: without this the rest would pass on a hull that simply has no aegis,
+        // which is the trap this whole test exists to step around.
+        assertTrue("fixture: the owner should see the aegis pair on a fitted hull",
+                mine.weapons.stream().anyMatch(w -> w.aegisControllable != null));
+        assertNotNull("fixture: the owner should see the pulse counter", mine.aegisPulsesRemaining);
+
+        for (GameStateDto.WeaponDto w : theirs.weapons) {
+            assertNull(w.name + ".aegisControllable reaches an enemy and so discloses that this"
+                    + " ship has aegis (D13.51)", w.aegisControllable);
+            assertNull(w.name + ".aegisBarredThisImpulse reaches an enemy", w.aegisBarredThisImpulse);
+        }
+        assertNull("the pulse counter is three-against-one, which IS full against limited",
+                theirs.aegisPulsesRemaining);
     }
 }

@@ -1616,7 +1616,8 @@ public class GameController {
     public ResponseEntity<?> getFireTargets(
             @PathVariable String id,
             @RequestHeader(value = "X-Player-Token", required = false) String token,
-            @RequestParam String attacker) {
+            @RequestParam String attacker,
+            @RequestParam(name = "aegis", required = false, defaultValue = "false") boolean aegis) {
 
         GameSession session = sessionService.getSession(id);
         if (session == null)
@@ -1635,11 +1636,22 @@ public class GameController {
             java.util.Set<String> mine = new java.util.HashSet<>(
                     me != null ? me.getShipNames() : java.util.List.<String>of());
 
+            // D13.21/D13.23: with ?aegis=true the answer is narrowed to what this ship's aegis may
+            // engage — size class 6 or smaller, within six hexes, with a lock-on. Asked of core
+            // rather than filtered here on sizeClass and range, because the eligibility IS the rule
+            // and a second copy of it in this method would drift from Ship.canAegisEngage. A
+            // non-ship attacker has no aegis, so it gets an empty list rather than everything.
+            int nowImpulse = session.getGame().getAbsoluteImpulse();
+            if (aegis && !(attackerUnit instanceof Ship))
+                return ResponseEntity.ok(List.of());
+
             List<Map<String, Object>> out = new java.util.ArrayList<>();
             for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
                 if (session.getGame().losBlocked(attackerUnit.getLocation(), candidate.getLocation()))
                     continue;       // P2.321
                 if (bearingWeaponNames(attackerUnit, candidate).isEmpty())
+                    continue;
+                if (aegis && !((Ship) attackerUnit).canAegisEngage(candidate, nowImpulse))
                     continue;
 
                 Map<String, Object> row = new java.util.LinkedHashMap<>();

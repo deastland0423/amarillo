@@ -2628,6 +2628,50 @@ public class GameSession {
                 return ActionResult.ok("COMMITTED:" + declarationCommits.size() + "/" + players.size());
             }
 
+            /**
+             * D13.0 aegis: one of the EXTRA firings, resolved immediately.
+             *
+             * Not part of the sealed fire declaration, and that is the rule rather than a shortcut.
+             * D13.11 has aegis fire resolve as it happens, and D13.14 makes the FIRST aegis firing
+             * coincide with the ship's ordinary volley — so by the time this action is used, firing
+             * one is already spent in the sealed orders and what is left are the extras (three on a
+             * full system, one on a limited). Resolving them at once is safe because every legal
+             * target takes its damage together with no DAC choice and no owner decision.
+             *
+             * Thin on purpose: every rule lives in Game.fireAegisPulse, which refuses with the rule
+             * number for the wrong phase, no operating fire control, no pulses left, an ineligible
+             * target (D13.21/D13.23) and both halves of D13.22. Ownership is already gated by the
+             * controller, which checks hasPlayer and ownsShip(shipName) before any action reaches
+             * here.
+             */
+            case "AEGIS_PULSE": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                Unit target = findUnit(request.getTargetName());
+                if (target == null)
+                    return ActionResult.fail("Target not found: " + request.getTargetName());
+
+                List<com.sfb.weapons.Weapon> selected = new ArrayList<>();
+                List<String> asked = request.getWeaponNames();
+                if (asked != null)
+                    for (String wanted : asked) {
+                        com.sfb.weapons.Weapon found = ship.getWeapons().fetchAllWeapons().stream()
+                                .filter(w -> w.getName().equalsIgnoreCase(wanted))
+                                .findFirst().orElse(null);
+                        // Named and not found is an error, not a silent omission: dropping it would
+                        // fire a smaller pulse than the player ordered and spend the firing anyway.
+                        if (found == null)
+                            return ActionResult.fail(ship.getName() + " has no weapon " + wanted);
+                        selected.add(found);
+                    }
+
+                ActionResult r = game.fireAegisPulse(ship, target, selected);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             default:
                 return ActionResult.fail("Unknown action type: " + request.getType());
         }

@@ -124,6 +124,20 @@ public class GameStateDto {
          */
         public String rackType;
         /**
+         * D13.22: whether this ship's aegis may control this weapon at all. Null on a hull with no
+         * aegis. "Unless noted otherwise, for example the D5" — the D5's aegis reaches its ADDs and
+         * four of its phaser-3s, six weapons out of eighteen, so this is per hull and not a property
+         * of the weapon.
+         */
+        public Boolean aegisControllable;
+        /**
+         * D13.22's other half: this weapon has already fired OUTSIDE aegis control this impulse, so
+         * it cannot now fire under it. Null on a hull with no aegis. Separate from
+         * {@link #aegisControllable} because the two are different refusals — one is the hull's
+         * wiring and lasts forever, this one lasts an impulse.
+         */
+        public Boolean aegisBarredThisImpulse;
+        /**
          * Null means NOT DISCLOSED, which is what an enemy sees: whether a heavy weapon is
          * armed, and how, is the thing a player most wants to hide. A primitive would have
          * reported every enemy weapon as unarmed, trading a leak for a lie.
@@ -561,6 +575,17 @@ public class GameStateDto {
         public Boolean aegisOperational;
         /** Firings this impulse (D13.14/D13.411): 4 full, 2 limited, 0 when not working. */
         public Integer aegisFirings;
+        /**
+         * EXTRA firings still available this impulse — what the pulse pad is driven by, and not the
+         * same number as {@link #aegisFirings}.
+         *
+         * <p>Two differences, both of which a UI gets wrong if it uses the allowance instead.
+         * {@code aegisFirings} is the whole allowance (4 or 2); these are the EXTRAS (3 or 1),
+         * because D13.14 makes the first aegis firing coincide with the ship's ordinary sealed
+         * volley rather than being fired separately. And this one falls as pulses are spent, where
+         * the allowance does not move.
+         */
+        public Integer aegisPulsesRemaining;
         public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
         public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
@@ -1512,6 +1537,7 @@ public class GameStateDto {
         dto.aegisFitted = ship.getAegisFitted().name();
         dto.aegisOperational = ship.isAegisOperational(game.getAbsoluteImpulse());
         dto.aegisFirings = ship.aegisFirings(game.getAbsoluteImpulse());
+        dto.aegisPulsesRemaining = ship.aegisPulsesRemaining(game.getAbsoluteImpulse());
         dto.requiresEscort = ship.requiresEscort();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
@@ -1687,6 +1713,17 @@ public class GameStateDto {
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
             wd.arcMask = w.getArcs();
+            // D13.22, the two halves kept apart. Both decide whether the aegis pulse pad may offer
+            // this weapon, and they are different refusals: the first is permanent for the hull,
+            // the second lasts only the impulse — and a player told merely "unavailable" cannot
+            // tell a weapon its aegis was never wired to from one it has just spent on a normal
+            // shot. Only sent on a hull that has aegis at all, so an ordinary ship carries neither
+            // and the pad can ask "does this ship do aegis?" of the ship, not of its guns.
+            if (ship.getAegisFitted() != com.sfb.properties.AegisLevel.NONE) {
+                wd.aegisControllable = ship.aegisMayControl(w);
+                wd.aegisBarredThisImpulse =
+                        w.barredByAegisExclusivity(game.getAbsoluteImpulse(), true);
+            }
             boolean armedIfNeeded = !(w instanceof com.sfb.weapons.HeavyWeapon)
                     || ((com.sfb.weapons.HeavyWeapon) w).isArmed();
             // readyToFireAtTarget, not canFire: this field decides whether the Fire Orders
@@ -2292,6 +2329,7 @@ public class GameStateDto {
         dto.aegisFitted = null;
         dto.aegisOperational = null;
         dto.aegisFirings = null;
+        dto.aegisPulsesRemaining = null;
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.
@@ -2317,6 +2355,13 @@ public class GameStateDto {
                     wd.isRolling = false;
                     wd.chargesRemaining = null;   // not disclosed, same as the rest here
                 }
+                // D13.22's pair. The leak here is not the restriction — the D5's is printed in its
+                // own ship description — it is that either field being PRESENT says the ship has
+                // aegis, which D13.51 puts behind tactical intelligence Level E. They are set only
+                // on an aegis hull, so leaving them would have disclosed exactly the thing the three
+                // ship-level aegis fields are already withheld to protect.
+                wd.aegisControllable = null;
+                wd.aegisBarredThisImpulse = null;
                 // Ammunition remaining, hidden for the same reason drone rack loads are.
                 wd.addShots = null;
                 wd.addReloads = null;   // addCapacity is on the SSD and stays

@@ -94,7 +94,7 @@ class FireTargetsEndpointTest {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> targetsFor(String token, String attacker) {
-        Object body = controller.getFireTargets(gameId, token, attacker).getBody();
+        Object body = controller.getFireTargets(gameId, token, attacker, false).getBody();
         assertNotNull(body, "endpoint returned no body");
         return (List<Map<String, Object>>) body;
     }
@@ -296,7 +296,7 @@ class FireTargetsEndpointTest {
 
     @Test
     void unknownAttacker_isRefused() {
-        assertEquals(400, controller.getFireTargets(gameId, HOST, "USS Nowhere")
+        assertEquals(400, controller.getFireTargets(gameId, HOST, "USS Nowhere", false)
                 .getStatusCode().value());
     }
 
