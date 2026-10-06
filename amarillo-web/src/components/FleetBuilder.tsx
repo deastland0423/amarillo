@@ -530,7 +530,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           `contacts` is empty because there is no battle to plot — the diagram then shows the
           hull's own arcs and nothing else, which is exactly the question a buyer is asking. */}
       {viewing && viewShip && (
-        <SsdPanel ship={viewShip} isMine contacts={[]} onClose={closeViewer} />
+        <SsdPanel ship={viewShip} isMine contacts={[]} openAt="centre"
+                  onClose={closeViewer} />
       )}
       {viewing && !viewShip && (
         <div className="fb-viewer-pending">

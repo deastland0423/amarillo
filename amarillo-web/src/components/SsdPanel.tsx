@@ -39,6 +39,20 @@ import { weaponTitle } from './weaponTitle';
  *    rulebook — and knowing where an opponent cannot shoot is half of maneuvering.
  */
 
+/**
+ * Panel width. ALSO the zoom control: the arc diagram is a viewBox at width 100%, so the hexes, the
+ * text and the contacts all scale with this. Changing SIZE instead only rescales the internal units
+ * and looks identical.
+ *
+ * Declared here rather than inline in the style because the opening position is measured from it.
+ * Those two were separate numbers once and drifted apart — the panel grew to 450 and the offset
+ * stayed at 330, which opened it a sixth off the right edge of the window.
+ */
+const PANEL_WIDTH = 450;
+
+/** Breathing room between the panel and the edge of the window, when it opens and when capped. */
+const EDGE_MARGIN = 16;
+
 /** Hexes out from the ship. Far enough that an FA and an FX are plainly different shapes. */
 const RADIUS = 5;
 
@@ -63,6 +77,15 @@ interface Props {
   /** Everything on the map, so the diagram can plot what is actually out there. */
   contacts: MapObject[];
   onClose: () => void;
+  /**
+   * Where it opens. Default is hard against the right edge, which is right on the BATTLE MAP — the
+   * panel stays open while you study the map, so it must not sit over the part you are reading.
+   *
+   * The fleet builder wants something else: its own right-hand column is the fleet being built, so
+   * the default lands the panel squarely on top of the list you are adding ships to. It passes
+   * 'centre' instead. Either way the panel is draggable from there.
+   */
+  openAt?: 'right' | 'centre';
 }
 
 /** A contact placed against the diagram: inside it, or somewhere off past the rim. */
@@ -140,7 +163,8 @@ function arcBearingWeapons(ship: ShipObject): WeaponState[] {
   return (ship.weapons ?? []).filter(w => !w.scoutChannel && w.arcMask > 0);
 }
 
-export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
+export default function SsdPanel(
+    { ship, isMine, contacts, onClose, openAt = 'right' }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [showContacts, setShowContacts] = useState(true);
 
@@ -179,8 +203,17 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
 
   // Opens out of the way on the right, then goes wherever it is dragged. It is meant to
   // stay open while you look at the map, so it must not be stuck over the part you need.
+  //
+  // Measured from PANEL_WIDTH rather than a number typed here, which is how it went wrong: the
+  // offset said 330 while the panel had grown to 450, so a sixth of it hung off the right edge of
+  // the window. On the battle map that reads as a panel sitting snugly at the edge, because the map
+  // behind it gives no clue where the cut is; in the fleet builder it is plainly half off the view.
+  // One constant for both, so they cannot disagree again.
+  const viewportWidth = typeof window === 'undefined' ? 1200 : window.innerWidth;
   const drag = useDraggable({
-    left: Math.max(16, (typeof window === 'undefined' ? 1200 : window.innerWidth) - 330),
+    left: Math.max(EDGE_MARGIN, openAt === 'centre'
+        ? (viewportWidth - PANEL_WIDTH) / 2
+        : viewportWidth - PANEL_WIDTH - EDGE_MARGIN),
     top: 70,
   });
 
@@ -650,10 +683,7 @@ function weaponKey(w: WeaponState): string {
 
 const panelStyle: React.CSSProperties = {
   position: 'fixed',
-  // The diagram is a viewBox at width 100%, so THIS is the zoom control: the hexes, the
-  // text and the contacts all scale with the panel. Changing SIZE would only rescale the
-  // internal units and look identical.
-  width: 450,
+  width: PANEL_WIDTH,
   zIndex: 40,
   background: '#161b22',
   border: '1px solid #30363d',
@@ -683,7 +713,7 @@ const panelStyle: React.CSSProperties = {
  * sliver — {@code useDraggable} only guarantees the HANDLE stays on screen, not the body.
  */
 function panelBounds(top: number): React.CSSProperties {
-  return { maxHeight: `max(200px, calc(100vh - ${Math.max(0, top)}px - 16px))` };
+  return { maxHeight: `max(200px, calc(100vh - ${Math.max(0, top)}px - ${EDGE_MARGIN}px))` };
 }
 
 /**
