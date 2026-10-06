@@ -79,10 +79,6 @@
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_D", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_D", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_D", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_D", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_D", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_D", "arcs": ["FULL"]},
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
   ],
 

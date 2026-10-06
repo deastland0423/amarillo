@@ -113,16 +113,27 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 				setMinImpulseGap(12);
 				break;
 			case TYPE_D:
-				this.spaces = 12;     // three magazines of four (FD3.4)
-				this.numberOfReloads = 2;
+				// FD3.4: one launcher with three separate magazines of four spaces each.
+				// FD3.43: "While type-D (and type-H) drone racks do not have formal reloads..."
+				// The magazines ARE the reload capacity, already loaded and launch-ready, which
+				// is why there is nothing left to sit behind the rack. Giving it reload sets on
+				// top of the 12 counted the same drones twice. FD2.4424 says where its refills
+				// come from instead: "Having no reload storage, drones are moved directly from
+				// cargo to the magazine... The cargo boxes are the reload storage for such racks."
+				this.spaces = 12;
+				this.numberOfReloads = 0;
 				break;
 			case TYPE_G:
 				this.spaces = 4;
 				this.numberOfReloads = 2;
 				break;
 			case TYPE_H:
-				this.spaces = 20;     // five magazines (FD3.8)
-				this.numberOfReloads = 2;
+				// FD3.8: five magazines. FD3.43 names the type-H alongside the type-D as having
+				// no formal reloads, for the same reason — see TYPE_D above. FD2.45 calls it a
+				// "partial exception" rather than a full one, so if an H-rack hull is ever
+				// entered, read FD3.84 before assuming it matches the type-D exactly.
+				this.spaces = 20;
+				this.numberOfReloads = 0;
 				break;
 			case TYPE_E:
 				// FD3.5: eight dogfight drones — four spaces, since a type-VI is half a

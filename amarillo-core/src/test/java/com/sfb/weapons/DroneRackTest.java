@@ -46,9 +46,20 @@ public class DroneRackTest {
         assertEquals("FD3.72: two sets, one of them all anti-drones",
                 2, typeG.getNumberOfReloads());
 
+        // FD3.43: "While type-D (and type-H) drone racks do not have formal reloads..." The
+        // owner's framing (2026-10-05) is why: a type-D is one launcher with three magazines of
+        // four (FD3.4), and "the three magazines represent the reload capacity except all the
+        // drones are ready to launch". So the 12 spaces already ARE the reloads, and the two sets
+        // this used to assert counted the same drones a second time. FD2.4424 says where its
+        // refills come from instead — straight from the cargo boxes, which "are the reload
+        // storage for such racks".
         DroneRack typeD = new DroneRack(DroneRackType.TYPE_D);
-        assertEquals(12, typeD.getSpaces());
-        assertEquals(2, typeD.getNumberOfReloads());
+        assertEquals("three magazines of four (FD3.4)", 12, typeD.getSpaces());
+        assertEquals("FD3.43: a type-D has no formal reloads", 0, typeD.getNumberOfReloads());
+
+        DroneRack typeH = new DroneRack(DroneRackType.TYPE_H);
+        assertEquals("five magazines (FD3.8)", 20, typeH.getSpaces());
+        assertEquals("FD3.43 names the type-H with the type-D", 0, typeH.getNumberOfReloads());
     }
 
     /** An upgrade re-reads the table, so a refit cannot leave the old type's count behind. */
