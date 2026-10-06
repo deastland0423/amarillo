@@ -633,6 +633,26 @@ export const gameApi = {
   },
 
   /**
+   * The same question, narrowed to what this ship's AEGIS may engage (D13.21/D13.23): size class
+   * 6 or smaller, within six hexes, with a lock-on.
+   *
+   * Narrowed on the server rather than filtered here, because the eligibility IS the rule — and
+   * because "size-6 and smaller" counts the SFB way, where class 1 is a starbase and the numbers
+   * grow as the hull shrinks. A client filter written from the words would have let through a PF
+   * at class 5.
+   */
+  getAegisTargets(
+    gameId: string,
+    playerToken: string,
+    attacker: string,
+  ): Promise<import('../components/FireOrdersPad').FireCandidate[]> {
+    return request(
+      `/api/games/${gameId}/fire-targets?aegis=true&attacker=${encodeURIComponent(attacker)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
+  /**
    * Every unit this ship may send a seeking weapon at, with range, whether it holds a
    * lock-on, and which plasma launchers bear on it. A drone rack has no arc, so a candidate
    * with no launchers listed is still a perfectly good drone target.

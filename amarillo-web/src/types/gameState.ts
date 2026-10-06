@@ -28,6 +28,18 @@ export interface WeaponState {
    * anti-drones, a type-D has magazines and no reloads), and "Drone Rack 1" said none of it.
    */
   rackType?:         string;
+  /**
+   * D13.22: whether this ship's aegis may control this weapon. Null on a hull with no aegis — so
+   * its PRESENCE is what says the ship has aegis, which is why it is owner-only. A D5's aegis
+   * reaches six of its eighteen weapons, so this is per hull, not per weapon type.
+   */
+  aegisControllable?:      boolean;
+  /**
+   * D13.22's other half: already fired OUTSIDE aegis control this impulse, so it cannot fire under
+   * it now. Separate from aegisControllable because they are different refusals — that one is the
+   * hull's wiring and permanent, this one lasts an impulse.
+   */
+  aegisBarredThisImpulse?: boolean;
   armed:             boolean | null;   // null = not disclosed (an enemy's ship)
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null
@@ -339,8 +351,21 @@ export interface ShipObject extends MapObjectBase {
   commandRating?:   number;
   /** D6.124 scanner bonus. 0 on most hulls, so it is only worth showing when non-zero. */
   scannerBonus?:    number;
+  // --- Aegis fire control (D13.0). All OWNER-ONLY: D13.51 puts detection behind tactical
+  // intelligence Level E, and the counts give away full-versus-limited as plainly as the label.
   /** D13: "NONE" | "LIMITED" | "FULL" — what aegis the HULL has, never derived from isEscort. */
   aegisFitted?:     string;
+  /** D13.524: fitted AND active fire control. False means the system is fitted but not running. */
+  aegisOperational?: boolean;
+  /** The whole allowance this impulse (D13.14): 4 full, 2 limited, 0 when not working. */
+  aegisFirings?:    number;
+  /**
+   * EXTRA firings still available this impulse — 3 or 1, NOT the same number as aegisFirings.
+   * D13.14 makes the first aegis firing coincide with the ordinary sealed volley, so this is what
+   * is left to fire separately, and it falls as pulses are spent. Drive the pulse pad from THIS;
+   * driving it from the allowance offers a shot that does not exist.
+   */
+  aegisPulsesRemaining?: number;
   // Electronic warfare
   sensorRating:     number;
   ecmAllocated:     number;

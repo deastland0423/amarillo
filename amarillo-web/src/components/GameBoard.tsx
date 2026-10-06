@@ -7,6 +7,7 @@ import { gameApi } from '../api/gameApi';
 import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
+import AegisPulsePad from './AegisPulsePad';
 import FireOrdersPad from './FireOrdersPad';
 import { movementPrompt } from '../game/movementQueue';
 import LaunchOrdersPad from './LaunchOrdersPad';
@@ -2638,6 +2639,16 @@ export default function GameBoard({ session, onLeave }: Props) {
   // Held by NAME, not by object: the panel looks the ship up in the current state on
   // every render, so it moves with the battle instead of freezing at the moment it opened.
   const [ssdShipName, setSsdShipName] = useState<string | null>(null);
+  /**
+   * Aegis pulse pads dismissed with "hold fire", keyed "<ship>@<turn>.<impulse>".
+   *
+   * Per impulse, not per ship: deciding not to spend a firing right now says nothing about the
+   * next impulse, when a fresh wave of drones may be four hexes closer. A dismissal that lasted
+   * the battle would make the automatic pad a one-time offer, which is worse than never opening
+   * it — the player would believe they had turned a feature off rather than skipped one shot.
+   * The set grows by at most one entry per aegis ship per impulse and is dropped with the view.
+   */
+  const [aegisDismissed, setAegisDismissed] = useState<Set<string>>(new Set());
   const ssdShip = ssdShipName
     ? (gameState?.mapObjects.find(o => o.name === ssdShipName && o.type === 'SHIP') as ShipObject | undefined) ?? null
     : null;
@@ -4300,6 +4311,29 @@ export default function GameBoard({ session, onLeave }: Props) {
             onClose={() => setSsdShipName(null)}
           />
         )}
+
+        {/* Aegis pulse pads (D13.0), one per own aegis ship with extra firings left.
+            MOUNTED automatically rather than opened on request — aegis exists to shoot down
+            seekers already on their way, so a pad that waited to be asked for would be
+            remembered one impulse too late. It renders nothing until there is actually
+            something in reach, so it is not noise in the impulses where it has no work.
+            Dismissal is keyed to the impulse: holding fire now should not silence it for
+            the rest of the battle. */}
+        {gameState?.phase === 'Direct Fire' && (gameState.mapObjects
+          .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
+          .filter(s => (s.aegisPulsesRemaining ?? 0) > 0)
+          .filter(s => !aegisDismissed.has(`${s.name}@${gameState.turn}.${gameState.impulse}`))
+          .map(s => (
+            <AegisPulsePad
+              key={s.name}
+              gameId={session.gameId}
+              playerToken={session.playerToken}
+              ship={s}
+              stateVersion={gameState.turn * 100 + gameState.impulse}
+              onClose={() => setAegisDismissed(prev => new Set(prev)
+                .add(`${s.name}@${gameState.turn}.${gameState.impulse}`))}
+            />
+          ))}
 
         {liveShip && (
           <ShipSidebar
