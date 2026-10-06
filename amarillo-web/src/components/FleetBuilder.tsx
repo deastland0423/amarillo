@@ -439,7 +439,13 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                     <button className="fb-shelf-row"
                             onClick={() => addShip(ship)}>
                       <span className="fb-shelf-type">{ship.type}</span>
-                      <span className="fb-shelf-name">{ship.name}</span>
+                      {/* The CLASS, not the ship's own name. A buyer scanning the shelf wants to
+                          know what a hull is — and typeName differs from the group header on 305 of
+                          355 hulls, so a CC and a CVB under "Heavy Cruiser" finally read as a
+                          command cruiser and a strike carrier. The ship's name is still there to
+                          edit in the fleet list once it is bought, which is where it matters. */}
+                      <span className="fb-shelf-name"
+                            title={ship.name}>{ship.typeName || ship.name}</span>
                       <span className="fb-shelf-badges">
                         {badgesFor(ship).map(b => <span key={b} className="badge">{b}</span>)}
                       </span>

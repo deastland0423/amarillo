@@ -52,6 +52,12 @@ export interface CatalogShip {
   faction:       string;
   type:          string;   // SSD Type designation, e.g. "D7C"
   name:          string;
+  /**
+   * The class written out: "Command Cruiser", "Heavy Carrier", "Galactic Survey Cruiser". Differs
+   * from `lineName` on 305 of 355 hulls — a CC and a CVB both sit on the CA line — so this is what
+   * tells a reader what the hull actually is, rather than which family it belongs to.
+   */
+  typeName:      string;
   line:          string;   // hull family, e.g. "CA"
   lineName:      string;   // "Heavy Cruiser"
   lineOrder:     number;   // display order from shiplines.json; big warships first, civilians last

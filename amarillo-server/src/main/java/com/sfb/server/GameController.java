@@ -169,6 +169,12 @@ public class GameController {
             row.put("faction", spec.faction);
             row.put("type", spec.type);
             row.put("name", spec.name != null ? spec.name : "");
+            // The class written out — "Command Cruiser", "Heavy Carrier", "Galactic Survey Cruiser".
+            // Worth sending because it is NOT the line's display name on 305 of 355 hulls: a CC and a
+            // CVB both sit on the CA line under a "Heavy Cruiser" header, and a Fed CVA sits under
+            // "Dreadnought". The shelf showed the type code and the ship's own name, so what the hull
+            // actually IS was the one thing missing.
+            row.put("typeName", spec.typeName != null ? spec.typeName : "");
             row.put("line", spec.line != null ? spec.line : "");
             row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
             // The shelf groups by line and orders those groups by the CATALOGUE's order

@@ -150,6 +150,31 @@ class ShipCatalogEndpointTest {
         }
     }
 
+    /**
+     * Every shelf row says what the hull IS, not just which family it belongs to.
+     *
+     * <p>The shelf groups by line and labels each group with the line's name, so a Federation CC, CVB
+     * and CVL all appeared under "Heavy Cruiser" with nothing to tell them apart but their type codes.
+     * {@code typeName} is the class written out, and it differs from the line's name on <b>305 of 355
+     * hulls</b> — it is the single most informative field the listing was missing.
+     */
+    @Test
+    void everyShelfRowNamesItsClass() {
+        int differsFromTheHeader = 0;
+        for (Map<String, Object> s : ships()) {
+            String typeName = String.valueOf(s.get("typeName"));
+            assertFalse(typeName.isBlank() || "null".equals(typeName),
+                    s + " has no typeName, so the shelf can only show its type code");
+            if (!typeName.equals(s.get("lineName")))
+                differsFromTheHeader++;
+        }
+        // Non-vacuity: if typeName merely repeated the group header everywhere, sending it would be
+        // noise rather than information, and this test would be asserting nothing worth having.
+        assertTrue(differsFromTheHeader > 200,
+                "typeName should differ from the line header on most hulls, else it adds nothing;"
+                        + " got " + differsFromTheHeader);
+    }
+
     // ------------------------------------------------------------------ the ship viewer
 
     private com.sfb.dto.GameStateDto.ShipDto detail(String faction, String type, int year) {
