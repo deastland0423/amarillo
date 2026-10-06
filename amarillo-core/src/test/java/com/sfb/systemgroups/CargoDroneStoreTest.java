@@ -226,4 +226,35 @@ public class CargoDroneStoreTest {
         }
         assertEquals(String.join("\n  ", suspect), List.of(), suspect);
     }
+
+    /**
+     * A hull declaring {@code cargoDroneSpacesPerBox} must actually have cargo boxes.
+     *
+     * <p>The field is a RATE, not a total, and that is the whole trap. With no {@code cargo} boxes to
+     * multiply it by, the store's capacity is zero and the declaration achieves nothing — and it
+     * fails in silence, exactly as the Klingon D5D's original {@code droneStorageSpaces: 200} did:
+     * capacity declared, nothing held, published straight to the client, no error anywhere. The only
+     * way to see it is to ask for the product.
+     *
+     * <p>It happened twice on 2026-10-06, to the Klingon D6D and D6DB, both of which had the rate
+     * and no boxes. FD2.445 admits no exception to bless — these drones are stored <i>in</i> cargo
+     * boxes by definition, and "lost when the cargo boxes are destroyed" — so a rate without boxes
+     * is always a mistake rather than a style.
+     */
+    @Test
+    public void everyCargoDroneRateHasBoxesToMultiply() {
+        List<String> empty = new ArrayList<>();
+        int declared = 0;
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if (spec.cargoDroneSpacesPerBox == null) continue;
+            declared++;
+            int boxes = spec.hullBoxes == null ? 0 : spec.hullBoxes.cargo;
+            if (boxes <= 0)
+                empty.add(spec.faction + " " + spec.type + " declares cargoDroneSpacesPerBox "
+                        + spec.cargoDroneSpacesPerBox + " but has no cargo boxes, so it carries"
+                        + " NOTHING — the field is a rate per box (FD2.445), not a total");
+        }
+        assertTrue("fixture: some hull should declare cargo drones", declared > 0);
+        assertEquals(String.join(System.lineSeparator() + "  ", empty), List.of(), empty);
+    }
 }
