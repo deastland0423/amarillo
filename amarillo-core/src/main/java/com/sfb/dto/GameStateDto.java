@@ -99,8 +99,21 @@ public class GameStateDto {
     }
 
     public static class WeaponDto {
+        /**
+         * IDENTITY, not a label: {@code type + "-" + designator}. The client sends this back as the
+         * key for reload selections, hex fire and boarding targets, so it must stay stable — and it
+         * must not be shown to a player, because it reads "ADD-ADD 1" and "Drone-Rack 1". Use
+         * {@link #type} with {@link #designator} for display.
+         */
         public String name;
         public String designator;
+        /**
+         * The weapon's kind on its own — "Phaser1", "Photon", "Disruptor30", "ADD", "Drone" — so a
+         * display can pair it with the designator instead of taking {@link #name} apart with string
+         * surgery. Added 2026-10-06 because the SSD panel was printing name AND designator, which
+         * double-prints the designator every time: "Phaser1-1 1", "ADD-ADD 1 ADD 1".
+         */
+        public String type;
         /**
          * Null means NOT DISCLOSED, which is what an enemy sees: whether a heavy weapon is
          * armed, and how, is the thing a player most wants to hide. A primitive would have
@@ -1658,6 +1671,7 @@ public class GameStateDto {
             WeaponDto wd = new WeaponDto();
             wd.name = w.getName();
             wd.designator = w.getDesignator();
+            wd.type = w.getType();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();
@@ -2319,6 +2333,7 @@ public class GameStateDto {
             WeaponDto wd = new WeaponDto();
             wd.name = w.getName();
             wd.designator = w.getDesignator();
+            wd.type = w.getType();
             wd.lastImpulseFired = w.getLastImpulseFired();
             wd.functional = w.isFunctional();
             wd.arcLabel = w.getArcLabel();

@@ -13,8 +13,15 @@ export interface ShieldState {
 }
 
 export interface WeaponState {
+  /**
+   * IDENTITY, not a label — `type + "-" + designator`. Sent back to the server as the key for
+   * reload selections, hex fire and boarding targets, so never alter it. Do not SHOW it either:
+   * it reads "ADD-ADD 1" and "Drone-Rack 1". Pair `type` with `designator` instead.
+   */
   name:              string;
   designator?:       string;
+  /** The kind on its own: "Phaser1", "Photon", "Disruptor30", "ADD", "Drone". */
+  type?:             string;
   armed:             boolean | null;   // null = not disclosed (an enemy's ship)
   armingTurn:        number;
   armingType:        string | null;   // "STANDARD" | "OVERLOAD" | "SPECIAL" | null

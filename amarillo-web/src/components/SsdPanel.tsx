@@ -5,6 +5,7 @@ import { facingLabel, facingToAngle, factionColor, parseLocation,
 import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldNumber,
          turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
+import { weaponTitle } from './weaponTitle';
 
 /**
  * The SSD panel: a ship as it appears on its own record sheet, rather than as a token on
@@ -472,7 +473,7 @@ export default function SsdPanel({ ship, isMine, contacts, onClose }: Props) {
               }}
             >
               <span style={{ flex: 1 }}>
-                {w.name}{w.designator ? ` ${w.designator}` : ''}
+                {weaponTitle(w)}
                 {!w.functional && <span style={{ color: '#f85149' }}> (destroyed)</span>}
               </span>
               <span style={{ color: isSelected ? '#d4f5e2' : '#8b949e' }}>{w.arcLabel}</span>

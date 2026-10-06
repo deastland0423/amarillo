@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest';
+import type { WeaponState } from '../types/gameState';
+import { weaponTitle } from './weaponTitle';
+
+/** Only the three fields the title reads; the rest of WeaponState is irrelevant here. */
+function weapon(type: string | undefined, designator: string | undefined,
+                name = 'IGNORED'): WeaponState {
+  return { name, type, designator } as WeaponState;
+}
+
+describe('weaponTitle', () => {
+  it('says the kind and the designator once each', () => {
+    expect(weaponTitle(weapon('Phaser1', '1'))).toBe('Phaser1 1');
+    expect(weaponTitle(weapon('Photon', 'A'))).toBe('Photon A');
+    expect(weaponTitle(weapon('Fusion', 'C'))).toBe('Fusion C');
+    expect(weaponTitle(weapon('Disruptor30', 'B'))).toBe('Disruptor30 B');
+  });
+
+  /**
+   * The case that prompted the whole thing. 43 hulls designate their ADDs "ADD 1", so the type
+   * must drop out or it reads "ADD ADD 1" — and before this it read "ADD-ADD 1 ADD 1".
+   */
+  it('drops a type the designator already states', () => {
+    expect(weaponTitle(weapon('ADD', 'ADD 1'))).toBe('ADD 1');
+    expect(weaponTitle(weapon('ADD', 'ADD 2'))).toBe('ADD 2');
+  });
+
+  /**
+   * And the near-miss beside it: a rack's designator does NOT start with "Drone", so the type
+   * stays and the result is the rack's actual name. This is the pair that makes the rule earn its
+   * place — one blanket treatment cannot produce both "ADD 1" and "Drone Rack 1".
+   */
+  it('keeps a type the designator does not state', () => {
+    expect(weaponTitle(weapon('Drone', 'Rack 1'))).toBe('Drone Rack 1');
+    expect(weaponTitle(weapon('Drone', 'Rack 12'))).toBe('Drone Rack 12');
+  });
+
+  it('matches regardless of case', () => {
+    expect(weaponTitle(weapon('add', 'ADD 1'))).toBe('ADD 1');
+    expect(weaponTitle(weapon('ADD', 'add 3'))).toBe('add 3');
+  });
+
+  /**
+   * The regression guard, stated as the shape of the original bug rather than as "no repetition".
+   * The panel rendered `name` and then appended `designator`, and since `name` is
+   * `type + "-" + designator` the result was always `type-designator designator`. Asserting that
+   * exact shape is gone is precise; asserting "the designator never appears twice" is not, because
+   * a type ending in a digit makes "Phaser1 1" contain "1" twice quite legitimately.
+   */
+  it('never produces the old name-plus-designator shape', () => {
+    const cases: Array<[string, string]> = [
+      ['Phaser1', '1'], ['PhaserG', '7'], ['Photon', 'A'], ['Disruptor30', 'D'],
+      ['ADD', 'ADD 1'], ['Drone', 'Rack 1'], ['PlasmaLauncher', 'A'], ['Hellbore', 'B'],
+    ];
+    for (const [type, designator] of cases) {
+      const identity = `${type}-${designator}`;
+      const title = weaponTitle(weapon(type, designator, identity));
+      expect(title, 'the old doubled shape is back').not.toBe(`${identity} ${designator}`);
+      // Nor should the identity string leak in on its own — the hyphen is a wire-format artefact.
+      expect(title, `'${title}' shows the identity string`).not.toContain(identity);
+    }
+  });
+
+  /** A weapon with no designator is just its kind, not a trailing space. */
+  it('handles a missing designator', () => {
+    expect(weaponTitle(weapon('ESG', undefined))).toBe('ESG');
+    expect(weaponTitle(weapon('ESG', ''))).toBe('ESG');
+  });
+
+  /**
+   * `name` is the fallback only when the server is too old to send `type`, and it is the identity
+   * string — so this is the degraded case, not the intended one. It must still not double-print.
+   */
+  it('falls back to the identity name when type is absent', () => {
+    expect(weaponTitle(weapon(undefined, 'A', 'Photon-A'))).toBe('Photon-A A');
+    expect(weaponTitle(weapon(undefined, undefined, 'Photon-A'))).toBe('Photon-A');
+  });
+});

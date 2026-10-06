@@ -170,8 +170,11 @@ public class ShipDtoPrivacyTest {
     ));
 
     private static final Set<String> WEAPON_PUBLIC = new HashSet<>(Arrays.asList(
-        // What it IS, from the SSD, and what it has visibly done
-        "name", "designator", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
+        // What it IS, from the SSD, and what it has visibly done.
+        // "type" is the weapon's kind on its own — "Phaser1", "ADD", "Drone" — and it is public for
+        // the same reason "name" already is: it is printed on the SSD, and SSDs are in the rulebook.
+        // It carries nothing "name" did not already give away, since name IS type + "-" + designator.
+        "name", "designator", "type", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
         "isHeavy", "maxShotsPerTurn", "shotsThisTurn", "minImpulseGap", "lastImpulseFired",
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",
