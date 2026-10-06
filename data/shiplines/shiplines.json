@@ -42,10 +42,10 @@
 
   "series": [
     { "code": "EAGLE",   "faction": "Romulan", "name": "Eagle series",
-      "about": "Their own pre-warp warships, retrofitted once the Klingons supplied warp technology" },
+      "about": "Pre-warp warships, retrofitted with warp technology" },
     { "code": "KESTREL", "faction": "Romulan", "name": "Kestrel series",
-      "about": "Klingon hulls sold to them to bridge the gap while they learned the technology" },
+      "about": "Purchased Klingon hulls, converted to Romulan technology" },
     { "code": "HAWK",    "faction": "Romulan", "name": "Hawk series",
-      "about": "Original Romulan designs, once they understood what they had been given" }
+      "about": "New, original Romulan designs" }
   ]
 }
