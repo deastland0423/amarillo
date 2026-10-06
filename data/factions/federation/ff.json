@@ -60,8 +60,8 @@
 
   "weapons": [
     { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
-    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
