@@ -1,10 +1,10 @@
 {
   "faction": "Federation",
-  "type": "DD",
-  "typeName": "Destroyer",
+  "type": "DDG",
+  "typeName": "Guided Weapons Destroyer",
   "line": "DD",
-  "name": "USS Saladin",
-  "serviceYear": 130,
+  "name": "USS Sadat",
+  "serviceYear": 167,
   "bpv": 94,
   "turnMode": "C",
   "sizeClass": 4,
@@ -30,7 +30,7 @@
     "bridge": 2,
     "emergency": 1,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -52,7 +52,7 @@
   ],
 
   "crewData": {
-    "totalCrew": 20,
+    "totalCrew": 22,
     "boardingParties": 6,
     "minCrew": 4
   },
@@ -66,7 +66,7 @@
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]
 }

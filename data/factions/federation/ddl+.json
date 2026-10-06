@@ -1,10 +1,10 @@
 {
   "faction": "Federation",
-  "type": "DD",
+  "type": "DDL+",
   "typeName": "Destroyer",
   "line": "DD",
-  "name": "USS Saladin",
-  "serviceYear": 130,
+  "name": "USS Pompey",
+  "serviceYear": 166,
   "bpv": 94,
   "turnMode": "C",
   "sizeClass": 4,
@@ -13,7 +13,7 @@
   "bonusHets": 1,
   "commandRating": 5,
   "tokenArt": "federation/dd.png",
-
+  
   "shields": [20, 18, 16, 16, 16, 18],
   
   "hullBoxes": {
@@ -23,6 +23,7 @@
   "power": {
     "centerWarp": 15,
     "impulse": 4,
+    "awr": 4,
     "battery": 2
   },
   
@@ -30,7 +31,7 @@
     "bridge": 2,
     "emergency": 1,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -43,7 +44,7 @@
   "auxiliary": {
     "transporters": 2,
     "tractors": 2,
-    "labs": 8,
+    "labs": 4,
     "probes": 1
   },
 
@@ -64,9 +65,11 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] }
   ]
 }

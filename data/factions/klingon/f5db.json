@@ -1,20 +1,17 @@
 {
   "faction": "Klingon",
-  "type": "F5E",
-  "typeName": "Combat Escort",
+  "type": "F5DB",
+  "typeName": "Drone Frigate",
   "line": "DD",
-  "name": "IKS Dragon Guard",
-  "serviceYear": 170,
-  "bpv": 90,
+  "name": "IKS Viper",
+  "serviceYear": 165,
+  "bpv": 93,
   "turnMode": "A",
   "sizeClass": 4,
   "moveCost": 0.5,
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 4,
-  "isEscort": true,
-  "carrierClass": "CASUAL",
-  "aegis": "LIMITED",
   "tokenArt": "klingon/f5.png",
   
   "shields": [21, 16, 16, 16, 16, 16],
@@ -55,14 +52,12 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"], "fighterFacilities": 2,
-      "fighters": { "line": "klingon-zegurnii" } }
+    { "shuttles": ["admin"] }
   ],
 
   "crewData": {
     "totalCrew": 22,
-    "boardingParties": 8,
-    "deckCrews": 2,
+    "boardingParties": 6,
     "minCrew": 4
   },
 
@@ -72,20 +67,11 @@
     { "type": "Phaser2", "designator": "3", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "5", "arcs": ["RX"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_G", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_G", "arcs": ["FULL"]}
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
-  ],
-
-  "y175Upgrades": {
-    "refitCost": 0,
-    "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_G", "extraReloads": 1 },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_G", "extraReloads": 1 },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_G", "extraReloads": 1 },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_G", "extraReloads": 1 }
-    ]
-  }
+  ]
 }

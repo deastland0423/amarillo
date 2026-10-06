@@ -1,43 +1,44 @@
 {
   "faction": "Kzinti",
-  "type": "CVL",
-  "typeName": "Light Carrier",
+  "type": "CD+",
+  "typeName": "Drone Cruiser",
   "line": "CA",
-  "name": "KHS Tempest",
+  "name": "KHS Ballista",
   "serviceYear": 166,
-  "bpv": 117,
+  "bpv": 128,
+  
   "turnMode": "C",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 8,
-  "carrierClass": "CAPABLE",
-  "requiresEscort": true,
-  "droneStorageSpaces": 100,
-  "tokenArt": "kzinti/bc.png",
   
-  "shields": [24, 22, 22, 22, 22, 22],
+  "cargoDroneSpacesPerBox": 50,
+  "tokenArt": "kzinti/cs.png",
+  
+  "shields": [30, 28, 22, 22, 22, 28],
   
   "hullBoxes": {
     "fhull": 5,
-    "ahull": 12
+    "ahull": 12,
+    "cargo": 6
   },
   
   "power": {
     "leftWarp": 9,
     "rightWarp": 9,
     "centerWarp": 9,
-    "impulse": 4,
+    "impulse": 3,
     "apr": 3,
-    "battery": 3
+    "battery": 5
   },
   
   "control": {
     "bridge": 3,
     "emergency": 1,
     "auxCon": 3,
-    "controlMod": 2.0
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -50,52 +51,50 @@
   "auxiliary": {
     "transporters": 3,
     "tractors": 2,
-    "labs": 2,
-    "probes": 1,
-    "derfacs": true
+    "labs": 4,
+    "probes": 1
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"], "type": "tunnel", "fighters": { "line": "kzinti-attack", "superiority": 8, "assault": 0, "ew": 1 } }
+    { "shuttles": ["admin", "admin"] }
   ],
 
   "crewData": {
     "totalCrew": 40,
-    "boardingParties": 15,
-    "deckCrews": 9,
+    "boardingParties": 16,
     "minCrew": 4
   },
 
   "weapons": [
-    { "type": "Phaser1", "designator": "1", "arcs": ["LF", "L"] },
-    { "type": "Phaser1", "designator": "2", "arcs": ["RF", "R"] },
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
-    { "type": "Phaser3", "designator": "7", "arcs": ["FULL"] },
-    { "type": "Phaser3", "designator": "8", "arcs": ["FULL"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["LF", "L"] },
-    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["RF", "R"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["R", "RR"] },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_A", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_A", "arcs": ["FULL"]}
 
   ],
-
   "y175Upgrades": {
     "refitCost": 6,
     "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B" },
       { "designator": "Rack 3", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B" }
-    ],
-    "adds": [
-      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 5", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 6", "upgradeTo": "TYPE_B" }
     ]
   }
-
 }

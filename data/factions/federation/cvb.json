@@ -1,23 +1,23 @@
 {
   "faction": "Federation",
-  "type": "CVS",
-  "typeName": "Strike Carrier",
+  "type": "CVB",
+  "typeName": "CVB Strike Carrier",
   "line": "CA",
-  "name": "USS Nimitz",
-  "serviceYear": 168,
-  "bpv": 142,
+  "name": "USS Nelson",
+  "carrierClass": "CAPABLE",
+  "serviceYear": 172,
+  "bpv": 156,
   "turnMode": "D",
   "sizeClass": 3,
   "moveCost": 1.0,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 9,
-  "carrierClass": "CAPABLE",
+  "tokenArt": "federation/ca.png",
   "requiresEscort": true,
   "droneStorageSpaces": 200,
-  "tokenArt": "federation/ca.png",
   
-  "shields": [30, 24, 20, 20, 20, 24],
+  "shields": [30, 24, 24, 24, 24, 24],
   
   "hullBoxes": {
     "fhull": 12,
@@ -54,7 +54,7 @@
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "admin"], "type": "tunnel", "fighters": { "line": "federation-fighter", "superiority": 11, "assault": 0, "ew": 1 } }
+    { "shuttles": ["admin", "admin", "admin", "admin"], "type": "tunnel", "fighters": { "line": "federation-fighter", "attack": 11, "attack_ew": 1 } }
   ],
 
   "crewData": {

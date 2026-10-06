@@ -1,11 +1,11 @@
 {
   "faction": "Federation",
-  "type": "DD",
-  "typeName": "Destroyer",
+  "type": "DDG+",
+  "typeName": "Guided Weapons Destroyer",
   "line": "DD",
-  "name": "USS Saladin",
-  "serviceYear": 130,
-  "bpv": 94,
+  "name": "USS Shaitan",
+  "serviceYear": 167,
+  "bpv": 100,
   "turnMode": "C",
   "sizeClass": 4,
   "moveCost": 0.5,
@@ -23,6 +23,7 @@
   "power": {
     "centerWarp": 15,
     "impulse": 4,
+    "awr": 4,
     "battery": 2
   },
   
@@ -30,7 +31,7 @@
     "bridge": 2,
     "emergency": 1,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -43,7 +44,7 @@
   "auxiliary": {
     "transporters": 2,
     "tractors": 2,
-    "labs": 8,
+    "labs": 4,
     "probes": 1
   },
 
@@ -52,7 +53,7 @@
   ],
 
   "crewData": {
-    "totalCrew": 20,
+    "totalCrew": 22,
     "boardingParties": 6,
     "minCrew": 4
   },
@@ -64,9 +65,11 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]
 }

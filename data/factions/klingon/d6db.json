@@ -1,12 +1,11 @@
 {
   "faction": "Klingon",
-  "type": "D6D",
+  "type": "D6DB",
   "typeName": "Drone Cruiser",
-  "dPercent": true,
   "line": "CA",
-  "name": "IKS Cloudburst",
-  "serviceYear": 135,
-  "bpv": 113,
+  "name": "IKS Hailstone",
+  "serviceYear": 165,
+  "bpv": 117,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -16,7 +15,7 @@
   "cargoDroneSpacesPerBox": 50,
   "tokenArt": "klingon/d6.png",
   
-  "shields": [30, 22, 15, 13, 15, 22],
+  "shields": [30, 22, 22, 22, 22, 22],
   
   "hullBoxes": {
     "fhull": 4,

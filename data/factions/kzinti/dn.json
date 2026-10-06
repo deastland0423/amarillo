@@ -1,0 +1,107 @@
+{
+  "faction": "Kzinti",
+  "type": "DN",
+  "typeName": "Dreadnought",
+  "line": "DN",
+  "name": "KHS Hegemony",
+  "serviceYear": 167,
+  "bpv": 225,
+  "turnMode": "E",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 4,
+  "bonusHets": 1,
+  "commandRating": 10,
+
+  "shields": [44, 36, 36, 36, 36, 36],
+  
+  "hullBoxes": {
+    "fhull": 7,
+    "ahull": 20
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 4,
+    "apr": 6,
+    "battery": 7
+  },
+  
+  "control": {
+    "bridge": 3,
+    "emergency": 1,
+    "auxCon": 3,
+    "flag": 3,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0,1, 2, 3, 4, 5, 9],
+    "excess": 12
+  },
+
+  "auxiliary": {
+    "transporters": 7,
+    "tractors": 3,
+    "labs": 9,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 62,
+    "boardingParties": 20,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "11", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["LS", "RR"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["LS", "RR"] },
+    { "type": "Phaser3", "designator": "14", "arcs": ["LS", "RR"] },
+    { "type": "Phaser3", "designator": "15", "arcs": ["RS", "LR"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["RS", "LR"] },
+    { "type": "Phaser3", "designator": "17", "arcs": ["RS", "LR"] },
+    { "type": "Phaser3", "designator": "18", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "19", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "20", "arcs": ["FULL"] },
+    { "type": "Disruptor",  "designator": "A", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "E", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_6" },
+    { "type": "ADD", "designator": "ADD 3", "addType": "ADD_6" }
+  ],
+
+  "y175Upgrades": {
+    "refitCost": 3
+  }
+
+}

@@ -1,0 +1,79 @@
+{
+  "faction": "Kzinti",
+  "type": "DWD",
+  "typeName": "War Drone Destroyer",
+  "line": "DW",
+  "name": "KHS Fighting Pulsar",
+  "serviceYear": 175,
+  "bpv": 86,
+  "turnMode": "B",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 4,
+  "tokenArt": "kzinti/dw.png",
+  
+  "shields": [24, 20, 16, 16, 16, 20],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 6
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "centerWarp": 6,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 3
+  },
+  
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 5
+  },
+
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 2,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 28,
+    "boardingParties": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" }
+  ]
+
+}

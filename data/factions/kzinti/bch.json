@@ -1,0 +1,94 @@
+{
+  "faction": "Kzinti",
+  "type": "BCH",
+  "typeName": "Heavy Battlecruiser",
+  "line": "BCH",
+  "name": "KHS Pentarchy",
+  "serviceYear": 180,
+  "bpv": 180,
+  "turnMode": "E",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "kzinti/bch.png",
+  
+  "shields": [36, 30, 24, 24, 24, 30],
+  
+  "hullBoxes": {
+    "fhull": 5,
+    "ahull": 16
+  },
+  
+  "power": {
+    "leftWarp": 10,
+    "rightWarp": 10,
+    "centerWarp": 10,
+    "impulse": 4,
+    "apr": 6,
+    "battery": 7
+  },
+  
+  "control": {
+    "bridge": 3,
+    "flag": 3,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 1, 2, 3, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 3,
+    "labs": 6,
+    "probes": 1,
+    "derfacs": true
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 54,
+    "boardingParties": 20,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "13", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "14", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "15", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_G", "arcs": ["FULL"]}
+  ]
+
+}

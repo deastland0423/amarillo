@@ -1,28 +1,32 @@
 {
   "faction": "Federation",
-  "type": "DD",
-  "typeName": "Destroyer",
-  "line": "DD",
-  "name": "USS Saladin",
-  "serviceYear": 130,
-  "bpv": 94,
+  "type": "DWC",
+  "typeName": "War Command Destroyer",
+  "line": "DW",
+  "name": "USS Begin",
+  "serviceYear": 176,
+  "bpv": 107,
   "turnMode": "C",
   "sizeClass": 4,
   "moveCost": 0.5,
-  "breakdown": 3,
+  "breakdown": 5,
   "bonusHets": 1,
-  "commandRating": 5,
-  "tokenArt": "federation/dd.png",
+  "commandRating": 6,
+  "isLeader": true,
+  "tokenArt": "federation/dw.png",
 
-  "shields": [20, 18, 16, 16, 16, 18],
+  "shields": [28, 21, 21, 21, 21, 21],
   
   "hullBoxes": {
-    "chull": 10
+    "chull": 8
   },
   
   "power": {
-    "centerWarp": 15,
-    "impulse": 4,
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "centerWarp": 6,
+    "impulse": 3,
+    "awr": 3,
     "battery": 2
   },
   
@@ -30,7 +34,7 @@
     "bridge": 2,
     "emergency": 1,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -43,17 +47,17 @@
   "auxiliary": {
     "transporters": 2,
     "tractors": 2,
-    "labs": 8,
+    "labs": 2,
     "probes": 1
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin"] }
+    { "shuttles": ["admin", "admin", "admin"] }
   ],
 
   "crewData": {
-    "totalCrew": 20,
-    "boardingParties": 6,
+    "totalCrew": 22,
+    "boardingParties": 10,
     "minCrew": 4
   },
 
@@ -67,6 +71,7 @@
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]
 }

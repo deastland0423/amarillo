@@ -1,0 +1,91 @@
+{
+  "faction": "Federation",
+  "type": "DNG",
+  "typeName": "New Dreadnought",
+  "line": "DN",
+  "name": "USS Dominion",
+  "serviceYear": 175,
+  "bpv": 244,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 3,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "tokenArt": "federation/dn.png",
+  
+  "shields": [44, 38, 36, 36, 36, 38],
+  
+  "hullBoxes": {
+    "fhull": 22,
+    "ahull": 8
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 15,
+    "impulse": 6,
+    "awr": 8,
+    "battery": 6
+  },
+  
+  "control": {
+    "bridge": 2,
+    "flag": 2,
+    "emergency": 2,
+    "auxCon": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0, 1, 2, 3, 4, 5, 9],
+    "excess": 12
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 2,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 54,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["RS"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "11", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "12", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "13", "arcs": ["RH"] },
+    { "type": "Phaser1", "designator": "14", "arcs": ["RH"] },
+    { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "E", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "F", "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_G", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_G", "arcs": ["FULL"]}
+  ]
+}

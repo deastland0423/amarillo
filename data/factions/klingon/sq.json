@@ -33,7 +33,7 @@
     "bridge": 1,
     "emergency": 1,
     "security": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {

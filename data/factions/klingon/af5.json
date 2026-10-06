@@ -1,6 +1,6 @@
 {
   "faction": "Klingon",
-  "type": "F5A",
+  "type": "AF5",
   "typeName": "Combat Escort",
   "line": "DD",
   "name": "IKS Fire Wall",
@@ -37,7 +37,7 @@
     "emergency": 1,
     "auxCon": 1,
     "security": 2,
-    "controlMod": 1.0
+    "controlMod": 2.0
   },
 
   "tables": {
