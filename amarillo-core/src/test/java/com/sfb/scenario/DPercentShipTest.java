@@ -125,6 +125,40 @@ public class DPercentShipTest {
     }
 
     /**
+     * The flag is NOT redundant on a Kzinti hull, which is the obvious objection to marking any.
+     *
+     * <p>The owner raised it 2026-10-06: Kzinti ships get the better ratio just for being Kzinti. True
+     * — FD10.622's and FD10.632's FIRST bullet gives every Kzinti ship 50% Restricted and 20% Limited,
+     * so on a Kzinti hull the cap half of this flag adds exactly nothing.
+     *
+     * <p>But S3.223's extra tenth of Commander's Option budget is gated on the CHART MARKING and not
+     * on the empire, and Kzinti rows in Annex #3 carry no "D%" in their notes column. So on a Kzinti
+     * drone frigate this flag is doing one job and one only — and it is worth roughly half again as
+     * much to spend: the DF goes from 14 points to 22, the SDF from 18 to 27.
+     *
+     * <p>FD10.671 is what brings DB ships inside S3.223 at all: "a drone bombardment ship is treated
+     * as a D% ship (S3.223), i.e., as if it were a carrier with ten or more fighters."
+     */
+    @Test
+    public void theFlagStillEarnsItsKeepOnAKzintiHull() {
+        Ship droneFrigate = built("Kzinti", "DF");
+        Ship plainFrigate = built("Kzinti", "FF");
+
+        assertTrue("the DF is DB-marked", droneFrigate.isDPercent());
+        assertFalse("an ordinary Kzinti frigate is not", plainFrigate.isDPercent());
+
+        // The point: being Kzinti does not buy the 30%, so the two differ by more than their BPVs.
+        assertEquals("S3.223 reaches a Kzinti DB ship", 30, CoiBudget.percentFor(droneFrigate, 20));
+        assertEquals("and not an unmarked Kzinti hull", 20, CoiBudget.percentFor(plainFrigate, 20));
+
+        double basis = CoiBudget.effectiveAdjustedCombatBpv(droneFrigate);
+        assertEquals(Math.floor(basis * 30 / 100.0),
+                CoiBudget.allowanceFor(droneFrigate, 20), 0.001);
+        assertTrue("so the flag is worth real points on a Kzinti hull",
+                CoiBudget.allowanceFor(droneFrigate, 20) > Math.floor(basis * 20 / 100.0));
+    }
+
+    /**
      * Every hull we have marked is one the Master Annex File's drone-storage table actually lists,
      * so the flag stays a transcription and does not drift into a judgement about which ships look
      * drone-heavy. Several of ours DO look the part — Klingon D6DB, F5D, F5DB, Kzinti CVA, Federation
