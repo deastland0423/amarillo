@@ -62,6 +62,10 @@ public class ShipDtoPrivacyTest {
         // watching it fall tells an opponent how many tries at his drones are left.
         "aegisFitted", "aegisOperational", "aegisFirings", "aegisPulsesRemaining",
         "aegisIdAttemptsThisTurn", "aegisIdAttemptsThisImpulse",
+        // Which firing a ship is on, and which of its consorts is holding the force up. Both say
+        // the ship HAS aegis, and the second names a second aegis ship beside it, which together
+        // sketch an opponent's escort screen.
+        "aegisNextFiring", "aegisWaitingFor",
         // The energy held, NOT the boxes holding it: availableBattery is a box count and
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",

@@ -1293,10 +1293,13 @@ public class Ship extends Unit implements DroneController {
 	 * else's fire, so what is left to spend is {@code extraFirings()}: three for a full system,
 	 * one for a limited one.
 	 * <p>
-	 * D13.142 falls out of a counter rather than needing rules of its own. "Units with aegis
-	 * can skip one of the four firings" — skipping is simply not spending one. "but cannot make
-	 * it up after the fourth firing" — the cap. "or by firing twice during one of the other
-	 * firings" — each call is one firing, so there is no way to express it.
+	 * D13.142 is partly a counter and partly a declaration. "but cannot make it up after the
+	 * fourth firing" is the cap, and "or by firing twice during one of the other firings" cannot
+	 * be expressed at all, since each call is one firing. But "units with aegis can skip one of
+	 * the four firings" is NOT simply declining to spend one, which is what this said before
+	 * D13.141's ordering existed: a skipped firing is an opportunity GONE, and the other ships in
+	 * the force cannot move on to the next firing until this one has either fired or skipped. So a
+	 * skip is an act — {@link #skipAegisFiring} — and it spends the opportunity like a shot does.
 	 */
 	public int aegisPulsesRemaining(int absoluteImpulse) {
 		if (!isAegisOperational(absoluteImpulse))
@@ -1312,6 +1315,33 @@ public class Ship extends Unit implements DroneController {
 			aegisPulsesUsed = 0;
 		}
 		aegisPulsesUsed++;
+	}
+
+	/**
+	 * D13.142: give up this firing without taking it.
+	 * <p>
+	 * The same arithmetic as spending one, and that is the rule rather than laziness — "cannot make
+	 * it up after the fourth firing" means a skipped opportunity is gone. It exists as its own name
+	 * because D13.141 makes it necessary: the rest of the force waits at this firing until every
+	 * aegis ship has fired or skipped it, so a player who simply does not want to shoot has to be
+	 * able to SAY so rather than leave the sequence stalled.
+	 */
+	public void skipAegisFiring(int absoluteImpulse) {
+		consumeAegisPulse(absoluteImpulse);
+	}
+
+	/**
+	 * Which of D13.14's four firings this ship would take next, or -1 when it has none left.
+	 * <p>
+	 * Firing one is the ordinary volley, so the extras are firings two, three and four — a number
+	 * worth having because D13.141 sequences the FORCE by it, and because a pad that says "firing 2
+	 * of 4" is telling the player something the remaining count does not.
+	 */
+	public int aegisNextFiring(int absoluteImpulse) {
+		if (aegisPulsesRemaining(absoluteImpulse) <= 0)
+			return -1;
+		int used = aegisPulseImpulse == absoluteImpulse ? aegisPulsesUsed : 0;
+		return used + 2;
 	}
 
 	/**

@@ -2189,6 +2189,71 @@ public class Game {
         return seekerControl.identifyWithAegis(actingShip, targetName, scriptedDie);
     }
 
+    /**
+     * D13.141: a ship of the same force that is still behind this one in the firing sequence, or
+     * null when this ship is free to fire.
+     *
+     * <p>"The first firings of all aegis ships must be announced... and then resolved, then the
+     * second (aegis) firing is announced and resolved, and so on." So the force moves through the
+     * four firings together: nobody takes firing three until everyone who is taking firing two has
+     * taken it.
+     *
+     * <p>Only ships that COULD still fire are counted. One with no aegis, none operating, or no
+     * firings left is not holding anybody up — and a ship that has decided not to shoot clears
+     * itself by skipping (D13.142), which is why the skip had to become an act.
+     *
+     * <p>Within a side, by the owner's ruling. An opposing aegis ship never contends and waiting on
+     * one would stall the game for nothing; the reasoning is in {@link #fireAegisPulse}.
+     *
+     * <p>Public because the DTO reports it: a pad that said only "blocked" would read as a bug, and
+     * a pad that worked it out for itself would be a second copy of the rule.
+     */
+    public Ship aegisFiringOutOfTurn(Ship attacker, int absoluteImpulse) {
+        int mine = attacker.aegisNextFiring(absoluteImpulse);
+        if (mine < 0)
+            return null;
+        for (Ship other : ships) {
+            if (other == attacker || other.isDestroyed())
+                continue;
+            if (!sameOwnerTeam(attacker, other))
+                continue;
+            if (!other.isAegisOperational(absoluteImpulse))
+                continue;
+            int theirs = other.aegisNextFiring(absoluteImpulse);
+            if (theirs > 0 && theirs < mine)
+                return other;
+        }
+        return null;
+    }
+
+    /**
+     * D13.142: give up one of this ship's aegis firings without taking it.
+     *
+     * <p>"Units with aegis can skip one of the four firings, but cannot make it up after the fourth
+     * firing" — so the opportunity is spent, not banked. It exists as an action because D13.141
+     * sequences the force: until every aegis ship has fired or skipped the current firing, none of
+     * them can move to the next, and a player who does not want to shoot needs a way to say so.
+     *
+     * @return the log line, or a refusal naming the rule that stopped it
+     */
+    public ActionResult skipAegisFiring(Ship ship) {
+        if (ship == null)
+            return ActionResult.fail("No ship");
+        if (currentPhase != ImpulsePhase.DIRECT_FIRE)
+            return ActionResult.fail("Aegis fires during the Direct Fire phase");
+        int now = getAbsoluteImpulse();
+        if (!ship.isAegisOperational(now))
+            return ActionResult.fail(ship.getName()
+                    + " has no aegis fire control operating (D13.23/D13.524)");
+        if (ship.aegisPulsesRemaining(now) <= 0)
+            return ActionResult.fail(ship.getName()
+                    + " has no aegis firings left to skip this impulse (D13.142)");
+        int firing = ship.aegisNextFiring(now);
+        ship.skipAegisFiring(now);
+        return ActionResult.ok(ship.getName() + " skips aegis firing " + firing
+                + " (D13.142) — it cannot be made up");
+    }
+
     /** Voluntarily transfer control of a seeker to an allied ship (FD1.7). */
     public ActionResult transferSeekerControl(String seekerName, String toShipName) {
         return seekerControl.transferSeekerControl(seekerName, toShipName);
@@ -2914,12 +2979,26 @@ public class Game {
      * firing as a per-target opportunity, which is also the shape {@code fireWeapons} has.
      * Splitting a single firing across two targets is therefore not offered.
      * <p>
-     * NOT MODELLED, and documented rather than hidden: D13.141 makes all aegis ships' first
-     * firings simultaneous, then all seconds, and so on. Resolving one ship's pulses as they
-     * are ordered diverges from that only when two units on the SAME side engage the same
-     * targets — opposing aegis ships never contend, since a ship does not shoot its own
-     * seekers. Callers that hold several aegis ships should loop the PULSE outside and the
-     * ship inside, which keeps D13.141 true within one player's own force.
+     * D13.141 SEQUENCES THE FORCE, and that is enforced here rather than left to the caller.
+     * "Even with two or more aegis-equipped ships in the scenario, there are only four firings, so
+     * those two ships would operate simultaneously (in each case) even if firing at different
+     * targets." So a ship may not take its third firing while a ship beside it has not yet taken
+     * its second: see {@link #aegisFiringOutOfTurn}. Firing ONE needs nothing here, being the
+     * sealed volley every ship already fires together.
+     * <p>
+     * What this buys is not secrecy but the removal of look-ahead inside one player's own force. An
+     * opposing aegis ship never contends — a ship does not shoot its own seekers, so the two are
+     * always engaging different things — but two escorts on one convoy are a real choice, and
+     * firing one, watching it land and then deciding the other is exactly the advantage D13.141
+     * takes away.
+     * <p>
+     * DELIBERATE DIVERGENCE (owner's ruling): the lock-step is enforced within a side and not
+     * across sides. The strict reading sequences every aegis ship in the scenario, which would mean
+     * a round with players waiting on each other — and there is nothing to wait FOR, because
+     * D13.21 confines aegis to size class 6 and smaller, so no target can take a reactive action
+     * and no opponent has a decision inside anyone's firing. Resolving immediately therefore costs
+     * no fidelity that a player could observe, and buys a game that does not stall four times an
+     * impulse.
      *
      * @return the combat log, or a refusal naming the rule that stopped it
      */
@@ -2935,6 +3014,13 @@ public class Game {
         if (attacker.aegisPulsesRemaining(now) <= 0)
             return ActionResult.fail(attacker.getName()
                     + " has used all of its aegis firings this impulse (D13.142)");
+        Ship waitingFor = aegisFiringOutOfTurn(attacker, now);
+        if (waitingFor != null)
+            return ActionResult.fail(attacker.getName() + " would be taking aegis firing "
+                    + attacker.aegisNextFiring(now) + " while " + waitingFor.getName()
+                    + " has not taken firing " + waitingFor.aegisNextFiring(now)
+                    + " — the firings of a force go together (D13.141). Fire or skip with "
+                    + waitingFor.getName() + " first.");
         if (!attacker.canAegisEngage(target, now))
             return ActionResult.fail(attacker.getName() + " cannot engage "
                     + (target == null ? "nothing" : target.getName())

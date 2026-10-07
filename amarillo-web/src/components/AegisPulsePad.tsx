@@ -91,7 +91,12 @@ export default function AegisPulsePad(
     });
 
   const chosen = [...picked].filter(n => weapons.some(w => w.name === n && w.available));
-  const canFire = target != null && chosen.length > 0 && pulsesLeft > 0 && !busy;
+  // D13.141: the force moves through the four firings together, so a ship whose consort has not
+  // taken this firing yet cannot take the next one. The server refuses it either way; disabling
+  // the button is so the player is not told off for pressing it.
+  const waitingFor = ship.aegisWaitingFor ?? null;
+  const canFire = target != null && chosen.length > 0 && pulsesLeft > 0
+    && waitingFor == null && !busy;
 
   /**
    * Invisible until there is something to shoot, which is what makes "automatic" bearable.
@@ -111,6 +116,27 @@ export default function AegisPulsePad(
       if (next.has(name)) next.delete(name); else next.add(name);
       return next;
     });
+  }
+
+  /**
+   * D13.142's skip, which D13.141 turns from a non-action into a necessary one: the rest of the
+   * force waits at this firing until every aegis ship has fired or given it up. "Hold fire" used
+   * to mean "put this pad away"; now it means something to the game, and the opportunity is spent.
+   */
+  async function skip() {
+    setBusy(true);
+    setError(null);
+    const res = await gameApi.submitAction(gameId, playerToken, {
+      type: 'AEGIS_SKIP',
+      shipName: ship.name,
+    });
+    setBusy(false);
+    if (!res.success) {
+      setError(res.message ?? 'The skip was refused');
+      return;
+    }
+    setPicked(new Set());
+    refresh();
   }
 
   async function fire() {
@@ -145,8 +171,18 @@ export default function AegisPulsePad(
       </div>
 
       <div style={{ fontSize: '0.72rem', color: '#d29922', marginBottom: 6 }}>
-        {pulsesLeft} extra firing{pulsesLeft === 1 ? '' : 's'} left this impulse
+        Firing {ship.aegisNextFiring ?? '?'} of {ship.aegisFirings ?? 4}
+        <span style={{ color: '#6e7681' }}>
+          {' '}({pulsesLeft} extra firing{pulsesLeft === 1 ? '' : 's'} left this impulse)
+        </span>
       </div>
+      {/* D13.141, and the one message a player cannot work out for themselves. */}
+      {waitingFor && (
+        <div style={{ fontSize: '0.72rem', color: '#f0883e', marginBottom: 6 }}>
+          Waiting on {waitingFor}: the firings of a force go together (D13.141). Fire or skip with
+          {' '}{waitingFor} first.
+        </div>
+      )}
       {/* The sentence that stops "where did my fourth shot go?" — D13.14. */}
       <div style={{ fontSize: '0.68rem', color: '#6e7681', marginBottom: 8 }}>
         The first of this ship{String.fromCharCode(8217)}s {ship.aegisFirings ?? 0} aegis firings
@@ -201,7 +237,13 @@ export default function AegisPulsePad(
         <button disabled={!canFire} onClick={fire}>
           {busy ? 'Firing…' : `Fire pulse (${chosen.length})`}
         </button>
-        <button className="secondary" onClick={onClose}>Hold fire</button>
+        <button className="secondary" disabled={busy || pulsesLeft <= 0} onClick={skip}
+                title="Give up this firing (D13.142) — it cannot be made up">
+          Skip firing
+        </button>
+        <button className="secondary" onClick={onClose} title="Put the pad away for this impulse">
+          Dismiss
+        </button>
       </div>
     </div>
   );

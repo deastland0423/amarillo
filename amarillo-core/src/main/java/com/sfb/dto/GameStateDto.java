@@ -610,6 +610,20 @@ public class GameStateDto {
          */
         public Integer aegisIdAttemptsThisTurn;
         public Integer aegisIdAttemptsThisImpulse;
+        /**
+         * D13.14/D13.141: which of the four firings this ship would take next, 2-4, or null when it
+         * has none left. Firing one is the ordinary volley.
+         */
+        public Integer aegisNextFiring;
+        /**
+         * D13.141: a ship of this force that has not yet taken the firing this one is on, and so is
+         * holding it up — null when free to fire.
+         *
+         * <p>The pad needs the NAME and not just a boolean, because the player's answer is to go and
+         * fire or skip with that ship; "blocked" on its own would read as a bug. It is always one of
+         * the viewer's own ships, the sequence being enforced within a side.
+         */
+        public String aegisWaitingFor;
         public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
         public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
@@ -1583,6 +1597,12 @@ public class GameStateDto {
             dto.aegisIdAttemptsThisImpulse =
                     ship.aegisIdAttemptsLeftThisImpulse(game.getAbsoluteImpulse());
         }
+        int nextFiring = ship.aegisNextFiring(game.getAbsoluteImpulse());
+        if (nextFiring > 0) {
+            dto.aegisNextFiring = nextFiring;
+            Ship blocking = game.aegisFiringOutOfTurn(ship, game.getAbsoluteImpulse());
+            dto.aegisWaitingFor = blocking == null ? null : blocking.getName();
+        }
         dto.requiresEscort = ship.requiresEscort();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
@@ -2386,6 +2406,8 @@ public class GameStateDto {
         dto.aegisPulsesRemaining = null;
         dto.aegisIdAttemptsThisTurn = null;
         dto.aegisIdAttemptsThisImpulse = null;
+        dto.aegisNextFiring = null;
+        dto.aegisWaitingFor = null;
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.

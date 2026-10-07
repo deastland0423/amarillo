@@ -2683,6 +2683,24 @@ public class GameSession {
              * IDENTIFY_SEEKER above does — the same information by a different instrument (D13.34),
              * so it is logged the same way.
              */
+            /**
+             * D13.142: give up one of this ship's four aegis firings without taking it.
+             *
+             * Needed because D13.141 sequences the force — until every aegis ship has fired or
+             * skipped the firing it is on, none of them moves to the next — so a player who does not
+             * want to shoot with one escort must be able to say so rather than leave the other
+             * stalled. The opportunity is spent and cannot be made up.
+             */
+            case "AEGIS_SKIP": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.skipAegisFiring(ship);
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             case "AEGIS_IDENTIFY": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)

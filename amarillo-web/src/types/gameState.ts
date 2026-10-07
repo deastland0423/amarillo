@@ -394,6 +394,14 @@ export interface ShipObject extends MapObjectBase {
    */
   aegisIdAttemptsThisTurn?: number;
   aegisIdAttemptsThisImpulse?: number;
+  /** D13.14: which of the four firings this ship takes next, 2-4. Firing one is the sealed volley. */
+  aegisNextFiring?: number;
+  /**
+   * D13.141: one of your OWN ships that has not yet taken the firing this one is on, so this one
+   * must wait. Undefined when free to fire. The name matters: the answer is to go and fire or skip
+   * with that ship, and "blocked" alone would read as a bug.
+   */
+  aegisWaitingFor?: string | null;
   // Electronic warfare
   sensorRating:     number;
   ecmAllocated:     number;

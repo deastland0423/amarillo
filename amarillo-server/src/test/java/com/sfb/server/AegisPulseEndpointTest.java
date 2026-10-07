@@ -262,4 +262,48 @@ class AegisPulseEndpointTest {
         assertTrue(r.getMessage().toLowerCase().contains("direct fire"),
                 "the refusal should say when: " + r.getMessage());
     }
+
+    // ------------------------------------------------- D13.141/D13.142 through the session
+
+    /**
+     * The skip is an ACTION a player can take, not just a pad that closes.
+     * <p>
+     * D13.141 sequences the force, so until every aegis ship has fired or given up the firing it is
+     * on, none of them moves to the next. A player who does not want to shoot with one escort must
+     * therefore be able to say so through the session, or the other escort is stalled with no way
+     * out. Tested here rather than only in core because the pad's button is what has to reach it.
+     */
+    @Test
+    void aPlayerCanSkipAnAegisFiring() {
+        reachDirectFire();
+        int before = aegisShip.aegisPulsesRemaining(game.getAbsoluteImpulse());
+        assertTrue(before > 0, "fixture: there is a firing to give up");
+
+        ActionRequest req = new ActionRequest();
+        req.setType("AEGIS_SKIP");
+        req.setPlayerToken(HOST);
+        req.setShipName("USS Enterprise");
+        Game.ActionResult r = session.executeAction(req);
+
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertTrue(r.getMessage().contains("D13.142"),
+                "the log should name the rule: " + r.getMessage());
+        assertEquals(before - 1, aegisShip.aegisPulsesRemaining(game.getAbsoluteImpulse()),
+                "a skipped firing is spent, not banked (D13.142)");
+    }
+
+    /** An unknown ship is refused by name rather than throwing. */
+    @Test
+    void skippingWithNoSuchShipIsRefused() {
+        reachDirectFire();
+        ActionRequest req = new ActionRequest();
+        req.setType("AEGIS_SKIP");
+        req.setPlayerToken(HOST);
+        req.setShipName("USS Nowhere");
+
+        Game.ActionResult r = session.executeAction(req);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("not found"), r.getMessage());
+    }
 }
