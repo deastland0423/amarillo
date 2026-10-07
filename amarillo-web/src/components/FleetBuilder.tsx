@@ -37,6 +37,34 @@ function badgesFor(ship: CatalogShip): string[] {
   return out;
 }
 
+/**
+ * The roles a shelf filter can narrow to, and how each is recognised.
+ *
+ * Four because these are the four the fleet-construction rules actually talk about: S8.36 restricts
+ * leaders, S8.315 obliges a carrier to bring escorts of its own empire, and G24.35 prices a scout
+ * differently from the hull it was built on. A player assembling a legal force is looking for one of
+ * these far more often than for "a cruiser".
+ *
+ * Every predicate reads a field the SERVER computed. None is derived here — a scout in particular is
+ * not a flag at all but a count of ScoutChannel weapons (G24.0), and guessing at that client-side is
+ * exactly the mistake that had me report a whole faction as missing its aegis earlier today.
+ *
+ * `carrier` is CAPABLE only, and that is the owner's call rather than an oversight. J4.62's CASUAL
+ * carriers — 15 Federation hulls among them — have the facilities to rearm fighters belonging to
+ * other ships in the fleet and fly none of their own, so a player looking for a carrier to buy does
+ * not mean those. Including them would have put a frigate escort in the carrier list.
+ *
+ * It is also not requiresEscort, which is S8.315 fleet LEGALITY rather than J4.61 capability: a
+ * casual carrier brings no escort obligation, and the two flags are kept apart in the ship data on
+ * purpose.
+ */
+const SHELF_ROLES: Array<{ key: string; label: string; match: (s: CatalogShip) => boolean }> = [
+  { key: 'leader',  label: 'Leader',  match: s => s.isLeader },
+  { key: 'carrier', label: 'Carrier', match: s => s.carrierClass === 'CAPABLE' },
+  { key: 'escort',  label: 'Escort',  match: s => s.isEscort },
+  { key: 'scout',   label: 'Scout',   match: s => s.isScout },
+];
+
 export default function FleetBuilder({ playerName, onLeave }: Props) {
   const [view, setView]       = useState<View>('list');
   const [catalog, setCatalog] = useState<CatalogShip[]>([]);
@@ -52,6 +80,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * endpoint. `viewing` is the label to show while the fetch is in flight, so the panel can open
    * immediately instead of after a round trip.
    */
+  /**
+   * Shelf role filters, by key. Empty shows everything.
+   *
+   * Several at once are OR-ed, not AND-ed: a fleet needs a leader AND escorts AND a carrier, so the
+   * useful question is "show me the ships that are any of these", never "ships that are all of
+   * them" — almost nothing is a scout and a leader at once, so AND would usually show an empty
+   * shelf and read as a bug.
+   */
+  const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
   const [viewing, setViewing]   = useState<CatalogShip | null>(null);
   const [viewShip, setViewShip] = useState<ShipObject | null>(null);
   const [viewError, setViewError] = useState('');
@@ -116,11 +153,17 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     [catalog]);
 
   /** The shelf: the chosen empires, in service by the scenario date (S8.131). */
+
   const shelf = useMemo(() => {
     const chosen = new Set(spec.factions);
+    const active = SHELF_ROLES.filter(r => roleFilter.has(r.key));
     return catalog
       .filter(s => chosen.has(s.faction))
       .filter(s => s.serviceYear <= spec.year)
+      // No filter chosen shows everything; several are OR-ed. The VALIDATOR remains the only
+      // authority on legality — a narrowed shelf is an aid to finding a hull, never a claim that
+      // what is on it makes a legal fleet.
+      .filter(s => active.length === 0 || active.some(r => r.match(s)))
       // Series first where a ship has one, then lineOrder. Sorting by lineOrder alone would
       // interleave the generations, and sorting by the line CODE would be worse still:
       // alphabetically "BCH" sorts above "CA" and the freighters land between the destroyers and
@@ -130,7 +173,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         || (a.lineOrder - b.lineOrder)
         || a.faction.localeCompare(b.faction)
         || a.type.localeCompare(b.type));
-  }, [catalog, spec.factions, spec.year]);
+  }, [catalog, spec.factions, spec.year, roleFilter]);
 
   /**
    * The shelf in two levels: series sections, each holding line groups.
@@ -414,6 +457,42 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             Shipyard
             {spec.factions.length > 0 && <span className="fb-hint"> · in service by Y{spec.year}</span>}
           </div>
+
+          {/* Role filters. Inside the shelf, so the chosen empires already scope them — "Escort"
+              here means an escort this fleet could actually field, not every escort in the game.
+              The COUNT is the useful part: a chip reading 0 says the empire has none, which is a
+              real answer and one the shelf could not give before. The Lyrans have no escorts and no
+              carrier at all, and that is invisible while scrolling a list of what they do have. */}
+          {spec.factions.length > 0 && (
+            <div className="fb-faction-chips fb-role-chips">
+              {SHELF_ROLES.map(role => {
+                const available = catalog.filter(s => spec.factions.includes(s.faction)
+                    && s.serviceYear <= spec.year && role.match(s)).length;
+                const on = roleFilter.has(role.key);
+                return (
+                  <button key={role.key}
+                          className={on ? 'fb-chip fb-chip-on' : 'fb-chip'}
+                          disabled={available === 0 && !on}
+                          title={available === 0
+                            ? `No ${role.label.toLowerCase()} available to these empires by Y${spec.year}`
+                            : `Show only ${role.label.toLowerCase()}s (and any other role selected)`}
+                          onClick={() => setRoleFilter(prev => {
+                            const next = new Set(prev);
+                            if (next.has(role.key)) next.delete(role.key); else next.add(role.key);
+                            return next;
+                          })}>
+                    {role.label} <span className="fb-hint">{available}</span>
+                  </button>
+                );
+              })}
+              {roleFilter.size > 0 && (
+                <button className="fb-chip" title="Show every hull again"
+                        onClick={() => setRoleFilter(new Set())}>
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
 
           {spec.factions.length === 0 && (
             <p className="subtitle">Choose an empire to see what it can field.</p>

@@ -200,6 +200,11 @@ public class GameController {
             row.put("fighterBpv", com.sfb.scenario.FleetValidator.carriedFighterBpv(ship));
             row.put("cost", com.sfb.scenario.FleetValidator.costOf(ship));
             row.put("coiAllowance", com.sfb.scenario.FleetValidator.coiAllowance(ship));
+            // J4.61/J4.62 capability: "CAPABLE" flies its own fighters, "CASUAL" only services
+            // other ships', null is neither. Deliberately NOT the same question as requiresEscort,
+            // which is S8.315 fleet legality — the shelf's carrier filter wants capability, and the
+            // escort obligation is a separate flag it must not be confused with.
+            row.put("carrierClass", spec.carrierClass);
             row.put("isScout", ship.isScout());
             row.put("isLeader", spec.isLeader);
             row.put("isEscort", spec.isEscort);

@@ -74,6 +74,12 @@ export interface CatalogShip {
   fighterBpv:    number;   // fighters it comes with
   cost:          number;   // what it actually costs (economic for scouts, plus fighters)
   coiAllowance:  number;   // most it may spend on Commander's Options (S3.2)
+  /**
+   * J4.61/J4.62: "CAPABLE" flies its own fighters, "CASUAL" only services other ships', absent is
+   * neither. NOT the same question as `requiresEscort`, which is S8.315 fleet legality — a casual
+   * carrier brings no escort obligation, and a hull can require escorts without being a carrier.
+   */
+  carrierClass?: string;
   isScout:       boolean;
   isLeader:      boolean;
   isEscort:      boolean;
