@@ -173,6 +173,51 @@ public class ReloadStockpileStorageTest {
     }
 
     /**
+     * Capacity must not WANDER as the reload sets are shuffled about.
+     *
+     * <p>Slice 2 left capacity reading {@code rack.getNumberOfReloads()}, which answers
+     * {@code reloads.isEmpty() ? numberOfReloads : reloads.size()} — a number that depends on a
+     * mutable list other code prunes. {@code completePendingReload} ends with
+     * {@code reloads.removeIf(List::isEmpty)}, and after the storage moved every one of those lists
+     * IS empty, so finishing a reload deletes them all and the answer switches to the other branch.
+     *
+     * <p>For most racks the two branches agree. The type-G is where they do not: FD3.72 gives it
+     * "two sets of reloads, ONE OF WHICH IS ENTIRELY ANTI-DRONES", so {@code setAmmo} builds one
+     * mirrored set against a declared count of two — and the ship's drone capacity would double the
+     * moment a reload finished.
+     */
+    @Test
+    public void capacityDoesNotWanderWhenTheReloadSetsAreShuffled() {
+        Ship g = new Ship();
+        g.init(KlingonShips.getD7());
+        for (Weapon w : new ArrayList<>(g.getWeapons().fetchAllWeapons()))
+            if (w instanceof DroneRack)
+                g.getWeapons().fetchAllWeapons().remove(w);
+
+        DroneRack typeG = new DroneRack(DroneRack.DroneRackType.TYPE_G);
+        typeG.setDesignator("Rack 1");
+        g.getWeapons().addWeapon(typeG);
+        List<Drone> load = new ArrayList<>();
+        for (int i = 0; i < typeG.getSpaces(); i++)
+            load.add(new Drone(DroneType.TypeI));
+        typeG.setAmmo(load);
+
+        double before = g.reloadStockpile().capacitySpaces();
+        assertTrue("fixture: the type-G stocks drone reloads", before > 0);
+
+        // A real reload, which is what reaches the pruning: the drones leave the (now empty) sets,
+        // the rack takes them in at 8C, and the leftover empty lists are swept up.
+        typeG.getAmmo().remove(0);            // make room, as firing would
+        List<Drone> staged = g.reloadStockpile().take(DroneType.TypeI, 1);
+        assertEquals("fixture: a drone to load", 1, staged.size());
+        typeG.stagePendingReload(staged, 0);
+        typeG.completePendingReload();
+
+        assertEquals("the ship's reload capacity is a property of its racks, not of a list",
+                before, g.reloadStockpile().capacitySpaces(), 0.001);
+    }
+
+    /**
      * A put-back always fits, and an addition above capacity does not.
      * <p>
      * FD2.442 does allow a stockpile over its capacity — "Extra drones purchased under (S3.2) can be

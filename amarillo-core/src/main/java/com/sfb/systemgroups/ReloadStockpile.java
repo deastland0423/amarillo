@@ -169,7 +169,7 @@ public final class ReloadStockpile {
     public double capacitySpaces() {
         double total = 0;
         for (DroneRack rack : racks())
-            total += rack.getSpaces() * (double) rack.getNumberOfReloads();
+            total += rack.getSpaces() * (double) rack.droneReloadSets();
         return total;
     }
 
