@@ -301,6 +301,38 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 		}
 	}
 
+	/**
+	 * FD2.441: "any drones on a rack are destroyed when the rack is destroyed."
+	 *
+	 * <h2>The pairing worth seeing</h2>
+	 * FD2.441 and FD2.423 say opposite things about two piles of drones that sit inches apart. What
+	 * is LOADED dies with the launcher. What is in RELOAD storage does not — FD2.423 has those
+	 * "stored in various locations around the ship" and destroyed only with the last Excess Damage
+	 * box, and says explicitly that "if all drone racks are destroyed and then one or more are
+	 * repaired, the repaired racks can load the remaining reload drones". So a destroyed rack is
+	 * emptied and a repaired one reloads from the ship's stockpile.
+	 *
+	 * <p>Before this, {@link Weapon#damage()} only cleared {@code functional}: a wrecked rack kept
+	 * its drones, the owner's panel went on listing them, and a repair handed the rack back fully
+	 * loaded with ordnance that FD2.441 had destroyed.
+	 *
+	 * <h2>What goes, and what does not</h2>
+	 * The loaded drones go, and the loaded ANTI-DRONE rounds with them — a type-G holds those in the
+	 * same magazine (FD3.7), and the rule's "any drones on a rack" plainly means what is in it.
+	 * {@code addReloads} stays: that is the reserve BEHIND the rack, which is reload storage by
+	 * FD2.423's reckoning and goes with the last Excess Damage box instead.
+	 *
+	 * <p>A reload already staged for this rack is also left alone, because
+	 * {@link #completePendingReload()} already handles a rack destroyed mid-turn by returning those
+	 * drones to reloads — they never arrived, so they were never "on a rack".
+	 */
+	@Override
+	public void damage() {
+		super.damage();
+		ammoList.clear();
+		addAmmo = 0;
+	}
+
 	@Override
 	public Drone launch(int weaponNumber) {
 		Drone launchedDrone = ammoList.get(weaponNumber);
@@ -446,6 +478,34 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 
 	public int getNumberOfReloads() {
 		return reloads.isEmpty() ? numberOfReloads : reloads.size();
+	}
+
+	/**
+	 * How many sets of DRONE reloads this rack carries, as a number rather than as a list length.
+	 *
+	 * <h2>Why not {@link #getNumberOfReloads()}</h2>
+	 * That one answers {@code reloads.isEmpty() ? numberOfReloads : reloads.size()}, and the two
+	 * branches do not always agree. The type-G is where they part: FD3.72 gives it "two sets of
+	 * reloads, ONE OF WHICH IS ENTIRELY ANTI-DRONES and the other of which is identical to whatever
+	 * is loaded in the rack itself", so {@code numberOfReloads} is 2 while {@link #setAmmo} builds
+	 * one mirrored set — the anti-drone set is a round COUNT, not a list of drones, because an ADD
+	 * is not a {@code Drone}.
+	 *
+	 * <p>That was harmless while nothing load-bearing read it. Then FD2.442's stockpile began sizing
+	 * the ship's reload capacity from it, and {@code completePendingReload} ends with
+	 * {@code reloads.removeIf(List::isEmpty)} — which, once the drones moved to the ship, prunes
+	 * every one of those now-empty lists and flips the answer. A type-G's share of the ship's
+	 * capacity doubled the moment it finished a reload.
+	 *
+	 * <p>So capacity reads this instead: derived from the declared count the way {@code setAmmo}
+	 * derives its mirrored sets, and unaffected by what the lists are doing. {@code addReloadSets}
+	 * raises it, as the Y175 refit should (FD3.72's third set "was identical to the loading of the
+	 * rack").
+	 */
+	public int droneReloadSets() {
+		if (numberOfReloads <= 0)
+			return 0;
+		return acceptsAntiDrones() ? numberOfReloads - 1 : numberOfReloads;
 	}
 
 	public void setNumberOfReloads(int numberOfReloads) {
