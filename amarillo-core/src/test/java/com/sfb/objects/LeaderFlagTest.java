@@ -212,14 +212,26 @@ public class LeaderFlagTest {
      * {@link #dreadnoughtIsSpelledTheOneWay()} enforces it. Two Gorn files said "Dreadnaught" until
      * 2026-10-05, and the predicate briefly tolerated both — the wrong fix, since a rule silently
      * stops applying to any hull that strays by a letter. Enforce the spelling, then trust it.
+     *
+     * <p><b>Battleships count too</b>, added when the Klingon B10 arrived 2026-10-06 — the first
+     * BB-line hull in the library, and one this predicate would have waved straight past. S8.331
+     * names the two in one breath: "no more than one size class 2 ship <b>(dreadnoughts,
+     * battleships, most CVAs and SCSs)</b>", and S8.332 makes the substitution explicit —
+     * "Battleships can be substituted for DNs if mutually agreed." A hull standing in a
+     * dreadnought's slot does not get to be a leader when the dreadnought cannot.
+     *
+     * <p>Left alone deliberately: the CVAs and SCSs that S8.331 also names. Those are size class 2
+     * by hull but they are carriers, and their fleet constraints come from S8.31's carrier groups
+     * rather than from the DN clause — the Federation CVA already sits on the DN line and so is
+     * covered anyway, while a size-class-2 SCS is not a thing this library has yet.
      */
     private static boolean isDreadnought(ShipSpec spec) {
-        if ("DN".equals(spec.line))
+        if ("DN".equals(spec.line) || "BB".equals(spec.line))
             return true;
         if (spec.typeName == null)
             return false;
         String name = spec.typeName.toLowerCase();
-        return name.contains("dreadnought");
+        return name.contains("dreadnought") || name.contains("battleship");
     }
 
     private static String describe(ShipSpec spec) {
