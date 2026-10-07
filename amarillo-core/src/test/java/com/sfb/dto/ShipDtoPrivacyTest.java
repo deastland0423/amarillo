@@ -57,7 +57,11 @@ public class ShipDtoPrivacyTest {
         // aegisPulsesRemaining leaks the same distinction one step further on: three extras
         // against one IS full against limited, and it falls as they are spent, so it would also
         // tell an opponent how many defensive shots a ship has left this impulse.
+        // The identification attempts are the same disclosure one step further on: six a turn is
+        // a full system and nothing is a limited one (D13.35), so the COUNT names the system, and
+        // watching it fall tells an opponent how many tries at his drones are left.
         "aegisFitted", "aegisOperational", "aegisFirings", "aegisPulsesRemaining",
+        "aegisIdAttemptsThisTurn", "aegisIdAttemptsThisImpulse",
         // The energy held, NOT the boxes holding it: availableBattery is a box count and
         // is public, like every other box on the SSD.
         "batteryCharge", "batteryPower", "reserveWarp",
@@ -255,6 +259,15 @@ public class ShipDtoPrivacyTest {
         fed.getPowerSystems().setBatteryPower(3);   // a CA carries three boxes
         fed.getShields().reinforceShield(1, 5);
         fed.addLockOn(enemy);
+        // A setup note, because setupNotes was ruled private and then checked against a ship that
+        // had none — so the assertion compared two empty lists and passed over a real leak. The note
+        // says what the owner ASKED FOR at Commander's Options and could not have, which is his
+        // business and nobody else's.
+        //
+        // allocationNotes is left alone: it has no public setter, being written during allocation,
+        // and the one-line fix is not worth opening Ship's internals for. It is correctly gated
+        // today, so its ruling is still unproven rather than wrong.
+        fed.addSetupNote("COI: could not apply the type-I ECM drone selection");
         for (Weapon w : fed.getWeapons().fetchAllWeapons())
             if (w instanceof HeavyWeapon)
                 ((HeavyWeapon) w).arm(2);
@@ -327,6 +340,7 @@ public class ShipDtoPrivacyTest {
                 + " what redaction blanks, so at least one must carry something first",
             mine.weapons.stream().anyMatch(w ->
                 Boolean.TRUE.equals(w.armed) || w.armingTurn > 0 || w.armingEnergy > 0));
+        assertFalse("setup notes", mine.setupNotes.isEmpty());
     }
 
     @Test

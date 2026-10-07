@@ -384,6 +384,16 @@ export interface ShipObject extends MapObjectBase {
    * driving it from the allowance offers a shot that does not exist.
    */
   aegisPulsesRemaining?: number;
+  /**
+   * D13.31/D13.32: identification attempts left, by turn and by impulse.
+   *
+   * Both, because they run out independently — six a turn and no more than four in one impulse, so
+   * a ship that has spent four this impulse still has two in hand for the next. UNDEFINED on a hull
+   * whose aegis cannot identify at all (D13.412: limited systems cannot), which is why these are
+   * nullable: a primitive would arrive as 0 and read as a full system with nothing left.
+   */
+  aegisIdAttemptsThisTurn?: number;
+  aegisIdAttemptsThisImpulse?: number;
   // Electronic warfare
   sensorRating:     number;
   ecmAllocated:     number;

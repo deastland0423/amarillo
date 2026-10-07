@@ -8,6 +8,7 @@ import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
 import SsdPanel from './SsdPanel';
 import AegisPulsePad from './AegisPulsePad';
+import AegisIdPad from './AegisIdPad';
 import FireOrdersPad from './FireOrdersPad';
 import { movementPrompt } from '../game/movementQueue';
 import LaunchOrdersPad from './LaunchOrdersPad';
@@ -4321,6 +4322,32 @@ export default function GameBoard({ session, onLeave }: Props) {
               stateVersion={gameState.turn * 100 + gameState.impulse}
               onClose={() => setAegisDismissed(prev => new Set(prev)
                 .add(`${s.name}@${gameState.turn}.${gameState.impulse}`))}
+            />
+          ))}
+
+        {/* Aegis identification pads (D13.3), one per own FULL-aegis ship with attempts left.
+            A different phase from the pulse pad above, and that is the reason it is a separate
+            panel rather than a tab: identification is a Ship System Functions Stage action (6B4),
+            taken while the seeker is still inbound and you are deciding whether it is worth a
+            shot, where the pulse is Direct Fire once you have decided. Showing both at once would
+            offer the second half of a decision before the first.
+
+            aegisIdAttemptsThisImpulse is undefined on a limited system (D13.412), so the filter
+            below excludes those hulls without needing to ask what kind of aegis it is. */}
+        {gameState?.phase === 'Activity' && (gameState.mapObjects
+          .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
+          .filter(s => (s.aegisIdAttemptsThisImpulse ?? 0) > 0
+                    && (s.aegisIdAttemptsThisTurn ?? 0) > 0)
+          .filter(s => !aegisDismissed.has(`id:${s.name}@${gameState.turn}.${gameState.impulse}`))
+          .map(s => (
+            <AegisIdPad
+              key={`id-${s.name}`}
+              gameId={session.gameId}
+              playerToken={session.playerToken}
+              ship={s}
+              stateVersion={gameState.turn * 100 + gameState.impulse}
+              onClose={() => setAegisDismissed(prev => new Set(prev)
+                .add(`id:${s.name}@${gameState.turn}.${gameState.impulse}`))}
             />
           ))}
 

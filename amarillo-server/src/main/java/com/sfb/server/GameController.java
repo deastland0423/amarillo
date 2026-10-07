@@ -1682,6 +1682,94 @@ public class GameController {
     }
 
     /**
+     * What this ship's aegis may attempt to IDENTIFY (D13.3), as distinct from what it may shoot.
+     *
+     * <h3>A separate endpoint, because the eligibility is a different rule</h3>
+     * {@code /fire-targets?aegis=true} answers D13.21/D13.23 — size class 6 or smaller, within six
+     * hexes, <b>with a lock-on</b>, and a weapon that bears. None of that governs identification.
+     * D13.3 needs no lock-on and no weapon at all; it is the sensor suite reading an incoming
+     * seeker, and the only distance rule is its own table, which stops at six hexes. Answering it
+     * through the fire endpoint would have meant a seeker you could see but not shoot going
+     * unidentifiable, which is backwards: identifying it is how you decide whether to bother.
+     *
+     * <h3>Shuttles are candidates on purpose</h3>
+     * D13.32: "This procedure can be used against shuttles that are <b>suspected</b> to be seeking
+     * weapons." That is the point of the rule — an admin shuttle and a suicide shuttle look alike
+     * until someone looks, so a player must be able to spend an attempt on something that may turn
+     * out to be nothing. The list therefore includes every enemy non-ship unit in range.
+     *
+     * <h3>What each row carries</h3>
+     * {@code needs} is the die that identifies at this range, straight from D13.31's table, and
+     * {@code repeat} says whether D13.321's -1 applies because this ship's last attempt in an
+     * EARLIER impulse was at this same seeker. Both come from core rather than being recomputed
+     * here: the table is a rule, and D13.322's "attempts during the same impulse do not count as
+     * previous to each other" is a subtlety no client should be asked to reproduce.
+     *
+     * <p>Already-identified units are left out. Nothing in the rules forbids attempting one again,
+     * but there is nothing to learn and only six attempts a turn, so offering it would be offering
+     * a mistake.
+     */
+    @GetMapping("/{id}/aegis-id-targets")
+    public ResponseEntity<?> getAegisIdTargets(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Player-Token", required = false) String token,
+            @RequestParam String attacker) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+
+        return locked(session, () -> {
+            Unit attackerUnit = findFiringUnit(session, attacker);
+            if (!(attackerUnit instanceof Ship))
+                return ResponseEntity.ok(List.of());
+            Ship ship = (Ship) attackerUnit;
+            if (ship.getLocation() == null)
+                return ResponseEntity.ok(List.of());
+            // D13.35/D13.412: a limited system cannot do this at all, so it gets an empty list
+            // rather than rows it would be refused for.
+            if (!ship.getAegisFitted().canIdentifySeekers())
+                return ResponseEntity.ok(List.of());
+
+            GameSession.PlayerInfo me = session.getPlayers().get(token);
+            java.util.Set<String> mine = new java.util.HashSet<>(
+                    me != null ? me.getShipNames() : java.util.List.<String>of());
+
+            int impulse = session.getGame().getAbsoluteImpulse();
+            String previous = ship.aegisIdPreviousTarget(impulse);
+
+            List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Unit candidate : attackableCandidates(session, attackerUnit, mine)) {
+                if (candidate instanceof Ship)
+                    continue;                       // a ship is not a seeking weapon
+                if (candidate instanceof com.sfb.objects.Seeker
+                        && ((com.sfb.objects.Seeker) candidate).isIdentified())
+                    continue;
+                if (candidate instanceof com.sfb.objects.shuttles.Shuttle
+                        && ((com.sfb.objects.shuttles.Shuttle) candidate).isIdentified())
+                    continue;
+                int range = MapUtils.getRange(ship, candidate);
+                int needs = Ship.aegisIdentifyNeeds(range);
+                if (needs < 0)
+                    continue;                       // D13.31: seven or more, not allowed
+                if (session.getGame().losBlocked(ship.getLocation(), candidate.getLocation()))
+                    continue;                       // P2.321
+
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", candidate.getName());
+                row.put("kind", candidateKind(candidate));
+                row.put("range", range);
+                row.put("needs", needs);
+                row.put("repeat", candidate.getName().equals(previous));
+                row.put("closingOn", closingOn(candidate, session, mine));
+                out.add(row);
+            }
+            out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
+            return ResponseEntity.ok(out);
+        });
+    }
+
+    /**
      * Which of the caller's units this seeker is bearing down on, or null.
      *
      * An INFERENCE from the board, not a disclosure: it reads the seeker's position and

@@ -2663,6 +2663,36 @@ public class GameSession {
                 return r;
             }
 
+            /**
+             * D13.3: one aegis identification attempt at one incoming seeking weapon.
+             *
+             * One attempt per call, deliberately. D13.322 has attempts in the same impulse "all
+             * rolled simultaneously", which sounds like a batch — but it also says they "do not
+             * count as 'previous' to each other" for D13.321's modifier, so rolling them one at a
+             * time changes no outcome, and the player wants to see each answer before spending the
+             * next of only six a turn. A batch would also have to decide what to do when the third
+             * of four is refused.
+             *
+             * Thin, like AEGIS_PULSE beside it: every rule is in Game.identifyWithAegis, which
+             * refuses with the rule number for the wrong stage (6B4), a limited system (D13.35), no
+             * operating fire control, the turn and impulse allowances (D13.31/D13.32), a friendly
+             * target, and a range beyond six. Ownership is gated by the controller before any
+             * action reaches here.
+             *
+             * The result goes to the shared combat log, as the lab and scout identification in
+             * IDENTIFY_SEEKER above does — the same information by a different instrument (D13.34),
+             * so it is logged the same way.
+             */
+            case "AEGIS_IDENTIFY": {
+                Ship ship = findShip(request.getShipName());
+                if (ship == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                ActionResult r = game.identifyWithAegis(ship, request.getTargetName());
+                if (r.isSuccess())
+                    appendCombatLog(r.getMessage());
+                return r;
+            }
+
             default:
                 return ActionResult.fail("Unknown action type: " + request.getType());
         }

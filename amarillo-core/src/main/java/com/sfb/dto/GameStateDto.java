@@ -596,6 +596,20 @@ public class GameStateDto {
          * the allowance does not move.
          */
         public Integer aegisPulsesRemaining;
+        /**
+         * D13.31/D13.32: identification attempts this ship has left, by turn and by impulse.
+         *
+         * <p>Both, because they run out independently and a pad driven by either alone offers a
+         * try the rule refuses. Six a turn (D13.31) and no more than four in one impulse
+         * (D13.32): a ship that has spent four this impulse still has two in hand for the next,
+         * and one that has spent all six has none however the impulse looks.
+         *
+         * <p>{@code Integer} rather than {@code int} so a hull with no full aegis can say "not
+         * applicable". A primitive would arrive as 0 on every ship in the game, which reads as
+         * "all used up" — the trap that has shipped bugs here twice.
+         */
+        public Integer aegisIdAttemptsThisTurn;
+        public Integer aegisIdAttemptsThisImpulse;
         public boolean requiresEscort;  // cannot be fielded without escorts (S8.315)
         public boolean bch;          // heavy battlecruiser; one per fleet (S8.333)
         public int scoutEwPool;      // EW points this scout generated to lend this turn (G24.211)
@@ -1545,15 +1559,30 @@ public class GameStateDto {
         dto.sensorRating = ship.getSpecialFunctions().getSensor();
         dto.ecmAllocated = ship.getEcmAllocated();
         dto.eccmAllocated = ship.getEccmAllocated();
-        if (!hideSecrets)
+        // Braces, and they matter: without them only the FIRST line was conditional and every
+        // ship's setup notes went to the enemy, indented to look as though they did not. A setup
+        // note says what the owner asked for at Commander's Options and could not have — his
+        // loadout intentions, in prose. ShipDtoPrivacyTest had ruled the field private years
+        // earlier and checked it against a fixture with no notes, so two empty lists compared equal
+        // and the guard passed over the leak; the fixture now carries one.
+        if (!hideSecrets) {
             dto.allocationNotes = new ArrayList<>(ship.getAllocationNotes());
             dto.setupNotes = new ArrayList<>(ship.getSetupNotes());
+        }
         dto.leader = ship.isLeader();
         dto.escort = ship.isEscort();
         dto.aegisFitted = ship.getAegisFitted().name();
         dto.aegisOperational = ship.isAegisOperational(game.getAbsoluteImpulse());
         dto.aegisFirings = ship.aegisFirings(game.getAbsoluteImpulse());
         dto.aegisPulsesRemaining = ship.aegisPulsesRemaining(game.getAbsoluteImpulse());
+        // Only a FULL system identifies (D13.35/D13.412), so a limited one says "not applicable"
+        // rather than nought — otherwise the pad would read as a full system out of attempts.
+        if (ship.getAegisFitted().canIdentifySeekers()) {
+            dto.aegisIdAttemptsThisTurn =
+                    ship.aegisIdAttemptsLeftThisTurn(game.getClock().getTurn());
+            dto.aegisIdAttemptsThisImpulse =
+                    ship.aegisIdAttemptsLeftThisImpulse(game.getAbsoluteImpulse());
+        }
         dto.requiresEscort = ship.requiresEscort();
         dto.bch = ship.isBCH();
         dto.lentEcm = ship.getLentEcm();
@@ -2355,6 +2384,8 @@ public class GameStateDto {
         dto.aegisOperational = null;
         dto.aegisFirings = null;
         dto.aegisPulsesRemaining = null;
+        dto.aegisIdAttemptsThisTurn = null;
+        dto.aegisIdAttemptsThisImpulse = null;
 
         // How much lending capacity a scout has left. What it is actually lending, and to
         // whom, is public.

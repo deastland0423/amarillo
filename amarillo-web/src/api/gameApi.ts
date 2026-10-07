@@ -429,6 +429,20 @@ export interface CoiSubmission {
   };
 }
 
+/** One seeking weapon this ship's aegis may try to identify (D13.3). */
+export interface AegisIdCandidate {
+  /** The wire identity the server keys on. */
+  name: string;
+  kind: string;
+  range: number;
+  /** D13.31: the highest die that identifies at this range. 6 means automatic. */
+  needs: number;
+  /** D13.321: a -1 applies, this ship having tried this same seeker in an earlier impulse. */
+  repeat: boolean;
+  /** Which of the viewer's own units it is pointed at — an inference, never its real target. */
+  closingOn: string | null;
+}
+
 export const gameApi = {
   createGame(hostName: string): Promise<CreateGameResponse> {
     return request('/api/games', {
@@ -660,6 +674,32 @@ export const gameApi = {
   ): Promise<import('../components/FireOrdersPad').FireCandidate[]> {
     return request(
       `/api/games/${gameId}/fire-targets?aegis=true&attacker=${encodeURIComponent(attacker)}`,
+      { headers: { 'X-Player-Token': playerToken } },
+    );
+  },
+
+  /**
+   * What this ship's aegis may attempt to IDENTIFY (D13.3) — a different question from what it may
+   * shoot, and so a different endpoint.
+   *
+   * Aegis FIRE needs a lock-on, a weapon that bears and a target of size class 6 or smaller
+   * (D13.21/D13.23). Identification needs none of that: it is the sensor suite reading an incoming
+   * seeker, and its only distance rule is its own table, which stops at six hexes. A seeker you can
+   * see but cannot shoot must still be identifiable, since identifying it is how you decide whether
+   * shooting is worth one of only four firings.
+   *
+   * Each row carries `needs`, the die that identifies at this range, and `repeat`, whether
+   * D13.321's -1 applies because this ship's last attempt in an EARLIER impulse was at this same
+   * seeker. Both computed on the server: the table is a rule, and D13.322's "attempts during the
+   * same impulse do not count as previous to each other" is a subtlety no client should reproduce.
+   */
+  getAegisIdTargets(
+    gameId: string,
+    playerToken: string,
+    attacker: string,
+  ): Promise<AegisIdCandidate[]> {
+    return request(
+      `/api/games/${gameId}/aegis-id-targets?attacker=${encodeURIComponent(attacker)}`,
       { headers: { 'X-Player-Token': playerToken } },
     );
   },
