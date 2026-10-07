@@ -209,6 +209,10 @@ public class Ship extends Unit implements DroneController {
 	private boolean bch = false;         // heavy battlecruiser; one per fleet (S8.333)
 	// Annex #3 "D%"/"DB": extra special-drone allowance and a 30% COI budget (FD10.622, S3.223)
 	private boolean dPercent = false;
+	// FD2.442's reload drones, held once for the whole ship rather than per rack (FD2.422). See
+	// reloadStockpile(); stockpileWeapons is only there to notice a replaced weapon group.
+	private com.sfb.systemgroups.ReloadStockpile reloadStockpile = null;
+	private com.sfb.systemgroups.Weapons stockpileWeapons = null;
 	private double coiSpend = 0; // VP spent on Commander's Option Items (S2.20 B / S3.2); handed to the enemy.
 	private int commandRating = 0; // Command Rating, the number of ships this ship can command in a scenario.
 	private boolean isBase = false; // True for starbases, space stations, outposts — gates base-specific mechanics
@@ -1330,12 +1334,21 @@ public class Ship extends Unit implements DroneController {
 	/**
 	 * FD2.442's reload storage, as ONE stockpile for the ship (FD2.43, FD2.422).
 	 * <p>
-	 * Built per call rather than cached: the drones still live in the racks' reload sets, so a held
-	 * object would go stale the moment a rack was destroyed or refitted. See
-	 * {@link com.sfb.systemgroups.ReloadStockpile} for what that sequencing is about.
+	 * The SAME stockpile every time, because it is where the drones live rather than a view over the
+	 * racks: handing back a fresh one would split the ship's reloads between two piles and lose
+	 * whatever had been drawn. It is built on first use and rebuilt if the weapon group is replaced
+	 * — {@link #init} does that — since a stockpile pointing at the old group would report the old
+	 * ship's capacity.
+	 * <p>
+	 * Capacity still comes from the racks, so destroying one lowers it; see
+	 * {@link com.sfb.systemgroups.ReloadStockpile}.
 	 */
 	public com.sfb.systemgroups.ReloadStockpile reloadStockpile() {
-		return com.sfb.systemgroups.ReloadStockpile.of(getWeapons());
+		if (reloadStockpile == null || stockpileWeapons != getWeapons()) {
+			reloadStockpile = com.sfb.systemgroups.ReloadStockpile.of(getWeapons());
+			stockpileWeapons = getWeapons();
+		}
+		return reloadStockpile;
 	}
 
 	public boolean isDPercent() {

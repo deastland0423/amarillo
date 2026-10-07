@@ -603,6 +603,12 @@ public class GameStateDto {
         public int scoutEwRemaining; // still available to commit; dropped points are lost (G24.2122)
         public List<WeaponDto> weapons;
         public List<DroneRackDto> droneRacks;
+        /**
+         * FD2.442's reload stockpile: the drones held for ALL of this ship's racks, counted by type.
+         * One pool, because FD2.422 says it "is not directly associated with any particular rack and
+         * can be loaded onto any rack on the ship".
+         */
+        public List<ReloadPoolEntryDto> reloadPool;
         public List<ShuttleBayDto> shuttleBays;
         public int tBombs;
         public int dummyTBombs;
@@ -1884,33 +1890,41 @@ public class GameStateDto {
             }
             rd.reloadCount = rack.getNumberOfReloads();
             rd.reloadingThisTurn = rack.isReloadingThisTurn();
-            // Build flat pool: count available drones by type across all reload sets
-            Map<String, ReloadPoolEntryDto> poolMap = new LinkedHashMap<>();
-            for (List<Drone> set : rack.getReloads()) {
-                for (Drone d : set) {
-                    String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
-                    ReloadPoolEntryDto entry = poolMap.computeIfAbsent(type, t -> {
-                        ReloadPoolEntryDto e = new ReloadPoolEntryDto();
-                        e.droneType = t;
-                        e.rackSize = d.getRackSize();
-                        e.count = 0;
-                        return e;
-                    });
-                    entry.count++;
-                }
-            }
-            // A type-G may spend its two spaces on anti-drones instead (FD2.42/FD3.72), so
-            // the reserve appears in the same pool the drones do, at half a space each.
+            // The DRONES in reload storage are the ship's, not this rack's (FD2.422), and are
+            // reported once in dto.reloadPool below. They used to be reported here, per rack, which
+            // offered the same stockpile as many times as the ship had racks.
+            //
+            // What stays per rack is the ANTI-DRONE reserve: FD3.72 gives the type-G a reload set
+            // that is "entirely anti-drones", and an ADD round is not a Drone — it is a count on the
+            // rack, it can only be loaded into the rack holding it, and FD2.42 spends it against the
+            // same two spaces a drone would at half a space each.
+            rd.reloadPool = new ArrayList<>();
             if (rack.acceptsAntiDrones() && rack.getAddReloads() > 0) {
                 ReloadPoolEntryDto ad = new ReloadPoolEntryDto();
                 ad.droneType = DroneRack.ANTI_DRONE_POOL_KEY;
                 ad.rackSize = DroneRack.ANTI_DRONE_SPACE;
                 ad.count = rack.getAddReloads();
-                poolMap.put(ad.droneType, ad);
+                rd.reloadPool.add(ad);
             }
-            rd.reloadPool = new ArrayList<>(poolMap.values());
             dto.droneRacks.add(rd);
         }
+
+        // FD2.442's stockpile, once for the ship. Any rack may draw from it (FD2.422), so one list
+        // is both the truth and the only shape a client cannot double-spend.
+        dto.reloadPool = new ArrayList<>();
+        Map<String, ReloadPoolEntryDto> shipPool = new LinkedHashMap<>();
+        for (Drone d : ship.reloadStockpile().held()) {
+            String type = d.getDroneType() != null ? d.getDroneType().toString() : "?";
+            ReloadPoolEntryDto entry = shipPool.computeIfAbsent(type, t -> {
+                ReloadPoolEntryDto e = new ReloadPoolEntryDto();
+                e.droneType = t;
+                e.rackSize = d.getRackSize();
+                e.count = 0;
+                return e;
+            });
+            entry.count++;
+        }
+        dto.reloadPool.addAll(shipPool.values());
 
         dto.shuttleBays = new ArrayList<>();
         List<ShuttleBay> bays = ship.getShuttles().getBays();

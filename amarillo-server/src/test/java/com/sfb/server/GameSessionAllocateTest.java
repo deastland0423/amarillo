@@ -516,14 +516,75 @@ class GameSessionAllocateTest {
                 "exactly two drones left the racks; the third was never taken out");
     }
 
-    /** Every drone sitting in any of this ship's rack reload sets. */
-    private static int reloadDronesOn(Ship ship) {
-        int n = 0;
-        for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons())
+    /**
+     * Two racks, one pile. Together they cannot draw more than the ship actually holds.
+     *
+     * <p>FD2.422 makes the stockpile the ship's — "not directly associated with any particular rack
+     * and can be loaded onto any rack on the ship" — so two racks reaching for the same drones in one
+     * allocation is the ordinary case, not an error. What must not happen is both being served: the
+     * pile would go negative, or (as it would have before the storage moved) each rack would quietly
+     * serve itself from its own copy and the ship would hand out twice what it had.
+     *
+     * <p>Tested through executeAction rather than against the stockpile directly, because the whole
+     * point is the path a player's allocation actually takes: the dialog offers the pool, the server
+     * takes from it, and the arithmetic has to agree across the two racks the request names.
+     */
+    @Test
+    void droneReloads_twoRacksCannotDrawMoreThanTheShipHolds() {
+        Ship klingon = new Ship();
+        klingon.init(com.sfb.samples.KlingonShips.getD7());
+        klingon.setName("IKV Grudge");
+        klingon.setLocation(new Location(18, 9));
+        klingon.setFacing(1);
+        game.getShips().add(klingon);
+        game.startTurn();
+
+        java.util.List<com.sfb.weapons.DroneRack> racks = new java.util.ArrayList<>();
+        for (com.sfb.weapons.Weapon w : klingon.getWeapons().fetchAllWeapons())
             if (w instanceof com.sfb.weapons.DroneRack rack)
-                for (java.util.List<com.sfb.objects.Drone> set : rack.getReloads())
-                    n += set.size();
-        return n;
+                racks.add(rack);
+        assertTrue(racks.size() >= 2, "fixture needs two racks to contend over one pile");
+
+        // Strip the pile down to ONE drone of a type, so "both racks get what they asked for" and
+        // "the ship loses one drone" cannot both be true.
+        com.sfb.systemgroups.ReloadStockpile pile = klingon.reloadStockpile();
+        com.sfb.objects.DroneType type = pile.held().get(0).getDroneType();
+        int spare = pile.heldByType().getOrDefault(type, 0);
+        assertTrue(spare >= 1, "fixture: the hull stocks " + type);
+        pile.take(type, spare - 1);
+        assertEquals(1, pile.heldByType().getOrDefault(type, 0).intValue(),
+                "fixture: exactly one left to fight over");
+        int before = pile.held().size();
+
+        ActionRequest req = allocate("IKV Grudge");
+        req.setDroneReloadSelections(java.util.Map.of(
+                racks.get(0).getName(), java.util.Map.of(type.name(), 1),
+                racks.get(1).getName(), java.util.Map.of(type.name(), 1)));
+
+        ActionResult result = session.executeAction(req);
+
+        assertTrue(result.isSuccess(), result.getMessage());
+        assertEquals(before - 1, pile.held().size(),
+                "one drone was there and one drone left; the second rack drew nothing");
+        int staged = stagedCount(racks.get(0)) + stagedCount(racks.get(1));
+        assertEquals(1, staged, "and only one rack has a reload staged");
+    }
+
+    /** Drones a rack has staged for reload, which is null rather than empty when it has none. */
+    private static int stagedCount(com.sfb.weapons.DroneRack rack) {
+        return rack.getPendingReloadSet() == null ? 0 : rack.getPendingReloadSet().size();
+    }
+
+    /**
+     * Every drone in this ship's reload storage.
+     * <p>
+     * It reads the SHIP's stockpile rather than walking the racks' reload sets, which is where the
+     * drones used to sit. FD2.422 makes the stockpile the ship's and not any rack's, and the storage
+     * followed the rule; a helper still counting rack sets reported zero and every assertion built on
+     * it became a comparison between two zeroes.
+     */
+    private static int reloadDronesOn(Ship ship) {
+        return ship.reloadStockpile().held().size();
     }
 
     // -------------------------------------------------------------------------

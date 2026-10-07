@@ -758,16 +758,13 @@ public class ScenarioLoader {
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof DroneRack) racks.add((DroneRack) w);
         }
-        // Check reload sets first — preserve ammo so the rack is ready to fire on Turn 1
-        for (DroneRack rack : racks) {
-            for (List<Drone> reloadSet : rack.getReloads()) {
-                Iterator<Drone> it = reloadSet.iterator();
-                while (it.hasNext()) {
-                    if (it.next().getDroneType() == type) { it.remove(); return true; }
-                }
-            }
-        }
-        // Fall back to ammo only if no matching drone exists in any reload set
+        // Check the ship's reload stockpile first — preserve ammo so the racks are ready to fire on
+        // Turn 1. One pile for the ship, per FD2.422, so this no longer has to walk the racks: it
+        // used to, and a drone sitting in rack 2's set was only findable after rack 1's was empty,
+        // which is the same confusion the stockpile exists to end.
+        if (!ship.reloadStockpile().take(type, 1).isEmpty())
+            return true;
+        // Fall back to ammo only if no matching drone exists in the stockpile
         for (DroneRack rack : racks) {
             Iterator<Drone> it = rack.getAmmo().iterator();
             while (it.hasNext()) {

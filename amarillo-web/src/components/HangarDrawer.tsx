@@ -168,14 +168,13 @@ export function HangarDrawer({
 
   const bays = ship.shuttleBays ?? [];
 
-  // What a scatter pack can be filled from: the reload sets the ship's drone racks carry.
+  // What a scatter pack can be filled from: the ship's reload stockpile (FD7.22, FD2.422).
+  // This used to sum the racks' own pools, which was right while each rack held its own drones;
+  // the stockpile is one pile for the ship now, so summing it per rack would count it twice on a
+  // two-rack hull.
   const stockpile: Record<string, { rackSize: number; count: number }> = {};
-  for (const rack of ship.droneRacks ?? [])
-    for (const entry of rack.reloadPool ?? []) {
-      if (!stockpile[entry.droneType])
-        stockpile[entry.droneType] = { rackSize: entry.rackSize, count: 0 };
-      stockpile[entry.droneType].count += entry.count;
-    }
+  for (const entry of ship.reloadPool ?? [])
+    stockpile[entry.droneType] = { rackSize: entry.rackSize, count: entry.count };
   const spacesIn = (sel: Record<string, number>) =>
     Object.entries(sel).reduce((sum, [dt, n]) => sum + (stockpile[dt]?.rackSize ?? 1) * n, 0);
 

@@ -239,6 +239,11 @@ export interface DroneRackState {
   drones:               { droneType: string; warheadDamage: number; speed: number; endurance: number }[];
   reloadCount:          number;
   reloadingThisTurn:    boolean;
+  /**
+   * This rack's ANTI-DRONE reserve only (FD3.72) — the drones are the ship's, in
+   * ShipState.reloadPool. A type-G's anti-drone set can only load into the rack holding it, which
+   * is why it stays here while the drones moved.
+   */
   reloadPool:           ReloadPoolEntry[];
   launchDirectionsMask: number;  // valid launch facings bitmask; 0 = unrestricted
   antiDrones?:          number;  // type-G only (FD3.70): anti-drone rounds, 1/2 space each
@@ -265,6 +270,13 @@ export interface ShipObject extends MapObjectBase {
   // Weapons
   weapons:          WeaponState[];
   droneRacks:       DroneRackState[];
+  /**
+   * FD2.442's reload stockpile for the WHOLE ship, counted by drone type. FD2.422: it "is not
+   * directly associated with any particular rack and can be loaded onto any rack on the ship", so
+   * every rack's picker draws on this one list — see EnergyAllocationDialog, which has to subtract
+   * what the other racks have already claimed.
+   */
+  reloadPool?:      ReloadPoolEntry[];
   shuttleBays:      ShuttleBayState[];
   phaserCapacitor:    number;
   phaserCapacitorMax: number;

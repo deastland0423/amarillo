@@ -77,6 +77,11 @@ public class ShipDtoPrivacyTest {
         // remain is how long he can keep launching. The cargo BOXES stay public - they are
         // SSD boxes, and the hit that destroyed one was announced - but not their contents.
         "cargoDroneSpaces", "cargoDroneSpacesHeld",
+        // FD2.442's reload stockpile, by type. The same secret again, and the sharpest form of it:
+        // how many reloads a ship has left is how many more launches it has in it, and G4.233 keeps
+        // even the TYPES aboard off a scan ("the drones aboard a ship... cannot be determined").
+        // The rack COUNT stays public, being boxes on the SSD; what is behind them does not.
+        "reloadPool",
         "tractorEnergy", "tractorEnergyRemaining",
         // Mines carried, and which are bluffs
         "tBombs", "dummyTBombs", "nuclearSpaceMines",
