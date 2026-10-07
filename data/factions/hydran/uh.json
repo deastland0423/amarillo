@@ -2,7 +2,6 @@
   "faction": "Hydran",
   "type": "UH",
   "typeName": "Uhlan Patrol Carrier",
-  "carrierClass": "CAPABLE",
   "line": "DD",
   "name": "HMS Swarmer",
   "serviceYear": 169,
@@ -13,6 +12,7 @@
   "moveCost": 0.5,
   "breakdown": 6,
   "bonusHets": 1,
+  "carrierClass": "CAPABLE",
   "requiresEscort": true,
   "commandRating": 4,
   

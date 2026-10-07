@@ -65,8 +65,8 @@
     { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
     { "type": "Phaser2", "designator": "2", "arcs": ["FA"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
-    { "type": "PhaserG", "designator": "4", "arcs": ["RA"] },
-    { "type": "PhaserG", "designator": "5", "arcs": ["RA"] },
+    { "type": "PhaserG", "designator": "4", "arcs": ["LS"] },
+    { "type": "PhaserG", "designator": "5", "arcs": ["RS"] },
     { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
     { "type": "Fusion",  "designator": "B", "arcs": ["FA"] },
     { "type": "Fusion",  "designator": "C", "arcs": ["FA"] }

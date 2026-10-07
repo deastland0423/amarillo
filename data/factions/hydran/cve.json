@@ -1,0 +1,70 @@
+{
+  "faction": "Hydran",
+  "type": "CVE",
+  "typeName": "Scythian Escort Carrier",
+  "line": "FF",
+  "name": "HMS Blood",
+  "serviceYear": 175,
+  "bpv": 48,
+  "epv": 68,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 6,
+  "bonusHets": 1,
+  "commandRating": 5,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  
+  "shields": [17, 12, 10, 11, 10, 12],
+  
+  "hullBoxes": {
+    "chull": 9
+  },
+  
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 2,
+    "battery": 2
+  },
+  
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 1, 0],
+    "scanner": [0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 2,
+    "labs": 2,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"], "launchTubes": 4, "fighters": { "line": "hydran-stinger", "superiority": 6 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 15,
+    "boardingParties": 6,
+    "deckCrews": 6,
+    "minCrew": 3
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
+    { "type": "PhaserG", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "PhaserG", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "PhaserG", "designator": "4", "arcs": ["FULL"] }
+  ]
+}
