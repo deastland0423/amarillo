@@ -1301,43 +1301,42 @@ public class GameSession {
                         if (askedAntiDrones != null && askedAntiDrones > 0 && rack.acceptsAntiDrones())
                             antiDrones = Math.min(askedAntiDrones, rack.getAddReloads());
 
-                        // Pass 1: collect candidate Drone objects by reference (without removing yet)
+                        // Drawn from the SHIP's stockpile, not this rack's own sets. FD2.422: "A
+                        // unit's total stockpile (FD2.43) is not directly associated with any
+                        // particular rack and can be loaded onto any rack on the ship." Searching
+                        // only the rack's own sets — which is what this did until 2026-10-07 — meant
+                        // a D7's rack 1 could not draw a drone sitting in rack 2.
+                        com.sfb.systemgroups.ReloadStockpile stockpile = ship.reloadStockpile();
                         List<Drone> candidates = new ArrayList<>();
                         for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
                             String droneType = tc.getKey();
                             if (DroneRack.ANTI_DRONE_POOL_KEY.equals(droneType))
                                 continue;
                             int needed = tc.getValue() != null ? tc.getValue() : 0;
-                            outer: for (List<Drone> set : rack.getReloads()) {
-                                for (Drone d : set) {
-                                    if (needed <= 0)
-                                        break outer;
-                                    if (d.getDroneType() != null
-                                            && d.getDroneType().toString().equals(droneType)
-                                            && !candidates.contains(d)) {
-                                        candidates.add(d);
-                                        needed--;
-                                    }
-                                }
+                            com.sfb.objects.DroneType wanted;
+                            try {
+                                wanted = com.sfb.objects.DroneType.valueOf(droneType);
+                            } catch (IllegalArgumentException ex) {
+                                continue;   // a type this build does not know; say nothing, load nothing
                             }
+                            candidates.addAll(stockpile.take(wanted, needed));
                         }
 
                         if (candidates.isEmpty() && antiDrones == 0)
                             continue;
                         // Enforce max 2 rack spaces per rack per turn (FD2.421), counting
-                        // both kinds against the one budget.
+                        // both kinds against the one budget. The stockpile is the ship's, but the
+                        // RATE is the rack's — so this cap stays per rack.
                         double spaces = DroneRack.reloadCost(candidates)
                                 + antiDrones * DroneRack.ANTI_DRONE_SPACE;
-                        if (spaces > 2.0 + 1e-9)
+                        if (spaces > 2.0 + 1e-9) {
+                            // Over the rack's turn budget: put them back rather than quietly
+                            // consuming them. take() has already removed them from the stockpile.
+                            for (Drone d : candidates)
+                                stockpile.put(d);
                             continue;
-
-                        // Pass 2: remove the chosen drones from their sets, then stage
-                        for (Drone d : candidates) {
-                            for (List<Drone> set : rack.getReloads()) {
-                                if (set.remove(d))
-                                    break;
-                            }
                         }
+
                         rack.stagePendingReload(candidates, antiDrones);
                     }
                 }
@@ -1382,12 +1381,6 @@ public class GameSession {
                             foundBay.replaceShuttle(foundShuttle, pack);
                         }
 
-                        // Collect requested drones from reload stockpile across all racks
-                        List<DroneRack> allRacks = ship.getWeapons().fetchAllWeapons().stream()
-                                .filter(w -> w instanceof DroneRack)
-                                .map(w -> (DroneRack) w)
-                                .collect(java.util.stream.Collectors.toList());
-
                         for (Map.Entry<String, Integer> tc : typeCountMap.entrySet()) {
                             com.sfb.objects.DroneType dt;
                             try {
@@ -1415,29 +1408,21 @@ public class GameSession {
                                         > com.sfb.objects.shuttles.ScatterPack
                                                 .MAX_SPACES_LOADED_PER_TURN)
                                     break;
-                                // Pull from reload stockpile (any rack's reload sets)
-                                boolean pulled = false;
-                                spOuter: for (DroneRack rack : allRacks) {
-                                    for (List<Drone> set : rack.getReloads()) {
-                                        for (java.util.Iterator<Drone> it = set.iterator(); it.hasNext();) {
-                                            Drone d = it.next();
-                                            if (d.getDroneType() == dt) {
-                                                // Offer it BEFORE taking it out of the rack.
-                                                // The other order took the drone out and
-                                                // dropped it if the pack said no, destroying
-                                                // ordnance to enforce a limit.
-                                                if (!pack.addPendingDrone(d))
-                                                    break spOuter;
-                                                it.remove();
-                                                deckCrewsLeft -= dt.rack;
-                                                pulled = true;
-                                                break spOuter;
-                                            }
-                                        }
-                                    }
+                                // From the SHIP's stockpile (FD2.422), which is what this loop
+                                // was already doing by hand across every rack — now said once.
+                                List<Drone> one = ship.reloadStockpile().take(dt, 1);
+                                if (one.isEmpty())
+                                    break;   // no more of this type in the stockpile
+                                Drone pulledDrone = one.get(0);
+                                // If the pack refuses it, PUT IT BACK. The drone has already left
+                                // the stockpile by this point, and the previous version of this
+                                // loop was written the other way round precisely because dropping
+                                // it here destroys ordnance to enforce a limit.
+                                if (!pack.addPendingDrone(pulledDrone)) {
+                                    ship.reloadStockpile().put(pulledDrone);
+                                    break;
                                 }
-                                if (!pulled)
-                                    break; // no more of this type available
+                                deckCrewsLeft -= dt.rack;
                             }
                         }
                     }

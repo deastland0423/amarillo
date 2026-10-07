@@ -1327,6 +1327,17 @@ public class Ship extends Unit implements DroneController {
 	 * same allowance by their own clause in FD10.622, and neither needs this flag — see
 	 * {@code CoiBudget} for where the three are brought together.
 	 */
+	/**
+	 * FD2.442's reload storage, as ONE stockpile for the ship (FD2.43, FD2.422).
+	 * <p>
+	 * Built per call rather than cached: the drones still live in the racks' reload sets, so a held
+	 * object would go stale the moment a rack was destroyed or refitted. See
+	 * {@link com.sfb.systemgroups.ReloadStockpile} for what that sequencing is about.
+	 */
+	public com.sfb.systemgroups.ReloadStockpile reloadStockpile() {
+		return com.sfb.systemgroups.ReloadStockpile.of(getWeapons());
+	}
+
 	public boolean isDPercent() {
 		return dPercent;
 	}
