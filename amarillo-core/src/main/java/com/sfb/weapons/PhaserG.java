@@ -29,6 +29,7 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 	public PhaserG() {
 		setDacHitLocaiton("phaser");
 		setType("PhaserG");
+		setDisplayName("Phaser-G");
 		setMinRange(0);
 		setMaxRange(15);
 		setMaxShotsPerTurn(SHOTS_PER_TURN);

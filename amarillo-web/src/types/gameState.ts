@@ -23,6 +23,12 @@ export interface WeaponState {
   /** The kind on its own: "Phaser1", "Photon", "Disruptor30", "ADD", "Drone". */
   type?:             string;
   /**
+   * What to CALL it: "Phaser-1 1", "Plasma-R A", "Type-A Drone Rack 1", "ADD 1". Computed in CORE,
+   * so this display and the combat log cannot disagree — and they did, for a while, in four places
+   * at once. Prefer it over assembling `type` and `designator` here.
+   */
+  label?:            string;
+  /**
    * Which drone rack this is — "TYPE_A" … "TYPE_H" — null on anything that is not one. Worth
    * showing: the eight behave very differently (a type-C fires twice a turn, a type-G throws
    * anti-drones, a type-D has magazines and no reloads), and "Drone Rack 1" said none of it.

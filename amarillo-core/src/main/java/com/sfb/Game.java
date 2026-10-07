@@ -2950,7 +2950,7 @@ public class Game {
             // aegis reaches. The D5's covers its ADDs and its four phaser-3s, nothing else.
             if (!attacker.aegisMayControl(w))
                 return ActionResult.fail(attacker.getName() + "'s aegis cannot control "
-                        + w.getName() + " (D13.22)");
+                        + w.getLabel() + " (D13.22)");
             if (w.barredByAegisExclusivity(now, true))
                 return ActionResult.fail(w.getName()
                         + " already fired outside aegis control this impulse (D13.22)");

@@ -69,6 +69,19 @@ public class PlasmaLauncher extends Weapon implements HeavyWeapon, Launcher, Dir
 		setMaxRange(BOLT_HIT_CHART.length - 1); // bolt range 0–30
 	}
 
+	/**
+	 * "Plasma-R". The type string is a bare "Plasma" for every launcher in the game, so without this
+	 * a Gorn cruiser's armament reads "Plasma A, Plasma B, Plasma C" — and an R and an F are not
+	 * variants of one gun but different warheads, arming costs and ranges.
+	 * <p>
+	 * This is the LAUNCHER's fixed type, never what is loaded in it: which torpedo is in the tube,
+	 * and whether it is a pseudo, stays secret until identified (G4.232).
+	 */
+	@Override
+	public String getDisplayName() {
+		return launcherType != null ? "Plasma-" + launcherType.name() : "Plasma";
+	}
+
 	public PlasmaType getLauncherType() {
 		return this.launcherType;
 	}

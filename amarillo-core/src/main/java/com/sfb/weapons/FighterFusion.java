@@ -56,6 +56,7 @@ public class FighterFusion extends VariableDamageWeapon implements DirectFire {
     public FighterFusion() {
         setDacHitLocaiton("torp");
         setType("FighterFusion");
+        setDisplayName("Fusion");
         setMinRange(0);
         setMaxRange(DOUBLE_MAX_RANGE);
         setMinImpulseGap(8);

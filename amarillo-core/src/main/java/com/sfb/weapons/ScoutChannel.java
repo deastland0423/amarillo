@@ -65,6 +65,7 @@ public class ScoutChannel extends Weapon {
 
     public ScoutChannel() {
         setType("ScoutChannel");
+        setDisplayName("Scout Channel");
         // dacHitLocation is assigned from the ship JSON — the location of the replaced weapon (G24.17).
     }
 

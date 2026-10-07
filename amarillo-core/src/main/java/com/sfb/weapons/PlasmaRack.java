@@ -163,6 +163,7 @@ public class PlasmaRack extends Weapon implements Launcher, DirectFire {
         // FP10.1's "The plasma rack is designated 'PL-D' on SSD sheets", and it read better
         // while quietly putting the rack behind every other torpedo system on the ship.
         setType("PlasmaDRack");
+        setDisplayName("Plasma-D Rack");
         // FP10.16: "Plasma racks are destroyed on 'torpedo' hits. (A change from an earlier
         // edition.)" NOT "drone", which is what a drone rack takes and what an earlier edition
         // of this rule said - so this is the one line that keeps the rack off the drone column.

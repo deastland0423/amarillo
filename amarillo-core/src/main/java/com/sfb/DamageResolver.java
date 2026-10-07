@@ -486,19 +486,19 @@ class DamageResolver {
             // on a ship, let alone on terrain: a launcher stays out by what it IS.
             if (w instanceof com.sfb.weapons.Launcher
                     || !(w instanceof com.sfb.weapons.DirectFire)) {
-                log.append("  ").append(w.getName()).append(" — seeking weapons cannot bombard (P2.522, deferred)\n");
+                log.append("  ").append(w.getLabel()).append(" — seeking weapons cannot bombard (P2.522, deferred)\n");
                 continue;
             }
             if (!w.isFunctional()) {
-                log.append("  ").append(w.getName()).append(" destroyed — cannot fire\n");
+                log.append("  ").append(w.getLabel()).append(" destroyed — cannot fire\n");
                 continue;
             }
             if (range > w.getMaxRange()) {
-                log.append("  ").append(w.getName()).append(" out of range\n");
+                log.append("  ").append(w.getLabel()).append(" out of range\n");
                 continue;
             }
             if (!w.inArc(relBearing)) {
-                log.append("  ").append(w.getName()).append(" cannot bear on the planet\n");
+                log.append("  ").append(w.getLabel()).append(" cannot bear on the planet\n");
                 continue;
             }
             w.setEcmShift(ecmShift);
@@ -507,10 +507,10 @@ class DamageResolver {
                 if (dmg > 0) {
                     planet.addDamage(targetSide, dmg);
                     dealt += dmg;
-                    log.append("  ").append(w.getName()).append("  ").append(dmg).append(" damage\n");
+                    log.append("  ").append(w.getLabel()).append("  ").append(dmg).append(" damage\n");
                 }
             } catch (Exception ex) {
-                log.append("  ").append(w.getName()).append(" cannot fire (").append(ex.getMessage()).append(")\n");
+                log.append("  ").append(w.getLabel()).append(" cannot fire (").append(ex.getMessage()).append(")\n");
             }
         }
         log.append(dealt).append(" damage to side ").append(sideLetter)
@@ -579,25 +579,25 @@ class DamageResolver {
             // on a ship, let alone on terrain: a launcher stays out by what it IS.
             if (w instanceof com.sfb.weapons.Launcher
                     || !(w instanceof com.sfb.weapons.DirectFire)) {
-                log.append("  ").append(w.getName())
+                log.append("  ").append(w.getLabel())
                         .append(" — seeking weapons aimed at a hex are not implemented (P3.252)\n");
                 continue;
             }
             if (cannotClearAsteroids(w)) {
-                log.append("  ").append(w.getName())
+                log.append("  ").append(w.getLabel())
                         .append(" — this weapon cannot clear asteroids (P3.255)\n");
                 continue;
             }
             if (!w.isFunctional()) {
-                log.append("  ").append(w.getName()).append(" destroyed — cannot fire\n");
+                log.append("  ").append(w.getLabel()).append(" destroyed — cannot fire\n");
                 continue;
             }
             if (range > w.getMaxRange()) {
-                log.append("  ").append(w.getName()).append(" out of range\n");
+                log.append("  ").append(w.getLabel()).append(" out of range\n");
                 continue;
             }
             if (!w.inArc(relBearing)) {
-                log.append("  ").append(w.getName()).append(" cannot bear on that hex\n");
+                log.append("  ").append(w.getLabel()).append(" cannot bear on that hex\n");
                 continue;
             }
             w.setEcmShift(ecmShift);
@@ -605,12 +605,12 @@ class DamageResolver {
                 int dmg = ((com.sfb.weapons.DirectFire) w).fire(range, adjustedRange);
                 if (dmg > 0) {
                     dealt += dmg;
-                    log.append("  ").append(w.getName()).append("  ").append(dmg).append(" damage\n");
+                    log.append("  ").append(w.getLabel()).append("  ").append(dmg).append(" damage\n");
                 } else {
-                    log.append("  ").append(w.getName()).append(" missed\n");
+                    log.append("  ").append(w.getLabel()).append(" missed\n");
                 }
             } catch (Exception ex) {
-                log.append("  ").append(w.getName()).append(" cannot fire (")
+                log.append("  ").append(w.getLabel()).append(" cannot fire (")
                         .append(ex.getMessage()).append(")\n");
             }
         }
@@ -768,7 +768,7 @@ class DamageResolver {
             if (w instanceof com.sfb.weapons.ADD)
                 ((com.sfb.weapons.ADD) w).setFirerUsingEm(attacker.isEmEffective());
             if (!w.isFunctional()) {
-                log.append("  ").append(w.getName()).append("  destroyed — cannot fire\n");
+                log.append("  ").append(w.getLabel()).append("  destroyed — cannot fire\n");
                 continue;
             }
             // Not everything a ship carries can be fired AT a target. A drone rack is a
@@ -795,12 +795,12 @@ class DamageResolver {
                 String block = plasmaRackBoltBlock(
                         (com.sfb.weapons.PlasmaRack) w, attacker, target, range);
                 if (block != null) {
-                    log.append("  ").append(w.getName()).append("  ").append(block).append("\n");
+                    log.append("  ").append(w.getLabel()).append("  ").append(block).append("\n");
                     continue;
                 }
             }
             if (!(w instanceof DirectFire) || !((DirectFire) w).canBeFiredAtTarget()) {
-                log.append("  ").append(w.getName())
+                log.append("  ").append(w.getLabel())
                         .append("  cannot be fired at a target — it launches seeking weapons\n");
                 continue;
             }
@@ -817,7 +817,7 @@ class DamageResolver {
                     if (carry > 0) {
                         envelopingHellboreDamage += carry;
                     }
-                    log.append("  ").append(w.getName())
+                    log.append("  ").append(w.getLabel())
                             .append("  auto-hit ESG field (").append(hbDmg).append(") — ")
                             .append(carry > 0 ? carry + " carried to ship (G23.841)" : "absorbed (G23.841)")
                             .append("\n");
@@ -829,7 +829,7 @@ class DamageResolver {
                 if (uimInUse && w instanceof com.sfb.weapons.Disruptor) {
                     com.sfb.weapons.Disruptor d = (com.sfb.weapons.Disruptor) w;
                     if (d.isUimLocked(currentImpulse)) {
-                        log.append("  ").append(w.getName()).append("  UIM-locked\n");
+                        log.append("  ").append(w.getLabel()).append("  UIM-locked\n");
                         continue;
                     }
                     dmg = d.fireUim(range, adjustedRange);
@@ -862,7 +862,7 @@ class DamageResolver {
                         && targetShip.getCloakingDevice().breaksLockOn()) {
                     int fireAdj = new com.sfb.utilities.DiceRoller().rollOneDie();
                     int scaled = com.sfb.systemgroups.CloakingDevice.fireAdjustedDamage(dmg, fireAdj);
-                    log.append("  ").append(w.getName())
+                    log.append("  ").append(w.getLabel())
                             .append("  fire adjustment vs cloak (G13.37): die ").append(fireAdj)
                             .append(" → ").append(com.sfb.systemgroups.CloakingDevice.fireAdjustmentLabel(fireAdj))
                             .append(scaled != dmg ? " (" + dmg + " → " + scaled + ")" : "")
@@ -877,14 +877,14 @@ class DamageResolver {
                 String rollStr = w.getLastRoll() > 0 ? "  (die " + w.getLastRoll() + ")" : "";
                 if (dmg == ADD.HIT) {
                     addHit = true;
-                    log.append("  ").append(w.getName()).append(rollStr).append("  HIT\n");
+                    log.append("  ").append(w.getLabel()).append(rollStr).append("  HIT\n");
                 } else if (!directFire && w instanceof com.sfb.weapons.Hellbore) {
                     envelopingHellboreDamage += dmg;
-                    log.append("  ").append(w.getName()).append(rollStr)
+                    log.append("  ").append(w.getLabel()).append(rollStr)
                             .append(dmg > 0 ? "  HIT  " + dmg + " (enveloping)" : "  MISS").append("\n");
                 } else {
                     totalDamage += dmg;
-                    log.append("  ").append(w.getName()).append(rollStr)
+                    log.append("  ").append(w.getLabel()).append(rollStr)
                             .append(dmg > 0
                                     ? "  HIT  " + dmg
                                             + (directFire && w instanceof com.sfb.weapons.Hellbore ? " (direct)" : "")
@@ -892,11 +892,11 @@ class DamageResolver {
                             .append("\n");
                 }
             } catch (WeaponUnarmedException ex) {
-                log.append("  ").append(w.getName()).append("  unarmed\n");
+                log.append("  ").append(w.getLabel()).append("  unarmed\n");
             } catch (TargetOutOfRangeException ex) {
-                log.append("  ").append(w.getName()).append("  out of range\n");
+                log.append("  ").append(w.getLabel()).append("  out of range\n");
             } catch (CapacitorException ex) {
-                log.append("  ").append(w.getName()).append("  no capacitor energy\n");
+                log.append("  ").append(w.getLabel()).append("  no capacitor energy\n");
             } finally {
                 w.setEcmShift(0);
             }

@@ -40,6 +40,11 @@ import type { WeaponState } from '../types/gameState';
  * all three call sites can read it — not copied a fourth time into a view.
  */
 export function weaponTitle(w: WeaponState): string {
+  // CORE's answer first. It is the same rule computed in the one place that can also fix the combat
+  // log, so a weapon reads identically in the panel, the sidebar, the EA dialog and the log. The
+  // derivation below survives only as a fallback for a server that predates the field — when that
+  // stops mattering, everything under this line can go.
+  if (w.label) return w.label;
   const kind = rackKind(w) ?? plasmaKind(w) ?? w.type ?? w.name;
   const designator = w.designator ?? '';
   if (!designator) return kind;
@@ -88,4 +93,27 @@ function rackKind(w: WeaponState): string | null {
   const letter = w.rackType.replace(/^TYPE_/, '');
   if (letter === w.rackType) return null;   // an unexpected shape: say nothing rather than guess
   return `Type-${letter} ${w.type ?? 'Drone'}`;
+}
+
+/**
+ * The same weapon, abbreviated for somewhere narrow: "Ph-1 1", "Dis-30 A", "Plas-R A".
+ *
+ * The map sidebar and the EA dialog each carried their own {@code weaponLabel} doing this, and both
+ * had rotted: they rewrote {@code /^Disruptor-/} and {@code /^DroneRack-/} while the real names were
+ * "Disruptor30-A" and "Drone-Rack 1", so neither rule had matched anything for some time and those
+ * panels were quietly showing unabbreviated names. One of them also knew about the phaser-G and the
+ * drone rack while the other did not.
+ *
+ * Built by shortening the LABEL rather than by pattern-matching the identity string, so it cannot
+ * rot the same way: a weapon core renames is renamed here too, and a weapon core has never heard of
+ * still comes out readable.
+ */
+export function weaponTitleShort(w: WeaponState): string {
+  return weaponTitle(w)
+    .replace(/^Phaser-/, 'Ph-')
+    .replace(/^Disruptor-/, 'Dis-')
+    .replace(/^Plasma-D Rack/, 'PlasD-Rack')
+    .replace(/^Plasma-/, 'Plas-')
+    .replace(/^Type-([A-Z]) Drone Rack/, 'Rk$1')
+    .replace(/^Scout Channel/, 'Scout');
 }

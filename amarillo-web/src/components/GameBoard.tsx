@@ -23,6 +23,7 @@ import { FacingPicker } from './FacingPicker';
 import { Stepper } from './Stepper';
 import { channelLendCeiling } from './scoutLending';
 import { shipHasFreeBalcony } from './balcony';
+import { weaponTitleShort } from './weaponTitle';
 
 interface Props {
   session: LobbyResult;
@@ -53,18 +54,6 @@ function shieldFillClass(current: number, max: number): string {
   return 'low';
 }
 
-function weaponLabel(w: WeaponState): string {
-  const name = w.name;
-  if (w.launcherType) {
-    // e.g. "Plasma-A" with launcherType "G" → "PlaG-A"
-    return name.replace(/^Plasma-/, `Plas${w.launcherType}-`);
-  }
-  return name
-    .replace(/^Phaser(\d)-/, 'Ph$1-')
-    .replace(/^PhaserG-/, 'Ph-G-')
-    .replace(/^Disruptor-/, 'Dis-')
-    .replace(/^DroneRack-/, 'Rack-');
-}
 
 
 /** Faction color for any map object (ships use faction, seekers use controllerFaction). */
@@ -302,7 +291,7 @@ function WeaponRow({ w }: { w: WeaponState }) {
   return (
     <div className="weapon-row">
       <span className={dotClass} />
-      <span className="weapon-name">{weaponLabel(w)}</span>
+      <span className="weapon-name">{weaponTitleShort(w)}</span>
       {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
       {statusText && (
         <span className={`weapon-status ${statusClass}`}>{statusText}</span>

@@ -93,8 +93,10 @@ public class FireNonDirectFireWeaponTest {
         String log = game.fireWeapons(fed, klingon, volley, 2, 2, 1, false, true);
 
         assertNotNull(log);
+        // getLabel, not getName: the combat log is prose a player reads, so it names weapons the
+        // way they are called ("Type-F Drone Rack 1") rather than by the wire key ("Drone-Rack 1").
         assertTrue("it should say why the rack did nothing, rather than throwing: " + log,
-                log.contains(rack.getName()));
+                log.contains(rack.getLabel()));
     }
 
     @Test
@@ -113,7 +115,7 @@ public class FireNonDirectFireWeaponTest {
 
         String log = game.fireWeapons(fed, klingon, volley, 2, 2, 1, false, true);
 
-        assertTrue("the rack is reported: " + log, log.contains(rack.getName()));
-        assertTrue("and the phaser still fired: " + log, log.contains(phaser.getName()));
+        assertTrue("the rack is reported: " + log, log.contains(rack.getLabel()));
+        assertTrue("and the phaser still fired: " + log, log.contains(phaser.getLabel()));
     }
 }

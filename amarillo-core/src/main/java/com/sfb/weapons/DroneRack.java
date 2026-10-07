@@ -189,6 +189,26 @@ public class DroneRack extends Weapon implements Launcher, DirectFire {
 
 	}
 
+	/**
+	 * "Type-A Drone Rack". Computed rather than declared because a rack's type CHANGES — the Y175
+	 * refit upgrades a type-A to a type-G through {@code upgradeRackType}, and a constructor-time
+	 * name would still call it a type-A afterwards.
+	 * <p>
+	 * Worth the words at all because the eight are not variations on a theme: FD3.3's type-C fires
+	 * twice a turn, FD3.5's type-E carries eight dogfight drones, FD3.7's type-G throws anti-drones,
+	 * and FD3.4's type-D is a magazine launcher with no reloads. "Drone Rack 1" said none of it.
+	 * <p>
+	 * The letter is transliterated from the enum, not looked up, so a ninth rack type reads correctly
+	 * the day it is added.
+	 */
+	@Override
+	public String getDisplayName() {
+		if (type == null)
+			return "Drone Rack";
+		String letter = type.name().startsWith("TYPE_") ? type.name().substring(5) : null;
+		return letter == null ? "Drone Rack" : "Type-" + letter + " Drone";
+	}
+
 	public DroneRackType getRackType() {
 		return type;
 	}

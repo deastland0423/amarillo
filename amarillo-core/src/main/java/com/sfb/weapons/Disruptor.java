@@ -71,6 +71,16 @@ public class Disruptor extends HitOrMissWeapon implements DirectFire, HeavyWeapo
 		setType("Disruptor" + getDisruptorRange());
 	}
 
+	/**
+	 * "Disruptor-30". The range IS how a disruptor is identified in play, and it is not fixed for
+	 * the life of the weapon — D23.12 notes that one may be repaired as a shorter-ranged version —
+	 * so this is computed on the way out rather than declared once in the constructor.
+	 */
+	@Override
+	public String getDisplayName() {
+		return "Disruptor-" + getDisruptorRange();
+	}
+
 	@Override
 	public void cleanUp() {
 		reset();

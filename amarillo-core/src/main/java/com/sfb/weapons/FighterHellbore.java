@@ -17,6 +17,7 @@ public class FighterHellbore extends Hellbore {
 
     public FighterHellbore() {
         setType("FighterHellbore");
+        setDisplayName("Hellbore");
         setMinRange(1);
         setMaxRange(10);
         setArmed(false);

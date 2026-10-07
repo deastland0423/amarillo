@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public abstract class Weapon {
 
 	private String type; // The type of weapon (Phaser1, Disruptor30, Photon, ESG, etc.)
+	// What a PLAYER sees. Null falls back to the type; see getDisplayName().
+	private String displayName;
 	private String designator; // The unique designator for the weapon (A, B, C...1, 2, 3...etc.)'
 	private String dacHitLocaiton; // What DAC 'hit' destroys this weapon ('phaser', 'drone', etc.)
 	private int arcs = ArcUtils.FULL; // Bitmask of the 24 directions (1-24) into which the weapon can fire.
@@ -148,6 +150,49 @@ public abstract class Weapon {
 
 	public String getName() {
 		return type + "-" + designator;
+	}
+
+	/**
+	 * What this weapon is CALLED, as against what it is keyed on. "Phaser-1", "Plasma-R",
+	 * "Type-A Drone Rack", "Scout Channel".
+	 *
+	 * <p>{@link #getType()} is a key — it is half of {@link #getName()}, which the client sends back
+	 * to address a weapon — so it is written for lookup rather than for reading: "Phaser1",
+	 * "Disruptor30", "PlasmaDRack", and a bare "Plasma" for every launcher regardless of which
+	 * torpedo it throws. Four places were dressing that up independently and had drifted apart: two
+	 * {@code weaponLabel} copies in the web whose rewrite rules no longer matched anything, a third
+	 * in the SSD panel, and the COMBAT LOG, which shows players lines like "Phaser1-1 destroyed —
+	 * cannot fire" and "Drone-Rack 1 cannot bear". The log is why this belongs here: the web cannot
+	 * reach it.
+	 *
+	 * <p>Default is the type itself, which is right for Photon, Fusion, Hellbore, ADD and ESG.
+	 * Override wherever the key is not presentable, and prefer declaring it beside {@code setType}
+	 * in the constructor — the one place an author of a new weapon is already editing.
+	 */
+	public String getDisplayName() {
+		return displayName != null ? displayName : type;
+	}
+
+	/** Declare the human name. Call it beside {@link #setType} where the two are set together. */
+	public void setDisplayName(String displayName) {
+		this.displayName = displayName;
+	}
+
+	/**
+	 * The weapon named for a player: its kind and its designator, each said once.
+	 *
+	 * <p>A designator that already states its own weapon needs no name in front of it — 43 hulls
+	 * designate their ADDs "ADD 1" and 91 designate racks "Rack 1", so a blanket join produces
+	 * "ADD ADD 1" and only this clause gives both "ADD 1" and "Drone Rack 1". The same rule the web
+	 * applies, now in the one place that can also fix the combat log.
+	 */
+	public String getLabel() {
+		String kind = getDisplayName();
+		if (designator == null || designator.isBlank())
+			return kind;
+		if (designator.toLowerCase().startsWith(kind.toLowerCase()))
+			return designator;
+		return kind + " " + designator;
 	}
 
 	/**

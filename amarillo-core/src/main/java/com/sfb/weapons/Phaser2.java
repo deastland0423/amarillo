@@ -20,6 +20,7 @@ public class Phaser2 extends VariableDamageWeapon implements DirectFire, PhaserW
 	public Phaser2() {
 		setDacHitLocaiton("phaser");
 		setType("Phaser2");
+		setDisplayName("Phaser-2");
 		setMinRange(0);
 		setMaxRange(50);
 	}

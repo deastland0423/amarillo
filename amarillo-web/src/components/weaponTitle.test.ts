@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WeaponState } from '../types/gameState';
-import { weaponTitle } from './weaponTitle';
+import { weaponTitle, weaponTitleShort } from './weaponTitle';
 
 /** Only the fields the title reads; the rest of WeaponState is irrelevant here. */
 function weapon(type: string | undefined, designator: string | undefined,
@@ -133,5 +133,52 @@ describe('weaponTitle', () => {
   it('falls back to the identity name when type is absent', () => {
     expect(weaponTitle(weapon(undefined, 'A', 'Photon-A'))).toBe('Photon-A A');
     expect(weaponTitle(weapon(undefined, undefined, 'Photon-A'))).toBe('Photon-A');
+  });
+});
+
+/**
+ * CORE's label wins when it is there, and that is the whole point of the consolidation: the panel,
+ * the map sidebar, the EA dialog and the COMBAT LOG all read the one string, so they cannot drift
+ * apart again — which they had, in four places, two of them with rewrite rules that no longer
+ * matched anything.
+ */
+describe('weaponTitle with the label from core', () => {
+  it('prefers the label the server sent', () => {
+    const w = { name: 'Phaser1-1', type: 'Phaser1', designator: '1',
+                label: 'Phaser-1 1' } as WeaponState;
+    expect(weaponTitle(w)).toBe('Phaser-1 1');
+  });
+
+  it('falls back to its own derivation when the server is older', () => {
+    expect(weaponTitle(weapon('ADD', 'ADD 1'))).toBe('ADD 1');
+    expect(weaponTitle(rack('TYPE_A'))).toBe('Type-A Drone Rack 1');
+  });
+});
+
+describe('weaponTitleShort', () => {
+  const labelled = (label: string) => ({ name: 'x', label } as WeaponState);
+
+  it('abbreviates for a narrow sidebar', () => {
+    expect(weaponTitleShort(labelled('Phaser-1 1'))).toBe('Ph-1 1');
+    expect(weaponTitleShort(labelled('Disruptor-30 A'))).toBe('Dis-30 A');
+    expect(weaponTitleShort(labelled('Plasma-R A'))).toBe('Plas-R A');
+    expect(weaponTitleShort(labelled('Type-A Drone Rack 1'))).toBe('RkA 1');
+    expect(weaponTitleShort(labelled('Scout Channel 2'))).toBe('Scout 2');
+  });
+
+  /**
+   * The rot the two deleted copies suffered: they pattern-matched the IDENTITY string, so a weapon
+   * whose key changed shape stopped being abbreviated and nobody noticed. This shortens the label,
+   * so a weapon it has never been told about still comes out readable rather than untouched-and-ugly.
+   */
+  it('leaves a weapon it has no rule for readable', () => {
+    expect(weaponTitleShort(labelled('Photon A'))).toBe('Photon A');
+    expect(weaponTitleShort(labelled('Hellbore B'))).toBe('Hellbore B');
+    expect(weaponTitleShort(labelled('Stonefish C'))).toBe('Stonefish C');
+  });
+
+  /** The plasma RACK must not be caught by the launcher rule. */
+  it('tells the plasma rack from a plasma launcher', () => {
+    expect(weaponTitleShort(labelled('Plasma-D Rack A'))).toBe('PlasD-Rack A');
   });
 });

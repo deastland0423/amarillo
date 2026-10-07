@@ -184,7 +184,11 @@ public class ShipDtoPrivacyTest {
         // "type" is the weapon's kind on its own — "Phaser1", "ADD", "Drone" — and it is public for
         // the same reason "name" already is: it is printed on the SSD, and SSDs are in the rulebook.
         // It carries nothing "name" did not already give away, since name IS type + "-" + designator.
-        "name", "designator", "type", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
+        // "label" is "name" and "type" said in a readable order — "Phaser-1 1" where the key is
+        // "Phaser1-1" — so it discloses nothing either of those did not. Public for the same reason
+        // they are: it is printed on the SSD. Note it is built from the LAUNCHER's plasma type, never
+        // from what is loaded in the tube, which stays private under G4.232.
+        "name", "designator", "type", "label", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
         "isHeavy", "maxShotsPerTurn", "shotsThisTurn", "minImpulseGap", "lastImpulseFired",
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",

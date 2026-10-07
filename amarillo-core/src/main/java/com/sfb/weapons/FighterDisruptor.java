@@ -66,6 +66,7 @@ public class FighterDisruptor extends HitOrMissWeapon implements DirectFire {
     public FighterDisruptor() {
         setDacHitLocaiton("torp");
         setType("FighterDisruptor");
+        setDisplayName("Disruptor");
         setMinRange(1);
         setMaxRange(MAX_RANGE);
         setMinImpulseGap(IMPULSE_GAP);

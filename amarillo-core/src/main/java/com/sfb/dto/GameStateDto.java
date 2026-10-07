@@ -124,6 +124,16 @@ public class GameStateDto {
          */
         public String rackType;
         /**
+         * What to CALL this weapon: "Phaser-1 1", "Plasma-R A", "Type-A Drone Rack 1", "ADD 1".
+         * <p>
+         * The one string every display should use. {@link #name} is the wire key and reads
+         * "Phaser1-1"; {@link #type}, {@link #rackType} and {@code launcherType} are the parts it is
+         * built from and are still sent for anything that needs to reason about them. This is core's
+         * answer so that the three web call sites — and the combat log, which the web cannot reach —
+         * cannot drift apart again, which they had.
+         */
+        public String label;
+        /**
          * D13.22: whether this ship's aegis may control this weapon at all. Null on a hull with no
          * aegis. "Unless noted otherwise, for example the D5" — the D5's aegis reaches its ADDs and
          * four of its phaser-3s, six weapons out of eighteen, so this is per hull and not a property
@@ -1707,6 +1717,7 @@ public class GameStateDto {
             wd.name = w.getName();
             wd.designator = w.getDesignator();
             wd.type = w.getType();
+            wd.label = w.getLabel();
             if (w instanceof com.sfb.weapons.DroneRack dr && dr.getRackType() != null)
                 wd.rackType = dr.getRackType().name();
             wd.lastImpulseFired = w.getLastImpulseFired();
@@ -2390,6 +2401,7 @@ public class GameStateDto {
             wd.name = w.getName();
             wd.designator = w.getDesignator();
             wd.type = w.getType();
+            wd.label = w.getLabel();
             if (w instanceof com.sfb.weapons.DroneRack dr && dr.getRackType() != null)
                 wd.rackType = dr.getRackType().name();
             wd.lastImpulseFired = w.getLastImpulseFired();

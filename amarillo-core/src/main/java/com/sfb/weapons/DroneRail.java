@@ -83,6 +83,7 @@ public class DroneRail extends DroneRack {
     public DroneRail(DroneRailType type) {
         setDacHitLocaiton("drone");
         setType("DroneRail");
+        setDisplayName("Drone Rail");
         setArcs(ArcUtils.FA);
         this.railType = type;
         this.designDrone = defaultDroneFor(type);

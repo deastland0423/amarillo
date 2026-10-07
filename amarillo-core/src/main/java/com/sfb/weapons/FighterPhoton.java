@@ -83,6 +83,7 @@ public class FighterPhoton extends HitOrMissWeapon implements DirectFire {
     public FighterPhoton() {
         setDacHitLocaiton("torp");
         setType("FighterPhoton");
+        setDisplayName("Photon");
         setMinRange(MIN_RANGE);
         setMaxRange(MAX_RANGE);
     }

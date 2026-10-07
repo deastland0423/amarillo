@@ -5,6 +5,7 @@ import type { GuardOptions } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
 import { Stepper } from './Stepper';
 import { HangarDrawer } from './HangarDrawer';
+import { weaponTitleShort } from './weaponTitle';
 
 // Turn mode lookup — mirrors TurnModeUtil.java, indexed by speed (0–32).
 const TURN_MODE_TABLES: Record<string, number[]> = {
@@ -295,14 +296,6 @@ function calcBudget(ship: ShipObject, alloc: ShipAlloc) {
 
 // ---- Weapon label ----
 
-function weaponLabel(w: WeaponState): string {
-  if (w.launcherType) {
-    return w.name.replace(/^Plasma-/, `Plas${w.launcherType}-`);
-  }
-  return w.name
-    .replace(/^Phaser(\d)-/, 'Ph$1-')
-    .replace(/^Disruptor-/, 'Dis-');
-}
 
 function armingStatus(w: WeaponState): string {
   if (w.isRolling) return `[rolling — roll ${w.rollingCost} / finish ${w.armingCost}]`;
@@ -1200,7 +1193,7 @@ export default function EnergyAllocationDialog({
                 return (
                   <div key={w.name} className="ea-weapon-alloc-block">
                     <div className="ea-weapon-alloc-name">
-                      {weaponLabel(w)}
+                      {weaponTitleShort(w)}
                       <span className="ea-weapon-alloc-status">{armingStatus(w)}</span>
                     </div>
                     <div className="ea-weapon-alloc-options">

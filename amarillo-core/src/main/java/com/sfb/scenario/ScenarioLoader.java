@@ -628,11 +628,11 @@ public class ScenarioLoader {
                             && mode == com.sfb.properties.WeaponArmingType.SPECIAL) {
                         ((com.sfb.weapons.Photon) w).setSpecial();
                     } else if (mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
-                        note(ship, "COI: weapon " + w.getName()
+                        note(ship, "COI: weapon " + w.getLabel()
                                 + " cannot start overloaded — prior-turn arming carries no"
                                 + " overload energy (S4.32)");
                     } else {
-                        note(ship, "COI: weapon " + w.getName()
+                        note(ship, "COI: weapon " + w.getLabel()
                                 + " is not armed — arming mode override skipped");
                     }
                     continue;
@@ -640,7 +640,7 @@ public class ScenarioLoader {
                 // Photons take their overload from the S4.32 pool below, not from a mode flag.
                 if (w instanceof com.sfb.weapons.Photon
                         && mode == com.sfb.properties.WeaponArmingType.OVERLOAD) {
-                    note(ship, "COI: photon " + w.getName()
+                    note(ship, "COI: photon " + w.getLabel()
                             + " — set its free overload energy in photonOverload (S4.32)");
                     continue;
                 }
