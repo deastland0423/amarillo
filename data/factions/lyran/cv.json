@@ -1,0 +1,88 @@
+{
+  "faction": "Lyran",
+  "type": "CV",
+  "typeName": "Siberian Tiger Carrier",
+  "line": "CA",
+  "name": "Red Claw Glory",
+  "serviceYear": 172,
+  "bpv": 131,
+  "turnMode": "C",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 9,
+  "tokenArt": "lyran/ca.png",
+  "carrierClass": "CAPABLE",
+  "droneStorageSpaces": 150,
+  "requiresEscort": true,
+
+  
+  "shields": [33, 22, 18, 17, 18, 22],
+  
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 4
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 3,
+    "apr": 4,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 3,
+    "flag": 1,
+    "emergency": 1,
+    "auxCon": 3,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"], "launchTubes": 2, "fighters": { "line": "klingon-zegurnii", "superiority": 5, "ew": 1 } },
+    { "shuttles": ["admin", "admin"], "launchTubes": 2, "fighters": { "line": "klingon-zegurnii", "superiority": 6, "ew": 0 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 44,
+    "boardingParties": 10,
+    "deckCrews": 12,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["LS"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["RS"] },
+    { "type": "Phaser3", "designator": "10", "arcs": ["RS"] },
+    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
+    { "type": "ESG", "designator": "1"},
+    { "type": "ESG", "designator": "2"}
+  ]
+}

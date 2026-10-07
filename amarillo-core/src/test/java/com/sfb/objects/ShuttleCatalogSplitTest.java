@@ -89,7 +89,13 @@ public class ShuttleCatalogSplitTest {
             for (String faction : e.factions)
                 byFaction.merge(faction, 1, Integer::sum);
 
-        for (String faction : List.of("federation", "klingon", "kzinti", "romulan", "hydran", "gorn"))
+        // Lyran is in this list although there is no lyran.json, and that is the point of it being
+        // here: the Lyrans never designed a fighter, so every craft they field is a Klingon one
+        // tagged "lyran" in klingon.json. Nothing else in the build reads a craft's factions yet —
+        // availableTo() has no production caller until the fighter picker is written — so a tag
+        // dropped in an edit would cost nothing until the day it cost a Lyran carrier its fighters.
+        for (String faction : List.of("federation", "klingon", "kzinti", "romulan", "hydran", "gorn",
+                                      "lyran"))
             assertTrue(faction + " has no craft in the catalogue, so one file has replaced the others"
                     + " rather than adding to them: " + byFaction,
                     byFaction.getOrDefault(faction, 0) > 0);
