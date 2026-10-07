@@ -1319,7 +1319,10 @@ public class GameSession {
                             } catch (IllegalArgumentException ex) {
                                 continue;   // a type this build does not know; say nothing, load nothing
                             }
-                            candidates.addAll(stockpile.take(wanted, needed));
+                            // takeForRack, not take: FD2.4421 pulls a cargo drone up into the
+                            // opening a RACK reload leaves. The scatter-pack path below keeps plain
+                            // take(), because a pack being filled is not a rack being reloaded.
+                            candidates.addAll(stockpile.takeForRack(wanted, needed));
                         }
 
                         if (candidates.isEmpty() && antiDrones == 0)
@@ -1331,9 +1334,12 @@ public class GameSession {
                                 + antiDrones * DroneRack.ANTI_DRONE_SPACE;
                         if (spaces > 2.0 + 1e-9) {
                             // Over the rack's turn budget: put them back rather than quietly
-                            // consuming them. take() has already removed them from the stockpile.
+                            // consuming them. takeForRack has already removed them AND pulled cargo
+                            // drones up behind them (FD2.4421), so the put-back has to undo both —
+                            // a plain put() would find the pile full and refuse, which is a drone
+                            // destroyed to enforce a limit.
                             for (Drone d : candidates)
-                                stockpile.put(d);
+                                stockpile.putBackFromRack(d);
                             continue;
                         }
 

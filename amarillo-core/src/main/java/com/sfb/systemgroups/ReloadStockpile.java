@@ -79,8 +79,28 @@ public final class ReloadStockpile {
     /** Where the drones actually are. One list, for the whole ship. */
     private final List<Drone> drones = new ArrayList<>();
 
+    /**
+     * FD2.445's cargo boxes, which FD2.4421 feeds this pile from. Null on a ship with none, which is
+     * most of them — a conveyor with nothing behind it simply never moves anything.
+     */
+    private CargoDroneStore cargo;
+
+    /** FD2.423: gone with the last Excess Damage box, and it does not come back. */
+    private boolean destroyed = false;
+
     private ReloadStockpile(Weapons weapons) {
         this.weapons = weapons;
+    }
+
+    /**
+     * Point the FD2.4421 conveyor at the ship's cargo boxes.
+     * <p>
+     * Set by {@link com.sfb.objects.Ship} rather than passed to the factory, because the cargo store
+     * is built from the ship's own spec and the stockpile is reached through the ship anyway. A
+     * stockpile with no cargo behind it is the normal case.
+     */
+    public void attachCargo(CargoDroneStore cargo) {
+        this.cargo = cargo;
     }
 
     /**
@@ -117,6 +137,8 @@ public final class ReloadStockpile {
      * sets, which is what {@link #capacitySpaces()} counts.
      */
     private void absorb() {
+        if (destroyed)
+            return;
         for (DroneRack rack : racks()) {
             for (List<Drone> set : rack.getReloads()) {
                 if (set.isEmpty())
@@ -132,6 +154,17 @@ public final class ReloadStockpile {
      * carry — so a ship with two four-space racks at one set each stocks eight spaces.
      * <p>
      * Racks with no formal reloads (type-D, type-H) add nothing, per FD3.43.
+     *
+     * <h3>DAMAGED racks still count</h3>
+     * FD2.442 sets this by "the capacity of the ship's <b>original</b> drone racks", and FD2.423
+     * spells out why that word is there: "If all drone racks are destroyed and then one or more are
+     * repaired, the repaired racks can load the remaining reload drones." The reloads outlive the
+     * racks; they are "stored in various locations around the ship", not behind the launcher.
+     * <p>
+     * This walks every rack the ship has, damaged or not, which is the original set because
+     * {@link com.sfb.weapons.Weapon#damage()} clears {@code functional} and never removes the
+     * weapon. That is quiet agreement rather than an implementation of the rule, so
+     * {@code ReloadStockpileStorageTest} damages every rack and then repairs one, to hold it.
      */
     public double capacitySpaces() {
         double total = 0;
@@ -198,12 +231,150 @@ public final class ReloadStockpile {
      */
     public boolean put(Drone drone) {
         absorb();
-        if (drone == null)
-            return false;
+        if (drone == null || destroyed)
+            return false;   // FD2.423: there is nowhere to put it any more
         if (spacesHeld() + drone.getRackSize() > capacitySpaces() + 1e-9)
             return false;
         drones.add(drone);
         return true;
+    }
+
+    /**
+     * Take drones <b>for a drone rack</b>, which runs FD2.4421's conveyor behind them.
+     *
+     * <p><b>FD2.4421</b>: "If a one-space drone from the reload storage is loaded onto a drone rack,
+     * a one-space drone from cargo storage is automatically moved into the opening created in reload
+     * storage." <b>FD2.4423</b>: "This applies to every rack on the ship."
+     *
+     * <h3>Why this is a separate method from {@link #take}</h3>
+     * The rule says <b>onto a drone rack</b>, and the stockpile has two other customers that are not
+     * racks: FD7.22's scatter-pack loading and the Commander's Option draw that picks the initial
+     * loadout. Neither creates the opening FD2.4421 describes — a pack is being filled, not a rack
+     * reloaded, and the COI is choosing what the ship sails with. Routing all three through one
+     * method would quietly top a ship's reloads up every time it loaded a pack.
+     *
+     * <p>Whether a scatter pack ought to pull cargo up behind it is a fair question the rule does not
+     * answer; it is stated for racks, so that is where it is implemented.
+     *
+     * @return the drones taken, exactly as {@link #take} would give them
+     */
+    public List<Drone> takeForRack(DroneType type, int count) {
+        List<Drone> taken = take(type, count);
+        for (Drone d : taken)
+            refillFromCargo(d.getRackSize(), d.getDroneType());
+        return taken;
+    }
+
+    /**
+     * Move {@code spaces} of cargo drones up into the opening just created (FD2.4421).
+     *
+     * <h3>It fills to capacity and no further, which is the S3.2 rule falling out</h3>
+     * FD2.442 lets a stockpile sit ABOVE its capacity: "Extra drones purchased under (S3.2) can be
+     * added to this type of storage in excess of its capacity (but do not increase its capacity)."
+     * The owner's worked example (2026-10-06): a ship with 8 spaces of capacity that has crammed in
+     * 3 purchased spaces holds 11, and <i>nothing</i> comes up from cargo until at least 4 spaces
+     * have gone out to the racks and the pile is under 8 again.
+     * <p>
+     * So the room available is {@code capacity - held}, which is zero or negative while the pile is
+     * overfull. The special case needs no code: it is the subtraction.
+     *
+     * <h3>What type comes up</h3>
+     * Like for like. {@link CargoDroneStore} tracks SPACES and not types on purpose, and FD2.445
+     * makes cargo drones "proportional to the loading of the racks" — so replacing a two-space drone
+     * with a two-space drone is both space-exact and one of the choices FD2.4422 explicitly offers
+     * ("a single drone (type-IV or type-IIIXX) or two drones"). Letting the player pick the other is
+     * FD2.4422 proper and is not built; neither is FD2.446's record of which special drone sits
+     * where.
+     * <p>
+     * <b>When special drone modules arrive</b> (FD10.4x), like-for-like becomes wrong: an ECM drone
+     * leaving must not conjure another from cargo, because FD10.65's percentage caps limit how many
+     * the ship ever had. The conveyor should then raise the plain frame at that speed. It is safe
+     * today only because {@link DroneType} is still family x speed with no module axis.
+     *
+     * @return spaces actually moved up, which is 0 with no cargo, a full pile, or after FD2.423
+     */
+    private double refillFromCargo(double spaces, DroneType type) {
+        if (destroyed || cargo == null || type == null || spaces <= 0)
+            return 0;
+        double room = capacitySpaces() - spacesHeld();
+        if (room < spaces - 1e-9)
+            return 0;           // overfull, or not enough of the opening left for this drone
+        int drawn = cargo.draw((int) Math.ceil(spaces));
+        if (drawn <= 0)
+            return 0;
+        drones.add(new Drone(type));
+        return spaces;
+    }
+
+    /**
+     * Put back a drone taken by {@link #takeForRack}, undoing the conveyor with it.
+     *
+     * <h3>Why this is not {@link #put}</h3>
+     * {@code takeForRack} has already pulled a cargo drone up into the opening, so the pile is full
+     * again and a plain {@code put} would be refused over capacity — and a refused put-back means a
+     * drone destroyed to enforce a limit, which is the exact bug the take-then-offer ordering was
+     * rewritten to avoid. So the cargo drone goes back down before this one comes back: one of the
+     * same size leaves the pile, its spaces return to the boxes, and the ship is where it started.
+     *
+     * <p>The server needs this because FD2.421's two-space-per-rack budget is checked after the
+     * drones are gathered — a rack asked for more than a turn's work gets none, and nothing may be
+     * lost in the refusal.
+     */
+    public boolean putBackFromRack(Drone drone) {
+        if (drone == null || destroyed)
+            return false;
+        absorb();
+        if (spacesHeld() + drone.getRackSize() > capacitySpaces() + 1e-9 && cargo != null) {
+            // The conveyor fired for this drone; send its replacement back to the boxes.
+            for (Iterator<Drone> it = drones.iterator(); it.hasNext(); ) {
+                Drone sitting = it.next();
+                if (Math.abs(sitting.getRackSize() - drone.getRackSize()) < 1e-9) {
+                    it.remove();
+                    cargo.restore((int) Math.ceil(sitting.getRackSize()));
+                    break;
+                }
+            }
+        }
+        return put(drone);
+    }
+
+    /**
+     * FD2.423: the reloads go with the last Excess Damage box.
+     *
+     * <p>"Drone and ADD reloads (<b>other than those in cargo boxes</b>) are stored in various
+     * locations around the ship and are considered destroyed with the last Excess Damage box." So
+     * the drones here go, every rack's anti-drone reserve goes with them — the rule names ADD
+     * reloads in the same breath — and the cargo boxes are explicitly spared. A ship is not dead at
+     * this point: the box that kills it is the one AFTER the last, so it fights on with whatever is
+     * in the racks and nothing behind them.
+     *
+     * <p>It is permanent, and that is a reading worth stating. FD2.442 has this storage
+     * "automatically refilled from the drones in cargo boxes", and if that survived the hit a ship
+     * with full cargo would quietly regrow its reloads out of the wreckage. The storage itself was
+     * destroyed, so the conveyor stops. FD2.423's own next sentence is about a repaired rack loading
+     * "the <b>remaining</b> reload drones" — after this there are none remaining.
+     * <p>
+     * Type-D and type-H racks are unaffected, because FD2.4424 feeds their magazines straight from
+     * the cargo boxes and never through here.
+     *
+     * @return spaces of drones lost, for the damage log
+     */
+    public double destroyWithLastExcessDamageBox() {
+        absorb();               // anything still sitting in a rack's set is reloads too
+        double lost = spacesHeld();
+        drones.clear();
+        for (DroneRack rack : racks()) {
+            for (List<Drone> set : rack.getReloads())
+                set.clear();
+            rack.setAddReloads(0);
+        }
+        destroyed = true;
+        return lost;
+    }
+
+    /** True once FD2.423 has taken it. */
+    public boolean isDestroyed() {
+        return destroyed;
     }
 
     /** True when the ship has somewhere to keep reloads at all. */

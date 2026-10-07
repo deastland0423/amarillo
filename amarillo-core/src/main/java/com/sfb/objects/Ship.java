@@ -1340,14 +1340,47 @@ public class Ship extends Unit implements DroneController {
 	 * — {@link #init} does that — since a stockpile pointing at the old group would report the old
 	 * ship's capacity.
 	 * <p>
-	 * Capacity still comes from the racks, so destroying one lowers it; see
+	 * Capacity comes from the racks and a DAMAGED rack still counts, because FD2.442 measures the
+	 * ship's ORIGINAL racks and FD2.423 has reloads outliving them; see
 	 * {@link com.sfb.systemgroups.ReloadStockpile}.
+	 * <p>
+	 * The cargo boxes are attached here so FD2.4421's conveyor can reach them: a drone loaded onto a
+	 * rack pulls a cargo drone up into the opening it left.
 	 */
+	/**
+	 * An Excess Damage box has just been destroyed — if it was the LAST one, FD2.423 takes the
+	 * ship's drone reload storage with it.
+	 *
+	 * <p>"Drone and ADD reloads (<b>other than those in cargo boxes</b>) are stored in various
+	 * locations around the ship and are considered destroyed with the last Excess Damage box." The
+	 * ship is still alive at that moment: the box that kills it is the one AFTER the last, so there
+	 * is a real window in which it fights on with full racks and nothing behind them. The cargo boxes
+	 * are spared by name, and keep feeding a type-D's magazines direct (FD2.4424).
+	 *
+	 * <p>Called from BOTH ways a box is lost — the exhausted-chart path, where {@code fetchNextHit}
+	 * returns null, and the DAC's explicit column-13 "excess" entry. Hooking only the first is how
+	 * this was written at first, and the test that drove real internal damage went through the
+	 * second and saw nothing happen. The box being lost is the mechanism; which column found it is
+	 * not.
+	 *
+	 * @return a line for the damage log, or null if this was not the last box
+	 */
+	private String noteExcessDamageBoxLost() {
+		if (specialFunctions.getExcessDamage() != 0 || reloadStockpile().isDestroyed())
+			return null;
+		double lost = reloadStockpile().destroyWithLastExcessDamageBox();
+		if (lost <= 0)
+			return null;
+		return "    reload storage destroyed with the last excess damage box: "
+				+ lost + " spaces of drones lost (FD2.423)";
+	}
+
 	public com.sfb.systemgroups.ReloadStockpile reloadStockpile() {
 		if (reloadStockpile == null || stockpileWeapons != getWeapons()) {
 			reloadStockpile = com.sfb.systemgroups.ReloadStockpile.of(getWeapons());
 			stockpileWeapons = getWeapons();
 		}
+		reloadStockpile.attachCargo(cargoDroneStore);
 		return reloadStockpile;
 	}
 
@@ -2839,6 +2872,9 @@ public class Ship extends Unit implements DroneController {
 					break;
 				}
 				log.add("  internal [" + roll + "]: excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)");
+				String reloadsLost = noteExcessDamageBoxLost();
+				if (reloadsLost != null)
+					log.add(reloadsLost);
 				continue;
 			}
 
@@ -2920,12 +2956,16 @@ public class Ship extends Unit implements DroneController {
 				return labs.damage() ? "lab HIT" : null;
 			case "probe":
 				return probes.damage() ? "probe HIT" : null;
-			case "excess":
+			case "excess": {
 				// Explicit column-13 entry; distinct from the exhausted-chart path,
 				// which reaches excess via fetchNextHit returning null
-				return specialFunctions.damageExcessDamage()
-						? "excess damage (" + specialFunctions.getExcessDamage() + " boxes remaining)"
-						: null;
+				if (!specialFunctions.damageExcessDamage())
+					return null;
+				String note = "excess damage (" + specialFunctions.getExcessDamage()
+						+ " boxes remaining)";
+				String reloads = noteExcessDamageBoxLost();
+				return reloads == null ? note : note + "; " + reloads.trim();
+			}
 			case "scanner":
 				return specialFunctions.damageScanner() ? "scanner HIT" : null;
 			case "sensor":

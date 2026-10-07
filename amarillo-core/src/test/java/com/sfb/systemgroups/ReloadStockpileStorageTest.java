@@ -132,27 +132,44 @@ public class ReloadStockpileStorageTest {
     }
 
     /**
-     * A rack destroyed lowers the ship's capacity, which is why the racks are re-read on every call
-     * rather than captured when the stockpile is built.
-     * <p>
-     * What it does NOT do is destroy the drones. FD2.423 ties the stockpile's destruction to the last
-     * Excess Damage box, not to a rack, and that is not built yet — so the honest state here is a
-     * stockpile holding more than its capacity, which is also what an S3.2 purchase will look like
-     * when it arrives.
+     * Destroying the racks takes neither the reloads nor the capacity. <b>This test said the
+     * opposite when it was written</b>, and the rule text is explicit the other way.
+     *
+     * <p><b>FD2.442</b> measures the storage against "the capacity of the ship's <b>original</b>
+     * drone racks", and <b>FD2.423</b> says what that word is doing there: "If all drone racks are
+     * destroyed and then one or more are repaired, <b>the repaired racks can load the remaining
+     * reload drones</b> within the limits of the rules." The reloads are "stored in various
+     * locations around the ship" — not behind the launcher that fires them.
+     *
+     * <p>The first version of this removed a rack from the weapon group by hand, which is not
+     * something the engine ever does: {@code Weapon.damage()} clears {@code functional} and the rack
+     * stays. So it asserted a fall that only its own surgery could produce, and taught the wrong
+     * rule while passing. This damages them the way the game does, and then repairs one to collect
+     * the reloads, which is FD2.423's sentence end to end.
      */
     @Test
-    public void losingARackLowersTheCapacity() {
+    public void reloadsAndCapacityOutliveTheRacks() {
         ReloadStockpile pile = ship.reloadStockpile();
-        double before = pile.capacitySpaces();
+        double capacity = pile.capacitySpaces();
         int held = pile.held().size();
+        assertTrue("fixture: there is something to lose", capacity > 0 && held > 0);
 
-        DroneRack doomed = racks().get(0);
-        ship.getWeapons().fetchAllWeapons().remove(doomed);
+        for (DroneRack rack : racks())
+            rack.damage();
+        for (DroneRack rack : racks())
+            assertFalse("fixture: every rack is out", rack.isFunctional());
 
-        assertTrue("capacity falls with the rack",
-                ship.reloadStockpile().capacitySpaces() < before);
-        assertEquals("the drones themselves are untouched (FD2.423 is not built)",
+        assertEquals("capacity is the ORIGINAL racks' (FD2.442)",
+                capacity, ship.reloadStockpile().capacitySpaces(), 0.001);
+        assertEquals("and the reloads are elsewhere on the ship (FD2.423)",
                 held, ship.reloadStockpile().held().size());
+
+        // FD2.423's second sentence: repair one and it can load what is left.
+        racks().get(0).repair();
+        assertTrue(racks().get(0).isFunctional());
+        DroneType type = ship.reloadStockpile().held().get(0).getDroneType();
+        assertEquals("the repaired rack draws on the surviving stockpile",
+                1, ship.reloadStockpile().take(type, 1).size());
     }
 
     /**
