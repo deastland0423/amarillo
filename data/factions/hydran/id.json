@@ -1,0 +1,87 @@
+{
+  "faction": "Hydran",
+  "type": "ID",
+  "typeName": "Iron Duke Heavy Carrier",
+  "line": "DN",
+  "name": "HMS Royal Sovereign",
+  "serviceYear": 173,
+  "bpv": 205,
+  "turnMode": "D",
+  "sizeClass": 2,
+  "moveCost": 1.5,
+  "breakdown": 4,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
+  "tokenArt": "hydran/dn.png",
+  
+  "shields": [40, 33, 33, 33, 33, 33],
+  
+  "hullBoxes": {
+    "fhull": 12,
+    "ahull": 16
+  },
+  
+  "power": {
+    "leftWarp": 16,
+    "rightWarp": 16,
+    "centerWarp": 16,
+    "impulse": 6,
+    "apr": 4,
+    "battery": 4
+  },
+  
+  "control": {
+    "bridge": 2,
+    "flag": 2,
+    "emergency": 3,
+    "auxCon": 3,
+    "controlMod": 0.5
+  },
+
+  "tables": {
+    "damageControl": [6, 6, 4, 4, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 4, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 0, 1, 2, 3, 4, 5, 9],
+    "excess": 8
+  },
+
+  "auxiliary": {
+    "transporters": 4,
+    "tractors": 4,
+    "labs": 6,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"], "launchTubes": 6, "fighters": { "line": "hydran-stinger", "superiority": 8, "assault": 3, "ew": 1 } },
+    { "shuttles": ["admin", "admin", "admin"], "launchTubes": 6, "fighters": { "line": "hydran-stinger", "superiority": 8, "assault": 3, "ew": 1 } }
+  ],
+
+  "crewData": {
+    "totalCrew": 60,
+    "boardingParties": 18,
+    "deckCrews": 24,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "4", "arcs": ["FA", "L"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "6", "arcs": ["FA", "R"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
+    { "type": "PhaserG", "designator": "9", "arcs": ["RR", "LS"] },
+    { "type": "PhaserG", "designator": "10", "arcs": ["LR", "RS"] },
+    { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
+    { "type": "Fusion",  "designator": "B", "arcs": ["FA"] },
+    { "type": "Hellbore",  "designator": "C", "arcs": ["FA", "L"] },
+    { "type": "Hellbore",  "designator": "D", "arcs": ["FA", "L"] },
+    { "type": "Hellbore",  "designator": "E", "arcs": ["FA", "R"] },
+    { "type": "Hellbore",  "designator": "F", "arcs": ["FA", "R"] }
+  ]
+}

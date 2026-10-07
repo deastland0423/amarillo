@@ -35,6 +35,7 @@
     { "code": "DW",  "name": "War Destroyer",       "moveCosts": [0.5] },
     { "code": "FF",  "name": "Frigate",             "moveCosts": [0.25, 0.3333333] },
     { "code": "FW",  "name": "War Frigate",         "moveCosts": [0.3333333] },
+    { "code": "POL", "name": "Police Ship",         "moveCosts": [0.3333333] },
     { "code": "TUG", "name": "Tug",                 "moveCosts": [] },
     { "code": "F-L", "name": "Large Freighter",     "moveCosts": [0.5],       "civilian": true },
     { "code": "F-S", "name": "Small Freighter",     "moveCosts": [0.3333333], "civilian": true }

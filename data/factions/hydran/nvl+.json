@@ -1,17 +1,20 @@
 {
   "faction": "Hydran",
-  "type": "TR+",
-  "typeName": "Traveller Light Cruiser (+ refit)",
+  "type": "NVL+",
+  "typeName": "Trooper New Light Carrier (+ refit)",
   "line": "CW",
-  "name": "HMS Horror",
-  "serviceYear": 173,
-  "bpv": 117,
+  "name": "HMS Gallant",
+  "serviceYear": 174,
+  "bpv": 92,
+  "epv": 102,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
+  "carrierClass": "CAPABLE",
+  "requiresEscort": true,
   "tokenArt": "hydran/cw.png",
   
   "shields": [28, 24, 24, 24, 24, 24],
@@ -24,8 +27,8 @@
     "leftWarp": 12,
     "rightWarp": 12,
     "impulse": 4,
-    "apr": 8,
-    "battery": 3
+    "apr": 2,
+    "battery": 2
   },
   
   "control": {
@@ -45,18 +48,19 @@
   "auxiliary": {
     "transporters": 2,
     "tractors": 2,
-    "labs": 3,
+    "labs": 2,
     "probes": 1
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin"] },
-    { "shuttles": ["admin"] }
+    { "shuttles": ["admin"], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "superiority": 5, "assault": 1, "ew": 0 } },
+    { "shuttles": ["admin"], "launchTubes": 3, "fighters": { "line": "hydran-stinger", "superiority": 4, "assault": 1, "ew": 1 } }
   ],
 
   "crewData": {
-    "totalCrew": 31,
-    "boardingParties": 12,
+    "totalCrew": 36,
+    "boardingParties": 10,
+    "deckCrews": 12,
     "minCrew": 4
   },
 
@@ -68,8 +72,6 @@
     { "type": "Phaser2", "designator": "5", "arcs": ["FA", "R"] },
     { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["LS"] },
-    { "type": "PhaserG", "designator": "8", "arcs": ["RS"] },
-    { "type": "Hellbore",  "designator": "A", "arcs": ["FA"] },
-    { "type": "Hellbore",  "designator": "B", "arcs": ["FA"] }
+    { "type": "PhaserG", "designator": "8", "arcs": ["RS"] }
   ]
 }

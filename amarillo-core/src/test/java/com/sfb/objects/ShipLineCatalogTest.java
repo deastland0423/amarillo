@@ -118,6 +118,45 @@ public class ShipLineCatalogTest {
                 wrong.isEmpty());
     }
 
+    /**
+     * A police ship belongs to the police line. Both facts are in the data, so neither derives the
+     * other, and they disagreed: the Kzinti police corvettes sat on the FRIGATE line while the
+     * Hydran Gendarmes claimed POL before POL was a line at all.
+     * <p>
+     * That is not a cosmetic slip. S8.36's leader rules ask whether two ships are of a kind by
+     * comparing lines, so a police corvette filed under FF would stand as a legal consort to a war
+     * frigate - and a police cutter is not a frigate by any measure the rules care about.
+     * <p>
+     * Asserted in the one direction that is safe: a hull whose type name says Police must be on the
+     * POL line. Not the reverse, because an empire is free to call its police ship something else
+     * entirely, which is exactly what the Hydrans do with the Gendarme.
+     */
+    @Test
+    public void everyPoliceShipIsOnThePoliceLine() throws Exception {
+        assumeTrue("data/factions must exist", FACTIONS.isDirectory());
+
+        List<String> wrong = new ArrayList<>();
+        int police = 0;
+        for (File faction : FACTIONS.listFiles(File::isDirectory)) {
+            for (File f : faction.listFiles(n -> n.getName().endsWith(".json"))) {
+                JsonNode root = new ObjectMapper().readTree(f);
+                String typeName = root.path("typeName").asText("");
+                if (!typeName.toLowerCase().contains("police"))
+                    continue;
+                police++;
+                String line = root.path("line").asText("");
+                if (!"POL".equals(line))
+                    wrong.add(faction.getName() + "/" + f.getName() + " (" + typeName
+                            + ") is on line " + (line.isBlank() ? "none" : line));
+            }
+        }
+
+        assertTrue("no police ships found at all - has the roster changed?", police > 0);
+        String indent = System.lineSeparator() + "  ";
+        assertTrue("a police ship filed under another line:" + indent + String.join(indent, wrong),
+                wrong.isEmpty());
+    }
+
     /** A ship's line travels from its file through the spec into the built ship. */
     @Test
     public void theLineSurvivesTheTripFromFileToShip() {

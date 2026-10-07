@@ -2,7 +2,7 @@
   "faction": "Kzinti",
   "type": "POL",
   "typeName": "Police Corvette",
-  "line": "FF", 
+  "line": "POL", 
   "name": "#050",
   "serviceYear": 130,
   "bpv": 60,

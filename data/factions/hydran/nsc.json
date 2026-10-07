@@ -1,17 +1,18 @@
 {
   "faction": "Hydran",
-  "type": "HR",
-  "typeName": "Horseman Light Cruiser",
-  "carrierClass": "CAPABLE",
+  "type": "NSC",
+  "typeName": "Chasseur New Scout Cruiser",
   "line": "CW",
-  "name": "HMS Terror",
-  "serviceYear": 168,
-  "bpv": 83,
+  "name": "HMS Dedication",
+  "serviceYear": 173,
+  "bpv": 100,
+  "epv": 120,
   "turnMode": "B",
   "sizeClass": 3,
   "moveCost": 0.6666667,
   "breakdown": 5,
   "bonusHets": 1,
+  "carrierClass": "CAPABLE",
   "commandRating": 6,
   "tokenArt": "hydran/cw.png",
   
@@ -25,7 +26,7 @@
     "leftWarp": 10,
     "rightWarp": 10,
     "impulse": 4,
-    "apr": 2,
+    "apr": 8,
     "battery": 3
   },
   
@@ -56,22 +57,22 @@
   ],
 
   "crewData": {
-    "totalCrew": 30,
-    "boardingParties": 10,
+    "totalCrew": 28,
+    "boardingParties": 6,
     "deckCrews": 6,
     "minCrew": 4
   },
 
   "weapons": [
-    { "type": "Phaser2", "designator": "1", "arcs": ["FA"] },
-    { "type": "Phaser2", "designator": "2", "arcs": ["FA"] },
-    { "type": "Phaser2", "designator": "3", "arcs": ["FA", "L"] },
-    { "type": "Phaser2", "designator": "4", "arcs": ["FA", "L"] },
-    { "type": "Phaser2", "designator": "5", "arcs": ["FA", "R"] },
-    { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
-    { "type": "PhaserG", "designator": "7", "arcs": ["RX"] },
-    { "type": "PhaserG", "designator": "8", "arcs": ["RX"] },
-    { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
-    { "type": "Fusion",  "designator": "B", "arcs": ["FA"] }
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
+    { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FA", "R"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["FA", "R"] },
+    { "type": "PhaserG", "designator": "5", "arcs": ["RX"] },
+    { "type": "PhaserG", "designator": "6", "arcs": ["RX"] }
   ]
 }

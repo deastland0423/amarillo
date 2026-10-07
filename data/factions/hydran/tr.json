@@ -12,7 +12,7 @@
   "breakdown": 5,
   "bonusHets": 1,
   "commandRating": 6,
-  "tokenArt": "hydran/rn.png",
+  "tokenArt": "hydran/cw.png",
   
   "shields": [28, 24, 18, 18, 18, 24],
   
@@ -69,7 +69,7 @@
     { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["LS"] },
     { "type": "PhaserG", "designator": "8", "arcs": ["RS"] },
-    { "type": "Hellbore",  "designator": "A", "arcs": ["FA"] },
-    { "type": "Hellbore",  "designator": "B", "arcs": ["FA"] }
+    { "type": "Hellbore",  "designator": "A", "arcs": ["RX"] },
+    { "type": "Hellbore",  "designator": "B", "arcs": ["RX"] }
   ]
 }

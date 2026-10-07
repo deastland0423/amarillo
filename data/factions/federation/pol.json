@@ -2,7 +2,7 @@
   "faction": "Federation",
   "type": "POL",
   "typeName": "Police Cutter",
-  "line": "FF",
+  "line": "POL",
   "name": "USS Calahan",
   "serviceYear": 127,
   "bpv": 50,
