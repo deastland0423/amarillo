@@ -40,7 +40,7 @@ import type { WeaponState } from '../types/gameState';
  * all three call sites can read it — not copied a fourth time into a view.
  */
 export function weaponTitle(w: WeaponState): string {
-  const kind = rackKind(w) ?? w.type ?? w.name;
+  const kind = rackKind(w) ?? plasmaKind(w) ?? w.type ?? w.name;
   const designator = w.designator ?? '';
   if (!designator) return kind;
   if (designator.toLowerCase().startsWith(kind.toLowerCase())) return designator;
@@ -61,6 +61,28 @@ export function weaponTitle(w: WeaponState): string {
  * TYPE_A as "Type-A" is a plain transliteration of the enum, not a lookup table that could fall
  * behind it: a ninth rack type would read "Type-I" the day it was added.
  */
+/**
+ * A plasma launcher says WHICH torpedo it throws: "Plasma-R A", not "Plasma A".
+ *
+ * `type` is only ever "Plasma" — the letter lives in `launcherType`, and it is the single most
+ * important fact about the weapon. An R and an F are not variants of one gun: FP1.x gives them
+ * different warheads, different arming costs and different ranges, so a Gorn heavy cruiser with
+ * plasma-Rs forward is a different ship to fight from one with plasma-Fs, and the shelf was showing
+ * both as "Plasma A, Plasma B".
+ *
+ * Returns null for anything that is not a launcher, so the ordinary path is untouched. A launcher
+ * whose type is absent falls back to plain "Plasma" rather than inventing a letter: {@code
+ * launcherType} is null on a launcher that has none, and saying nothing beats guessing.
+ *
+ * Note this is the LAUNCHER's fixed type, not what is loaded in it. Which torpedo is in the tube —
+ * and whether it is a pseudo — is secret until identified (G4.232), and the DTO withholds
+ * {@code plasmaType} from an enemy for that reason. The launcher itself is on the SSD.
+ */
+function plasmaKind(w: WeaponState): string | null {
+  if (w.type !== 'Plasma' || !w.launcherType) return null;
+  return 'Plasma-' + w.launcherType;
+}
+
 function rackKind(w: WeaponState): string | null {
   if (!w.rackType) return null;
   const letter = w.rackType.replace(/^TYPE_/, '');

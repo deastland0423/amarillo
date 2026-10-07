@@ -13,6 +13,11 @@ function rack(rackType: string, designator = 'Rack 1'): WeaponState {
   return weapon('Drone', designator, `Drone-${designator}`, rackType);
 }
 
+/** A plasma launcher: type is always "Plasma", with the letter in launcherType. */
+function plasma(launcherType: string | null, designator = 'A'): WeaponState {
+  return { name: `Plasma-${designator}`, type: 'Plasma', designator, launcherType } as WeaponState;
+}
+
 describe('weaponTitle', () => {
   it('says the kind and the designator once each', () => {
     expect(weaponTitle(weapon('Phaser1', '1'))).toBe('Phaser1 1');
@@ -91,6 +96,28 @@ describe('weaponTitle', () => {
   it('leaves non-racks alone', () => {
     expect(weaponTitle(weapon('Phaser1', '1'))).toBe('Phaser1 1');
     expect(weaponTitle(weapon('ADD', 'ADD 1'))).toBe('ADD 1');
+  });
+
+  /**
+   * A plasma launcher says which torpedo it throws. `type` is only ever "Plasma", so without this
+   * a Gorn cruiser's armament read "Plasma A, Plasma B, Plasma C" — and an R, an S and an F are not
+   * variants of one gun but different warheads, arming costs and ranges.
+   */
+  it('names which plasma a launcher throws', () => {
+    expect(weaponTitle(plasma('R'))).toBe('Plasma-R A');
+    expect(weaponTitle(plasma('S', 'B'))).toBe('Plasma-S B');
+    expect(weaponTitle(plasma('F', 'D'))).toBe('Plasma-F D');
+    expect(weaponTitle(plasma('G', 'C'))).toBe('Plasma-G C');
+  });
+
+  /** A launcher with no fixed type says "Plasma" rather than inventing a letter. */
+  it('falls back for a launcher with no type', () => {
+    expect(weaponTitle(plasma(null))).toBe('Plasma A');
+  });
+
+  /** And the plasma RACK is a different weapon entirely — it must not be relabelled. */
+  it('leaves a plasma rack alone', () => {
+    expect(weaponTitle(weapon('PlasmaRack', 'A'))).toBe('PlasmaRack A');
   });
 
   /** A weapon with no designator is just its kind, not a trailing space. */
