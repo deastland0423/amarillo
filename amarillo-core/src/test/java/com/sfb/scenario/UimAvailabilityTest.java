@@ -168,17 +168,70 @@ public class UimAvailabilityTest {
     }
 
     /**
-     * And the hulls whose own service year predates Y165 are the only ones where this can be seen
-     * in a legal scenario — you cannot field a ship before it exists. Recorded so the scope of the
-     * gate is written down rather than rediscovered.
+     * And the hulls whose own service year predates their empire's UIM are the only ones where this
+     * can be seen in a legal scenario — you cannot field a ship before it exists. Recorded so the
+     * scope of the gate is written down rather than rediscovered.
+     * <p>
+     * The Lyran CC earns its place here the same way the two Klingons do: its SSD carries the note
+     * "No UIM prior to Y166. Reduce BPV -5", which is this rule written on the counter.
      */
     @Test
-    public void onlyTwoHullsPredateTheUimTheyDeclare() {
+    public void onlyThreeHullsPredateTheUimTheyDeclare() {
         List<String> early = new ArrayList<>();
         for (ShipSpec spec : ShipLibrary.all())
             if (!ShipLibrary.createShip(spec).getUims().isEmpty() && spec.serviceYear < 165)
                 early.add(spec.faction + "/" + spec.type + " (Y" + spec.serviceYear + ")");
         early.sort(null);
-        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7N (Y137)"), early);
+        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7N (Y137)", "Lyran/CC (Y120)"), early);
+    }
+
+    /**
+     * D6.56 dates the UIM <b>per empire</b>, and Y165 is the year the two answers differ.
+     *
+     * <p>Klingon: "See (R3.R3); available Y165 and later." Lyran: "See (R11.R4); available
+     * <b>Y166</b> and later." One constant of 165 for everyone handed the Bengal Tiger a UIM in a
+     * Y165 battle — five BPV it had not paid and a free shift on the range 16-22 band — where its
+     * own SSD says it has none. It was exactly one hull in exactly one year, the CC being the only
+     * Lyran UIM hull that can be fielded that early, and the owner's reading of the SSD is what
+     * turned it up.
+     */
+    @Test
+    public void theLyranUimArrivesAYearAfterTheKlingonOne() {
+        Ship lyranIn165 = lyran("CC", 165);
+        assertTrue("a Lyran CC has no UIM in Y165 (D6.56: Y166 and later)",
+                lyranIn165.getUims().isEmpty());
+        assertFalse(lyranIn165.hasUim());
+
+        Ship lyranIn166 = lyran("CC", 166);
+        assertFalse("and has one from Y166", lyranIn166.getUims().isEmpty());
+
+        assertEquals("the BPV follows it, as the SSD's own note says",
+                lyranIn166.getBattlePointValue() - 5, lyranIn165.getBattlePointValue());
+
+        // The same year, for a Klingon, is the year it DOES have one.
+        assertFalse("the Klingon year is Y165, not Y166",
+                klingon("D6Bu", 165).getUims().isEmpty());
+    }
+
+    /** One Lyran hull through the real loader at a scenario year. */
+    private Ship lyran(String type, int year) {
+        ScenarioSpec spec = new ScenarioSpec();
+        spec.year = year;
+
+        ScenarioSpec.ShipSetup setup = new ScenarioSpec.ShipSetup();
+        setup.type = type;
+        setup.shipName = "LPS " + type;
+        setup.startHex = "0510";
+        setup.startHeading = "A";
+        setup.weaponStatus = 3;
+
+        ScenarioSpec.SideSpec side = new ScenarioSpec.SideSpec();
+        side.faction = "Lyran";
+        side.ships = List.of(setup);
+        spec.sides = List.of(side);
+
+        List<List<Ship>> sides = ScenarioLoader.loadShips(spec);
+        assertEquals("fixture: " + type + " should have loaded", 1, sides.get(0).size());
+        return sides.get(0).get(0);
     }
 }

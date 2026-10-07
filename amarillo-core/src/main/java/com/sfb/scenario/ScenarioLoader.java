@@ -6,6 +6,7 @@ import com.sfb.objects.DroneType;
 import com.sfb.objects.shuttles.ScatterPack;
 import com.sfb.objects.Ship;
 import com.sfb.objects.ShipLibrary;
+import com.sfb.properties.Faction;
 import com.sfb.objects.ShipSpec;
 import com.sfb.objects.shuttles.Shuttle;
 import com.sfb.objects.shuttles.SuicideShuttle;
@@ -149,8 +150,36 @@ public class ScenarioLoader {
     /** BPV a single UIM is worth (D6.5), read off the "u" refit variants. */
     private static final int UIM_BPV = 5;
 
-    /** D6.5: the year the UIM became available. */
+    /**
+     * D6.56: the year the UIM became available, <b>which is per empire</b>.
+     *
+     * <p>The prose reads "The UIM became available (to the Klingons) about Y165", and the
+     * INSTALLATION list dates each adopter separately: Klingon "See (R3.R3); available Y165 and
+     * later", Lyran "See (R11.R4); available <b>Y166</b> and later. Also see (R14.R2) for
+     * availability to the <b>LDR in Y170</b>."
+     *
+     * <p>One constant of 165 handed the Lyran CC a UIM in a Y165 battle, where its own SSD says "No
+     * UIM prior to Y166. Reduce BPV -5" — the owner's reading of the SSD is what turned this up. It
+     * was exactly one hull in exactly one year, because the CC is the only Lyran UIM hull that can
+     * be fielded that early (the CC+ enters service in Y166 and the BCH in Y180), but it was five
+     * BPV and a free shift on the range 16-22 band.
+     *
+     * <p>D6.5 also names the WYN as an early adopter without dating them, and we have no WYN hulls;
+     * a faction not listed here falls back to the Klingon year, and if one ever declares a UIM its
+     * R-section should be read rather than this default trusted.
+     */
+    private static final java.util.Map<Faction, Integer> UIM_YEAR_BY_EMPIRE = java.util.Map.of(
+            Faction.Klingon, 165,
+            Faction.Lyran, 166);
+
+    /** D6.5's general case, and the fallback for an empire D6.56 does not date. */
     private static final int UIM_YEAR = 165;
+
+    /** The year {@code ship}'s empire could first fit a UIM (D6.56). */
+    private static int uimYearFor(Ship ship) {
+        Faction faction = ship.getFaction();
+        return faction == null ? UIM_YEAR : UIM_YEAR_BY_EMPIRE.getOrDefault(faction, UIM_YEAR);
+    }
 
     /**
      * D6.5: strip the UIM from a ship in a scenario earlier than Y165, and refund its BPV.
@@ -179,7 +208,7 @@ public class ScenarioLoader {
      * declaring it is the Kzinti TGT at Y130 and the Early Years end at Y120 (Y0.0).
      */
     static void applyUimAvailability(Ship ship, int year) {
-        if (year <= 0 || year >= UIM_YEAR)
+        if (year <= 0 || year >= uimYearFor(ship))
             return;
         int removed = ship.removeUims();
         if (removed > 0)
