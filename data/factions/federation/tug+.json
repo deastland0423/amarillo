@@ -1,7 +1,7 @@
 {
   "faction": "Federation",
   "type": "TUG+",
-  "typeName": "Tug",
+  "typeName": "Fleet Tug (+ refit)",
   "line": "TUG",
   "name": "USS Al Rashid",
   "serviceYear": 165,

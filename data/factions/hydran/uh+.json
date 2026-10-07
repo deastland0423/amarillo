@@ -1,7 +1,7 @@
 {
   "faction": "Hydran",
   "type": "UH+",
-  "typeName": "Uhlan Patrol Carrier",
+  "typeName": "Uhlan Patrol Carrier (+ refit)",
   "carrierClass": "CAPABLE",
   "line": "DD",
   "name": "HMS Scorpion",

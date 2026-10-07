@@ -1,7 +1,7 @@
 {
   "faction": "Hydran",
   "type": "TUG+",
-  "typeName": "Caravan Tug",
+  "typeName": "Caravan Tug (+ refit)",
   "carrierClass": "CAPABLE",
   "line": "TUG",
   "name": "HMS Capacious",

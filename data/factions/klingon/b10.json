@@ -1,0 +1,113 @@
+{
+  "faction": "Klingon",
+  "type": "B10",
+  "typeName": "Battleship",
+  "note": "The largest warship ever completed by any empire, and the only battleship any of them finished. It carries fighters but has no official escort requirement, so the absent requiresEscort is correct — being what it was, it seldom travelled alone anyway.",
+  "line": "BB",
+  "name": "IKS Invincible",
+  "serviceYear": 169,
+  "bpv": 316,
+  "turnMode": "E",
+  "sizeClass": 2,
+  "moveCost": 2.0,
+  "breakdown": 2,
+  "bonusHets": 1,
+  "commandRating": 10,
+  "carrierClass": "CAPABLE",
+  "droneStorageSpaces": 200,
+  "tokenArt": "klingon/b10.png",
+  
+  "shields": [68, 45, 40, 40, 40, 45],
+  
+  "hullBoxes": {
+    "fhull": 15,
+    "ahull": 36
+  },
+  
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 30,
+    "impulse": 13,
+    "apr": 6,
+    "battery": 12
+  },
+  
+  "control": {
+    "bridge": 5,
+    "emergency": 2,
+    "auxCon": 2,
+    "security": 5,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [8, 8, 6, 6, 4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 6, 6, 5, 3, 2, 1, 0],
+    "scanner": [0, 0, 0, 1, 2, 3, 5, 6, 9],
+    "excess": 10
+  },
+
+  "auxiliary": {
+    "transporters": 12,
+    "tractors": 5,
+    "labs": 6,
+    "uim": 1,
+    "probes": 1,
+    "derfacs": false
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin", "admin"], "fighters": {"line": "klingon-zegurnii", "superiority": 7, "ew": 1} },
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 81,
+    "boardingParties": 32,
+    "deckCrews": 8,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RF", "LS"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["RF", "LS"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["LF", "RS"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["LF", "RS"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["FA", "L", "13"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FA", "L", "13"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["FA", "R", "13"] },
+    { "type": "Phaser1", "designator": "11", "arcs": ["FA", "R", "13"] },
+    { "type": "Phaser2", "designator": "12", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "13", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "14", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "15", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "16", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "17", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "18", "arcs": ["L", "LR"] },
+    { "type": "Phaser3", "designator": "19", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "20", "arcs": ["R", "RR"] },
+    { "type": "Phaser3", "designator": "21", "arcs": ["R", "RR"] },
+    { "type": "Disruptor",  "designator": "A", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "B", "range": 40, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 40, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "E", "range": 40, "arcs": ["FH", "L"] },
+    { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FH", "L"] },
+    { "type": "Disruptor",  "designator": "G", "range": 40, "arcs": ["FH", "R"] },
+    { "type": "Disruptor",  "designator": "H", "range": 40, "arcs": ["FH", "R"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 7", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 8", "rackType": "TYPE_F", "arcs": ["FULL"]},
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_6" }
+  ]
+}
