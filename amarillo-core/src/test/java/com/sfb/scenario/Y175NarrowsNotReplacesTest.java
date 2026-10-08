@@ -141,4 +141,39 @@ public class Y175NarrowsNotReplacesTest {
         assertTrue("fixture: the NCD carries type-G racks", gBefore > 0);
         assertEquals("two type-G racks, one extra set each (FD3.72)", gBefore + 2, gAfter);
     }
+
+    /**
+     * The composition that the F5J asked about: a y175 block carried by a REFIT, narrowing the
+     * faction default, on a hull the refit has already modified.
+     *
+     * <p>The F5 and F5J both start with a type-F rack. Their B refits set it to type-A and each
+     * carries a y175 block — which until 2026-10-08 had to restate "Rack 1 becomes type-B", because
+     * declaring the block skipped the Klingon default that does exactly that. Both blocks are now
+     * just a {@code refitCost}, and this is what proves dropping the restatement changed nothing:
+     * the refit makes the rack type-A, the default takes it to type-B, and the cost is still paid.
+     *
+     * <p>Worth its own test because it is a different path from the G2's: there the block sits on
+     * the hull, here it arrives with a refit, so the refit must be applied before the year rules
+     * see the ship at all.
+     */
+    @Test
+    public void aRefitsOwnY175BlockAlsoNarrowsTheDefault() {
+        for (String type : List.of("F5B", "F5JB")) {
+            List<DroneRack> before = racks(inYear("Klingon", type, 174));
+            assertEquals("fixture: " + type + " carries one rack", 1, before.size());
+            assertEquals(type + "'s B refit should leave a type-A rack before Y175",
+                    DroneRack.DroneRackType.TYPE_A, before.get(0).getRackType());
+
+            List<DroneRack> after = racks(inYear("Klingon", type, 175));
+            assertEquals(type + "'s rack should reach type-B from the faction default, with no"
+                            + " entry in the block saying so",
+                    DroneRack.DroneRackType.TYPE_B, after.get(0).getRackType());
+        }
+
+        // And the costs their SSDs charge are still charged: 3 for the F5, 1 for the F5J.
+        assertEquals(3, inYear("Klingon", "F5B", 175).getBattlePointValue()
+                - inYear("Klingon", "F5B", 174).getBattlePointValue());
+        assertEquals(1, inYear("Klingon", "F5JB", 175).getBattlePointValue()
+                - inYear("Klingon", "F5JB", 174).getBattlePointValue());
+    }
 }

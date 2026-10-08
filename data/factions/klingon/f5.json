@@ -80,11 +80,7 @@
         "year": 165,
         "bpv": 5,
         "shields": [21, 16, 16, 16, 16, 16],
-        "y175Upgrades": {
-          "refitCost": 3,
-          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}],
-          "adds": [{"designator": "ADD 1", "upgradeTo": "ADD_12"}]
-        },
+        "y175Upgrades": { "refitCost": 3 },
         "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}],
         "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_A"}, "designators": ["Rack 1"]}]
       },

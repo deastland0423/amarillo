@@ -78,11 +78,7 @@
         "year": 165,
         "bpv": 4,
         "shields": [21, 12, 12, 12, 12, 12],
-        "y175Upgrades": {
-          "refitCost": 3,
-          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}],
-          "adds": [{"designator": "ADD 1", "upgradeTo": "ADD_12"}]
-        },
+        "y175Upgrades": {"refitCost": 3, "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}]},
         "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}]
       }
     ],

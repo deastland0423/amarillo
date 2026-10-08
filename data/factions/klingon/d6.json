@@ -94,11 +94,7 @@
         { "from": "Disruptor", "set": { "range": 30 } },
         { "from": "DroneRack", "set": { "rackType": "TYPE_A" } }
       ],
-      "y175Upgrades":
-        { "refitCost": 4,
-          "racks": [ { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
-                     { "designator": "Rack 2", "upgradeTo": "TYPE_B" } ],
-          "adds":  [ { "designator": "ADD 1", "upgradeTo": "ADD_12" } ] } },
+      "y175Upgrades": {"refitCost": 4} },
     { "code": "K", "name": "Phaser-1 refit", "year": 175, "bpv": 3, "requires": ["B"],
       "replaceWeapons": [ { "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] } ] },
     { "code": "u", "name": "UIM refit", "year": 165, "bpv": 5,

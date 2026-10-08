@@ -84,10 +84,7 @@
       "shields": [30, 22, 22, 22, 22, 22],
       "epv": 136,
       "replaceWeapons": [ { "from": "DroneRack", "set": { "rackType": "TYPE_A" } } ],
-      "y175Upgrades":
-        { "refitCost": 4,
-          "racks": [ { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
-                     { "designator": "Rack 2", "upgradeTo": "TYPE_B" } ] } }
+      "y175Upgrades": {"refitCost": 4} }
   ],
   "variants": [
     { "refits": ["B"], "type": "D6SB", "name": "IKS Watcher",
