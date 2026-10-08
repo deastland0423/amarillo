@@ -80,5 +80,30 @@
 
   "y175Upgrades": {
     "refitCost": 2
-  }
+  },
+
+  "_refitComment": [
+    "No B refit, like the D6V: the F5V was built in Y167, after the B refit had gone fleet wide, so",
+    "its baseline shields are already the refitted [21,16,16,16,16,16] - compare the F5, whose B",
+    "refit raises 9s to 16s. It only ever carried the K refit."
+  ],
+  "refits": [
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 175,
+        "bpv": 2,
+        
+        "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["K"],
+        "type": "F5VK",
+        "name": "IKS Fire Carrier",
+        "typeName": "Light Carrier (Phaser-1 refit)",
+        "serviceYear": 175
+      }
+    ]
 }

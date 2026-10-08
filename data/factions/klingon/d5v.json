@@ -83,6 +83,24 @@
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FH", "R"] },
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FH", "R"] }
 
-  ]
+  ],
 
+    "refits": [
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 175,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["3", "4"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["K"],
+        "type": "D5VK",
+        "name": "IKS Rampart",
+        "typeName": "Light Carrier (Phaser-1 refit)",
+        "serviceYear": 175
+      }
+    ]
 }

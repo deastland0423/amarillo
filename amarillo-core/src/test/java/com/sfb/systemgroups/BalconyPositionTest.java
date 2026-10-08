@@ -252,20 +252,34 @@ public class BalconyPositionTest {
     @Test
     public void onlyTheHullsWhoseSsdGrantsOneHasABalconyOutsideTheGorn() {
         java.util.Set<String> withBalcony = new java.util.TreeSet<>();
+        java.util.Set<String> byInheritance = new java.util.TreeSet<>();
+        java.util.Set<String> rostered = java.util.Set.of(
+                "Federation CVA",   // six on each fighter bay, none on the admin bay
+                "Klingon C8V",      // stacked bays; four on the lower one
+                "Romulan K7V");     // stacked bays on a converted K7; four on the lower
+
         for (ShipSpec spec : ShipLibrary.all()) {
             if ("Gorn".equals(spec.faction))
                 continue;
+            boolean balcony = false;
             for (ShuttleBay bay : ShipLibrary.createShip(spec).getShuttles().getBays())
                 if (bay.hasBalcony())
-                    withBalcony.add(spec.faction + " " + spec.type);
+                    balcony = true;
+            if (!balcony)
+                continue;
+            // A REFIT inherits its base hull's bays (S3.24): the C8VK is the C8V with the phaser
+            // refit, and a phaser refit does not take away a hangar deck. So a refitted hull is
+            // justified by its BASE being on this roster rather than needing its own entry — which
+            // also stops the roster growing every time a carrier gains a refit.
+            if (spec.refitOf != null && rostered.contains(spec.faction + " " + spec.refitOf))
+                byInheritance.add(spec.faction + " " + spec.type);
+            else
+                withBalcony.add(spec.faction + " " + spec.type);
         }
 
-        assertEquals("only the hulls whose SSDs give them one",
-                java.util.Set.of(
-                        "Federation CVA",   // six on each fighter bay, none on the admin bay
-                        "Klingon C8V",      // stacked bays; four on the lower one
-                        "Romulan K7V"),     // stacked bays on a converted K7; four on the lower
-                withBalcony);
+        assertEquals("only the hulls whose SSDs give them one", rostered, withBalcony);
+        assertFalse("fixture: a refitted carrier should be inheriting a balcony, or the branch"
+                + " above is never exercised", byInheritance.isEmpty());
     }
 
     /**

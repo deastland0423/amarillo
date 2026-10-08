@@ -81,5 +81,24 @@
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] }
 
+  ],
+  
+  "refits": [
+    {
+      "code": "K",
+      "name": "Phaser-1 refit",
+      "year": 175,
+      "bpv": 3,
+      "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"]}]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["K"],
+      "type": "D7NK",
+      "name": "IKS Demagogue",
+      "typeName": "Diplomatic Cruiser (Phaser-1 refit)",
+      "serviceYear": 175
+    }
   ]
 }

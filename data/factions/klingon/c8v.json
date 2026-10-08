@@ -96,5 +96,30 @@
     { "type": "Disruptor",  "designator": "F", "range": 40, "arcs": ["FA"] },
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 174,
+        "bpv": 8,
+        "replaceWeapons": [
+          {
+            "from": "Phaser2",
+            "to": "Phaser1",
+            "designators": ["10", "3", "4", "5", "6", "7", "8", "9"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["K"],
+        "type": "C8VK",
+        "name": "IKS Harbinger",
+        "typeName": "Heavy Carrier (Phaser-1 refit)",
+        "serviceYear": 174
+      }
+    ]
 }

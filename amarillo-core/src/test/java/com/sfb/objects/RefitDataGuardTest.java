@@ -172,4 +172,64 @@ public class RefitDataGuardTest {
     private static boolean notEmpty(java.util.Map<String, Object> m) {
         return m != null && !m.isEmpty();
     }
+
+    // ------------------------------------------------- y175Upgrades is an OPT-OUT, not an addition
+
+    /**
+     * A hull declaring {@code y175Upgrades} must account for every rack its faction default would
+     * have upgraded, because declaring the block SKIPS those defaults.
+     *
+     * <p>{@code ScenarioLoader.applyYearUpgrades} applies a per-ship block and then {@code return}s,
+     * so the faction switch below it never runs. The Federation default gives every type-G rack a
+     * third reload set (FD3.72), the Klingon and Kzinti defaults upgrade type-A racks — and a block
+     * that names only some of a ship's racks silently loses the rest.
+     *
+     * <p>Found on the Federation NCD and NCD+ (2026-10-08) while answering the owner's question about
+     * whether the ADD_6-to-ADD_12 entry was necessary. It is not — that upgrade is universal and runs
+     * before any block — but the question is what led here: both hulls named their four type-A racks
+     * and not their two type-G ones, so in every Y175 battle they fought two reload sets short.
+     *
+     * <p>Restating what the default would have done is the price of the opt-out. The block cannot
+     * simply be deleted where it carries a {@code refitCost} the default does not charge.
+     */
+    @Test
+    public void aY175BlockAccountsForEveryRackItsFactionDefaultWouldHaveTouched() throws Exception {
+        assumeTrue(FACTIONS.isDirectory());
+
+        List<String> wrong = new ArrayList<>();
+        int checked = 0;
+        File[] factions = FACTIONS.listFiles(File::isDirectory);
+        for (File faction : factions == null ? new File[0] : factions)
+            for (File f : faction.listFiles(n -> n.getName().endsWith(".json"))) {
+                ShipSpec hull = MAPPER.readValue(f, ShipSpec.class);
+                if (hull.y175Upgrades == null || hull.weapons == null || hull.faction == null)
+                    continue;
+
+                // What this faction's default would have reached for.
+                String wanted = switch (hull.faction.toUpperCase()) {
+                    case "FEDERATION" -> "TYPE_G";
+                    case "KLINGON", "KZINTI" -> "TYPE_A";
+                    default -> null;
+                };
+                if (wanted == null)
+                    continue;
+
+                Set<String> named = new LinkedHashSet<>();
+                for (ShipSpec.Y175RackUpgrade ru : hull.y175Upgrades.racks)
+                    named.add(ru.designator);
+                for (ShipSpec.WeaponSpec w : hull.weapons) {
+                    if (!"DroneRack".equals(w.type) || !wanted.equals(w.rackType))
+                        continue;
+                    checked++;
+                    if (!named.contains(w.designator))
+                        wrong.add(hull.faction + "/" + hull.type + ": " + w.designator + " is "
+                                + wanted + ", which the faction default would have upgraded, but the"
+                                + " hull's y175Upgrades block does not name it — and declaring the"
+                                + " block skips the default");
+                }
+            }
+
+        assertTrue("some hull should declare a block over racks the default would reach", checked > 0);
+        report(wrong, "a y175Upgrades block silently skips its faction default");
+    }
 }

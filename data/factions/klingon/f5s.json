@@ -3,7 +3,7 @@
   "type": "F5S",
   "typeName": "Scout",
   "line": "DD",
-  "name": "IKS I See You",
+  "name": "IKS Dauntless",
   "serviceYear": 138,
   "bpv": 60,
   "epv": 80,
@@ -72,5 +72,30 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
-  ]
+  ],
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 165,
+        "bpv": 5,
+        "shields": [21, 16, 16, 16, 16, 16],
+        "y175Upgrades": {
+          "refitCost": 3,
+          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}],
+          "adds": [{"designator": "ADD 1", "upgradeTo": "ADD_12"}]
+        },
+        "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}],
+        "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_A"}, "designators": ["Rack 1"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "F5SB",
+        "name": "IKS Deceiver",
+        "typeName": "Scout (B refit)",
+        "serviceYear": 165
+      }
+    ]
 }

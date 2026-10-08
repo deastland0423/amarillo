@@ -67,6 +67,17 @@
     { "type": "Phaser3", "designator": "4", "arcs": ["FX", "13"] },
     { "type": "Disruptor",  "designator": "A", "range": 10, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 10, "arcs": ["FA"] },
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" }
-  ]
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
+  ],
+
+    "_y175Comment": [
+    "Only the refit COST. The ADD_6 to ADD_12 upgrade needs no entry: applyYearUpgrades does every",
+    "ADD_6 in the game before it looks at any per-ship block. But the block cannot be deleted,",
+    "because declaring one is an OPT-OUT - the loader applies it and returns, skipping the faction",
+    "defaults - and the cost would go with it. Harmless here only because the E3 has no drone racks",
+    "for those defaults to touch; the Federation NCD lost two reload sets exactly this way."
+  ],
+  "y175Upgrades": {
+    "refitCost": 2
+  }  
 }

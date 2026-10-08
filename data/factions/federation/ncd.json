@@ -82,7 +82,9 @@
       { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
       { "designator": "Rack 2", "upgradeTo": "TYPE_B" },
       { "designator": "Rack 3", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B" }
+      { "designator": "Rack 4", "upgradeTo": "TYPE_B" },
+      { "designator": "Rack 5", "upgradeTo": "TYPE_G", "extraReloads": 1 },
+      { "designator": "Rack 6", "upgradeTo": "TYPE_G", "extraReloads": 1 }
     ]
   }
 
