@@ -76,6 +76,8 @@
         "name": "+ refit",
         "year": 171,
         "bpv": 6,
+        "auxiliary": {"labs": 4},
+        "power": {"awr": 4},
         "addWeapons": [
           {"type": "Phaser3", "designator": "7", "arcs": ["LS"]},
           {"type": "Phaser3", "designator": "8", "arcs": ["RS"]}

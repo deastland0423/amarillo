@@ -89,6 +89,7 @@
         "name": "+ refit",
         "year": 165,
         "bpv": 14,
+        "power": {"apr": 2},
         "shields": [30, 24, 24, 24, 24, 24],
         "control": {"controlMod": 1.0},
         "addWeapons": [
@@ -101,6 +102,14 @@
           {"type": "Phaser3", "designator": "10", "arcs": ["FULL"]},
           {"type": "Phaser3", "designator": "9", "arcs": ["FULL"]}
         ]
+      },
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 170,
+        "bpv": 0,
+        "requires": ["+"],
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
       }
     ],
     "variants": [
@@ -124,6 +133,13 @@
         "name": "USS Exeter",
         "typeName": "Heavy Cruiser (+ and R refit)",
         "serviceYear": 165
+      },
+      {
+        "refits": ["+", "R", "a"],
+        "type": "CARa+",
+        "name": "USS Merimac",
+        "typeName": "Heavy Cruiser (+, R, and AWR refit)",
+        "serviceYear": 170
       }
     ]
 }

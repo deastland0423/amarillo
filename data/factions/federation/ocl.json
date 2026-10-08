@@ -78,6 +78,7 @@
         "name": "+ refit",
         "year": 168,
         "bpv": 13,
+        "power": {"apr": 2},
         "shields": [18, 18, 16, 16, 16, 18],
         "control": {"controlMod": 1.0},
         "addWeapons": [
@@ -90,6 +91,14 @@
           {"type": "Phaser3", "designator": "7", "arcs": ["FULL"]},
           {"type": "Phaser3", "designator": "8", "arcs": ["FULL"]}
         ]
+      },
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 170,
+        "bpv": 0,
+        "requires": ["+"],
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
       }
     ],
     "variants": [
@@ -99,6 +108,13 @@
         "name": "USS Wales",
         "typeName": "Old Light Cruiser (+ refit)",
         "serviceYear": 168
+      },
+      {
+        "refits": ["+", "a"],
+        "type": "OCLa+",
+        "name": "USS Anatolia",
+        "typeName": "Old Light Cruiser (+ and AWR refit)",
+        "serviceYear": 170
       }
     ]
 }

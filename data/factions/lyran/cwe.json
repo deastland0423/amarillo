@@ -81,7 +81,7 @@
     { "type": "Phaser1", "designator": "10", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "11", "arcs": ["FA", "L"] },
     { "type": "Phaser1", "designator": "12", "arcs": ["FA", "R"] },
-    { "type": "Phaser1", "designator": "12", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "13", "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
   ],

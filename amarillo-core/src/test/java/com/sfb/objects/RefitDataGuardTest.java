@@ -233,4 +233,71 @@ public class RefitDataGuardTest {
         assertTrue("there should be refit combinations to check", checked > 0);
         report(wrong, "two combinations of one hull's refits share a type code");
     }
+
+    /**
+     * A conversion must have something to convert.
+     *
+     * <p>{@code convertPower} reads how many of a system the hull has and moves them; with none, it
+     * returns early and the refit costs nothing and changes nothing. {@code everyRefitDoesSomething}
+     * would not notice, because a non-null {@code convertPower} counts as an effect without anyone
+     * checking there is anything to act on — so a refit could pass every guard and do nothing at all.
+     *
+     * <p>Found while the owner was adding an AWR refit to the Federation CA, whose power block has
+     * no auxiliary reactors to convert: the CA, CC and GSC share a hull, and the other two carry two
+     * APRs each.
+     *
+     * <p>Checked against the hull AND against every combination that could precede the conversion,
+     * because a refit may add the reactors that another converts — which is exactly what the DN's +
+     * refit does.
+     */
+    @Test
+    public void everyPowerConversionHasSomethingToConvert() throws Exception {
+        assumeTrue(FACTIONS.isDirectory());
+
+        List<String> wrong = new ArrayList<>();
+        int checked = 0;
+        for (ShipSpec hull : hullsWithRefits()) {
+            for (ShipSpec.RefitSpec r : hull.refits) {
+                if (r.convertPower == null || r.convertPower.from == null)
+                    continue;
+                checked++;
+                // Any combination including this refit will do: if ONE of them has reactors to
+                // convert, the refit is doing work on that ship.
+                boolean everConverts = false;
+                List<String> codes = new ArrayList<>(codesOf(hull));
+                for (int mask = 1; mask < (1 << codes.size()); mask++) {
+                    List<String> asked = new ArrayList<>();
+                    for (int i = 0; i < codes.size(); i++)
+                        if ((mask & (1 << i)) != 0)
+                            asked.add(codes.get(i));
+                    if (!asked.contains(r.code))
+                        continue;
+                    // Build WITHOUT the conversion's own effect by asking for the others first.
+                    List<String> others = new ArrayList<>(asked);
+                    others.remove(r.code);
+                    ShipSpec before = RefitResolver.apply(hull, others);
+                    if (before.power == null)
+                        continue;
+                    try {
+                        java.lang.reflect.Field f =
+                                ShipSpec.PowerSpec.class.getField(r.convertPower.from);
+                        if (f.getInt(before.power) > 0)
+                            everConverts = true;
+                    } catch (ReflectiveOperationException ex) {
+                        wrong.add(hull.faction + "/" + hull.type + ": refit " + r.code
+                                + " converts power." + r.convertPower.from
+                                + ", which is not a field of PowerSpec");
+                    }
+                }
+                if (!everConverts)
+                    wrong.add(hull.faction + "/" + hull.type + ": refit " + r.code
+                            + " converts power." + r.convertPower.from + " to "
+                            + r.convertPower.to + ", but no combination of this hull's refits"
+                            + " leaves it with any — so the refit costs nothing and changes nothing");
+            }
+        }
+
+        assertTrue("there should be a power conversion to check", checked > 0);
+        report(wrong, "a conversion with nothing to convert");
+    }
 }

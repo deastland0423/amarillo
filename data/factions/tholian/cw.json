@@ -69,8 +69,8 @@
     { "type": "Phaser3", "designator": "6", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
     { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "L"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "L"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "R"] },
-    { "type": "Disruptor",  "designator": "A", "range": 30, "arcs": ["FA", "R"] }
+    { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA", "L"] },
+    { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA", "R"] },
+    { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA", "R"] }
   ]
 }
