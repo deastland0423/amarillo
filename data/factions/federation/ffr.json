@@ -71,5 +71,32 @@
     { "type": "Phaser1", "designator": "5", "arcs": ["RS"] },
     { "type": "PhaserG", "designator": "6", "arcs": ["LS"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["RS"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 4,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFR+",
+        "name": "USS Barry",
+        "typeName": "Escort Frigate-R (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

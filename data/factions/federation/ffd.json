@@ -66,5 +66,32 @@
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_B", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_B", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 4,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 3",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFD+",
+        "name": "USS Boyington",
+        "typeName": "Drone Frigate (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

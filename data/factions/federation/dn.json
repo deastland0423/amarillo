@@ -78,5 +78,73 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 148,
+        "bpv": 0,
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
+      },
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 172,
+        "bpv": 27,
+        "shields": [44, 38, 32, 32, 32, 38],
+        "auxiliary": {"tractors": 3, "transporters": 6},
+        "control": {"controlMod": 1.0},
+        "power": {"apr": 4},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser1", "designator": "11", "arcs": ["RA"]},
+          {"type": "Phaser1", "designator": "12", "arcs": ["RA"]},
+          {"type": "Photon", "designator": "E", "arcs": ["FA"]},
+          {"type": "Photon", "designator": "F", "arcs": ["FA"]}
+        ],
+        "replaceWeapons": [
+          {"from": "Phaser1", "set": {"arcs": ["FULL"]}, "designators": ["10", "9"]},
+          {"from": "Phaser1", "set": {"arcs": ["L", "LF", "13"]}, "designators": ["5"]},
+          {"from": "Phaser1", "set": {"arcs": ["RF", "R", "13"]}, "designators": ["7", "8"]}
+        ],
+        "set": {
+          "crewData": {"totalCrew": 52, "boardingParties": 14, "minCrew": 4},
+          "hullBoxes": {"fhull": 22, "ahull": 6},
+          "shuttleBays": [
+            {
+              "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin", "admin", "admin"]
+            }
+          ]
+        }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DN+",
+        "name": "USS Concordant",
+        "typeName": "Dreadnought (+ refit)",
+        "serviceYear": 172
+      },
+      {
+        "refits": ["a"],
+        "type": "DNa",
+        "name": "USS Unity",
+        "typeName": "Dreadnought (AWR refit)"
+      },
+      {
+        "refits": ["+", "a"],
+        "type": "DNa+",
+        "name": "USS Star League",
+        "typeName": "Dreadnought (+ and AWRrefit)",
+        "serviceYear": 174
+      }
+    ]
 }

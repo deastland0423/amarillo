@@ -68,5 +68,28 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
     { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 0,
+        "auxiliary": {"labs": 4},
+        "power": {"awr": 4},
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "7", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "8", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DDL+",
+        "name": "USS Pompey",
+        "typeName": "Plasma Armed Destroyer (+ refit)"
+      }
+    ]
 }

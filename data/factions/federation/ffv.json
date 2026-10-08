@@ -68,5 +68,33 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["RS"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["RS"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 173,
+        "bpv": 4,
+        "epv": 79,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFV+",
+        "name": "USS Zuiho",
+        "typeName": "Escort Carrier (+ refit)",
+        "serviceYear": 173
+      }
+    ]
 }

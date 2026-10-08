@@ -71,5 +71,31 @@
     { "type": "PhaserG", "designator": "5", "arcs": ["RS"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 175,
+        "bpv": 4,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 3",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFA+",
+        "name": "USS Kondo",
+        "typeName": "Aegis Frigate (+ refit)"
+      }
+    ]
 }

@@ -160,6 +160,11 @@ public class RefitDataGuardTest {
             for (ShipSpec.RefitSpec r : hull.refits) {
                 boolean touches = r.shields != null || r.epv != null || r.y175Upgrades != null
                         || notEmpty(r.power) || notEmpty(r.auxiliary) || notEmpty(r.control)
+                        || (r.set != null && !r.set.isEmpty())
+                        // A CONVERSION does something, and its cost is per unit rather than in
+                        // `bpv` — the Federation AWR refit reads 0 there and charges one point per
+                        // reactor it converts, so a guard looking only at bpv called it inert.
+                        || r.convertPower != null
                         || (r.addWeapons != null && !r.addWeapons.isEmpty())
                         || (r.replaceWeapons != null && !r.replaceWeapons.isEmpty());
                 if (!touches)

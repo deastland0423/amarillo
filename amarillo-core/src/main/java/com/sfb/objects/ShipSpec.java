@@ -338,6 +338,34 @@ public class ShipSpec {
         /** Weapons swapped in place, keeping their designators and arcs. */
         public List<WeaponSwap> replaceWeapons;
         /**
+         * Any OTHER field of the hull this refit replaces, by name:
+         * {@code "set": { "crewData": {...}, "hullBoxes": {...} }}.
+         *
+         * <p>The named fields above cover what most refits do — shields, power, a weapon swap. But a
+         * big refit rebuilds the ship: the Federation DN+ changes its crew, its hull boxes AND its
+         * shuttle bays, and without this those changes were dropped in silence, because Jackson
+         * ignores a key the spec does not declare. Found by the migration's equivalence check.
+         *
+         * <p>Whole-value replacement, not a merge, and applied by reflection against the real field
+         * so a misspelling fails loudly rather than doing nothing. For the three primitive BLOCKS
+         * use {@link #power}, {@link #auxiliary} and {@link #control} instead — those merge field by
+         * field, because a primitive cannot say "I am not setting this".
+         */
+        public java.util.Map<String, Object> set;
+        /**
+         * A refit that CONVERTS one power system into another, however many there are.
+         *
+         * <p>The Federation AWR refit replaces a hull's auxiliary power reactors with warp reactors,
+         * and its effect depends on the ship it is fitted to: a bare DN has two APRs, a DN+ has four
+         * because the + refit added two. An absolute {@code "awr": 2} is therefore wrong on one of
+         * them, and so is a flat BPV — the cost is one point per reactor, so the same refit is +2 on
+         * the DN and +4 on the DN+, which is exactly what the DN's own files say.
+         *
+         * <p>The first refit in the data whose effect is not a fixed delta. Carried by the CC, NCL,
+         * FFG and DN.
+         */
+        public PowerConversion convertPower;
+        /**
          * Replaces the hull's Y175 upgrade block.
          * <p>
          * Here because the data puts it here: a D6 declares none and a D6B declares one, so the block
@@ -373,6 +401,17 @@ public class ShipSpec {
         public java.util.Map<String, Object> set;
         /** Which designators, or all of that type when omitted. */
         public List<String> designators;
+    }
+
+    /** One power system converted into another, priced per unit (the Federation AWR refit). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PowerConversion {
+        /** The field converted away, e.g. "apr". */
+        public String from;
+        /** What it becomes, e.g. "awr". */
+        public String to;
+        /** BPV per unit converted. One, for the AWR refit. */
+        public int bpvEach;
     }
 
     /** What to call one combination of refits, where history named it. */

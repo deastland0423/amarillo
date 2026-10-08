@@ -70,5 +70,35 @@
     { "type": "Phaser1", "designator": "6", "arcs": ["RS"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 168,
+        "bpv": 13,
+        "shields": [18, 18, 16, 16, 16, 18],
+        "control": {"controlMod": 1.0},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser3", "designator": "7", "arcs": ["FULL"]},
+          {"type": "Phaser3", "designator": "8", "arcs": ["FULL"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "OCL+",
+        "name": "USS Wales",
+        "typeName": "Old Light Cruiser (+ refit)",
+        "serviceYear": 168
+      }
+    ]
 }

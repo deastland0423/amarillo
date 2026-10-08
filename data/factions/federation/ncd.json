@@ -86,6 +86,28 @@
       { "designator": "Rack 5", "upgradeTo": "TYPE_G", "extraReloads": 1 },
       { "designator": "Rack 6", "upgradeTo": "TYPE_G", "extraReloads": 1 }
     ]
-  }
+  },
 
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 173,
+        "bpv": 4,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "7", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "8", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "NCD+",
+        "name": "USS Groznyy",
+        "typeName": "New Drone Cruiser (+ refit)",
+        "serviceYear": 173
+      }
+    ]
 }

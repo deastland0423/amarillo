@@ -72,5 +72,43 @@
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 173,
+        "bpv": 4,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "7", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "8", "arcs": ["RS"]}
+        ]
+      },
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 173,
+        "bpv": 0,
+        "requires": ["+"],
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "NCL+",
+        "name": "USS Strasbourg",
+        "typeName": "New Light Cruiser (+ refit)",
+        "serviceYear": 173
+      },
+      {
+        "refits": ["+", "a"],
+        "type": "NCLa+",
+        "name": "USS Dunkerque",
+        "typeName": "New Light Cruiser (+ and AWR refit)",
+        "serviceYear": 173
+      }
+    ]
 }

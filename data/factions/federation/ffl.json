@@ -66,5 +66,32 @@
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
     { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 4,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFL+",
+        "name": "USS Ernest J King",
+        "typeName": "Plasma Frigate (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

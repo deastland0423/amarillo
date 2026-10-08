@@ -68,5 +68,23 @@
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 160,
+        "bpv": 0,
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["a"],
+        "type": "FFGa",
+        "name": "USS Hornblower",
+        "typeName": "Improved Frigate (AWR refit)"
+      }
+    ]
 }

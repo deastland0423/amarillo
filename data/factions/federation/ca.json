@@ -71,5 +71,59 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "R",
+        "name": "R refit",
+        "year": 160,
+        "bpv": 4,
+        "addWeapons": [
+          {"type": "Phaser1", "designator": "7", "arcs": ["RH"]},
+          {"type": "Phaser1", "designator": "8", "arcs": ["RH"]}
+        ]
+      },
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 165,
+        "bpv": 14,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "control": {"controlMod": 1.0},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser3", "designator": "10", "arcs": ["FULL"]},
+          {"type": "Phaser3", "designator": "9", "arcs": ["FULL"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CA+",
+        "name": "USS Constellation",
+        "typeName": "Heavy Cruiser (+ refit)",
+        "serviceYear": 165
+      },
+      {
+        "refits": ["R"],
+        "type": "CAR",
+        "name": "USS Intrepid",
+        "typeName": "Heavy Cruiser (R refit)",
+        "serviceYear": 160
+      },
+      {
+        "refits": ["+", "R"],
+        "type": "CAR+",
+        "name": "USS Exeter",
+        "typeName": "Heavy Cruiser (+ and R refit)",
+        "serviceYear": 165
+      }
+    ]
 }

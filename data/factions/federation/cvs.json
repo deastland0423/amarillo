@@ -77,5 +77,38 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 170,
+        "bpv": 16,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {
+            "type": "DroneRack",
+            "designator": "Rack 2",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CVS+",
+        "name": "USS Yamamoto",
+        "typeName": "CVS Strike Carrier (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }

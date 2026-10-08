@@ -77,5 +77,66 @@
     { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "4" },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 165,
+        "bpv": 10,
+        "epv": 152,
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 2",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {
+            "type": "DroneRack",
+            "designator": "Rack 3",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ],
+        "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_G"}, "designators": ["Rack 1"]}]
+      },
+      {
+        "code": "V",
+        "name": "Light Carrier refit",
+        "year": 167,
+        "bpv": 12,
+        "epv": 154,
+        "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_G"}, "designators": ["Rack 1"]}],
+        "set": {
+          "carrierClass": "CAPABLE",
+          "crewData": {"totalCrew": 44, "boardingParties": 6, "deckCrews": 6, "minCrew": 4},
+          "droneStorageSpaces": 250,
+          "requiresEscort": true,
+          "shuttleBays": [
+            {
+              "shuttles": ["admin", "admin"],
+              "fighters": {"line": "federation-fighter", "superiority": 6, "assault": 0, "ew": 0}
+            }
+          ]
+        }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["V"],
+        "type": "CVL",
+        "name": "USS Magellan",
+        "typeName": "Galactic Survey Cruiser (Light Carrier refit)",
+        "serviceYear": 167
+      },
+      {
+        "refits": ["+"],
+        "type": "GSC+",
+        "name": "USS Columbus",
+        "typeName": "Galactic Survey Cruiser (+ refit)",
+        "serviceYear": 165
+      }
+    ]
 }

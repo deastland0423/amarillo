@@ -73,5 +73,27 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 176,
+        "bpv": 4,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "7", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "8", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "NSC+",
+        "name": "USS Santa Maria",
+        "typeName": "New Scout Cruiser (+ refit)"
+      }
+    ]
 }

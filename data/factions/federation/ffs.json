@@ -67,5 +67,33 @@
     { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 4,
+        "epv": 75,
+        "power": {"apr": 1},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFS+",
+        "name": "USS Tensing",
+        "typeName": "Scout Frigate (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

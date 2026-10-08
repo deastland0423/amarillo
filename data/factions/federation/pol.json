@@ -66,5 +66,38 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 165,
+        "bpv": 8,
+        "y175Upgrades": {
+          "refitCost": 0,
+          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_G", "extraReloads": 1}]
+        },
+        "control": {"controlMod": 1.0},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser3", "designator": "4", "arcs": ["FULL"]},
+          {"type": "Phaser3", "designator": "5", "arcs": ["FULL"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "POL+",
+        "name": "USS Deckard",
+        "typeName": "Police Cutter (+ refit)",
+        "serviceYear": 165
+      }
+    ]
 }

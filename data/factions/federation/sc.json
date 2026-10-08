@@ -69,5 +69,30 @@
     { "type": "ScoutChannel",  "dacHitLocation": "phaser", "designator": "8" },
     { "type": "Phaser1", "designator": "1", "arcs": ["FH"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FH"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 4,
+        "epv": 124,
+        "auxiliary": {"labs": 4},
+        "power": {"apr": 4},
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "3", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "4", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SC+",
+        "name": "USS Yang Liwei",
+        "typeName": "Scout (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

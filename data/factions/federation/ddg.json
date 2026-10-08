@@ -68,5 +68,28 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 167,
+        "bpv": 6,
+        "auxiliary": {"labs": 4},
+        "power": {"awr": 4},
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DDG+",
+        "name": "USS Shaitan",
+        "typeName": "Guided Weapons Destroyer (+ refit)"
+      }
+    ]
 }

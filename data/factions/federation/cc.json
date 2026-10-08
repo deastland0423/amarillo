@@ -4,8 +4,8 @@
   "typeName": "Command Cruiser",
   "line": "CA",
   "name": "USS Kongo",
-  "serviceYear": 130,
-  "bpv": 125,
+  "serviceYear": 143,
+  "bpv": 137,
   "turnMode": "D",
   "sizeClass": 3,
   "moveCost": 1.0,
@@ -75,5 +75,50 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 165,
+        "bpv": 10,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "control": {"controlMod": 1.0},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser3", "designator": "10", "arcs": ["FULL"]},
+          {"type": "Phaser3", "designator": "9", "arcs": ["FULL"]}
+        ]
+      },
+      {
+        "code": "a",
+        "name": "AWR refit",
+        "year": 170,
+        "bpv": 0,
+        "requires": ["+"],
+        "convertPower": { "from": "apr", "to": "awr", "bpvEach": 1 }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CC+",
+        "name": "USS Lexington",
+        "typeName": "Command Cruiser (+ refit)",
+        "serviceYear": 165
+      },
+      {
+        "refits": ["+", "a"],
+        "type": "CCa+",
+        "name": "USS Excalibur",
+        "typeName": "Command Cruiser (+ and AWR refit)",
+        "serviceYear": 170
+      }
+    ]
 }

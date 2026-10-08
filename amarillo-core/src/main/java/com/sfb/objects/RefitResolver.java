@@ -134,6 +134,7 @@ public final class RefitResolver {
                 out.shields = r.shields.clone();
             if (r.y175Upgrades != null)
                 out.y175Upgrades = MAPPER.convertValue(r.y175Upgrades, ShipSpec.Y175Upgrades.class);
+            setSpecFields(out, r.set);
             setFields(out.power, r.power, "power");
             setFields(out.auxiliary, r.auxiliary, "auxiliary");
             setFields(out.control, r.control, "control");
@@ -145,6 +146,19 @@ public final class RefitResolver {
             if (r.replaceWeapons != null)
                 for (WeaponSwap swap : r.replaceWeapons)
                     swap(out, swap);
+        }
+
+        // CONVERSIONS LAST, whatever order the hull declares its refits in.
+        //
+        // A conversion reads how many of something the ship has NOW, so it has to see the finished
+        // ship. The Federation DN declares its AWR refit before its + refit, and applied in that
+        // order the AWR converted the hull's two APRs and the + refit then handed it four fresh
+        // ones back — a DNa+ with both, at 209 points instead of 211. Ordering by declaration made
+        // the author responsible for something they cannot reasonably be expected to think about.
+        for (String code : codes) {
+            RefitSpec r = refit(base, code);
+            if (r != null)
+                convertPower(out, r.convertPower);
         }
 
         // The name history gave it, or a derived one for a combination nobody fielded.
@@ -226,6 +240,60 @@ public final class RefitResolver {
             new com.fasterxml.jackson.databind.ObjectMapper();
 
     /**
+     * Convert one power system into another, and charge per unit (the Federation AWR refit).
+     *
+     * <p>Reads how many the ship has NOW, which is the point: the + refit adds two APRs to a DN, so
+     * the AWR refit that follows converts four rather than two and costs four points rather than
+     * two. Applied after {@code set}, so a refit may rebuild the power block and convert in one go.
+     */
+    private static void convertPower(ShipSpec spec, ShipSpec.PowerConversion conv) {
+        if (conv == null || conv.from == null || conv.to == null || spec.power == null)
+            return;
+        try {
+            java.lang.reflect.Field from = ShipSpec.PowerSpec.class.getField(conv.from);
+            java.lang.reflect.Field to = ShipSpec.PowerSpec.class.getField(conv.to);
+            int count = from.getInt(spec.power);
+            if (count <= 0)
+                return;
+            to.setInt(spec.power, to.getInt(spec.power) + count);
+            from.setInt(spec.power, 0);
+            spec.bpv += count * conv.bpvEach;
+        } catch (NoSuchFieldException ex) {
+            throw new IllegalStateException("a refit converts power." + conv.from + " to power."
+                    + conv.to + ", and one of those is not a field of PowerSpec", ex);
+        } catch (IllegalAccessException ex) {
+            throw new IllegalStateException("cannot convert power." + conv.from, ex);
+        }
+    }
+
+    /**
+     * Replace whole fields of the hull itself, by name (a refit's {@code set} block).
+     *
+     * <p>Jackson converts each value to the field's own type, so a refit can hand over a crew block,
+     * a hull-box block or a list of shuttle bays and it arrives as the right object. An unknown name
+     * throws rather than being ignored, for the same reason as everywhere else here: a refit that
+     * means to rebuild {@code crewData} and writes {@code crew} would otherwise do nothing at all.
+     */
+    private static void setSpecFields(ShipSpec spec, java.util.Map<String, Object> changes) {
+        if (changes == null || changes.isEmpty())
+            return;
+        for (java.util.Map.Entry<String, Object> e : changes.entrySet()) {
+            try {
+                java.lang.reflect.Field f = ShipSpec.class.getField(e.getKey());
+                Object v = e.getValue() == null ? null
+                        : MAPPER.convertValue(e.getValue(),
+                                MAPPER.getTypeFactory().constructType(f.getGenericType()));
+                f.set(spec, v);
+            } catch (NoSuchFieldException ex) {
+                throw new IllegalStateException("a refit sets '" + e.getKey()
+                        + "', which is not a field of ShipSpec", ex);
+            } catch (IllegalAccessException ex) {
+                throw new IllegalStateException("cannot set " + e.getKey(), ex);
+            }
+        }
+    }
+
+    /**
      * Set the named fields on one of the nested spec blocks.
      *
      * <p>By reflection, for the same reason the copy is a round trip: the blocks gain fields and a
@@ -243,10 +311,14 @@ public final class RefitResolver {
             try {
                 java.lang.reflect.Field f = block.getClass().getField(e.getKey());
                 Object v = e.getValue();
+                // null means the refit REMOVES the field. The Federation AWR refit replaces a
+                // hull's auxiliary power reactors with warp reactors, so it sets awr and clears
+                // apr; written as a primitive that is zero, and a ship left holding both would
+                // have twice the power it should.
                 if (f.getType() == int.class)
-                    f.setInt(block, ((Number) v).intValue());
+                    f.setInt(block, v == null ? 0 : ((Number) v).intValue());
                 else if (f.getType() == double.class)
-                    f.setDouble(block, ((Number) v).doubleValue());
+                    f.setDouble(block, v == null ? 0 : ((Number) v).doubleValue());
                 else if (f.getType() == boolean.class)
                     f.setBoolean(block, Boolean.TRUE.equals(v));
                 else

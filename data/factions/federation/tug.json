@@ -65,5 +65,35 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["L", "RA"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["R", "RA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 165,
+        "bpv": 8,
+        "epv": 96,
+        "control": {"controlMod": 1.0},
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_G",
+            "arcs": ["FULL"]
+          },
+          {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "TUG+",
+        "name": "USS Al Rashid",
+        "typeName": "Fleet Tug (+ refit)",
+        "serviceYear": 165
+      }
+    ]
 }
