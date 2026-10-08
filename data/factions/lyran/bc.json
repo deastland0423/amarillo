@@ -130,7 +130,7 @@
       },
       {
         "refits": ["+", "B", "p"],
-        "type": "BCB",
+        "type": "BCBp+",
         "name": "Nemesis",
         "typeName": "Wildcat Battlecruiser (power pack refit)",
         "serviceYear": 169

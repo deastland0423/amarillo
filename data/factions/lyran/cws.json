@@ -110,7 +110,7 @@
       },
       {
         "refits": ["+", "B"],
-        "type": "CWSB",
+        "type": "CWSB+",
         "name": "Killer Stealth",
         "typeName": "Serval War Cruiser Scout (Power pack refit)"
       }

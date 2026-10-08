@@ -109,7 +109,7 @@
       },
       {
         "refits": ["+", "B"],
-        "type": "DWEB",
+        "type": "DWEB+",
         "name": "Outguard",
         "typeName": "War Destroyer Escort (Power pack refit)"
       }

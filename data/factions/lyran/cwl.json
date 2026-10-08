@@ -111,7 +111,7 @@
       },
       {
         "refits": ["B", "p"],
-        "type": "CWLB",
+        "type": "CWLBp",
         "name": "Dark Storm Majesty",
         "typeName": "War Cruiser Leader (Power pack refit)"
       }

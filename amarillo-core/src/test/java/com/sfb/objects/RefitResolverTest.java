@@ -174,9 +174,11 @@ public class RefitResolverTest {
         assertEquals("CWB", RefitResolver.apply(cw, List.of("B")).type);
         assertEquals("CWp", RefitResolver.apply(cw, List.of("p")).type);
 
-        // And a NAMED combination still wins over the derivation.
-        assertEquals("the historical code beats the derived one",
-                "CWB", RefitResolver.apply(cw, List.of("+", "p", "B")).type);
+        // All three refits at once. Its historical code was "CWB", which named the bundle after
+        // its most notable refit and said nothing of the + and phaser refits inside it — the same
+        // code the canonical rule derives for the power pack ALONE. The owner's resolution, taken
+        // first on the DN: the plain code means the single refit and the bundle spells itself out.
+        assertEquals("CWBp+", RefitResolver.apply(cw, List.of("+", "p", "B")).type);
     }
 
     /**

@@ -173,4 +173,59 @@ public class RefitDataGuardTest {
         return m != null && !m.isEmpty();
     }
 
+
+    /**
+     * No two LEGAL combinations of a hull's refits may end up with the same type code.
+     *
+     * <h2>The shape of the problem</h2>
+     * History named bundles after their most notable refit. The Lyran {@code CWB} was a CW with the
+     * +, the phaser AND the power-pack refits and said so about none of them — while the canonical
+     * rule derives {@code CWB} for the power pack ALONE. Two different ships, one code, and the one
+     * that loses simply does not exist.
+     *
+     * <p>Nine Lyran hulls were like that. The owner's resolution, taken first on the DN: the plain
+     * code means the single refit and the bundle spells itself out, so {@code CWB} became
+     * {@code CWBp+}. Every combination then has a code of its own.
+     *
+     * <h2>Why requires makes most of this disappear</h2>
+     * The Klingon {@code D6K} is named for {@code B+K} and would be derived for {@code K} alone —
+     * which looks identical but is not a collision, because the K refit <b>requires</b> B. Asking
+     * for a lone K expands to {@code B+K} before anything is looked up, so the request and the
+     * named hull are the same ship. The owner: "A D6K always has the B refit (required). We only
+     * need the letter stacking rule for when we have several independent refits at the same time."
+     *
+     * <p>So this walks the combinations that are LEGAL — each request expanded through its
+     * requirements first — and the Klingons come out clean while the Lyrans did not.
+     */
+    @Test
+    public void noTwoLegalCombinationsShareATypeCode() throws Exception {
+        assumeTrue(FACTIONS.isDirectory());
+
+        List<String> wrong = new ArrayList<>();
+        int checked = 0;
+        for (ShipSpec hull : hullsWithRefits()) {
+            List<String> codes = new ArrayList<>(codesOf(hull));
+            // Every subset of this hull's refits, as a bitmask over its declared codes.
+            java.util.Map<String, Set<String>> byCode = new java.util.LinkedHashMap<>();
+            for (int mask = 1; mask < (1 << codes.size()); mask++) {
+                List<String> asked = new ArrayList<>();
+                for (int i = 0; i < codes.size(); i++)
+                    if ((mask & (1 << i)) != 0)
+                        asked.add(codes.get(i));
+                List<String> legal = RefitResolver.withRequirements(hull, asked);
+                String type = RefitResolver.apply(hull, asked).type;
+                byCode.computeIfAbsent(type, k -> new LinkedHashSet<>())
+                        .add(String.join("+", legal));
+                checked++;
+            }
+            for (var e : byCode.entrySet())
+                if (e.getValue().size() > 1)
+                    wrong.add(hull.faction + "/" + hull.type + ": '" + e.getKey()
+                            + "' would name more than one ship — " + e.getValue()
+                            + ". Spell the bundle out, as the Lyran CWB became CWBp+.");
+        }
+
+        assertTrue("there should be refit combinations to check", checked > 0);
+        report(wrong, "two combinations of one hull's refits share a type code");
+    }
 }

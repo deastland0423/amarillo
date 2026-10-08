@@ -109,7 +109,7 @@
       },
       {
         "refits": ["+", "B"],
-        "type": "DWSB",
+        "type": "DWSB+",
         "name": "Meaningful",
         "typeName": "War Destroyer Scout (Power pack refit)",
         "serviceYear": 171

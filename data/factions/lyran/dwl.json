@@ -107,7 +107,7 @@
       },
       {
         "refits": ["B", "p"],
-        "type": "DWLB",
+        "type": "DWLBp",
         "name": "Sabre",
         "typeName": "War Destroyer Leader (Power pack refit)",
         "serviceYear": 168

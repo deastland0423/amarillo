@@ -122,7 +122,7 @@
       },
       {
         "refits": ["+", "B", "p"],
-        "type": "CWB",
+        "type": "CWBp+",
         "name": "Chotiska",
         "typeName": "Jaguar War Cruiser (power pack refit)",
         "serviceYear": 168

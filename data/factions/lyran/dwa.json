@@ -109,7 +109,7 @@
       },
       {
         "refits": ["+", "B"],
-        "type": "DWAB",
+        "type": "DWAB+",
         "name": "Striped Outguard",
         "typeName": "War Destroyer Aegis (Power pack refit)"
       }

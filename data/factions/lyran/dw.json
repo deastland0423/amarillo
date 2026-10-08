@@ -119,7 +119,7 @@
       },
       {
         "refits": ["+", "B", "p"],
-        "type": "DWB",
+        "type": "DWBp+",
         "name": "First Blood",
         "typeName": "Alleycat War Destroyer (Power pack refit)",
         "serviceYear": 168
