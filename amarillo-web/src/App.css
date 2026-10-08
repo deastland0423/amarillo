@@ -2007,7 +2007,42 @@ h3 {
 /* The row is now two buttons: add (full width) and inspect (narrow, at the end). A nested
    button would be invalid HTML, so they are siblings in a flex wrapper and the add button keeps
    its width:100% so the shelf reads exactly as it did before inspect existed. */
-.fb-shelf-item { display: flex; align-items: center; gap: 0.2rem; }
+.fb-shelf-item { display: flex; align-items: center; gap: 0.2rem; flex-wrap: wrap; }
+
+/* REFITS (S3.24), as toggles under the hull they belong to.
+   A refitted hull used to be its own shelf row, so the Lyrans showed 71 rows for 26 ships — CW,
+   CW+, CW+p and CWB one under another, four near-identical names a player had to decode "+p"
+   against "B" to tell apart. Collapsing them is not only tidier: those rows ARE the purchasing
+   decision, and only read as one when the costs sit together.
+   flex-basis 100% puts this on its own line below the add/inspect pair rather than beside them. */
+.fb-refit-row {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.1rem 0 0.2rem 0.4rem;
+}
+.fb-refit-chip {
+  padding: 0.05rem 0.35rem;
+  background: none;
+  border: 1px solid #30363d;
+  border-radius: 0.6rem;
+  color: #8b949e;
+  font-size: 0.66rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.fb-refit-chip:hover:not(:disabled) { border-color: #58a6ff; color: #c9d1d9; }
+/* Ticked refits are what the row currently buys, so they read as selected rather than available. */
+.fb-refit-chip-on {
+  background: #1f4e79;
+  border-color: #58a6ff;
+  color: #e6edf3;
+}
+/* A combination the rules permit but history never fielded: there is no hull to buy yet. */
+.fb-refit-chip:disabled { opacity: 0.3; cursor: default; }
+.fb-refit-cost { margin-left: 0.25rem; color: #6e7681; }
+.fb-refit-chip-on .fb-refit-cost { color: #9fc7ea; }
 .fb-shelf-inspect {
   flex: 0 0 auto;
   width: 1.4rem;

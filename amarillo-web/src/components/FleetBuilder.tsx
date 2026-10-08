@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
+import { familiesOf, resolveFamily, toggleRefit } from './shelfFamilies';
 import type {
   CatalogShip, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
 } from '../api/gameApi';
@@ -152,6 +153,13 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     () => [...new Set(catalog.map(s => s.faction))].sort(),
     [catalog]);
 
+  /**
+   * Which refits the player has ticked, per hull family. Keyed "faction/baseType".
+   *
+   * Empty or absent means the base hull, which is what the shelf showed before any of this.
+   */
+  const [refitChoice, setRefitChoice] = useState<Record<string, string[]>>({});
+
   /** The shelf: the chosen empires, in service by the scenario date (S8.131). */
 
   const shelf = useMemo(() => {
@@ -208,6 +216,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
           name: lineKey, ships: [], civilian: !!ship.lineCivilian,
         });
       section.lines.get(lineKey)!.ships.push(ship);
+      // The ships array stays complete and in order; families are derived from it at render time
+      // (see `familiesOf`) so a hull that is nobody's refit renders exactly as it always has.
     }
 
     // The first civilian line group WITHIN a section takes the dividing rule, never its first.
@@ -513,9 +523,25 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                   {/* Two buttons, not one with a nested button — that is invalid HTML and React
                       will warn. The add button keeps the whole row's width so the shelf still
                       behaves as it did; inspect is a narrow sibling at the end. */}
-                  {group.ships.map(ship => (
-                    <div key={ship.faction + ship.type} className="fb-shelf-item">
+                  {familiesOf(group.ships).map(fam => {
+                    const famKey = fam.base.faction + '/' + fam.base.type;
+                    const chosen = refitChoice[famKey] ?? [];
+                    // What this row currently buys. Null means the ticked combination was never
+                    // fielded and so has no catalogue row — the Add button is disabled rather than
+                    // quietly buying something else.
+                    const ship = resolveFamily(fam, chosen) ?? fam.base;
+                    const unavailable = resolveFamily(fam, chosen) == null;
+                    const offers = (fam.base.refitsAvailable ?? [])
+                      // A refit cannot be fielded before it exists (S3.24).
+                      .filter(o => o.year <= spec.year);
+                    return (
+                    <div key={famKey} className="fb-shelf-item">
                     <button className="fb-shelf-row"
+                            disabled={unavailable}
+                            title={unavailable
+                              ? 'That combination of refits was never fielded, so there is no hull '
+                                + 'to buy yet (S3.24 would permit it)'
+                              : undefined}
                             onClick={() => addShip(ship)}>
                       <span className="fb-shelf-type">{ship.type}</span>
                       {/* The CLASS, not the ship's own name. A buyer scanning the shelf wants to
@@ -539,8 +565,36 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                             title={`View the ${ship.type} — arcs, shields and armament`}
                             aria-label={`View the ${ship.type}`}
                             onClick={() => inspect(ship)}>i</button>
+                    {/* The refits, as a row of toggles under the hull. Each says what it costs,
+                        because that IS the decision — "is the power pack worth 15 points?" — and
+                        four separate shelf rows asked a player to work it out by subtraction. */}
+                    {offers.length > 0 && (
+                      <div className="fb-refit-row">
+                        {offers.map(o => {
+                          const on = chosen.includes(o.code);
+                          // Ticking a refit pulls in what it requires — the Klingon K refit
+                          // arrives on top of B, so offering it alone would offer a ship that does
+                          // not exist. See shelfFamilies.toggleRefit.
+                          const withNeeds = toggleRefit(chosen, o.code, o.requires);
+                          const buildable = resolveFamily(fam, withNeeds) != null;
+                          return (
+                            <button key={o.code}
+                                    className={'fb-refit-chip' + (on ? ' fb-refit-chip-on' : '')}
+                                    disabled={!buildable && !on}
+                                    title={buildable || on
+                                      ? `${o.name} — available Y${o.year}, +${o.bpv} BPV`
+                                      : `${o.name} was never fielded in this combination`}
+                                    onClick={() => setRefitChoice(prev =>
+                                      ({ ...prev, [famKey]: withNeeds }))}>
+                              {o.name.replace(/ refit$/, '')}
+                              <span className="fb-refit-cost">+{o.bpv}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               ))}
             </div>

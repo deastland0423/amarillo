@@ -175,6 +175,32 @@ public class GameController {
             // "Dreadnought". The shelf showed the type code and the ship's own name, so what the hull
             // actually IS was the one thing missing.
             row.put("typeName", spec.typeName != null ? spec.typeName : "");
+            // REFITS (S3.24). A synthesised variant knows the hull it was built from and which
+            // refits made it, which is what lets the shelf show one row per HULL with its refits as
+            // a choice instead of one row per combination. Lyran's 71 hulls are 26 ships; the Klingon
+            // D7 is one ship with three switches, not four ships.
+            //
+            // Sent only on a variant, so a base hull's row is unchanged and a client that ignores
+            // these fields keeps working — which is how the shelf behaved through the migration.
+            if (spec.refitOf != null) {
+                row.put("refitOf", spec.refitOf);
+                row.put("appliedRefits", spec.appliedRefits);
+            }
+            // And on a BASE hull, what may be fitted to it: each refit's code, name, year and cost,
+            // so the shelf can offer "power pack, +9" rather than make a player decode "CWB".
+            if (spec.refits != null && !spec.refits.isEmpty()) {
+                List<Map<String, Object>> offers = new java.util.ArrayList<>();
+                for (com.sfb.objects.ShipSpec.RefitSpec r : spec.refits) {
+                    Map<String, Object> o = new java.util.LinkedHashMap<>();
+                    o.put("code", r.code);
+                    o.put("name", r.name != null ? r.name : r.code + " refit");
+                    o.put("year", r.year);
+                    o.put("bpv", r.bpv);
+                    o.put("requires", r.requires != null ? r.requires : List.of());
+                    offers.add(o);
+                }
+                row.put("refitsAvailable", offers);
+            }
             row.put("line", spec.line != null ? spec.line : "");
             row.put("lineName", com.sfb.objects.ShipLineCatalog.nameOf(spec.line));
             // The shelf groups by line and orders those groups by the CATALOGUE's order

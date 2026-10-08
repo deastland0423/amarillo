@@ -334,4 +334,76 @@ class ShipCatalogEndpointTest {
         assertEquals(404, new GameController(null, null)
                 .shipDetail("Atlantean", "CA", 0).getStatusCode().value());
     }
+
+    // ------------------------------------------------------------------ refits (S3.24)
+
+    /**
+     * A synthesised variant tells the shelf which hull it came from, which is the grouping key.
+     *
+     * <p>Without it the shelf cannot collapse the alphabet soup the owner complained about, and it
+     * cannot be inferred either: grouping by typeName would merge the Klingon D6 with the D7, both
+     * being "Battlecruiser", and grouping by type-code prefix would merge the D6 with the D6D, which
+     * is a different ship rather than a refit of one.
+     */
+    @Test
+    void aRefittedHullNamesTheHullItCameFrom() {
+        Map<String, Object> d7k = row("Klingon", "D7K");
+
+        assertEquals("D7", d7k.get("refitOf"));
+        assertEquals(List.of("B", "K"), d7k.get("appliedRefits"));
+    }
+
+    /** A base hull is nobody's refit, so it says nothing and its row is exactly as it was. */
+    @Test
+    void aBaseHullSaysNothingAboutRefits() {
+        Map<String, Object> d7 = row("Klingon", "D7");
+
+        assertNull(d7.get("refitOf"));
+        assertNull(d7.get("appliedRefits"));
+    }
+
+    /**
+     * And a base hull offers what may be fitted to it, with each refit's cost — which is the actual
+     * purchasing decision. Four rows reading D7/D7B/D7K/D7Ku make a player decode the codes to
+     * compare; one row offering "B refit +7, Phaser-1 refit +3, UIM refit +5" states it.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aBaseHullOffersItsRefitsWithTheirCost() {
+        List<Map<String, Object>> offers =
+                (List<Map<String, Object>>) row("Klingon", "D7").get("refitsAvailable");
+
+        assertNotNull(offers, "the D7 should offer its three refits");
+        assertEquals(3, offers.size());
+
+        Map<String, Object> b = offers.stream()
+                .filter(o -> "B".equals(o.get("code"))).findFirst().orElseThrow();
+        assertEquals("B refit", b.get("name"));
+        assertEquals(165, b.get("year"));
+        assertEquals(7, b.get("bpv"));
+        assertEquals(List.of(), b.get("requires"), "nothing comes before the B refit");
+
+        Map<String, Object> k = offers.stream()
+                .filter(o -> "K".equals(o.get("code"))).findFirst().orElseThrow();
+        assertEquals("Phaser-1 refit", k.get("name"));
+        assertEquals(List.of("B"), k.get("requires"), "the K refit arrives on top of B (D7 data)");
+    }
+
+    /**
+     * The variants a hull was actually fielded in still appear as their own rows, because the
+     * migration had to be invisible: a saved fleet names "D7Ku" and the shelf has always listed it.
+     * Collapsing them is the client's job, and this is what makes that safe to do later.
+     */
+    @Test
+    void everyVariantIsStillListedUnderItsHistoricalCode() {
+        for (String type : List.of("D7B", "D7Bu", "D7K", "D7Ku", "D6B", "D6K", "D6Bu", "D6Ku",
+                                   "D6DB", "D6SB", "D5K", "D5L", "D7L", "F5K", "F5L", "C8K"))
+            assertNotNull(row("Klingon", type), type + " should still be in the catalogue");
+    }
+
+    private Map<String, Object> row(String faction, String type) {
+        return ships(faction).stream()
+                .filter(r -> type.equals(r.get("type")))
+                .findFirst().orElse(null);
+    }
 }

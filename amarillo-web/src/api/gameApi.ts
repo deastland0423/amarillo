@@ -85,6 +85,32 @@ export interface CatalogShip {
   isEscort:      boolean;
   requiresEscort: boolean;   // S8.315: cannot be fielded without escorts
   isBCH:         boolean;
+  /**
+   * REFITS (S3.24). On a refitted hull: the base it was built from, and which refits made it.
+   * On a BASE hull: what may be fitted to it, with each refit's year and BPV.
+   *
+   * `refitOf` is the shelf's grouping key, and it cannot be inferred. Grouping by `typeName` would
+   * merge the Klingon D6 with the D7, both being "Battlecruiser"; grouping by type-code prefix
+   * would merge the D6 with the D6D, which is a different ship rather than a refit of one. Only the
+   * data knows, which is why it says.
+   */
+  refitOf?:        string;
+  appliedRefits?:  string[];
+  refitsAvailable?: RefitOffer[];
+}
+
+/** One refit a base hull may be fitted with (S3.24). */
+export interface RefitOffer {
+  /** The marker history wrote on the hull: "B", "K", "u", "+", "p". */
+  code: string;
+  /** For a player: "B refit", "Phaser-1 refit". */
+  name: string;
+  /** The year it became available — a refit cannot be fielded before it exists. */
+  year: number;
+  /** What it adds to the hull's BPV. This is the purchasing decision. */
+  bpv: number;
+  /** Other refit codes it arrives on top of. */
+  requires: string[];
 }
 
 /** The ground a side may set up on, already expanded to hexes by the server. */
