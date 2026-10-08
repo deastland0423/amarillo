@@ -211,15 +211,30 @@ public class DPercentShipTest {
                 "Klingon/D5D", "Klingon/D6D",
                 "Kzinti/DF", "Kzinti/DF+", "Kzinti/SDF", "Kzinti/SDF+");
 
+        // A REFIT inherits its base hull's marking, and the roster is a transcription of Annex #3 —
+        // so a refitted hull is justified by its BASE's row rather than needing one of its own. The
+        // D6DB is the case: it is the D6D with a power-and-shield refit, the D6D carries Annex #3's
+        // "DB", and the annex has no D6DB row for this list to point at. Adding one would corrupt
+        // the transcription to accommodate a hull the annex never lists.
         List<String> marked = new ArrayList<>();
-        for (ShipSpec spec : ShipLibrary.all())
-            if (spec.dPercent)
-                marked.add(spec.faction + "/" + spec.type);
+        List<String> byInheritance = new ArrayList<>();
+        for (ShipSpec spec : ShipLibrary.all()) {
+            if (!spec.dPercent)
+                continue;
+            String who = spec.faction + "/" + spec.type;
+            if (spec.refitOf != null && rostered.contains(spec.faction + "/" + spec.refitOf))
+                byInheritance.add(who);
+            else
+                marked.add(who);
+        }
 
         assertFalse("fixture: something should be marked", marked.isEmpty());
         for (String m : marked)
             assertTrue(m + " is marked dPercent but is not on the Annex #3 roster transcribed in"
-                    + " this test — add it there with its rule reference, or unmark the hull",
+                    + " this test, and is not a refit of a hull that is — add it there with its rule"
+                    + " reference, or unmark the hull",
                     rostered.contains(m));
+        assertFalse("fixture: at least one marked hull should be a REFIT of a rostered one, or the"
+                + " inheritance branch above is never exercised", byInheritance.isEmpty());
     }
 }

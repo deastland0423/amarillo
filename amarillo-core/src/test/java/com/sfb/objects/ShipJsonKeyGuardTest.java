@@ -135,6 +135,13 @@ public class ShipJsonKeyGuardTest {
             String key = it.next();
             String where = path.isEmpty() ? key : path + "." + key;
 
+            // A key beginning with an underscore is a COMMENT, as shiplines.json has always used
+            // them. The ship files are entered by hand from the SSDs, and the person doing that
+            // reads the JSON rather than the Java — so a block explaining why a hull is odd belongs
+            // beside the hull. Jackson ignores unknown keys, so these never reach the spec.
+            if (key.startsWith("_"))
+                continue;
+
             Field field = declares(type, key);
             if (field == null) {
                 found.computeIfAbsent(where, k -> new ArrayList<>()).add(file);
@@ -142,6 +149,15 @@ public class ShipJsonKeyGuardTest {
             }
 
             JsonNode value = node.get(key);
+            // A MAP's keys are data, not spec fields, so there is nothing here to check them
+            // against. The refit blocks use maps on purpose — a refit says
+            // {"power": {"apr": 5}} and must not also assert leftWarp = 0, which a nested spec of
+            // primitives could not avoid. Those keys are checked more strictly than this guard
+            // could manage anyway: RefitResolver sets them by reflection against the real block and
+            // throws by name on one that does not exist, so "APR" fails loudly at load rather than
+            // doing nothing.
+            if (java.util.Map.class.isAssignableFrom(field.getType()))
+                continue;
             if (value.isObject()) {
                 check(value, field.getType(), file, where, found);
             } else if (value.isArray()) {

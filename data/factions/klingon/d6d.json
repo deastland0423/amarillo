@@ -81,5 +81,14 @@
     { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_B", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
+  ],
+
+  "refits": [
+    { "code": "B", "name": "B refit", "year": 165, "bpv": 4,
+      "shields": [30, 22, 22, 22, 22, 22] }
+  ],
+  "variants": [
+    { "refits": ["B"], "type": "D6DB", "name": "IKS Hailstone",
+      "typeName": "Drone Cruiser (B refit)" }
   ]
 }

@@ -77,5 +77,20 @@
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
+  ],
+
+  "refits": [
+    { "code": "B", "name": "B refit", "year": 165, "bpv": 6,
+      "shields": [30, 22, 22, 22, 22, 22],
+      "epv": 136,
+      "replaceWeapons": [ { "from": "DroneRack", "set": { "rackType": "TYPE_A" } } ],
+      "y175Upgrades":
+        { "refitCost": 4,
+          "racks": [ { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+                     { "designator": "Rack 2", "upgradeTo": "TYPE_B" } ] } }
+  ],
+  "variants": [
+    { "refits": ["B"], "type": "D6SB", "name": "IKS Watcher",
+      "typeName": "Battlecruiser Scout (B refit)" }
   ]
 }

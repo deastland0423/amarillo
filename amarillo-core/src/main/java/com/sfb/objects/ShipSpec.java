@@ -256,6 +256,140 @@ public class ShipSpec {
     /** If present, applied instead of faction default Y175 upgrades. Empty lists = fully exempt. */
     public Y175Upgrades y175Upgrades;
 
+    /**
+     * REFITS this hull may be fitted with, and the historical names of the combinations.
+     *
+     * <h2>Why a hull declares its own refits</h2>
+     * <b>S3.24</b>: "If a ship never received a particular refit (as noted in either its unit
+     * description or on its SSD) it cannot purchase that refit." So eligibility is a property of the
+     * hull, and the list being here IS that eligibility. Nothing is faction-wide, because the
+     * conventions are not: the Klingon K refit swaps phaser-2s for phaser-1s, the Lyran B refit is a
+     * power pack, and the same refit raises different shields to different numbers on different
+     * hulls.
+     *
+     * <h2>Why variants have to be NAMED and cannot be derived</h2>
+     * The resulting type code does not follow from the base and the refit. A D7 with the K refit is a
+     * D7K, but a D7C with the K refit is a <b>D7L</b> — the owner's point, 2026-10-07, and the reason
+     * is that D7CK would collide confusingly with D7K. The Lyran CWB is a CW with three refits at
+     * once and says none of them in its name. So {@link #variants} maps a set of refit codes to the
+     * code history gave it, and only an unnamed combination falls back to a derived one.
+     *
+     * <h2>What this replaces</h2>
+     * One file per combination. That enumeration was lossy as well as long: the Lyran CWB silently
+     * contains the + and the phaser refits, so "power pack without the phaser refit" could not be
+     * expressed at all. Refits as independent switches can express every combination; the variant
+     * list only says what to CALL the ones that happened.
+     */
+    public List<RefitSpec> refits;
+    public List<VariantSpec> variants;
+
+    /**
+     * On a SYNTHESISED variant: the base hull's type, and the refits applied to reach this one.
+     *
+     * <p>Set by {@link RefitResolver}, never written in a file — a hull on disk is always a base.
+     * Two things need it. A guard that asks whether a marked hull is justified has to be able to look
+     * at the hull the marking came from: the D6DB inherits the D6D's Annex #3 "DB", and the annex has
+     * no D6DB row to point at. And the fleet-builder shelf groups rows by the base hull, which is the
+     * whole reason this work started — grouping by name would have merged the D6 with the D7.
+     */
+    public String refitOf;
+    public List<String> appliedRefits;
+
+    /**
+     * One refit: what it costs, when it arrived, and what it does to this hull.
+     *
+     * <p>The diff is stated as replacements and additions rather than as a whole ship, so that two
+     * refits can be applied together without either one overwriting the other's work. Only the
+     * fields a refit actually touches are set; everything else is inherited from the base hull.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class RefitSpec {
+        /** The marker history uses: "B", "K", "u", "+", "p". */
+        public String code;
+        /** For a player: "B refit", "Phaser-1 refit". */
+        public String name;
+        /** Year the refit became available (S3.24 gates purchase on the scenario year). */
+        public int year;
+        /** BPV this refit adds. The deltas proved additive across every family. */
+        public int bpv;
+        /** Other refit codes this one needs — the Klingon K refit arrives on top of B's shields. */
+        public List<String> requires;
+
+        // ---- the diff. Null or absent means "this refit does not touch that".
+        /** Replacement shield box counts, all six. */
+        public int[] shields;
+        /** Extra EPV, where a refit changes it. */
+        public Integer epv;
+        /**
+         * Changes to the base's power, auxiliary and control blocks, <b>named field by field</b>:
+         * {@code "power": { "apr": 5, "battery": 2 }}.
+         *
+         * <p>Maps rather than nested specs, and this is the trap that forces it: every field in
+         * {@link PowerSpec}, {@link AuxiliarySpec} and {@link ControlSpec} is a primitive, so a
+         * {@code PowerSpec} carrying only {@code apr} would also carry {@code leftWarp = 0} and
+         * merging it would strip the hull's warp engines. A primitive cannot say "I am not setting
+         * this"; a map simply does not contain the key.
+         */
+        public java.util.Map<String, Object> power;
+        public java.util.Map<String, Object> auxiliary;
+        public java.util.Map<String, Object> control;
+        /** Weapons added outright. */
+        public List<WeaponSpec> addWeapons;
+        /** Weapons swapped in place, keeping their designators and arcs. */
+        public List<WeaponSwap> replaceWeapons;
+        /**
+         * Replaces the hull's Y175 upgrade block.
+         * <p>
+         * Here because the data puts it here: a D6 declares none and a D6B declares one, so the block
+         * travelled with the B refit. Whether that is deliberate is a question for the owner — an
+         * ABSENT block means the faction default applies, so the base is not necessarily missing
+         * anything. The migration preserves what the files said rather than deciding.
+         */
+        public Y175Upgrades y175Upgrades;
+    }
+
+    /**
+     * A weapon upgrade: every {@code from} at the listed designators becomes a {@code to}.
+     * <p>
+     * Stated by designator rather than positionally because that is how the SSD reads — "phasers 3
+     * through 6 become phaser-1s" — and because a positional rule would silently move if the base
+     * hull's weapon order ever changed.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class WeaponSwap {
+        /** The weapon type this applies to. */
+        public String from;
+        /** A new type, where the refit replaces the weapon outright (Phaser-2 to Phaser-1). */
+        public String to;
+        /**
+         * Properties to change in place: {@code "set": { "range": 30 }} for the Klingon disruptor
+         * refit, {@code "set": { "rackType": "TYPE_A" }} for the rack upgrade that travels with it.
+         * <p>
+         * This exists because the first version of the model had only {@code from}/{@code to}, and
+         * the equivalence test caught what that missed: the B refit also lengthens the D6's
+         * disruptors from 22 to 30 and upgrades its racks. A diff that compares weapons only by type
+         * and designator cannot see either.
+         */
+        public java.util.Map<String, Object> set;
+        /** Which designators, or all of that type when omitted. */
+        public List<String> designators;
+    }
+
+    /** What to call one combination of refits, where history named it. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class VariantSpec {
+        /** The refit codes, in any order. */
+        public List<String> refits;
+        /** The type code this combination is known by: "D6K", "D7L", "CWB". */
+        public String type;
+        /** Overrides the base's typeName when the refit renames the ship (D5C -> D5L). */
+        public String typeName;
+        /** Overrides the derived service year, where the combination arrived later. */
+        public Integer serviceYear;
+        /** The default ship name for this variant, as the base hull has one. */
+        public String name;
+    }
+
     // -------------------------------------------------------------------------
     // Inner spec classes
     // -------------------------------------------------------------------------

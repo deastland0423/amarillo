@@ -71,10 +71,46 @@ public class ShipLibrary {
                                 + " — the first is being discarded");
                     }
                     registry.put(key, spec);
+                    registerVariants(spec, entry.getName());
                 } catch (IOException e) {
                     System.err.println("ShipLibrary: failed to load " + entry.getPath() + " — " + e.getMessage());
                 }
             }
+        }
+    }
+
+    /**
+     * Register every refitted version of a hull under the type code history gave it (S3.24).
+     *
+     * <h2>Why the registry carries them at all</h2>
+     * {@code faction + type} is the key everything downstream uses — saved fleets name "D6B", a
+     * scenario file names "D7L", the wire identity is built from it. The refit model collapses those
+     * files into their base hull, so without this a saved fleet would stop loading the day its
+     * variant file was deleted. Synthesising them here means the collapse is invisible above this
+     * line: {@code get("Klingon", "D6B")} answers exactly what the deleted file used to.
+     *
+     * <h2>They are built once, at load</h2>
+     * Rather than on demand, so that a variant collides in {@code duplicates} like any other hull if
+     * two hulls ever claim the same code — the guard that found a vanished Hydran hull keeps working
+     * on synthesised variants too.
+     */
+    private static void registerVariants(ShipSpec base, String fileName) {
+        if (base.variants == null)
+            return;
+        for (ShipSpec.VariantSpec v : base.variants) {
+            if (v.type == null || v.type.isBlank())
+                continue;
+            ShipSpec built = RefitResolver.apply(base, v.refits);
+            String key = key(base.faction, built.type);
+            String prior = sourceFile.put(key, fileName + " (refit " + String.join("+", v.refits) + ")");
+            if (prior != null) {
+                duplicates.put(key, prior + " overwritten by " + fileName
+                        + " (refit " + String.join("+", v.refits) + ")");
+                System.err.println("ShipLibrary: " + base.faction + "/" + built.type
+                        + " declared by both " + prior + " and " + fileName
+                        + " as a refit — the first is being discarded");
+            }
+            registry.put(key, built);
         }
     }
 

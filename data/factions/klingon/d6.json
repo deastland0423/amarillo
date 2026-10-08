@@ -76,5 +76,42 @@
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
+  ],
+
+  "_refitComment": [
+    "The D6's refits (S3.24). Each says what it does to THIS hull and what it costs here: the same",
+    "B refit is +10 on the D6, +4 on the D6D and +6 on the D6S, because a refit's effect is a",
+    "property of the ship it is fitted to. The variants below name the combinations history fielded;",
+    "any other legal combination gets a derived code, which is how CWB-without-the-phaser-refit",
+    "becomes expressible for the first time."
+  ],
+  "refits": [
+    { "code": "B", "name": "B refit", "year": 165, "bpv": 10,
+      "shields": [30, 22, 22, 22, 22, 22],
+      "auxiliary": { "derfacs": true },
+      "addWeapons": [ { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" } ],
+      "replaceWeapons": [
+        { "from": "Disruptor", "set": { "range": 30 } },
+        { "from": "DroneRack", "set": { "rackType": "TYPE_A" } }
+      ],
+      "y175Upgrades":
+        { "refitCost": 4,
+          "racks": [ { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
+                     { "designator": "Rack 2", "upgradeTo": "TYPE_B" } ],
+          "adds":  [ { "designator": "ADD 1", "upgradeTo": "ADD_12" } ] } },
+    { "code": "K", "name": "Phaser-1 refit", "year": 165, "bpv": 3, "requires": ["B"],
+      "replaceWeapons": [ { "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] } ] },
+    { "code": "u", "name": "UIM refit", "year": 165, "bpv": 5,
+      "auxiliary": { "uim": 1 } }
+  ],
+  "variants": [
+    { "refits": ["B"],           "type": "D6B",  "name": "IKS Carnage",
+      "typeName": "Battlecruiser (B refit)" },
+    { "refits": ["B", "K"],      "type": "D6K",  "name": "IKS Atropos",
+      "typeName": "Battlecruiser (Phaser-1 refit)" },
+    { "refits": ["B", "u"],      "type": "D6Bu", "name": "IKS Abomination",
+      "typeName": "Battlecruiser (B and UIM refit)" },
+    { "refits": ["B", "K", "u"], "type": "D6Ku", "name": "IKS Desolation",
+      "typeName": "Battlecruiser (Phaser-1 and UIM refit)" }
   ]
 }
