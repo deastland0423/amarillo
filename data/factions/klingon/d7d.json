@@ -77,5 +77,15 @@
     { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [{"code": "u", "name": "UIM refit", "year": 176, "bpv": 5, "auxiliary": {"uim": 1}}],
+    "variants": [
+      {
+        "refits": ["u"],
+        "type": "D7Du",
+        "name": "IKS Strangler",
+        "typeName": "Drone Battlecruiser (UIM refit)"
+      }
+    ]
 }

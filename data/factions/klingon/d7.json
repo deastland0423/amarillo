@@ -78,5 +78,78 @@
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 165,
+        "bpv": 7,
+        "shields": [30, 22, 22, 22, 22, 22],
+        "y175Upgrades": {
+          "refitCost": 4,
+          "racks": [
+            {"designator": "Rack 1", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 2", "upgradeTo": "TYPE_B"}
+          ],
+          "adds": [{"designator": "ADD 1", "upgradeTo": "ADD_12"}]
+        },
+        "auxiliary": {"derfacs": true},
+        "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}],
+        "replaceWeapons": [
+          {
+            "from": "DroneRack",
+            "set": {"rackType": "TYPE_A"},
+            "designators": ["Rack 1", "Rack 2"]
+          }
+        ]
+      },
+      {
+        "code": "u",
+        "name": "UIM refit",
+        "year": 165,
+        "bpv": 5,
+        "requires": ["B"],
+        "auxiliary": {"uim": 1}
+      },
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 175,
+        "bpv": 3,
+        "requires": ["B"],
+        "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "D7B",
+        "name": "IKS Courageous",
+        "typeName": "Battlecruiser (B refit)",
+        "serviceYear": 165
+      },
+      {
+        "refits": ["B", "u"],
+        "type": "D7Bu",
+        "name": "IKS Decimator",
+        "typeName": "Battlecruiser (B and UIM refit)",
+        "serviceYear": 165
+      },
+      {
+        "refits": ["B", "K"],
+        "type": "D7K",
+        "name": "IKS Antagonist",
+        "typeName": "Battlecruiser (Phaser-1 refit)",
+        "serviceYear": 175
+      },
+      {
+        "refits": ["B", "K", "u"],
+        "type": "D7Ku",
+        "name": "IKS Warhammer",
+        "typeName": "Battlecruiser (Phaser-1 and UIM refit)",
+        "serviceYear": 175
+      }
+    ]
 }

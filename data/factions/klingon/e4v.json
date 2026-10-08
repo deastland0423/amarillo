@@ -71,5 +71,24 @@
     { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 169,
+        "bpv": 3,
+        "epv": 58,
+        "shields": [21, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "E4VB",
+        "name": "IKS Biter's Nest",
+        "typeName": "Escort Carrier (B refit)"
+      }
+    ]
 }

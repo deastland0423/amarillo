@@ -94,5 +94,66 @@
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_F", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 6", "rackType": "TYPE_F", "arcs": ["FULL"]}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 168,
+        "bpv": 7,
+        "shields": [44, 36, 36, 36, 36, 36],
+        "y175Upgrades": {
+          "refitCost": 8,
+          "racks": [
+            {"designator": "Rack 1", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 2", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 3", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 4", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 5", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 6", "upgradeTo": "TYPE_B"}
+          ],
+          "adds": []
+        },
+        "auxiliary": {"derfacs": true},
+        "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}],
+        "replaceWeapons": [
+          {
+            "from": "DroneRack",
+            "set": {"rackType": "TYPE_A"},
+            "designators": ["Rack 1", "Rack 2", "Rack 3", "Rack 4", "Rack 5", "Rack 6"]
+          }
+        ]
+      },
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 168,
+        "bpv": 8,
+        "requires": ["B"],
+        "replaceWeapons": [
+          {
+            "from": "Phaser2",
+            "to": "Phaser1",
+            "designators": ["10", "3", "4", "5", "6", "7", "8", "9"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "C8B",
+        "name": "IKS Terror",
+        "typeName": "Dreadnought (B refit)",
+        "serviceYear": 168
+      },
+      {
+        "refits": ["B", "K"],
+        "type": "C8K",
+        "name": "IKS Admiral K'maag",
+        "typeName": "Dreadnought (Phaser-1 refit)",
+        "serviceYear": 168
+      }
+    ]
 }

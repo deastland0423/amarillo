@@ -71,5 +71,46 @@
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 165,
+        "bpv": 5,
+        "shields": [21, 16, 16, 16, 16, 16],
+        "y175Upgrades": {
+          "refitCost": 3,
+          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}],
+          "adds": [{"designator": "ADD 1", "upgradeTo": "ADD_12"}]
+        },
+        "addWeapons": [{"type": "ADD", "designator": "ADD 1", "addType": "ADD_6"}],
+        "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_A"}, "designators": ["Rack 1"]}]
+      },
+      {
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 175,
+        "bpv": 2,
+        "requires": ["B"],
+        "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "F5B",
+        "name": "IKS Ardent",
+        "typeName": "Frigate (B refit)",
+        "serviceYear": 165
+      },
+      {
+        "refits": ["B", "K"],
+        "type": "F5K",
+        "name": "IKS Blood Chariot",
+        "typeName": "Frigate (Phaser-1 refit)",
+        "serviceYear": 175
+      }
+    ]
 }

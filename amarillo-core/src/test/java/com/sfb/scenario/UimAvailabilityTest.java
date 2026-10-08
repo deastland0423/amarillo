@@ -172,17 +172,24 @@ public class UimAvailabilityTest {
      * can be seen in a legal scenario — you cannot field a ship before it exists. Recorded so the
      * scope of the gate is written down rather than rediscovered.
      * <p>
-     * The Lyran CC earns its place here the same way the two Klingons do: its SSD carries the note
+     * The Lyran CC earns its place here the same way the Klingons do: its SSD carries the note
      * "No UIM prior to Y166. Reduce BPV -5", which is this rule written on the counter.
+     * <p>
+     * The D7C and D7L share an SSD page, and it says of both "1x UIM standard Y165" with -5 BPV
+     * before that — so the UIM is STANDARD on the command hulls, where an ordinary D7 had to be
+     * refitted for one (which is what the D7Bu and D7Ku are). The D7L was missing the field until
+     * 2026-10-07, found by decomposing its refit: a refit that LOSES a system stands out once the
+     * diffs are meant to be additive.
      */
     @Test
-    public void onlyThreeHullsPredateTheUimTheyDeclare() {
+    public void onlyFourHullsPredateTheUimTheyDeclare() {
         List<String> early = new ArrayList<>();
         for (ShipSpec spec : ShipLibrary.all())
             if (!ShipLibrary.createShip(spec).getUims().isEmpty() && spec.serviceYear < 165)
                 early.add(spec.faction + "/" + spec.type + " (Y" + spec.serviceYear + ")");
         early.sort(null);
-        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7N (Y137)", "Lyran/CC (Y120)"), early);
+        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7L (Y143)", "Klingon/D7N (Y137)",
+                "Lyran/CC (Y120)"), early);
     }
 
     /**

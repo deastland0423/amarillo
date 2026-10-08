@@ -73,5 +73,24 @@
     { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 5", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 165,
+        "bpv": 3,
+        "shields": [21, 16, 16, 16, 16, 16]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "F5DB",
+        "name": "IKS Viper",
+        "typeName": "Drone Frigate (B refit)",
+        "serviceYear": 165
+      }
+    ]
 }
