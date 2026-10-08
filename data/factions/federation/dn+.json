@@ -1,11 +1,11 @@
 {
   "faction": "Federation",
-  "type": "DN",
-  "typeName": "Dreadnought",
+  "type": "DN+",
+  "typeName": "Improved Dreadnought",
   "line": "DN",
-  "name": "USS Federation",
-  "serviceYear": 148,
-  "bpv": 180,
+  "name": "USS Concordant",
+  "serviceYear": 172,
+  "bpv": 207,
   "turnMode": "E",
   "sizeClass": 2,
   "moveCost": 1.5,
@@ -14,12 +14,11 @@
   "commandRating": 10,
   "tokenArt": "federation/dn.png",
   
-  "shields": [39, 32, 26, 26, 26, 32],
+  "shields": [44, 38, 32, 32, 32, 38],
   
   "hullBoxes": {
-    "fhull": 18,
-    "ahull": 6,
-    "chull": 0
+    "fhull": 22,
+    "ahull": 6
   },
   
   "power": {
@@ -27,7 +26,7 @@
     "rightWarp": 15,
     "centerWarp": 15,
     "impulse": 6,
-    "apr": 2,
+    "apr": 4,
     "battery": 5
   },
   
@@ -36,7 +35,7 @@
     "flag": 2,
     "emergency": 2,
     "auxCon": 2,
-    "controlMod": 0.5
+    "controlMod": 1.0
   },
 
   "tables": {
@@ -47,18 +46,18 @@
   },
 
   "auxiliary": {
-    "transporters": 4,
-    "tractors": 2,
+    "transporters": 6,
+    "tractors": 3,
     "labs": 10,
     "probes": 1
   },
 
   "shuttleBays": [
-    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin"] }
+    { "shuttles": ["admin", "admin", "admin", "admin", "admin", "admin", "admin", "admin"] }
   ],
 
   "crewData": {
-    "totalCrew": 50,
+    "totalCrew": 52,
     "boardingParties": 14,
     "minCrew": 4
   },
@@ -68,16 +67,21 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FH"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["L", "LF", "13"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["L", "LF", "13"] },
-    { "type": "Phaser1", "designator": "5", "arcs": ["RF", "R", "13"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["L", "LF", "13"] },
     { "type": "Phaser1", "designator": "6", "arcs": ["RF", "R", "13"] },
-    { "type": "Phaser1", "designator": "7", "arcs": ["FULL"] },
-    { "type": "Phaser1", "designator": "8", "arcs": ["FULL"] },
-    { "type": "Phaser1", "designator": "9", "arcs": ["RA"] },
-    { "type": "Phaser1", "designator": "10", "arcs": ["RA"] },
+    { "type": "Phaser1", "designator": "7", "arcs": ["RF", "R", "13"] },
+    { "type": "Phaser1", "designator": "8", "arcs": ["RF", "R", "13"] },
+    { "type": "Phaser1", "designator": "9", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "10", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "11", "arcs": ["RA"] },
+    { "type": "Phaser1", "designator": "12", "arcs": ["RA"] },
     { "type": "Photon",  "designator": "A", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
-    { "type": "Photon",  "designator": "D", "arcs": ["FA"] }
+    { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "E", "arcs": ["FA"] },
+    { "type": "Photon",  "designator": "F", "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ],
 
     "refits": [
@@ -92,9 +96,9 @@
     "variants": [
       {
         "refits": ["a"],
-        "type": "DNa",
-        "name": "USS Unity",
-        "typeName": "Dreadnought (AWR refit)"
+        "type": "DNa+",
+        "name": "USS Star League",
+        "typeName": "Improved Dreadnought (AWR refit)"
       }
     ]
 }

@@ -342,9 +342,10 @@ public class ShipSpec {
          * {@code "set": { "crewData": {...}, "hullBoxes": {...} }}.
          *
          * <p>The named fields above cover what most refits do — shields, power, a weapon swap. But a
-         * big refit rebuilds the ship: the Federation DN+ changes its crew, its hull boxes AND its
-         * shuttle bays, and without this those changes were dropped in silence, because Jackson
-         * ignores a key the spec does not declare. Found by the migration's equivalence check.
+         * big refit rebuilds the ship: the Federation GSC's carrier conversion changes its crew, its
+         * shuttle bays, its drone storage AND the two flags that make it a carrier at all, and
+         * without this those changes were dropped in silence, because Jackson ignores a key the spec
+         * does not declare. Found by the migration's equivalence check.
          *
          * <p>Whole-value replacement, not a merge, and applied by reflection against the real field
          * so a misspelling fails loudly rather than doing nothing. For the three primitive BLOCKS
@@ -356,13 +357,15 @@ public class ShipSpec {
          * A refit that CONVERTS one power system into another, however many there are.
          *
          * <p>The Federation AWR refit replaces a hull's auxiliary power reactors with warp reactors,
-         * and its effect depends on the ship it is fitted to: a bare DN has two APRs, a DN+ has four
-         * because the + refit added two. An absolute {@code "awr": 2} is therefore wrong on one of
-         * them, and so is a flat BPV — the cost is one point per reactor, so the same refit is +2 on
-         * the DN and +4 on the DN+, which is exactly what the DN's own files say.
+         * and its effect depends on the ship it is fitted to: a bare DN has two APRs, the improved
+         * DN+ has four. An absolute {@code "awr": 2} is therefore wrong on one of them, and so is a
+         * flat BPV — the cost is one point per reactor, so the identical refit block is +2 on the DN
+         * and +4 on the DN+ with nothing restated.
          *
-         * <p>The first refit in the data whose effect is not a fixed delta. Carried by the CC, NCL,
-         * FFG and DN.
+         * <p>The first refit in the data whose effect is not a fixed delta. Carried by the CA, CC,
+         * NCL, OCL, FFG, DN and DN+ — and the last two are separate FILES, which is the point: the
+         * Federation counted the DN+ a different ship rather than a refitted DN, so the conversion
+         * has to read the hull it lands on rather than the hull above it.
          */
         public PowerConversion convertPower;
         /**
