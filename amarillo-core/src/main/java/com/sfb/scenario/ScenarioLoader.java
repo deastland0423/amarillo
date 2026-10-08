@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Converts a ScenarioSpec into configured Ship objects ready to be added to a Game.
@@ -832,6 +833,25 @@ public class ScenarioLoader {
         }
 
         // Explicit per-ship override list takes precedence over faction defaults
+        // The per-ship block NARROWS the faction default; it does not replace it.
+        //
+        // It used to replace it: the block was applied and the method RETURNED, so the defaults
+        // below never ran. That cost three hulls. The Federation NCD and NCD+ named their four
+        // type-A racks and not their two type-G ones, so the Federation default that gives a type-G
+        // its third reload set (FD3.72) never happened and both fought every Y175 battle two reload
+        // sets short. The Klingon G2 declared a refit COST and nothing else, so it paid for an
+        // upgrade it never received. Both shapes look obviously fine in the file, which is what made
+        // them expensive.
+        //
+        // So a block now says what is DIFFERENT about this ship, and the default fills in the rest.
+        // The named racks are done first and then excluded from the default, which is what makes the
+        // override an override — otherwise a Kzinti hull naming a rack TYPE_B would have the default
+        // turn it into a TYPE_C afterwards.
+        //
+        // Every block that existed before this change restated what the default would have done, so
+        // none of them behaves differently: a restated rack is named, and a named rack is skipped
+        // below. What changes is that the restatement is no longer REQUIRED.
+        Set<String> handledRacks = new java.util.HashSet<>();
         if (shipSpec.y175Upgrades != null) {
             if (shipSpec.y175Upgrades.refitCost != 0) {
                 ship.setBattlePointValue(ship.getBattlePointValue() + shipSpec.y175Upgrades.refitCost);
@@ -843,6 +863,7 @@ public class ScenarioLoader {
                     DroneRack rack = (DroneRack) w;
                     rack.upgradeRackType(DroneRack.DroneRackType.valueOf(ru.upgradeTo));
                     if (ru.extraReloads > 0) rack.addReloadSets(ru.extraReloads);
+                    handledRacks.add(ru.designator);
                 }
             }
             for (ShipSpec.Y175AddUpgrade au : shipSpec.y175Upgrades.adds) {
@@ -852,14 +873,14 @@ public class ScenarioLoader {
                     ((ADD) w).upgradeTo(ADD.AddType.valueOf(au.upgradeTo));
                 }
             }
-            return;
         }
 
-        // Faction defaults
+        // Faction defaults, over every rack the block did not speak for.
         List<DroneRack> typeARacks = new ArrayList<>();
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof DroneRack) {
                 DroneRack rack = (DroneRack) w;
+                if (handledRacks.contains(rack.getDesignator())) continue;
                 if (rack.getRackType() == DroneRack.DroneRackType.TYPE_A) {
                     typeARacks.add(rack);
                 }
@@ -871,6 +892,7 @@ public class ScenarioLoader {
                 for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
                     if (w instanceof DroneRack) {
                         DroneRack rack = (DroneRack) w;
+                        if (handledRacks.contains(rack.getDesignator())) continue;
                         if (rack.getRackType() == DroneRack.DroneRackType.TYPE_G) {
                             rack.addReloadSets(1);
                         }

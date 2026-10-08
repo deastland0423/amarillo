@@ -69,17 +69,13 @@
   ],
 
   "_y175Comment": [
-    "The racks are restated even though the Klingon default does exactly this (TYPE_A to TYPE_B).",
-    "Declaring a y175Upgrades block is an OPT-OUT: the loader applies it and returns, skipping the",
-    "faction defaults. So the refitCost cannot be declared on its own - the cost would arrive and",
-    "the rack upgrade would silently not. The Federation NCD fought two reload sets short for",
-    "exactly this reason until 2026-10-08."
+    "Only the refit COST. The racks need no entry: the Klingon Y175 default upgrades every type-A",
+    "rack to type-B, and a y175Upgrades block now NARROWS that default rather than replacing it -",
+    "so a block says what is different about this ship and the default fills in the rest. Before",
+    "2026-10-08 declaring a block skipped the defaults entirely, and this hull paid four points for",
+    "a rack upgrade that never happened."
   ],
   "y175Upgrades": {
-    "refitCost": 4,
-    "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_B" }
-    ]
+    "refitCost": 4
   }  
 }

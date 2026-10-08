@@ -74,5 +74,28 @@
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"]}
 
-  ]
+  ],
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 165,
+        "bpv": 4,
+        "shields": [21, 16, 16, 16, 16, 16],
+        "y175Upgrades": {
+          "refitCost": 1,
+          "racks": [{"designator": "Rack 1", "upgradeTo": "TYPE_B"}]
+        },
+        "replaceWeapons": [{"from": "DroneRack", "set": {"rackType": "TYPE_A"}, "designators": ["Rack 1"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "F5JB",
+        "name": "IKS Agony",
+        "typeName": "Frigate (B refit)",
+        "serviceYear": 165
+      }
+    ]
 }

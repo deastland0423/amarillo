@@ -72,10 +72,8 @@
 
     "_y175Comment": [
     "Only the refit COST. The ADD_6 to ADD_12 upgrade needs no entry: applyYearUpgrades does every",
-    "ADD_6 in the game before it looks at any per-ship block. But the block cannot be deleted,",
-    "because declaring one is an OPT-OUT - the loader applies it and returns, skipping the faction",
-    "defaults - and the cost would go with it. Harmless here only because the E3 has no drone racks",
-    "for those defaults to touch; the Federation NCD lost two reload sets exactly this way."
+    "ADD_6 in the game before it looks at any per-ship block. And the E3 has no drone racks for the",
+    "faction default to touch, so the cost is genuinely all there is to say."
   ],
   "y175Upgrades": {
     "refitCost": 2
