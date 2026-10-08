@@ -89,16 +89,16 @@
 
     "refits": [
       {
-        "code": "F5L",
-        "name": "F5L refit",
-        "year": 143,
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 169,
         "bpv": 3,
         "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["3", "4", "5"]}]
       }
     ],
     "variants": [
       {
-        "refits": ["F5L"],
+        "refits": ["K"],
         "type": "F5L",
         "name": "IKS Battle Lord",
         "typeName": "Frigate Leader (Phaser-1 refit)"

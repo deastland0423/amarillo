@@ -99,7 +99,7 @@
           "racks": [ { "designator": "Rack 1", "upgradeTo": "TYPE_B" },
                      { "designator": "Rack 2", "upgradeTo": "TYPE_B" } ],
           "adds":  [ { "designator": "ADD 1", "upgradeTo": "ADD_12" } ] } },
-    { "code": "K", "name": "Phaser-1 refit", "year": 165, "bpv": 3, "requires": ["B"],
+    { "code": "K", "name": "Phaser-1 refit", "year": 175, "bpv": 3, "requires": ["B"],
       "replaceWeapons": [ { "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] } ] },
     { "code": "u", "name": "UIM refit", "year": 165, "bpv": 5,
       "auxiliary": { "uim": 1 } }
@@ -108,10 +108,10 @@
     { "refits": ["B"],           "type": "D6B",  "name": "IKS Carnage",
       "typeName": "Battlecruiser (B refit)" },
     { "refits": ["B", "K"],      "type": "D6K",  "name": "IKS Atropos",
-      "typeName": "Battlecruiser (Phaser-1 refit)" },
+      "typeName": "Battlecruiser (Phaser-1 refit)", "serviceYear": 175 },
     { "refits": ["B", "u"],      "type": "D6Bu", "name": "IKS Abomination",
       "typeName": "Battlecruiser (B and UIM refit)" },
     { "refits": ["B", "K", "u"], "type": "D6Ku", "name": "IKS Desolation",
-      "typeName": "Battlecruiser (Phaser-1 and UIM refit)" }
+      "typeName": "Battlecruiser (Phaser-1 and UIM refit)", "serviceYear": 175 }
   ]
 }

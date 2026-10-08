@@ -180,16 +180,21 @@ public class UimAvailabilityTest {
      * refitted for one (which is what the D7Bu and D7Ku are). The D7L was missing the field until
      * 2026-10-07, found by decomposing its refit: a refit that LOSES a system stands out once the
      * diffs are meant to be additive.
+     * <p>
+     * The D7L is NOT on this list, and the reason is worth recording. It carries a UIM, but its
+     * phaser refit arrived in Y169 (the owner's correction from the SSD, 2026-10-08), so the hull
+     * cannot be fielded before the UIM existed and the gate never has anything to take away. Its
+     * base the D7C is here, and that is where the -5 is seen.
      */
     @Test
-    public void onlyFourHullsPredateTheUimTheyDeclare() {
+    public void onlyThreeHullsPredateTheUimTheyDeclare() {
         List<String> early = new ArrayList<>();
         for (ShipSpec spec : ShipLibrary.all())
             if (!ShipLibrary.createShip(spec).getUims().isEmpty() && spec.serviceYear < 165)
                 early.add(spec.faction + "/" + spec.type + " (Y" + spec.serviceYear + ")");
         early.sort(null);
-        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7L (Y143)", "Klingon/D7N (Y137)",
-                "Lyran/CC (Y120)"), early);
+        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7N (Y137)", "Lyran/CC (Y120)"),
+                early);
     }
 
     /**

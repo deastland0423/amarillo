@@ -128,7 +128,7 @@
       {
         "code": "K",
         "name": "Phaser-1 refit",
-        "year": 168,
+        "year": 175,
         "bpv": 8,
         "requires": ["B"],
         "replaceWeapons": [
@@ -153,7 +153,7 @@
         "type": "C8K",
         "name": "IKS Admiral K'maag",
         "typeName": "Dreadnought (Phaser-1 refit)",
-        "serviceYear": 168
+        "serviceYear": 175
       }
     ]
 }

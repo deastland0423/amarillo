@@ -84,7 +84,29 @@
 
   ],
 
+  "_refitComment": [
+    "No B refit, and that is not an omission: the D6V was built after the B refit had gone fleet",
+    "wide, so the baseline carrier already has B-level shields. It only ever carried the K and UIM",
+    "refits. Which is why refits are declared per HULL and never per faction - the same marker is",
+    "a different thing, or no thing at all, depending on when the ship was laid down."
+  ],
+  "refits": [
+    { "code": "K", "name": "Phaser-1 refit", "year": 178, "bpv": 3,
+      "replaceWeapons": [ { "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] } ] },
+    { "code": "u", "name": "UIM refit", "year": 165, "bpv": 5,
+      "auxiliary": { "uim": 1 } }
+  ],
+
   "y175Upgrades": {
     "refitCost": 3
-  }
+  },
+  "variants": [
+    { "refits": ["K"],      "type": "D6VK",  "name": "IKS Hurricane",
+      "typeName": "Carrier (Phaser-1 refit)", "serviceYear": 178 },
+    { "refits": ["u"],      "type": "D6Vu", "name": "IKS Blizzard",
+      "typeName": "Carrier (UIM refit)" },
+    { "refits": ["K", "u"], "type": "D6VKu", "name": "IKS Tempest",
+      "typeName": "Carrier (Phaser-1 and UIM refit)", "serviceYear": 178 }
+  ]
+
 }

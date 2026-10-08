@@ -91,19 +91,20 @@
 
     "refits": [
       {
-        "code": "D7L",
-        "name": "D7L refit",
-        "year": 143,
+        "code": "K",
+        "name": "Phaser-1 refit",
+        "year": 169,
         "bpv": 2,
         "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["4", "5"]}]
       }
     ],
     "variants": [
       {
-        "refits": ["D7L"],
+        "refits": ["K"],
         "type": "D7L",
         "name": "IKS Dawnslayer",
-        "typeName": "Command Cruiser (Phaser-1 refit)"
+        "typeName": "Command Cruiser (Phaser-1 refit)",
+        "serviceYear": 169
       }
     ]
 }

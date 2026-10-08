@@ -98,8 +98,8 @@
 
     "refits": [
       {
-        "code": "D5L",
-        "name": "D5L refit",
+        "code": "K",
+        "name": "Phaser-1 refit",
         "year": 175,
         "bpv": 6,
         "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["3", "4", "5", "6"]}]
@@ -107,7 +107,7 @@
     ],
     "variants": [
       {
-        "refits": ["D5L"],
+        "refits": ["K"],
         "type": "D5L",
         "name": "IKS Rogueslayer",
         "typeName": "War Cruiser Leader (Phaser-1 refit)",
