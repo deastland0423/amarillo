@@ -73,5 +73,38 @@
     { "type": "Disruptor",  "designator": "A", "range": 22, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [22, 16, 16, 16, 16, 16]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["6", "8"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DD+",
+        "name": "Fervent",
+        "typeName": "Leopard Destroyer (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "DDp+",
+        "name": "Icefire",
+        "typeName": "Leopard Destroyer (+ and phaser refit)",
+        "serviceYear": 168
+      }
+    ]
 }

@@ -104,46 +104,78 @@ public class ShipFileNamingTest {
     }
 
     /**
-     * A lowercase letter in a type is only ever a trailing modifier, and only one of three.
+     * A type code reads <b>capitals, then lower case, then plus signs</b>.
      *
-     * <p>The data says so unanimously: twenty-one hulls carry a lowercase letter, every one of them
-     * is the last character, and every one is {@code a} (AWR refit), {@code p} (phaser refit) or
-     * {@code u} (UIM refit) — {@code DNa}, {@code FFAp}, {@code D7Ku}, {@code CC+a}, {@code FFE+p}.
-     * A primary code is uppercase without exception: the power-pack refit is {@code B} in all
-     * fourteen of its hulls.
+     * <p>The owner's rule, 2026-10-08, and it settles ground the data had no precedent for. Every
+     * one of the 21 original lowercase codes carried a single trailing modifier — {@code DNa},
+     * {@code FFAp}, {@code D7Ku} — so "lower case comes last" was unanimous but untested against a
+     * code with TWO markers. Then the refit model made every combination of a hull's refits
+     * expressible, and {@code DNpB} and {@code DN+Bp} appeared for the same ship on the same day.
      *
-     * <p>Which is how {@code DWb} was wrong and invisible. It breaks no key, so nothing else
-     * notices; it is simply a secondary modifier where a primary code belongs, and in any list of
-     * types it reads as a different kind of ship from its thirteen siblings.
+     * <p>One order, applied everywhere: {@code DNBp+}. Fifteen codes were renamed to it, including
+     * three Federation AWR hulls off their SSDs ({@code CC+a} to {@code CCa+}) and the saved fleet
+     * and scenario that named them.
+     *
+     * <p>Lower case is still only a refit modifier — {@code a} for AWR, {@code p} for phaser,
+     * {@code u} for UIM — because a primary code is upper case; the power-pack refit is {@code B}
+     * in all fourteen of its hulls. {@link com.sfb.objects.RefitResolver} orders derived codes the
+     * same way, so a combination history never named comes out in the house style rather than in
+     * whatever order the refits happen to be declared.
      */
     @Test
-    public void aLowercaseLetterIsOnlyEverATrailingModifier() throws Exception {
+    public void everyTypeCodeIsCapitalsThenLowerCaseThenPlus() throws Exception {
         assumeTrue("data/factions must exist", FACTIONS.isDirectory());
 
         List<String> wrong = new ArrayList<>();
         int modifiers = 0;
         for (File f : shipFiles()) {
-            String type = new ObjectMapper().readTree(f).path("type").asText("");
-            if (type.isBlank())
-                continue;
-            for (int i = 0; i < type.length(); i++) {
-                char c = type.charAt(i);
-                if (!Character.isLowerCase(c))
+            // The hull's own type AND every refitted version it declares: since the migration a
+            // variant's code lives in the base file rather than a file of its own.
+            com.fasterxml.jackson.databind.JsonNode root = new ObjectMapper().readTree(f);
+            List<String> types = new ArrayList<>();
+            types.add(root.path("type").asText(""));
+            for (com.fasterxml.jackson.databind.JsonNode v : root.path("variants"))
+                types.add(v.path("type").asText(""));
+
+            for (String type : types) {
+                if (type.isBlank())
                     continue;
-                if (i != type.length() - 1)
-                    wrong.add(relative(f) + " has '" + c + "' inside type '" + type + "'");
-                else if ("apu".indexOf(c) < 0)
-                    wrong.add(relative(f) + " ends type '" + type + "' in '" + c
-                            + "'; the refit modifiers are a, p and u, and a primary code is upper case");
-                else
-                    modifiers++;
+                for (int i = 0; i < type.length(); i++) {
+                    char c = type.charAt(i);
+                    if (Character.isLowerCase(c)) {
+                        modifiers++;
+                        if ("apu".indexOf(c) < 0)
+                            wrong.add(relative(f) + ": '" + c + "' in type '" + type
+                                    + "' is not a refit modifier; those are a, p and u, and a"
+                                    + " primary code is upper case");
+                    }
+                }
+                if (!canonical(type).equals(type))
+                    wrong.add(relative(f) + ": type '" + type + "' should be written '"
+                            + canonical(type) + "' — capitals, then lower case, then plus");
             }
         }
 
         assertTrue("the data should still hold some a/p/u refits", modifiers > 10);
+        report(wrong, "a type code is not in the house order");
+    }
+
+    private void report(List<String> wrong, String what) {
         String indent = System.lineSeparator() + "  ";
-        assertTrue("unexpected lower case in a ship type:" + indent + String.join(indent, wrong),
-                wrong.isEmpty());
+        assertTrue(what + ":" + indent + String.join(indent, wrong), wrong.isEmpty());
+    }
+
+    /** Capitals (and digits and hyphens) first, then lower case, then any plus signs. */
+    private static String canonical(String type) {
+        StringBuilder caps = new StringBuilder();
+        StringBuilder low = new StringBuilder();
+        int pluses = 0;
+        for (char c : type.toCharArray()) {
+            if (c == '+') pluses++;
+            else if (Character.isLowerCase(c)) low.append(c);
+            else caps.append(c);
+        }
+        return caps.toString() + low + "+".repeat(pluses);
     }
 
     /**

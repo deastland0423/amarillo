@@ -74,5 +74,24 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
     { "type": "ESG", "designator": "1"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [22, 16, 16, 16, 16, 16]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SC+",
+        "name": "Familiar",
+        "typeName": "Ocelot Scout (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

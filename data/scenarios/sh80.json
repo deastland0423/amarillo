@@ -19,7 +19,7 @@
       "faction": "Federation",
       "ships": [
         {
-          "type": "CC+a",
+          "type": "CCa+",
           "shipName": "Lexington",
           "startHex": "1712",
           "startHeading": "C",

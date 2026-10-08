@@ -150,6 +150,36 @@ public class RefitResolverTest {
     }
 
     /**
+     * A derived code is written in the house order — capitals, then lower case, then plus signs —
+     * not in whatever order the hull happens to declare its refits.
+     *
+     * <p>The owner's rule, 2026-10-08. Without it the same combination comes out "DN+pB" on one
+     * hull and "DNpB+" on its neighbour, depending only on how each file was typed, and
+     * {@code ShipFileNamingTest} would reject half of them.
+     */
+    @Test
+    public void aDerivedCodeIsWrittenInTheHouseOrder() {
+        // The Lyran CW, because it names only three of its seven combinations — so these go
+        // through the DERIVATION. The DN would not do: the owner enumerated all seven of its
+        // variants by hand, so every lookup there finds a declared code and canonicalCode is
+        // never reached, which would make this test agree with itself.
+        ShipSpec cw = ShipLibrary.get("Lyran", "CW");
+        assertNotNull("fixture: the Lyran CW should be in the library", cw);
+        assertNull("fixture: {B,p} must be UNNAMED for this to test the derivation",
+                RefitResolver.variantFor(cw, List.of("B", "p")));
+
+        // Asked for in the least tidy order imaginable.
+        assertEquals("CWBp", RefitResolver.apply(cw, List.of("p", "B")).type);
+        assertEquals("CWB+", RefitResolver.apply(cw, List.of("B", "+")).type);
+        assertEquals("CWB", RefitResolver.apply(cw, List.of("B")).type);
+        assertEquals("CWp", RefitResolver.apply(cw, List.of("p")).type);
+
+        // And a NAMED combination still wins over the derivation.
+        assertEquals("the historical code beats the derived one",
+                "CWB", RefitResolver.apply(cw, List.of("+", "p", "B")).type);
+    }
+
+    /**
      * Applying refits must not refit the BASE.
      * <p>
      * The library holds one spec per hull and builds every variant from it, so a resolver that

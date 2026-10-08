@@ -79,5 +79,24 @@
     { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 171,
+        "bpv": 9,
+        "epv": 129,
+        "power": {"apr": 6, "battery": 3}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "CVLB",
+        "name": "Golden Claw",
+        "typeName": "Yaguarundi Light Carrier (Power pack refit)"
+      }
+    ]
 }

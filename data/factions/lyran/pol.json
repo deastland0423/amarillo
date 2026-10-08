@@ -69,5 +69,23 @@
     { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 125,
+        "bpv": 0,
+        "shields": [16, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "POL+",
+        "name": "Watcher",
+        "typeName": "Manx Police Frigate (+ refit)"
+      }
+    ]
 }

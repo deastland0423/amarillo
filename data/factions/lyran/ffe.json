@@ -75,5 +75,38 @@
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 172,
+        "bpv": 2,
+        "shields": [16, 12, 12, 12, 12, 12]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 172,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["4", "6"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FFE+",
+        "name": "Litter Guard",
+        "typeName": "Cheetah-E Escort Frigate (+ refit)",
+        "serviceYear": 172
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "FFEp+",
+        "name": "Cub Guard",
+        "typeName": "Cheetah-E Escort Frigate (Phaser and + refit)",
+        "serviceYear": 172
+      }
+    ]
 }

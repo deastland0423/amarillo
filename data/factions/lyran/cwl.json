@@ -84,5 +84,36 @@
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 4,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["10", "8"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 168,
+        "bpv": 9,
+        "power": {"apr": 6, "battery": 3}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["p"],
+        "type": "CWLp",
+        "name": "Black Claw",
+        "typeName": "War Cruiser Leader (Phaser refit)"
+      },
+      {
+        "refits": ["B", "p"],
+        "type": "CWLB",
+        "name": "Dark Storm Majesty",
+        "typeName": "War Cruiser Leader (Power pack refit)"
+      }
+    ]
 }

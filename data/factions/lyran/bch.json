@@ -90,5 +90,23 @@
     { "type": "ESG", "designator": "2"},
     { "type": "ESG", "designator": "3"},
     { "type": "ESG", "designator": "4"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 180,
+        "bpv": 18,
+        "power": {"apr": 12, "battery": 8}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "BCHB",
+        "name": "Prince of Agony",
+        "typeName": "Hellcat Heavy Battlecruiser (Power pack refit)"
+      }
+    ]
 }

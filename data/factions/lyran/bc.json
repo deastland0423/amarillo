@@ -88,5 +88,52 @@
     { "type": "ESG", "designator": "2"},
     { "type": "ESG", "designator": "3"},
     { "type": "ESG", "designator": "4"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 169,
+        "bpv": 2,
+        "shields": [36, 28, 28, 28, 28, 28]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 169,
+        "bpv": 4,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["10", "8"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 169,
+        "bpv": 18,
+        "power": {"apr": 10, "battery": 6}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "BC+",
+        "name": "Brilliant Star",
+        "typeName": "Wildcat Battlecruiser (+ refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "BCp+",
+        "name": "Dark Storm Fury",
+        "typeName": "Wildcat Battlecruiser (+ and phaser refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["+", "B", "p"],
+        "type": "BCB",
+        "name": "Nemesis",
+        "typeName": "Wildcat Battlecruiser (power pack refit)",
+        "serviceYear": 169
+      }
+    ]
 }

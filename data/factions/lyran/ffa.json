@@ -75,5 +75,23 @@
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 175,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["4", "6"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["p"],
+        "type": "FFAp",
+        "name": "Cub Shield",
+        "typeName": "Cheetah-A Aegis Frigate (Phaser refit)"
+      }
+    ]
 }

@@ -90,5 +90,81 @@
     { "type": "ESG", "designator": "2"},
     { "type": "ESG", "designator": "3"},
     { "type": "ESG", "designator": "4"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 169,
+        "bpv": 4,
+        "shields": [42, 36, 36, 36, 36, 36],
+        "auxiliary": {"derfacs": true}
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 169,
+        "bpv": 4,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["12", "9"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 169,
+        "bpv": 9,
+        "power": {"apr": 8, "battery": 7}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DN+",
+        "name": "King of Beasts",
+        "typeName": "Lion Dreadnought (+ refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["B"],
+        "type": "DNB",
+        "name": "Ruler of Beasts",
+        "typeName": "Lion Dreadnought (Power refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["p"],
+        "type": "DNp",
+        "name": "Sire of Beasts",
+        "typeName": "Lion Dreadnought (Phaser refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["+", "B"],
+        "type": "DNB+",
+        "name": "Lord of Beasts",
+        "typeName": "Lion Dreadnought (+ and B refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["p", "B"],
+        "type": "DNBp",
+        "name": "Master of Beasts",
+        "typeName": "Lion Dreadnought (Phaser and B refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "DNp+",
+        "name": "Stained Axe",
+        "typeName": "Lion Dreadnought (+ and phaser refit)",
+        "serviceYear": 169
+      },
+      {
+        "refits": ["+", "B", "p"],
+        "type": "DNBp+",
+        "name": "Thunderclaw",
+        "typeName": "Lion Dreadnought (+, power and phaser refit)",
+        "serviceYear": 169
+      }
+    ]
 }

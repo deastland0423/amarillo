@@ -71,5 +71,38 @@
     { "type": "Disruptor",  "designator": "A", "range": 15, "arcs": ["FA"] },
     { "type": "Disruptor",  "designator": "B", "range": 15, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [16, 12, 12, 12, 12, 12]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["4", "6"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FF+",
+        "name": "Dark Storm Fire",
+        "typeName": "Cheetah Frigate (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "FFp+",
+        "name": "Strongjaw",
+        "typeName": "Cheetah Frigate (+ and phaser refit)",
+        "serviceYear": 168
+      }
+    ]
 }

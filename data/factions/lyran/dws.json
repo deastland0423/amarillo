@@ -79,5 +79,40 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 2,
+        "epv": 100,
+        "shields": [24, 20, 20, 20, 20, 20]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 171,
+        "bpv": 9,
+        "epv": 109,
+        "power": {"apr": 5, "battery": 2}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DWS+",
+        "name": "Purposeful",
+        "typeName": "War Destroyer Scout (+ refit)",
+        "serviceYear": 171
+      },
+      {
+        "refits": ["+", "B"],
+        "type": "DWSB",
+        "name": "Meaningful",
+        "typeName": "War Destroyer Scout (Power pack refit)",
+        "serviceYear": 171
+      }
+    ]
 }

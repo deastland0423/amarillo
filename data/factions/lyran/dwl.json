@@ -79,5 +79,38 @@
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["6", "8"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 168,
+        "bpv": 9,
+        "power": {"apr": 5, "battery": 2}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["p"],
+        "type": "DWLp",
+        "name": "Maimer",
+        "typeName": "War Destroyer Leader (Phaser refit)",
+        "serviceYear": 168
+      },
+      {
+        "refits": ["B", "p"],
+        "type": "DWLB",
+        "name": "Sabre",
+        "typeName": "War Destroyer Leader (Power pack refit)",
+        "serviceYear": 168
+      }
+    ]
 }

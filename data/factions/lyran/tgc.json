@@ -80,5 +80,41 @@
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "epv": 136,
+        "shields": [33, 22, 22, 22, 22, 22],
+        "auxiliary": {"derfacs": true}
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 2,
+        "epv": 138,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["10", "7"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "TGC+",
+        "name": "Litter Queen",
+        "typeName": "Cougar Fleet Tug (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "TGCp+",
+        "name": "Clawed Provider",
+        "typeName": "Cougar Fleet Tug (+ and phaser refit)",
+        "serviceYear": 168
+      }
+    ]
 }

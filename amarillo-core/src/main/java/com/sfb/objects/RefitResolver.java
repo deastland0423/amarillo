@@ -158,7 +158,7 @@ public final class RefitResolver {
             if (named.name != null)
                 out.name = named.name;
         } else {
-            out.type = base.type + String.join("", codes);
+            out.type = canonicalCode(base.type, codes);
             out.typeName = base.typeName + " (" + describe(base, codes) + ")";
         }
         // A refit cannot be fielded before it exists (S3.24); the hull arrives when its latest does.
@@ -168,6 +168,28 @@ public final class RefitResolver {
                 out.serviceYear = r.year;
         }
         return out;
+    }
+
+    /**
+     * The code for a combination history never named: the base, then the markers in the house
+     * order — capitals, then lower case, then plus signs.
+     *
+     * <p>Not the order the hull declares its refits in, which would give "DN+pB" for one ship and
+     * "DNpB+" for its neighbour depending on how each file was written. The owner's rule
+     * (2026-10-08) is one order everywhere, and {@code ShipFileNamingTest} holds the data to it;
+     * this holds the derived codes to the same thing.
+     */
+    static String canonicalCode(String baseType, List<String> codes) {
+        StringBuilder caps = new StringBuilder();
+        StringBuilder low = new StringBuilder();
+        int pluses = 0;
+        for (String code : codes)
+            for (char c : code.toCharArray()) {
+                if (c == '+') pluses++;
+                else if (Character.isLowerCase(c)) low.append(c);
+                else caps.append(c);
+            }
+        return baseType + caps + low + "+".repeat(pluses);
     }
 
     /** "B and Phaser-1 refit", for a combination with no historical name. */

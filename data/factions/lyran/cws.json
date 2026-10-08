@@ -81,5 +81,38 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "5" },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 172,
+        "bpv": 2,
+        "epv": 135,
+        "shields": [30, 24, 24, 24, 24, 24]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 172,
+        "bpv": 9,
+        "epv": 144,
+        "power": {"apr": 6, "battery": 3}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CWS+",
+        "name": "Deadly Stealth",
+        "typeName": "Serval War Cruiser Scout (+ refit)"
+      },
+      {
+        "refits": ["+", "B"],
+        "type": "CWSB",
+        "name": "Killer Stealth",
+        "typeName": "Serval War Cruiser Scout (Power pack refit)"
+      }
+    ]
 }

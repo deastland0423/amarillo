@@ -82,5 +82,36 @@
     { "type": "Phaser2", "designator": "11", "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 171,
+        "bpv": 2,
+        "shields": [24, 20, 20, 20, 20, 20]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 171,
+        "bpv": 9,
+        "power": {"apr": 5, "battery": 2}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DWA+",
+        "name": "Striped Mangler",
+        "typeName": "War Destroyer Aegis (+ refit)"
+      },
+      {
+        "refits": ["+", "B"],
+        "type": "DWAB",
+        "name": "Striped Outguard",
+        "typeName": "War Destroyer Aegis (Power pack refit)"
+      }
+    ]
 }

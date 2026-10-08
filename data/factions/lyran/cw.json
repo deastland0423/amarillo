@@ -79,5 +79,53 @@
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "auxiliary": {"derfacs": true}
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 4,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["10", "8"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 168,
+        "bpv": 9,
+        "power": {"apr": 6, "battery": 3}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CW+",
+        "name": "Arrogance",
+        "typeName": "Jaguar War Cruiser (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "CWp+",
+        "name": "Bloodslinger",
+        "typeName": "Jaguar War Cruiser (+ and phaser refit)",
+        "serviceYear": 168
+      },
+      {
+        "refits": ["+", "B", "p"],
+        "type": "CWB",
+        "name": "Chotiska",
+        "typeName": "Jaguar War Cruiser (power pack refit)",
+        "serviceYear": 168
+      }
+    ]
 }

@@ -74,5 +74,38 @@
     { "type": "Disruptor",  "designator": "B", "range": 22, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [24, 17, 17, 17, 17, 17]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 4,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser1", "designators": ["6", "8"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CL+",
+        "name": "Carnivore",
+        "typeName": "Panther Light Cruiser (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "CLp+",
+        "name": "Spearmaker",
+        "typeName": "Panther Light Cruiser (+ and phaser refit)",
+        "serviceYear": 168
+      }
+    ]
 }

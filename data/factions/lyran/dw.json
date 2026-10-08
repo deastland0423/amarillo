@@ -77,5 +77,52 @@
     { "type": "Disruptor",  "designator": "C", "range": 22, "arcs": ["FX"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "shields": [24, 20, 20, 20, 20, 20]
+      },
+      {
+        "code": "p",
+        "name": "Phaser refit",
+        "year": 168,
+        "bpv": 2,
+        "replaceWeapons": [{"from": "Phaser3", "to": "Phaser2", "designators": ["6", "8"]}]
+      },
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 168,
+        "bpv": 9,
+        "power": {"apr": 5, "battery": 2}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DW+",
+        "name": "Battlehand",
+        "typeName": "Alleycat War Destroyer (+ refit)",
+        "serviceYear": 166
+      },
+      {
+        "refits": ["+", "p"],
+        "type": "DWp+",
+        "name": "Dark Fury",
+        "typeName": "Alleycat War Destroyer (Phaser and + refit)",
+        "serviceYear": 168
+      },
+      {
+        "refits": ["+", "B", "p"],
+        "type": "DWB",
+        "name": "First Blood",
+        "typeName": "Alleycat War Destroyer (Power pack refit)",
+        "serviceYear": 168
+      }
+    ]
 }

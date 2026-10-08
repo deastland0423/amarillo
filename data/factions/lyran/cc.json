@@ -83,5 +83,24 @@
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 5,
+        "shields": [39, 30, 24, 24, 24, 30]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CC+",
+        "name": "Necromancer",
+        "typeName": "Bengal Tiger Command Cruiser (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

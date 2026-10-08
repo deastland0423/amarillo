@@ -74,5 +74,26 @@
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA"] },
     { "type": "ESG", "designator": "1"},
     { "type": "ESG", "designator": "2"}
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 2,
+        "epv": 121,
+        "shields": [33, 22, 22, 22, 22, 22],
+        "auxiliary": {"derfacs": true}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "TGP+",
+        "name": "Gehenna",
+        "typeName": "Puma Transport Tug (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }
