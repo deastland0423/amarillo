@@ -36,7 +36,7 @@ cd amarillo-web && npm run build   # tsc -b && vite build
 
 - Always build with `install` from the root, never `package` in a submodule: amarillo-server resolves amarillo-core from `~/.m2`, so a stale install means the server runs old core code. After changing core or server code, remind the user to rebuild and restart `spring-boot:run`.
 - `amarillo-web` is npm-only — the root pom builds `amarillo-core` and `amarillo-server`.
-- The Vite dev server does not type-check; `tsc -b` currently has pre-existing type-drift errors unrelated to most changes. Don't treat those as caused by your diff, but don't add new ones.
+- **`npm run build`, `npm run lint` and `npm test` are all green, and must stay that way.** This file used to say `tsc -b` had pre-existing errors to be disregarded; that instruction outlived its truth and did damage while it lasted. A real crash in `LaunchOrdersPad` — reading `attacker.ship` where a fighter can be the attacker — sat in plain sight because nobody could tell a new error from the accepted noise. Fixed 2026-10-09, with CI in `.github/workflows/ci.yml` to keep it so. The Vite dev server still does not type-check, so run the gates yourself before committing.
 
 ## Architecture
 
@@ -57,7 +57,9 @@ Turns run 32 impulses (each Game owns a `TurnTracker` clock instance (`game.getC
 
 ### Resolver extraction pattern
 
-Game's domain logic lives in package-private collaborator classes in `com.sfb`: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`, `DisengagementResolver`. Game itself (~1,900 lines) holds state, the phase machine, allocation, victory, and public delegates. The pattern:
+Game's domain logic lives in package-private collaborator classes in `com.sfb`. There are fourteen as of 2026-10-09: `ShipMover`, `SeekerMover`, `ShuttleMover`, `TractorResolver`, `DamageResolver`, `BoardingResolver`, `LaunchCoordinator`, `MineResolver`, `SeekerControl`, `LockOnResolver`, `DisengagementResolver`, `EsgResolver`, `SquadronEwResolver`, `VictoryCalculator`. Game itself holds state, the phase machine, allocation, victory, and public delegates.
+
+**Game.java is 4,715 lines, of which about 2,894 are code** — this file claimed ~1,900 for long enough that an outside reviewer reasonably concluded decomposition had stalled. It has not: three of the fourteen collaborators above arrived after that number was written. But Game did grow by roughly a thousand code lines in the meantime, so the direction of the pressure is real. Re-measure before quoting a size here, and treat raw line counts across this repo with care — the comment density is deliberate and runs 30–40%, so a file's length overstates its logic by about a third.
 
 - Pending/shared lists stay **declared in Game** and are passed into the resolver constructor by reference.
 - Phase transitions stay **in Game**, reached via package-private hooks (e.g. `enterDacChoicePhase()`).

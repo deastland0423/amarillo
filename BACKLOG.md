@@ -72,6 +72,21 @@ Roughly largest first. Several have had their rules read and their design settle
 
 - **Mid-game save and reload.** Analysed, not started. Seeded dice first, then a snapshot at turn
   boundaries. This is the prerequisite for the campaign system below.
+
+  **The refit model makes this easier and adds one hazard.** A ship can be reconstructed from
+  `base hull + applied refits + scenario year + COI/loadout + mutable battle state`, which is far
+  less to store than a whole ship. But that reconstruction reads the ship JSON *at load time*, and
+  this repo edits ship JSON constantly — three new base files landed on 2026-10-09 alone. Edit a
+  hull or a refit between sessions and a restored ship silently becomes a different ship, in a
+  saved campaign, with nothing to say so.
+
+  So **store a fingerprint of the resolved `ShipSpec` alongside the reference** and compare it on
+  load: same hash, reconstruct; different hash, say which ship changed and let the player decide.
+  Raised by an outside reviewer 2026-10-09 and the best thing in that review. The state inventory
+  it must cover has also grown since the feature was first scoped — base hull plus refit set,
+  scenario year and its automatic upgrades, fighter squadrons and individual loadouts, deck-crew
+  assignments and unfinished hangar work, carrier drone and plasma stores, aegis firing state,
+  bases, option mounts and commander's options.
 - **The campaign system.** Owner's direction, not designed. Would lean on drone storage, crew
   quality and carriers. Rule pointers: G21.3 → U7.9/U2.0, G22 legendary officers → U7.8/U1.26.
 - **The scenario system** — year, forces, BPV budget, loadouts, victory conditions. Deferred;
@@ -98,6 +113,26 @@ Roughly largest first. Several have had their rules read and their design settle
 - **Phaser downfire (E2.25).** Read in full. `shotModes` and the `lastShotUnderAegis` idiom
   already exist, so it is cheaper than it looks. The UI should be a quiet defaulted opt-in, not a
   mode picker.
+
+## Structural, carried opportunistically
+
+An outside review on 2026-10-09 measured the five largest files: `Game.java` 4,715,
+`GameBoard.tsx` 4,885, `GameSession.java` 3,237, `GameStateDto.java` 2,697,
+`GameController.java` 2,265. Its conclusion — that complexity is outrunning decomposition — is
+half right, and the half that is wrong matters: this repo runs 30–40% comment by line, so
+`Game.java` is about 2,894 lines of actual code, and three new collaborators have appeared since
+the architecture notes were written. The pressure is real but slower than the raw numbers say.
+
+**Do not stop building rules to refactor.** Keep extracting while touching a domain, as the
+resolver pattern already does, and extend the same habit to the other tiers:
+
+- **Server**: split lobby/setup, the fleet catalogue, game actions and option-query endpoints out
+  of `GameController`.
+- **Session**: extract simultaneous-fire coordination, deployment and pregame state.
+- **DTO**: per-object assemblers, keeping the wire format exactly as it is.
+- **Frontend**: `GameBoard` by interaction domain. **This one is not like the others** — 4,885
+  lines with no tests on any interactive path, and it is the screen the whole game is played
+  through. Characterisation tests first, or don't start.
 
 ## Smaller rules gaps
 
