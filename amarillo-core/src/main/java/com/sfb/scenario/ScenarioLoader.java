@@ -81,11 +81,11 @@ public class ScenarioLoader {
         // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
         ship.setSpeedPreviousTurn(setup.startSpeed);
         ship.setSpeedTwoTurnsAgo(setup.startSpeed);
-        applyFighterComplement(ship, year);
-        applyYearUpgrades(ship, faction, year, shipSpec);
-        applyEsgCapacitors(ship, year);
-        applyFusionHolding(ship, year);
-        applyUimAvailability(ship, year);
+        // Every year-gated rule, in one call, so the three other places that build a ship cannot
+        // drift from this one again. applyWeaponStatus stays here: it is scenario setup, not a
+        // fact about the hull in that year, and it must follow the fighter re-seat so it arms the
+        // craft the carrier ends up with.
+        outfitForYear(ship, faction, year, shipSpec);
         applyWeaponStatus(ship, setup.weaponStatus);
         return ship;
     }
@@ -107,6 +107,43 @@ public class ScenarioLoader {
         // they both quietly sold carriers at their hull's service year.
         for (String n : com.sfb.objects.FighterComplement.reseat(ship, year))
             note(ship, n);
+    }
+
+    /**
+     * Bring an already-built hull up to the year it is being fielded in.
+     *
+     * <h2>Why this is public, and why everything that builds a ship must call it</h2>
+     * A hull is loaded from its file as it was when it entered service. Five separate rules then
+     * move it forward to the scenario's year, and until this existed only the scenario loader ran
+     * all five. The three other places that build a ship — the shelf catalogue, the ship-detail
+     * endpoint behind the SSD viewer, and {@link FleetLoader}, which is what the fleet validator
+     * prices — each ran the fighter re-seat alone.
+     *
+     * <p>So a Federation NCD inspected at Y176 showed the type-A drone racks it was built with
+     * instead of the type-B racks it fights with, and more quietly, the builder charged for it at
+     * its as-built BPV: {@link #applyYearUpgrades} adds a Y175 block's {@code refitCost}, and
+     * 46 hulls and refits declare one. You bought a ship the battle then handed you a different
+     * version of.
+     *
+     * <p>This is the second time this shape has bitten. {@code applyFighterComplement}'s own
+     * comment records the first: the re-seating was private here, so the resolver and the
+     * catalogue "both quietly sold carriers at their hull's service year", and the fix was to
+     * extract {@link com.sfb.objects.FighterComplement#reseat}. The other four appliers were left
+     * behind. Hence one entry point rather than four more extractions.
+     *
+     * <p><b>Mutates the ship, including its BPV, so it must run exactly once.</b> Calling it twice
+     * charges a Y175 refit twice over.
+     *
+     * @param faction the ship's empire; the Y175 rack defaults are keyed on it. Tolerates null,
+     *                which simply means no faction default applies.
+     */
+    public static void outfitForYear(Ship ship, String faction, int year, ShipSpec spec) {
+        applyFighterComplement(ship, year);
+        if (spec != null)
+            applyYearUpgrades(ship, faction == null ? "" : faction, year, spec);
+        applyEsgCapacitors(ship, year);
+        applyFusionHolding(ship, year);
+        applyUimAvailability(ship, year);
     }
 
     /**

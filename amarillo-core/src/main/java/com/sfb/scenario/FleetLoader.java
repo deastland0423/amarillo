@@ -51,7 +51,12 @@ public final class FleetLoader {
             // for them, so the complement must be re-seated BEFORE anything prices the ship.
             // Without this a Y183 fleet bought a Kzinti CVS at its Y170 AAS price — 243 points
             // for a 315-point ship, with the COI allowance understated to match.
-            com.sfb.objects.FighterComplement.reseat(ship, spec.year);
+            //
+            // The fighters were only half of it. outfitForYear runs every year-gated rule, which
+            // is what the scenario loader does when the battle actually starts: a Y175 block's
+            // refitCost is added to the BPV there, and 46 hulls and refits declare one, so a
+            // Y176 fleet was priced as though none of them had been refitted.
+            com.sfb.scenario.ScenarioLoader.outfitForYear(ship, faction, spec.year, shipSpec);
 
             // Several ships of one type are normal, and a player may not have named them
             // apart. Violations have to point at one ship, so make the names unique here.

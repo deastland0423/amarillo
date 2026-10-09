@@ -68,15 +68,22 @@ public class CarrierPriceByYearTest {
                 + " Y183=" + late, late > early);
     }
 
-    /** The exact figures, so a change to fighter BPV or complement is noticed rather than drifting. */
+    /**
+     * The exact figures, so a change to fighter BPV or complement is noticed rather than drifting.
+     * <p>
+     * From Y175 the hull also carries its own drone-rack refit, which the CVS prices at 6. That
+     * is not part of the fighter arithmetic — it applies to a hull with no bay at all — so the
+     * three later figures are each the fighter era's price plus the same 6.
+     */
     @Test
     public void theKzintiCvsIsPricedAcrossItsFighterEras() {
         assertEquals("Y170, eleven AAS at 6 and an AAS-E at 8, on a 169 hull", 243,
                 FleetValidator.costOf(cvsInFleetOf(170)));
         assertEquals("Y173, HAAS", 267, FleetValidator.costOf(cvsInFleetOf(173)));
-        assertEquals("Y177, TAAS", 279, FleetValidator.costOf(cvsInFleetOf(177)));
-        assertEquals("Y180, TADS", 303, FleetValidator.costOf(cvsInFleetOf(180)));
-        assertEquals("Y183, TADSC", 315, FleetValidator.costOf(cvsInFleetOf(183)));
+        assertEquals("Y177, TAAS, plus the Y175 rack refit at 6", 285,
+                FleetValidator.costOf(cvsInFleetOf(177)));
+        assertEquals("Y180, TADS, plus the refit", 309, FleetValidator.costOf(cvsInFleetOf(180)));
+        assertEquals("Y183, TADSC, plus the refit", 321, FleetValidator.costOf(cvsInFleetOf(183)));
     }
 
     /**
@@ -111,9 +118,20 @@ public class CarrierPriceByYearTest {
                 FleetValidator.carriedFighterBpv(undated) > 0);
     }
 
-    /** A ship with no fighters at all is unmoved by the date, which keeps the guard honest. */
+    /**
+     * A ship with no fighters is unmoved by the date — until the date crosses Y175.
+     *
+     * <p>This was the control for the tests above: nothing to re-seat, so nothing to re-price.
+     * The premise stopped being true when the fleet loader started running every year-gated rule
+     * rather than the fighter re-seat alone. The Y175 drone-rack refit charges its own cost, and
+     * the Kzinti BC declares 4 of it, so Y170 and Y183 are legitimately 4 apart on a hull that
+     * has never carried a fighter.
+     *
+     * <p>Kept as a control by comparing two dates on the SAME side of the refit, and the crossing
+     * is now asserted rather than denied.
+     */
     @Test
-    public void aShipWithoutFightersIsPricedTheSameInAnyYear() {
+    public void aShipWithoutFightersMovesOnlyWhenTheDateCrossesARefit() {
         FleetSpec spec = new FleetSpec();
         spec.budget = 1000;
         spec.factions.add("Kzinti");
@@ -124,9 +142,14 @@ public class CarrierPriceByYearTest {
 
         spec.year = 170;
         int early = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
+        spec.year = 174;
+        int stillEarly = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
         spec.year = 183;
         int late = FleetValidator.costOf(FleetLoader.resolve(spec).ships().get(0));
 
-        assertEquals("no fighters, so nothing for the date to change", early, late);
+        assertEquals("no fighters and no refit crossed, so nothing for the date to change",
+                early, stillEarly);
+        assertEquals("the bare hull", 135, early);
+        assertEquals("plus the Y175 rack refit the BC declares", 139, late);
     }
 }

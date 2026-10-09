@@ -164,7 +164,11 @@ public class GameController {
             // fleet is being built in. A year of 0 — nobody has picked a date yet — leaves the
             // ship as its own service year built it, which is the right thing to show when
             // browsing without a date rather than a guess at some house default.
-            com.sfb.objects.FighterComplement.reseat(ship, year);
+            //
+            // And the fighters are only one of five year-gated rules. outfitForYear runs them
+            // all, so the shelf quotes what FleetLoader will price and what the battle will
+            // field — a Y175 refitCost included, which 46 hulls and refits declare.
+            com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
             Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("faction", spec.faction);
             row.put("type", spec.type);
@@ -293,7 +297,11 @@ public class GameController {
             return ResponseEntity.notFound().build();
 
         com.sfb.objects.Ship ship = com.sfb.objects.ShipLibrary.createShip(spec);
-        com.sfb.objects.FighterComplement.reseat(ship, year);
+        // Every year-gated rule, not just the fighters. The viewer showed a Federation NCD at
+        // Y176 carrying the type-A drone racks it was BUILT with, where the Y175 refit gives it
+        // type-B — and the same omission hid ADD upgrades, plasma-rack reloads, ESG capacitors,
+        // fusion holding and UIM availability. Reported from the fleet builder.
+        com.sfb.scenario.ScenarioLoader.outfitForYear(ship, spec.faction, year, spec);
 
         com.sfb.Game preview = new com.sfb.Game();
         preview.getShips().add(ship);
