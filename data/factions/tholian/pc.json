@@ -64,5 +64,30 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FX"] }
+  ],
+
+  "refits": [
+    {
+      "code": "+",
+      "name": "+ refit",
+      "label": "Plus Refit",
+      "year": 98,
+      "bpv": 6,
+      "_note": "The refit trades the hull's two web casters for the two phaser-3s below (owner, 2026-10-08). The trade is recorded here rather than performed: \"web\" is not a field of AuxiliarySpec, so the 2 the base declares is dropped at load and nothing reads it. When webs are built, this becomes a real auxiliary change.",
+      "power": {"impulse": 3},
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "5", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "6", "arcs": ["RS"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["+"],
+      "type": "PC+",
+      "name": "TDFS Safeguard",
+      "typeName": "Improved Patrol Corvette",
+      "serviceYear": 98
+    }
   ]
 }
