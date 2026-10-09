@@ -81,10 +81,7 @@
         "label": "Plus Refit",
         "year": 170,
         "bpv": 26,
-        "_note": "The CA+ SSD renumbers the two rear phaser-1s 7/8 as 9/10. Same guns, same arcs -- a designator change, not an addition, so it is a swap. Emitted as addWeapons by the generator, which matches weapons by type+designator and so read the renumbering as two new guns it could not pair off against the originals; the refit model has no way to REMOVE a weapon, so the CA+ came out with all four.",
         "replaceWeapons": [
-          {"from": "Phaser1", "designators": ["7"], "set": {"designator": "9"}},
-          {"from": "Phaser1", "designators": ["8"], "set": {"designator": "10"}},
           {"from": "PlasmaLauncher", "designators": ["A"],
            "set": {"arcs": ["LP"], "launchDirections": ["17", "21", "1"], "plasmaType": "S"}},
           {"from": "PlasmaLauncher", "designators": ["B"],

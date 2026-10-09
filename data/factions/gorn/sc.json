@@ -65,5 +65,31 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["RS"] },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "Plasma-F refit",
+      "label": "Plasma-F Refit",
+      "year": 175,
+      "bpv": 7,
+      "_note": "The F refit normally adds two phaser-3s AND two plasma-F launchers; the scout takes only the phasers. G24.134: firing plasma blinds the firing ship's own special sensors, so arming a scout with it would cost the channels the hull exists for. Owner, 2026-10-08.",
+      "shields": [18, 14, 10, 10, 10, 14],
+      "power": {"apr": 2},
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "3", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "4", "arcs": ["RS"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["F"],
+      "type": "SCF",
+      "name": "GCS Swiftsure",
+      "typeName": "Fleet Scout",
+      "serviceYear": 175
+    }
   ]
 }

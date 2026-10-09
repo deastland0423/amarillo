@@ -98,8 +98,22 @@
           },
           {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A", "B"]}
         ]
-      }
-    ],
+      },
+    {
+      "code": "F",
+      "name": "Plasma-F refit",
+      "label": "Plasma-F Refit",
+      "year": 175,
+      "bpv": 14,
+      "requires": ["+"],
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
+        { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["13", "17", "21", "1"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9", "13"] }
+      ]
+    }
+  ],
     "variants": [
       {
         "refits": ["+"],
@@ -107,6 +121,13 @@
         "name": "GCS Tyranicon",
         "typeName": "Command Cruiser (+ refit)",
         "serviceYear": 170
-      }
-    ]
+      },
+    {
+      "refits": ["+", "F"],
+      "type": "CCF",
+      "name": "GCS Rex",
+      "typeName": "Fleet Command Cruiser",
+      "serviceYear": 175
+    }
+  ]
 }

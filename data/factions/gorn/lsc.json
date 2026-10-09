@@ -73,9 +73,9 @@
 
     "refits": [
       {
-        "code": "+",
-        "name": "+ refit",
-        "label": "Plus Refit",
+        "code": "F",
+        "name": "Plasma-F refit",
+        "label": "Plasma-F Refit",
         "year": 175,
         "bpv": 0,
         "addWeapons": [
@@ -86,10 +86,10 @@
     ],
     "variants": [
       {
-        "refits": ["+"],
-        "type": "LSC+",
+        "refits": ["F"],
+        "type": "LSCF",
         "name": "GCS Stalker",
-        "typeName": "Large Scout (+ refit)",
+        "typeName": "Large Fleet Scout",
         "serviceYear": 175
       }
     ]

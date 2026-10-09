@@ -83,8 +83,23 @@
             "designators": ["A"]
           }
         ]
-      }
-    ],
+      },
+    {
+      "code": "F",
+      "name": "Plasma-F refit",
+      "label": "Plasma-F Refit",
+      "year": 175,
+      "bpv": 17,
+      "requires": ["+"],
+      "power": {"apr": 2},
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "4", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "5", "arcs": ["RS"] },
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["13", "17", "21", "1"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9", "13"] }
+      ]
+    }
+  ],
     "variants": [
       {
         "refits": ["+"],
@@ -92,6 +107,13 @@
         "name": "GCS Talon",
         "typeName": "Destroyer (+ refit)",
         "serviceYear": 170
-      }
-    ]
+      },
+    {
+      "refits": ["+", "F"],
+      "type": "DDF",
+      "name": "GCS Fang",
+      "typeName": "Fleet Destroyer",
+      "serviceYear": 175
+    }
+  ]
 }

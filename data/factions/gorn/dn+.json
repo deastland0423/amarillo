@@ -76,5 +76,30 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+  ],
+
+  "refits": [
+    {
+      "code": "F",
+      "name": "Plasma-F refit",
+      "label": "Plasma-F Refit",
+      "year": 175,
+      "bpv": 14,
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "11", "arcs": ["LS"] },
+        { "type": "Phaser3", "designator": "12", "arcs": ["RS"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["17", "21", "1"] },
+        { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["F"],
+      "type": "DNF",
+      "name": "GCS Dragon of Three Stars",
+      "typeName": "Fleet Dreadnought",
+      "serviceYear": 175
+    }
   ]
 }
