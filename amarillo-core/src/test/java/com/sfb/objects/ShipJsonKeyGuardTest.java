@@ -58,7 +58,7 @@ public class ShipJsonKeyGuardTest {
                 + "wholly unbuilt — as is FD4.4 itself, so Orion ships currently "
                 + "enjoy half of OAKDISC for free.");
         PARKED.put("auxiliary.web",
-                "Tholian, 7 files. Web generators — the Sequence of Play cites web "
+                "Tholian, 8 files. Web generators — the Sequence of Play cites web "
                 + "deceleration at (G10.59), so the system is G10 and wholly unbuilt.");
         PARKED.put("auxiliary.maxAccel",
                 "4 files, Q-ships and a freighter. A cap on acceleration these hulls cannot "

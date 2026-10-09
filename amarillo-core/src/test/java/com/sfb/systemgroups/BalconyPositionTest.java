@@ -226,6 +226,12 @@ public class BalconyPositionTest {
                 continue;
             if (com.sfb.objects.ShipLineCatalog.isCivilian(spec.line))
                 continue;
+            // And a BASE is a third category, neither warship nor freighter. R1.3's sheet gives
+            // the Gorn Base Station an ordinary shuttle bay and says nothing about balconies,
+            // where the DDF's sheet names them outright. Excluded for the same reason the
+            // Q-ships are: J1.53's wings belong to a hull built around a flight deck.
+            if (spec.isBase)
+                continue;
             checked++;
             for (ShuttleBay bay : ShipLibrary.createShip(spec).getShuttles().getBays())
                 if (!bay.hasBalcony())
