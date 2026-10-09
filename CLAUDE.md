@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory — but look in `data/rules/` first, which holds PDFs already to hand (currently Annex #2, the Sequence of Play). Read them with `pdftotext -layout`; page rendering is unavailable on this machine. The directory is gitignored: these are ADB's watermarked product and must never be committed.
+A computerized version of the Star Fleet Battles (SFB) board game. Rules fidelity is the top priority: implementations follow the Captain's Master Rulebook, and code comments cite rule numbers (e.g. `G7.42`, `C3.14`, `E10.4`) at the site that implements them. When starting work on a new rules area, ask the user to upload the relevant rulebook PDF rather than working from memory — but **look in `data/rules/` and `data/ssd/` first**, which already hold the Captain's Master Rulebook, the Master Annex File and the SSD books. Grep them before concluding anything is missing: a note claiming "we don't have that annex" has been wrong more than once.
+
+Read text PDFs with `pdftotext -layout`. **Page rendering IS available**, contrary to what this file used to say — `pdftoppm` is installed but NOT on PATH, so `command -v` wrongly reports it absent. Call it by full path:
+`/c/Users/deastland/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftoppm.exe`. Use 150 dpi for data tables, 600 dpi for small numbered ones, and `-x -y -W -H` crops for counting boxes. SSD sheets are rotated 90°, a PDF page is not the printed page number, and a large sheet may span two facing pages — check the contents list for a page RANGE before concluding a base has four shields.
+
+Both directories are gitignored: these are ADB's watermarked product and must never be committed. Verify with `git ls-files | grep -ci "\.pdf$"` before any push.
+
+Open work is listed in [BACKLOG.md](BACKLOG.md), grouped by readiness. It records what is NOT done; the git log records what is. Check the code before believing any "does not exist" claim in it.
 
 ## Commands
 
