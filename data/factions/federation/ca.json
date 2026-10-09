@@ -135,6 +135,12 @@
         "name": "USS Exeter",
         "typeName": "Heavy Cruiser (+ and R refit)",
         "serviceYear": 165
+      },      {
+        "refits": ["+", "a"],
+        "type": "CAa+",
+        "name": "USS Hood",
+        "typeName": "Heavy Cruiser (+ and AWR refit)",
+        "serviceYear": 165
       },
       {
         "refits": ["+", "R", "a"],
