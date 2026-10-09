@@ -77,7 +77,7 @@
         "code": "B",
         "name": "B refit",
         "year": 170,
-        "bpv": -14,
+        "bpv": 6,
         "shields": [21, 16, 16, 16, 16, 16],
         "replaceWeapons": [
           {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
