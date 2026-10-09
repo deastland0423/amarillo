@@ -5,11 +5,11 @@
   "line": "BASE",
   "name": "Starbase Echo",
   "serviceYear": 120,
-  "bpv": 120,
+  "bpv": 107,
   "sizeClass": 3,
   "commandRating": 8,
   "isBase": true,
-  "_note": "R1.3, Module R1 SSD book. No turnMode and no moveCost: a base rotates rather than turns, and C3.7 puts the rotation rate in the scenario. Rotation itself is unbuilt. The three FIGHTER MODULES and the +10 HANGAR MODULE are optional attachments and are deliberately NOT in this baseline (owner, 2026-10-09). The sheet's pre-Y160 configuration (-13 BPV, no drone rack or ADD) is not modelled.",
+  "_note": "R1.3, Module R1 SSD book. THE SHEET DRAWS THE Y160 SHIP and tells you what to take away for an earlier one: prior to Y160, delete the drone rack and the ADD and reduce the BPV by 13. A refit can only ADD, so this file inverts that — the base IS the pre-Y160 station at 107 points with neither, and the Y160 refit puts them back for the 13 the sheet names. The drawn configuration is therefore the BS60 variant rather than the bare BS. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are out of this baseline.",
 
   "shields": [21, 21, 21, 21, 21, 21],
 
@@ -68,13 +68,23 @@
     { "type": "Phaser3", "designator": "7", "arcs": ["FX"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["RS", "LR"] },
     { "type": "Phaser3", "designator": "9", "arcs": ["LS", "RR"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_D", "arcs": ["FULL"] },
-    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
     { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "1" },
     { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "2" }
   ],
 
   "refits": [
+    {
+      "code": "60",
+      "name": "Y160 drone and ADD refit",
+      "label": "Y160 Refit",
+      "year": 160,
+      "bpv": 13,
+      "_note": "Fits the type-D drone rack and the anti-drone system the sheet draws. The ADD always had twelve rounds and two reloads, so it arrives as an ADD_12 and the universal Y175 ADD_6 upgrade never applies to it.",
+      "addWeapons": [
+        { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_D", "arcs": ["FULL"] },
+        { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" }
+      ]
+    },
     {
       "code": "a",
       "name": "AWR refit",
@@ -90,6 +100,8 @@
       "label": "Y170 Refit",
       "year": 170,
       "bpv": 18,
+      "requires": ["60"],
+      "_note": "Requires the Y160 refit. Not because the sheet says so, but because a station still waiting for its drone rack in Y170 is not a configuration anyone fielded — and without the requirement the code BS70 would name both the Y170-alone ship and the Y160-plus-Y170 one, which RefitDataGuardTest refuses.",
       "shields": [30, 30, 30, 30, 30, 30]
     },
     {
@@ -106,35 +118,35 @@
 
   "variants": [
     {
-      "refits": ["70"],
-      "type": "BS70",
+      "refits": ["60"],
+      "type": "BS60",
       "name": "Starbase Foxtrot",
+      "typeName": "Base Station (Y160 refit)",
+      "serviceYear": 160
+    },
+    {
+      "refits": ["60", "70"],
+      "type": "BS70",
+      "name": "Starbase Golf",
       "typeName": "Base Station (Y170 refit)",
       "serviceYear": 170
     },
     {
-      "refits": ["70", "75"],
-      "type": "BS75",
-      "name": "Starbase Golf",
-      "typeName": "Base Station (Y175 refit)",
-      "serviceYear": 175
-    },
-    {
-      "refits": ["a"],
-      "type": "BSa",
-      "name": "Starbase Hotel",
-      "typeName": "Base Station (AWR refit)",
-      "serviceYear": 170
-    },
-    {
-      "refits": ["70", "a"],
+      "refits": ["60", "70", "a"],
       "type": "BS70a",
-      "name": "Starbase India",
+      "name": "Starbase Hotel",
       "typeName": "Base Station (Y170 and AWR refits)",
       "serviceYear": 170
     },
     {
-      "refits": ["70", "75", "a"],
+      "refits": ["60", "70", "75"],
+      "type": "BS75",
+      "name": "Starbase India",
+      "typeName": "Base Station (Y175 refit)",
+      "serviceYear": 175
+    },
+    {
+      "refits": ["60", "70", "75", "a"],
       "type": "BS75a",
       "name": "Starbase Juliet",
       "typeName": "Base Station (Y175 and AWR refits)",

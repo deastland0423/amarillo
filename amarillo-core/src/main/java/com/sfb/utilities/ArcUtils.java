@@ -145,6 +145,10 @@ public class ArcUtils {
     // Sorted, so "L,LF" and "LF,L" — both of which appear in the data — are one case.
     java.util.Collections.sort(key);
     switch (String.join(",", key)) {
+      // A 360-degree mount is not a swivel: it fires in any of the six cardinal directions
+      // rather than D2.34's three. The Romulan Base Station's plasma-S is the first.
+      case "FULL":
+        return of(1, 5, 9, 13, 17, 21);
       case "FA":
         return of(1);
       case "RA":

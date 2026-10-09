@@ -79,6 +79,8 @@ public class PlasmaLaunchDirectionTest {
     /** The exact rule, pinned. These are the numbers, not a restatement of the implementation. */
     @Test
     public void theArcToDirectionRuleIsWhatTheOwnerStated() {
+        assertEquals("a 360-degree mount fires in any cardinal direction, not D2.34's three",
+                ArcUtils.of(1, 5, 9, 13, 17, 21), ArcUtils.plasmaLaunchDirections(List.of("FULL")));
         assertEquals(ArcUtils.of(1),          ArcUtils.plasmaLaunchDirections(List.of("FA")));
         assertEquals(ArcUtils.of(13),         ArcUtils.plasmaLaunchDirections(List.of("RA")));
         assertEquals(ArcUtils.of(21, 1, 5),   ArcUtils.plasmaLaunchDirections(List.of("FP")));
