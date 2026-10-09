@@ -1,0 +1,69 @@
+name: CI
+
+# The point of this file is that a red baseline can never become normal again.
+#
+# Before it existed, `npm run build` had never passed, and CLAUDE.md instructed contributors to
+# disregard tsc output as a result. That is the failure mode worth guarding: not one broken
+# commit, but a broken signal that everyone learns to read past. Once nobody can tell a new
+# failure from an old one, the suite has stopped being a test and become decoration.
+#
+# So the two jobs below are deliberately plain. They run exactly what a developer runs, in the
+# same order, with no CI-only flags that could let something pass here and fail locally.
+
+on:
+  push:
+    branches: [master, eastlander]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: Java — core + server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+          cache: maven
+
+      # `install` from the ROOT, never `package` in a submodule: amarillo-server resolves
+      # amarillo-core from ~/.m2, so a stale install would silently test old core code.
+      #
+      # The ship JSON under data/ is read from disk by the tests, at a path relative to each
+      # module, which is why this runs from the repository root and not from a module directory.
+      - name: mvn clean install
+        run: mvn --batch-mode clean install
+
+  web:
+    name: Frontend — tests, lint, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: amarillo-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: amarillo-web/package-lock.json
+
+      # `ci` rather than `install`: it installs exactly the lockfile and fails if package.json
+      # and the lockfile disagree, which is the one dependency question CI can answer better
+      # than a developer's machine can.
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run lint
+
+      # Last because it is the slowest, and because `tsc -b` inside it re-checks what the two
+      # steps above have already exercised — a failure here after those pass is a type or bundle
+      # problem specifically, which is worth being able to read off the job name.
+      - run: npm run build
