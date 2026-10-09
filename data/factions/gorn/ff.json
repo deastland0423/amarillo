@@ -64,5 +64,37 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 170,
+        "bpv": 5,
+        "shields": [16, 12, 12, 14, 12, 12],
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "4", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "5", "arcs": ["RS"]}
+        ],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["FP"]}, "designators": ["A"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["21", "1", "5"]},
+            "designators": ["A"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FF+",
+        "name": "GCS Wrathful Judge",
+        "typeName": "Frigate (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }

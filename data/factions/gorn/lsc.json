@@ -69,5 +69,28 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 0,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "LSC+",
+        "name": "GCS Stalker",
+        "typeName": "Large Scout (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

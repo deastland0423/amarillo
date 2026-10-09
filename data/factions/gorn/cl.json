@@ -66,5 +66,39 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["L", "LF"], "launchDirections": ["21"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["R", "RF"], "launchDirections": ["5"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 170,
+        "bpv": 16,
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["1", "5", "9"]},
+            "designators": ["B"]
+          },
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["17", "21", "1"]},
+            "designators": ["A"]
+          },
+          {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A", "B"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CL+",
+        "name": "GCS Dragonbane",
+        "typeName": "Light Cruiser (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }

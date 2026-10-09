@@ -70,5 +70,29 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 2,
+        "epv": 97,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "BDS+",
+        "name": "GCS Mindforce",
+        "typeName": "Battle Destroyer Scout (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

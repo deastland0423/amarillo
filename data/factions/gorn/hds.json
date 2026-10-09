@@ -71,5 +71,30 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 6,
+        "epv": 137,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "4", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "5", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "HDS+",
+        "name": "GCS Cyclopian",
+        "typeName": "Heavy Destroyer Scout (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

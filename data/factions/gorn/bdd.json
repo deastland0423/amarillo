@@ -69,5 +69,28 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RA"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 2,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "BDD+",
+        "name": "GCS Spinecrusher",
+        "typeName": "Battle Destroyer (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

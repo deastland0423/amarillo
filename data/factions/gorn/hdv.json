@@ -73,5 +73,26 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
     { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
     { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 4,
+        "epv": 120,
+        "shields": [30, 24, 24, 24, 24, 24]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "HDV+",
+        "name": "GCS Snakebite",
+        "typeName": "Heavy Destroyer (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }
