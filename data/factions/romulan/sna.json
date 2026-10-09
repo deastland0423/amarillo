@@ -64,5 +64,28 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["FA", "L"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 171,
+        "bpv": 3,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "3", "arcs": ["L", "RA"]},
+          {"type": "Phaser3", "designator": "4", "arcs": ["R", "RA"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SNA+",
+        "name": "RIS Draco",
+        "typeName": "Snipe-A Frigate (+ refit)",
+        "serviceYear": 171
+      }
+    ]
 }

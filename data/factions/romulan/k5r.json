@@ -70,5 +70,38 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] }
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": -14,
+        "shields": [21, 16, 16, 16, 16, 16],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["1", "5", "9"]},
+            "designators": ["B"]
+          },
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["17", "21", "1"]},
+            "designators": ["A"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "K5RB",
+        "name": "RIS Rapier",
+        "typeName": "K5R Frigate (B refit)",
+        "serviceYear": 170
+      }
+    ]
 }

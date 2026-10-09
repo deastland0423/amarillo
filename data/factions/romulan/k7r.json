@@ -76,5 +76,39 @@
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17","21", "1"] },
     { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": 16,
+        "shields": [30, 22, 22, 22, 22, 22],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["1", "5", "9"]},
+            "designators": ["B"]
+          },
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["17", "21", "1"]},
+            "designators": ["A"]
+          },
+          {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A", "B"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "K7RB",
+        "name": "RIS Fortis",
+        "typeName": "Battlecruiser (B refit)",
+        "serviceYear": 170
+      }
+    ]
 }

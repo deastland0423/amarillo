@@ -68,5 +68,24 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": 3,
+        "shields": [21, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "K4RB",
+        "name": "RIS Hornet",
+        "typeName": "K4R Escort (B refit)",
+        "serviceYear": 170
+      }
+    ]
 }

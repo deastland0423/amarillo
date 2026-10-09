@@ -71,5 +71,25 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": 5,
+        "epv": 90,
+        "shields": [21, 16, 16, 16, 16, 16]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "K5SB",
+        "name": "RIS Endeavor",
+        "typeName": "K5S Scout (B refit)",
+        "serviceYear": 170
+      }
+    ]
 }

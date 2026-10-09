@@ -75,5 +75,25 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 178,
+        "bpv": 2,
+        "shields": [24, 24, 24, 24, 24, 24]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SKL+",
+        "name": "RIS Skyflame",
+        "typeName": "Skyhawk-L Destroyer Leader (+ refit)",
+        "serviceYear": 178
+      }
+    ]
 }

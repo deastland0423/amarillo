@@ -78,5 +78,34 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 174,
+        "bpv": 10,
+        "shields": [30, 24, 24, 24, 24, 24],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["FP"]}, "designators": ["A"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["21", "1", "5"]},
+            "designators": ["A"]
+          },
+          {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SPL+",
+        "name": "RIS Harrower",
+        "typeName": "Sparrowhawk-L Light Command Cruiser (+ refit)",
+        "serviceYear": 174
+      }
+    ]
 }

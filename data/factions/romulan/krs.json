@@ -75,5 +75,24 @@
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "3" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "4" }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": 4,
+        "epv": 154,
+        "shields": [30, 22, 22, 22, 22, 22]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "KRSB",
+        "name": "RIS Hunter",
+        "typeName": "Heavy Scout (B refit)"
+      }
+    ]
 }

@@ -72,5 +72,39 @@
     { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 170,
+        "bpv": 17,
+        "shields": [30, 22, 22, 22, 22, 22],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["1", "5", "9"]},
+            "designators": ["B"]
+          },
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["17", "21", "1"]},
+            "designators": ["A"]
+          },
+          {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A", "B"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "KRB",
+        "name": "RIS Praetorian",
+        "typeName": "KR Cruiser (B refit)",
+        "serviceYear": 170
+      }
+    ]
 }

@@ -41,12 +41,17 @@ public class ShipFileNamingTest {
     /**
      * Files whose name describes the class rather than spelling the type code.
      * <p>
-     * The Condors are the only two, and they are listed rather than pattern-matched on purpose: an
+     * The Condor is the only one, and it is listed rather than pattern-matched on purpose: an
      * exception should cost a deliberate edit here, which is the whole value of a drift guard. If
      * this list starts growing, the convention has changed and should be written down instead.
+     * <p>
+     * It was two until the Romulans migrated to refits. {@code condor+.json} held the CON+, which
+     * is now a variant synthesised from {@code condor.json} and has no file of its own — and the
+     * companion check below, that every exemption still names a real file, is what said so. An
+     * exemption list that is never pruned stops being a list of exceptions and becomes noise.
      */
     private static final Set<String> NAMED_FOR_THE_CLASS = Set.of(
-            "romulan/condor.json", "romulan/condor+.json");
+            "romulan/condor.json");
 
     /**
      * How a filename and a type are compared.

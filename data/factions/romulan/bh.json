@@ -67,5 +67,28 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 172,
+        "bpv": 3,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "5", "arcs": ["RA", "L"]},
+          {"type": "Phaser3", "designator": "6", "arcs": ["RA", "R"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "BH+",
+        "name": "RIS Nightwing",
+        "typeName": "Battle Hawk Destroyer (+ refit)",
+        "serviceYear": 172
+      }
+    ]
 }
