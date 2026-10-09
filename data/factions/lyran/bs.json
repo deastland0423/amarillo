@@ -1,0 +1,145 @@
+{
+  "faction": "Lyran",
+  "type": "BS",
+  "typeName": "Base Station",
+  "line": "BASE",
+  "name": "Den Bloodclaw",
+  "serviceYear": 120,
+  "bpv": 120,
+  "sizeClass": 3,
+  "commandRating": 8,
+  "isBase": true,
+  "_note": "R1.3, Module R1 SSD book, headed LYRAN BASE STATION. The Base Station chassis the other empires share - shields 21/30/35, hull, power, tables, crew 90, boarding parties 12, nine phasers in three pods. What makes it Lyran is TWO 360-degree disruptors, which the sheet notes have 30 hex range, and TWO ESGs. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter, hangar and PF MODULES are optional purchases and are out of this baseline. THE SHEET'S ESG CAPACITOR LINE IS NOT HERE and does not need to be, functionally: G23.24 capacitors are year-gated at Y167 in ScenarioLoader.applyEsgCapacitors, so a base built for Y167 or later already has them. Its PRICE is a gap - the sheet prices the pre-Y167 base two points lower, which is G23.245's one point per ESG, and the loader refunds nothing. The 120 above is therefore the Y167-and-later figure.",
+
+  "shields": [21, 21, 21, 21, 21, 21],
+
+  "hullBoxes": {
+    "chull": 10,
+    "cargo": 10,
+    "armor": 5,
+    "repair": 30
+  },
+
+  "power": {
+    "apr": 18,
+    "awr": 4,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "auxCon": 2,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 90,
+    "boardingParties": 12,
+    "minCrew": 8
+  },
+
+  "weapons": [
+    { "type": "Disruptor", "designator": "1", "range": 30, "arcs": ["FULL"] },
+    { "type": "Disruptor", "designator": "2", "range": 30, "arcs": ["FULL"] },
+    { "type": "ESG", "designator": "1" },
+    { "type": "ESG", "designator": "2" },
+    { "type": "Phaser4", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser4", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser4", "designator": "3", "arcs": ["RS", "LR"] },
+    { "type": "Phaser4", "designator": "4", "arcs": ["RS", "LR"] },
+    { "type": "Phaser4", "designator": "5", "arcs": ["LS", "RR"] },
+    { "type": "Phaser4", "designator": "6", "arcs": ["LS", "RR"] },
+    { "type": "Phaser3", "designator": "7", "arcs": ["FX"] },
+    { "type": "Phaser3", "designator": "8", "arcs": ["RS", "LR"] },
+    { "type": "Phaser3", "designator": "9", "arcs": ["LS", "RR"] },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "2" }
+  ],
+
+  "refits": [
+    {
+      "code": "u",
+      "name": "UIM and DERFACS refit",
+      "label": "UIM/DERFACS",
+      "year": 166,
+      "bpv": 5,
+      "_note": "Y166 for the Lyrans, not the Klingons' Y165: D6.56 dates the UIM per empire. THE SHEET PRICES THIS TWICE AND THE TWO LINES DISAGREE - 'UIM AND DERFACS REFIT (Y166) - +0' and, three lines later, 'UIM REFIT (Y166) =+5'. Read together with the Kzinti base, whose sheet says DERFACS costs nothing in as many words, and with the Klingon base, which prices the identical pair at a single +5, the reading that makes all three agree is that DERFACS is free and the UIM is five. So five, as the Klingons pay. If the owner reads it the other way this is the line to change.",
+      "auxiliary": {"uim": 1, "derfacs": true}
+    },
+    {
+      "code": "70",
+      "name": "Y170 refit",
+      "label": "Y170 Refit",
+      "year": 170,
+      "bpv": 18,
+      "shields": [30, 30, 30, 30, 30, 30]
+    },
+    {
+      "code": "75",
+      "name": "Y175 refit",
+      "label": "Y175 Refit",
+      "year": 175,
+      "bpv": 10,
+      "requires": ["70"],
+      "_note": "Cumulative with the Y170 refit: 21 base boxes, +9 at Y170, +5 more at Y175.",
+      "shields": [35, 35, 35, 35, 35, 35]
+    }
+  ],
+
+  "variants": [
+    {
+      "refits": ["u"],
+      "type": "BSu",
+      "name": "Den Ironfang",
+      "typeName": "Base Station (UIM/DERFACS refit)",
+      "serviceYear": 166
+    },
+    {
+      "refits": ["70"],
+      "type": "BS70",
+      "name": "Den Stormcat",
+      "typeName": "Base Station (Y170 refit)",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["70", "u"],
+      "type": "BS70u",
+      "name": "Den Swiftkill",
+      "typeName": "Base Station (Y170 and UIM/DERFACS refits)",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["70", "75"],
+      "type": "BS75",
+      "name": "Den Nightprowl",
+      "typeName": "Base Station (Y175 refit)",
+      "serviceYear": 175
+    },
+    {
+      "refits": ["70", "75", "u"],
+      "type": "BS75u",
+      "name": "Den Redmaw",
+      "typeName": "Base Station (Y175 and UIM/DERFACS refits)",
+      "serviceYear": 175
+    }
+  ]
+}

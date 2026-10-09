@@ -216,6 +216,41 @@ public class RefitResolverTest {
     }
 
     /**
+     * A refit can swap a weapon into a different FAMILY, not just a better model of the same one.
+     *
+     * <p>The Orion Base Station is the first hull in the data to do it. Its sheet says the two
+     * drone racks become plasma-D racks for four points if the base sits in a plasma empire's
+     * space, which is a change of weapon class rather than of rack type — and it is a refit
+     * rather than a year upgrade because what decides it is WHOSE space the base is in, which
+     * only the scenario knows.
+     *
+     * <p>Worth its own test because {@code swap} sets {@code w.type} and leaves the rest of the
+     * {@link ShipSpec.WeaponSpec} alone: the converted entry still carries {@code rackType
+     * TYPE_D}, which means nothing to a plasma rack. That is harmless only as long as the arcs
+     * survive — FP10.0 racks fire in an arc where a drone rack does not care — so the arcs are
+     * what this asserts, alongside the class.
+     */
+    @Test
+    public void aRefitCanSwapAWeaponIntoAnotherFamily() {
+        ShipSpec orionBase = ShipLibrary.get("Orion", "BS");
+        assertNotNull("the library should hold Orion/BS", orionBase);
+
+        ShipSpec converted = RefitResolver.apply(orionBase, List.of("pd"));
+
+        assertEquals("204 — the sheet's four points to change the racks", 204, converted.bpv);
+        assertEquals("no drone rack survives the swap", 0, count(converted, "DroneRack"));
+        assertEquals("both become plasma racks", 2, count(converted, "PlasmaRack"));
+        assertEquals("rack 1 keeps its RS arc",
+                List.of("RS"),
+                converted.weapons.stream()
+                        .filter(w -> "Rack 1".equals(w.designator)).findFirst().orElseThrow().arcs);
+        assertEquals("and rack 2 its LS arc",
+                List.of("LS"),
+                converted.weapons.stream()
+                        .filter(w -> "Rack 2".equals(w.designator)).findFirst().orElseThrow().arcs);
+    }
+
+    /**
      * A refit that names a field wrongly fails loudly at load.
      * <p>
      * This is what lets {@code ShipJsonKeyGuardTest} stop at a map without weakening anything: the

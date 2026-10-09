@@ -1,0 +1,132 @@
+{
+  "faction": "Hydran",
+  "type": "BS",
+  "typeName": "Base Station",
+  "line": "BASE",
+  "name": "Keep Steadfast",
+  "serviceYear": 120,
+  "bpv": 114,
+  "sizeClass": 3,
+  "commandRating": 8,
+  "isBase": true,
+  "_note": "R1.3, Module R1 SSD book, headed HYDRAN BASE STATION. The Base Station chassis the other empires share - shields 21/30/35, hull, power, tables, crew 90, boarding parties 12, six phaser-4s in three pods. What makes it Hydran is that the three phaser-3s are phaser-Gs instead, and the central heavy weapon is a pair of 360-degree guns rather than one: a hellbore and a fusion beam. AS WITH THE FEDERATION BASE THIS FILE INVERTS THE SHEET. The sheet draws the Y158 ship and says that prior to Y158 you replace the hellbore with a fusion beam and reduce the BPV by six, and a refit can only add - so the base IS the pre-Y158 station at 114 points with two fusion beams, and the Y158 refit turns gun A into the hellbore for the six points the sheet names. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The Y168 fusion holding refit is on the sheet at ZERO points and needs no entry here: E7.5 holding is year-gated at Y168 in ScenarioLoader.applyFusionHolding, so a base built for Y168 or later already has it. The fighter, hangar and PF MODULES are optional purchases and are out of this baseline.",
+
+  "shields": [21, 21, 21, 21, 21, 21],
+
+  "hullBoxes": {
+    "chull": 10,
+    "cargo": 10,
+    "armor": 5,
+    "repair": 30
+  },
+
+  "power": {
+    "apr": 18,
+    "awr": 4,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "auxCon": 2,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 90,
+    "boardingParties": 12,
+    "minCrew": 8
+  },
+
+  "weapons": [
+    { "type": "Fusion", "designator": "A", "arcs": ["FULL"] },
+    { "type": "Fusion", "designator": "B", "arcs": ["FULL"] },
+    { "type": "Phaser4", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser4", "designator": "2", "arcs": ["FX"] },
+    { "type": "Phaser4", "designator": "3", "arcs": ["RS", "LR"] },
+    { "type": "Phaser4", "designator": "4", "arcs": ["RS", "LR"] },
+    { "type": "Phaser4", "designator": "5", "arcs": ["LS", "RR"] },
+    { "type": "Phaser4", "designator": "6", "arcs": ["LS", "RR"] },
+    { "type": "PhaserG", "designator": "7", "arcs": ["FX"] },
+    { "type": "PhaserG", "designator": "8", "arcs": ["RS", "LR"] },
+    { "type": "PhaserG", "designator": "9", "arcs": ["LS", "RR"] },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "2" }
+  ],
+
+  "refits": [
+    {
+      "code": "hb",
+      "name": "Y158 hellbore refit",
+      "label": "Hellbore",
+      "year": 158,
+      "bpv": 6,
+      "_note": "The sheet prices this backwards, as a minus six for the earlier ship. Gun A becomes the hellbore; gun B stays a fusion beam at every date.",
+      "replaceWeapons": [
+        { "from": "Fusion", "designators": ["A"], "to": "Hellbore" }
+      ]
+    },
+    {
+      "code": "70",
+      "name": "Y170 refit",
+      "label": "Y170 Refit",
+      "year": 170,
+      "bpv": 18,
+      "requires": ["hb"],
+      "shields": [30, 30, 30, 30, 30, 30]
+    },
+    {
+      "code": "75",
+      "name": "Y175 refit",
+      "label": "Y175 Refit",
+      "year": 175,
+      "bpv": 10,
+      "requires": ["70"],
+      "_note": "Cumulative with the Y170 refit: 21 base boxes, +9 at Y170, +5 more at Y175.",
+      "shields": [35, 35, 35, 35, 35, 35]
+    }
+  ],
+
+  "variants": [
+    {
+      "refits": ["hb"],
+      "type": "BSH",
+      "name": "Keep Resolute",
+      "typeName": "Base Station (hellbore refit)",
+      "serviceYear": 158
+    },
+    {
+      "refits": ["hb", "70"],
+      "type": "BS70",
+      "name": "Keep Vigilant",
+      "typeName": "Base Station (Y170 refit)",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["hb", "70", "75"],
+      "type": "BS75",
+      "name": "Keep Defiant",
+      "typeName": "Base Station (Y175 refit)",
+      "serviceYear": 175
+    }
+  ]
+}

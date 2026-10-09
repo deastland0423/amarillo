@@ -1,0 +1,153 @@
+{
+  "faction": "Orion",
+  "type": "BS",
+  "typeName": "Base Station",
+  "line": "BASE",
+  "name": "Cartel Hold Korgath",
+  "serviceYear": 120,
+  "bpv": 200,
+  "epv": 75,
+  "sizeClass": 3,
+  "commandRating": 8,
+  "isBase": true,
+  "_note": "R1.3, Module R1 SSD book, headed ORION BASE STATION. It shares the Base Station hull, power and tables with the six empire bases - shields 21/30/35, damage control 4/4/2/2/2/0, excess 6, one bay with two admin shuttles - and almost nothing else. ITS CREW IS 70, NOT 90: the sheet's crew block is seven columns wide where every other base's is nine. It mounts SIX phasers, not nine, and they are phaser-1s and phaser-3s rather than the phaser-4s the empires fit. It has NO heavy weapon of its own, only an option mount (G15.4) the buyer fills. And its point value is split 200 BPV / 75 EPV, which is why epv is set here rather than left to default to the BPV. NO STEALTH BONUS: the sheet says so outright, which is worth stating because every other Orion hull has one - the absence is the base's, not an omission. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter, hangar and PF MODULES are optional purchases and are out of this baseline. NOT MODELLED: the sheet's OAKDISC +5. FD4.5 is unbuilt (see control.oakdisc in ShipJsonKeyGuardTest) and a refit block naming a field the spec does not declare throws at load, so it cannot be parked here as a refit either.",
+
+  "shields": [21, 21, 21, 21, 21, 21],
+
+  "hullBoxes": {
+    "chull": 10,
+    "cargo": 10,
+    "armor": 5,
+    "repair": 30
+  },
+
+  "power": {
+    "apr": 18,
+    "awr": 4,
+    "battery": 2
+  },
+
+  "control": {
+    "bridge": 2,
+    "auxCon": 2,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 6
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 3,
+    "labs": 2,
+    "probes": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 70,
+    "boardingParties": 12,
+    "minCrew": 8
+  },
+
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["RS", "LR"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["LS", "RR"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["FX"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["RS", "LR"] },
+    { "type": "Phaser3", "designator": "6", "arcs": ["LS", "RR"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_D", "arcs": ["RS"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_D", "arcs": ["LS"] },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "phaser", "designator": "2" }
+  ],
+
+  "optionMounts": [
+    { "position": "CENTERLINE", "designator": "A", "arcs": ["FULL"] }
+  ],
+
+  "refits": [
+    {
+      "code": "pd",
+      "name": "plasma rack conversion",
+      "label": "Plasma Racks",
+      "year": 164,
+      "bpv": 4,
+      "_note": "The sheet: DRONE RACKS ARE PLASMA-D RACKS AFTER Y164 IF THE BASE IS IN A PLASMA EMPIRE'S AREA ... BPV IS +4 TO CHANGE THE RACKS TO PLASMA-RACKS. Written as a refit rather than a year upgrade because it is not the year that decides it but WHOSE SPACE the base sits in, which only the scenario knows. The racks keep their arcs through the swap: rack 1 stays RS and rack 2 stays LS.",
+      "replaceWeapons": [
+        { "from": "DroneRack", "to": "PlasmaRack" }
+      ]
+    },
+    {
+      "code": "ck",
+      "name": "cloak",
+      "label": "Cloak",
+      "year": 120,
+      "bpv": 30,
+      "_note": "The sheet marks the cloak IF INSTALLED in the hit-and-run box and prices it separately, so it is bought rather than assumed. Cloak cost 8/4, the same energy the Romulan base pays - but THIRTY BPV where the Romulan pays eighteen, which is the premium G15.8 puts on cloaking devices the Orions did not build.",
+      "auxiliary": {"cloakCost": 8}
+    },
+    {
+      "code": "df",
+      "name": "DERFACS refit",
+      "label": "DERFACS",
+      "year": 167,
+      "bpv": 0,
+      "_note": "A genuine zero, as on the Kzinti base: the sheet reads Y167 DERFACS REFIT +0.",
+      "auxiliary": {"derfacs": true}
+    },
+    {
+      "code": "70",
+      "name": "Y170 refit",
+      "label": "Y170 Refit",
+      "year": 170,
+      "bpv": 18,
+      "requires": ["df"],
+      "_note": "Requires the DERFACS refit, which arrived free in Y167 - so every Y170 base has it, and without the requirement the code BS70 would name both the Y170-alone ship and the Y170-with-DERFACS one.",
+      "shields": [30, 30, 30, 30, 30, 30]
+    },
+    {
+      "code": "75",
+      "name": "Y175 refit",
+      "label": "Y175 Refit",
+      "year": 175,
+      "bpv": 10,
+      "requires": ["70"],
+      "_note": "Cumulative with the Y170 refit: 21 base boxes, +9 at Y170, +5 more at Y175.",
+      "shields": [35, 35, 35, 35, 35, 35]
+    }
+  ],
+
+  "variants": [
+    {
+      "refits": ["df"],
+      "type": "BSD",
+      "name": "Cartel Hold Vashk",
+      "typeName": "Base Station (DERFACS refit)",
+      "serviceYear": 167
+    },
+    {
+      "refits": ["df", "70"],
+      "type": "BS70",
+      "name": "Cartel Hold Sarn",
+      "typeName": "Base Station (Y170 refit)",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["df", "70", "75"],
+      "type": "BS75",
+      "name": "Cartel Hold Dreth",
+      "typeName": "Base Station (Y175 refit)",
+      "serviceYear": 175
+    }
+  ]
+}
