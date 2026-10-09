@@ -65,5 +65,29 @@
     { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] }
+  ],
+
+  "refits": [
+    {
+      "code": "R",
+      "name": "R refit",
+      "label": "R Refit",
+      "year": 172,
+      "bpv": 3,
+      "_note": "The rear-phaser refit: two phaser-3s covering the aft arcs. Owner, 2026-10-09.",
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "5", "arcs": ["L", "RA"] },
+        { "type": "Phaser3", "designator": "6", "arcs": ["R", "RA"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["R"],
+      "type": "WER",
+      "name": "RIS Kraken",
+      "typeName": "War Eagle Cruiser (R refit)",
+      "serviceYear": 172
+    }
   ]
 }

@@ -71,5 +71,30 @@
     { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R", "13"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R", "13"] }
 
+  ],
+
+  "refits": [
+    {
+      "code": "R",
+      "name": "R refit",
+      "label": "R Refit",
+      "year": 172,
+      "bpv": 3,
+      "_note": "The rear-phaser refit: two phaser-3s covering the aft arcs. Owner, 2026-10-09.",
+      "epv": 90,
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "5", "arcs": ["L", "RA"] },
+        { "type": "Phaser3", "designator": "6", "arcs": ["R", "RA"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["R"],
+      "type": "WHR",
+      "name": "RIS Claw",
+      "typeName": "Warhawk Light Carrier (R refit)",
+      "serviceYear": 172
+    }
   ]
 }
