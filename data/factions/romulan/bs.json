@@ -76,7 +76,7 @@
 
   "refits": [
     {
-      "code": "c",
+      "code": "ck",
       "name": "cloak",
       "label": "Cloak",
       "year": 120,
@@ -106,7 +106,7 @@
 
   "variants": [
     {
-      "refits": ["c"],
+      "refits": ["ck"],
       "type": "BSC",
       "name": "Citadel Nerad",
       "typeName": "Base Station (cloaked)",
@@ -120,7 +120,7 @@
       "serviceYear": 170
     },
     {
-      "refits": ["70", "c"],
+      "refits": ["70", "ck"],
       "type": "BS70C",
       "name": "Citadel Hellguard",
       "typeName": "Base Station (Y170 refit, cloaked)",
@@ -134,7 +134,7 @@
       "serviceYear": 175
     },
     {
-      "refits": ["70", "75", "c"],
+      "refits": ["70", "75", "ck"],
       "type": "BS75C",
       "name": "Citadel Chaltok",
       "typeName": "Base Station (Y175 refit, cloaked)",
