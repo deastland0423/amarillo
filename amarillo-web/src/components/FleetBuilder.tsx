@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
+import { isGeneratedName, nameForNewShip } from './fleetNaming';
 import type {
   CatalogShip, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
 } from '../api/gameApi';
@@ -251,6 +252,8 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
       catalog.find(s => s.type === type && s.faction === (faction || spec.factions[0])),
     [catalog, spec.factions]);
 
+  /** Ships still carrying the name the builder made up for them. */
+  const generatedNames = spec.ships.filter(e => isGeneratedName(e.type, e.name)).length;
   const spent = check?.totalCost ?? 0;
   const remaining = spec.budget - spent;
 
@@ -289,7 +292,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
   function addShip(ship: CatalogShip) {
     setSpec(s => ({
       ...s,
-      ships: [...s.ships, { faction: ship.faction, type: ship.type, name: ship.name, coiSpend: 0 }],
+      // The first of a kind keeps the hull's own name; the rest are numbered. Two ships sharing a
+      // name is a validation ERROR, not untidiness — a name is how an order addresses a unit — so
+      // buying three F5s used to hand back an illegal fleet to be fixed by hand.
+      ships: [...s.ships, {
+        faction: ship.faction,
+        type: ship.type,
+        name: nameForNewShip(ship.type, ship.name, s.ships.map(e => e.name ?? '')),
+        coiSpend: 0,
+      }],
     }));
   }
 
@@ -733,10 +744,13 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             // a row with an error and an advisory is an error row.
             const faults = violationsByShip.get(entry.name ?? '') ?? [];
             const hasError = faults.some(v => v.severity === 'ERROR');
+            // Still carrying the name the builder made up for it. Not a fault — the fleet is
+            // legal — so this is the quietest mark on the row, and it yields to a real one.
+            const unnamed = isGeneratedName(entry.type, entry.name);
             return (
               <div key={i}
                    className={'fb-fleet-ship'
-                     + (faults.length === 0 ? ''
+                     + (faults.length === 0 ? (unnamed ? ' fb-fleet-ship-unnamed' : '')
                        : hasError ? ' fb-fleet-ship-error' : ' fb-fleet-ship-warn')}>
                 <button
                   className={isFlagship ? 'fb-flag fb-flag-on' : 'fb-flag'}
@@ -761,6 +775,19 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
               </div>
             );
           })}
+
+          {/* How many ships are still carrying a name the builder invented.
+              Deliberately NOT a violation: the fleet is legal, and the validator's list is for
+              fleet-construction rules. Mixing a suggestion about names into it would make that
+              list a mixed bag of "this is illegal" and "you might prefer". */}
+          {generatedNames > 0 && (
+            <p className="fb-unnamed-hint">
+              {generatedNames === 1
+                ? '1 ship has a generated name.'
+                : `${generatedNames} ships have generated names.`}
+              {' '}Click a name to change it.
+            </p>
+          )}
 
           {/* --- the budget --- */}
           <div className="fb-budget">

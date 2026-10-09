@@ -2170,6 +2170,18 @@ h3 {
    shouting in red would bury the budget bar it sits above. The marker is a locator. */
 .fb-fleet-ship-warn  { background: rgba(240, 192, 64, 0.07); }
 .fb-fleet-ship-error { background: rgba(248, 81, 73, 0.09); }
+
+/* A ship still carrying the name the builder invented for it.
+   Quieter than either fault tint, and a different hue, because nothing is wrong: the fleet is
+   legal and this is a suggestion. A row with a real violation takes the fault tint instead —
+   the markup picks one, so a problem is never hidden behind a nicety. */
+.fb-fleet-ship-unnamed { background: rgba(88, 166, 255, 0.05); }
+.fb-fleet-ship-unnamed .fb-ship-name { color: #8b949e; font-style: italic; }
+.fb-unnamed-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: #6e7681;
+}
 .fb-ship-fault {
   font-weight: 700;
   font-size: 0.8rem;
