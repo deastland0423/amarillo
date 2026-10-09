@@ -85,3 +85,24 @@ export function toggleRefit(chosen: string[], code: string, requires: string[]):
     return chosen.filter(c => c !== code);
   return [...new Set([...chosen, code, ...requires])];
 }
+
+/**
+ * Does a hull answer to what the player typed?
+ *
+ * Three fields, because those are the three things a buyer knows a ship by and each is the only
+ * one that works for some searches: the TYPE code ("CWL"), the class ("war cruiser" — which
+ * differs from the line name on 305 of 355 hulls), and the LINE ("police"). Dropping any one of
+ * them silently loses a whole way of searching, which is why this is pinned by tests rather than
+ * left inline in the component.
+ *
+ * Substring rather than prefix, so "cw" reaches the CWE and the CWL. An empty needle matches
+ * everything, so the caller need not special-case "no search".
+ */
+export function matchesSearch(
+  ship: Pick<CatalogShip, 'type' | 'typeName' | 'lineName'>, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  if (needle === '') return true;
+  return (ship.type ?? '').toLowerCase().includes(needle)
+    || (ship.typeName ?? '').toLowerCase().includes(needle)
+    || (ship.lineName ?? '').toLowerCase().includes(needle);
+}

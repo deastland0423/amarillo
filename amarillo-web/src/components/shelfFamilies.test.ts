@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogShip } from '../api/gameApi';
-import { familiesOf, resolveFamily, toggleRefit } from './shelfFamilies';
+import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
 
 /** Only the fields the grouping reads; the rest of CatalogShip is irrelevant here. */
 function hull(type: string, extra: Partial<CatalogShip> = {}): CatalogShip {
@@ -132,5 +132,63 @@ describe('toggleRefit', () => {
   it('toggles a refit with no requirements', () => {
     expect(toggleRefit([], 'B', [])).toEqual(['B']);
     expect(toggleRefit(['B'], 'B', [])).toEqual([]);
+  });
+});
+
+describe('matchesSearch', () => {
+  const cwl = {
+    type: 'CWL', typeName: 'War Cruiser (Light Phaser)', lineName: 'War Cruiser',
+  };
+  const pol = { type: 'POL', typeName: 'Police Cutter', lineName: 'Police Ship' };
+
+  it('matches everything on an empty or blank search', () => {
+    expect(matchesSearch(cwl, '')).toBe(true);
+    expect(matchesSearch(cwl, '   ')).toBe(true);
+  });
+
+  it('matches on the type code', () => {
+    expect(matchesSearch(cwl, 'CWL')).toBe(true);
+  });
+
+  /** The point of substring over prefix: a half-typed code still narrows. */
+  it('matches a partial code', () => {
+    expect(matchesSearch(cwl, 'cw')).toBe(true);
+  });
+
+  /**
+   * The class name, which differs from the line name on 305 of 355 hulls — so this is the only
+   * field that can answer "which of these is the light-phaser one".
+   */
+  it('matches on the class name', () => {
+    expect(matchesSearch(cwl, 'light phaser')).toBe(true);
+  });
+
+  it('matches on the line name', () => {
+    expect(matchesSearch(pol, 'police ship')).toBe(true);
+  });
+
+  it('ignores case on both sides', () => {
+    expect(matchesSearch(pol, 'POLICE')).toBe(true);
+    expect(matchesSearch(cwl, 'cruiser')).toBe(true);
+  });
+
+  it('ignores surrounding whitespace', () => {
+    expect(matchesSearch(cwl, '  CWL  ')).toBe(true);
+  });
+
+  it('does not match an unrelated hull', () => {
+    expect(matchesSearch(cwl, 'police')).toBe(false);
+    expect(matchesSearch(pol, 'dreadnought')).toBe(false);
+  });
+
+  /**
+   * Jackson sends an absent string as null, not undefined, and a hull with no line name is a real
+   * shape in the catalogue. A bare `.toLowerCase()` on it would throw and blank the whole shelf.
+   */
+  it('survives a null class or line name', () => {
+    const bare = { type: 'DN', typeName: null, lineName: null } as unknown as
+      Pick<CatalogShip, 'type' | 'typeName' | 'lineName'>;
+    expect(matchesSearch(bare, 'DN')).toBe(true);
+    expect(matchesSearch(bare, 'cruiser')).toBe(false);
   });
 });

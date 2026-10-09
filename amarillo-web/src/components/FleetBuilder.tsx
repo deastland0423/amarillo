@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi } from '../api/gameApi';
-import { familiesOf, resolveFamily, toggleRefit } from './shelfFamilies';
+import { familiesOf, matchesSearch, resolveFamily, toggleRefit } from './shelfFamilies';
 import type {
   CatalogShip, FleetSpec, FleetSummary, FleetValidation, FleetViolation,
 } from '../api/gameApi';
@@ -90,6 +90,16 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
    * shelf and read as a bug.
    */
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+  /**
+   * Free-text shelf filter. Empty shows everything.
+   *
+   * The grouping answers "what does this empire field"; it cannot answer "where is the CWL", and
+   * with 355 hulls on the shelf that is the question a player who already knows what they want
+   * arrives with. Matched against the type code, the class name and the line name, because those
+   * are the three things a buyer knows a ship by — "CWL", "war cruiser" and "Lyran police" all
+   * have to land somewhere.
+   */
+  const [search, setSearch] = useState('');
   const [viewing, setViewing]   = useState<CatalogShip | null>(null);
   const [viewShip, setViewShip] = useState<ShipObject | null>(null);
   const [viewError, setViewError] = useState('');
@@ -168,6 +178,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
     return catalog
       .filter(s => chosen.has(s.faction))
       .filter(s => s.serviceYear <= spec.year)
+      .filter(s => matchesSearch(s, search))
       // No filter chosen shows everything; several are OR-ed. The VALIDATOR remains the only
       // authority on legality — a narrowed shelf is an aid to finding a hull, never a claim that
       // what is on it makes a legal fleet.
@@ -181,7 +192,7 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
         || (a.lineOrder - b.lineOrder)
         || a.faction.localeCompare(b.faction)
         || a.type.localeCompare(b.type));
-  }, [catalog, spec.factions, spec.year, roleFilter]);
+  }, [catalog, spec.factions, spec.year, roleFilter, search]);
 
   /**
    * The shelf in two levels: series sections, each holding line groups.
@@ -355,6 +366,29 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
 
   // ---- rendering --------------------------------------------------------
 
+  /**
+   * Violations indexed by the ship they name, so a roster row can carry a marker.
+   *
+   * The summary list below the roster stays exactly as it was — the owner's point, and the right
+   * one: "everything wrong with this fleet" is a question you want answered in one place, not
+   * reassembled by scanning rows. This is a LOCATOR for that list, not a replacement. A fleet of
+   * fourteen ships told "the carrier needs two escorts of its own empire" still leaves you hunting
+   * for which row is the carrier.
+   *
+   * `shipName` has been on the wire since the validator was built and nothing has ever read it.
+   * Violations about the fleet as a whole — over budget, no flagship — carry no ship name and
+   * belong only in the list, so they fall out of this map on their own.
+   */
+  const violationsByShip = useMemo(() => {
+    const out = new Map<string, FleetViolation[]>();
+    for (const v of check?.violations ?? []) {
+      if (!v.shipName) continue;
+      const at = out.get(v.shipName);
+      if (at) at.push(v); else out.set(v.shipName, [v]);
+    }
+    return out;
+  }, [check]);
+
   function violationRow(v: FleetViolation, i: number) {
     const isError = v.severity === 'ERROR';
     return (
@@ -468,6 +502,21 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             {spec.factions.length > 0 && <span className="fb-hint"> · in service by Y{spec.year}</span>}
           </div>
 
+          {/* Search. Above the role chips because it is the coarser filter of the two, and the
+              two compose: "Carrier" plus "kzinti" is a reasonable thing to ask for. */}
+          {spec.factions.length > 0 && (
+            <div className="fb-shelf-search">
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                     placeholder="Find a hull — CWL, war cruiser, carrier…"
+                     aria-label="Find a hull by type, class or line" />
+              {search !== '' && (
+                <button className="fb-search-clear" title="Clear the search"
+                        aria-label="Clear the search"
+                        onClick={() => setSearch('')}>×</button>
+              )}
+            </div>
+          )}
+
           {/* Role filters. Inside the shelf, so the chosen empires already scope them — "Escort"
               here means an escort this fleet could actually field, not every escort in the game.
               The COUNT is the useful part: a chip reading 0 says the empire has none, which is a
@@ -508,6 +557,17 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             <p className="subtitle">Choose an empire to see what it can field.</p>
           )}
 
+          {/* A filter that matches nothing must say so. An empty shelf under a chosen empire is
+              otherwise indistinguishable from a load failure, and the cause — a search, a role
+              chip, or a date too early for anything — is the one thing the player needs told. */}
+          {spec.factions.length > 0 && shelfBySeries.length === 0 && (
+            <p className="subtitle">
+              {search.trim() !== ''
+                ? `Nothing matches “${search.trim()}” in service by Y${spec.year}.`
+                : `These empires field nothing by Y${spec.year} under the chosen roles.`}
+            </p>
+          )}
+
           {shelfBySeries.map(section => (
             <div key={section.key || 'no-series'} className="fb-series-section">
               {/* Only a ship that declares a series gets a header; everything else renders
@@ -520,9 +580,11 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                      className={'fb-line-group'
                        + (group.name === section.ruleAbove ? ' fb-line-group-civilian' : '')}>
                   <div className="fb-line-header">{group.name}</div>
-                  {/* Two buttons, not one with a nested button — that is invalid HTML and React
-                      will warn. The add button keeps the whole row's width so the shelf still
-                      behaves as it did; inspect is a narrow sibling at the end. */}
+                  {/* The row is a GRID, not a button.
+                      It cannot be a button: the refit chips sit on it now, and a button inside a
+                      button is invalid HTML — the same constraint that used to exile the chips to
+                      a full-width line below. So the row carries three sibling controls instead:
+                      each refit chip, the PRICE (which is the buy control), and inspect. */}
                   {familiesOf(group.ships).map(fam => {
                     const famKey = fam.base.faction + '/' + fam.base.type;
                     const chosen = refitChoice[famKey] ?? [];
@@ -536,63 +598,117 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                       .filter(o => o.year <= spec.year);
                     return (
                     <div key={famKey} className="fb-shelf-item">
-                    <button className="fb-shelf-row"
-                            disabled={unavailable}
-                            title={unavailable
-                              ? 'That combination of refits was never fielded, so there is no hull '
-                                + 'to buy yet (S3.24 would permit it)'
-                              : undefined}
-                            onClick={() => addShip(ship)}>
+                      {/* The type code, which RENAMES itself as refits are ticked: a CA with the
+                          + refit reads CA+, because resolveFamily returned that variant. */}
                       <span className="fb-shelf-type">{ship.type}</span>
                       {/* The CLASS, not the ship's own name. A buyer scanning the shelf wants to
                           know what a hull is — and typeName differs from the group header on 305 of
                           355 hulls, so a CC and a CVB under "Heavy Cruiser" finally read as a
                           command cruiser and a strike carrier. The ship's name is still there to
-                          edit in the fleet list once it is bought, which is where it matters. */}
+                          edit in the fleet list once it is bought, which is where it matters.
+                          This is the column that TRUNCATES when the chips need the room: it is the
+                          only thing on the row repeated in the inspect panel and the tooltip. */}
                       <span className="fb-shelf-name"
-                            title={ship.name}>{ship.typeName || ship.name}</span>
+                            title={ship.typeName || ship.name}>{ship.typeName || ship.name}</span>
+                      {/* The refits, inline. Each says what it costs, because that IS the
+                          decision — "is the power pack worth 15 points?" — and separate shelf rows
+                          asked a player to work it out by subtraction. Wraps rather than crushes:
+                          the worst hulls (Lyran DW/DN/CW/BC, Klingon D6/D7) offer three. */}
+                      {/* Role badges sit with the class name on the LEFT — they describe what the
+                          hull IS, which is the same question typeName answers. The refit buttons
+                          are a CONTROL and get the centre to themselves; interleaving the two put
+                          "LEADER" between two things you could click. */}
                       <span className="fb-shelf-badges">
                         {badgesFor(ship).map(b => <span key={b} className="badge">{b}</span>)}
                       </span>
-                      <span className="fb-shelf-cost">
-                        {ship.cost}
-                        {ship.fighterBpv > 0 && (
-                          <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>
-                        )}
-                      </span>
-                    </button>
-                    <button className="fb-shelf-inspect"
-                            title={`View the ${ship.type} — arcs, shields and armament`}
-                            aria-label={`View the ${ship.type}`}
-                            onClick={() => inspect(ship)}>i</button>
-                    {/* The refits, as a row of toggles under the hull. Each says what it costs,
-                        because that IS the decision — "is the power pack worth 15 points?" — and
-                        four separate shelf rows asked a player to work it out by subtraction. */}
-                    {offers.length > 0 && (
-                      <div className="fb-refit-row">
+                      <span className="fb-shelf-refits">
                         {offers.map(o => {
                           const on = chosen.includes(o.code);
                           // Ticking a refit pulls in what it requires — the Klingon K refit
                           // arrives on top of B, so offering it alone would offer a ship that does
                           // not exist. See shelfFamilies.toggleRefit.
                           const withNeeds = toggleRefit(chosen, o.code, o.requires);
-                          const buildable = resolveFamily(fam, withNeeds) != null;
+                          const other = resolveFamily(fam, withNeeds);
+                          const buildable = other != null;
+                          /**
+                           * What this refit costs ON THIS HULL, given everything else ticked —
+                           * the difference between the two resolved variants, not the flat `bpv`
+                           * the data declares.
+                           *
+                           * The declared figure is 0 for every convertPower refit, so the AWR
+                           * refit advertised "+0" and then charged 2. And it is not a constant: a
+                           * conversion prices per reactor, so AWR is +2 on a bare CA and +4 once
+                           * the + refit has installed two more APRs for it to convert. Only the
+                           * resolved pair knows that.
+                           *
+                           * Ticked or not, the number means the same thing — the price of HAVING
+                           * this refit — so it does not jump when clicked. Falls back to the
+                           * declared cost only when the other variant does not exist, and the
+                           * chip is disabled in that case anyway.
+                           */
+                          const delta = other == null ? o.bpv
+                            : on ? ship.cost - other.cost : other.cost - ship.cost;
+                          const label = o.label || o.name.replace(/ refit$/, '');
+                          /**
+                           * Refits this click would drag in that are not ticked yet.
+                           *
+                           * The price above is what the CLICK costs, which is the honest number —
+                           * but when a refit requires another, that total silently includes the
+                           * other one's cost while the other one sits on the same row showing its
+                           * own price. The Federation CC reads "Plus Refit +10, AWR +12" and the
+                           * two do not add up to 22, because the 12 already contains the 10. The
+                           * tooltip is where that gets said; shortening the number instead would
+                           * misquote what pressing the button charges.
+                           */
+                          const pulls = on ? []
+                            : (o.requires ?? []).filter(c => !chosen.includes(c));
+                          const pulledNames = pulls
+                            .map(c => offers.find(x => x.code === c))
+                            .map((x, i) => x
+                              ? (x.label || x.name.replace(/ refit$/, ''))
+                              : pulls[i]);
                           return (
                             <button key={o.code}
                                     className={'fb-refit-chip' + (on ? ' fb-refit-chip-on' : '')}
                                     disabled={!buildable && !on}
+                                    aria-pressed={on}
                                     title={buildable || on
-                                      ? `${o.name} — available Y${o.year}, +${o.bpv} BPV`
+                                      ? `${o.name} — available Y${o.year}, `
+                                        + `${delta >= 0 ? '+' : ''}${delta} BPV`
+                                        + (pulledNames.length > 0
+                                          ? ` (includes the ${pulledNames.join(' and ')} it requires)`
+                                          : '')
                                       : `${o.name} was never fielded in this combination`}
                                     onClick={() => setRefitChoice(prev =>
                                       ({ ...prev, [famKey]: withNeeds }))}>
-                              {o.name.replace(/ refit$/, '')}
-                              <span className="fb-refit-cost">+{o.bpv}</span>
+                              {label}
+                              <span className="fb-refit-cost">
+                                {delta >= 0 ? '+' : ''}{delta}
+                              </span>
                             </button>
                           );
                         })}
-                      </div>
-                    )}
+                      </span>
+                      {/* The PRICE IS THE BUY BUTTON. The row can no longer be one big target —
+                          the chips are buttons and cannot nest — so the action goes on the number
+                          the eye lands on after reading them, and it quotes what it will charge. */}
+                      <button className="fb-shelf-buy"
+                              disabled={unavailable}
+                              title={unavailable
+                                ? 'That combination of refits was never fielded, so there is no '
+                                  + 'hull to buy yet (S3.24 would permit it)'
+                                : `Add the ${ship.type} — ${ship.cost} points`}
+                              aria-label={`Add the ${ship.type} for ${ship.cost} points`}
+                              onClick={() => addShip(ship)}>
+                        {ship.cost}
+                        {ship.fighterBpv > 0 && (
+                          <span className="fb-hint"> ({ship.bpv}+{ship.fighterBpv})</span>
+                        )}
+                      </button>
+                      <button className="fb-shelf-inspect"
+                              title={`View the ${ship.type} — arcs, shields and armament`}
+                              aria-label={`View the ${ship.type}`}
+                              onClick={() => inspect(ship)}>i</button>
                     </div>
                   );})}
                 </div>
@@ -613,8 +729,15 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
             const ship = lookup(entry.faction, entry.type);
             const isFlagship = spec.flagship === entry.name;
             const canCommand = (ship?.commandRating ?? 0) > 0;
+            // What the validator says about THIS ship. Worst severity wins the marker's colour:
+            // a row with an error and an advisory is an error row.
+            const faults = violationsByShip.get(entry.name ?? '') ?? [];
+            const hasError = faults.some(v => v.severity === 'ERROR');
             return (
-              <div key={i} className="fb-fleet-ship">
+              <div key={i}
+                   className={'fb-fleet-ship'
+                     + (faults.length === 0 ? ''
+                       : hasError ? ' fb-fleet-ship-error' : ' fb-fleet-ship-warn')}>
                 <button
                   className={isFlagship ? 'fb-flag fb-flag-on' : 'fb-flag'}
                   title={canCommand
@@ -626,6 +749,14 @@ export default function FleetBuilder({ playerName, onLeave }: Props) {
                 <input className="fb-ship-name" value={entry.name ?? ''}
                        onChange={e => renameShip(i, e.target.value)} />
                 <span className="fb-shelf-cost">{ship?.cost ?? '?'}</span>
+                {/* The locator. Its tooltip repeats the rule and message so the row answers the
+                    question on its own, but the list below remains where you read them all. */}
+                <span className={faults.length === 0 ? 'fb-ship-fault-slot'
+                        : hasError ? 'fb-ship-fault fb-ship-fault-error' : 'fb-ship-fault'}
+                      title={faults.length === 0 ? undefined
+                        : faults.map(v => (v.rule ? v.rule + ': ' : '') + v.message).join('\n')}>
+                  {faults.length === 0 ? '' : hasError ? '✗' : '⚠'}
+                </span>
                 <button className="fb-remove" title="Remove" onClick={() => removeShip(i)}>×</button>
               </div>
             );
