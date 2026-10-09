@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject } from '../types/gameState';
 import { parseLocation, facingToAngle, facingLabel, factionColor, shieldStrengthColor } from '../types/gameState';
 import { hexRange } from '../hex/geometry';
+import { boxIntersectsView, type ViewRect } from '../hex/viewport';
 
 // Cache of loaded token images keyed by tokenArt path.
 // Entries are HTMLImageElement once loaded, or null while loading/failed.
@@ -60,7 +61,13 @@ const PADDING = 12;
 const SQRT3   = Math.sqrt(3);
 
 const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 4.0;
+// The token art is 256px square and a ship is drawn at 0.9 of SIZE * 0.42, so a counter is
+// 36 world pixels across. At 7x it asks for 254 of the 256 it has — past that the ART is the
+// limit rather than the renderer, and magnifying further only buys you bigger soft edges.
+const MAX_ZOOM = 7.0;
+// Device-pixel ratio is honoured so the map is sharp on a HiDPI screen, but capped: beyond 2x
+// the backing store quadruples for a difference nobody can see.
+const MAX_DPR  = 2;
 
 // ESG visuals (G23.0) — one base colour drives everything ESG on the map
 // (active-field ring + announcement glow). Change ESG_RGB to re-theme them all.
@@ -124,14 +131,32 @@ function drawZones(
   }
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
+/** True if a hex centred here could put any ink inside the view. */
+function hexVisible(cx: number, cy: number, view: ViewRect): boolean {
+  return boxIntersectsView(cx, cy, SIZE, H / 2, view);
+}
+
+function drawGrid(
+  ctx: CanvasRenderingContext2D,
+  cols: number,
+  rows: number,
+  view: ViewRect,
+  /** World units in one CSS pixel — see the hairline note below. */
+  hairline: number,
+) {
   const pattern = starfieldImage ? ctx.createPattern(starfieldImage, 'repeat') : null;
   ctx.fillStyle = pattern ?? '#0d1a0d';
   ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 1;
+  // The grid is a backdrop and should stay one CSS pixel wide at every zoom. Everything here
+  // goes through the transform, so a plain lineWidth of 1 would be scaled with the map and the
+  // outlines would fatten as you zoomed in until they crowded out the counters they sit behind.
+  // One CSS pixel rather than one DEVICE pixel on purpose: a true hairline on a HiDPI screen is
+  // so faint the grid reads as missing.
+  ctx.lineWidth = hairline;
   for (let col = 1; col <= cols; col++) {
     for (let row = 1; row <= rows; row++) {
       const [cx, cy] = hexCenter(col, row);
+      if (!hexVisible(cx, cy, view)) continue;
       tracePath(ctx, cx, cy);
       ctx.fill();
       ctx.stroke();
@@ -145,6 +170,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, cols: number, rows: number) {
   for (let col = 1; col <= cols; col++) {
     for (let row = 1; row <= rows; row++) {
       const [cx, cy] = hexCenter(col, row);
+      if (!hexVisible(cx, cy, view)) continue;
       ctx.fillText(
         `${String(col).padStart(2, '0')}${String(row).padStart(2, '0')}`,
         cx, cy + labelOffsetY,
@@ -1102,44 +1128,133 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
   const [zoom, setZoom]           = useState(1.0);
   const [tooltip, setTooltip]     = useState<Tooltip | null>(null);
   const [hexPicker, setHexPicker] = useState<HexPicker | null>(null);
-  const [tokenRevision, setTokenRevision] = useState(0);
   const [hoveredHex, setHoveredHex] = useState<[number, number] | null>(null);
   const zoomRef                 = useRef(1.0);        // always current, no stale-closure risk
   const containerRef            = useRef<HTMLDivElement>(null);
   const canvasRef               = useRef<HTMLCanvasElement>(null);
+
+  // ---- Viewport rendering -------------------------------------------------------------------
+  //
+  // The canvas is the size of what you can SEE, not the size of the map, and the world reaches it
+  // through a transform.
+  //
+  // It used to be the other way round: the canvas was the whole map at a fixed 3072x2727, and zoom
+  // was a CSS width/height on the element. That meant zooming never redrew anything — the browser
+  // stretched the pixels it already had, so a 256px counter rendered into 36 world pixels stayed 36
+  // pixels of detail however far you went in. The hex lines and labels blurred by exactly the same
+  // factor; the counters were just where it showed, having the most detail to lose. Scaling that
+  // backing store with the zoom instead is not an option at this map size: 7x would be a canvas of
+  // some 1.6 GB, past what any browser will give you.
+  //
+  // Drawing only the visible slice costs the same at every zoom — a few megabytes of the viewport,
+  // whatever the magnification — and it gets FASTER as you zoom in, because fewer hexes are on
+  // screen to draw. The drawing functions were already written in world coordinates, so none of
+  // them had to change; they simply no longer know what the zoom is.
+  const drawRef = useRef<() => void>(() => {});
+  const rafRef  = useRef<number | null>(null);
+
+  /**
+   * Repaint on the next frame, collapsing a burst into one.
+   *
+   * Scroll and wheel fire far faster than the screen refreshes, and a token image finishing its
+   * load can land at any time, so every one of them goes through here.
+   */
+  const scheduleDraw = useCallback(() => {
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      drawRef.current();
+    });
+  }, []);
 
   // Drag-to-pan state
   const dragging   = useRef(false);
   const dragMoved  = useRef(false);  // true if mouse moved enough to count as a drag
   const dragOrigin = useRef({ x: 0, y: 0, sl: 0, st: 0 });
 
-  // Redraw canvas whenever objects / selection change, or when a token image finishes loading
+  // Rebuild the paint routine whenever what it would paint changes, then run it. Holding it in a
+  // ref rather than calling it from here is what lets a scroll — or an image that finishes loading
+  // minutes later — repaint with the CURRENT props without a React render in between.
   useEffect(() => {
-    loadStarfield(() => setTokenRevision(r => r + 1));
-    loadPlanetImage(() => setTokenRevision(r => r + 1));
-    loadAsteroidImage(() => setTokenRevision(r => r + 1));
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    drawGrid(ctx, COLS, ROWS);
-    if (zones && zones.length > 0) drawZones(ctx, zones);
-    if (mapObjects && mapObjects.length > 0) {
-      drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
-        highlightName ?? null, () => setTokenRevision(r => r + 1), COLS, ROWS);
-    }
-    if (hoveredHex) {
-      const [hcol, hrow] = hoveredHex;
-      const [cx, cy] = hexCenter(hcol, hrow);
-      tracePath(ctx, cx, cy);
-      ctx.fillStyle = 'rgba(255, 255, 100, 0.25)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 100, 0.8)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }, [mapObjects, myShips, selectedName, fireTargetName, highlightName, tokenRevision, hoveredHex, zones]);
+    loadStarfield(scheduleDraw);
+    loadPlanetImage(scheduleDraw);
+    loadAsteroidImage(scheduleDraw);
+
+    drawRef.current = () => {
+      const canvas    = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const z   = zoomRef.current;
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+
+      // On screen the canvas covers the scrollport, except when the whole map is smaller than it.
+      const cssW = Math.max(1, Math.min(container.clientWidth,  Math.ceil(CANVAS_W * z)));
+      const cssH = Math.max(1, Math.min(container.clientHeight, Math.ceil(CANVAS_H * z)));
+      const bufW = Math.round(cssW * dpr);
+      const bufH = Math.round(cssH * dpr);
+      // Assigning width or height CLEARS the canvas and resets its state, so only when it moved.
+      if (canvas.width !== bufW || canvas.height !== bufH) {
+        canvas.width  = bufW;
+        canvas.height = bufH;
+      }
+      if (canvas.style.width  !== `${cssW}px`) canvas.style.width  = `${cssW}px`;
+      if (canvas.style.height !== `${cssH}px`) canvas.style.height = `${cssH}px`;
+
+      const sl = container.scrollLeft;
+      const st = container.scrollTop;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, bufW, bufH);
+      // World pixels to device pixels: magnify by the zoom, again by the display's pixel ratio,
+      // then slide the scrolled-away part off the top-left edge.
+      ctx.setTransform(z * dpr, 0, 0, z * dpr, -sl * dpr, -st * dpr);
+      // The counters are 256px art drawn into 36 world pixels at rest — a seven-fold reduction,
+      // which is exactly where a cheap downscale shows.
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      const view: ViewRect = { x: sl / z, y: st / z, w: cssW / z, h: cssH / z };
+      const hairline = 1 / z;   // world units in one CSS pixel
+
+      drawGrid(ctx, COLS, ROWS, view, hairline);
+      if (zones && zones.length > 0) drawZones(ctx, zones);
+      if (mapObjects && mapObjects.length > 0) {
+        drawObjects(ctx, mapObjects, myShips ?? null, selectedName ?? null, fireTargetName ?? null,
+          highlightName ?? null, scheduleDraw, COLS, ROWS);
+      }
+      if (hoveredHex) {
+        const [hcol, hrow] = hoveredHex;
+        const [cx, cy] = hexCenter(hcol, hrow);
+        tracePath(ctx, cx, cy);
+        ctx.fillStyle = 'rgba(255, 255, 100, 0.25)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 100, 0.8)';
+        ctx.lineWidth = 2 * hairline;
+        ctx.stroke();
+      }
+    };
+    drawRef.current();
+  }, [mapObjects, myShips, selectedName, fireTargetName, highlightName, hoveredHex, zones,
+      zoom, COLS, ROWS, CANVAS_W, CANVAS_H, scheduleDraw]);
+
+  // Scrolling and resizing change WHAT is on screen without changing anything React knows about,
+  // so both have to reach the canvas directly. The container keeps its native scrollbars; the
+  // canvas is stuck to the scrollport and repainted under them.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('scroll', scheduleDraw, { passive: true });
+    const observer = new ResizeObserver(scheduleDraw);
+    observer.observe(container);
+    return () => {
+      container.removeEventListener('scroll', scheduleDraw);
+      observer.disconnect();
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [scheduleDraw]);
 
   // Snap-to: pan map to center on the named object whenever snapTo changes (new object = always re-fires)
   useEffect(() => {
@@ -1193,6 +1308,23 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     return () => container.removeEventListener('wheel', onWheel);
   }, []); // attach once; handler reads zoom via ref
 
+  /**
+   * Screen coordinates to world pixels — the units {@link hexCenter} speaks.
+   *
+   * The canvas covers the scrollport now, so its origin is the scrollport's: add back what has
+   * been scrolled away, then divide out the zoom. This replaced a {@code CANVAS_W / rect.width}
+   * ratio that was only ever right while the canvas WAS the whole map, stretched by CSS.
+   */
+  function toWorld(clientX: number, clientY: number): [number, number] {
+    const container = containerRef.current!;
+    const rect = container.getBoundingClientRect();
+    const z    = zoomRef.current;
+    return [
+      (clientX - rect.left + container.scrollLeft) / z,
+      (clientY - rect.top  + container.scrollTop)  / z,
+    ];
+  }
+
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     if (e.button !== 0) return;
     dragging.current  = true;
@@ -1235,13 +1367,8 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
 
     // Tooltip hit-test (skip if dragging or no seeker objects to check)
     if (!mapObjects) { setTooltip(null); reportHover(null, 0, 0); return; }
-    const canvas  = canvasRef.current!;
-    const rect    = canvas.getBoundingClientRect();
-    const scaleX  = CANVAS_W / rect.width;
-    const scaleY  = CANVAS_H / rect.height;
-    const px      = (e.clientX - rect.left) * scaleX;
-    const py      = (e.clientY - rect.top)  * scaleY;
-    const hex     = pixelToHex(px, py, COLS, ROWS);
+    const [px, py] = toWorld(e.clientX, e.clientY);
+    const hex      = pixelToHex(px, py, COLS, ROWS);
     if (!hex) { setTooltip(null); reportHover(null, 0, 0); if (pickingHex) setHoveredHex(null); return; }
     const [col, row] = hex;
     if (pickingHex) { setHoveredHex([col, row]); setTooltip(null); return; }
@@ -1298,14 +1425,8 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     // Dismiss any open picker on canvas click
     setHexPicker(null);
 
-    const canvas = canvasRef.current!;
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
-    const px     = (e.clientX - rect.left) * scaleX;
-    const py     = (e.clientY - rect.top)  * scaleY;
-
-    const hex = pixelToHex(px, py, COLS, ROWS);
+    const [px, py] = toWorld(e.clientX, e.clientY);
+    const hex      = pixelToHex(px, py, COLS, ROWS);
 
     // Hex-pick mode: deliver coordinates, skip unit selection
     if (pickingHex && onHexClick) {
@@ -1338,22 +1459,28 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
       ref={containerRef}
       style={{ position: 'relative', width: '100%', height: '100%', overflow: 'auto' }}
     >
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_W}
-        height={CANVAS_H}
-        style={{
-          display: 'block',
-          width:   CANVAS_W * zoom,
-          height:  CANVAS_H * zoom,
-          cursor,
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-      />
+      {/* The spacer carries the scroll EXTENT — the whole map at this zoom — so the scrollbars,
+          drag-to-pan and snap-to all keep working on container.scrollLeft/scrollTop exactly as
+          before. The canvas inside it sticks to the top-left of the scrollport and only ever
+          holds the slice you can see; its width, height and CSS size are set during the paint,
+          because assigning either dimension clears the canvas. */}
+      <div style={{ width: CANVAS_W * zoom, height: CANVAS_H * zoom, position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            display:  'block',
+            position: 'sticky',
+            top:      0,
+            left:     0,
+            cursor,
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+        />
+      </div>
       {tooltip && (
         <div style={{
           position:        'fixed',
