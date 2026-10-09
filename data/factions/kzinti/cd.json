@@ -103,6 +103,7 @@
         "year": 166,
         "bpv": 15,
         "shields": [30, 28, 22, 22, 22, 28],
+        "power": { "leftWarp": 10, "rightWarp": 10, "centerWarp": 10 },
         "replaceWeapons": [
           {"from": "Phaser1", "set": {"arcs": ["FA", "L"]}, "designators": ["1"]},
           {"from": "Phaser1", "set": {"arcs": ["FA", "R"]}, "designators": ["2"]}
