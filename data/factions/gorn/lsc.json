@@ -77,7 +77,7 @@
         "name": "Plasma-F refit",
         "label": "Plasma-F Refit",
         "year": 175,
-        "bpv": 0,
+        "bpv": 2,
         "addWeapons": [
           {"type": "Phaser3", "designator": "5", "arcs": ["LS"]},
           {"type": "Phaser3", "designator": "6", "arcs": ["RS"]}
