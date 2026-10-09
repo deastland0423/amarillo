@@ -105,6 +105,12 @@ export interface RefitOffer {
   code: string;
   /** For a player: "B refit", "Phaser-1 refit". */
   name: string;
+  /**
+   * What to write on the shelf button, when the hull's data says. Usually absent — the shelf then
+   * falls back to the name with a trailing " refit" stripped, which reads well for "Phaser-1
+   * refit" and badly for "+ refit", whose bare "+" collides with the cost beside it.
+   */
+  label?: string | null;
   /** The year it became available — a refit cannot be fielded before it exists. */
   year: number;
   /** What it adds to the hull's BPV. This is the purchasing decision. */

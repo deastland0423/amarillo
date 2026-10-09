@@ -194,7 +194,16 @@ public class GameController {
                     Map<String, Object> o = new java.util.LinkedHashMap<>();
                     o.put("code", r.code);
                     o.put("name", r.name != null ? r.name : r.code + " refit");
+                    // What to write on the button, when the hull cares. Null rather than "" so the
+                    // client's `??` fallback fires — an empty string is a label that says nothing.
+                    o.put("label", r.label);
                     o.put("year", r.year);
+                    // The DECLARED flat cost. Not what the refit charges on this hull: a
+                    // convertPower refit (the Federation AWR) prices per reactor and declares 0
+                    // here, and its real cost changes with what else is ticked — the CA's + refit
+                    // installs two more APRs for AWR to convert. The shelf therefore quotes the
+                    // difference between the two resolved variants and ignores this. Kept because
+                    // it is what the DATA says, and a flat-cost refit agrees with it.
                     o.put("bpv", r.bpv);
                     o.put("requires", r.requires != null ? r.requires : List.of());
                     offers.add(o);

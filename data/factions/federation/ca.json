@@ -77,6 +77,7 @@
       {
         "code": "R",
         "name": "R refit",
+        "label": "R Refit",
         "year": 160,
         "bpv": 4,
         "addWeapons": [
@@ -87,6 +88,7 @@
       {
         "code": "+",
         "name": "+ refit",
+        "label": "Plus Refit",
         "year": 165,
         "bpv": 14,
         "power": {"apr": 2},

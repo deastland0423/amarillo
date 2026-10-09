@@ -76,6 +76,7 @@
       {
         "code": "+",
         "name": "+ refit",
+        "label": "Plus Refit",
         "year": 168,
         "bpv": 13,
         "power": {"apr": 2},

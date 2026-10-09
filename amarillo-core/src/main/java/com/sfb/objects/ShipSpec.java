@@ -308,6 +308,20 @@ public class ShipSpec {
         public String code;
         /** For a player: "B refit", "Phaser-1 refit". */
         public String name;
+        /**
+         * What the fleet builder writes on the refit's button, where {@link #name} is too long or
+         * too cryptic to read at a glance.
+         *
+         * <p>Optional, and absent on almost every refit: the shelf falls back to the name with a
+         * trailing " refit" stripped. That fallback is fine for "Phaser-1 refit" and useless for
+         * the Lyran and Federation "+ refit", which renders as a bare "+" and then collides with
+         * the cost beside it — "+ +10" is not a thing anyone can read. A hull that wants to call
+         * that button "Plus Refit" or "Power Upgrade" says so here.
+         *
+         * <p>Presentation only. Nothing in the rules engine reads it, and it never affects what a
+         * refit costs or does — {@link #code} remains the identity.
+         */
+        public String label;
         /** Year the refit became available (S3.24 gates purchase on the scenario year). */
         public int year;
         /** BPV this refit adds. The deltas proved additive across every family. */

@@ -83,6 +83,7 @@
       {
         "code": "+",
         "name": "+ refit",
+        "label": "Plus Refit",
         "year": 165,
         "bpv": 10,
         "epv": 152,
