@@ -21,6 +21,7 @@ import com.sfb.weapons.Hellbore;
 import com.sfb.weapons.Phaser1;
 import com.sfb.weapons.Phaser2;
 import com.sfb.weapons.Phaser3;
+import com.sfb.weapons.Phaser4;
 import com.sfb.weapons.PhaserG;
 import com.sfb.weapons.Photon;
 import com.sfb.weapons.PlasmaLauncher;
@@ -75,6 +76,16 @@ public final class WeaponFactory {
             }
             case "Phaser3": {
                 Phaser3 p = new Phaser3();
+                p.setArcs(arcMask);
+                p.setDesignator(ws.designator);
+                return p;
+            }
+            // The phaser-4 is a BASE weapon (E2.0), which is why it was never reachable: the
+            // class and its full damage chart have existed all along, but no hull in the data
+            // carried one until the Federation Base Station, and the factory had no case for it.
+            // ShipWeaponsBuildTest caught it the moment the first BS listed six.
+            case "Phaser4": {
+                Phaser4 p = new Phaser4();
                 p.setArcs(arcMask);
                 p.setDesignator(ws.designator);
                 return p;

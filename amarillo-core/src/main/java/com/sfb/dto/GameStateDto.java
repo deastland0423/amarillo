@@ -1721,8 +1721,12 @@ public class GameStateDto {
         dto.canDoubleEngines = ship.canDoubleEngines();
         dto.tokenArt = ship.getTokenArt();
         dto.turnMode = ship.getTurnMode() != null ? ship.getTurnMode().name() : null;
-        dto.turnHexes = ship.getTurnHexes();
-        dto.hexesUntilTurn = Math.max(0, ship.getTurnHexes() - ship.getTurnCount());
+        // A base has no turn mode — it rotates (C3.7) rather than turning — and asking it for
+        // turn hexes throws by design. `turnMode: null` is the signal a client reads; these two
+        // are zero because there is no answer, not because the base turns freely.
+        boolean turns = ship.getTurnMode() != null;
+        dto.turnHexes = turns ? ship.getTurnHexes() : 0;
+        dto.hexesUntilTurn = turns ? Math.max(0, ship.getTurnHexes() - ship.getTurnCount()) : 0;
         dto.lockOnTargets = ship.getLockOns().stream()
                 .map(com.sfb.objects.Unit::getName)
                 .collect(java.util.stream.Collectors.toList());

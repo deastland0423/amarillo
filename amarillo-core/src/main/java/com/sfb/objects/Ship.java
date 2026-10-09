@@ -773,6 +773,14 @@ public class Ship extends Unit implements DroneController {
 	 */
 	public TurnMode effectiveTurnMode() {
 		TurnMode base = getTurnMode();
+		// A base has no turn mode: it does not move, it ROTATES, and C3.7 puts the rotation rate
+		// in the scenario rather than on the hull. So its file states none, and asking for one is
+		// a bug in the caller rather than a hull that forgot to say. Fails by name rather than
+		// with a bare NullPointerException six frames deeper.
+		if (base == null)
+			throw new IllegalStateException(getName() + " has no turn mode"
+					+ (isBase() ? " because it is a base — see C3.7 for rotation, which is unbuilt"
+					            : " — every ship must declare one"));
 		if (!getCrew().isSkeleton())
 			return base;
 		TurnMode[] values = TurnMode.values();

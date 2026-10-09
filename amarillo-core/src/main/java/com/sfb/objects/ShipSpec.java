@@ -794,7 +794,10 @@ public class ShipSpec {
             m.put("epv", epv);
         if (commandRating > 0)
             m.put("commandrating", commandRating);
-        m.put("turnmode", TurnMode.valueOf(turnMode));
+        // Absent on a base, which rotates (C3.7) rather than turning and takes its rotation rate
+        // from the scenario. Every other hull states one.
+        if (turnMode != null && !turnMode.isBlank())
+            m.put("turnmode", TurnMode.valueOf(turnMode));
         m.put("sizeclass", sizeClass);
         m.put("movecost", moveCost);
         m.put("breakdown", breakdown);
