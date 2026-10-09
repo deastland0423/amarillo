@@ -72,7 +72,7 @@
     { "type": "Phaser1", "designator": "8", "arcs": ["L", "RA"] },
     { "type": "Phaser1", "designator": "9", "arcs": ["R", "RA"] },
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["13", "17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9", "13"] }
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["17", "21", "1"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9"] }
   ]
 }

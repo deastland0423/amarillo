@@ -109,8 +109,8 @@
       "addWeapons": [
         { "type": "Phaser3", "designator": "7", "arcs": ["RS"] },
         { "type": "Phaser3", "designator": "8", "arcs": ["RS"] },
-        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["13", "17", "21", "1"] },
-        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9", "13"] }
+        { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LS"], "launchDirections": ["17", "21", "1"] },
+        { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RS"], "launchDirections": ["1", "5", "9"] }
       ]
     }
   ],

@@ -29,7 +29,22 @@ import static org.junit.Assert.assertTrue;
  *   RP    -> 1, 5, 9
  *   LF,L  -> 21
  *   RF,R  -> 5
+ *   LS    -> 17, 21, 1   (as LP)
+ *   RS    -> 1, 5, 9     (as RP)
  * </pre>
+ *
+ * <h2>The side arcs, and why the majority was wrong</h2>
+ * LS and RS were not in the owner's first list and the data disagreed with itself: eight
+ * launchers of each said four directions (13,17,21,1 and 1,5,9,13) against one that said three,
+ * the lone dissenter being the Gorn DN+. The obvious inference — eight beats one — was exactly
+ * backwards. D2.34 settles it: a swivel mount fires "in any of THREE specified directions", so
+ * four was never possible, and the sixteen launchers in the majority each carried a spurious 13.
+ * <p>
+ * Worth remembering before trusting a majority in this data again. The DN+'s pair had come from
+ * {@code dnf.json} and the Gorn CC, CL and DD keep theirs in refit blocks folded from the Fleet
+ * ships — so the error was in the source files, reproduced faithfully by the migration, and its
+ * equivalence check could not see it: that check compares a variant against the file it replaced
+ * and is blind to anything both copies agree on.
  *
  * <h2>Why a guard and not a fix</h2>
  * Nothing derives these today — every launcher in every ship file states its own directions by
@@ -61,17 +76,16 @@ public class PlasmaLaunchDirectionTest {
         BY_ARC.put("LF,L", List.of("21"));
         BY_ARC.put("R,RF", List.of("5"));
         BY_ARC.put("RF,R", List.of("5"));
+        // D2.34, found by the owner: the side arcs launch where their plasma arc does.
+        BY_ARC.put("LS",   List.of("17", "21", "1"));
+        BY_ARC.put("RS",   List.of("1", "5", "9"));
     }
 
     /**
-     * Arcs the owner's list does not cover, held as a roster so a NEW uncovered arc fails here.
-     *
-     * <p>LS and RS are the two side arcs in use. The fleet says 13,17,21,1 and 1,5,9,13 by eight
-     * launchers to one in each case, the dissenter being the Gorn DN+ in both — which came from
-     * dnf.json and is the open question, not the rule. Until the owner states the side arcs, this
-     * test checks only that nothing ELSE has appeared.
+     * Arcs no rule covers yet, held as a roster so a NEW uncovered arc fails rather than being
+     * skipped. Empty, and the aim is to keep it that way.
      */
-    private static final Set<String> NOT_YET_STATED = new LinkedHashSet<>(List.of("LS", "RS"));
+    private static final Set<String> NOT_YET_STATED = new LinkedHashSet<>();
 
     @BeforeClass
     public static void loadLibrary() {
