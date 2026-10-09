@@ -67,5 +67,30 @@
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R"] },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "1" },
     { "type": "ScoutChannel",  "dacHitLocation": "torp", "designator": "2" }
+  ],
+
+  "refits": [
+    {
+      "code": "R",
+      "name": "R refit",
+      "label": "R Refit",
+      "year": 171,
+      "bpv": 3,
+      "epv": 113,
+      "_note": "The rear-phaser refit: two phaser-3s covering the aft arcs. The scout has a split value (G24.35), so the economic BPV moves with the combat one. Owner, 2026-10-09.",
+      "addWeapons": [
+        { "type": "Phaser3", "designator": "5", "arcs": ["RA", "L"] },
+        { "type": "Phaser3", "designator": "6", "arcs": ["RA", "R"] }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["R"],
+      "type": "SER",
+      "name": "RIS Eagle of Long Eyes",
+      "typeName": "Scout Eagle (R refit)",
+      "serviceYear": 171
+    }
   ]
 }
