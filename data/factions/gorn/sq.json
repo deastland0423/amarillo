@@ -1,0 +1,68 @@
+{
+  "faction": "Gorn",
+  "type": "S-Q",
+  "typeName": "Small Q-Ship",
+  "line": "F-S",
+  "name": "Little Teeth",
+  "serviceYear": 130,
+  "bpv": 35,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 2,
+  "bonusHets": 0,
+  "commandRating": 3,
+
+  "shields": [10, 10, 10, 10, 10, 10],
+
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 10,
+    "armor": 3
+  },
+
+  "power": {
+    "leftWarp": 2,
+    "rightWarp": 2,
+    "impulse": 1,
+    "apr": 4,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 0],
+    "sensor": [6, 4, 0],
+    "scanner": [0, 0, 9],
+    "excess": 2
+  },
+
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "probes": 0,
+    "maxAccel": 5
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 6,
+    "boardingParties": 5,
+    "minCrew": 2
+  },
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] }
+  ]
+}

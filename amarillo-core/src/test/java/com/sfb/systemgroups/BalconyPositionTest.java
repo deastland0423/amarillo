@@ -198,19 +198,33 @@ public class BalconyPositionTest {
 
     /**
      * The balcony is a GORN trait, fleet-wide. "On Gorn ships this is usually on the wings"
-     * is J1.53's own aside, and the Gorn are the faction known for the system: every hull in
+     * is J1.53's own aside, and the Gorn are the faction known for the system: every WARSHIP in
      * their list has one on every bay, from the SC up to the DN.
      * <p>
      * Asserted over the whole faction rather than ship by ship, so a new Gorn hull that
      * forgets its balcony fails here instead of simply being unable to do something the rest
      * of the fleet can.
+     *
+     * <h2>Civilian hulls are excluded, and that is the SSDs' distinction rather than ours</h2>
+     * Converted freighters do not get one. The Gorn DDF's sheet says "each bay has two balcony
+     * positions: total of four (J1.53)" in as many words; the Gorn L-Q's says only "two bays; no
+     * (J1.59) transfers", and names no balcony. A Q-ship is a merchant hull with guns hidden in
+     * it, not a warship built around a flight deck, so the wings J1.53 describes are not there.
+     * <p>
+     * The exclusion reads the LINE's civilian flag from shiplines.json rather than listing the
+     * two hulls, so the next converted freighter does not fail this for the same reason twice.
+     * Found when the Gorn L-Q and S-Q were added from the Basic Set SSD book, 2026-10-09: the
+     * guard was written when the Gorn list was warships alone, and "every hull" quietly meant
+     * "every hull we happened to have".
      */
     @Test
-    public void everyGornShipHasABalconyOnEveryBay() {
+    public void everyGornWarshipHasABalconyOnEveryBay() {
         java.util.Set<String> missing = new java.util.TreeSet<>();
         int checked = 0;
         for (ShipSpec spec : ShipLibrary.all()) {
             if (!"Gorn".equals(spec.faction))
+                continue;
+            if (com.sfb.objects.ShipLineCatalog.isCivilian(spec.line))
                 continue;
             checked++;
             for (ShuttleBay bay : ShipLibrary.createShip(spec).getShuttles().getBays())
@@ -219,7 +233,7 @@ public class BalconyPositionTest {
         }
 
         assertTrue("fixture: the Gorn list should not be empty", checked >= 10);
-        assertTrue("Gorn hulls with a bay that has no balcony: " + missing, missing.isEmpty());
+        assertTrue("Gorn warships with a bay that has no balcony: " + missing, missing.isEmpty());
     }
 
     /**
