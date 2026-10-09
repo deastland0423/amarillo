@@ -146,19 +146,48 @@ public class ScenarioLoader {
         applyUimAvailability(ship, year);
     }
 
+    /** BPV a single ESG capacitor is worth (G23.245). */
+    private static final int ESG_CAPACITOR_BPV = 1;
+
     /**
-     * Fit ESG capacitors by scenario year (G23.24). The Lyrans fielded them Y167–169;
-     * a ship in a Y167+ battle carries them regardless of when its hull was introduced
-     * (pre-capacitor ships cost 1 BPV less, G23.245). The rare G17.5 "repaired without a
-     * capacitor" case is not modelled.
+     * Fit ESG capacitors by scenario year (G23.24), and price them. The Lyrans fielded them
+     * Y167–169; a ship in a Y167+ battle carries them regardless of when its hull was introduced.
+     * The rare G17.5 "repaired without a capacitor" case is not modelled.
+     *
+     * <p>G23.245, in full: "The BPV of Lyran ships assumes the presence of the capacitors on all
+     * ESGs. If the scenario is set before the capacitors were installed, reduce the BPV by one
+     * point per ESG. A ship will have capacitors on all of its ESGs or on none of them." So the
+     * stated BPV is the Y167-and-later figure on all 26 ESG hulls, and an earlier battle refunds
+     * per generator — two points on the two-ESG ships, one on the Scout.
+     *
+     * <p>Fitting the capacitors and refunding them belong together because the rule ties them
+     * together: the refund is owed exactly when the fitting is withheld. They were split for a
+     * while, and the symptom was the sort that never surfaces on its own — a Y160 Lyran CC fought
+     * without capacitors and was charged for them anyway. What turned it up was the Lyran Base
+     * Station's SSD, whose own data table prices the pre-Y167 base two points lower; the owner
+     * confirmed the reading (2026-10-09). Nothing in the ship data says any of this, and nothing
+     * should: 26 files would each have to repeat a rule that is the same for all of them.
+     *
+     * <p>Charged per ESG, not per ship, and NOT keyed on the Lyrans. The rule names them because
+     * they are who flies ESGs, but what it prices is the generator — so a WYN or LDR hull that
+     * ever mounts one pays and is refunded on the same terms, exactly as the fitting above
+     * already works for anyone.
      */
     static void applyEsgCapacitors(Ship ship, int year) {
         boolean hasCapacitors = year >= 167;
+        int esgs = 0;
         for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {
             if (w instanceof com.sfb.weapons.ESG) {
                 ((com.sfb.weapons.ESG) w).setHasCapacitor(hasCapacitors);
+                esgs++;
             }
         }
+        // A year of 0 is "nobody has picked a date yet", which the catalogue endpoint passes when
+        // the shelf is browsed undated. It is not a date before Y167, so it buys no refund — the
+        // same guard applyUimAvailability keeps, and for the same reason: an undated browse must
+        // quote the hull's own price rather than a discount it did not ask for.
+        if (year > 0 && !hasCapacitors && esgs > 0)
+            ship.setBattlePointValue(ship.getBattlePointValue() - esgs * ESG_CAPACITOR_BPV);
     }
 
     /**

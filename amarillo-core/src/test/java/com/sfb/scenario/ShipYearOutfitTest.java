@@ -132,6 +132,61 @@ public class ShipYearOutfitTest {
                 racksOfType(viaLoader, DroneRack.DroneRackType.TYPE_B));
     }
 
+    /**
+     * G23.245: a battle before Y167 refunds one point per ESG, because the stated BPV assumes
+     * the capacitors.
+     *
+     * <p>The Lyran Base Station is the fixture because its own SSD states the answer — its data
+     * table carries an "ESG CAPACITOR REFIT (Y167) −2" line against two ESGs — so this pins the
+     * rule against the sheet rather than against the code that implements it. The two halves are
+     * asserted together on purpose: the refund is owed exactly when the fitting is withheld, and
+     * the bug this closes was that one happened without the other.
+     */
+    @Test
+    public void aBattleBeforeY167RefundsAPointPerEsg() {
+        ShipSpec spec = ShipLibrary.get("Lyran", "BS");
+        assertNotNull("fixture: the Lyran Base Station should be in the library", spec);
+
+        Ship late = ShipLibrary.createShip(spec);
+        ScenarioLoader.outfitForYear(late, spec.faction, 170, spec);
+        assertEquals("the stated BPV is the Y167-and-later figure", 120, late.getBpv());
+        assertTrue("and its ESGs have capacitors", esgsWithCapacitors(late) == 2);
+
+        Ship early = ShipLibrary.createShip(spec);
+        ScenarioLoader.outfitForYear(early, spec.faction, 160, spec);
+        assertEquals("two ESGs, so two points back — the sheet's own −2", 118, early.getBpv());
+        assertEquals("and none of them has a capacitor to pay for", 0, esgsWithCapacitors(early));
+    }
+
+    /**
+     * An undated browse quotes the hull's own price. Year 0 is what the shelf passes before
+     * anyone picks a date, and it must not be read as "some year before Y167" — the discount
+     * belongs to a battle that was actually set early, not to the absence of a battle.
+     */
+    @Test
+    public void anUndatedHullIsNotDiscounted() {
+        ShipSpec spec = ShipLibrary.get("Lyran", "BS");
+        Ship undated = ShipLibrary.createShip(spec);
+        ScenarioLoader.outfitForYear(undated, spec.faction, 0, spec);
+
+        assertEquals("the shelf shows 120, not 118", 120, undated.getBpv());
+    }
+
+    /** A hull with no ESG is untouched by any of it, at any date. */
+    @Test
+    public void aHullWithoutEsgsIsNeverRefunded() {
+        assertEquals(ncdAt(160).getBpv(), ncdAt(174).getBpv());
+        assertEquals("the Federation NCD has no ESG to refund", 119, ncdAt(160).getBpv());
+    }
+
+    private static long esgsWithCapacitors(Ship ship) {
+        return ship.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.ESG)
+                .map(w -> (com.sfb.weapons.ESG) w)
+                .filter(com.sfb.weapons.ESG::hasCapacitor)
+                .count();
+    }
+
     /** Every weapon the library can build survives being outfitted at a late date. */
     @Test
     public void everyHullCanBeOutfittedForALateYear() {
