@@ -82,12 +82,5 @@
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
   ],
 
-  "y175Upgrades": {
-    "refitCost": 4,
-    "racks": [
-    ],
-    "adds": [
-      { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
-    ]
-  }
+  "y175Upgrades": {"refitCost": 4, "racks": []}
 }
