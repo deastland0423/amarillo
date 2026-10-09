@@ -44,6 +44,22 @@ public class AddAmmunitionTest {
         return ShipLibrary.createShip(spec);
     }
 
+    /**
+     * By TYPE, for a hull that no longer has a file of its own.
+     *
+     * <p>The Kzinti CVL+ is the CVL with its + refit applied, synthesised at load, so reading
+     * {@code cvl+.json} off disk broke the day the Kzinti migrated to refits. The registry
+     * answers for a variant exactly as it does for a base hull, which is what this check wanted
+     * all along — it is testing that a JSON-loaded ADD agrees with the sample builders, and a
+     * synthesised variant is JSON-loaded too.
+     */
+    private Ship fromLibrary(String faction, String type) {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        ShipSpec spec = ShipLibrary.get(faction, type);
+        assertNotNull(faction + "/" + type + " should be in the library", spec);
+        return ShipLibrary.createShip(spec);
+    }
+
     /** The rack is the load: whatever the type holds, it starts full. */
     @Test
     public void anAddStartsWithAFullRack() throws Exception {
@@ -51,7 +67,7 @@ public class AddAmmunitionTest {
         assertEquals(ADD.AddType.ADD_12, twelve.getAddType());
         assertEquals("an ADD_12 launches with twelve", 12, twelve.getShots());
 
-        ADD six = firstAdd(fromJson("../data/factions/kzinti/cvl+.json"));
+        ADD six = firstAdd(fromLibrary("Kzinti", "CVL+"));
         assertEquals(ADD.AddType.ADD_6, six.getAddType());
         assertEquals("an ADD_6 launches with six", 6, six.getShots());
     }

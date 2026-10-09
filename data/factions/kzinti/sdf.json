@@ -92,5 +92,25 @@
       { "designator": "Rack 6", "upgradeTo": "TYPE_B" }
     ],
     "adds": []
-  }
+  },
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 1,
+        "epv": 91,
+        "shields": [15, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "SDF+",
+        "name": "KHS #180",
+        "typeName": "Scout Drone Frigate (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

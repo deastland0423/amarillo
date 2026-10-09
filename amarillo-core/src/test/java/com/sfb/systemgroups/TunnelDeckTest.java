@@ -29,8 +29,19 @@ import com.sfb.objects.shuttles.Shuttle;
  */
 public class TunnelDeckTest {
 
-    private static ShuttleBay bayOf(String path) throws Exception {
-        Ship ship = ShipLibrary.createShip(ShipSpec.fromJson(new File(path)));
+    /**
+     * By TYPE through the registry, not by filename.
+     *
+     * <p>A refitted hull no longer has a file of its own — the CVL+ is the CVL with its + refit
+     * applied, synthesised at load. Reading {@code cvl+.json} off disk stopped working the day
+     * the Kzinti migrated, and would have gone on failing for every faction still to come. The
+     * registry answers for a base hull and a variant alike, which is the whole point of it.
+     */
+    private static ShuttleBay bayOf(String faction, String type) {
+        ShipLibrary.loadAllSpecs("../data/factions");
+        ShipSpec spec = ShipLibrary.get(faction, type);
+        assertNotNull(faction + "/" + type + " should be in the library", spec);
+        Ship ship = ShipLibrary.createShip(spec);
         return ship.getShuttles().getBays().get(0);
     }
 
@@ -72,14 +83,14 @@ public class TunnelDeckTest {
     @Test
     public void aTunnelDeckHasTwo() throws Exception {
         assertEquals("J1.58, and the Kzinti CV is one of the ships named",
-                2, bayOf("../data/factions/kzinti/cv.json").getHatchCount());
+                2, bayOf("Kzinti", "CV").getHatchCount());
     }
 
     @Test
     public void everyKzintiCarrierDeclaredATunnelGetsBothHatches() throws Exception {
-        for (String hull : new String[] { "cv", "cvl", "cvl+", "cve", "cve+", "cvs" })
+        for (String hull : new String[] { "CV", "CVL", "CVL+", "CVE", "CVE+", "CVS" })
             assertEquals(hull + " is a tunnel deck (J1.58)", 2,
-                    bayOf("../data/factions/kzinti/" + hull + ".json").getHatchCount());
+                    bayOf("Kzinti", hull).getHatchCount());
     }
 
     @Test
@@ -160,7 +171,7 @@ public class TunnelDeckTest {
     /** A Hydran bay keeps its tubes and gains no second door: it is not a tunnel deck. */
     @Test
     public void aHydranBayIsUnchanged() throws Exception {
-        ShuttleBay bay = bayOf("../data/factions/hydran/rn.json");
+        ShuttleBay bay = bayOf("Hydran", "RN");
 
         assertEquals("one door", 1, bay.getHatchCount());
         assertEquals("three tubes (J1.54)", 3, bay.getLaunchTubeCount());

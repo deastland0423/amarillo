@@ -78,5 +78,24 @@
       { "designator": "Rack 2", "upgradeTo": "TYPE_C" },
       { "designator": "Rack 3", "upgradeTo": "TYPE_B" }
     ]
-  }
+  },
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 1,
+        "shields": [15, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "POL+",
+        "name": "#500",
+        "typeName": "Police Corvette (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

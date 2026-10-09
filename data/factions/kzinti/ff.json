@@ -70,5 +70,48 @@
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]}
 
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 9,
+        "shields": [15, 12, 12, 12, 12, 12],
+        "y175Upgrades": {
+          "refitCost": 4,
+          "racks": [
+            {"designator": "Rack 1", "upgradeTo": "TYPE_C"},
+            {"designator": "Rack 2", "upgradeTo": "TYPE_C"},
+            {"designator": "Rack 3", "upgradeTo": "TYPE_B"},
+            {"designator": "Rack 4", "upgradeTo": "TYPE_B"}
+          ],
+          "adds": []
+        },
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 3",
+            "rackType": "TYPE_A",
+            "arcs": ["FULL"]
+          },
+          {
+            "type": "DroneRack",
+            "designator": "Rack 4",
+            "rackType": "TYPE_A",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "FF+",
+        "name": "#68",
+        "typeName": "Frigate (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

@@ -75,6 +75,37 @@
     { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" },
     { "type": "ADD", "designator": "ADD 3", "addType": "ADD_12" }
 
-  ]
+  ],
 
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 168,
+        "bpv": 9,
+        "shields": [15, 12, 12, 12, 12, 12],
+        "addWeapons": [
+          {
+            "type": "DroneRack",
+            "designator": "Rack 1",
+            "rackType": "TYPE_A",
+            "arcs": ["FULL"]
+          },
+          {
+            "type": "DroneRack",
+            "designator": "Rack 2",
+            "rackType": "TYPE_A",
+            "arcs": ["FULL"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "EFF+",
+        "name": "#318",
+        "typeName": "Escort Frigate (+ refit)"
+      }
+    ]
 }

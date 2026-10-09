@@ -96,6 +96,36 @@
     "adds": [
       { "designator": "ADD 1", "upgradeTo": "ADD_12"}  
     ]
-  }
+  },
 
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 170,
+        "bpv": 25,
+        "shields": [30, 28, 22, 22, 22, 28],
+        "power": {"centerWarp": 10, "leftWarp": 10, "rightWarp": 10},
+        "addWeapons": [
+          {"type": "Disruptor", "designator": "C", "range": 30, "arcs": ["FA", "L"]},
+          {"type": "Disruptor", "designator": "D", "range": 30, "arcs": ["FA", "R"]}
+        ],
+        "replaceWeapons": [
+          {"from": "Phaser3", "to": "Phaser1", "designators": ["7", "8"]},
+          {"from": "Disruptor", "set": {"arcs": ["FA", "L"]}, "designators": ["A"]},
+          {"from": "Disruptor", "set": {"arcs": ["FA", "R"]}, "designators": ["B"]},
+          {"from": "Phaser1", "set": {"arcs": ["FA", "L"]}, "designators": ["1"]},
+          {"from": "Phaser1", "set": {"arcs": ["FA", "R"]}, "designators": ["2"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CVL+",
+        "name": "KHS Hurricane",
+        "typeName": "Light Carrier (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }

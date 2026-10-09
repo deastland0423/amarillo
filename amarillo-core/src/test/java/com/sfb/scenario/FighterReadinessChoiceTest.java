@@ -49,8 +49,13 @@ public class FighterReadinessChoiceTest {
      * {@code ShipLibrary.get("Hydran", "RN+")} in new tests, which survives a rename.
      */
     private static Ship rangerRefit() throws Exception {
-        Ship rn = ShipLibrary.createShip(
-                ShipSpec.fromJson(new File("../data/factions/hydran/rn+.json")));
+        // Taking the advice above. The filename survived the rename of 2026-10-03 only because
+        // someone fixed it by hand; it would not survive the Hydran refit migration at all, since
+        // a refitted hull stops having a file. Two Kzinti tests broke exactly this way today.
+        ShipLibrary.loadAllSpecs("../data/factions");
+        ShipSpec spec = ShipLibrary.get("Hydran", "RN+");
+        assertNotNull("Hydran/RN+ should be in the library", spec);
+        Ship rn = ShipLibrary.createShip(spec);
         rn.setName("HMS Tenacity");
         return rn;
     }

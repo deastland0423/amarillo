@@ -94,5 +94,28 @@
       { "designator": "Rack 5", "upgradeTo": "TYPE_B" },
       { "designator": "Rack 6", "upgradeTo": "TYPE_B" }
     ]
-  }
+  },
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 166,
+        "bpv": 15,
+        "shields": [30, 28, 22, 22, 22, 28],
+        "replaceWeapons": [
+          {"from": "Phaser1", "set": {"arcs": ["FA", "L"]}, "designators": ["1"]},
+          {"from": "Phaser1", "set": {"arcs": ["FA", "R"]}, "designators": ["2"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CD+",
+        "name": "KHS Ballista",
+        "typeName": "Drone Cruiser (+ refit)",
+        "serviceYear": 166
+      }
+    ]
 }

@@ -90,5 +90,16 @@
       { "designator": "Rack 6", "upgradeTo": "TYPE_B" }
     ],
     "adds": []
-  }
+  },
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "year": 134,
+        "bpv": 1,
+        "shields": [15, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [{"refits": ["+"], "type": "DF+", "name": "#421", "typeName": "Drone Frigate (+ refit)"}]
 }
