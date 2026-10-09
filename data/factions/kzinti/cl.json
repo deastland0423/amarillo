@@ -89,6 +89,7 @@
       {
         "code": "+",
         "name": "+ refit",
+        "label": "Plus Refit",
         "year": 166,
         "bpv": 12,
         "y175Upgrades": {
@@ -104,7 +105,7 @@
         "auxiliary": {"derfacs": true},
         "power": {"apr": 4},
         "addWeapons": [
-          {"type": "Disruptor", "designator": "C", "range": 30, "arcs": ["RF", "R"]},
+          {"type": "Disruptor", "designator": "C", "range": 30, "arcs": ["LF", "L"]},
           {"type": "Disruptor", "designator": "D", "range": 30, "arcs": ["RF", "R"]},
           {
             "type": "DroneRack",
@@ -120,7 +121,6 @@
           }
         ],
         "replaceWeapons": [
-          {"from": "Disruptor", "set": {"arcs": ["LF", "L"]}, "designators": ["B"]},
           {"from": "Disruptor", "set": {"range": 30}, "designators": ["A", "B"]}
         ]
       }

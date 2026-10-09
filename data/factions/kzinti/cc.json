@@ -81,21 +81,11 @@
     { "type": "Disruptor",  "designator": "B", "range": 30, "arcs": ["FA", "L"] },
     { "type": "Disruptor",  "designator": "C", "range": 30, "arcs": ["FA", "R"] },
     { "type": "Disruptor",  "designator": "D", "range": 30, "arcs": ["FA", "R"] },
-    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_A", "arcs": ["FULL"]},
-    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_A", "arcs": ["FULL"]}
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_C", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_B", "arcs": ["FULL"]},
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_B", "arcs": ["FULL"]}
 
-  ],
+  ]
 
-  "y175Upgrades": {
-    "refitCost": 0,
-    "racks": [
-      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
-      { "designator": "Rack 2", "upgradeTo": "TYPE_C" },
-      { "designator": "Rack 3", "upgradeTo": "TYPE_B" },
-      { "designator": "Rack 4", "upgradeTo": "TYPE_B" }
-    ],
-    "adds": []
-  }
 }

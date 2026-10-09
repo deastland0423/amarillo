@@ -100,6 +100,7 @@
       {
         "code": "+",
         "name": "+ refit",
+        "label": "Plus Refit",
         "year": 166,
         "bpv": 15,
         "shields": [30, 28, 22, 22, 22, 28],
