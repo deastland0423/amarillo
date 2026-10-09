@@ -76,7 +76,7 @@
         "name": "+ refit",
         "label": "Plus Refit",
         "year": 166,
-        "bpv": 0,
+        "bpv": 6,
         "auxiliary": {"labs": 4},
         "power": {"awr": 4},
         "addWeapons": [
