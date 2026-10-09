@@ -71,5 +71,30 @@
     { "type": "PhaserG", "designator": "8", "arcs": ["RS"] },
     { "type": "Hellbore",  "designator": "A", "arcs": ["RX"] },
     { "type": "Hellbore",  "designator": "B", "arcs": ["RX"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 173,
+        "bpv": 12,
+        "shields": [28, 24, 24, 24, 24, 24],
+        "power": {"leftWarp": 12, "rightWarp": 12},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "Hellbore", "set": {"arcs": ["FA"]}, "designators": ["A", "B"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "TR+",
+        "name": "HMS Horror",
+        "typeName": "Traveller Light Cruiser (+ refit)",
+        "serviceYear": 173
+      }
+    ]
 }

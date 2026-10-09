@@ -65,5 +65,31 @@
     { "type": "PhaserG", "designator": "5", "arcs": ["RA"] },
     { "type": "Hellbore",  "designator": "A", "arcs": ["FA"] },
     { "type": "Hellbore",  "designator": "B", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 172,
+        "bpv": 10,
+        "shields": [24, 18, 18, 18, 18, 18],
+        "power": {"centerWarp": 15},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["3"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["4"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["5"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "KN+",
+        "name": "HMS Invulnerable",
+        "typeName": "Knight Destroyer (+ refit)",
+        "serviceYear": 172
+      }
+    ]
 }

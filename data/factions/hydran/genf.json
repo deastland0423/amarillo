@@ -66,5 +66,25 @@
     { "type": "PhaserG", "designator": "3", "arcs": ["FULL"] },
     { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
     { "type": "Fusion",  "designator": "B", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 2,
+        "shields": [16, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "GEN-F+",
+        "name": "HMS Invigilator",
+        "typeName": "Gendarme Police Ship (with Fighters) (shield refit)",
+        "serviceYear": 175
+      }
+    ]
 }

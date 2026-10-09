@@ -72,5 +72,27 @@
     { "type": "Phaser2", "designator": "6", "arcs": ["RS"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["LS"] },
     { "type": "PhaserG", "designator": "8", "arcs": ["RS"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 19,
+        "epv": 129,
+        "shields": [33, 26, 26, 26, 26, 26],
+        "power": {"centerWarp": 10, "leftWarp": 10, "rightWarp": 10}
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "TUG+",
+        "name": "HMS Capacious",
+        "typeName": "Caravan Tug (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

@@ -64,5 +64,25 @@
     { "type": "PhaserG", "designator": "3", "arcs": ["FULL"] },
     { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
     { "type": "Fusion",  "designator": "B", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 2,
+        "shields": [16, 12, 12, 12, 12, 12]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "GEN+",
+        "name": "HMS What's All This Then?",
+        "typeName": "Gendarme Police Ship (shield refit)",
+        "serviceYear": 175
+      }
+    ]
 }

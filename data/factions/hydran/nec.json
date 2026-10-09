@@ -75,5 +75,31 @@
     { "type": "Phaser2", "designator": "8", "arcs": ["FA", "R"] },
     { "type": "PhaserG", "designator": "9", "arcs": ["RX"] },
     { "type": "PhaserG", "designator": "10", "arcs": ["RX"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 174,
+        "bpv": 12,
+        "shields": [28, 24, 24, 24, 24, 24],
+        "power": {"leftWarp": 12, "rightWarp": 12},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["9"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["10"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "NEC+",
+        "name": "HMS Penetrator",
+        "typeName": "New Escort Cruiser (+ refit)",
+        "serviceYear": 174
+      }
+    ]
 }

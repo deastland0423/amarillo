@@ -85,5 +85,27 @@
     { "type": "Hellbore",  "designator": "F", "arcs": ["FA", "L"] },
     { "type": "Hellbore",  "designator": "G", "arcs": ["FA", "R"] },
     { "type": "Hellbore",  "designator": "H", "arcs": ["FA", "R"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 172,
+        "bpv": 20,
+        "shields": [40, 33, 33, 33, 33, 33],
+        "power": {"leftWarp": 16, "rightWarp": 16},
+        "replaceWeapons": [{"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3", "4", "5", "6"]}]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "PAL+",
+        "name": "HMS Triumph",
+        "typeName": "Paladin Dreadnought (+ refit)",
+        "serviceYear": 172
+      }
+    ]
 }

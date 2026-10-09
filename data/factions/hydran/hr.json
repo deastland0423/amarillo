@@ -73,5 +73,31 @@
     { "type": "PhaserG", "designator": "8", "arcs": ["RX"] },
     { "type": "Fusion",  "designator": "A", "arcs": ["FA"] },
     { "type": "Fusion",  "designator": "B", "arcs": ["FA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 173,
+        "bpv": 12,
+        "shields": [28, 24, 24, 24, 24, 24],
+        "power": {"leftWarp": 12, "rightWarp": 12},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["7"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["8"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "HR+",
+        "name": "HMS Striker",
+        "typeName": "Horseman Light Cruiser (+ refit)",
+        "serviceYear": 173
+      }
+    ]
 }

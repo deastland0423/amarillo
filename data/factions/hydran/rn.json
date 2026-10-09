@@ -77,5 +77,50 @@
     { "type": "Fusion",  "designator": "B", "arcs": ["LF", "L"] },
     { "type": "Fusion",  "designator": "C", "arcs": ["RF", "R"] },
     { "type": "Fusion",  "designator": "D", "arcs": ["RF", "R"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 170,
+        "bpv": 18,
+        "shields": [33, 26, 26, 26, 26, 26],
+        "power": {"centerWarp": 10, "leftWarp": 10, "rightWarp": 10},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["7"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["8"]}
+        ],
+        "set": {
+          "shuttleBays": [
+            {
+              "shuttles": ["admin", "admin", "admin"],
+              "launchTubes": 3,
+              "fighters": {"line": "hydran-stinger", "superiority": 0, "assault": 2, "ew": 1}
+            },
+            {
+              "shuttles": [],
+              "launchTubes": 3,
+              "fighters": {"line": "hydran-stinger", "superiority": 3, "assault": 0, "ew": 0}
+            },
+            {
+              "shuttles": [],
+              "launchTubes": 3,
+              "fighters": {"line": "hydran-stinger", "superiority": 3, "assault": 0, "ew": 0}
+            }
+          ]
+        }
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "RN+",
+        "name": "HMS Bravery",
+        "typeName": "Ranger Cruiser (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }

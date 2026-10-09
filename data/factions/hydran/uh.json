@@ -68,5 +68,32 @@
     { "type": "Phaser2", "designator": "3", "arcs": ["FULL"] },
     { "type": "PhaserG", "designator": "4", "arcs": ["RA"] },
     { "type": "PhaserG", "designator": "5", "arcs": ["RA"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 172,
+        "bpv": 10,
+        "epv": 118,
+        "shields": [24, 18, 18, 18, 18, 18],
+        "power": {"centerWarp": 15},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["3"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["4"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["5"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "UH+",
+        "name": "HMS Scorpion",
+        "typeName": "Uhlan Patrol Carrier (+ refit)",
+        "serviceYear": 172
+      }
+    ]
 }

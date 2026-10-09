@@ -75,5 +75,31 @@
     { "type": "Phaser2", "designator": "6", "arcs": ["FA", "R"] },
     { "type": "PhaserG", "designator": "7", "arcs": ["RA", "L"] },
     { "type": "PhaserG", "designator": "8", "arcs": ["RA", "R"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 175,
+        "bpv": 8,
+        "epv": 148,
+        "shields": [39, 26, 26, 26, 26, 26],
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["7"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["8"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CAV+",
+        "name": "HMS Apex",
+        "typeName": "Cavalier Interdiction Carrier (+ refit)",
+        "serviceYear": 175
+      }
+    ]
 }

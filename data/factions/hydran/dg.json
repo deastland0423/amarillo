@@ -75,5 +75,31 @@
     { "type": "Hellbore",  "designator": "B", "arcs": ["LF", "L"] },
     { "type": "Hellbore",  "designator": "C", "arcs": ["RF", "R"] },
     { "type": "Hellbore",  "designator": "D", "arcs": ["RF", "R"] }
-  ]
+  ],
+
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 170,
+        "bpv": 18,
+        "shields": [33, 26, 26, 26, 26, 26],
+        "power": {"centerWarp": 10, "leftWarp": 10, "rightWarp": 10},
+        "replaceWeapons": [
+          {"from": "Phaser2", "to": "Phaser1", "designators": ["1", "2"]},
+          {"from": "PhaserG", "set": {"arcs": ["LS"]}, "designators": ["7"]},
+          {"from": "PhaserG", "set": {"arcs": ["RS"]}, "designators": ["8"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "DG+",
+        "name": "HMS Glorious",
+        "typeName": "Dragoon Cruiser (+ refit)",
+        "serviceYear": 170
+      }
+    ]
 }
