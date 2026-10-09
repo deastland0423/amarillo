@@ -14,14 +14,14 @@
   "shuttles": [
     { "type": "g1", "name": "Gladiator-1 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 4,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1", "designation": "G1",
       "weapons": [ 
-        { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"], "launchDirections": ["1"] } 
+        { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
     { "type": "g1_e", "name": "Gladiator-1 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 165, "speed": 10,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-1E", "designation": "G1E", "fixedEwPods": 2, "twoSeater": true,
       "weapons": [ ] },
     { "type": "g2", "name": "Gladiator-2 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 7,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2", "designation": "G2",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"], "launchDirections": ["1"] } 
+                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
     { "type": "g2_e", "name": "Gladiator-2 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 173, "speed": 12,  "hull": 12,  "crippled": 8, "bpv": 9,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-2E", "designation": "G2E", "fixedEwPods": 2, "twoSeater": true,
       "weapons": [ 
@@ -30,7 +30,7 @@
     { "type": "g3", "name": "Gladiator-3 Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 8,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3", "designation": "G3",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"], "launchDirections": ["1"] } 
+                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] } 
       ] },
     { "type": "g3_e", "name": "Gladiator-3 Assault Fighter (EW)",                  "kind": "fighter",    "factions": ["romulan"], "year": 180, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3E", "designation": "G3E", "fixedEwPods": 2, "twoSeater": true,
       "weapons": [ 
@@ -39,7 +39,7 @@
     { "type": "g3k", "name": "Gladiator-3K Assault Fighter",                  "kind": "fighter",    "factions": ["romulan"], "year": 183, "speed": 15,  "hull": 12,  "crippled": 8, "bpv": 10,  "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "G-3K", "designation": "G3K",
       "weapons": [ 
                    { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
-                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"], "launchDirections": ["1"] }, 
+                   { "type": "FighterPlasmaF", "designator": "A", "arcs": ["FA"] }, 
                    { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "PLASMA_D" },
                    { "type": "DroneRail", "designator": "C", "arcs": ["FA"], "railType": "PLASMA_D" } 
       ] },

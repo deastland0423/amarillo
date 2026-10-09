@@ -14,21 +14,17 @@
   "bonusHets": 1,
   "commandRating": 6,
   "tokenArt": "romulan/bh.png",
-  
   "shields": [25, 25, 25, 25, 25, 25],
-  
   "hullBoxes": {
     "chull": 4,
     "armor": 5
   },
-  
   "power": {
     "leftWarp": 7,
     "rightWarp": 7,
     "impulse": 6,
     "battery": 2
   },
-  
   "control": {
     "bridge": 2,
     "controlMod": 1.0
@@ -64,8 +60,8 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "L", "13"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["FA", "R", "13"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["FA", "R", "13"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"] }
 
   ],
 

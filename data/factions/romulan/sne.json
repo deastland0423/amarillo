@@ -18,21 +18,17 @@
   "carrierClass": "CASUAL",
   "aegis": "LIMITED",
   "tokenArt": "romulan/sn.png",
-  
   "shields": [20, 20, 20, 20, 20, 20],
-  
   "hullBoxes": {
     "chull": 3,
     "armor": 3
   },
-  
   "power": {
     "leftWarp": 3,
     "rightWarp": 3,
     "impulse": 1,
     "battery": 3
   },
-  
   "control": {
     "bridge": 1,
     "auxCon": 1,
@@ -70,7 +66,7 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R"] },
     { "type": "Phaser3", "designator": "3", "arcs": ["L", "RA"] },
     { "type": "Phaser3", "designator": "4", "arcs": ["R", "RA"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["FA"] },
     { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
     { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
   ]

@@ -14,12 +14,10 @@
   "commandRating": 3,
 
   "shields": [16, 12, 10, 10, 10, 12],
-  
   "hullBoxes": {
     "chull": 4,
     "cargo": 5
   },
-  
   "power": {
     "leftWarp": 6,
     "rightWarp": 6,
@@ -27,7 +25,6 @@
     "apr": 1,
     "battery": 2
   },
-  
   "control": {
     "bridge": 1,
     "emergency": 1,
@@ -63,7 +60,7 @@
     { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"] }
   ],
 
     "refits": [
@@ -79,12 +76,7 @@
           {"type": "Phaser3", "designator": "5", "arcs": ["RS"]}
         ],
         "replaceWeapons": [
-          {"from": "PlasmaLauncher", "set": {"arcs": ["FP"]}, "designators": ["A"]},
-          {
-            "from": "PlasmaLauncher",
-            "set": {"launchDirections": ["21", "1", "5"]},
-            "designators": ["A"]
-          }
+          {"from": "PlasmaLauncher", "set": {"arcs": ["FP"]}, "designators": ["A"]}
         ]
       }
     ],

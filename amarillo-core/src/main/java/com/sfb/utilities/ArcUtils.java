@@ -111,4 +111,70 @@ public class ArcUtils {
         return null; // Not an alias
     }
   }
+
+  /**
+   * D2.34: where a plasma torpedo on this firing arc may be launched, as a direction bitmask.
+   *
+   * <p>A swivel mount "is able to track targets in a 180 degree firing arc and to fire its
+   * weapons in any of three specified directions" — so the ARC is what the launcher can aim at
+   * and the DIRECTION is the facing the torpedo leaves on, and the arc fixes the directions
+   * completely. A hull has no say in it.
+   *
+   * <h2>Why this is derived rather than stored</h2>
+   * It used to be stated, once per launcher, in every ship file: 159 hand-typed lists of numbers
+   * where only one answer was ever possible. A mistyped list is invisible there, because a wrong
+   * set of directions is still a perfectly ordinary set of directions. Three were found in a
+   * single day — the Gorn L-Q's rear launchers given the left/right split that LP and RP use, and
+   * sixteen side-arc launchers across eight hulls each carrying a spurious 13, which D2.34's
+   * "three specified directions" rules out outright.
+   *
+   * <p>That last one is the cautionary tale: the sixteen were the MAJORITY, eight to one against
+   * the single hull that had it right. Deriving makes the error unrepresentable instead of merely
+   * detectable.
+   *
+   * @param arcs the launcher's firing arcs as a ship file spells them, in any order
+   * @return the launch-direction mask, or 0 for an arc the rule does not cover — which the
+   *         callers treat as "unrestricted", the same as a launcher that states nothing
+   */
+  public static int plasmaLaunchDirections(List<String> arcs) {
+    if (arcs == null || arcs.isEmpty())
+      return 0;
+    List<String> key = new java.util.ArrayList<>();
+    for (String a : arcs)
+      key.add(a.toUpperCase(java.util.Locale.ROOT));
+    // Sorted, so "L,LF" and "LF,L" — both of which appear in the data — are one case.
+    java.util.Collections.sort(key);
+    switch (String.join(",", key)) {
+      case "FA":
+        return of(1);
+      case "RA":
+        return of(13);
+      case "FP":
+        return of(21, 1, 5);
+      case "LP":
+      case "LS":
+        return of(17, 21, 1);
+      case "RP":
+      case "RS":
+        return of(1, 5, 9);
+      case "L,LF":
+        return of(21);
+      case "R,RF":
+        return of(5);
+      case "L,LR":
+        return of(17);
+      case "R,RR":
+        return of(9);
+      // D2.36, the Gorn battle pod's REVERSE swivel mounts, and the aft plasma arc. No hull in
+      // the data carries one yet; they are here so the first that does needs no code change.
+      case "LPR":
+        return of(13, 17, 21);
+      case "RPR":
+        return of(5, 9, 13);
+      case "AP":
+        return of(9, 13, 17);
+      default:
+        return 0;
+    }
+  }
 }

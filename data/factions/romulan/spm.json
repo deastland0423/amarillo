@@ -19,12 +19,10 @@
   "tokenArt": "romulan/sp.png",
 
   "shields": [30, 24, 24, 24, 24, 24],
-  
   "hullBoxes": {
     "fhull": 3,
     "ahull": 8
   },
-  
   "power": {
     "leftWarp": 8,
     "rightWarp": 8,
@@ -33,7 +31,6 @@
     "apr": 3,
     "battery": 5
   },
-  
   "control": {
     "bridge": 2,
     "emergency": 1,
@@ -80,7 +77,7 @@
     { "type": "Phaser3", "designator": "9", "arcs": ["L", "RA"] },
     { "type": "Phaser3", "designator": "10", "arcs": ["R", "RA"] },
     { "type": "Phaser1", "designator": "11", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"] },
     { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
     { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] },
     { "type": "PlasmaRack", "designator": "3", "arcs": ["LS"] },

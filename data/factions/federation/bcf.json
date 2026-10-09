@@ -14,14 +14,11 @@
   "bonusHets": 1,
   "commandRating": 10,
   "tokenArt": "federation/bch.png",
-  
   "shields": [36, 30, 24, 24, 24, 30],
-  
   "hullBoxes": {
     "fhull": 12,
     "ahull": 6
   },
-  
   "power": {
     "leftWarp": 15,
     "rightWarp": 15,
@@ -30,7 +27,6 @@
     "awr": 5,
     "battery": 7
   },
-  
   "control": {
     "bridge": 2,
     "flag": 2,
@@ -80,8 +76,8 @@
     { "type": "Photon",  "designator": "B", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "C", "arcs": ["FA"] },
     { "type": "Photon",  "designator": "D", "arcs": ["FA"] },
-    { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
-    { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
+    { "type": "PlasmaLauncher", "designator": "E", "plasmaType": "F", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "F", "plasmaType": "F", "arcs": ["FP"] },
     { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"]},
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"]}
   ]

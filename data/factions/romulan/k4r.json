@@ -13,14 +13,11 @@
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 3,
-  
   "shields": [21, 12, 7, 5, 7, 12],
-  
   "hullBoxes": {
     "fhull": 2,
     "ahull": 4
   },
-  
   "power": {
     "leftWarp": 6,
     "rightWarp": 6,
@@ -28,7 +25,6 @@
     "apr": 1,
     "battery": 2
   },
-  
   "control": {
     "bridge": 1,
     "emergency": 1,
@@ -65,8 +61,8 @@
     { "type": "Phaser1", "designator": "2", "arcs": ["FA", "R", "13"] },
     { "type": "Phaser2", "designator": "3", "arcs": ["RX"] },
     { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["LP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["RP"] }
 
   ],
 

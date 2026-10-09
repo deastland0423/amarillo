@@ -19,12 +19,10 @@
   "tokenArt": "romulan/con.png",
 
   "shields": [36, 36, 36, 36, 36, 36],
-  
   "hullBoxes": {
     "fhull": 12,
     "ahull": 16
   },
-  
   "power": {
     "leftWarp": 24,
     "rightWarp": 24,
@@ -32,7 +30,6 @@
     "apr": 3,
     "battery": 4
   },
-  
   "control": {
     "bridge": 3,
     "flag": 2,
@@ -76,9 +73,9 @@
     { "type": "Phaser1", "designator": "6", "arcs": ["FULL"] },
     { "type": "Phaser1", "designator": "7", "arcs": ["L", "RA"] },
     { "type": "Phaser1", "designator": "8", "arcs": ["R", "RA"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"] }
   ],
     "refits": [
       {
@@ -96,15 +93,13 @@
             "type": "PlasmaLauncher",
             "designator": "D",
             "plasmaType": "F",
-            "arcs": ["LP"],
-            "launchDirections": ["17", "21", "1"]
+            "arcs": ["LP"]
           },
           {
             "type": "PlasmaLauncher",
             "designator": "E",
             "plasmaType": "F",
-            "arcs": ["RP"],
-            "launchDirections": ["1", "5", "9"]
+            "arcs": ["RP"]
           }
         ]
       }

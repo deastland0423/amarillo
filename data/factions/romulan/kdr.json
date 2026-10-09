@@ -14,14 +14,11 @@
   "bonusHets": 1,
   "commandRating": 6,
   "tokenArt": "romulan/d5.png",
-  
   "shields": [30, 26, 26, 26, 26, 26],
-  
   "hullBoxes": {
     "fhull": 4,
     "ahull": 6
   },
-  
   "power": {
     "leftWarp": 12,
     "rightWarp": 12,
@@ -29,7 +26,6 @@
     "apr": 3,
     "battery": 4
   },
-  
   "control": {
     "bridge": 2,
     "emergency": 1,
@@ -70,8 +66,8 @@
     { "type": "Phaser3", "designator": "6", "arcs": ["L", "LR"] },
     { "type": "Phaser3", "designator": "7", "arcs": ["R", "RR"] },
     { "type": "Phaser3", "designator": "8", "arcs": ["R", "RR"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["LP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["RP"] },
     { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
     { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
 

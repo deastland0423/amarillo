@@ -96,9 +96,13 @@ public final class WeaponFactory {
                 PlasmaLauncher pl = new PlasmaLauncher(pt);
                 pl.setArcs(arcMask);
                 pl.setDesignator(ws.designator);
-                if (ws.launchDirections != null && !ws.launchDirections.isEmpty()) {
-                    pl.setLaunchDirections(ArcUtils.calculateMask(ws.launchDirections));
-                }
+                // DERIVED from the arc (D2.34), because the arc fixes it completely and a hull
+                // has no say. A file may still state it — nothing in the data does any more —
+                // and a stated list wins, so an exception remains expressible if one is ever
+                // found. See ArcUtils.plasmaLaunchDirections for what stating it used to cost.
+                pl.setLaunchDirections(ws.launchDirections != null && !ws.launchDirections.isEmpty()
+                        ? ArcUtils.calculateMask(ws.launchDirections)
+                        : ArcUtils.plasmaLaunchDirections(ws.arcs));
                 return pl;
             }
             case "DroneRack": {
@@ -205,8 +209,9 @@ public final class WeaponFactory {
                 // Same launch-direction handling a ship's launcher gets: the ARC is what the
                 // torpedo may be launched at, the DIRECTION is the facing it leaves on, and a
                 // fighter's is forward.
-                if (ws.launchDirections != null && !ws.launchDirections.isEmpty())
-                    fpf.setLaunchDirections(ArcUtils.calculateMask(ws.launchDirections));
+                fpf.setLaunchDirections(ws.launchDirections != null && !ws.launchDirections.isEmpty()
+                        ? ArcUtils.calculateMask(ws.launchDirections)
+                        : ArcUtils.plasmaLaunchDirections(ws.arcs));
                 return fpf;
             }
             /*

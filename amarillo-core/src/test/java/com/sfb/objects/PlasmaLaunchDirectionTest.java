@@ -1,146 +1,151 @@
 package com.sfb.objects;
 
+import com.sfb.utilities.ArcUtils;
+import com.sfb.weapons.PlasmaLauncher;
+import com.sfb.weapons.Weapon;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * A plasma launcher's firing arc fixes the directions it may launch in.
+ * A plasma launcher's firing arc decides where it may launch, and nothing states it any more.
  *
- * <h2>The rule, from the owner, 2026-10-09</h2>
- * It is a property of the ARC, not of the ship, so there is exactly one right answer per arc and
- * a hull cannot have an opinion about it:
+ * <h2>The rule (D2.34, D2.36)</h2>
+ * A swivel mount "is able to track targets in a 180 degree firing arc and to fire its weapons in
+ * any of three specified directions". The ARC is what the launcher aims at; the DIRECTION is the
+ * facing the torpedo leaves on; and the arc fixes the directions completely, so a hull has no say.
+ * {@link ArcUtils#plasmaLaunchDirections} is the single statement of it.
  *
- * <pre>
- *   FA    -> 1
- *   RA    -> 13
- *   FP    -> 21, 1, 5
- *   LP    -> 17, 21, 1
- *   RP    -> 1, 5, 9
- *   LF,L  -> 21
- *   RF,R  -> 5
- *   LS    -> 17, 21, 1   (as LP)
- *   RS    -> 1, 5, 9     (as RP)
- * </pre>
+ * <h2>What this replaced</h2>
+ * 159 hand-typed direction lists in the ship files, one per launcher, where only one answer was
+ * ever possible. A mistyped list was invisible — a wrong set of directions is still a perfectly
+ * ordinary set of directions — and three errors were found in one day:
+ * <ul>
+ *   <li>the Gorn L-Q's two rear launchers, given the left/right split that LP and RP use;</li>
+ *   <li>the Gorn BDD and BDL, carrying the RP directions under an arc of RA — where the ARC was
+ *       the typo and the directions were right;</li>
+ *   <li>sixteen side-arc launchers across eight hulls, each with a spurious 13 that D2.34's
+ *       "three specified directions" rules out.</li>
+ * </ul>
  *
- * <h2>The side arcs, and why the majority was wrong</h2>
- * LS and RS were not in the owner's first list and the data disagreed with itself: eight
- * launchers of each said four directions (13,17,21,1 and 1,5,9,13) against one that said three,
- * the lone dissenter being the Gorn DN+. The obvious inference — eight beats one — was exactly
- * backwards. D2.34 settles it: a swivel mount fires "in any of THREE specified directions", so
- * four was never possible, and the sixteen launchers in the majority each carried a spurious 13.
- * <p>
- * Worth remembering before trusting a majority in this data again. The DN+'s pair had come from
- * {@code dnf.json} and the Gorn CC, CL and DD keep theirs in refit blocks folded from the Fleet
- * ships — so the error was in the source files, reproduced faithfully by the migration, and its
- * equivalence check could not see it: that check compares a variant against the file it replaced
- * and is blind to anything both copies agree on.
+ * <p>The last is the cautionary one: those sixteen were the MAJORITY, eight to one against the
+ * single hull that had it right. In this data a majority is only the number of times something was
+ * copied. Deriving makes the whole class of error unrepresentable rather than merely detectable.
  *
- * <h2>Why a guard and not a fix</h2>
- * Nothing derives these today — every launcher in every ship file states its own directions by
- * hand, 141 of them, so a single mistyped list is invisible. Two were found the day this was
- * written and neither looked wrong on the page: the Gorn L-Q's rear launchers had been given the
- * left/right split that LP and RP use, and the Gorn BDD and BDL had the RP directions under an
- * arc of RA — where the ARC was the typo, not the directions.
- *
- * <p>Cross-checking each launcher against its arc is what made both visible, because the fleet is
- * overwhelmingly consistent: the outliers stood out at two against thirty-five. This test is that
- * cross-check, kept.
- *
- * <p>The better fix is to DERIVE the directions from the arc and stop storing them. That is a
- * data-model change touching 141 launchers and the refit blocks that add more, so it is not done
- * here — but if it is ever done, this test is what proves the derivation agrees with the data it
- * replaces.
+ * <p>A file may still state the field — {@code WeaponFactory} prefers a stated list — so a genuine
+ * exception stays expressible if one is ever found. {@link #noShipFileStatesLaunchDirections()}
+ * fails if one appears, so adding it back is a decision rather than a drift.
  */
 public class PlasmaLaunchDirectionTest {
 
-    /** Arc (as the ship file spells it) to the only directions a plasma on it may launch in. */
-    private static final Map<String, List<String>> BY_ARC = new LinkedHashMap<>();
-    static {
-        BY_ARC.put("FA",   List.of("1"));
-        BY_ARC.put("RA",   List.of("13"));
-        BY_ARC.put("FP",   List.of("21", "1", "5"));
-        BY_ARC.put("LP",   List.of("17", "21", "1"));
-        BY_ARC.put("RP",   List.of("1", "5", "9"));
-        BY_ARC.put("L,LF", List.of("21"));
-        BY_ARC.put("LF,L", List.of("21"));
-        BY_ARC.put("R,RF", List.of("5"));
-        BY_ARC.put("RF,R", List.of("5"));
-        // D2.34, found by the owner: the side arcs launch where their plasma arc does.
-        BY_ARC.put("LS",   List.of("17", "21", "1"));
-        BY_ARC.put("RS",   List.of("1", "5", "9"));
-    }
-
-    /**
-     * Arcs no rule covers yet, held as a roster so a NEW uncovered arc fails rather than being
-     * skipped. Empty, and the aim is to keep it that way.
-     */
-    private static final Set<String> NOT_YET_STATED = new LinkedHashSet<>();
+    private static final File FACTIONS = new File("../data/factions");
 
     @BeforeClass
     public static void loadLibrary() {
-        ShipLibrary.loadAllSpecs("../data/factions");
+        ShipLibrary.loadAllSpecs(FACTIONS.getPath());
     }
 
-    private static String key(List<String> arcs) {
-        return arcs == null ? "" : String.join(",", arcs);
-    }
-
+    /** Every launcher in the game now gets its directions from its arc, and gets some. */
     @Test
-    public void everyPlasmaLauncherLaunchesWhereItsArcAllows() {
+    public void everyBuiltLauncherDerivesItsDirectionsFromItsArc() {
         List<String> wrong = new ArrayList<>();
         int checked = 0;
 
         for (ShipSpec spec : ShipLibrary.all()) {
-            if (spec.weapons == null) continue;
-            for (ShipSpec.WeaponSpec w : spec.weapons) {
-                if (!"PlasmaLauncher".equals(w.type)) continue;
-                String arc = key(w.arcs);
-                List<String> want = BY_ARC.get(arc);
-                if (want == null) continue;        // covered by the roster test below
+            Ship ship = ShipLibrary.createShip(spec);
+            for (Weapon w : ship.getWeapons().fetchAllWeapons()) {
+                if (!(w instanceof PlasmaLauncher pl)) continue;
                 checked++;
-                List<String> got = w.launchDirections == null ? List.of() : w.launchDirections;
-                if (!want.equals(got))
-                    wrong.add(spec.faction + "/" + spec.type + " launcher " + w.designator
-                            + " on arc " + arc + " launches " + got + ", should be " + want);
+                if (pl.getLaunchDirections() == 0)
+                    wrong.add(spec.faction + "/" + spec.type + " launcher " + pl.getDesignator()
+                            + " launches in NO direction — its arc has no rule in"
+                            + " ArcUtils.plasmaLaunchDirections");
             }
         }
 
-        assertTrue("there should be plasma launchers to check", checked > 100);
+        assertTrue("there should be plasma launchers to check", checked > 200);
         String indent = System.lineSeparator() + "  ";
-        assertTrue("a plasma launcher disagrees with its arc:" + indent + String.join(indent, wrong),
-                wrong.isEmpty());
+        assertTrue("a plasma launcher has no launch direction:" + indent
+                + String.join(indent, wrong), wrong.isEmpty());
+    }
+
+    /** The exact rule, pinned. These are the numbers, not a restatement of the implementation. */
+    @Test
+    public void theArcToDirectionRuleIsWhatTheOwnerStated() {
+        assertEquals(ArcUtils.of(1),          ArcUtils.plasmaLaunchDirections(List.of("FA")));
+        assertEquals(ArcUtils.of(13),         ArcUtils.plasmaLaunchDirections(List.of("RA")));
+        assertEquals(ArcUtils.of(21, 1, 5),   ArcUtils.plasmaLaunchDirections(List.of("FP")));
+        assertEquals(ArcUtils.of(17, 21, 1),  ArcUtils.plasmaLaunchDirections(List.of("LP")));
+        assertEquals(ArcUtils.of(1, 5, 9),    ArcUtils.plasmaLaunchDirections(List.of("RP")));
+        assertEquals(ArcUtils.of(17, 21, 1),  ArcUtils.plasmaLaunchDirections(List.of("LS")));
+        assertEquals(ArcUtils.of(1, 5, 9),    ArcUtils.plasmaLaunchDirections(List.of("RS")));
+        assertEquals(ArcUtils.of(21),         ArcUtils.plasmaLaunchDirections(List.of("L", "LF")));
+        assertEquals(ArcUtils.of(5),          ArcUtils.plasmaLaunchDirections(List.of("R", "RF")));
+        assertEquals(ArcUtils.of(17),         ArcUtils.plasmaLaunchDirections(List.of("L", "LR")));
+        assertEquals(ArcUtils.of(9),          ArcUtils.plasmaLaunchDirections(List.of("R", "RR")));
+        // D2.36, the Gorn battle pod's reverse swivel mounts. No hull carries one yet.
+        assertEquals(ArcUtils.of(13, 17, 21), ArcUtils.plasmaLaunchDirections(List.of("LPR")));
+        assertEquals(ArcUtils.of(5, 9, 13),   ArcUtils.plasmaLaunchDirections(List.of("RPR")));
+        assertEquals(ArcUtils.of(9, 13, 17),  ArcUtils.plasmaLaunchDirections(List.of("AP")));
     }
 
     /**
-     * And no arc appears that the rule has nothing to say about.
+     * A multi-token arc means the same thing whichever order it is written in.
      * <p>
-     * A roster rather than an invariant, deliberately: a plasma turning up on an arc nobody has
-     * ruled on should cost a decision here, not be silently skipped by the test above.
+     * The owner's point, and the data proves it was needed: both {@code ["L","LF"]} and
+     * {@code ["LF","L"]} appear in the ship files for the same arc. The derivation sorts before
+     * matching so neither spelling is privileged.
      */
     @Test
-    public void onlyTheKnownUnstatedArcsAreUncovered() {
-        Set<String> uncovered = new TreeSet<>();
-        for (ShipSpec spec : ShipLibrary.all()) {
-            if (spec.weapons == null) continue;
-            for (ShipSpec.WeaponSpec w : spec.weapons) {
-                if (!"PlasmaLauncher".equals(w.type)) continue;
-                String arc = key(w.arcs);
-                if (!BY_ARC.containsKey(arc)) uncovered.add(arc);
+    public void theOrderOfTheArcTokensDoesNotMatter() {
+        assertEquals(ArcUtils.plasmaLaunchDirections(List.of("L", "LF")),
+                     ArcUtils.plasmaLaunchDirections(List.of("LF", "L")));
+        assertEquals(ArcUtils.plasmaLaunchDirections(List.of("R", "RF")),
+                     ArcUtils.plasmaLaunchDirections(List.of("RF", "R")));
+        assertEquals(ArcUtils.plasmaLaunchDirections(List.of("L", "LR")),
+                     ArcUtils.plasmaLaunchDirections(List.of("LR", "L")));
+        assertEquals("and case is not significant either", ArcUtils.of(1),
+                     ArcUtils.plasmaLaunchDirections(List.of("fa")));
+    }
+
+    /** An arc with no rule derives nothing, rather than guessing. */
+    @Test
+    public void anUnknownArcDerivesNothing() {
+        assertEquals(0, ArcUtils.plasmaLaunchDirections(List.of("FX")));
+        assertEquals(0, ArcUtils.plasmaLaunchDirections(List.of()));
+        assertEquals(0, ArcUtils.plasmaLaunchDirections(null));
+    }
+
+    /**
+     * And no ship file states the field again.
+     * <p>
+     * WeaponFactory still honours a stated list, so an exception remains possible — but it should
+     * cost a deliberate decision and a line here, not slip back in because someone copied an old
+     * weapon entry. Checked against the FILES rather than the specs, because that is where a
+     * hand-edit lands.
+     */
+    @Test
+    public void noShipFileStatesLaunchDirections() throws Exception {
+        java.util.Set<String> stating = new TreeSet<>();
+        int files = 0;
+        File[] factions = FACTIONS.listFiles(File::isDirectory);
+        for (File faction : factions == null ? new File[0] : factions)
+            for (File f : faction.listFiles(n -> n.getName().endsWith(".json"))) {
+                files++;
+                if (java.nio.file.Files.readString(f.toPath()).contains("\"launchDirections\""))
+                    stating.add(faction.getName() + "/" + f.getName());
             }
-        }
-        assertEquals("a plasma launcher sits on an arc the launch-direction rule does not cover;"
-                + " ask the owner what it launches in, then add it to BY_ARC",
-                new TreeSet<>(NOT_YET_STATED), uncovered);
+
+        assertTrue("there should be ship files to read", files > 200);
+        assertEquals("a ship file states launchDirections, which the arc now derives — remove it,"
+                + " or if this really is an exception to D2.34, say so here", new TreeSet<>(),
+                stating);
     }
 }

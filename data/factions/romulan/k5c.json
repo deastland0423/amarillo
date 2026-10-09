@@ -16,12 +16,10 @@
   "isLeader": true,
   "tokenArt": "romulan/f5.png",
   "shields": [26, 20, 16, 16, 16, 20],
-  
   "hullBoxes": {
     "fhull": 3,
     "ahull": 6
   },
-  
   "power": {
     "leftWarp": 8,
     "rightWarp": 8,
@@ -29,7 +27,6 @@
     "apr": 4,
     "battery": 2
   },
-  
   "control": {
     "bridge": 1,
     "emergency": 1,
@@ -68,8 +65,8 @@
     { "type": "Phaser1", "designator": "3", "arcs": ["RX"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["RX"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["RX"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["LF", "L"], "launchDirections": ["21"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["RF", "R"], "launchDirections": ["5"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["LF", "L"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["RF", "R"] }
 
   ],
     "refits": [
@@ -80,17 +77,7 @@
         "bpv": 6,
         "replaceWeapons": [
           {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
-          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
-          {
-            "from": "PlasmaLauncher",
-            "set": {"launchDirections": ["1", "5", "9"]},
-            "designators": ["B"]
-          },
-          {
-            "from": "PlasmaLauncher",
-            "set": {"launchDirections": ["17", "21", "1"]},
-            "designators": ["A"]
-          }
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]}
         ]
       }
     ],

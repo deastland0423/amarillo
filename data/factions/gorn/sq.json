@@ -63,6 +63,6 @@
     { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] },
     { "type": "Phaser1", "designator": "2", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "3", "arcs": ["RS"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"], "launchDirections": ["1"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "F", "arcs": ["FA"] }
   ]
 }

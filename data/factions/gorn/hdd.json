@@ -14,12 +14,10 @@
   "commandRating": 6,
 
   "shields": [27, 20, 20, 20, 20, 20],
-  
   "hullBoxes": {
     "fhull": 4,
     "ahull": 8
   },
-  
   "power": {
     "leftWarp": 12,
     "rightWarp": 12,
@@ -27,7 +25,6 @@
     "apr": 2,
     "battery": 3
   },
-  
   "control": {
     "bridge": 2,
     "auxCon": 1,
@@ -66,9 +63,9 @@
     { "type": "Phaser1", "designator": "3", "arcs": ["LS"] },
     { "type": "Phaser1", "designator": "4", "arcs": ["RS"] },
     { "type": "Phaser1", "designator": "5", "arcs": ["FULL"] },
-    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"], "launchDirections": ["21", "1", "5"] },
-    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
-    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "S", "arcs": ["FP"] },
+    { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "F", "arcs": ["LP"] },
+    { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["RP"] }
   ],
 
     "refits": [
