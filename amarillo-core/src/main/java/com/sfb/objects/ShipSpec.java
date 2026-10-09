@@ -761,7 +761,21 @@ public class ShipSpec {
         if (tokenArt != null) m.put("tokenart", tokenArt);
         m.put("serviceyear", serviceYear);
         m.put("bpv", bpv);
-        m.put("epv", epv);
+        // Only when the hull SAYS so. G24.35 gives a scout a split value, economic over combat,
+        // and a hull that lists one BPV is telling us the two are equal — which is what Ship's
+        // constructor does with an absent epv, and has always meant to.
+        //
+        // That fallback was dead. `epv` is a primitive int, so an omitted key arrives as 0 and
+        // this put asserted it; the constructor's `values.get("epv") == null` could never be
+        // true for a JSON-loaded ship. The Klingon D6D and the Kzinti CD are scouts that list
+        // only a BPV, so FleetValidator.costOf asked for their economic value, got 0, and sold
+        // two 113-point cruisers for nothing. Found in the fleet builder, where the CD showed a
+        // cost of 0 beside a SCOUT badge.
+        //
+        // The same primitive-cannot-say-nothing trap as the DTO fields in CLAUDE.md, one layer
+        // further in. Guarded now by ShipCostTest.
+        if (epv > 0)
+            m.put("epv", epv);
         if (commandRating > 0)
             m.put("commandrating", commandRating);
         m.put("turnmode", TurnMode.valueOf(turnMode));
