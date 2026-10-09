@@ -89,6 +89,22 @@ public class ShipSpec {
     public boolean isEscort;
 
     /**
+     * A base rather than a ship: starbase, battle station, base station, outpost.
+     *
+     * <h2>Why this had to be added rather than used</h2>
+     * {@link Ship#isBase()} has existed for some time and gates a real rule — G24.135, a base
+     * never blinds its own scout channels when it fires — but nothing could ever turn it on.
+     * There was no field here, no key in {@code toMap}, and no ship file set it; the only two
+     * places it was ever true were two tests. So every base the game might have fielded would
+     * have blinded itself like a ship.
+     *
+     * <p>The third field found in this shape, after {@code crewQuality} (every ship was NORMAL)
+     * and {@code epv} (a primitive that could not say "unset", which made two scouts free). The
+     * pattern to watch for is a flag the rules read and the data cannot write.
+     */
+    public boolean isBase;
+
+    /**
      * Aegis fire control fitted to this hull (D13.0): "NONE", "LIMITED" or "FULL".
      * <p>
      * Deliberately NOT derived from {@link #isEscort}. Most aegis ships are carrier escorts,
@@ -791,6 +807,8 @@ public class ShipSpec {
             m.put("typename", typeName);
         if (isEscort)
             m.put("isescort", true);
+        if (isBase)
+            m.put("isbase", true);
         if (aegis != null)
             m.put("aegis", aegis);
         if (aegisWeapons != null && !aegisWeapons.isEmpty())

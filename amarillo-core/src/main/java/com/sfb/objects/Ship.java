@@ -258,6 +258,7 @@ public class Ship extends Unit implements DroneController {
 		commandRating = values.get("commandrating") == null ? 0 : (Integer) values.get("commandrating");
 		leader      = Boolean.TRUE.equals(values.get("isleader"));
 		escort      = Boolean.TRUE.equals(values.get("isescort"));
+		isBase      = Boolean.TRUE.equals(values.get("isbase"));
 		requiresEscort = Boolean.TRUE.equals(values.get("requiresescort"));
 		carrierClass = com.sfb.properties.CarrierClass.from(values.get("carrierclass"));
 		aegisFitted = com.sfb.properties.AegisLevel.from(values.get("aegis"));
