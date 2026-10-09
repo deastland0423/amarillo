@@ -79,5 +79,38 @@
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaRack", "designator": "1", "arcs": ["LS"] },
     { "type": "PlasmaRack", "designator": "2", "arcs": ["RS"] }
-  ]
+  ],
+    "refits": [
+      {
+        "code": "B",
+        "name": "B refit",
+        "year": 172,
+        "bpv": 17,
+        "shields": [30, 22, 22, 22, 22, 22],
+        "replaceWeapons": [
+          {"from": "PlasmaLauncher", "set": {"arcs": ["LP"]}, "designators": ["A"]},
+          {"from": "PlasmaLauncher", "set": {"arcs": ["RP"]}, "designators": ["B"]},
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["1", "5", "9"]},
+            "designators": ["B"]
+          },
+          {
+            "from": "PlasmaLauncher",
+            "set": {"launchDirections": ["17", "21", "1"]},
+            "designators": ["A"]
+          },
+          {"from": "PlasmaLauncher", "set": {"plasmaType": "S"}, "designators": ["A", "B"]}
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["B"],
+        "type": "KRVB",
+        "name": "RIS Annihilation",
+        "typeName": "KRV Carrier (B refit)",
+        "serviceYear": 172
+      }
+    ]
 }

@@ -80,5 +80,27 @@
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "G", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "F", "arcs": ["LP"], "launchDirections": ["17","21", "1"] },
     { "type": "PlasmaLauncher", "designator": "D", "plasmaType": "F", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
+  ],
+
+  "refits": [
+    {
+      "code": "B",
+      "name": "B refit",
+      "year": 170,
+      "bpv": 10,
+      "_note": "The Kestrel B refit is a package: shields up, and on some hulls the plasma too. The KRC is already at the post-refit shields its family reaches, so only the plasma part does anything here -- type G to type S, as the KR's and K7R's B refits also do. Owner, 2026-10-09.",
+      "replaceWeapons": [
+        {"from": "PlasmaLauncher", "designators": ["A", "B"], "set": {"plasmaType": "S"}}
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["B"],
+      "type": "KRL",
+      "name": "RIS Conqueror",
+      "typeName": "Command Cruiser (B refit)",
+      "serviceYear": 170
+    }
   ]
 }

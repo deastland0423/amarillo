@@ -4,7 +4,6 @@
   "typeName": "Seahawk-B Escort Carrier",
   "line": "FF",
   "name": "RIS Copiously",
-  "carrierClass": "CAPABLE",  
   "series": "HAWK",
   "serviceYear": 174,
   "bpv": 75,
@@ -16,6 +15,7 @@
   "bonusHets": 1,
   "commandRating": 3,
   "droneStorageSpaces": 50,
+  "carrierClass": "CAPABLE",  
   "requiresEscort": true,
   "tokenArt": "romulan/sea.png",
 

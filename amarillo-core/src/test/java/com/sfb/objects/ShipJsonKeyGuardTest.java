@@ -65,6 +65,13 @@ public class ShipJsonKeyGuardTest {
                 + "exceed. Our movement applies no such cap.");
         PARKED.put("auxiliary.slow",
                 "2 files, the large Q-ships. Companion to maxAccel; unbuilt.");
+        PARKED.put("hullBoxes.repair",
+                "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
+                + "notion of them — Ship.repairShield spends energy against the DamCon rating "
+                + "and nothing counts boxes. When they are built they take damage on the SAME "
+                + "DAC ROW AS CARGO (owner, 2026-10-09), so hullBoxes is the right block and "
+                + "the work is a damage-allocation change rather than a new hit location. The "
+                + "rule section has not been read; do not cite one here until it has.");
     }
 
     private static final File SHIP_DIR = new File("../data/factions");

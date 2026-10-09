@@ -79,5 +79,43 @@
     { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "R", "arcs": ["FA"], "launchDirections": ["1"] },
     { "type": "PlasmaLauncher", "designator": "B", "plasmaType": "S", "arcs": ["LP"], "launchDirections": ["17", "21", "1"] },
     { "type": "PlasmaLauncher", "designator": "C", "plasmaType": "S", "arcs": ["RP"], "launchDirections": ["1", "5", "9"] }
-  ]
+  ],
+    "refits": [
+      {
+        "code": "+",
+        "name": "+ refit",
+        "label": "Plus Refit",
+        "year": 176,
+        "bpv": 12,
+        "addWeapons": [
+          {"type": "Phaser3", "designator": "10", "arcs": ["L", "RA"]},
+          {"type": "Phaser3", "designator": "11", "arcs": ["L", "RA"]},
+          {"type": "Phaser3", "designator": "12", "arcs": ["R", "RA"]},
+          {"type": "Phaser3", "designator": "13", "arcs": ["R", "RA"]},
+          {
+            "type": "PlasmaLauncher",
+            "designator": "D",
+            "plasmaType": "F",
+            "arcs": ["LP"],
+            "launchDirections": ["17", "21", "1"]
+          },
+          {
+            "type": "PlasmaLauncher",
+            "designator": "E",
+            "plasmaType": "F",
+            "arcs": ["RP"],
+            "launchDirections": ["1", "5", "9"]
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "refits": ["+"],
+        "type": "CNV+",
+        "name": "RIS Leviathan",
+        "typeName": "Condor-V Heaviy Carrier (+ refit)",
+        "serviceYear": 176
+      }
+    ]
 }
