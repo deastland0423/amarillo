@@ -1,15 +1,15 @@
 {
-  "faction": "Federation",
+  "faction": "Klingon",
   "type": "BS",
   "typeName": "Base Station",
   "line": "BASE",
-  "name": "Starbase Echo",
+  "name": "Fortress Kazhak",
   "serviceYear": 120,
   "bpv": 120,
   "sizeClass": 3,
   "commandRating": 8,
   "isBase": true,
-  "_note": "R1.3, Module R1 SSD book. No turnMode and no moveCost: a base rotates rather than turns, and C3.7 puts the rotation rate in the scenario. Rotation itself is unbuilt. The three FIGHTER MODULES and the +10 HANGAR MODULE are optional attachments and are deliberately NOT in this baseline (owner, 2026-10-09). The sheet's pre-Y160 configuration (-13 BPV, no drone rack or ADD) is not modelled.",
+  "_note": "R1.3, Module R1 SSD book. Shares the Base Station chassis with the Federation BS exactly — shields, hull, power, tables, crew and the nine phasers all match box for box. What makes it Klingon is the 360-degree DISRUPTOR where the Federation mounts a photon, two SECURITY STATIONS, and the Y165 UIM-and-DERFACS refit in place of the Federation's AWR refit. No turnMode and no moveCost: a base rotates (C3.7) and the scenario sets the rate. The fighter and hangar MODULES are optional purchases and are deliberately out of this baseline.",
 
   "shields": [21, 21, 21, 21, 21, 21],
 
@@ -30,6 +30,7 @@
     "bridge": 2,
     "auxCon": 2,
     "emergency": 1,
+    "security": 2,
     "controlMod": 1.0
   },
 
@@ -58,7 +59,7 @@
   },
 
   "weapons": [
-    { "type": "Photon",  "designator": "A", "arcs": ["FULL"] },
+    { "type": "Disruptor", "designator": "A", "range": 30, "arcs": ["FULL"] },
     { "type": "Phaser4", "designator": "1", "arcs": ["FX"] },
     { "type": "Phaser4", "designator": "2", "arcs": ["FX"] },
     { "type": "Phaser4", "designator": "3", "arcs": ["RS", "LR"] },
@@ -76,13 +77,13 @@
 
   "refits": [
     {
-      "code": "a",
-      "name": "AWR refit",
-      "label": "AWR Refit",
-      "year": 170,
-      "bpv": 6,
-      "_note": "Changes six APR to AWR. Available, but not always installed, in Y170 and later.",
-      "power": {"apr": 12, "awr": 10}
+      "code": "u",
+      "name": "UIM and DERFACS refit",
+      "label": "UIM/DERFACS",
+      "year": 165,
+      "bpv": 5,
+      "_note": "The sheet names it the Y165 UIM AND DERFACS REFIT and prices the pair together, so it is one refit rather than two. D6.56 dates the UIM to Y165 for the Klingons, which is the same year.",
+      "auxiliary": {"uim": 1, "derfacs": true}
     },
     {
       "code": "70",
@@ -106,38 +107,38 @@
 
   "variants": [
     {
+      "refits": ["u"],
+      "type": "BSu",
+      "name": "Fortress Gnaak",
+      "typeName": "Base Station (UIM/DERFACS refit)",
+      "serviceYear": 165
+    },
+    {
       "refits": ["70"],
       "type": "BS70",
-      "name": "Starbase Foxtrot",
+      "name": "Fortress Tagga",
       "typeName": "Base Station (Y170 refit)",
+      "serviceYear": 170
+    },
+    {
+      "refits": ["70", "u"],
+      "type": "BS70u",
+      "name": "Fortress Kholest",
+      "typeName": "Base Station (Y170 and UIM/DERFACS refits)",
       "serviceYear": 170
     },
     {
       "refits": ["70", "75"],
       "type": "BS75",
-      "name": "Starbase Golf",
+      "name": "Fortress Vorcha",
       "typeName": "Base Station (Y175 refit)",
       "serviceYear": 175
     },
     {
-      "refits": ["a"],
-      "type": "BSa",
-      "name": "Starbase Hotel",
-      "typeName": "Base Station (AWR refit)",
-      "serviceYear": 170
-    },
-    {
-      "refits": ["70", "a"],
-      "type": "BS70a",
-      "name": "Starbase India",
-      "typeName": "Base Station (Y170 and AWR refits)",
-      "serviceYear": 170
-    },
-    {
-      "refits": ["70", "75", "a"],
-      "type": "BS75a",
-      "name": "Starbase Juliet",
-      "typeName": "Base Station (Y175 and AWR refits)",
+      "refits": ["70", "75", "u"],
+      "type": "BS75u",
+      "name": "Fortress Qa'lon",
+      "typeName": "Base Station (Y175 and UIM/DERFACS refits)",
       "serviceYear": 175
     }
   ]
