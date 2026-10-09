@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, Fragment } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, Fragment } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useGameSocket } from '../hooks/useGameSocket';
 import type { MapObject, ShipObject, ShuttleObject, DroneObject, ObjectiveObject, ShieldState, WeaponState, TerrainObject } from '../types/gameState';
@@ -2470,16 +2470,21 @@ export default function GameBoard({ session, onLeave }: Props) {
   const logEndRef     = useRef<HTMLDivElement>(null);
 
   const phase      = gameState?.phase ?? '';
-  const myShips    = new Set(gameState?.myShips ?? []);
+  // Memoised for the same reason isMyMovable below is: a fresh Set every render is a fresh
+  // identity every render, which would defeat that memo and the effect that depends on it.
+  const myShips    = useMemo(() => new Set(gameState?.myShips ?? []), [gameState?.myShips]);
   const movableNow = gameState?.movableNow ?? [];
   // A movable unit is "mine" if it's one of my ships, or a fighter/shuttle whose parent
   // ship is mine (myShips lists only ships, but fighters must move too).
-  const isMyMovable = (name: string): boolean => {
+  // Memoised because the snap-to effect below depends on it: rebuilt every render, it would make
+  // that effect's dependency list change every render too. A fighter or shuttle counts as mine
+  // when its PARENT is — the thing that must move may be a craft I own only through its ship.
+  const isMyMovable = useCallback((name: string): boolean => {
     if (myShips.has(name)) return true;
     const o = (gameState?.mapObjects ?? []).find(m => m.name === name) as
       { parentShipName?: string | null } | undefined;
     return !!(o && o.parentShipName && myShips.has(o.parentShipName));
-  };
+  }, [myShips, gameState?.mapObjects]);
   const isMovementPhase        = phase === 'Movement';
   const isFirePhase            = phase === 'Direct Fire';
   const isReinforcementPhase   = phase === 'Reinforcement';
@@ -2515,7 +2520,13 @@ export default function GameBoard({ session, onLeave }: Props) {
       const obj = (gameState?.mapObjects ?? []).find(o => o.name === mine);
       if (obj) setSelected(obj);
     }
-  }, [gameState?.movableNow]);
+    // mapObjects and isMyMovable are declared rather than suppressed, and that is safe BECAUSE
+    // of prevMovableKeyRef above: the effect re-runs on every broadcast now, sees the same
+    // movable list, and returns before touching anything. What the honest list buys is that the
+    // lookup can no longer read a stale mapObjects — isMyMovable is rebuilt each render, so a
+    // dependency array naming only movableNow was closing over whichever objects happened to be
+    // current when the list last changed.
+  }, [gameState?.movableNow, gameState?.mapObjects, isMyMovable]);
 
   // Reset EA dismissed flag each time a new allocation window opens
   const prevAwaitingRef = useRef(false);
@@ -4474,7 +4485,7 @@ export default function GameBoard({ session, onLeave }: Props) {
             onSubmitTractorBid={handleSubmitTractorBid}
             onCancelTractorBid={() => { setTractorBidTarget(null); setTractorError(null); }}
             tractorBidMax={Math.floor(((liveShip?.tractorEnergyRemaining ?? 0) + (liveShip?.batteryPower ?? 0)) / tractorRangeMultiplier)}
-            pendingTractorAuction={gameState.pendingTractorAuction ?? null}
+            pendingTractorAuction={gameState?.pendingTractorAuction ?? null}
             negTractorBidValue={negTractorBidValue}
             onSetNegTractorBid={setNegTractorBidValue}
             onSubmitNegTractorBid={handleSubmitNegTractorBid}

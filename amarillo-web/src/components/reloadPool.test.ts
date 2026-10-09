@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DroneRackState, ReloadPoolEntry } from '../types/gameState';
-import { ANTI_DRONE_KEY, claimedByOtherRacks, reloadEntriesFor } from './EnergyAllocationDialog';
+import { ANTI_DRONE_KEY, claimedByOtherRacks, reloadEntriesFor } from './reloadPool';
 
 const entry = (droneType: string, count: number, rackSize = 1): ReloadPoolEntry =>
   ({ droneType, count, rackSize });

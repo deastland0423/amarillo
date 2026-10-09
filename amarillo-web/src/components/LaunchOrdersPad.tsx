@@ -371,7 +371,7 @@ export default function LaunchOrdersPad({
    */
   function canTrack(dir: number): boolean {
     if (!attacker || !target) return false;
-    const from = parseLocation((attacker.ship ?? attacker.fighter)?.location);
+    const from = parseLocation((attacker.ship ?? attacker.fighter)?.location ?? null);
     const to   = parseLocation(target.location);
     if (!from || !to) return false;
     return bearsOn({ col: from[0], row: from[1] }, dir, FA_MASK, { col: to[0], row: to[1] });
@@ -489,7 +489,11 @@ export default function LaunchOrdersPad({
    */
   const seekerAuto: number = (() => {
     if (!attacker || !target) return shipFacing;
-    const from = parseLocation(attacker.ship.location);
+    // A FIGHTER can be the attacker — it carries rails and launches drones of its own — so the
+    // launching unit is the ship or the fighter, exactly as canTrack above resolves it. Reading
+    // attacker.ship directly threw the moment a fighter was selected; the type said `ship?` all
+    // along and a red tsc baseline was the reason nobody heard it.
+    const from = parseLocation((attacker.ship ?? attacker.fighter)?.location ?? null);
     const to   = parseLocation(target.location);
     if (!from || !to) return shipFacing;
     const snapped = snapToFacing(

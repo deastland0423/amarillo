@@ -1,13 +1,19 @@
 {
   /* Tests are their own project: they need node types (reading the shared fixture from
      disk) which have no business leaking into application code, and the app build has no
-     reason to compile them. Mirrors tsconfig.app.json otherwise. */
+     reason to compile them. Mirrors tsconfig.app.json otherwise.
+
+     "vite/client" belongs here as well as in the app project, even though no test imports a
+     stylesheet. A test that imports a COMPONENT compiles that component and everything it
+     pulls in, under THIS project's settings — so without it, `import './X.css'` has no
+     ambient declaration and fails here while compiling cleanly next door. That is what made
+     the same file report the same error twice in one `tsc -b`. */
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "skipLibCheck": true,
 
     "moduleResolution": "bundler",

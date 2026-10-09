@@ -693,6 +693,16 @@ export interface GameState {
   scoreboard:         Scoreboard | null;
   turn:               number;
   impulse:            number;
+  /**
+   * The impulse count since the game began, where `impulse` restarts at 1 every turn.
+   *
+   * Declared here because the server has always sent it and `GameBoard` has always read it —
+   * the type was simply missing the field, so `gameState.absoluteImpulse` was an error that
+   * `?? 0` quietly swallowed. That fallback is the dangerous part: had the field ever stopped
+   * arriving, every consumer would have silently believed the game was at impulse zero rather
+   * than failing. Anything measuring a span rather than a position in the turn wants this one.
+   */
+  absoluteImpulse:    number;
   phase:              string;
   awaitingAllocation:    boolean;
   pendingAllocation:     string[];

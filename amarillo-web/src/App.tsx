@@ -31,7 +31,11 @@ function loadSession(): LobbyResult | null {
 export default function App() {
   const [screen,  setScreen]  = useState<Screen>('lobby');
   const [session, setSession] = useState<LobbyResult | null>(null);
-  const [resuming, setResuming] = useState(false);
+  // Seeded from storage rather than switched on inside the effect below. Setting it there was a
+  // synchronous setState in an effect, which renders once with the spinner off and again with it
+  // on — a flash of the lobby before the resume check has even started. A lazy initialiser gets
+  // the first render right instead.
+  const [resuming, setResuming] = useState(() => loadSession() != null);
   // Fleet building needs no game and no session — just a name to sign the work.
   const [builderName, setBuilderName] = useState('');
 
@@ -40,7 +44,6 @@ export default function App() {
     const saved = loadSession();
     if (!saved) return;
 
-    setResuming(true);
     gameApi.getStatus(saved.gameId)
       .then(status => {
         if (!status.started) {

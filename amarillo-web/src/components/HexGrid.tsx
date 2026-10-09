@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MapObject, ShipObject, ShuttleObject, DroneObject, PlasmaObject } from '../types/gameState';
+import type { MapObject, ShipObject, ShuttleObject, WildWeaselObject, DroneObject, PlasmaObject } from '../types/gameState';
 import { parseLocation, facingToAngle, facingLabel, factionColor, shieldStrengthColor } from '../types/gameState';
 import { hexRange } from '../hex/geometry';
 import { boxIntersectsView, type ViewRect } from '../hex/viewport';
@@ -328,7 +328,7 @@ function drawShip(
   ctx.font         = '8px monospace';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
-  if ((ship as any).captured) {
+  if (ship.captured) {
     ctx.fillStyle = '#ff6b6b';
     ctx.fillText('CAPTURED', cx, cy + r + 2);
     ctx.fillStyle = '#e6edf3';
@@ -710,7 +710,7 @@ function drawObjects(
       const angle   = facingToAngle(shuttle.facing);
 
       // Faction: special shuttles carry controllerFaction; plain shuttles look up parent ship.
-      let faction: string = (shuttle as any).controllerFaction ?? '';
+      let faction: string = shuttle.controllerFaction ?? '';
       if (!faction) {
         const parent = objects.find(o => o.type === 'SHIP' && o.name === shuttle.parentShipName) as ShipObject | undefined;
         faction = parent?.faction ?? '';
@@ -841,7 +841,8 @@ function shipsAt(objects: MapObject[], col: number, row: number): ShipObject[] {
 function shuttlesAt(objects: MapObject[], col: number, row: number) {
   const loc = `<${col}|${row}>`;
   return objects.filter(
-    o => (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK'
+    (o): o is ShuttleObject | WildWeaselObject =>
+      (o.type === 'SHUTTLE' || o.type === 'SUICIDE_SHUTTLE' || o.type === 'SCATTER_PACK'
           || o.type === 'WILD_WEASEL')
       && o.location === loc
   );
@@ -876,18 +877,26 @@ function shipTooltipLines(ship: ShipObject): string[] {
 }
 
 function shuttleTooltipLines(
-  shuttle: MapObject,
+  shuttle: ShuttleObject | WildWeaselObject,
   isMine: boolean,
   allObjects: MapObject[],
 ): string[] {
+  /**
+   * A wild weasel is its own DTO, not a shuttle one, and carries none of the craft fields
+   * below. Narrowing once here rather than casting at each use is also the honest reading of
+   * the rules: a weasel is public from the moment it launches (J3.0), so the identification
+   * block further down could never apply to one even if the fields existed.
+   */
+  const craft = shuttle.type === 'WILD_WEASEL' ? null : shuttle;
+
   // Resolve faction from parent ship
   const parentShip = allObjects.find(
-    o => o.type === 'SHIP' && o.name === (shuttle as any).parentShipName
+    o => o.type === 'SHIP' && o.name === shuttle.parentShipName
   ) as ShipObject | undefined;
   // Falls back to the controller: a launcher can be destroyed while its shuttle flies on,
   // and then there is no parent ship on the map to look up.
   const faction = parentShip?.faction
-    ?? (shuttle as { controllerFaction?: string }).controllerFaction
+    ?? craft?.controllerFaction
     ?? '?';
 
   // Fog-of-war is the server's job and it does it properly: a SUICIDE_SHUTTLE or a
@@ -901,19 +910,19 @@ function shuttleTooltipLines(
   // why it is not subject to the fog-of-war above.
   else if (shuttle.type === 'WILD_WEASEL')  typeLabel = 'Wild Weasel';
   // Decided by what it IS, not by whether it is armed — every shuttle carries a phaser.
-  else if ((shuttle as any).isFighter) typeLabel = 'Fighter';
+  else if (shuttle.isFighter) typeLabel = 'Fighter';
   // What the craft IS, from the catalogue. Every non-fighter used to read "Admin Shuttle",
   // so a GAS and an HTS were both mislabelled. The ROLE is still never shown.
-  else typeLabel = (shuttle as any).shuttleTypeName ?? 'Shuttle';
+  else typeLabel = shuttle.shuttleTypeName ?? 'Shuttle';
 
   const lines = [
     `Faction:  ${faction}`,
     `Type:     ${typeLabel}`,
-    `From:     ${(shuttle as any).parentShipName ?? '?'}`,
-    `Speed:    ${(shuttle as any).speed}`,
+    `From:     ${shuttle.parentShipName ?? '?'}`,
+    `Speed:    ${shuttle.speed}`,
   ];
   // Damage, which nothing showed before — not even to the shuttle's owner.
-  const hulls = shuttle as { hull?: number; maxHull?: number; crippled?: boolean };
+  const hulls = craft ?? { hull: undefined, maxHull: undefined, crippled: undefined };
   if ((hulls.maxHull ?? 0) > 0)
     lines.push(`Hull:     ${hulls.hull ?? 0} / ${hulls.maxHull}`
       + (hulls.crippled ? '  CRIPPLED' : ''));
@@ -928,25 +937,25 @@ function shuttleTooltipLines(
   // ShuttleDto with no such field, so the presence of the value IS the entitlement, and a
   // second guard here would be the client deciding a question the server already decided.
   // (The identified-enemy case below is a different fact, bought with a lab: G4.233.)
-  const seekingAt = (shuttle as { targetName?: string | null }).targetName;
+  const seekingAt = craft?.targetName;
   if (seekingAt)
     lines.push(`Target:   ${seekingAt}`);
   // A destroyed weasel is not removed: it explodes for four impulses and keeps pulling
   // seekers in (J3.21), then leaves a spent pocket. Both states change what it is doing,
   // so say which one it is in.
   if (shuttle.type === 'WILD_WEASEL') {
-    if ((shuttle as any).exploding)          lines.push('Status:   EXPLODING (J3.21)');
-    else if ((shuttle as any).postExplosion) lines.push('Status:   spent');
+    if (shuttle.exploding)          lines.push('Status:   EXPLODING (J3.21)');
+    else if (shuttle.postExplosion) lines.push('Status:   spent');
   }
   // G4.233: what a lab or a scout channel bought. A seeking course narrows an enemy
   // shuttle to a suicide shuttle or a scatter pack without saying which — that is the
   // whole of the answer, so show it and nothing more.
-  if (!isMine && (shuttle as any).isIdentified) {
-    const manned = (shuttle as any).manned;
+  if (!isMine && craft?.isIdentified) {
+    const manned = craft.manned;
     if (manned != null)
       lines.push(`Crew:     ${manned ? 'manned' : 'UNMANNED'}`);
-    if ((shuttle as any).seekingCourse) {
-      const t = (shuttle as any).seekingTargetName;
+    if (craft.seekingCourse) {
+      const t = craft.seekingTargetName;
       lines.push(`Course:   SEEKING${t ? ` ${String.fromCharCode(8594)} ${t}` : ''}`);
     } else {
       lines.push('Course:   not seeking');
@@ -1329,6 +1338,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     if (e.button !== 0) return;
     dragging.current  = true;
     dragMoved.current = false;
+    applyCursor();
     dragOrigin.current = {
       x:  e.clientX,
       y:  e.clientY,
@@ -1358,7 +1368,7 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     if (dragging.current) {
       const dx = e.clientX - dragOrigin.current.x;
       const dy = e.clientY - dragOrigin.current.y;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.current = true;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) { dragMoved.current = true; applyCursor(); }
       if (dragMoved.current) {
         containerRef.current!.scrollLeft = dragOrigin.current.sl - dx;
         containerRef.current!.scrollTop  = dragOrigin.current.st - dy;
@@ -1381,10 +1391,10 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
 
     for (const shuttle of shuttlesAt(mapObjects, col, row)) {
       if (lines.length > 0) lines.push('──────────────────');
-      const shuttleAny = shuttle as any;
+      const controller = shuttle.type === 'WILD_WEASEL' ? null : shuttle.controllerName;
       const isMine = myShips != null && (
-        (shuttleAny.parentShipName != null && myShips.includes(shuttleAny.parentShipName)) ||
-        (shuttleAny.controllerName != null && myShips.includes(shuttleAny.controllerName))
+        (shuttle.parentShipName != null && myShips.includes(shuttle.parentShipName)) ||
+        (controller != null && myShips.includes(controller))
       );
       lines.push(...shuttleTooltipLines(shuttle, isMine, mapObjects));
     }
@@ -1409,10 +1419,12 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
 
   function handleMouseUp() {
     dragging.current = false;
+    applyCursor();
   }
 
   function handleMouseLeave() {
     dragging.current = false;
+    applyCursor();
     setTooltip(null);
     setHoveredHex(null);
     reportHover(null, 0, 0);   // or the last unit stays lit in the pad after the cursor goes
@@ -1450,9 +1462,24 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     });
   }
 
-  const cursor = pickingHex ? 'crosshair'
-               : (dragging.current && dragMoved.current) ? 'grabbing'
-               : 'grab';
+  /**
+   * The cursor is set on the ELEMENT rather than through the style prop, because the grab/grabbing
+   * distinction is drag state and drag state lives in refs — reading a ref while rendering is both
+   * a lint error and a real staleness risk, since nothing re-renders when a ref changes. Writing it
+   * imperatively also keeps a drag from re-rendering the component on every mouse move, which is
+   * the reason the drag state is in refs to begin with.
+   */
+  function applyCursor() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.style.cursor = pickingHex ? 'crosshair'
+                        : (dragging.current && dragMoved.current) ? 'grabbing'
+                        : 'grab';
+  }
+
+  // Covers the prop-driven half: entering or leaving hex-pick mode changes the cursor with no
+  // mouse event to hang it off.
+  useEffect(applyCursor, [pickingHex]);
 
   return (
     <div
@@ -1472,7 +1499,6 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
             position: 'sticky',
             top:      0,
             left:     0,
-            cursor,
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -1540,5 +1566,3 @@ export default function HexGrid({ mapCols: mapColsProp, mapRows: mapRowsProp, ma
     </div>
   );
 }
-
-export { hexCenter, tracePath, SIZE, DEFAULT_COLS, DEFAULT_ROWS };

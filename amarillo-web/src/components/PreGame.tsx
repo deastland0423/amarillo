@@ -54,7 +54,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [rawCoiData,      setRawCoiData]      = useState<CoiSideData[] | null>(null);
   // Filtered to this player's assigned ships
   const [coiData,         setCoiData]         = useState<CoiSideData[] | null>(null);
-  const [coiSubmitted,    setCoiSubmitted]    = useState(false);
   /** What the server could not apply from the COI selections, per ship. */
   const [coiWarnings,     setCoiWarnings]     = useState<string[]>([]);
 
@@ -123,7 +122,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   useEffect(() => {
     setRawCoiData(null);
     setCoiData(null);
-    setCoiSubmitted(false);
   }, [lobby?.scenarioId]);
 
   async function handleFleetBattle() {
@@ -188,7 +186,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
       // anyone can do anything about it.
       setCoiWarnings(Object.entries(res.warnings ?? {})
         .flatMap(([shipName, notes]) => notes.map(n => `${shipName}: ${n}`)));
-      setCoiSubmitted(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save COI selections.');
     } finally {
@@ -200,7 +197,6 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
     setBusy(true); setError('');
     try {
       await gameApi.submitCoi(session.gameId, session.playerToken, {});
-      setCoiSubmitted(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not skip COI.');
     } finally {
