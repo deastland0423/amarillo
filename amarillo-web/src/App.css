@@ -2733,8 +2733,27 @@ h3 {
   margin-top: 0.25rem;
 }
 
-/* Hover a weapon row in the sidebar to see its whole table. CSS-only on purpose: holding the
-   hovered weapon in React state would re-render the sidebar once per row as the mouse crosses
-   the list. */
-.weapon-row-table { display: none; }
+/* Hover a weapon row in the sidebar to see its whole table.
+   Shown by CSS, PLACED by placeWeaponTable in GameBoard: holding the hovered weapon in React
+   state would re-render the sidebar once per row as the mouse crosses the list, but CSS alone
+   cannot know whether there is room below the row.
+   Fixed rather than absolute because the sidebar and the weapons list are both overflow-y:auto,
+   and an absolutely positioned child is clipped by the nearest scrolling ancestor — the table
+   was cut off by the panel before it ever reached the edge of the screen. */
+.weapon-row-table {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 400;
+  pointer-events: none;
+}
+
 .weapon-row-hoverable:hover .weapon-row-table { display: block; }
+
+/* The wrapper above owns the position now, so the table inside it sits in the flow and keeps
+   only its frame. */
+.weapon-row-table .dmg-tooltip {
+  position: static;
+  margin-top: 0;
+}

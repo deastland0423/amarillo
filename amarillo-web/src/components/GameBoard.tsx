@@ -245,6 +245,43 @@ function ShieldBar({ shield, isMine }: { shield: ShieldState; isMine: boolean })
   );
 }
 
+/**
+ * Place a weapon row's hover table, in the DOM rather than in React.
+ *
+ * It is `position: fixed` because the sidebar and its weapons list are both `overflow-y: auto`:
+ * an absolutely positioned child is clipped by the nearest scrolling ancestor, so the table was
+ * cut off by the PANEL long before it reached the edge of the screen. Fixed escapes every
+ * ancestor, at the price of having to be told where to go.
+ *
+ * Flips above the row when there is not room below, and slides left when a wide table would run
+ * off the right — a phaser-1 is eleven bands and the sidebar is at the edge of the window.
+ *
+ * Imperative on purpose, like the map's cursor: holding the hovered weapon in state would
+ * re-render the whole sidebar once per row as the mouse crosses the list.
+ */
+function placeWeaponTable(row: HTMLElement) {
+  const table = row.querySelector<HTMLElement>('.weapon-row-table');
+  if (!table) return;
+  // Measured after :hover has made it displayable — reading a rect forces layout, so the
+  // numbers below are the real ones rather than last frame's.
+  const r = row.getBoundingClientRect();
+  const t = table.getBoundingClientRect();
+  const gap = 4;
+
+  const below = r.bottom + gap;
+  const above = r.top - t.height - gap;
+  // Below if it fits, above if THAT fits, otherwise below and clamped — better to clip the
+  // bottom of a long table than to put its top off the top of the screen.
+  const top = below + t.height <= window.innerHeight ? below
+            : above >= 0                            ? above
+            : Math.max(gap, window.innerHeight - t.height - gap);
+
+  const left = Math.max(gap, Math.min(r.left, window.innerWidth - t.width - gap));
+
+  table.style.top  = `${top}px`;
+  table.style.left = `${left}px`;
+}
+
 function WeaponRow({ w }: { w: WeaponState }) {
   let dotClass = 'weapon-dot';
   let statusText = '';
@@ -299,7 +336,8 @@ function WeaponRow({ w }: { w: WeaponState }) {
        position: relative so the table can anchor under the row, and a group class so CSS alone
        shows it on hover — no state, so a mouse crossing the weapon list cannot re-render the
        sidebar once per row. */
-    <div className="weapon-row weapon-row-hoverable" style={{ position: 'relative' }}>
+    <div className="weapon-row weapon-row-hoverable"
+         onMouseEnter={e => placeWeaponTable(e.currentTarget)}>
       <span className={dotClass} />
       <span className="weapon-name">{weaponTitleShort(w)}</span>
       {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
