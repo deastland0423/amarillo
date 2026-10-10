@@ -2667,3 +2667,74 @@ h3 {
 .hangar-budget .over {
   color: #f85149;
 }
+
+/* The whole damage table (WeaponFullTable) — range across, die face down, as the SSD prints it.
+   Wider and denser than the single-range dmg-tooltip it borrows its frame from: a phaser-1 is
+   eleven bands, so the cells are tight and the whole thing is allowed to be wide. */
+.dmg-full {
+  min-width: 0;
+  max-width: min(92vw, 560px);
+  overflow-x: auto;
+  pointer-events: none;
+}
+
+/* In a panel rather than hovering over one: no absolute positioning, and it may be scrolled. */
+.dmg-full-inline {
+  position: static;
+  margin-top: 0.35rem;
+  pointer-events: auto;
+}
+
+.dmg-full-table {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.dmg-full-table th {
+  padding: 0 0.32rem 0.18rem 0.32rem;
+  text-align: center;
+  font-size: 0.68rem;
+}
+
+.dmg-full-table th:first-child,
+.dmg-full-table td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: #1c2333;
+}
+
+.dmg-full-table td {
+  padding: 0.08rem 0.32rem;
+  text-align: center;
+  color: #f0a050;
+  font-weight: bold;
+}
+
+/* Overrides dmg-tooltip-table's last-child rule: in a grid every column is a damage column,
+   so the right-hand one is not special. */
+.dmg-full-table td:last-child {
+  text-align: center;
+}
+
+.dmg-full-table td.dmg-full-head {
+  color: #8b949e;
+  font-weight: normal;
+}
+
+.dmg-full-table td.dmg-nil {
+  color: #4a5160;
+  font-weight: normal;
+}
+
+.dmg-full-foot {
+  font-size: 0.66rem;
+  color: #6e7681;
+  margin-top: 0.25rem;
+}
+
+/* Hover a weapon row in the sidebar to see its whole table. CSS-only on purpose: holding the
+   hovered weapon in React state would re-render the sidebar once per row as the mouse crosses
+   the list. */
+.weapon-row-table { display: none; }
+.weapon-row-hoverable:hover .weapon-row-table { display: block; }

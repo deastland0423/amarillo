@@ -6,6 +6,7 @@ import { bearsOn, hexGetBearingBetween, hexesInArc, hexRangeBetween, ringShieldN
          turnFacing, type Hex } from '../hex/geometry';
 import { useDraggable } from '../hooks/useDraggable';
 import { weaponTitle } from './weaponTitle';
+import WeaponFullTable from './WeaponFullTable';
 
 /**
  * The SSD panel: a ship as it appears on its own record sheet, rather than as a token on
@@ -514,6 +515,26 @@ export default function SsdPanel(
           );
         })}
       </div>
+
+      {/* ---- the selected weapon's table --------------------------------
+          Hung off the selection the arc diagram already uses, rather than a second gesture on
+          the same row: clicking a weapon here has always meant "tell me about this one", and
+          its damage table is part of the answer. INLINE rather than hovering, because this
+          panel is dense and a table of eleven bands floating over it would cover the diagram
+          the click just changed.
+
+          Not a derived number, which this panel refuses on principle (see SystemsBlock): it is
+          the same static table the firing preview reads, collapsed into the bands the SSD
+          prints. Nothing here is computed from game state. */}
+      {selectedWeapon && (
+        <WeaponFullTable
+          weaponName={selectedWeapon.name}
+          armingType={selectedWeapon.armingType ?? null}
+          plasmaType={selectedWeapon.launcherType
+            ? (selectedWeapon.plasmaType ?? selectedWeapon.launcherType) : null}
+          anchored={false}
+        />
+      )}
 
       {/* ---- systems ----------------------------------------------------- */}
       <SystemsBlock ship={ship} />

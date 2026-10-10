@@ -6,6 +6,7 @@ import { factionColor, parseLocation } from '../types/gameState';
 import { gameApi } from '../api/gameApi';
 import { bearsOn, hexRangeBetween as hexRange } from '../hex/geometry';
 import HexGrid from './HexGrid';
+import WeaponFullTable from './WeaponFullTable';
 import SsdPanel from './SsdPanel';
 import AegisPulsePad from './AegisPulsePad';
 import AegisIdPad from './AegisIdPad';
@@ -290,13 +291,28 @@ function WeaponRow({ w }: { w: WeaponState }) {
   }
 
   return (
-    <div className="weapon-row">
+    /* Hovering shows the weapon's WHOLE table, every range band — what the SSD prints beside
+       the ship. Deliberately not the single-range preview the fire pad gives: that one answers
+       "what does this do to the target I picked", and this row is where a player asks the
+       earlier question, before any target exists. Asked for in play, 2026-10-09.
+
+       position: relative so the table can anchor under the row, and a group class so CSS alone
+       shows it on hover — no state, so a mouse crossing the weapon list cannot re-render the
+       sidebar once per row. */
+    <div className="weapon-row weapon-row-hoverable" style={{ position: 'relative' }}>
       <span className={dotClass} />
       <span className="weapon-name">{weaponTitleShort(w)}</span>
       {w.arcLabel && <span className="weapon-arc">[{w.arcLabel}]</span>}
       {statusText && (
         <span className={`weapon-status ${statusClass}`}>{statusText}</span>
       )}
+      <div className="weapon-row-table">
+        <WeaponFullTable
+          weaponName={w.name}
+          armingType={w.armingType ?? null}
+          plasmaType={w.launcherType ? (w.plasmaType ?? w.launcherType) : null}
+        />
+      </div>
     </div>
   );
 }

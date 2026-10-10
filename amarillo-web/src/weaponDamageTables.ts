@@ -287,3 +287,184 @@ export function getWeaponDamagePreview(
 
   return null;
 }
+
+// ── The whole table, not one column of it ─────────────────────────────────────
+
+/**
+ * One range band: the hexes over which a weapon's numbers do not change.
+ *
+ * The tables above are stored PER HEX — a phaser-1 is 76 columns, one for each range out to 75 —
+ * because that is the shape a shot needs. The SSD prints bands instead, and so does the rulebook,
+ * because consecutive hexes mostly share a value: those 76 columns are 11 bands. They are
+ * COLLAPSED from the per-hex data rather than typed out again, so the printed table and the
+ * firing preview cannot drift apart. That is the whole reason these live beside the tables and
+ * not in a component.
+ */
+export interface RangeBand {
+  /** "0", "6-8", "51-75" */
+  label: string;
+  /** Six entries for a roll table (die 1..6); one for a hit-chart weapon. */
+  damage: readonly number[];
+  /** Hit-chart weapons only: roll this or less to hit. Null for a roll table. */
+  hitOn: number | null;
+  /** Hit-chart weapons only: 2d6 rather than 1d6 (the hellbore). */
+  twoDice?: boolean;
+}
+
+export interface FullTable {
+  /** 'roll' = six die faces per band; 'hit' = one to-hit number and one damage per band. */
+  kind:  'roll' | 'hit';
+  bands: RangeBand[];
+  /** Appended to the heading — "overload", "type-S bolt". */
+  note?: string;
+}
+
+function bandLabel(lo: number, hi: number): string {
+  return lo === hi ? String(lo) : lo + '–' + hi;
+}
+
+/**
+ * Collapse a per-hex series into bands, using `same` to decide when two hexes agree.
+ *
+ * Trailing dead range is dropped rather than shown: a phaser-1's table runs to 75 because that is
+ * its reach, and a final band reading "and 0 beyond" tells a player nothing the maximum range did
+ * not already.
+ */
+function collapse(count: number, same: (a: number, b: number) => boolean,
+                  make: (r: number) => Omit<RangeBand, 'label'>,
+                  isEmpty: (r: number) => boolean): RangeBand[] {
+  let last = count - 1;
+  while (last > 0 && isEmpty(last)) last--;
+
+  const bands: RangeBand[] = [];
+  let start = 0;
+  for (let r = 1; r <= last + 1; r++)
+    if (r === last + 1 || !same(start, r)) {
+      bands.push({ label: bandLabel(start, r - 1), ...make(start) });
+      start = r;
+    }
+  return bands;
+}
+
+function rollTableBands(table: readonly number[][], maxRange: number): RangeBand[] {
+  const cols = Math.min(maxRange + 1, table[0].length);
+  return collapse(
+    cols,
+    (a, b) => table.every(row => row[a] === row[b]),
+    r => ({ damage: table.map(row => row[r]), hitOn: null }),
+    r => table.every(row => row[r] === 0));
+}
+
+function hitChartBands(hit: readonly number[], dmg: readonly number[],
+                       twoDice = false): RangeBand[] {
+  const cols = Math.min(hit.length, dmg.length);
+  return collapse(
+    cols,
+    (a, b) => hit[a] === hit[b] && dmg[a] === dmg[b],
+    r => ({ damage: [dmg[r]], hitOn: hit[r], twoDice }),
+    r => hit[r] <= 0 || dmg[r] === 0);
+}
+
+/**
+ * Everything a weapon can do, at every range — what the SSD prints beside the ship, and what this
+ * client had only ever shown one column of.
+ *
+ * Asked for by a player mid-game, 2026-10-09: the fire pad shows what a weapon does to the target
+ * you have already picked, and he wanted to know what a weapon was CAPABLE of before picking one.
+ * The paper game answers that for free, because the tables are printed on the sheet.
+ *
+ * The branching mirrors `getWeaponDamagePreview` deliberately, name test for name test and in the
+ * same order — `fighterdisruptor` has to be asked before `disruptor` in both. A weapon family
+ * added there belongs here too, and a name neither recognises returns null and shows nothing,
+ * which is the right answer rather than a wrong table.
+ */
+export function getWeaponFullTable(
+  weaponName:  string,
+  armingType:  string | null,
+  directFire = false,
+  plasmaType: string | null = null,
+): FullTable | null {
+  const n    = weaponName.toLowerCase();
+  const mode = armingType ?? 'STANDARD';
+  const ovld = mode === 'OVERLOAD';
+
+  if (n.includes('phaser1')) return { kind: 'roll', bands: rollTableBands(PHASER1_TABLE, 75) };
+  if (n.includes('phaser2')) return { kind: 'roll', bands: rollTableBands(PHASER2_TABLE, 50) };
+  if (n.includes('phaser3') || n.includes('phaserg'))
+    return { kind: 'roll', bands: rollTableBands(PHASER3_TABLE, 15) };
+  if (n.includes('fighterfusion'))
+    return { kind: 'roll', bands: rollTableBands(FIGHTER_FUSION_TABLE, 10) };
+
+  if (n.includes('fusion')) {
+    const table = mode === 'SUICIDE' ? FUSION_SUICIDE_TABLE
+                : ovld               ? FUSION_OVERLOAD_TABLE
+                :                      FUSION_TABLE;
+    const maxR  = mode === 'STANDARD' ? 24 : 12;
+    return { kind: 'roll', bands: rollTableBands(table, maxR),
+             note: mode === 'STANDARD' ? undefined : mode.toLowerCase() };
+  }
+
+  if (n.includes('fighterphoton'))
+    return { kind: 'hit',
+             bands: hitChartBands(PHOTON_HIT_CHART, PHOTON_HIT_CHART.map(() => 8)) };
+
+  if (n.includes('photon')) {
+    const hit    = mode === 'OVERLOAD'  ? PHOTON_OVLD_HIT_CHART
+                 : mode === 'PROXIMITY' ? PHOTON_PROX_HIT_CHART
+                 :                        PHOTON_HIT_CHART;
+    const damage = mode === 'OVERLOAD' ? 16 : mode === 'PROXIMITY' ? 4 : 8;
+    return { kind: 'hit', bands: hitChartBands(hit, hit.map(() => damage)),
+             note: mode === 'STANDARD' ? undefined : mode.toLowerCase() };
+  }
+
+  if (n.includes('fighterdisruptor'))
+    return { kind: 'hit', bands: hitChartBands(DISRUPTOR_HIT_CHART.slice(0, 11),
+                                               DISRUPTOR_DMG_CHART.slice(0, 11)) };
+
+  if (n.includes('disruptor'))
+    return { kind: 'hit',
+             bands: hitChartBands(ovld ? DISRUPTOR_OVLD_HIT_CHART : DISRUPTOR_HIT_CHART,
+                                  ovld ? DISRUPTOR_OVLD_DMG_CHART : DISRUPTOR_DMG_CHART),
+             note: ovld ? 'overload' : undefined };
+
+  if (n.includes('hellbore')) {
+    // Already banded in the data, so these are read across rather than collapsed. Overload is
+    // indexed by hex instead, which is why it takes the other path.
+    if (ovld)
+      return { kind: 'hit',
+               bands: hitChartBands(
+                   HELLBORE_OVLD_ENV.map((_, i) => HELLBORE_HIT_NUMS[hellboreBand(i)]),
+                   directFire ? HELLBORE_OVLD_DF : HELLBORE_OVLD_ENV, true),
+               note: directFire ? 'overload, direct fire' : 'overload' };
+    return {
+      kind: 'hit',
+      note: directFire ? 'direct fire' : undefined,
+      bands: HELLBORE_BANDS.map(([lo, hi], i) => ({
+        label:   bandLabel(lo, hi),
+        damage:  [directFire ? HELLBORE_DF_DMG[i] : HELLBORE_ENV_DMG[i]],
+        hitOn:   HELLBORE_HIT_NUMS[i],
+        twoDice: true,
+      })),
+    };
+  }
+
+  if (plasmaType) {
+    // The BOLT, which is what a launcher can be asked for at any range (FP8.4) and the only part
+    // of a plasma weapon that answers to a damage table at all. The torpedo's strength by range
+    // belongs to the seeker in flight, not to the launcher sitting on the ship.
+    const strength = plasmaType === 'R' ? PLASMA_R_BY_RANGE
+                   : plasmaType === 'S' ? PLASMA_S_BY_RANGE
+                   : plasmaType === 'G' ? PLASMA_G_BY_RANGE
+                   : plasmaType === 'D' ? PLASMA_D_BY_RANGE
+                   :                      PLASMA_F_BY_RANGE;
+    const cols = Math.min(strength.length, PLASMA_BOLT_HIT_CHART.length);
+    return {
+      kind: 'hit',
+      note: 'type-' + plasmaType + ' bolt',
+      bands: hitChartBands(PLASMA_BOLT_HIT_CHART.slice(0, cols),
+                           strength.slice(0, cols).map(s => Math.floor(s / 2))),
+    };
+  }
+
+  return null;
+}
