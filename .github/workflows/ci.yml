@@ -21,10 +21,10 @@ jobs:
     name: Java — core + server
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '25'
           distribution: temurin
@@ -38,6 +38,41 @@ jobs:
       - name: mvn clean install
         run: mvn --batch-mode clean install
 
+      # Say what actually ran, and refuse a green tick that proves nothing.
+      #
+      # The frontend job publishes a Vitest report, so a glance at it shows 145 tests passing.
+      # This job published nothing, and the first run finished in 43 seconds — fast enough that
+      # the owner reasonably asked whether the tests had run at all. They had, but the run could
+      # not say so, and an unverifiable green tick is the same failure as a red baseline nobody
+      # reads: it stops carrying information.
+      #
+      # The floor is a smoke test, not a target. `mvn install` already fails when a test fails;
+      # what it does NOT notice is a build that runs no tests at all — a stray -DskipTests, a
+      # surefire include pattern that stops matching, a module quietly dropped from the reactor.
+      # Deliberately far below the real count so that deleting tests never requires editing CI.
+      - name: Report the test count
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import glob, sys, xml.etree.ElementTree as ET
+          tests = failures = errors = skipped = 0
+          files = glob.glob('**/target/surefire-reports/TEST-*.xml', recursive=True)
+          for f in files:
+              r = ET.parse(f).getroot()
+              tests    += int(r.get('tests', 0))
+              failures += int(r.get('failures', 0))
+              errors   += int(r.get('errors', 0))
+              skipped  += int(r.get('skipped', 0))
+          line = (f'**{tests}** tests in {len(files)} classes — '
+                  f'{failures} failures, {errors} errors, {skipped} skipped')
+          print(line)
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('### Java test report\n\n' + line + '\n')
+          if tests < 1000:
+              sys.exit(f'Only {tests} tests ran. The suite is thousands strong — '
+                       'something stopped surefire from executing it.')
+          EOF
+
   web:
     name: Frontend — tests, lint, build
     runs-on: ubuntu-latest
@@ -45,10 +80,10 @@ jobs:
       run:
         working-directory: amarillo-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: npm
