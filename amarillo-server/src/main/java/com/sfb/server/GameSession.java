@@ -2519,14 +2519,23 @@ public class GameSession {
                 if (declarationCommits.containsKey(token))
                     return ActionResult.fail("Orders already committed — they are sealed");
                 // Ownership check now; full rules validation happens at the reveal
-                List<String> myNames = pi.getShipNames();
+                /*
+                 * ownsShip, not a scan of the player's SHIP names: a fighter's name is not in
+                 * that list and never was, so a craft could not fire, adjust EW or launch
+                 * through a declaration under either naming scheme. ownsShip already answers
+                 * for a launched craft and for one still in a bay, and its own comment records
+                 * this bug being found once before on the pod-EW declaration.
+                 *
+                 * Reported in play 2026-10-10: "Cannot fire another player's unit:
+                 * HMS Concept-Stinger2-1", to the Hydran player, about his own Stinger.
+                 */
                 if (request.getFireOrders() != null)
                     for (ActionRequest.FireOrder o : request.getFireOrders())
-                        if (!containsIgnoreCase(myNames, o.getShipName()))
+                        if (!ownsShip(token, o.getShipName()))
                             return ActionResult.fail("Cannot fire another player's unit: " + o.getShipName());
                 if (request.getEwAdjustments() != null)
                     for (ActionRequest.EwAdjustment a : request.getEwAdjustments())
-                        if (!containsIgnoreCase(myNames, a.getShipName()))
+                        if (!ownsShip(token, a.getShipName()))
                             return ActionResult.fail("Cannot adjust another player's EW: " + a.getShipName());
                 declarationCommits.put(token,
                         new DeclarationCommit(request.getFireOrders(), request.getEwAdjustments()));
@@ -2568,10 +2577,12 @@ public class GameSession {
                     return ActionResult.fail("Unknown player");
                 if (activityCommits.containsKey(aToken))
                     return ActionResult.fail("Orders already committed \u2014 they are sealed");
-                List<String> aMine = api.getShipNames();
+                // ownsShip for the same reason as the fire declaration above — and it bites
+                // harder here, because a FIGHTER launching a drone off its rails (J1.31) names
+                // itself, and no fighter's name is in a player's ship list.
                 if (request.getActivityOrders() != null)
                     for (ActionRequest.ActivityOrder o : request.getActivityOrders())
-                        if (!containsIgnoreCase(aMine, o.getShipName()))
+                        if (!ownsShip(aToken, o.getShipName()))
                             return ActionResult.fail("Cannot launch from another player's unit: "
                                     + o.getShipName());
                 activityCommits.put(aToken, request.getActivityOrders() != null

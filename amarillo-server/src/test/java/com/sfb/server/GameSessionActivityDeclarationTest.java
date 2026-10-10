@@ -67,11 +67,18 @@ class GameSessionActivityDeclarationTest {
 
         Player alice = new Player();
         alice.setName("Alice");
+        // setOwner as well as the unit list, because that is what GameSession.startGame does and
+        // what ownsShip reads. Without it every ship has a null owner, ownsShip takes that for
+        // "dev/solo mode" and waves everybody through, and the refusal asserted below comes only
+        // from a name-list check rather than from ownership. Found 2026-10-10 when the
+        // declaration handlers started asking ownsShip like every other action.
         alice.getPlayerUnits().add(fed);
+        fed.setOwner(alice);
         session.getPlayers().get(HOST).setCorePlayer(alice);
         Player bob = new Player();
         bob.setName("Bob");
         bob.getPlayerUnits().add(klingon);
+        klingon.setOwner(bob);
         session.getPlayers().get(P2).setCorePlayer(bob);
 
         game.startTurn();
