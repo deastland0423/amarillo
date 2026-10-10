@@ -1820,29 +1820,51 @@ public class GameController {
      * consults the seeker's target — that is hidden until the seeker is identified (G4.2),
      * and a pad that quietly leaked it would be worse than one that said nothing.
      * <p>
-     * So the wording that goes with this is "closing on", never "targeting". A drone flying
-     * at your flagship may be aimed at something else entirely; what is true is where it is
-     * pointed. The test is a cone roughly 45 degrees either side of dead ahead, nearest unit
-     * first — the same judgement a player makes by eye.
+     * So the wording that goes with this is never "targeting". A drone flying at your flagship
+     * may be aimed at something else entirely; what is true is where it is pointed. The test is
+     * a cone roughly 45 degrees either side of dead ahead, nearest unit first — the same
+     * judgement a player makes by eye.
+     * <p>
+     * That caution was already written here and was not enough. In a game on 2026-10-10 a player
+     * read the pad's "closing on <ship>" grouping as his opponent's drone ORDERS being visible,
+     * and reported it as a leak. It was not one, but a phrase that an experienced player reads
+     * as "targeting" is doing the damage anyway, so the label it feeds now says "pointed at".
+     * <p>
+     * It also considered only SHIPS, which made it quietly wrong rather than merely vague: a
+     * drone chasing a shuttle, a fighter or another drone was filed under whichever of the
+     * caller's ships happened to lie ahead of it. A craft the caller owns is a unit a seeker can
+     * be pointed at, so they are all in the running now — and because ownership of a craft is
+     * ownership of its parent (the same rule GameSession.ownsShip keeps), a fighter counts when
+     * its carrier is the caller's.
      */
     private String closingOn(Unit seeker, GameSession session, java.util.Set<String> mine) {
         if (seeker.getLocation() == null)
             return null;
+        java.util.List<Unit> candidates = new java.util.ArrayList<>();
+        for (Ship ship : session.getGame().getShips())
+            if (containsIgnoreCase(mine, ship.getName()))
+                candidates.add(ship);
+        // The caller's CRAFT as well — a seeker pointed at your shuttle is pointed at your
+        // shuttle, and saying "your cruiser" instead is a wrong answer, not a vague one.
+        for (com.sfb.objects.shuttles.Shuttle craft : session.getGame().getActiveShuttles())
+            if (containsIgnoreCase(mine, craft.getParentShipName()))
+                candidates.add(craft);
+
         String best = null;
         int bestRange = Integer.MAX_VALUE;
-        for (Ship ship : session.getGame().getShips()) {
-            if (!containsIgnoreCase(mine, ship.getName()) || ship.getLocation() == null)
+        for (Unit unit : candidates) {
+            if (unit == seeker || unit.getLocation() == null)
                 continue;
-            int bearing = MapUtils.getBearing(seeker.getLocation(), ship.getLocation());
+            int bearing = MapUtils.getBearing(seeker.getLocation(), unit.getLocation());
             if (bearing == 0)
                 continue;                         // same hex: no bearing exists
             int relative = MapUtils.getRelativeBearing(bearing, seeker.getFacing());
             if (relative > 3 && relative < 22)
                 continue;                         // not ahead of it
-            int range = MapUtils.getRange(seeker.getLocation(), ship.getLocation());
+            int range = MapUtils.getRange(seeker.getLocation(), unit.getLocation());
             if (range < bestRange) {
                 bestRange = range;
-                best = ship.getName();
+                best = unit.getName();
             }
         }
         return best;

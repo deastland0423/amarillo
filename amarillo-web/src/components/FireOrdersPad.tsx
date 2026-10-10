@@ -397,11 +397,16 @@ export default function FireOrdersPad({
   }, [orders]);
 
   /**
-   * Ships first, then seekers gathered by which of your units they are CLOSING ON — the
-   * word matters: their real targets are hidden until identified (G4.2), and this is read
-   * off the board from where they are and where they point.
+   * Ships first, then seekers gathered by which of your units they are POINTED AT — the word
+   * matters: their real targets are hidden until identified (G4.2), and this is read off the
+   * board from where they are and where they face, which every player can see.
    *
-   * Fifteen inbound drones as fifteen rows of names is unreadable; as "closing on Kongo (4)"
+   * It read "closing on" until a player took that for his opponent's orders being visible and
+   * reported a leak (2026-10-10). There was no leak, but a phrase an experienced player hears
+   * as "targeting" costs the same as one, so the heading says what the server can actually
+   * know.
+   *
+   * Fifteen inbound drones as fifteen rows of names is unreadable; as "pointed at Kongo (4)"
    * it is a picture. Range order within each group is preserved from the server, which is
    * the priority a player actually uses.
    */
@@ -431,7 +436,12 @@ export default function FireOrdersPad({
     const units = [...byUnit.entries()].sort(
       (a, b) => (a[1][0]?.range ?? 99) - (b[1][0]?.range ?? 99));
     for (const [unit, rows] of units)
-      groups.push({ label: `closing on ${unit}`, rows });
+      // "pointed at", not "closing on" and never "targeting". What the server can say is where
+      // a seeker is FACING, which every player can see on the counter; a seeker's actual target
+      // is secret until a lab or a scout identifies it (G4.231). A player read "closing on" as
+      // his opponent's orders being visible and reported it as a leak (2026-10-10) — it was not
+      // one, but a phrase that reads as "targeting" does the same damage as leaking would.
+      groups.push({ label: `pointed at ${unit}`, rows });
     if (elsewhere.length > 0)
       groups.push({ label: 'elsewhere', rows: elsewhere });
     return groups;
