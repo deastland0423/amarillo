@@ -119,6 +119,15 @@ interface Props {
   onSetEw: (shipName: string, value: { ecm: number; eccm: number }) => void;
   /** Sensor track and current allocation for the selected ship, for the EW stepper. */
   ewLimits: { sensor: number; ecm: number; eccm: number; battery: number } | null;
+  /**
+   * Aegis ships of mine with extra firings waiting behind this volley (D13.14), or null.
+   *
+   * Shown here because of D13.22: a weapon that fires in this volley cannot then fire under
+   * aegis in the same impulse. That makes "what do I hold back?" a decision taken while
+   * composing the volley, before any pulse pad exists — the pads themselves do not appear
+   * until the volley has resolved, which is D13.141's order.
+   */
+  aegisNotice?: { ships: string[]; extras: number | null } | null;
 
   /**
    * Whether a declaration is convened. Until one is, there is nothing to seal — the pad is
@@ -305,7 +314,7 @@ export default function FireOrdersPad({
   units, attackerName, onSelectAttacker, targetName, onSelectTarget,
   orders, onAddOrder, onRemoveOrder, onStartHexFire,
   hoveredOnMap, onHoverCandidate,
-  ew, onSetEw, ewLimits,
+  ew, onSetEw, ewLimits, aegisNotice,
   declarationOpen, onCall, onCommit, onPass, error,
 }: Props) {
   // Both of these are keyed by the attacker they belong to, and read back only when that
@@ -992,6 +1001,27 @@ export default function FireOrdersPad({
       )}
 
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}
+
+      {/* One line, where three popups used to be. See the aegisNotice prop for why it lives in
+          the volley panel rather than in the pulse pads. */}
+      {aegisNotice && (
+        <div style={{
+          marginTop: 8, padding: '5px 7px', borderRadius: 4,
+          border: '1px solid #3d2e0a', background: 'rgba(210,153,34,0.08)',
+          fontSize: '0.76em', color: '#d29922', lineHeight: 1.45,
+        }}>
+          <strong>Aegis</strong> — this volley is firing 1 for{' '}
+          {aegisNotice.ships.join(', ')}.{' '}
+          {aegisNotice.extras === null
+            ? 'Their extra firings follow once it resolves.'
+            : `${aegisNotice.extras} extra firing${aegisNotice.extras === 1 ? '' : 's'} each `
+              + 'follow once it resolves.'}
+          <div style={{ color: '#8b949e', marginTop: 2 }}>
+            A weapon fired now cannot fire under aegis this impulse (D13.22) — hold back
+            anything you want the pulses to use.
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
         {declarationOpen ? (

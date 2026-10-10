@@ -2407,6 +2407,30 @@ export default function GameBoard({ session, onLeave }: Props) {
   const roundKey = `${gameState?.turn ?? 0}:${gameState?.impulse ?? 0}`;
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
   const myCommitted = committedRound === roundKey;
+
+  /**
+   * What the Fire Orders pad needs to say about aegis while a volley is being composed — the
+   * one fact that changes how you compose it, and nothing else.
+   *
+   * The pulse pads used to appear alongside this panel and now wait until the volley resolves
+   * (D13.141), which is right but leaves a gap: D13.22 bars a weapon from firing under aegis in
+   * the same impulse it fired outside it, so "what do I hold back?" is a decision taken HERE,
+   * before any pad exists. A ship is listed only while its aegis is actually working —
+   * aegisPulsesRemaining already answers to D13.524's active fire control — so a passive ship
+   * says nothing rather than promising firings it cannot take.
+   */
+  const aegisNotice = (() => {
+    const ready = ((gameState?.mapObjects ?? [])
+      .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
+      .filter(s => (s.aegisPulsesRemaining ?? 0) > 0);
+    if (ready.length === 0) return null;
+    const extras = ready[0].aegisPulsesRemaining ?? 0;
+    const same = ready.every(s => (s.aegisPulsesRemaining ?? 0) === extras);
+    return {
+      ships: ready.map(s => s.name),
+      extras: same ? extras : null,
+    };
+  })();
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
   // Launching is composed in the Launch Orders pad now, which holds its own draft: there is
@@ -4319,8 +4343,21 @@ export default function GameBoard({ session, onLeave }: Props) {
             remembered one impulse too late. It renders nothing until there is actually
             something in reach, so it is not noise in the impulses where it has no work.
             Dismissal is keyed to the impulse: holding fire now should not silence it for
-            the rest of the battle. */}
-        {gameState?.phase === 'Direct Fire' && (gameState.mapObjects
+            the rest of the battle.
+
+            NOT UNTIL THE ORDINARY VOLLEY HAS RESOLVED, which is D13.141 read literally: "the
+            first firings of all aegis ships must be announced (simultaneously with non-aegis
+            weapons) and then resolved, then the second (aegis) firing is announced and
+            resolved, and so on." Firing 1 IS the sealed volley, so until that volley lands
+            there is nothing for these pads to do and everything for them to obscure.
+
+            Found in play 2026-10-09: three D5s put three pads on screen beside the Direct Fire
+            window, and the owner reasonably used the pads first and sealed afterwards. Nothing
+            broke — the extras counter does not depend on the volley — but it spends firing 2
+            before firing 1, and D13.22 then bars from the volley any weapon the pulse used.
+            What that player needed while composing the volley was one LINE about aegis, not
+            three windows; it is in the fire panel instead. */}
+        {gameState?.phase === 'Direct Fire' && gameState.fireDeclarationSpent && (gameState.mapObjects
           .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
           .filter(s => (s.aegisPulsesRemaining ?? 0) > 0)
           .filter(s => !aegisDismissed.has(`${s.name}@${gameState.turn}.${gameState.impulse}`))
@@ -4665,6 +4702,7 @@ export default function GameBoard({ session, onLeave }: Props) {
           onSetEw={(shipName: string, value: { ecm: number; eccm: number }) =>
             setDeclarationEw(prev => ({ ...prev, [shipName]: value }))}
           ewLimits={padEwLimits}
+          aegisNotice={aegisNotice}
           declarationOpen={declarationOpen}
           onCall={() => { void ensureDeclarationOpen(); }}
           onCommit={requestCommit}
