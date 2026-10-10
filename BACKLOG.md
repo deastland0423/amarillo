@@ -70,8 +70,18 @@ absent from the UI — the DAC arming display turned out to be exactly this.
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
 
-- **Mid-game save and reload.** Analysed, not started. Seeded dice first, then a snapshot at turn
-  boundaries. This is the prerequisite for the campaign system below.
+- **Turn-boundary save and reload.** Analysed, not started. A versioned snapshot taken at a clean
+  energy-allocation boundary, preserving complete mutable state and the resolved ship-spec
+  fingerprints below. The prerequisite for the campaign system.
+
+  **Seeded dice are NOT a prerequisite for it**, and this file said they were until 2026-10-09.
+  A snapshot does not re-derive anything: every roll before the save has already become ordinary
+  stored state — a shield box is down, a lock-on is held — and the rolls after it need not match
+  a timeline that never happened. What genuinely needs reproducible randomness is REPLAY, which
+  is a different feature, and deterministic tests, which are their own reward (`DiceRoller` uses
+  `Math.random()`, so a statistical test can pass by luck). Worth doing early on its own merits;
+  just not a gate on this. Caught by an outside reviewer, and the error was in the compression —
+  the underlying design note had the distinction right all along.
 
   **The refit model makes this easier and adds one hazard.** A ship can be reconstructed from
   `base hull + applied refits + scenario year + COI/loadout + mutable battle state`, which is far
