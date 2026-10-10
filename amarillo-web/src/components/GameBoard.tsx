@@ -2408,29 +2408,6 @@ export default function GameBoard({ session, onLeave }: Props) {
   const declarationOpen = gameState?.fireDeclarationOpen ?? false;
   const myCommitted = committedRound === roundKey;
 
-  /**
-   * What the Fire Orders pad needs to say about aegis while a volley is being composed — the
-   * one fact that changes how you compose it, and nothing else.
-   *
-   * The pulse pads used to appear alongside this panel and now wait until the volley resolves
-   * (D13.141), which is right but leaves a gap: D13.22 bars a weapon from firing under aegis in
-   * the same impulse it fired outside it, so "what do I hold back?" is a decision taken HERE,
-   * before any pad exists. A ship is listed only while its aegis is actually working —
-   * aegisPulsesRemaining already answers to D13.524's active fire control — so a passive ship
-   * says nothing rather than promising firings it cannot take.
-   */
-  const aegisNotice = (() => {
-    const ready = ((gameState?.mapObjects ?? [])
-      .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
-      .filter(s => (s.aegisPulsesRemaining ?? 0) > 0);
-    if (ready.length === 0) return null;
-    const extras = ready[0].aegisPulsesRemaining ?? 0;
-    const same = ready.every(s => (s.aegisPulsesRemaining ?? 0) === extras);
-    return {
-      ships: ready.map(s => s.name),
-      extras: same ? extras : null,
-    };
-  })();
   // Fighter fire state
   const [fighterAttacker, setFighterAttacker]     = useState<ShuttleObject | null>(null);
   // Launching is composed in the Launch Orders pad now, which holds its own draft: there is
@@ -2498,6 +2475,38 @@ export default function GameBoard({ session, onLeave }: Props) {
   // identity every render, which would defeat that memo and the effect that depends on it.
   const myShips    = useMemo(() => new Set(gameState?.myShips ?? []), [gameState?.myShips]);
   const movableNow = gameState?.movableNow ?? [];
+
+  /*
+   * BELOW myShips ON PURPOSE. This read myShips from thirty lines above its declaration, which
+   * TypeScript accepts -- the reference sits inside a .filter callback, which it must assume
+   * runs later -- and which threw a temporal-dead-zone ReferenceError the moment there was
+   * anything to filter. The first render has no map objects, so the callback never ran and the
+   * map drew; the next render, carrying the ships, crashed the board. "The map appeared for an
+   * instant and then disappeared", 2026-10-09.
+   */
+  /**
+   * What the Fire Orders pad needs to say about aegis while a volley is being composed — the
+   * one fact that changes how you compose it, and nothing else.
+   *
+   * The pulse pads used to appear alongside this panel and now wait until the volley resolves
+   * (D13.141), which is right but leaves a gap: D13.22 bars a weapon from firing under aegis in
+   * the same impulse it fired outside it, so "what do I hold back?" is a decision taken HERE,
+   * before any pad exists. A ship is listed only while its aegis is actually working —
+   * aegisPulsesRemaining already answers to D13.524's active fire control — so a passive ship
+   * says nothing rather than promising firings it cannot take.
+   */
+  const aegisNotice = (() => {
+    const ready = ((gameState?.mapObjects ?? [])
+      .filter(o => o.type === 'SHIP' && myShips.has(o.name)) as ShipObject[])
+      .filter(s => (s.aegisPulsesRemaining ?? 0) > 0);
+    if (ready.length === 0) return null;
+    const extras = ready[0].aegisPulsesRemaining ?? 0;
+    const same = ready.every(s => (s.aegisPulsesRemaining ?? 0) === extras);
+    return {
+      ships: ready.map(s => s.name),
+      extras: same ? extras : null,
+    };
+  })();
   // A movable unit is "mine" if it's one of my ships, or a fighter/shuttle whose parent
   // ship is mine (myShips lists only ships, but fighters must move too).
   // Memoised because the snap-to effect below depends on it: rebuilt every render, it would make
