@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.sfb.TurnTracker;
 import com.sfb.objects.Drone;
 import com.sfb.utilities.ArcUtils;
 import com.sfb.weapons.DroneRack.DroneRackType;
@@ -256,6 +257,43 @@ public class DroneRackTest {
         DroneRack rack = new DroneRack(DroneRackType.TYPE_A);
         rack.completePendingReload(); // should not throw
         assertTrue(rack.isEmpty());
+    }
+
+    // --- The opening impulses of a battle ---
+
+    /**
+     * A rack that has NEVER fired may fire on the first impulse of the game, whatever its gap.
+     *
+     * <p>Found in play 2026-10-09: a Kzinti MDC at Y175 could launch from racks 3-7 and not from
+     * 1 and 2, which the Y175 refit makes type-C. The cause was arithmetic, not rules.
+     * {@code Weapon.lastImpulseFired} starts at -9, a sentinel chosen so that a weapon which has
+     * never fired clears the DEFAULT gap of eight: {@code 0 - (-9) = 9 >= 8}. It was never
+     * generalised. FD3.3 gives the type-C a twelve-impulse gap, and {@code 1 - (-9) = 10} is not
+     * twelve, so every type-C rack in the game was barred from launching until absolute impulse
+     * three.
+     *
+     * <p>Only the type-C was affected, because it is the only weapon anywhere with a gap longer
+     * than nine. That is exactly what makes it worth a test rather than a wider number: the next
+     * weapon with a long gap would inherit the same silent lockout, and nothing would say so.
+     */
+    @Test
+    public void aRackThatHasNeverFiredCanLaunchOnTheFirstImpulse() {
+        TurnTracker clock = new TurnTracker();
+        clock.nextImpulse();                       // absolute impulse 1 — the opening of a battle
+        assertEquals("fixture: the first impulse of the game", 1, clock.getImpulse());
+
+        for (DroneRackType type : DroneRackType.values()) {
+            DroneRack rack = new DroneRack(type);
+            rack.setClock(clock);
+            List<Drone> ammo = new ArrayList<>();
+            for (int i = 0; i < rack.getSpaces(); i++)
+                ammo.add(new Drone(com.sfb.objects.DroneType.TypeI));
+            rack.setAmmo(ammo);
+
+            assertTrue(type + " cannot launch on impulse 1, having never fired. Its gap is "
+                    + rack.getMinImpulseGap() + " and the never-fired sentinel is shallower"
+                    + " than that.", rack.canFire());
+        }
     }
 
     // --- Helpers ---

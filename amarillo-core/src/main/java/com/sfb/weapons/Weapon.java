@@ -26,7 +26,21 @@ public abstract class Weapon {
 	private int arcs = ArcUtils.FULL; // Bitmask of the 24 directions (1-24) into which the weapon can fire.
 	private String arcLabel = "FULL"; // Human-readable arc label, e.g. "FA", "FX + 13", "LF + L"
 	private boolean functional = true; // True if the weapon is undamaged, false otherwise.
-	private int lastImpulseFired = -9; // The last impulse on which this weapon was fired.
+	/**
+	 * {@link #lastImpulseFired} when this weapon has not fired — negative, so it can never
+	 * collide with a real impulse, which counts up from zero.
+	 *
+	 * <p><b>Test for it; never do arithmetic against it.</b> The value was once simply -9,
+	 * chosen so that subtracting it cleared the DEFAULT gap of eight: {@code 0 - (-9) = 9 >= 8}.
+	 * That worked for every weapon until one wanted a longer gap. FD3.3 gives the type-C drone
+	 * rack twelve impulses, {@code 1 - (-9) = 10} is not twelve, and so every type-C rack in the
+	 * game was barred from launching for the first two impulses of a battle — looking, to the
+	 * launch pad that filters on {@code canFire}, exactly like a rack cooling down from a shot it
+	 * had never taken. Found in play on a Kzinti MDC, 2026-10-09.
+	 */
+	public static final int NEVER_FIRED = -9;
+
+	private int lastImpulseFired = NEVER_FIRED; // The last impulse on which this weapon was fired.
 	private int lastTurnFired = -1; // The last turn on which this weapon was fired. -1 = never fired. (used by
 																	// Fusion)
 	private int maxShotsPerTurn = 1; // How many times this weapon may fire per turn (default 1).
@@ -277,8 +291,12 @@ public abstract class Weapon {
 
 	public boolean canFire() {
 		int currentImpulse = clock.getImpulse();
+		// A weapon that has not fired is not waiting on anything, whatever its gap. Said
+		// outright rather than left to the arithmetic, which only ever worked for the default
+		// gap of eight — see NEVER_FIRED.
 		return shotsThisTurn < maxShotsPerTurn
-				&& (currentImpulse - lastImpulseFired) >= minImpulseGap;
+				&& (lastImpulseFired == NEVER_FIRED
+						|| (currentImpulse - lastImpulseFired) >= minImpulseGap);
 	}
 
 	/**
@@ -367,7 +385,10 @@ public abstract class Weapon {
 	public void cleanUp() {
 		shotsThisTurn = 0;
 		shotsThisImpulse = 0;
-		lastImpulseFired = -9;
+		// An ordinary weapon starts each turn free of the gap, which is what this sentinel now
+		// says in as many words. A DRONE RACK must NOT: FD3.0 holds the quarter-turn gap across
+		// the turn boundary, so DroneRack.cleanUp reads the timestamp back over this.
+		lastImpulseFired = NEVER_FIRED;
 	}
 
 	public int getMaxShotsPerTurn() {
