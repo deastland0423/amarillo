@@ -15,7 +15,7 @@
   "commandRating": 6,
   "carrierClass": "CAPABLE",
   "requiresEscort": true,
-  "tokenArt": "hydran/cw.png",
+  "tokenArt": "hydran/nvl.png",
     
   "shields": [28, 24, 18, 18, 18, 24],
   

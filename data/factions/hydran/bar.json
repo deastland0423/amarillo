@@ -14,7 +14,7 @@
   "commandRating": 7,
   "isLeader": true,
   "carrierClass": "CAPABLE",
-  "tokenArt": "hydran/cw.png",
+  "tokenArt": "hydran/bar.png",
   
   "shields": [36, 30, 24, 24, 24, 30],
   
