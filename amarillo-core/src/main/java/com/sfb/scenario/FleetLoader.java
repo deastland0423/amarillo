@@ -56,8 +56,9 @@ public final class FleetLoader {
             // is what the scenario loader does when the battle actually starts: a Y175 block's
             // refitCost is added to the BPV there, and 46 hulls and refits declare one, so a
             // Y176 fleet was priced as though none of them had been refitted.
-            com.sfb.scenario.ScenarioLoader.outfitForYear(ship, faction, spec.year, shipSpec);
-
+            // BEFORE outfitForYear below, which re-seats a carrier's fighters and names them
+            // after their ship (J4.4). Named afterwards, every carrier's fighters were called
+            // Stinger2-1, Stinger2-2 ... and two carriers in one fleet collided outright.
             // Several ships of one type are normal, and a player may not have named them
             // apart. Violations have to point at one ship, so make the names unique here.
             String wanted = entry.name != null && !entry.name.isBlank()
@@ -65,6 +66,9 @@ public final class FleetLoader {
                     : (shipSpec.name != null && !shipSpec.name.isBlank() ? shipSpec.name : entry.type);
             int n = seen.merge(wanted, 1, Integer::sum);
             ship.setName(n == 1 ? wanted : wanted + " #" + n);
+
+            com.sfb.scenario.ScenarioLoader.outfitForYear(ship, faction, spec.year, shipSpec);
+
             ship.setCoiSpend(entry.coiSpend);
             ships.add(ship);
 

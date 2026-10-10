@@ -306,6 +306,10 @@ public final class FighterComplement {
             }
             complement.applyTo(bay, year, "", typeCount);
         }
+        // Re-seating built new craft, which know only their local designation — so put the
+        // ship's name back in front of them. One composition point, in Shuttles; see
+        // Shuttle.localName for why the two halves are settled at different moments.
+        ship.getShuttles().renameCraftFor(ship.getName());
         // The hold is sized against what the ready racks hold (J4.72), and re-seating just
         // changed that. Once, after every bay, rather than per bay: the figure is a property
         // of the whole ship, so computing it while half the bays still hold the old era's

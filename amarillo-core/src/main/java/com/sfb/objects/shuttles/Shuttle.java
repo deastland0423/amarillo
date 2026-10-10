@@ -16,6 +16,33 @@ import com.sfb.weapons.Weapon;
  */
 public abstract class Shuttle extends Unit {
 
+	/**
+	 * What this craft is called ABOARD ITS SHIP — "Admin-1", "Stinger2-3" — as distinct from
+	 * {@code getName()}, which carries the ship's name in front of it and is the address the
+	 * game resolves actions by.
+	 *
+	 * <p>Kept because the two are settled at different moments. A bay is built during
+	 * {@code Ship.init}, before the ship has any name at all, and a carrier's fighters are
+	 * re-seated later still when the scenario year is known. Without somewhere to hold the local
+	 * part, every ship's craft were Admin-1 and Admin-2, and two Hydran carriers both called
+	 * their fighters Stinger2-1 through Stinger2-3 — six units on the map under three addresses,
+	 * none of which could be moved. Found in play 2026-10-09.
+	 *
+	 * <p>{@code Shuttles.renameCraftFor} is the one place the two halves are joined, so a ship
+	 * renamed twice re-derives rather than accumulating prefixes.
+	 */
+	private String localName;
+
+	/** @see #localName */
+	public String getLocalName() {
+		return localName;
+	}
+
+	/** @see #localName */
+	public void setLocalName(String localName) {
+		this.localName = localName;
+	}
+
 	private int maxSpeed; // The maximum speed this shuttle can go
 	private int hull; // The maximum hull value of the shuttle
 

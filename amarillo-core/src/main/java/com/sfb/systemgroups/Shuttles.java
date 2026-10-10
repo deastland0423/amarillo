@@ -285,6 +285,37 @@ public class Shuttles implements Systems {
     public void renameSquadronsFor(String shipName) {
         for (int i = 0; i < squadrons.size(); i++)
             squadrons.get(i).setName(squadronName(shipName, i));
+        renameCraftFor(shipName);
+    }
+
+    /**
+     * Put the ship's name in front of every craft aboard it — the one place the two halves of a
+     * craft's name are joined.
+     *
+     * <p>A name is the ADDRESS this game resolves actions by: {@code movableNow} is a list of
+     * names and every order names its subject. The local half ("Admin-1", "Stinger2-3") is
+     * numbered per SHIP on purpose, so a complement spread over three bays runs straight through
+     * rather than restarting in each — correct within a carrier and silent the moment there are
+     * two of them. Two Hydran carriers in one fleet put six fighters on the map under three
+     * names, and "Waiting for Stinger2-1" named two units, neither of which would move. Found in
+     * play 2026-10-09.
+     *
+     * <p>Derived from {@link Shuttle#getLocalName()} rather than edited onto the existing name,
+     * so renaming a ship twice re-derives instead of stacking prefixes. A craft with no local
+     * name recorded is left alone: it was built by something that predates this and its name is
+     * the best answer anyone has.
+     */
+    public void renameCraftFor(String shipName) {
+        if (shipName == null || shipName.isBlank())
+            return;
+        for (ShuttleBay bay : bays)
+            for (ShuttleSpace space : bay.getSpaces()) {
+                Shuttle craft = space.getShuttle();
+                if (craft == null || craft.getLocalName() == null
+                        || craft.getLocalName().isBlank())
+                    continue;
+                craft.setName(shipName + "-" + craft.getLocalName());
+            }
     }
 
     /**

@@ -453,6 +453,18 @@ public class ShuttleBay {
     // -------------------------------------------------------------------------
 
     public static Shuttle buildShuttle(String type, String name) {
+        Shuttle built = buildShuttleUnnamed(type);
+        if (built != null) {
+            // The name given here is the LOCAL designation — "Admin-1", "Stinger2-3". The ship's
+            // name goes in front of it in Shuttles.renameCraftFor, which is the only place the
+            // two halves are joined. See Shuttle.localName.
+            built.setLocalName(name);
+            built.setName(name);
+        }
+        return built;
+    }
+
+    private static Shuttle buildShuttleUnnamed(String type) {
         // A FIGHTER is a catalogue row, not a class (J4.4). Asked first, so a new fighter needs no
         // code at all: its row carries its stats and its armament, and CataloguedFighter builds
         // both. Sixteen classes used to live below this switch, every one a constructor repeating
@@ -460,7 +472,6 @@ public class ShuttleBay {
         com.sfb.objects.ShuttleCatalog.Entry entry = com.sfb.objects.ShuttleCatalog.get(type);
         if (entry != null && entry.isFighter()) {
             Shuttle fighter = new com.sfb.objects.shuttles.CataloguedFighter(entry);
-            fighter.setName(name);
             return fighter;
         }
 
@@ -491,7 +502,6 @@ public class ShuttleBay {
                 s = new AdminShuttle();
                 break;
         }
-        s.setName(name);
         return s;
     }
 
