@@ -181,7 +181,21 @@ Not backlog so much as decisions. Listed so nobody re-opens them by accident.
 - **MRS shuttles (J8.0)** — digested in full, then deferred. An MRS is not a `Fighter` (J8.432).
 - **Drone drop selection** — which drones lose tracking when the control limit is exceeded.
   Currently first-in-first-served.
-- **Token art for non-ship markers** — seekers, planets, mines, terrain. Ships are done.
+- **Token art for non-ship markers** — seekers, planets, mines, terrain. Ships are done, and so
+  are CRAFT as of 2026-10-10 (a catalogue row names its counter, the same way a hull does).
+
+- **A Q-ship's counter is a disguise, not decoration.** Raised by the owner 2026-10-10 and worth
+  writing down before it is built the wrong way. A Q-ship's whole purpose in some scenarios is to
+  look like an ordinary freighter until it opens fire, so drawing it as a Q-ship gives the ambush
+  away before it happens — the picture would leak what the scenario exists to conceal.
+
+  It is the same ruling already made for craft: **art follows what a unit APPEARS to be, never
+  what it is.** A suicide shuttle draws as the admin shuttle it was built from because G4.233
+  says so; a Q-ship should draw as a freighter until it reveals itself. So the work is not "a
+  generic Q-ship marker" but a reveal state on the hull, with the counter following it — and
+  until that exists, a Q-ship is better off with no art than with its own portrait. Hydran S-Q
+  currently names `hydran/sq.png`, which does not exist, so it falls back to a circle and is
+  accidentally correct.
 - **Photon warp arming** — photons may only arm from warp energy. Owner unsure it is worth it.
 - **Early Years (Y-prefix) content** is out of scope entirely. The Romulan WB and warp-targeted
   lasers are absent by decision, not by omission.
