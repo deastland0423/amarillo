@@ -29,7 +29,8 @@
       "tokenArt": "hydran/sth.png",
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] },
                    { "type": "FighterHellbore", "designator": "H", "arcs": ["FA"] } ] },
-    { "type": "stinger_e", "name": "Stinger-E (EW)",                            "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 12, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-E", "designation": "StingerE", "fixedEwPods": 2, "twoSeater": true,
+    { "type": "stinger_e", "name": "Stinger-E (EW)",                            "kind": "fighter",    "factions": ["hydran"], "year": 170, "speed": 15, "hull": 10, "crippled": 7, "bpv": 12, "canWeasel": false, "scatterPackSize": 0, "canSuicide": false, "shortName": "St-E", "designation": "StingerE",
+      "tokenArt": "hydran/ste.png", "fixedEwPods": 2, "twoSeater": true,
       "weapons": [ { "type": "PhaserG", "designator": "1", "arcs": ["FA"] } ] }
   ]
 }
