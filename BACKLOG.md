@@ -59,7 +59,12 @@ absent from the UI — the DAC arming display turned out to be exactly this.
 
 - **Launch buttons are not disabled under EM.** `usingEm` is on the ship DTO
   (`GameStateDto.java:524`). Today a player clicks launch and gets the server's refusal back.
-- **No standalone "call declaration" button**, so the bluff cannot be made on its own.
+- **No standalone "call declaration" button**, so the bluff cannot be made on its own —
+  and it now blocks a second thing. Aegis pulse pads wait on `fireDeclarationSpent`
+  (D13.141: firing 1 is the sealed volley and resolves first), but that flag only turns
+  true when a round actually resolves. An impulse where you skip firing 1 under D13.142
+  and want only the extras has nothing to resolve, so the pads never appear. Both need the
+  same thing: a way to say "I am declaring nothing".
 - **The deployment map draws faction circles, not counters.** `DeploymentPanel` hand-builds
   minimal ship objects before a real `Ship` exists, so `tokenArt` is absent and every ship
   changes appearance the moment the battle starts. Fixing it means `LobbyStateDto.ShipDto`
