@@ -12,11 +12,22 @@ interface Props {
   onJoined: (result: LobbyResult) => void;
   /** Named so the builder can stamp who built a fleet. */
   onBuildFleet: (playerName: string) => void;
+  /**
+   * A seat this browser already holds, if any — so leaving a game to do something else is not
+   * a one-way trip.
+   *
+   * NOT the same as joining by game ID, which is why it is offered separately and first:
+   * `joinGame` mints a new player token and seats it as a guest, so a host who came back that
+   * way would arrive as a guest with their ships bound to the token they left. The saved token
+   * is the seat itself.
+   */
+  savedSession?: LobbyResult | null;
+  onResume?: () => void;
 }
 
 type Mode = 'choose' | 'create' | 'join';
 
-export default function Lobby({ onJoined, onBuildFleet }: Props) {
+export default function Lobby({ onJoined, onBuildFleet, savedSession, onResume }: Props) {
   const [mode, setMode] = useState<Mode>('choose');
   const [name, setName] = useState('');
   const [gameId, setGameId] = useState('');
@@ -70,6 +81,13 @@ export default function Lobby({ onJoined, onBuildFleet }: Props) {
             />
           </div>
           {error && <p className="error">{error}</p>}
+          {savedSession && onResume && (
+            <div className="button-row">
+              <button onClick={onResume}>
+                Resume game {savedSession.gameId}
+              </button>
+            </div>
+          )}
           <div className="button-row">
             <button onClick={() => { setError(''); setMode('create'); }}>Host a game</button>
             <button onClick={() => { setError(''); setMode('join'); }}>Join a game</button>

@@ -461,9 +461,17 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
 
         {error && <p className="error">{error}</p>}
 
-        {/* Host: Start button — enabled only when all COI done */}
-        {session.isHost && lobby?.scenarioLoaded && (
-          <div className="button-row" style={{ marginTop: 12 }}>
+        {/*
+          Leave is OUTSIDE the host's Start row, and that is the whole point of this block.
+          It used to sit inside it, so the host only got an exit once `scenarioLoaded` was true —
+          which meant the very first screen a host sees, choosing between a scenario and a saved
+          fleet, had no way back to the landing page at all. A joiner always had one. Found in
+          play 2026-10-09 by a host who wanted to go and build a fleet first.
+
+          Start is what is conditional; Leave never is. Anyone on this screen can always go back.
+        */}
+        <div className="button-row" style={{ marginTop: 12 }}>
+          {session.isHost && lobby?.scenarioLoaded && (
             <button
               onClick={handleStart}
               disabled={busy || !lobby.allCoiReady}
@@ -471,13 +479,15 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
             >
               {busy ? 'Starting…' : lobby.allCoiReady ? 'Start game' : 'Waiting for COI…'}
             </button>
-            <button className="secondary" onClick={onLeave}>Leave</button>
-          </div>
-        )}
-
-        {!session.isHost && (
-          <button className="secondary" style={{ marginTop: 12 }} onClick={onLeave}>Leave game</button>
-        )}
+          )}
+          <button
+            className="secondary"
+            onClick={onLeave}
+            title="Back to the landing page. Your seat is kept — use Resume to come back."
+          >
+            {session.isHost ? 'Leave' : 'Leave game'}
+          </button>
+        </div>
       </div>
 
       {/* Host: ship assignment panel (after scenario loaded) */}
