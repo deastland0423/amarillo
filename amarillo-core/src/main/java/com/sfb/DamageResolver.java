@@ -252,6 +252,15 @@ class DamageResolver {
             if (s == minStrength)
                 weakCount++;
 
+        // Which shields Step B already served. E10.413 spreads the remainder over "the
+        // REMAINING (usually five) shields" — the others — and that word is the whole of this
+        // bug. Step C used to walk all six, and since Step B had just weakened the weakest
+        // shield it was STILL the weakest, so every remaining point landed back on it. With a
+        // weak shield already at zero that meant the entire Step C share bled through a downed
+        // shield, and the discarded return below threw it away. Two hellbores for thirteen each
+        // scored thirteen and nothing else (owner's game, 2026-10-09).
+        boolean[] servedByStepB = new boolean[6];
+
         int stepCDamage;
         if (weakCount == 6) {
             // All shields equal — skip Step B, distribute everything in Step C
@@ -268,6 +277,7 @@ class DamageResolver {
                 if (strength[i] == minStrength) {
                     int bleed = target.damageShield(i + 1, eachWeak);
                     strength[i] = Math.max(0, strength[i] - eachWeak); // track for Step C ordering
+                    servedByStepB[i] = true;
                     if (bleed > 0)
                         pendingInternalDamage.add(new PendingDamage(target, bleed));
                     log.add("  Enveloping step B — shield #" + (i + 1) + " (weakest)  " + eachWeak);
@@ -275,24 +285,42 @@ class DamageResolver {
             }
         }
 
-        // Step C: distribute remaining damage one point at a time, weakest first
+        // Step C (E10.413): the remainder over the OTHER shields, one point at a time, weakest
+        // first. Where several of those are equally weak the rule gives the choice to the owning
+        // player; the lowest-numbered is taken here, which is a default rather than a ruling.
         if (stepCDamage > 0) {
-            for (int pt = 0; pt < stepCDamage; pt++) {
-                // Find shield with lowest current strength (track externally)
-                int minNow = Integer.MAX_VALUE;
-                for (int i = 0; i < 6; i++)
-                    if (strength[i] < minNow)
-                        minNow = strength[i];
-                // Pick first shield at that strength
-                for (int i = 0; i < 6; i++) {
-                    if (strength[i] == minNow) {
-                        target.damageShield(i + 1, 1);
-                        strength[i] = Math.max(0, strength[i] - 1);
-                        break;
-                    }
-                }
+            // Weakest to strongest, ONCE, then round the same order again — "starting with the
+            // weakest shield and progressing in order to the strongest, repeating this until all
+            // damage is applied". Not a running minimum, which is what this was: damaging the
+            // weakest shield leaves it the weakest, so every point went to the same shield and
+            // twelve points spread over six equal shields all landed on #1. The rulebook's own
+            // example is the check — twenty points over five shields gives "all five of the
+            // shields four points", which only a round robin does.
+            //
+            // Where several shields are equally weak E10.413 gives the choice to the owning
+            // player; the lowest-numbered goes first here, which is a default rather than a
+            // ruling.
+            List<Integer> order = new ArrayList<>();
+            for (int i = 0; i < 6; i++)
+                if (!servedByStepB[i])
+                    order.add(i);
+            order.sort((a, b) -> strength[a] != strength[b]
+                    ? Integer.compare(strength[a], strength[b])
+                    : Integer.compare(a, b));
+
+            int stepCBleed = 0;
+            for (int pt = 0; pt < stepCDamage && !order.isEmpty(); pt++) {
+                int i = order.get(pt % order.size());
+                // The return is the BLEED-THROUGH, and discarding it was the other half of the
+                // reported bug: once a shield reached zero every further point went nowhere
+                // instead of becoming internal damage.
+                stepCBleed += target.damageShield(i + 1, 1);
+                strength[i] = Math.max(0, strength[i] - 1);
             }
-            log.add("  Enveloping step C — " + stepCDamage + " pts distributed weakest-first");
+            if (stepCBleed > 0)
+                pendingInternalDamage.add(new PendingDamage(target, stepCBleed));
+            log.add("  Enveloping step C — " + stepCDamage + " pts distributed weakest-first"
+                    + (stepCBleed > 0 ? ", " + stepCBleed + " through" : ""));
         }
 
         log.add("  Enveloping total: " + damage + " across all shields");
