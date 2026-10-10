@@ -33,7 +33,9 @@ import org.junit.Test;
  * art does. The owner found the Hydran Lancer this way, by noticing in play that a ship he had art
  * for was not showing it, and four more were in the same state behind it.
  *
- * <p>So: a picture in the tree is a commitment that something uses it.
+ * <p>So: a picture in the tree is a commitment that something uses it — a hull's own
+ * {@code tokenArt}, or a craft's row in the shuttle catalogue, which names its counter
+ * the same way since a fighter is a row rather than a class (J4.4).
  */
 public class TokenArtClaimedTest {
 
@@ -45,39 +47,41 @@ public class TokenArtClaimedTest {
     @BeforeClass
     public static void collectClaims() throws Exception {
         ShipLibrary.loadAllSpecs(SHIP_DIR.getPath());
+        ShuttleCatalog.loadDefault("../data");
         claimed = new HashSet<>();
         for (ShipSpec spec : ShipLibrary.all())
-            if (spec.tokenArt != null && !spec.tokenArt.isBlank())
-                claimed.add(spec.tokenArt.replace('\\', '/').toLowerCase());
+            claim(spec.tokenArt);
+        // Craft name their own counters too (J4.4: a fighter is a catalogue ROW, not a class).
+        // The three Stinger pictures were parked in this file while nothing outside ShipSpec
+        // could name one; that stopped being true on 2026-10-10 and the parking came out the
+        // same day, which is the only way a parked list stays worth reading.
+        for (ShuttleCatalog.Entry entry : ShuttleCatalog.all())
+            claim(entry.tokenArt);
+    }
+
+    private static void claim(String art) {
+        if (art != null && !art.isBlank())
+            claimed.add(art.replace('\\', '/').toLowerCase());
     }
 
     /**
-     * Art for a SHIP. The shared pieces — shuttle, drone, plasma, and everything under terrain —
-     * are referenced from code rather than from a ship file, so they are not ship art and this
-     * test has nothing to say about them.
+     * Art that something is expected to CLAIM. The shared pieces — shuttle, drone, plasma, and
+     * everything under terrain — are named in the client by faction rather than by any row, so
+     * nothing claims them and this test has nothing to say about them.
      */
     private static boolean isShipArt(String faction, String file) {
         if (faction.equalsIgnoreCase("terrain"))
             return false;
         String stem = file.toLowerCase();
-        if (stem.equals("shuttle.png") || stem.equals("drone.png") || stem.equals("plasma.png"))
-            return false;
-        return !CRAFT_ART.contains(faction.toLowerCase() + "/" + stem);
+        // shuttle/drone/plasma are the GENERIC per-faction counters, named in HexGrid rather
+        // than by any row — a craft with no art of its own falls back to its faction's shuttle.
+        return !(stem.equals("shuttle.png") || stem.equals("drone.png")
+                || stem.equals("plasma.png"));
     }
 
-    /**
-     * Art for named CRAFT rather than hulls, which no ship file can claim because token art is a
-     * ship feature: {@code tokenArt} lives on {@code ShipSpec} and nothing reads one off the
-     * shuttle catalogue. Parked rather than deleted — the pictures are finished and will be
-     * wanted the day art moves up to the Marker level, which is already the plan.
-     *
-     * <p>These are the Hydran Stingers: Stinger-1, Stinger-2 and the heavy Stinger-H.
-     */
-    private static final Set<String> CRAFT_ART = Set.of(
-            "hydran/st1.png", "hydran/st2.png", "hydran/sth.png");
 
     @Test
-    public void everyShipTokenOnDiskIsNamedByAShipFile() {
+    public void everyTokenOnDiskIsNamedBySomething() {
         assertTrue("fixture: the token directory should be where this test thinks ("
                 + TOKEN_DIR.getAbsolutePath() + ")", TOKEN_DIR.isDirectory());
 

@@ -495,6 +495,13 @@ export interface ShuttleObject extends MapObjectBase {
   weapons?:       WeaponState[];  // every shuttle: an admin shuttle carries a Ph-3
   isFighter?:     boolean;        // a fighter, as opposed to an admin/other shuttle
   shuttleTypeName?: string | null;  // "Admin Shuttle", "General Assault Shuttle" — never the role
+  /**
+   * Counter art for this craft, or absent to draw its faction's generic shuttle.
+   *
+   * Follows the craft's catalogue ROW and never its role, so a suicide shuttle is drawn as
+   * the admin shuttle it was built as — which is what G4.233 requires.
+   */
+  tokenArt?:      string | null;
   effectiveMaxSpeed?: number;     // after any point given to Erratic Maneuvers (C10.13)
   usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
   emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)

@@ -114,10 +114,23 @@ public final class ShuttleCatalog {
         /** How this craft is armed and fitted; {@link Loadout#NONE} for a row that says nothing. */
         public final Loadout loadout;
 
+        /**
+         * Counter art for this craft, as a path under {@code amarillo-web/public/tokens}, or null
+         * to be drawn as its faction's generic shuttle.
+         *
+         * <p>On the ROW rather than on a class, because a fighter is a catalogue row and not a
+         * class (J4.4) — the same reason its stats and armament live here. It is the craft's
+         * equivalent of {@code ShipSpec.tokenArt}, and it exists because the Stinger art had been
+         * drawn and sat unusable: nothing outside ShipSpec could name a picture, so every craft
+         * in the game drew its faction's generic shuttle counter.
+         */
+        public final String tokenArt;
+
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
               boolean canWeasel, boolean canSuicide, int scatterPackSize,
-              String shortName, String designation, Loadout loadout) {
+              String shortName, String designation, Loadout loadout, String tokenArt) {
+            this.tokenArt = tokenArt == null || tokenArt.isBlank() ? null : tokenArt;
             this.loadout = loadout == null ? Loadout.NONE : loadout;
             this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
             this.designation = designation == null || designation.isBlank()
@@ -317,7 +330,8 @@ public final class ShuttleCatalog {
                     n.path("scatterPackSize").asInt(0),
                     n.path("shortName").asText(null),
                     n.path("designation").asText(null),
-                    loadoutFrom(n));
+                    loadoutFrom(n),
+                    n.path("tokenArt").asText(null));
             String key = e.type.toLowerCase();
             if (registry.containsKey(key))
                 duplicates.put(key, file.getName() + " re-declares type '" + e.type

@@ -75,6 +75,12 @@ public class MapObjectPrivacyTest {
         rule(GameStateDto.ShuttleDto.class, Visibility.PUBLIC,
             "facing", "speed", "maxSpeed", "effectiveMaxSpeed", "usingEm", "emSpeedCommitted",
             "isFighter", "shuttleTypeName", "parentPlayer", "parentShipName", "weapons",
+            // The counter it is drawn as. PUBLIC for the same reason shuttleTypeName is:
+            // what a craft looks like is visible. It follows the craft's CATALOGUE ROW,
+            // never its role, so a suicide shuttle and an unreleased scatter pack are drawn
+            // as the admin shuttles they were built as — which is what G4.233 requires, and
+            // would be undone the moment anyone keyed art off the role instead.
+            "tokenArt",
             "crippled", "hetUsed", "beingRecovered", "landingPhase", "landedHexSide",
             "personnelCapacity", "isIdentified",
             // Damage is visible, and so is the hull behind it: unlike a drone, the craft

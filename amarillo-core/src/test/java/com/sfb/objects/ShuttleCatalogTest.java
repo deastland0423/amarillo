@@ -253,6 +253,6 @@ public class ShuttleCatalogTest {
     private static ShuttleCatalog.Entry entry(String name, String shortName,
             String designation) {
         return new ShuttleCatalog.Entry("probe", name, "shuttle", java.util.List.of("any"),
-                0, 0, 0, 0, 0, false, false, 0, shortName, designation, null);
+                0, 0, 0, 0, 0, false, false, 0, shortName, designation, null, null);
     }
 }

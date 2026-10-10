@@ -716,7 +716,12 @@ function drawObjects(
         faction = parent?.faction ?? '';
       }
 
-      const tokenPath = faction ? `${faction.toLowerCase()}/shuttle.png` : null;
+      // The craft's OWN counter where its catalogue row names one — a Stinger is drawn as a
+      // Stinger — and the faction's generic shuttle otherwise. Art that exists is used; art that
+      // does not have been drawn yet falls back, exactly as a ship's does.
+      const tokenPath = shuttle.tokenArt
+        ? shuttle.tokenArt
+        : faction ? `${faction.toLowerCase()}/shuttle.png` : null;
       const tokenImg  = tokenPath ? loadTokenImage(tokenPath, onImageLoad) : null;
       const r = SIZE * 0.2;
 

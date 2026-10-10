@@ -771,6 +771,15 @@ public class GameStateDto {
         public boolean isFighter;          // a fighter, as opposed to an admin/other shuttle
         /** What the craft IS — "Admin Shuttle", "General Assault Shuttle". Never the role. */
         public String shuttleTypeName;
+        /**
+         * Counter art for this craft, or null to draw its faction's generic shuttle.
+         *
+         * <p>Public like the type name and for the same reason: what a craft looks like is a
+         * visible property of it. Nothing here is the craft's ROLE, which stays secret — a
+         * suicide shuttle and a scatter pack are admin shuttles as far as this field is
+         * concerned, and must stay that way or the picture would give away what G4.233 keeps.
+         */
+        public String tokenArt;
         public String parentPlayer; // name of the player who owns this shuttle
         public String parentShipName; // name of the ship that launched this shuttle
         public List<WeaponDto> weapons; // non-null for fighters; null for plain shuttles
@@ -2263,6 +2272,10 @@ public class GameStateDto {
         com.sfb.objects.ShuttleCatalog.Entry ce = shuttle.getCatalogType() == null ? null
                 : com.sfb.objects.ShuttleCatalog.get(shuttle.getCatalogType());
         dto.shuttleTypeName = ce != null ? ce.name : null;
+        // The craft's own counter, where it has one (J4.4: a fighter is a catalogue row). A
+        // converted craft deliberately keeps its ORIGINAL row's art: an admin shuttle made into
+        // a suicide shuttle looks like an admin shuttle, which is what G4.233 requires.
+        dto.tokenArt = ce != null ? ce.tokenArt : null;
         if (shuttle instanceof com.sfb.objects.shuttles.Fighter) {
             com.sfb.objects.shuttles.Fighter fighter = (com.sfb.objects.shuttles.Fighter) shuttle;
             dto.hetUsed = fighter.isTacticalManeuverUsed();
