@@ -13,6 +13,7 @@
   "bonusHets": 1,
   "commandRating": 3,
   
+  "tokenArt": "hydran/hn.png",
   "shields": [17, 12, 10, 11, 10, 12],
   
   "hullBoxes": {

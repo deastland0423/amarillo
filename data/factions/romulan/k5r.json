@@ -13,6 +13,7 @@
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 4,
+  "tokenArt": "romulan/k5r.png",
   "shields": [21, 16, 9, 9, 9, 16],
   "hullBoxes": {
     "fhull": 3,
