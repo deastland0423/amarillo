@@ -16,6 +16,7 @@
   "aegis": "FULL",
   "commandRating": 4,
   
+  "tokenArt": "hydran/da.png",
   "shields": [24, 18, 18, 18, 18, 18],
   
   "hullBoxes": {

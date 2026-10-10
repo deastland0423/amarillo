@@ -14,7 +14,8 @@
   "commandRating": 10,
   "isBCH": true,
   "carrierClass": "CAPABLE",
-  "tokenArt": "hydran/dg.png",
+  
+  "tokenArt": "hydran/ov.png",
   
   "shields": [36, 30, 26, 26, 26, 30],
   

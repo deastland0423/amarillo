@@ -15,6 +15,7 @@
   "commandRating": 5,
   "carrierClass": "CAPABLE",
   "requiresEscort": true,
+  "tokenArt": "hydran/cve.png",
   
   "shields": [17, 12, 10, 11, 10, 12],
   
