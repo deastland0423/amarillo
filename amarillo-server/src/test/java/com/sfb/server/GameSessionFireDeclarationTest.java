@@ -360,4 +360,44 @@ class GameSessionFireDeclarationTest {
         assertTrue(log.contains("Fire declaration resolves"), log);
         assertTrue(log.contains("clear a path"), log);
     }
+
+    /**
+     * The BLUFF, and the aegis skip that rides on it: a declaration called with nothing drafted,
+     * which everybody passes, still RESOLVES and marks the impulse spent.
+     *
+     * <p>Pinned because the backlog claimed for two days that this was impossible — that there
+     * was "no standalone call-declaration button, so the bluff cannot be made on its own", and
+     * that D13.142's aegis skip was unreachable as a result. Both halves were already false. The
+     * pad has had the button all along, {@code ensureDeclarationOpen} needs no drafted orders,
+     * and PASS_FIRE_DECLARATION counts toward the commit total exactly as a sealed order does.
+     *
+     * <p>What makes it worth a test rather than a correction alone is the aegis pulse pads: they
+     * wait on {@code fireDeclarationSpent}, so D13.142 — give up firing 1, take only the extras —
+     * is reachable only while a round that NOBODY fired in still resolves. That is a real
+     * behavioural contract between two features that do not otherwise touch, and nothing was
+     * holding it.
+     */
+    @Test
+    void aDeclarationNobodyFiresInStillResolves() {
+        assertTrue(session.executeAction(request("CALL_FIRE_DECLARATION", HOST)).isSuccess());
+        assertFalse(session.isFireDeclarationSpent(), "called, not yet resolved");
+
+        assertTrue(session.executeAction(request("PASS_FIRE_DECLARATION", HOST)).isSuccess());
+        assertFalse(session.isFireDeclarationSpent(), "one of two has answered");
+
+        ActionResult second = session.executeAction(request("PASS_FIRE_DECLARATION", P2));
+        assertTrue(second.isSuccess(), second.getMessage());
+
+        assertTrue(session.isFireDeclarationSpent(),
+                "a round everyone passed is still spent — the aegis pulse pads open on this,"
+                        + " and D13.142's skip is unreachable without it");
+    }
+
+    /** And the caller need not be the one who drafted anything — calling IS the bluff. */
+    @Test
+    void anyPlayerMayCallWithNothingDrafted() {
+        ActionResult call = session.executeAction(request("CALL_FIRE_DECLARATION", P2));
+        assertTrue(call.isSuccess(), call.getMessage());
+        assertTrue(String.join("\n", session.drainCombatLog()).contains("calls a fire declaration"));
+    }
 }

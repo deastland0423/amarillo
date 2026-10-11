@@ -124,12 +124,20 @@ absent from the UI — the DAC arming display turned out to be exactly this.
 
 - **Launch buttons are not disabled under EM.** `usingEm` is on the ship DTO
   (`GameStateDto.java:524`). Today a player clicks launch and gets the server's refusal back.
-- **No standalone "call declaration" button**, so the bluff cannot be made on its own —
-  and it now blocks a second thing. Aegis pulse pads wait on `fireDeclarationSpent`
-  (D13.141: firing 1 is the sealed volley and resolves first), but that flag only turns
-  true when a round actually resolves. An impulse where you skip firing 1 under D13.142
-  and want only the extras has nothing to resolve, so the pads never appear. Both need the
-  same thing: a way to say "I am declaring nothing".
+- ~~**No standalone "call declaration" button."**~~ **FALSE, and was when it was written.** The
+  Fire Orders pad has had the button all along, wired to `ensureDeclarationOpen`, which requires
+  no drafted orders — so the bluff has always been available. The second half was wrong for the
+  same reason: `PASS_FIRE_DECLARATION` counts toward the commit total exactly as a sealed order
+  does, so a round nobody fires in still resolves and still sets `fireDeclarationSpent`. D13.142's
+  aegis skip — give up firing 1, take only the extras — has therefore always been reachable by
+  calling a declaration and passing it.
+
+  Left here as a correction rather than deleted, because this is the third claim in two days that
+  something was missing when it was not (plasma fast-load, erratic maneuvers, and now this), and
+  the pattern is worth seeing. `GameSessionFireDeclarationTest.aDeclarationNobodyFiresInStillResolves`
+  now pins the contract, which is a real one: the aegis pads and the declaration round do not
+  otherwise touch, and nothing was holding them together.
+
 - **The deployment map draws faction circles, not counters.** `DeploymentPanel` hand-builds
   minimal ship objects before a real `Ship` exists, so `tokenArt` is absent and every ship
   changes appearance the moment the battle starts. Fixing it means `LobbyStateDto.ShipDto`
