@@ -233,6 +233,14 @@ resolver pattern already does, and extend the same habit to the other tiers:
 - **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) and movement
   costs are fractional.
 - **E1.7 small target modifiers.**
+- **E2.151's quarter-turn window on a gatling.** We cap a Ph-G at four shots a TURN, which the
+  rule also says — but it adds "nor can it fire more than four shots within a 1/4-turn period.
+  The 1/4-turn period can include some shots fired during the final portion of one turn and some
+  shots fired during the early portion of the subsequent turn." `shotsThisTurn` resets in
+  `cleanUp`, so four shots on impulses 30–32 and four more on 1–3 is eight inside a quarter turn
+  and nothing refuses it. Needs a rolling window of fired impulses rather than a per-turn count.
+  Noticed 2026-10-11 alongside the split-targets fix; `Weapon` line 389 already records that a
+  drone rack holds its quarter-turn gap across the turn boundary, so the idiom exists.
 - **Shield boundary bearings** (3, 7, 11, 15, 19, 23) have split-shield rules not implemented.
 - **E7.54** — the fusion holding size-class/PF limit.
 - **D6.6 passive fire control**: seven clauses unimplemented, including D6.622 ECCM, D6.623 barred
