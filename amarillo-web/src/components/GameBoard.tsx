@@ -2630,17 +2630,29 @@ export default function GameBoard({ session, onLeave }: Props) {
     if (phase) {
       const turn    = gameState?.turn    ?? '?';
       const impulse = gameState?.impulse ?? '?';
-      // Flush buffered fire-phase events when the fire phase ends
-      if (prevPhaseRef.current === 'Direct Fire' && phase !== 'Direct Fire') {
-        setPendingCombat(queued => {
-          if (queued.length > 0) {
-            setLog(prev => [
-              ...prev,
-              ...queued.map(e => ({ stamp: e.stamp, text: e.text, kind: 'combat' as const })),
-            ]);
-          }
-          return [];
-        });
+      /*
+       * Flush buffered fire-phase events when the fire phase ends.
+       *
+       * Both setters are called from the effect BODY. They used to be nested — setLog inside a
+       * setPendingCombat updater, reading the queue the updater was handed — and a state updater
+       * must be pure. React double-invokes updaters in development to surface exactly that, so
+       * the whole buffer was appended TWICE: a player reported one fire declaration printed twice
+       * over, identical die rolls and all, which is the giveaway that it resolved once and was
+       * logged twice (2026-10-11).
+       *
+       * Reading `pendingCombat` from the render closure is sound here: this effect runs on a
+       * phase change, after that render has committed, so the queue holds everything buffered up
+       * to this point. And on a broadcast that both carries fire results and has already left
+       * Direct Fire, the buffering effect below appends straight to the log instead, so nothing
+       * is left behind for this to miss.
+       */
+      if (prevPhaseRef.current === 'Direct Fire' && phase !== 'Direct Fire'
+          && pendingCombat.length > 0) {
+        setLog(prev => [
+          ...prev,
+          ...pendingCombat.map(e => ({ stamp: e.stamp, text: e.text, kind: 'combat' as const })),
+        ]);
+        setPendingCombat([]);
       }
       prevPhaseRef.current = phase;
       setLog(prev => [...prev, {
