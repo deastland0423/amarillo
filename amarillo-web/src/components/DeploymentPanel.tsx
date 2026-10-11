@@ -14,6 +14,13 @@ interface Props {
   mapRows:     number;
   /** Nudges a refetch when the lobby says something changed. */
   revision:    number;
+  /**
+   * Counter art per ship name, resolved by the lobby from the ship library.
+   *
+   * Passed in rather than looked up here because this panel has no ship library and should not
+   * grow one: the server already knows, and the lobby broadcast already carries it.
+   */
+  shipArt?:    Map<string, string>;
   /** Who else is still setting up, so the Done button can say so. */
   playersDone: number;
   playerCount: number;
@@ -26,7 +33,7 @@ const FACING_TO_LETTER: Record<number, string> = { 1: 'A', 5: 'B', 9: 'C', 13: '
 
 export default function DeploymentPanel({
   gameId, playerToken, faction, terrain, mapCols, mapRows, revision,
-  playersDone, playerCount, waitingOn,
+  shipArt, playersDone, playerCount, waitingOn,
 }: Props) {
   const [state,    setState]    = useState<DeploymentState | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -135,10 +142,16 @@ export default function DeploymentPanel({
         location: `<${Number(p.hex.slice(0, 2))}|${Number(p.hex.slice(2, 4))}>`,
         facing: HEADINGS[p.heading] ?? 1,
         faction,
+        // One more field that is honestly knowable this early: a counter belongs to the TYPE,
+        // not to a ship's state, so the lobby can resolve it from the ship library before any
+        // Ship exists. Without it a fleet was placed as plain circles and then changed
+        // appearance the instant the battle began — invisible while no hull had art, and
+        // glaring once they did.
+        tokenArt: shipArt?.get(p.shipName),
       } as unknown as MapObject);
     }
     return objects;
-  }, [terrain, placed, faction]);
+  }, [terrain, placed, faction, shipArt]);
 
   const zones = useMemo(() => {
     const hexes = state?.zone?.hexes ?? [];

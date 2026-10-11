@@ -138,6 +138,12 @@ export interface LobbySide {
     startSpeed:   number;
     weaponStatus: number;
     refits:       string[];
+    /**
+     * The counter this hull is drawn as, resolved from the ship library at broadcast time, or
+     * absent to fall back to a faction circle. Here so the deployment map can draw a fleet as
+     * it will actually look, rather than as circles that transform the moment battle starts.
+     */
+    tokenArt?:    string | null;
   }>;
 }
 

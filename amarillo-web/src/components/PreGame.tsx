@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { LobbyResult } from './Lobby';
 import { useLobbySocket } from '../hooks/useLobbySocket';
 import { gameApi } from '../api/gameApi';
@@ -221,6 +221,19 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const myLobbyEntry   = lobby?.players.find(p => p.name === session.playerName);
   const myShips        = myLobbyEntry?.assignedShips ?? [];
   const iAmCoiDone     = myLobbyEntry?.coiDone ?? false;
+  /**
+   * Every ship's counter, by name, flattened across sides.
+   *
+   * Memoised because DeploymentPanel builds its map objects in a useMemo that depends on this:
+   * a fresh Map each render would defeat that memo and hand the grid a new object array every
+   * time, which is a redraw per render. The panel draws only this player's own placements, but
+   * building the whole fleet's map costs nothing and ship names are unique within a game.
+   */
+  const shipArt = useMemo(
+    () => new Map((lobby?.sides ?? []).flatMap(s =>
+      s.ships.filter(sh => sh.tokenArt).map(sh => [sh.shipName, sh.tokenArt as string]))),
+    [lobby?.sides]);
+
 
   return (
     <div className="lobby">
@@ -244,6 +257,7 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
           terrain={lobby.terrain}
           mapCols={lobby.mapCols}
           mapRows={lobby.mapRows}
+          shipArt={shipArt}
           revision={lobby.players.reduce((n, p) => n + p.shipsPlaced, 0)}
           playersDone={lobby.players.filter(p => p.deploymentDone).length}
           playerCount={lobby.players.length}

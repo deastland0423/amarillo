@@ -108,8 +108,23 @@ public class LobbyStateDto {
         public final int          startSpeed;
         public final int          weaponStatus;
         public final List<String> refits;
+        /**
+         * The counter this hull is drawn as, or null to fall back to a faction circle.
+         *
+         * <p>The only field here that is not read straight off the scenario, and the reason is
+         * that the deployment map was drawing every ship as a plain circle and then watching the
+         * whole fleet change appearance the instant the battle began. That was invisible while
+         * no hull had art; it is not any more.
+         *
+         * <p>This is the lobby reaching into {@link ShipLibrary} for the first time, which is
+         * why it was parked rather than done in September. It is a narrow crossing and an honest
+         * one: a counter is a property of the TYPE, not of a ship's state, so it is knowable
+         * before any {@code Ship} exists — which is exactly what the rest of this record is not,
+         * and why nothing else followed it across.
+         */
+        public final String       tokenArt;
 
-        ShipDto(com.sfb.scenario.ScenarioSpec.ShipSetup setup) {
+        ShipDto(com.sfb.scenario.ScenarioSpec.ShipSetup setup, String faction) {
             this.shipName     = setup.shipName != null ? setup.shipName : "";
             this.type         = setup.type != null ? setup.type : "";
             this.startHex     = setup.startHex != null ? setup.startHex : "";
@@ -117,6 +132,12 @@ public class LobbyStateDto {
             this.startSpeed   = setup.startSpeed;
             this.weaponStatus = setup.weaponStatus;
             this.refits       = setup.refits != null ? setup.refits : List.of();
+
+            // Null for a hull the library does not know, which the deployment map already
+            // handles: no art is a circle, exactly as a hull without a picture is in battle.
+            com.sfb.objects.ShipSpec spec = faction == null || this.type.isEmpty()
+                    ? null : com.sfb.objects.ShipLibrary.get(faction, this.type);
+            this.tokenArt     = spec != null ? spec.tokenArt : null;
         }
     }
 
@@ -185,7 +206,9 @@ public class LobbyStateDto {
                         side.name != null ? side.name : side.faction,
                         side.faction,
                         side.ships == null ? List.<ShipDto>of()
-                                : side.ships.stream().map(ShipDto::new).collect(Collectors.toList()),
+                                : side.ships.stream()
+                                        .map(sh -> new ShipDto(sh, side.faction))
+                                        .collect(Collectors.toList()),
                         ZoneDto.of(side.deploymentZone, spec.mapCols, spec.mapRows)))
                 .collect(Collectors.toList());
 
