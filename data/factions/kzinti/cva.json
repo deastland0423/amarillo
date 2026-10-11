@@ -13,6 +13,7 @@
   "breakdown": 4,
   "bonusHets": 1,
   "commandRating": 10,
+  "tokenArt": "kzinti/cva.png",
   "requiresEscort": true,
 
   "droneStorageSpaces": 500,
