@@ -121,6 +121,9 @@ public class ShipDtoPrivacyTest {
         "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",
         "immobileUntilImpulse", "canDisengageBySeparation", "destructionDirections",
         "hetsThisTurn", "lastHetImpulse", "hetCost", "usingEm", "emPending",
+        // Public for the same reason usingEm is (C10.11, EM is announced): it is only
+        // that fact and being tractored, both of which an opponent can already see.
+        "emEffective",
         "erraticCost",
         // Damage: every box, remaining and maximum
         "shields", "minimumShieldCost", "activeShieldCost",

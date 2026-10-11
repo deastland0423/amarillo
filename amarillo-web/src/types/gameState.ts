@@ -461,6 +461,8 @@ export interface ShipObject extends MapObjectBase {
   tractored?:                  boolean;   // true if held in a tractor beam (G7.0)
   tractoredByName?:            string;    // name of the holding ship
   usingEm?:                    boolean;   // Erratic Maneuvers in force (C10.0)
+  /** C10.24: EM actually in force, which a tractor suspends. See ShuttleObject.emEffective. */
+  emEffective?:                boolean;
   transporterUses?:            number;    // activations still affordable, batteries included
   erraticCost?:                number;    // what EM costs this ship (C10.11/C10.12); 0 = cannot
   paidForEm?:                  boolean;   // bought at allocation, so EM may be announced (C10.11)
@@ -504,6 +506,14 @@ export interface ShuttleObject extends MapObjectBase {
   tokenArt?:      string | null;
   effectiveMaxSpeed?: number;     // after any point given to Erratic Maneuvers (C10.13)
   usingEm?:           boolean;    // Erratic Maneuvers in force (C10.0)
+  /**
+   * C10.24: whether erratic maneuvers are actually IN FORCE, as against merely declared.
+   * A tractor suspends EM without cancelling it, so a held unit is `usingEm` and may still
+   * launch. Every rule that turns on EM — C10.511's launch bar among them — asks this, not
+   * `usingEm`. Sent by the server rather than derived here: working it out from `usingEm` and
+   * `tractoredByName` would be the view deciding a rules outcome.
+   */
+  emEffective?:   boolean;
   emSpeedCommitted?:  boolean;    // the point of speed is spent for the turn (C10.131)
   crippled?:      boolean;
   hull?:          number;    // undamaged hull remaining

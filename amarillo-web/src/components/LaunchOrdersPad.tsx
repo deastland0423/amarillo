@@ -549,6 +549,19 @@ export default function LaunchOrdersPad({
   }
 
   /**
+   * C10.511: a unit conducting erratic maneuvers launches nothing — "drones, shuttles,
+   * fighters, probes (for information or as weapons), PFs, or plasma torpedoes".
+   *
+   * <p>Read off the server's `emEffective`, NOT off `usingEm`, because C10.24 says a tractor
+   * suspends EM without cancelling it: a held ship is still using EM and may still launch.
+   * Deriving that here from `usingEm` and the tractor would be the view deciding a rule.
+   *
+   * <p>Plasma BOLTS are unaffected — C10.511's own parenthesis calls them direct fire — and
+   * they are not launched from this pad at all, so nothing here needs to carve them out.
+   */
+  const emBlocked = !!((attacker?.ship ?? attacker?.fighter)?.emEffective);
+
+  /**
    * One row's heading, as a button that opens the graphical picker for THAT row. The letter
    * alone means nothing without the hex to read it against, which is what the picker draws.
    */
@@ -556,7 +569,7 @@ export default function LaunchOrdersPad({
     const picked = facings[key] ?? 0;
     const allowed = allowedByKey.get(key) ?? ALL_FACINGS;
     const dead = allowed.size === 0;
-    const ok = legalHeading(key);
+    const ok = legalHeading(key) && !emBlocked;
     // Named like the speed stepper beside it: "auto D" is not self-explanatory, and the
     // column heading is too far above a row halfway down the list to do the naming.
     return (
@@ -778,7 +791,7 @@ export default function LaunchOrdersPad({
                   const bears = target.plasmaLaunchers.includes(w.name);
                   const used = spent.has(w.name);
                   const blocked = used ? 'already sent' : !bears ? 'out of arc' : null;
-                  const ok = legalHeading(w.name);
+                  const ok = legalHeading(w.name) && !emBlocked;
                   const facing = facings[w.name] ?? 0;
                   const why = blocked
                             ?? (ok ? null : `cannot launch ${FACING_LABEL[headingOf(w.name)]}`);
@@ -840,7 +853,7 @@ export default function LaunchOrdersPad({
                   // Whether the tube may send one at all, before any question of direction:
                   // two separate answers, and only the second is one the player can fix here.
                   const blocked = used ? 'already sent' : !bears ? 'out of arc' : null;
-                  const ok = legalHeading(w.name);
+                  const ok = legalHeading(w.name) && !emBlocked;
                   const facing = facings[w.name] ?? 0;
                   const why = blocked
                             ?? (ok ? null : `cannot launch ${FACING_LABEL[headingOf(w.name)]}`);
@@ -1187,6 +1200,22 @@ export default function LaunchOrdersPad({
           </div>
         );
       })()}
+
+      {/* Why every launch control above is dead. Without this the buttons simply look broken:
+          the server has always refused these, and a player got the refusal only after clicking. */}
+      {emBlocked && (
+        <div style={{
+          marginTop: 8, padding: '5px 7px', borderRadius: 4,
+          border: '1px solid #4a3a0a', background: 'rgba(240,136,62,0.10)',
+          fontSize: '0.78em', color: '#f0883e', lineHeight: 1.45,
+        }}>
+          <strong>{attacker?.name}</strong> is conducting erratic maneuvers and can launch
+          nothing — drones, shuttles, fighters, probes, PFs or plasma torpedoes (C10.511).
+          <div style={{ color: '#8b949e', marginTop: 2 }}>
+            Drop EM to launch. A plasma BOLT is direct fire and is unaffected.
+          </div>
+        </div>
+      )}
 
       {error && <div style={{ color: '#f85149', fontSize: '0.85em', marginTop: 4 }}>{error}</div>}
 

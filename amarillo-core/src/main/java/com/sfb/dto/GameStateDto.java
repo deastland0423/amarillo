@@ -522,6 +522,19 @@ public class GameStateDto {
         public Integer cargoDroneSpacesHeld;    // what is actually still in the hold
         public boolean activeFireControl;
         public boolean usingEm;      // Erratic Maneuvers in force (C10.0)
+        /**
+         * C10.24: whether this unit's EM is actually in FORCE, as against merely declared.
+         *
+         * <p>A tractor SUSPENDS erratic maneuvers without cancelling them, so a held unit is
+         * {@code usingEm} and may still launch. Core asks {@code isEmEffective()} everywhere a
+         * rule turns on EM — C10.511's launch bar among them — and this is that answer rather
+         * than a second one.
+         *
+         * <p>Sent instead of leaving the client to work it out from {@code usingEm} and
+         * {@code tractoredByName}: that would be the view computing a rules outcome, which this
+         * tier does not do, and it would quietly go wrong the day C10.24 gains a clause.
+         */
+        public boolean emEffective;
         public double erraticCost;   // what EM costs this ship (C10.11/C10.12); 0 = cannot
         public boolean paidForEm;    // bought EM at allocation, so it may be announced (C10.11)
         public boolean emPending;    // announced this impulse, in force at its end (C10.311)
@@ -767,6 +780,8 @@ public class GameStateDto {
         public int maxSpeed;
         public int effectiveMaxSpeed;      // after any point given to EM (C10.13)
         public boolean usingEm;            // Erratic Maneuvers in force (C10.0)
+        /** @see ShipDto#emEffective */
+        public boolean emEffective;
         public boolean emSpeedCommitted;   // the point of speed is spent for the turn (C10.131)
         public boolean isFighter;          // a fighter, as opposed to an admin/other shuttle
         /** What the craft IS — "Admin Shuttle", "General Assault Shuttle". Never the role. */
@@ -1575,6 +1590,7 @@ public class GameStateDto {
         }
         dto.activeFireControl = ship.isActiveFireControl();
         dto.usingEm = ship.isUsingEm();
+        dto.emEffective = ship.isEmEffective();
         dto.erraticCost = ship.getPerformanceData().getErraticCost();
         dto.paidForEm = ship.hasPaidForEm();
         dto.emPending = ship.hasPendingEmAnnouncement(game.getAbsoluteImpulse());
@@ -2250,6 +2266,7 @@ public class GameStateDto {
         dto.maxSpeed = shuttle.getMaxSpeed();
         dto.effectiveMaxSpeed = shuttle.effectiveMaxSpeed();   // after any EM commitment
         dto.usingEm = shuttle.isUsingEm();
+        dto.emEffective = shuttle.isEmEffective();
         dto.emSpeedCommitted = shuttle.isEmSpeedCommitted();
         dto.parentPlayer = shuttle.getOwner() != null ? shuttle.getOwner().getName() : null;
         dto.parentShipName = shuttle.getParentShipName();

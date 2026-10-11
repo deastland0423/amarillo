@@ -74,6 +74,9 @@ public class MapObjectPrivacyTest {
         // one of these too, which is the whole point of them (G4.233).
         rule(GameStateDto.ShuttleDto.class, Visibility.PUBLIC,
             "facing", "speed", "maxSpeed", "effectiveMaxSpeed", "usingEm", "emSpeedCommitted",
+            // EM is announced and public (C10.11), and so is being tractored, so whether
+            // EM is actually in force is public too — it is those two facts combined.
+            "emEffective",
             "isFighter", "shuttleTypeName", "parentPlayer", "parentShipName", "weapons",
             // The counter it is drawn as. PUBLIC for the same reason shuttleTypeName is:
             // what a craft looks like is visible. It follows the craft's CATALOGUE ROW,
