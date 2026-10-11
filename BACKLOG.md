@@ -30,10 +30,75 @@ groundwork already in place.
   sheet draws fighter modules because it has to draw something, and there are many kinds. A
   module is bought, not declared, so the refit model is close but wrong for it: you may buy none,
   one, or several of the same kind.
-- **A seeker cannot target a hex** (P2.311). Direct-fire hex targeting is built and routes to
-  `bombardPlanet`, so the damage already has a destination; the work is letting a seeker carry a
-  hex. A seeker's target is a `Unit` and terrain is a `Marker`, so this reaches the launch path,
-  lock-on (`Set<Unit>`), the DTO and the UI.
+- **Ballistic targeting (F4.0)** — a seeking weapon aimed at a HEX instead of a unit. This entry
+  replaced one that read "a seeker cannot target a hex", which named the symptom and pointed at a
+  feature the rules do not have; the rules call it ballistic targeting and give it its own
+  section. Read F4.0 and P2.7 before starting, not this summary.
+
+  **The core (F4.0).** "To establish a ballistic course, designate a hex, not a unit, as the
+  target of the seeking weapon" (F4.11). It pursues that hex by the most direct route and then
+  EVADES it (C1.3223) rather than stopping. Released from control the instant it launches and
+  never counts against the control limit (F4.12). One hex only, never a sequence (F4.13). Normal
+  range (F4.14). **It can never hit a ship or base in space** (F4.412).
+
+  **And by default it does NOT explode** (F4.21). The uses are detecting a minefield, clearing a
+  path through asteroids, saturating defences, and deception. `Game.clearAsteroidPath` already
+  exists, so we built one consumer of this framework without the framework.
+
+  **Ground attack (F4.22 → P2.713)**, which is the slice the bombardment missions want. Seeking
+  weapons may be fired at a ground target ballistically **from four hexes or less**, **never under
+  passive fire control** (tracking is inadequate), **cannot be distracted by ECM or a wild
+  weasel**, and **do explode on impact**. Submunitions from a ballistic MW drone may not target a
+  ground base. The short reach plus mandatory active fire control is what forces an attacker
+  through the static defences and the defending fleet rather than standing off — and because the
+  run is immune to EW, a defender's only answers are shooting the seeker down or killing the
+  launcher.
+
+  **THE PLANET ITSELF IS A LEGAL TARGET**, which P2.522 settles: "Seeking weapons fired at a
+  planet are targeted on specific points or installations... In scenarios where general damage to
+  the planet is called for (P2.525), the weapon crews are selecting appropriate cities or
+  industrial areas **on the hex side selected by the player**." So the model is the one
+  `bombardPlanet(attacker, planet, targetSide, weapons)` already uses, and `Terrain.damageBySide[6]`
+  is already the right sink. P2.311 sets the threshold: damage on each hex side, 200 to devastate
+  unless the scenario says otherwise.
+
+  **Three different targets, not one.** A GROUND BASE on the planet (P2.713); the PLANET itself,
+  by hex side (P2.522); and a planet a seeker acquires BY ACCIDENT when one blocks its line to its
+  real target (P2.33 — self-guided weapons only, and P2.3223 makes that reassignment permanent,
+  so it will not revert even if the original target voids a weasel).
+
+  **Open question, flagged rather than guessed:** P2.713's four-hex limit is written about a
+  ground base, and P2.522 describes planet bombardment without restating it. Whether the limit
+  binds all ballistic ground attack or only picking out a base decides whether a bombarding ship
+  must close. Settle it from the text before building.
+
+  **Decided 2026-10-11, and the rejected option is worth keeping.** The owner proposed giving
+  every planet a default "base" representing its infrastructure, so bombardment would reuse the
+  ground-installation rules. Rejected on three grounds. We have NO ground bases at all — no
+  concept in code, nothing in the data — so that route makes planet bombardment depend on an
+  unbuilt system (P2.6/P2.7/R1.14) rather than on `Terrain`, which already fits. The EW treatment
+  differs and a merged object must be wrong for one case: P2.52 gives a target on a planet two
+  points of ground-clutter ECM, while P2.524 says planetary BASES do not get it. And the damage
+  models differ — a base dies on its own track, a planet accumulates per face toward a threshold.
+  Unify at the ORDER instead: the player picks a hex side and fires, and what absorbs it is the
+  server's business. When ground bases are built they stand beside the planet as a second kind of
+  ground target rather than the planet pretending to be one.
+
+  **What it touches.** A seeker's target is a `Unit` and a planet is a `Marker`, so the field
+  widens — see the lock-on note about `Set<Unit>` becoming `Set<Marker>`. Then the launch path,
+  the DTO, and the UI. The victory half is a separate gap already recorded: `VictoryConditions`
+  cannot express "300 points of damage on this planet", which is what a Planet Crusher scenario
+  needs to be winnable.
+
+  **Scatter-packs lean on this too (F4.4), and none of it is built.** A ballistic SP releases its
+  submunitions when the first ACCEPTABLE target comes within a pre-set release range (F4.41,
+  acceptability per FD7.3) — today `ScatterPack.isReadyToRelease` fires on a flat eight-impulse
+  timer, so the tactic does not exist. The target hex itself can never provoke release (F4.413):
+  something valid has to arrive. The SP cannot guide its own submunitions, so another unit must
+  take them at the instant of release or they go inert (F4.42/FD1.7) — that handoff is the real
+  cost of the trick. Any friendly SHIP, not a shuttle or PF, may take a ballistic SP at release
+  (F4.422). And a ballistic SP can be ordered to reach its hex and STOP rather than carry on
+  (F4.43), which is the loiter.
 - **EM C10.514** — a ship using erratic maneuvers may not lay or sweep a mine. `Game.placeTBomb`
   and `Game.dropMine` both exist, so this is a guard rather than new machinery. (C10.512, cannot
   guide seekers, is real work by comparison.)
