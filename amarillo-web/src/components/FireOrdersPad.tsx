@@ -5,6 +5,8 @@ import { useDraggable } from '../hooks/useDraggable';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import WeaponDamageTooltip from './WeaponDamageTooltip';
 import { getPlasmaBoltPreview, getWeaponDamagePreview } from '../weaponDamageTables';
+import { canSplitShots, shotsRemaining, tallyDraftedShots, weaponsSpokenFor }
+  from '../game/gatlingShots';
 // The arming-mode vocabulary lives in weaponCondition so this pad and the DAC choice dialog
 // cannot drift into two spellings of "ovl".
 import { ARMING_LABEL, ARMING_COLOUR } from './weaponCondition';
@@ -447,17 +449,31 @@ export default function FireOrdersPad({
     return groups;
   }, [candidates]);
 
-  /** Weapons this attacker has already promised elsewhere this declaration. */
-  const spokenFor = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const o of orders) {
-      if (o.shipName !== attackerName) continue;
-      for (const name of o.weaponNames)
-        if (!map.has(name))
-          map.set(name, o.targetName ?? `hex ${o.hexCol}|${o.hexRow}`);
-    }
-    return map;
-  }, [orders, attackerName]);
+  /**
+   * Shots this attacker's drafted orders have already spent, per weapon.
+   *
+   * <p>A drafted order spends a weapon once per APPEARANCE in `weaponNames`, the wire format
+   * having always counted shots by repetition rather than carrying a number.
+   */
+  const { spent: drafted, promisedTo } = useMemo(
+    () => tallyDraftedShots(orders, attackerName),
+    [orders, attackerName]);
+
+  /** What a weapon has left: its allowance, less what it has fired AND what is drafted. */
+  function shotsLeft(w: WeaponState): number {
+    return shotsRemaining(w, drafted.get(w.name) ?? 0);
+  }
+
+  /**
+   * Weapons already promised elsewhere this declaration that have nothing left to promise again.
+   *
+   * <p>The arithmetic is in {@code game/gatlingShots} with its tests: a weapon named in one order
+   * used to be barred from every other, which is right for anything firing once and wrong for a
+   * gatling, whose four shots may be split between targets in one impulse (E2.151).
+   */
+  const spokenFor = useMemo(
+    () => weaponsSpokenFor(orders, attackerName, attacker?.weapons ?? []),
+    [orders, attackerName, attacker]);
 
   function toggle(name: string) {
     const next = new Set(picked);
@@ -465,11 +481,16 @@ export default function FireOrdersPad({
     amend({ picked: next });
   }
 
-  /** How many shots this weapon will actually take, capped by what it has left this turn. */
+  /**
+   * How many shots this weapon will actually take, capped by what it has left this turn.
+   *
+   * <p>Drafted orders count against the cap as well as fired shots: a gatling may split its four
+   * shots between targets (E2.151), so two already promised to one drone leave two, and offering
+   * four again would build a volley the server must refuse.
+   */
   function shotsFor(w: WeaponState): number {
     if (!(w.minImpulseGap === 0 && w.maxShotsPerTurn > 1)) return 1;
-    const left = Math.max(1, w.maxShotsPerTurn - w.shotsThisTurn);
-    return Math.min(shots[w.name] ?? 1, left);
+    return Math.min(shots[w.name] ?? 1, Math.max(1, shotsLeft(w)));
   }
 
   /**
@@ -727,6 +748,16 @@ export default function FireOrdersPad({
                 // and answer to the quarter turn, not the half. Gating them on the seeker
                 // delay refused shots the rule allows.
                 const fireDelay = attacker.fireDelay ?? 0;
+                /*
+                 * A gatling that has given some of its four shots to another target this
+                 * declaration, and still has some to give (E2.151). Said out loud because the
+                 * row looks identical to an untouched weapon otherwise, and the stepper silently
+                 * caps lower than the weapon's printed rate — which reads as a bug rather than as
+                 * shots already promised. Null for anything with nothing drafted.
+                 */
+                const split = w && canSplitShots(w) && !elsewhere && (drafted.get(name) ?? 0) > 0
+                  ? `${drafted.get(name)}× → ${promisedTo.get(name)}, ${shotsLeft(w)} left`
+                  : null;
                 const unavailable = elsewhere
                   ? `→ ${elsewhere}`
                   : fireDelay > 0 ? `launched, ${fireDelay} more`
@@ -804,7 +835,7 @@ export default function FireOrdersPad({
                       </span>
                     )}
                     <span style={{ marginLeft: 'auto', color: '#8b949e', whiteSpace: 'nowrap' }}>
-                      {unavailable ?? ''}
+                      {unavailable ?? split ?? ''}
                     </span>
                     {/* Shots this impulse, for a weapon that may fire more than once
                         (a phaser with no minimum gap). Only once it is picked. */}
@@ -820,7 +851,7 @@ export default function FireOrdersPad({
                         <button className="secondary" style={{ padding: '0 5px' }}
                                 onClick={e => { e.preventDefault();
                                   amend({ shots: { ...shots, [name]:
-                                    Math.min(w.maxShotsPerTurn - w.shotsThisTurn, shotsFor(w) + 1) } }); }}>
+                                    Math.min(shotsLeft(w), shotsFor(w) + 1) } }); }}>
                           +
                         </button>
                       </span>
