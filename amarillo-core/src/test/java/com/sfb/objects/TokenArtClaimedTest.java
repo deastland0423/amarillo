@@ -63,6 +63,7 @@ public class TokenArtClaimedTest {
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
         AWAITING_A_HULL.put("klingon/d7e.png", "D7E escort battlecruiser");
         AWAITING_A_HULL.put("klingon/d7v.png", "D7V carrier");
+        AWAITING_A_HULL.put("klingon/e4j.png", "E4J penal escort");
     }
 
     private static final File SHIP_DIR  = new File("../data/factions");
