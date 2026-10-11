@@ -15,7 +15,7 @@
   "aegis": "LIMITED",
   "aegisWeapons": ["ADD", "Phaser3"],
   "isLeader": true,
-  "tokenArt": "klingon/d5.png",
+  "tokenArt": "klingon/d5c.png",
   
   "shields": [36, 30, 26, 26, 26, 30],
   

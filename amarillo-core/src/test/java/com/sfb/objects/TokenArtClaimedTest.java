@@ -5,7 +5,9 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.BeforeClass;
@@ -38,6 +40,30 @@ import org.junit.Test;
  * the same way since a fighter is a row rather than a class (J4.4).
  */
 public class TokenArtClaimedTest {
+
+    /**
+     * Art drawn for a ship the game does not have yet, with the hull it is waiting for.
+     *
+     * <p>A different thing from art nobody noticed: nothing CAN claim these, because there is no
+     * ship file to put a {@code tokenArt} line in. The generator ran ahead of the data, which is
+     * a good problem — the picture is ready the day the hull is entered from its SSD.
+     *
+     * <p>{@link #noParkedEntryOutlivesItsReason} is what stops this list rotting. The moment a
+     * hull arrives and claims its picture, or the picture is deleted, the line here has to go —
+     * the same rule {@code ShipJsonKeyGuardTest} keeps for its own parked paths, and the reason
+     * the Stinger parking in this file lasted exactly one day.
+     */
+    private static final Map<String, String> AWAITING_A_HULL = new LinkedHashMap<>();
+    static {
+        AWAITING_A_HULL.put("klingon/ad6.png", "AD6, the D6 aegis cruiser");
+        AWAITING_A_HULL.put("klingon/d5j.png", "D5J penal cruiser");
+        AWAITING_A_HULL.put("klingon/d6c.png", "D6C command cruiser");
+        AWAITING_A_HULL.put("klingon/d6e.png", "D6E escort cruiser");
+        AWAITING_A_HULL.put("klingon/d6j.png", "D6J penal cruiser");
+        AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
+        AWAITING_A_HULL.put("klingon/d7e.png", "D7E escort battlecruiser");
+        AWAITING_A_HULL.put("klingon/d7v.png", "D7V carrier");
+    }
 
     private static final File SHIP_DIR  = new File("../data/factions");
     private static final File TOKEN_DIR = new File("../amarillo-web/public/tokens");
@@ -95,7 +121,7 @@ public class TokenArtClaimedTest {
                     continue;
                 checked++;
                 String path = (faction.getName() + "/" + piece.getName()).toLowerCase();
-                if (!claimed.contains(path))
+                if (!claimed.contains(path) && !AWAITING_A_HULL.containsKey(path))
                     orphans.add(path);
             }
         }
@@ -104,5 +130,24 @@ public class TokenArtClaimedTest {
         assertTrue("token art exists that no ship file names, so nothing will ever draw it."
                 + " Add \"tokenArt\" to the hull it belongs to, or delete the picture:\n  "
                 + String.join("\n  ", orphans), orphans.isEmpty());
+    }
+
+    /**
+     * A parked picture whose hull has arrived, or which has been deleted, is a line claiming
+     * something untrue. The list is only worth reading while every entry is live.
+     */
+    @Test
+    public void noParkedEntryOutlivesItsReason() {
+        List<String> stale = new ArrayList<>();
+        for (Map.Entry<String, String> e : AWAITING_A_HULL.entrySet()) {
+            String path = e.getKey();
+            if (claimed.contains(path))
+                stale.add(path + " — " + e.getValue() + " is in the game now and claims it;"
+                        + " remove this line");
+            else if (!new File(TOKEN_DIR, path).isFile())
+                stale.add(path + " — the picture is gone; remove this line");
+        }
+        assertTrue("AWAITING_A_HULL has entries that are no longer true:\n  "
+                + String.join("\n  ", stale), stale.isEmpty());
     }
 }

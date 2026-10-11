@@ -18,7 +18,7 @@
   "carrierClass": "CAPABLE",
   "droneStorageSpaces": 150,
   "requiresEscort": true,
-  "tokenArt": "klingon/d5.png",
+  "tokenArt": "klingon/d5v.png",
   
   "shields": [30, 26, 26, 26, 26, 26],
   

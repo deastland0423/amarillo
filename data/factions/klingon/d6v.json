@@ -15,7 +15,7 @@
   "commandRating": 8,
   "droneStorageSpaces": 100,
   "requiresEscort": true,
-  "tokenArt": "klingon/d6.png",
+  "tokenArt": "klingon/d6v.png",
   
   "shields": [30, 22, 22, 22, 22, 22],
   

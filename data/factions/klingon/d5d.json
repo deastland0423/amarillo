@@ -16,7 +16,7 @@
   "aegis": "LIMITED",
   "cargoDroneSpacesPerBox": 50,
   "aegisWeapons": ["ADD", "Phaser3"],
-  "tokenArt": "klingon/d5.png",
+  "tokenArt": "klingon/d5d.png",
   
   "shields": [30, 26, 26, 26, 26, 26],
   
