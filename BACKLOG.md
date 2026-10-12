@@ -179,6 +179,44 @@ pallets p67, Klingon pods in Lyran service pp69-70) which are not ships at all.
 at all, and the WYN fly captured and mixed-technology hulls, so this is a faction decision rather
 than two files.
 
+## Advanced Missions SSD book — what is still in it
+
+Contents list read 2026-10-12. **144 SSDs**, printed pages 2-144; PDF page = printed + 1. Grouped
+as general units (2-32), then Federation 33-50, Klingon 51-72, Romulan 73-100, Kzinti 101-112,
+Gorn 113-124, Tholian 125-138, Orion 139-144.
+
+**A full per-ship diff has NOT been done** — unlike the Module R3 survey above, which was done
+ship by ship. What follows is what was actually checked against `data/factions/`, so treat the rest
+of the book as unsurveyed rather than as present.
+
+**The one ground base we skipped: the DRONE Planetary Defense System, printed p12.** The book
+carries nine PDS fits across pp9-16 and we entered nine, but they are not the same nine: ours are
+phaser-1 (GBD1 "Ground Battery"), phaser-2, phaser-4, disruptor, fusion, plasma-S, plasma-F, photon
+and hellbore, with no drone fit at all. Worth entering when ballistic targeting lands, because a
+drone PDS is the only ground base that fights back with SEEKERS — it is the natural test of P2.732's
+"a ground base can wild-weasel away ordinary seekers but not ballistic ones" from the defender's
+side, which every other fit leaves untested.
+
+**Six Q-ships, ready to enter now (R1.7, pp27-32).** Kzinti large p27 and small p28, Romulan large
+p29 and small p30, Tholian large p31 and small p32. Nothing new is needed: Q-ships already exist as
+`L-Q` and `S-Q` for the Federation, Gorn and Klingons, so this is data entry against a working
+pattern. (Separately, the Hydrans have `S-Q` but no large Q-ship, which is not from this book.)
+
+**The Romulan K9R, conjecturally (R4.40, p97).** We have `K9RB` and no `K9R`. The owner's ruling
+2026-10-12, which is the reason and should not be re-litigated: "the K9R was transferred to the
+Romulans after the B refit had already been applied, thus the Romulans never utilized the K9R
+(pre-refit). However, if — for completeness — we want to retrofit the ship file to allow both the
+conjectural K9R and the K9RB I wouldn't object." So it is optional completeness, not a gap: a
+declared refit switch on the existing file, never a second hull.
+
+**Large blocked groups, same blockers as the R3 survey.** Tugs, pods and pallets are everywhere in
+this book — Federation carrier and starliner pods (41-42, 50), Klingon pods and five tug variants
+(52-58), Kzinti pods and transport tugs (103-106), Gorn fleet tugs and pods (113-115, 123-124) — and
+all of it waits on G14.0. Minesweepers across six empires wait on M8.0. The Klingon D6M p70, Romulan
+Falcon Mauler p75 and KRM Mauler Cruiser p92 wait on E8.0 below. The Klingon D7A p51 and D5A p64
+wait on G16.0 stasis, which is deferred very late or never. The monitors (R1.22, pp25-26) and the
+eight armed freighters (R1.20/R1.21, pp17-24) are unblocked but unsurveyed.
+
 ## Maulers (E8.0) — not started, but the battery design is SETTLED
 
 Read in full 2026-10-12, with the Advanced Missions SSD book now in `data/ssd/` for the D6M.
@@ -379,6 +417,17 @@ as to TYPE" at a high level, which implies presence is known before type is. So 
 on it wants a small cue; what is on it is detail behind the tooltip and the sidebar. Hiding them
 outright would be unfaithful as well as unplayable.
 
+**And checked 2026-10-12: there is nothing to withhold.** The D17 level-L wording above reads like
+a reason to hide a base's type until identified, which is what the first draft of this entry
+assumed. It is not, for two reasons. **D17 tactical intelligence is not implemented at all** — one
+comment in the whole source mentions it — and the `isIdentified` flag we do have lives on
+ShuttleDto, SuicideShuttleDto, ScatterPackDto, DroneDto and PlasmaTorpedoDto, never on a ship.
+Meanwhile `shipType` and `typeName` are classified SHIP_PUBLIC for every hull on the board, on the
+stated grounds that a counter announces its class. A ground base IS a Ship, so it announces
+"Ground-Based Photon" exactly as a D7C announces itself: consistent rather than a leak. Build the
+display with no special secrecy, and revisit only if D17 is ever implemented — at which point it is
+one rule for every unit, not a ground-base quirk.
+
 **Four pieces.**
 1. **The DTO stops assuming six shields.** `for (int s = 1; s <= 6; s++)` must loop over
    `getShieldCount()`, or a ground base reports one shield of 12 and FIVE AT ZERO — which reads as
@@ -432,6 +481,31 @@ by ECM or wild weasels, exploding on impact. P2.732's weasel exception is the ot
 base CAN weasel away ordinary seekers, which is what makes ballistic attack worth the four-hex
 approach. Also still open and smaller: the sheet's energy line (shields 1/2+1/2, life support 0,
 fire control 0), P2.52/P2.524's EW asymmetry, and the asteroid siting that waits on P3.4.
+
+**The target chooser, agreed with the owner 2026-10-12 and not yet built.** Slice 5b needs a UI
+seam as well as a rule: "we might need to put up a chooser pop-up if you select a hex that contains
+one or more bases, to allow you to designate if you mean to hit a base. This could also help gate
+the range 4 limitation on targeting bases" (owner). Then: "on a planet you will also need to
+identify which side of a planet the base is on (Ground Base A, Ground Base F, etc.), so a player
+won't mistakenly target a base that can't be hit."
+
+So when a seeking-weapon order picks a hex holding one or more ground bases, the client offers a
+list rather than guessing:
+
+- **the hex itself stays an option** and stays first. F4.21 says a ballistic seeker normally never
+  explodes, and the hex is the target for minefield detection, asteroid clearing and saturation.
+  Collapsing the choice into "you must have meant the base" would remove four legitimate uses.
+- **each base is listed by its face** — "Ground Base B", "Ground Base F" — which is what
+  `Ship.planetFace` was stored for. A radius-zero planet puts all six faces in ONE hex, so without
+  the label the list would be six identical rows.
+- **entries that cannot be taken are shown DISABLED WITH THE REASON, never hidden**: beyond four
+  hexes (P2.713), on a face the firer cannot see (`visiblePlanetSides`/`losBlocked`), or the firing
+  ship is on passive fire control (P2.713 again). Showing the reason is what teaches the four-hex
+  rule; hiding the row just looks broken, and the player cannot tell "no base there" from "not from
+  here".
+
+The gating is the server's call in the end — the client only has to stop the player from
+discovering the rule by having an order silently do nothing.
 
 ## Unstarted systems
 
