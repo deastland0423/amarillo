@@ -1,0 +1,93 @@
+{
+  "faction": "Neutral",
+  "type": "GBDD",
+  "typeName": "Ground-Based Disruptor",
+  "line": "GRBASE",
+  "name": "Ground-Based Disruptor",
+  "isBase": true,
+  "serviceYear": 120,
+  "bpv": 10,
+  "sizeClass": 5,
+  "commandRating": 0,
+  "_comment": [
+    "R1.14, Advanced Missions SSD book page 10. One of the ground base fits \u2014 the chassis is the",
+    "GBD1's and is identical across all of them: one shield of 12 (P2.73), two hull boxes, a bridge,",
+    "sensor 6|0, scanner 0|9, dam-con 4|2|0, five crew, two boarding parties, minCrew 2, DK:4, EX:0,",
+    "CR:0. Only the weapons, the power plant, the BPV and the year differ.",
+    "",
+    "RANGE 40, not a ship's 30: the sheet prints its own disruptor table and it runs to a",
+    "31-40 column. A ground battery can reach further than anything that flies."
+  ],
+  "shields": [
+    12
+  ],
+  "hullBoxes": {
+    "chull": 2
+  },
+  "power": {
+    "apr": 8
+  },
+  "control": {
+    "bridge": 1,
+    "controlMod": 1.0
+  },
+  "tables": {
+    "damageControl": [
+      4,
+      2,
+      0
+    ],
+    "sensor": [
+      6,
+      0
+    ],
+    "scanner": [
+      0,
+      9
+    ],
+    "excess": 3
+  },
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 2,
+    "minCrew": 2
+  },
+  "weapons": [
+    {
+      "type": "Phaser3",
+      "designator": "1",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "2",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "3",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "4",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Disruptor",
+      "designator": "A",
+      "range": 40,
+      "arcs": [
+        "FH"
+      ]
+    }
+  ]
+}

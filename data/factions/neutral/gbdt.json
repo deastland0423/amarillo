@@ -1,0 +1,99 @@
+{
+  "faction": "Neutral",
+  "type": "GBDT",
+  "typeName": "Ground-Based Plasma-S",
+  "line": "GRBASE",
+  "name": "Ground-Based Plasma-S",
+  "isBase": true,
+  "serviceYear": 170,
+  "bpv": 14,
+  "sizeClass": 5,
+  "commandRating": 0,
+  "_comment": [
+    "R1.14, Advanced Missions SSD book page 11. One of the ground base fits \u2014 the chassis is the",
+    "GBD1's and is identical across all of them: one shield of 12 (P2.73), two hull boxes, a bridge,",
+    "sensor 6|0, scanner 0|9, dam-con 4|2|0, five crew, two boarding parties, minCrew 2, DK:4, EX:0,",
+    "CR:0. Only the weapons, the power plant, the BPV and the year differ.",
+    "",
+    "The plasma fires into FP, the forward plasma arc, where the phasers use FH; the sheet",
+    "draws the two separately. Our ArcUtils defines FP as equal to FH, so they coincide",
+    "today \u2014 the distinction is kept because the sheet keeps it.",
+    "",
+    "NOT MODELLED: the Sabot refit (Y180, +1), which allows speed-40 torpedoes per FP11.0 in",
+    "Module R10 \u2014 a module we do not have. Nor the middle-years version: between Y120 and",
+    "Y170 bases of this type existed at BPV 12 but could launch nothing larger than a",
+    "type-G."
+  ],
+  "shields": [
+    12
+  ],
+  "hullBoxes": {
+    "chull": 2
+  },
+  "power": {
+    "apr": 8
+  },
+  "control": {
+    "bridge": 1,
+    "controlMod": 1.0
+  },
+  "tables": {
+    "damageControl": [
+      4,
+      2,
+      0
+    ],
+    "sensor": [
+      6,
+      0
+    ],
+    "scanner": [
+      0,
+      9
+    ],
+    "excess": 3
+  },
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 2,
+    "minCrew": 2
+  },
+  "weapons": [
+    {
+      "type": "Phaser3",
+      "designator": "1",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "2",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "3",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "4",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "PlasmaLauncher",
+      "designator": "A",
+      "plasmaType": "S",
+      "arcs": [
+        "FP"
+      ]
+    }
+  ]
+}

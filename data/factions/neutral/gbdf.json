@@ -1,0 +1,94 @@
+{
+  "faction": "Neutral",
+  "type": "GBDF",
+  "typeName": "Ground-Based Plasma-F",
+  "line": "GRBASE",
+  "name": "Ground-Based Plasma-F",
+  "isBase": true,
+  "serviceYear": 120,
+  "bpv": 10,
+  "sizeClass": 5,
+  "commandRating": 0,
+  "_comment": [
+    "R1.14, Advanced Missions SSD book page 14. One of the ground base fits \u2014 the chassis is the",
+    "GBD1's and is identical across all of them: one shield of 12 (P2.73), two hull boxes, a bridge,",
+    "sensor 6|0, scanner 0|9, dam-con 4|2|0, five crew, two boarding parties, minCrew 2, DK:4, EX:0,",
+    "CR:0. Only the weapons, the power plant, the BPV and the year differ.",
+    "",
+    "NOT MODELLED: the Gorn carronade refit (Y165, +0) \u2014 'plasma carronades cannot be used",
+    "prior to Y165; from Y165 they are available to the Gorns at no increase in BPV cost' \u2014",
+    "and the Sabot refit (Y180, +2). Both need rules from Module R10."
+  ],
+  "shields": [
+    12
+  ],
+  "hullBoxes": {
+    "chull": 2
+  },
+  "power": {
+    "apr": 8
+  },
+  "control": {
+    "bridge": 1,
+    "controlMod": 1.0
+  },
+  "tables": {
+    "damageControl": [
+      4,
+      2,
+      0
+    ],
+    "sensor": [
+      6,
+      0
+    ],
+    "scanner": [
+      0,
+      9
+    ],
+    "excess": 3
+  },
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 2,
+    "minCrew": 2
+  },
+  "weapons": [
+    {
+      "type": "Phaser3",
+      "designator": "1",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "2",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "3",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "Phaser3",
+      "designator": "4",
+      "arcs": [
+        "FH"
+      ]
+    },
+    {
+      "type": "PlasmaLauncher",
+      "designator": "A",
+      "plasmaType": "F",
+      "arcs": [
+        "FP"
+      ]
+    }
+  ]
+}
