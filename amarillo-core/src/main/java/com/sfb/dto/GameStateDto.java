@@ -483,6 +483,19 @@ public class GameStateDto {
         /** The same class written out, e.g. "Commando Cruiser". Null if the file names none. */
         public String typeName;
         public String faction;
+        /**
+         * Which face of a planet a ground base stands on, 1 to 6; NULL on anything that is not
+         * on one, which is almost every unit.
+         *
+         * <p>Integer so it can say "not applicable" — a primitive would arrive as 0 on every
+         * ship in the game and 0 is not a face. The client must guard with != null, never
+         * !== undefined, since Jackson sends an absent value as an explicit null.
+         *
+         * <p>It is what labels a base "Ground Base A" through "F" and what lets a targeting
+         * chooser grey the ones on the far side of the planet. Not derivable from position: a
+         * radius-zero planet holds all six faces' bases in its own hex.
+         */
+        public Integer planetFace;
         public int facing;
         public int speed;
         public int tractorTrueSpeed; // plotted speed before tractor pseudo-speed (G7.34); -1 = not limited
@@ -1551,6 +1564,7 @@ public class GameStateDto {
         dto.speed = ship.getSpeed();
         dto.tractorTrueSpeed = ship.getTractorTrueSpeed();
         dto.shipType = ship.getType();
+        dto.planetFace = ship.getPlanetFace();
         dto.typeName = ship.getTypeName();
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 

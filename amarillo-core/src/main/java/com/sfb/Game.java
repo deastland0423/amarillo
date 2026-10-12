@@ -4163,6 +4163,9 @@ public class Game {
         base.setLocation(hex);
         base.setFacing(direction);
         base.setSpeed(0);
+        // Recorded, not left to be derived: on a radius-zero planet every face's base shares the
+        // planet's own hex, and nothing about a position can then say which face it is.
+        base.setPlanetFace(side);
         if (!ships.contains(base))
             ships.add(base);
         return ActionResult.ok(base.getName() + " is sited on face " + side + " of "

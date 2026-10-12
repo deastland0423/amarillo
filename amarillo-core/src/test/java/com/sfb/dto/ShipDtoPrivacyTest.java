@@ -116,6 +116,11 @@ public class ShipDtoPrivacyTest {
         "name", "location", "shipType", "typeName", "faction", "teamName", "ownerName",
         "tokenArt", "leader", "escort", "requiresEscort", "bch", "commandRating", "skeleton",
         "captured", "disengaged", "tractoredBy",
+        // Which face of a planet a ground base stands on. PUBLIC, and necessarily so: the face is
+        // what decides whether the base can be seen or hit at all (P2.747, and visiblePlanetSides),
+        // so anyone who can see it already knows which face it is on. Withholding it would hide
+        // nothing and would stop a targeting chooser saying why a base is out of reach.
+        "planetFace",
         // Movement, which is watched
         "facing", "speed", "tractorTrueSpeed", "turnMode", "turnHexes", "hexesUntilTurn",
         "moveCost", "maxSpeedNextTurn", "decelerating", "decelerationEndsAtImpulse",

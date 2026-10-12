@@ -119,6 +119,44 @@ public class GroundBasePlacementTest {
                 game.losBlocked(base.getLocation(), opposite));
     }
 
+    /**
+     * The face is RECORDED, and the radius-zero case is why.
+     *
+     * <p>A planet fills every hex within its radius, so a radius-zero planet holds all six faces'
+     * bases in its own hex — and {@code visiblePlanetSides} returns nothing when observer and
+     * planet share a hex, because there is no direction between a hex and itself. Exactly where
+     * six bases are indistinguishable by position is where position cannot say which is which.
+     * Hence a stored field, and hence a player can be shown "Ground Base A" through "Ground Base
+     * F" even when all six stand in one hex.
+     */
+    @Test
+    public void theFaceIsRecordedBecauseItCannotAlwaysBeDerived() {
+        Terrain moon = new Terrain(TerrainType.PLANET, 30, 30, 0);
+        game.addTerrain(moon);
+
+        Ship[] bases = new Ship[6];
+        for (int side = 1; side <= 6; side++) {
+            bases[side - 1] = groundBase("GBD1");
+            bases[side - 1].setName("Ground Base " + (char) ('A' + side - 1));
+            game.placeGroundBase(bases[side - 1], moon, side);
+        }
+
+        for (int side = 1; side <= 6; side++) {
+            assertEquals("face " + side + " remembers itself",
+                    Integer.valueOf(side), bases[side - 1].getPlanetFace());
+            assertEquals("and all six share the planet's hex",
+                    moon.getLocation(), bases[side - 1].getLocation());
+        }
+        assertTrue("fixture: position genuinely cannot tell them apart",
+                MapUtils.visiblePlanetSides(moon.getLocation(), bases[0].getLocation()).isEmpty());
+    }
+
+    /** Anything not sited on a planet says so by having no face at all. */
+    @Test
+    public void aUnitNotOnAPlanetHasNoFace() {
+        assertNull(groundBase("GBD1").getPlanetFace());
+    }
+
     @Test
     public void aShipCannotBeSitedAsAGroundBase() {
         ShipSpec spec = ShipLibrary.get("Klingon", "D6");

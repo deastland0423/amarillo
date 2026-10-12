@@ -1862,6 +1862,29 @@ public class Ship extends Unit implements DroneController {
 
 	}
 
+	/**
+	 * Which face of a planet a ground base stands on, 1 to 6, or null if it is not on one.
+	 *
+	 * <p>STORED rather than derived, and the reason is the case that needs it most. A planet
+	 * fills every hex within its radius, so a RADIUS-ZERO planet puts all six faces' bases in
+	 * its own hex — and {@code MapUtils.visiblePlanetSides} returns nothing when observer and
+	 * planet share a hex, because {@code getAbsoluteShieldFacing} has no direction to give
+	 * between a hex and itself. So exactly where six bases are indistinguishable by position is
+	 * where position cannot tell you which is which.
+	 *
+	 * <p>It is what lets a player be shown "Ground Base A" through "Ground Base F" and lets a
+	 * targeting chooser grey the ones on the far side (owner, 2026-10-12: "that way a player
+	 * won't mistakenly target a base that can't be hit"). The LABEL is the view's business; this
+	 * is the fact it is built from.
+	 *
+	 * <p>Integer, not int: 0 is not a face, and a primitive could not say "not on a planet" —
+	 * the trap this project has hit before on DTO fields that apply to one kind of unit.
+	 */
+	private Integer planetFace;
+
+	public Integer getPlanetFace() { return planetFace; }
+	public void setPlanetFace(Integer planetFace) { this.planetFace = planetFace; }
+
 	public boolean isBase() { return isBase; }
 	public void setBase(boolean isBase) { this.isBase = isBase; }
 
