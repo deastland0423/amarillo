@@ -537,6 +537,13 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
         // does NOT yet get.
         if (isEmEffective())
             return 0;
+        // The Master Fighter Chart's "No drone control" column, which is a property of the model
+        // and not of what it is carrying: the Kzinti AS and the AAS have the same two standard
+        // rails and the same phaser, and differ in this and one point of BPV. Such a fighter still
+        // launches its drones — they simply fly on unguided unless another unit takes them.
+        com.sfb.objects.ShuttleCatalog.Entry row = catalogEntry();
+        if (row != null && !row.controlsDrones)
+            return 0;
         // J4.43: two-seaters guide twelve and can take over their squadron's seekers. The
         // taking-over half is not built; it needs squadron organisation (J4.46).
         if (isTwoSeater())
@@ -568,6 +575,22 @@ public abstract class Fighter extends Shuttle implements com.sfb.objects.DroneCo
      * own piece of work and matters most for a two-seater holding its squadron's twelve
      * (F3.222).
      */
+    /**
+     * J4.222: whether this model has guidance equipment of its own.
+     *
+     * <p>False only for the early Kzinti attack shuttle, which "did not have their own guidance
+     * equipment... During this period, the carrier (or another unit, e.g., an MRS) must
+     * immediately assume guidance duties for any drone launched by one of its shuttles."
+     *
+     * <p>Distinct from a control capacity of zero, which a fighter can also reach by flying
+     * erratic manoeuvres or by carrying no drones at all. Those are refusals; this one is a
+     * handoff, so the launch path has to tell them apart.
+     */
+    public boolean guidesItsOwnDrones() {
+        com.sfb.objects.ShuttleCatalog.Entry row = catalogEntry();
+        return row == null || row.controlsDrones;
+    }
+
     @Override
     public boolean acquireControl(com.sfb.objects.Seeker seeker) {
         if (isEmEffective())

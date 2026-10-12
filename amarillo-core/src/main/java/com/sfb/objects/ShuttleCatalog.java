@@ -111,6 +111,21 @@ public final class ShuttleCatalog {
          */
         public final int scatterPackSize;
 
+        /**
+         * Whether this craft may GUIDE the seeking weapons it launches.
+         *
+         * <p>Defaults to true, because almost everything can. The Master Fighter Chart marks the
+         * exceptions in its "Other Weapons" column with the words "No drone control" — the
+         * Kzinti AS and ASM among them. Such a fighter still CARRIES drones and still launches
+         * them; it simply cannot steer them afterwards, so they need another unit's channels or
+         * they fly on unguided.
+         *
+         * <p>On the row rather than derived, because it does not follow from anything else on the
+         * craft: the AS and the AAS carry the same two rails and the same phaser, and differ in
+         * this and one point of BPV.
+         */
+        public final boolean controlsDrones;
+
         /** How this craft is armed and fitted; {@link Loadout#NONE} for a row that says nothing. */
         public final Loadout loadout;
 
@@ -129,7 +144,9 @@ public final class ShuttleCatalog {
         Entry(String type, String name, String kind, List<String> factions,
               int year, int speed, int hull, int crippled, int bpv,
               boolean canWeasel, boolean canSuicide, int scatterPackSize,
-              String shortName, String designation, Loadout loadout, String tokenArt) {
+              String shortName, String designation, Loadout loadout, String tokenArt,
+              boolean controlsDrones) {
+            this.controlsDrones = controlsDrones;
             this.tokenArt = tokenArt == null || tokenArt.isBlank() ? null : tokenArt;
             this.loadout = loadout == null ? Loadout.NONE : loadout;
             this.shortName = shortName == null || shortName.isBlank() ? name : shortName;
@@ -331,7 +348,8 @@ public final class ShuttleCatalog {
                     n.path("shortName").asText(null),
                     n.path("designation").asText(null),
                     loadoutFrom(n),
-                    n.path("tokenArt").asText(null));
+                    n.path("tokenArt").asText(null),
+                    n.path("controlsDrones").asBoolean(true));
             String key = e.type.toLowerCase();
             if (registry.containsKey(key))
                 duplicates.put(key, file.getName() + " re-declares type '" + e.type

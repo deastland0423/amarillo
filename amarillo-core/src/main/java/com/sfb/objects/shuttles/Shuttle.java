@@ -223,7 +223,7 @@ public abstract class Shuttle extends Unit {
 
 	protected void setCatalogType(String type) { this.catalogType = type; }
 
-	private com.sfb.objects.ShuttleCatalog.Entry catalogEntry() {
+	protected com.sfb.objects.ShuttleCatalog.Entry catalogEntry() {
 		return catalogType == null ? null : com.sfb.objects.ShuttleCatalog.get(catalogType);
 	}
 

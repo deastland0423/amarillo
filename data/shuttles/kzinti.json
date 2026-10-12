@@ -5,6 +5,7 @@
   ],
   "fighterLines": {
     "kzinti-attack": [
+      { "from": 161, "superiority": "as"    },
       { "from": 164, "superiority": "aas",   "ew": "aas_e"   },
       { "from": 172, "superiority": "aas",   "ew": "aas_e", "assault": "das"   },
       { "from": 173, "superiority": "haas",  "ew": "haas_e", "assault": "das"  },
@@ -14,6 +15,10 @@
     ]
   },
   "shuttles": [
+    { "type": "as", "name": "Attack Shuttle",                             "kind": "fighter",    "factions": ["kzinti"], "year": 161, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 5,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "AS", "designation": "AS", "controlsDrones": false,
+      "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
+                   { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },
+                   { "type": "DroneRail", "designator": "B", "arcs": ["FA"], "railType": "STANDARD" } ] },
     { "type": "aas", "name": "Advanced Attack Shuttle",                   "kind": "fighter",    "factions": ["kzinti"], "year": 164, "speed": 8,  "hull": 8,  "crippled": 6, "bpv": 6,  "canWeasel": false, "scatterPackSize": 2, "canSuicide": false, "shortName": "AAS", "designation": "AAS",
       "weapons": [ { "type": "Phaser3", "designator": "1", "arcs": ["FA"] },
                    { "type": "DroneRail", "designator": "A", "arcs": ["FA"], "railType": "STANDARD" },

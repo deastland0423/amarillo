@@ -525,14 +525,70 @@ class LaunchCoordinator {
         if (!drone.isSelfGuiding() && !fighter.hasLockOn(target))
             return ActionResult.fail(fighter.getName() + " has no lock-on to "
                     + target.getName() + " - cannot launch seeking weapons (D6.121)");
-        if (!drone.isSelfGuiding() && !fighter.acquireControl(drone))
-            return ActionResult.fail(fighter.getName() + " is already guiding all the drones"
-                    + " it can (" + fighter.getControlCapacity() + ", J4.25)");
+        // Who will guide it. Normally the fighter itself; for a model with no guidance equipment
+        // of its own, somebody else must, and J4.222 is explicit that they MUST: "the carrier (or
+        // another unit, e.g., an MRS) must immediately assume guidance duties for any drone
+        // launched by one of its shuttles". Refusing the launch outright would make the Kzinti AS
+        // unable to throw a drone at all, which is the opposite of what it is for — the Y161
+        // timeline entry calls it "only a manned drone launch platform".
+        com.sfb.objects.DroneController guide = null;
+        if (!drone.isSelfGuiding() && !fighter.acquireControl(drone)) {
+            if (fighter.guidesItsOwnDrones())
+                return ActionResult.fail(fighter.getName() + " is already guiding all the drones"
+                        + " it can (" + fighter.getControlCapacity() + ", J4.25)");
+            guide = guidanceFor(fighter, target);
+            if (guide == null)
+                return ActionResult.fail(fighter.getName() + " has no guidance equipment of its"
+                        + " own, and no friendly unit with a lock-on to " + target.getName()
+                        + " has a control channel free to take the drone (J4.222)");
+        }
 
         ActionResult result = placeLaunchedDrone(fighter, target, rail, drone, facing);
-        if (result.isSuccess())
+        if (result.isSuccess()) {
             fighter.recordDroneFired(target, drone, game.getAbsoluteImpulse());
+            if (guide != null) {
+                // After the placement, not before: a refused launch must not have spent a channel.
+                guide.acquireControl(drone);
+                drone.setController((com.sfb.objects.Unit) guide);
+                return ActionResult.ok(result.getMessage() + " — guidance assumed by "
+                        + ((com.sfb.objects.Unit) guide).getName() + " (J4.222)");
+            }
+        }
         return result;
+    }
+
+    /**
+     * The unit that will guide a drone launched by a fighter which cannot guide its own (J4.222).
+     *
+     * <p>The carrier first, since the rule names it first, then any other unit on the carrier's
+     * team. A candidate needs a lock-on to the target and a control channel to spare, the same two
+     * things {@code SeekerControl} requires of a voluntary transfer — this is a transfer that the
+     * rule compels rather than one a player asks for.
+     */
+    private com.sfb.objects.DroneController guidanceFor(
+            com.sfb.objects.shuttles.Fighter fighter, Unit target) {
+        Ship carrier = null;
+        String carrierName = fighter.getParentShipName();
+        for (Ship ship : game.getShips())
+            if (ship.getName().equals(carrierName)) {
+                carrier = ship;
+                break;
+            }
+        if (carrier == null)
+            return null;              // nothing to reason about a team with
+        if (canGuide(carrier, target))
+            return carrier;
+        for (Ship ship : game.getShips())
+            if (ship != carrier && game.isSameTeam(ship, carrier) && canGuide(ship, target))
+                return ship;
+        return null;
+    }
+
+    /** Undestroyed, holding a lock-on to the target, and with a control channel to spare. */
+    private boolean canGuide(Ship ship, Unit target) {
+        return !ship.isDestroyed()
+                && ship.hasLockOn(target)
+                && ship.getControlUsed() < ship.getControlCapacity();
     }
 
     /**

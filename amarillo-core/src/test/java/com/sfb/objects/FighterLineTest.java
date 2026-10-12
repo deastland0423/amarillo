@@ -182,10 +182,17 @@ public class FighterLineTest {
     /**
      * Year 0 means "no scenario year given", which happens for a ship built straight from the
      * library. The earliest era is a better answer than an empty bay.
+     * <p>
+     * The expected value moved when the line grew BACKWARDS: the AS era (Y161) was added in front
+     * of the AAS era (Y164) to cover the DDV, which enters service in Y163. It has no EW fighter
+     * — the AAS-E does not arrive until Y172 — so the EW position falls back to superiority, which
+     * is what the superiority role is documented to be for. Pinning the earliest era by name is
+     * the point of this test, so it is meant to be edited when the earliest era changes; see
+     * {@code bothLinesAreCatalogued} for the counts this file deliberately does NOT pin.
      */
     @Test
     public void anUnspecifiedYearTakesTheEarliestEra() {
-        assertEquals(Map.of("aas", 11, "aas_e", 1),
+        assertEquals(Map.of("as", 12),
                 tally(complement("kzinti-attack", 11, 0, 1).typesFor(0)));
     }
 
