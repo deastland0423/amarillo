@@ -415,6 +415,12 @@ export interface ShipObject extends MapObjectBase {
   allocationNotes?:  string[]; // what this turn's allocation cost — own ships only
   setupNotes?:       string[]; // COI selections that could not be applied — own ships only
   activeFireControl?: boolean; // false = passive fire control (D19.0)
+  /**
+   * R1.14/P2.62: which face of a planet this unit stands on, 1-6 (A-F). Present only on a
+   * GROUND BASE, and the reason it is on the wire is that a hex cannot identify one — a
+   * radius-zero planet keeps all six faces' bases in its own hex.
+   */
+  planetFace?: number;
   lentEcm?:          number;   // ECM received from a friendly scout (D6.3144)
   lentEccm?:         number;   // ECCM received from a friendly scout (D6.3144)
   offensiveEw?:      number;   // enemy jamming on this ship's fire (G24.219)

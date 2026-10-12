@@ -1569,7 +1569,11 @@ public class GameStateDto {
         dto.faction = ship.getFaction() != null ? ship.getFaction().name() : "Federation";
 
         dto.shields = new ArrayList<>();
-        for (int s = 1; s <= 6; s++) {
+        // P2.73: a small or medium ground base has ONE shield "covering all arcs", so the count
+        // comes from the unit and not from the six every ship has. Serialising six regardless
+        // reported a ground base as one shield of twelve and FIVE AT ZERO, which on screen reads
+        // as a ship that has had five of its shields blown off.
+        for (int s = 1; s <= ship.getShields().getShieldCount(); s++) {
             ShieldDto sd = new ShieldDto();
             sd.shieldNum = s;
             sd.current = ship.getShields().getShieldStrength(s);

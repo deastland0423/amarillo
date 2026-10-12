@@ -405,7 +405,7 @@ eight fits (`3940fb1b`), and siting via `Game.placeGroundBase(base, planet, side
 ground base now stands on a planet face, looks outward, cannot move, fires into the hemisphere away
 from the planet and is hidden from the far side — with no rule of its own for any of it.
 
-### Slice 6, SHOWING A GROUND BASE — design settled 2026-10-12, not started
+### Slice 6, SHOWING A GROUND BASE — BUILT 2026-10-12
 
 Owner's direction: "I don't want to crowd the planet. Maybe all we need is a tooltip that will show
 the state of the bases. And if you click on a planet the side bar could show the details for all
@@ -444,6 +444,28 @@ one rule for every unit, not a ground-base quirk.
 
 Draw order already favours this — `HexGrid` paints `[...terrain, ...ships, ...]`, so anything drawn
 for a base lands on top of the planet rather than under it.
+
+**DONE, and piece 1 was a real bug rather than a tidy-up.** The DTO serialised six shields for every
+unit, so a ground base arrived as one shield of twelve AND FIVE AT ZERO — which on a panel reads as
+a ship that has had five of its shields blown off. It loops `getShieldCount()` now, and
+`GroundBasePlacementTest` pins both halves: one shield for a base, six for a cruiser.
+
+The other three went in as designed. Ground bases are no longer drawn as counters — six of them on a
+radius-zero planet would bury it — and what the map gets instead is one small marker per occupied
+planet hex, carrying a count when a hex holds more than one. They stay fully present everywhere
+else: the hex picker names them "Ground base B: Ground Battery", the hover tooltip gives the face
+and their state, and the launch pad lists them as targets.
+
+The tooltip swaps facing and speed for the FACE, and drops the "Moves:" line. A base looks out from
+its face by definition (P2.62) and never moves, so a heading and a speed of zero only invite the
+reader to wonder when it will. It keeps everything else — shields, damage — because the owner's
+whole requirement for this slice was "a tooltip that will show the state of the bases", and an early
+return that dropped them was caught before it shipped.
+
+**No separate sidebar panel was needed.** The design called for one listing every base on a selected
+planet; the hex picker already does that job, because clicking a hex with several units in it has
+always offered a chooser, and a ground base is an ordinary unit to it. Building a second surface
+would have duplicated it.
 
 ### Slice 5a, BALLISTIC TARGETING (F4.0) — BUILT IN CORE 2026-10-12
 

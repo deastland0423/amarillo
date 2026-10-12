@@ -176,4 +176,42 @@ public class GroundBasePlacementTest {
         assertFalse(r.isSuccess());
         assertTrue(r.getMessage(), r.getMessage().contains("six faces"));
     }
+
+    /**
+     * Slice 6, and a bug that would have been read as damage. The DTO serialised six shields
+     * for every unit, so a ground base arrived at the client as one shield of twelve and FIVE
+     * AT ZERO — which on a panel reads as a ship that has had five of its shields blown off.
+     * P2.73 gives small and medium ground bases "a single shield (covering all arcs)", so there
+     * are not five others at zero; there are no others at all.
+     */
+    @Test
+    public void theDtoReportsOneShieldForAGroundBaseAndSixForAShip() {
+        Ship base = groundBase("GBD1");
+        game.placeGroundBase(base, planet, 1);
+
+        com.sfb.dto.GameStateDto state = new com.sfb.dto.GameStateDto(game, "Neutral");
+        com.sfb.dto.GameStateDto.ShipDto dto = state.mapObjects.stream()
+                .filter(o -> o instanceof com.sfb.dto.GameStateDto.ShipDto)
+                .map(o -> (com.sfb.dto.GameStateDto.ShipDto) o)
+                .filter(d -> base.getName().equals(d.name))
+                .findFirst().orElseThrow(() -> new AssertionError("the base should be on the map"));
+
+        assertEquals("one shield, not one plus five zeroes (P2.73)", 1, dto.shields.size());
+        assertEquals(1, dto.shields.get(0).shieldNum);
+        assertTrue("and it is the real strength", dto.shields.get(0).current > 0);
+
+        com.sfb.objects.Ship cruiser = new com.sfb.objects.Ship();
+        cruiser.init(com.sfb.samples.KzintiShips.getKzinBC());
+        cruiser.setName("KHS Quasar");
+        cruiser.setLocation(new Location(5, 5));
+        game.getShips().add(cruiser);
+
+        com.sfb.dto.GameStateDto after = new com.sfb.dto.GameStateDto(game, "Neutral");
+        com.sfb.dto.GameStateDto.ShipDto shipDto = after.mapObjects.stream()
+                .filter(o -> o instanceof com.sfb.dto.GameStateDto.ShipDto)
+                .map(o -> (com.sfb.dto.GameStateDto.ShipDto) o)
+                .filter(d -> "KHS Quasar".equals(d.name))
+                .findFirst().orElseThrow(() -> new AssertionError("the cruiser should be there"));
+        assertEquals("an ordinary ship still reports all six", 6, shipDto.shields.size());
+    }
 }

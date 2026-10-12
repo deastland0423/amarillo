@@ -457,15 +457,32 @@ function drawObjects(
   const launchedAt = (o: MapObject) => (o as { launchImpulse?: number }).launchImpulse ?? 0;
 
   const terrain = objects.filter(o => o.type === 'TERRAIN');
+  // Owner's direction: "I don't want to crowd the planet." A ground base is not drawn as a
+  // counter of its own — six of them on a radius-zero planet would sit in one hex and bury it.
+  // They stay fully present everywhere else: in the hex picker, in the hover tooltip, and as
+  // launch targets. What the map gets instead is one small cue per occupied planet hex.
+  const groundBases = objects.filter(isGroundBase);
   const ships   = objects.filter(o => o.type !== 'TERRAIN' && !SMALL.has(o.type)
+                                   && !isGroundBase(o)
                                    && o.name !== selectedName);
   const small   = objects.filter(o => SMALL.has(o.type) && o.name !== selectedName)
                          .sort((a, b) => launchedAt(a) - launchedAt(b));
   const focused = selectedName
-    ? objects.filter(o => o.type !== 'TERRAIN' && o.name === selectedName)
+    ? objects.filter(o => o.type !== 'TERRAIN' && !isGroundBase(o) && o.name === selectedName)
     : [];
   const focusedShip  = focused.filter(o => !SMALL.has(o.type));
   const focusedSmall = focused.filter(o => SMALL.has(o.type));
+
+  // The cue for suppressed ground bases: one small marker per occupied planet hex, drawn after
+  // the terrain so it sits on top of the planet rather than under it, and carrying a count when
+  // a hex holds more than one. What is actually there is in the tooltip and the hex picker.
+  const basesByHex = new Map<string, MapObject[]>();
+  for (const b of groundBases) {
+    if (!b.location) continue;
+    const list = basesByHex.get(b.location) ?? [];
+    list.push(b);
+    basesByHex.set(b.location, list);
+  }
 
   for (const obj of [...terrain, ...ships, ...focusedShip, ...small, ...focusedSmall]) {
     if (!obj.location) continue;
@@ -837,6 +854,29 @@ function drawObjects(
       ctx.restore();
     }
   }
+
+  // Ground bases, as one cue per occupied planet hex (owner: "I don't want to crowd the
+  // planet"). Drawn last so it sits above the planet, and deliberately small: what is on the
+  // face belongs in the tooltip and the hex picker, not on the counter layer.
+  for (const [loc, bases] of basesByHex) {
+    const coords = parseLocation(loc);
+    if (!coords) continue;
+    const [col, row] = coords;
+    if (col < 1 || col > cols || row < 1 || row > rows) continue;
+    const [cx, cy] = hexCenter(col, row);
+    ctx.save();
+    ctx.fillStyle   = '#f0c040';
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+    if (bases.length > 1)
+      drawMapLabel(ctx, String(bases.length), cx + 9, cy - 6,
+                   { fill: '#f0c040', baseline: 'middle' });
+    ctx.restore();
+  }
 }
 
 const H = SQRT3 * SIZE;
@@ -878,15 +918,25 @@ function shuttlesAt(objects: MapObject[], col: number, row: number) {
 }
 
 function shipTooltipLines(ship: ShipObject): string[] {
+  const face = faceLetter(ship.planetFace);
   const lines = [
     `Faction:  ${ship.faction}`,
     `Name:     ${ship.name}`,
     `Type:     ${ship.shipType}${ship.typeName ? ` — ${ship.typeName}` : ''}`,
-    `Facing:   ${facingLabel(ship.facing)}`,
-    `Speed:    ${ship.speed}`,
   ];
+  // A ground base says which FACE it stands on instead of a facing and a speed: it looks out
+  // from that face by definition (P2.62) and it cannot move. Showing "Speed: 0" and a heading
+  // invites the reader to wonder when it will move, which it never will.
+  if (face) {
+    lines.push(`Face:     ${face} — on the planet's surface`);
+    lines.push('Attack:   ballistic seeking weapons only, from 4 hexes (P2.713)');
+  } else {
+    lines.push(`Facing:   ${facingLabel(ship.facing)}`);
+    lines.push(`Speed:    ${ship.speed}`);
+  }
   // C2.0: when it moves next. On an enemy too — half the value is knowing when THEY move.
-  const shipMoves = nextMoveText(ship);
+  // A ground base never does, so the line would only invite the question.
+  const shipMoves = face ? null : nextMoveText(ship);
   if (shipMoves) lines.push(`Moves:    ${shipMoves}`);
   // EW is announced as it is allocated, and lending is explicitly public (G24.211 note,
   // G24.2115) — so it belongs on the hover for enemy ships too, where it is the figure that
@@ -1117,10 +1167,26 @@ interface HexPicker {
   units: MapObject[];
 }
 
+/** True for a base standing on a planet's surface (R1.14), which draws and reads differently. */
+function isGroundBase(o: MapObject): boolean {
+  return o.type === 'SHIP' && (o as ShipObject).planetFace != null;
+}
+
+/** The planet face a ground base stands on, as the player names it: 1 is A, 6 is F. */
+function faceLetter(face: number | undefined): string | null {
+  if (face == null || face < 1 || face > 6) return null;
+  return String.fromCharCode('A'.charCodeAt(0) + face - 1);
+}
+
 /** Short label shown in the hex picker for any map object. */
 function pickerLabel(o: MapObject): string {
   switch (o.type) {
-    case 'SHIP':         return `Ship: ${o.name}`;
+    case 'SHIP': {
+      // A ground base is named by its FACE, because the hex cannot tell two of them apart:
+      // on a radius-zero planet all six faces' bases stand in the planet's own hex.
+      const face = faceLetter((o as ShipObject).planetFace);
+      return face ? `Ground base ${face}: ${o.name}` : `Ship: ${o.name}`;
+    }
     case 'DRONE':        return `Drone (${(o as DroneObject).controllerName ?? '?'})`;
     case 'PLASMA':       return `Plasma (${(o as PlasmaObject).controllerName ?? '?'})`;
     case 'SHUTTLE':      return `Shuttle: ${o.name}`;
