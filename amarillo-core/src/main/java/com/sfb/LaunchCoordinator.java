@@ -288,10 +288,15 @@ class LaunchCoordinator {
      * @return the facing to use, or 0 if a named direction is not a legal facing
      */
     private int craftFacing(Ship launcher, Unit target, int named) {
+        return craftFacingToHex(launcher, target == null ? null : target.getLocation(), named);
+    }
+
+    /** The same, aimed at a HEX, for a craft launched on a ballistic course (F4.0). */
+    private int craftFacingToHex(Ship launcher, Location aim, int named) {
         if (named > 0)
             return MapUtils.isFacing(named) ? named : 0;
-        if (target != null) {
-            int snapped = MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+        if (aim != null) {
+            int snapped = MapUtils.snapToFacing(MapUtils.getBearing(launcher.getLocation(), aim));
             if (snapped > 0)
                 return snapped;
         }
@@ -314,12 +319,8 @@ class LaunchCoordinator {
      *
      * @return the facing to use, or 0 if the named direction is not a legal facing
      */
-    private int launchFacingFor(Unit launcher, Unit target, int named) {
-        return launchFacingFor(launcher, target == null ? null : target.getLocation(), named);
-    }
-
     /** The same, aimed at a HEX: a ballistic weapon has no target unit to take a bearing on. */
-    private int launchFacingFor(Unit launcher, Location aim, int named) {
+    private int launchFacingForHex(Unit launcher, Location aim, int named) {
         if (named > 0)
             return MapUtils.isFacing(named) ? named : 0;
         return MapUtils.snapToFacing(MapUtils.getBearing(launcher.getLocation(), aim));
@@ -343,12 +344,6 @@ class LaunchCoordinator {
      *
      * @return a refusal, or null if the seeker can track from there
      */
-    private ActionResult seekerArcBlock(Unit launcher, Unit target, int seekerFacing, String what) {
-        if (target == null)
-            return null;
-        return seekerArcBlock(launcher, target.getLocation(), target.getName(), seekerFacing, what);
-    }
-
     /**
      * The same, aimed at a HEX. A ballistic weapon is bound by this exactly as a pursuing one
      * is: F4.11 has it fly to the hex "by the most nearly direct route", which it cannot do if
@@ -536,7 +531,7 @@ class LaunchCoordinator {
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
         drone.setLocation(launcher.getLocation());
-        int droneFacing = launchFacingFor(launcher, aim, facing);
+        int droneFacing = launchFacingForHex(launcher, aim, facing);
         if (droneFacing == 0 && facing > 0)
             return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
                     + " may face (1, 5, 9, 13, 17, 21)");
@@ -586,6 +581,60 @@ class LaunchCoordinator {
      * a turn however many rails it carries (J4.24), and the half-turn wait after its own
      * launch (J1.341) that a ship never serves.
      */
+    /**
+     * A fighter launches one of its own drones on a BALLISTIC course (F4.0), at a hex.
+     * <p>
+     * Everything the fighter itself must satisfy still binds, because none of it is about the
+     * target: J1.332 crippling, J1.6202 being held in a tractor, J1.341's half-turn wait after
+     * its own launch, and J4.24's rate limits.
+     * <p>
+     * What drops out is the whole guidance apparatus — D6.121's lock-on, the fighter's control
+     * capacity (J4.25), and J4.222's handoff to a carrier. A ballistic drone is "released from
+     * control immediately on launch" (F4.12), so there is nobody to guide it and nothing to
+     * hand it to. That has a consequence worth stating: a fighter with NO guidance equipment
+     * of its own — the Kzinti AS, which J4.222 exists for — can launch ballistically with no
+     * friendly unit involved at all.
+     */
+    public ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
+            Location hex, com.sfb.weapons.DroneRail rail, int facing) {
+        ActionResult emBlock = emLaunchBlock(fighter, "a drone");
+        if (emBlock != null)
+            return emBlock;
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        if (fighter.isCrippled())
+            return ActionResult.fail(fighter.getName()
+                    + " is crippled - external weapons are dropped (J1.332)");
+        if (fighter.isTractored())
+            return ActionResult.fail(fighter.getName() + " is held in a tractor beam and"
+                    + " cannot launch seeking weapons (J1.6202)");
+        int wait = fighter.impulsesUntilSeekers(game.getAbsoluteImpulse());
+        if (wait > 0)
+            return ActionResult.fail(fighter.getName() + " cannot launch seeking weapons for "
+                    + wait + " more impulse" + (wait == 1 ? "" : "s")
+                    + " - half a turn since launch (J1.341)");
+        if (rail == null || !rail.isFunctional())
+            return ActionResult.fail("That rail is destroyed");
+        Drone drone = rail.getDrone();
+        if (drone == null)
+            return ActionResult.fail(rail.getName() + " is empty");
+        // J4.24/J4.241 still judge the rate. A ballistic drone has no target unit, so a
+        // second one is a different target by definition unless the fighter is one of those
+        // J4.242 frees to split them.
+        String rate = fighter.droneLaunchRefusal(null, drone, game.getAbsoluteImpulse());
+        if (rate != null)
+            return ActionResult.fail(rate);
+
+        ActionResult result = placeLaunchedDrone(fighter, null, new BallisticCourse(hex),
+                rail, drone, facing);
+        if (result.isSuccess())
+            fighter.recordDroneFired(null, drone, game.getAbsoluteImpulse());
+        return result;
+    }
+
     public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, com.sfb.weapons.DroneRail rail, int facing) {
         ActionResult emBlock = emLaunchBlock(fighter, "a drone");
@@ -727,12 +776,30 @@ class LaunchCoordinator {
      */
     public ActionResult launchFighterPlasmaD(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchFighterPlasmaD(fighter, target, null, rail, facing);
+    }
+
+    /** A fighter's type-D torpedo on a ballistic course (F4.0), at a hex. FP4.23 and F4.12. */
+    public ActionResult launchFighterPlasmaDBallistic(com.sfb.objects.shuttles.Fighter fighter,
+            Location hex, com.sfb.weapons.DroneRail rail, int facing) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        return launchFighterPlasmaD(fighter, null, new BallisticCourse(hex), rail, facing);
+    }
+
+    private ActionResult launchFighterPlasmaD(com.sfb.objects.shuttles.Fighter fighter,
+            Unit target, BallisticCourse course, com.sfb.weapons.DroneRail rail, int facing) {
+        Location aim = course != null ? course.getTargetHex()
+                : (target != null ? target.getLocation() : null);
+        String aimName = course != null ? "hex " + course.getTargetHex()
+                : (target != null ? target.getName() : "?");
         ActionResult emBlock = emLaunchBlock(fighter, "a plasma torpedo");
         if (emBlock != null)
             return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Plasma can only be launched during the Activity phase");
-        if (target == null)
+        if (target == null && course == null)
             return ActionResult.fail("No target");
         if (fighter.isCrippled())
             return ActionResult.fail(fighter.getName()
@@ -762,10 +829,10 @@ class LaunchCoordinator {
         if (rate != null)
             return ActionResult.fail(rate);
 
-        int torpFacing = launchFacingFor(fighter, target, facing);
+        int torpFacing = launchFacingForHex(fighter, aim, facing);
         if (torpFacing == 0 && facing > 0)
             return badFacing(facing);
-        ActionResult torpArc = seekerArcBlock(fighter, target, torpFacing, rail.getName());
+        ActionResult torpArc = seekerArcBlock(fighter, aim, aimName, torpFacing, rail.getName());
         if (torpArc != null)
             return torpArc;
 
@@ -781,8 +848,13 @@ class LaunchCoordinator {
             if (ww != null && !ww.isPostExplosion())
                 torpTarget = ww;
         }
+        // FP4.23 and F4.12: no target to re-acquire, and nobody guiding it.
+        torpedo.setBallisticCourse(course);
+        if (course != null)
+            torpTarget = null;
         torpedo.setTarget(torpTarget);
-        torpedo.setController(fighter);
+        if (course == null)
+            torpedo.setController(fighter);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         if (torpTarget instanceof Ship) {
@@ -800,7 +872,8 @@ class LaunchCoordinator {
         // scout's own channels. A fighter has neither to offer.
         List<String> lockLog = java.util.Collections.emptyList();
         String msg = fighter.getName() + " launched plasma-" + torpedo.getPlasmaType()
-                + " at " + target.getName() + " (FP9.2)";
+                + " at " + aimName + " (FP9.2)"
+                + (course != null ? " on a ballistic course (F4.0)" : "");
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
@@ -812,6 +885,31 @@ class LaunchCoordinator {
      * location, faced toward the target, and added to the active seekers list.
      */
     public ActionResult launchPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        return launchPlasma(launcher, target, null, weapon, fastLoad, facing);
+    }
+
+    /**
+     * Launch a plasma torpedo on a BALLISTIC course (F4.0), at a hex.
+     * <p>
+     * FP4.23 is the clause that matters here: "a ballistically launched plasma torpedo cannot
+     * acquire its own target". A plasma is otherwise self-guiding, and this is the one thing
+     * that stops a ballistic one quietly behaving like an ordinary one — it is enforced by
+     * giving it no target and no controller at all, so there is nothing to re-acquire with.
+     */
+    public ActionResult launchPlasmaBallistic(Ship launcher, Location hex, PlasmaLauncher weapon,
+            boolean fastLoad, int facing) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        return launchPlasma(launcher, null, new BallisticCourse(hex), weapon, fastLoad, facing);
+    }
+
+    private ActionResult launchPlasma(Ship launcher, Unit target, BallisticCourse course,
+            PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        Location aim = course != null ? course.getTargetHex()
+                : (target != null ? target.getLocation() : null);
+        String aimName = course != null ? "hex " + course.getTargetHex()
+                : (target != null ? target.getName() : "?");
         ActionResult emBlock = emLaunchBlock(launcher, "a plasma torpedo");
         if (emBlock != null)
             return emBlock;
@@ -823,7 +921,8 @@ class LaunchCoordinator {
         if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses (C6.5473)");
         // G7.91: tractored ship cannot fire plasma torpedoes at non-holding ships
-        if (launcher.isTractored() && target instanceof Ship && target != launcher.getTractoringUnit())
+        if (launcher.isTractored() && (course != null
+                || (target instanceof Ship && target != launcher.getTractoringUnit())))
             return ActionResult.fail("Tractored ships may only fire plasma at the holding ship (G7.91)");
         if (!weapon.isFunctional())
             return ActionResult.fail(weapon.getName() + " is destroyed");
@@ -841,12 +940,12 @@ class LaunchCoordinator {
         // The TARGET must lie in the launcher's firing arc: a plasma launcher has one, unlike
         // a drone rack, which will send one any way it likes. This test was missing entirely,
         // so a forward launcher could target something dead astern.
-        int bearing = MapUtils.getBearing(launcher, target);
+        int bearing = MapUtils.getBearing(launcher.getLocation(), aim);
         if (bearing > 0) {            // 0 = same hex, where no bearing exists
             int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
             if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
                 return ActionResult.fail(weapon.getName() + " cannot target "
-                        + target.getName() + " — outside launcher arc");
+                        + aimName + " — outside launcher arc");
         }
         // The launch DIRECTION, separately, must be one the tube can use. Narrower than the
         // firing arc on real ships: a Romulan KR's Plasma-G launches straight ahead only, yet
@@ -861,11 +960,11 @@ class LaunchCoordinator {
                         + facing + " — outside launcher arc");
         }
 
-        int torpFacing = launchFacingFor(launcher, target, facing);
+        int torpFacing = launchFacingForHex(launcher, aim, facing);
         if (torpFacing == 0 && facing > 0)
             return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
                     + " may face (1, 5, 9, 13, 17, 21)");
-        ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, weapon.getName());
+        ActionResult torpArc = seekerArcBlock(launcher, aim, aimName, torpFacing, weapon.getName());
         if (torpArc != null)
             return torpArc;
 
@@ -888,8 +987,14 @@ class LaunchCoordinator {
             if (ww != null && !ww.isPostExplosion())
                 torpTarget = ww;
         }
+        // FP4.23: a ballistically launched torpedo cannot acquire its own target, and F4.12
+        // releases it from control — so it gets neither a target nor a controller.
+        torpedo.setBallisticCourse(course);
+        if (course != null)
+            torpTarget = null;
         torpedo.setTarget(torpTarget);
-        torpedo.setController(launcher);
+        if (course == null)
+            torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         // G13.32: launching at a fully cloaked target is only possible on a
@@ -907,7 +1012,8 @@ class LaunchCoordinator {
         game.enterBlindChoiceIfPending();
 
         String msg = launcher.getName() + " launched plasma-"
-                + torpedo.getPlasmaType() + " at " + target.getName();
+                + torpedo.getPlasmaType() + " at " + aimName
+                + (course != null ? " on a ballistic course (F4.0)" : "");
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
@@ -931,6 +1037,37 @@ class LaunchCoordinator {
      */
     public ActionResult launchPlasmaRack(Ship launcher, Unit target,
             com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        return launchPlasmaRack(launcher, target, null, rack, mode, facing);
+    }
+
+    /**
+     * Launch a type-D torpedo from a rack on a BALLISTIC course (F4.0), at a hex.
+     * <p>
+     * OFFENSIVE mode only, and that is a RULING rather than a quotation. FP10.212's target
+     * restrictions are what defensive mode pays for its rate of fire — restrictions by the
+     * target's size class and its range — and a hex has no size class, so a defensive-mode
+     * ballistic shot would be a way of buying the rate without the price. Offensive mode has
+     * no such restriction, and FP10.242's two-racks-a-turn limit applies to a ballistic shot
+     * exactly as to any other offensive one.
+     */
+    public ActionResult launchPlasmaRackBallistic(Ship launcher, Location hex,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        if (mode != com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE)
+            return ActionResult.fail(rack.getName() + " can only fire ballistically in offensive"
+                    + " mode — defensive mode's rate is paid for with target restrictions by size"
+                    + " class and range (FP10.212), and a hex has neither");
+        return launchPlasmaRack(launcher, null, new BallisticCourse(hex), rack, mode, facing);
+    }
+
+    private ActionResult launchPlasmaRack(Ship launcher, Unit target, BallisticCourse course,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        Location aim = course != null ? course.getTargetHex()
+                : (target != null ? target.getLocation() : null);
+        String aimName = course != null ? "hex " + course.getTargetHex()
+                : (target != null ? target.getName() : "?");
         ActionResult emBlock = emLaunchBlock(launcher, "a plasma torpedo");
         if (emBlock != null)
             return emBlock;
@@ -943,8 +1080,8 @@ class LaunchCoordinator {
             return ActionResult.fail("Cannot launch plasma — breakdown lockout for 8 impulses"
                     + " (C6.5473)");
         // G7.91: a tractored ship may only send plasma at the ship holding it.
-        if (launcher.isTractored() && target instanceof Ship
-                && target != launcher.getTractoringUnit())
+        if (launcher.isTractored() && (course != null
+                || (target instanceof Ship && target != launcher.getTractoringUnit())))
             return ActionResult.fail("Tractored ships may only fire plasma at the holding ship"
                     + " (G7.91)");
         if (rack == null)
@@ -959,20 +1096,24 @@ class LaunchCoordinator {
         // FP10.12: "If fired as seeking weapons, they can engage any target in this arc." The
         // rack's declared 180 degrees, with no narrowing - FP8.35 lists the rack as the exception
         // to the swivel-launcher bolt arcs and FP10.12 says why.
-        int bearing = MapUtils.getBearing(launcher, target);
+        int bearing = MapUtils.getBearing(launcher.getLocation(), aim);
         if (bearing > 0) {
             int relBearing = MapUtils.getRelativeBearing(bearing, launcher.getFacing());
             if (!ArcUtils.inArc(relBearing, rack.getArcs()))
-                return ActionResult.fail(rack.getName() + " cannot target " + target.getName()
+                return ActionResult.fail(rack.getName() + " cannot target " + aimName
                         + " — outside the rack's arc");
         }
 
         // FP10.212's target restrictions, which are what defensive mode PAYS for its rate. Range
         // is measured to the firing ship, as the rule states it.
-        int range = MapUtils.getRange(launcher.getLocation(), target.getLocation());
-        String targetRefusal = rack.targetRefusal(mode, target.getSizeClass(), range);
-        if (targetRefusal != null)
-            return ActionResult.fail(targetRefusal);
+        // A ballistic shot has no target to restrict, and is offensive-mode only for exactly
+        // that reason — see launchPlasmaRackBallistic.
+        if (course == null) {
+            int range = MapUtils.getRange(launcher.getLocation(), target.getLocation());
+            String targetRefusal = rack.targetRefusal(mode, target.getSizeClass(), range);
+            if (targetRefusal != null)
+                return ActionResult.fail(targetRefusal);
+        }
 
         // FP10.242, which belongs to the ship. Asked BEFORE the rack commits, so a refusal does
         // not leave a rack stuck in a mode it was not allowed to enter.
@@ -983,11 +1124,11 @@ class LaunchCoordinator {
                 return ActionResult.fail(fireControl);
         }
 
-        int torpFacing = launchFacingFor(launcher, target, facing);
+        int torpFacing = launchFacingForHex(launcher, aim, facing);
         if (torpFacing == 0 && facing > 0)
             return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
                     + " may face (1, 5, 9, 13, 17, 21)");
-        ActionResult torpArc = seekerArcBlock(launcher, target, torpFacing, rack.getName());
+        ActionResult torpArc = seekerArcBlock(launcher, aim, aimName, torpFacing, rack.getName());
         if (torpArc != null)
             return torpArc;
 
@@ -1011,8 +1152,13 @@ class LaunchCoordinator {
             if (ww != null && !ww.isPostExplosion())
                 torpTarget = ww;
         }
+        // FP4.23 and F4.12, as for a tube-launched torpedo.
+        torpedo.setBallisticCourse(course);
+        if (course != null)
+            torpTarget = null;
         torpedo.setTarget(torpTarget);
-        torpedo.setController(launcher);
+        if (course == null)
+            torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
         if (torpTarget instanceof Ship) {
@@ -1030,13 +1176,39 @@ class LaunchCoordinator {
         game.enterBlindChoiceIfPending();
 
         String msg = launcher.getName() + " launched a plasma-D from " + rack.getName()
-                + " in " + mode.name().toLowerCase() + " mode at " + target.getName();
+                + " in " + mode.name().toLowerCase() + " mode at " + aimName
+                + (course != null ? " on a ballistic course (F4.0)" : "");
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
     }
 
     public ActionResult launchPseudoPlasma(Ship launcher, Unit target, PlasmaLauncher weapon, int facing) {
+        return launchPseudoPlasma(launcher, target, null, weapon, facing);
+    }
+
+    /**
+     * Launch a PSEUDO torpedo on a ballistic course (F4.0): a fake aimed at an empty hex.
+     * <p>
+     * Doubly deceptive, and both halves are in the rules. F4.21 gives "deceive an opponent" as
+     * one of the four reasons to fire ballistically at all, and a pseudo torpedo is a decoy to
+     * begin with. The enemy sees a plasma torpedo heading somewhere and has to decide what it
+     * is for; it is neither real nor coming for him.
+     */
+    public ActionResult launchPseudoPlasmaBallistic(Ship launcher, Location hex,
+            PlasmaLauncher weapon, int facing) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        return launchPseudoPlasma(launcher, null, new BallisticCourse(hex), weapon, facing);
+    }
+
+    private ActionResult launchPseudoPlasma(Ship launcher, Unit target, BallisticCourse course,
+            PlasmaLauncher weapon, int facing) {
+        Location aim = course != null ? course.getTargetHex()
+                : (target != null ? target.getLocation() : null);
+        String aimName = course != null ? "hex " + course.getTargetHex()
+                : (target != null ? target.getName() : "?");
         ActionResult emBlock = emLaunchBlock(launcher, "a pseudo plasma torpedo");
         if (emBlock != null)
             return emBlock;
@@ -1055,12 +1227,12 @@ class LaunchCoordinator {
         // A pseudo must be bound by exactly what binds a real one, or the bluff gives itself
         // away: a torpedo launched at an angle no real one could manage could only be pseudo.
         // These three were all missing here, so a pseudo could be thrown anywhere at all.
-        int pseudoBearing = MapUtils.getBearing(launcher, target);
+        int pseudoBearing = MapUtils.getBearing(launcher.getLocation(), aim);
         if (pseudoBearing > 0) {
             int relBearing = MapUtils.getRelativeBearing(pseudoBearing, launcher.getFacing());
             if (!ArcUtils.inArc(relBearing, weapon.getArcs()))
                 return ActionResult.fail(weapon.getName() + " cannot target "
-                        + target.getName() + " — outside launcher arc");
+                        + aimName + " — outside launcher arc");
         }
         if (facing > 0) {
             int launchDirs = weapon.getLaunchDirections() != 0
@@ -1070,11 +1242,11 @@ class LaunchCoordinator {
                 return ActionResult.fail(weapon.getName() + " cannot launch in direction "
                         + facing + " — outside launcher arc");
         }
-        int pseudoFacing = launchFacingFor(launcher, target, facing);
+        int pseudoFacing = launchFacingForHex(launcher, aim, facing);
         if (pseudoFacing == 0 && facing > 0)
             return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
                     + " may face (1, 5, 9, 13, 17, 21)");
-        ActionResult pseudoArc = seekerArcBlock(launcher, target, pseudoFacing, weapon.getName());
+        ActionResult pseudoArc = seekerArcBlock(launcher, aim, aimName, pseudoFacing, weapon.getName());
         if (pseudoArc != null)
             return pseudoArc;
 
@@ -1086,7 +1258,8 @@ class LaunchCoordinator {
                                                                                  // must not reveal pseudo status
         torpedo.setLocation(launcher.getLocation());
         torpedo.setFacing(pseudoFacing);
-        torpedo.setTarget(target);
+        torpedo.setBallisticCourse(course);
+        torpedo.setTarget(course != null ? null : target);
         torpedo.setController(launcher);
         torpedo.setLaunchImpulse(game.getAbsoluteImpulse());
         torpedo.setSeekerType(Seeker.SeekerType.PLASMA);
@@ -1098,7 +1271,8 @@ class LaunchCoordinator {
         game.enterBlindChoiceIfPending();
 
         String msg = launcher.getName() + " launched pseudo plasma-"
-                + torpedo.getPlasmaType() + " at " + target.getName() + " [PSEUDO]";
+                + torpedo.getPlasmaType() + " at " + aimName + " [PSEUDO]"
+                + (course != null ? " on a ballistic course (F4.0)" : "");
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         return ActionResult.ok(msg);
@@ -1175,6 +1349,65 @@ class LaunchCoordinator {
      * Launch a fully-armed suicide shuttle at a target.
      * Requires lock-on. Speed capped at shuttle's maxSpeed.
      */
+    /**
+     * Launch a suicide shuttle on a BALLISTIC course (F4.0), at a hex.
+     * <p>
+     * No lock-on (there is nothing to lock on to) and no control channel (F4.12). The bay
+     * cooldown, the HET window, the breakdown lockout and the three turns of arming all still
+     * apply, because none of them is about the target.
+     * <p>
+     * It will not explode when it gets there: F4.21 says so of exploding seeking weapons
+     * generally, and names deception as one of the reasons to send one anyway. F4.23's
+     * anti-tamper devices (J2.228) are unaffected — they fire on an attempt to RECOVER the
+     * shuttle, wherever it was sent.
+     */
+    public ActionResult launchSuicideShuttleBallistic(Ship launcher,
+            com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, Location hex, int facing, int speed) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a suicide shuttle");
+        if (emBlock != null)
+            return emBlock;
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Shuttles can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInPostHetWindow(game.getAbsoluteImpulse()))
+            return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
+            return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        if (!shuttle.isFullyArmed())
+            return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
+        if (!bay.canLaunch(game.getAbsoluteImpulse()))
+            return ActionResult.fail("Shuttle bay on cooldown — once every 2 impulses");
+
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        int suicideFacing = craftFacingToHex(launcher, hex, facing);
+        if (suicideFacing == 0)
+            return badFacing(facing);
+        bay.launch(shuttle, Math.max(0, Math.min(speed, shuttle.effectiveMaxSpeed())),
+                suicideFacing, game.getAbsoluteImpulse());
+        shuttle.setName(launchName(launcher, shuttle));
+        shuttle.setLocation(launcher.getLocation());
+        shuttle.setBallisticCourse(new BallisticCourse(hex));
+        shuttle.setTarget(null);
+        shuttle.setLaunchImpulse(game.getAbsoluteImpulse());
+        seekers.add(shuttle);
+        List<String> lockLog = game.checkLockOnsForNewUnit(launcher, shuttle);
+
+        String msg = launcher.getName() + " launched suicide shuttle at hex " + hex
+                + " on a ballistic course (F4.0) (warhead " + shuttle.getWarheadDamage() + ")";
+        if (!lockLog.isEmpty())
+            msg += "\n" + String.join("\n", lockLog);
+        return ActionResult.ok(msg);
+    }
+
     public ActionResult launchSuicideShuttle(Ship launcher, com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit target, int facing, int speed) {
         ActionResult emBlock = emLaunchBlock(launcher, "a suicide shuttle");

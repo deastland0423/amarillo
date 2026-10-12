@@ -3370,6 +3370,44 @@ public class Game {
         return launchCoordinator.launchDroneBallistic(launcher, hex, rack, drone, facing);
     }
 
+    /** F4.0: a fighter sends one of its own drones at a HEX (J4.24 limits still apply). */
+    public ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
+            com.sfb.properties.Location hex, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterDroneBallistic(fighter, hex, rail, facing);
+    }
+
+    /** F4.0 + FP4.23: a plasma torpedo at a HEX, which cannot then acquire a target. */
+    public ActionResult launchPlasmaBallistic(Ship launcher, com.sfb.properties.Location hex,
+            com.sfb.weapons.PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        return launchCoordinator.launchPlasmaBallistic(launcher, hex, weapon, fastLoad, facing);
+    }
+
+    /** F4.0: a type-D torpedo from a rack at a HEX. Offensive mode only (FP10.212). */
+    public ActionResult launchPlasmaRackBallistic(Ship launcher, com.sfb.properties.Location hex,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        return launchCoordinator.launchPlasmaRackBallistic(launcher, hex, rack, mode, facing);
+    }
+
+    /** F4.0: a fighter's type-D torpedo at a HEX. */
+    public ActionResult launchFighterPlasmaDBallistic(com.sfb.objects.shuttles.Fighter fighter,
+            com.sfb.properties.Location hex, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterPlasmaDBallistic(fighter, hex, rail, facing);
+    }
+
+    /** F4.0: a PSEUDO torpedo at a HEX — a decoy that is not even coming for you. */
+    public ActionResult launchPseudoPlasmaBallistic(Ship launcher, com.sfb.properties.Location hex,
+            com.sfb.weapons.PlasmaLauncher weapon, int facing) {
+        return launchCoordinator.launchPseudoPlasmaBallistic(launcher, hex, weapon, facing);
+    }
+
+    /** F4.0: a suicide shuttle at a HEX. It will not explode there (F4.21). */
+    public ActionResult launchSuicideShuttleBallistic(Ship launcher,
+            com.sfb.systemgroups.ShuttleBay bay, com.sfb.objects.shuttles.SuicideShuttle shuttle,
+            com.sfb.properties.Location hex, int facing, int speed) {
+        return launchCoordinator.launchSuicideShuttleBallistic(launcher, bay, shuttle, hex,
+                facing, speed);
+    }
+
     /** A fighter launches one of its own drones (J1.31, J4.24). */
     public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, com.sfb.weapons.DroneRail rail, int facing) {

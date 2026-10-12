@@ -494,13 +494,31 @@ the launcher as controller unconditionally, so a weapon that is "released from c
 on launch" was handed straight back to its launcher's guidance. It now takes no controller and no
 control channel.
 
+**EVERY seeker kind now has a ballistic launch door** (owner's requirement, same day): a ship's
+drone rack, a fighter's drone rail, a plasma tube, a plasma rack, a fighter's type-D rail, a pseudo
+torpedo, and a suicide shuttle. They were not seven copies — each door's body now derives an `aim`
+hex and an `aimName` from either a target unit or a course, so the arc checks, the facing and the
+messages are shared and only the gates that genuinely differ were written twice.
+
+Three things fell out of that:
+- **FP4.23 has a home.** "A ballistically launched plasma torpedo cannot acquire its own target" is
+  enforced by giving it no target and no controller, so there is nothing to re-acquire with. A
+  plasma is otherwise self-guiding and would quietly have behaved like an ordinary one.
+- **A fighter with no guidance equipment can launch ballistically.** J4.222 exists because the
+  Kzinti AS cannot guide its own drones and must hand them to a carrier; a ballistic drone needs no
+  guidance from anybody (F4.12), so the AS can throw one with no friendly unit involved at all.
+- **A plasma RACK may fire ballistically in offensive mode only**, and that is a RULING rather than
+  a quotation — flagged here because it should be checked. Defensive mode buys its rate of fire
+  with FP10.212's restrictions on the target's size class and range; a hex has neither, so a
+  defensive ballistic shot would take the rate without paying for it.
+
 **What is NOT built yet, and should not be assumed:**
-- **Only DRONES have a ballistic launch door** (`Game.launchDroneBallistic`). Plasma torpedoes,
-  suicide shuttles and scatter-packs fly a ballistic course correctly if given one, but nothing
-  hands them one. Plasma wants FP4.23 with it (a ballistically launched torpedo cannot acquire its
-  own target); the SP wants F4.41's release-on-acceptable-target and F4.43's go-and-stop, which is
-  a feature in its own right and the reason `ScatterPack.isReadyToRelease` still runs off a flat
-  eight-impulse timer.
+- **The SCATTER-PACK has no ballistic door**, deliberately. F4.41 releases its submunitions "when
+  the first acceptable target is within their pre-set release range" and F4.413 says a hex cannot
+  provoke that release, while `ScatterPack.isReadyToRelease` runs off a flat eight-impulse timer.
+  F4.42's guidance handoff at the release point and F4.43's go-to-the-hex-and-stop are also
+  unbuilt. Wiring a door without them would produce an SP that releases on a timer into empty
+  space, which is worse than refusing. This is a feature, not a door.
 - **No server action and no UI.** This is core only.
 - **F4.3 type-III "wild boar" targeting** (FD5.25, D19.222) is untouched.
 - **F4.5 tractors**: a tractored ballistic weapon should go inert, and a released one should have
