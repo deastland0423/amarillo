@@ -276,6 +276,7 @@ public class BalconyPositionTest {
         java.util.Set<String> rostered = java.util.Set.of(
                 "Federation CVA",   // six on each fighter bay, none on the admin bay
                 "Klingon C8V",      // stacked bays; four on the lower one
+                "Klingon D7V",      // R3.44: "LOWER BAY HAS FOUR BALCONY POSITIONS (J1.53)"
                 "Romulan K7V");     // stacked bays on a converted K7; four on the lower
 
         for (ShipSpec spec : ShipLibrary.all()) {
