@@ -1,0 +1,74 @@
+{
+  "faction": "Neutral",
+  "type": "GBD1",
+  "typeName": "Ground-Based Phaser-1",
+  "line": "GRBASE",
+  "name": "Ground Battery",
+  "isBase": true,
+  "serviceYear": 120,
+  "bpv": 8,
+  "sizeClass": 5,
+  "commandRating": 0,
+
+  "_comment": [
+    "R1.14, Advanced Missions SSD book page 12. The first ground base, and the chassis the other",
+    "fits share: a shield, two hull boxes, a bridge, APR, sensor 6|0, scanner 0|9, dam-con 4|2|0,",
+    "five crew units, two boarding parties. DK:4, EX:0, CR:0, YIS:120, BPV 8.",
+    "",
+    "ONE SHIELD, declared by the length of the shields array (P2.73: small and medium ground bases",
+    "have 'a single shield covering all arcs as part of their design'). Every hit resolves against",
+    "it whatever bearing it comes from — see SingleShieldTest.",
+    "",
+    "Weapons are labelled FH on the sheet — the Forward Hemisphere, 180 degrees, which is how",
+    "R1.14 designs them (P2.721). On a large asteroid that becomes 360 (P2.747), but the arc is a",
+    "property of the SITING and this file carries the planet case.",
+    "",
+    "In data/factions/neutral because R1.14 sits in the book's GENERAL UNITS section — these are",
+    "not any one empire's, in the way the freighters here are not.",
+    "",
+    "NOT MODELLED YET, and both belong with the siting rather than the hull: the energy line from",
+    "the sheet ('SHIELDS = 1/2 + 1/2, LIFE SUPPORT = 0, FIRE CONTROL = 0' — a ground base pays",
+    "nothing for the last two), and placement on a planetary hex side.",
+    "",
+    "WORTH CHECKING: the shield strip is a six-by-two grid of twelve cells, ten shaded and two",
+    "left white. Read as twelve on the precedent of the D5J, where the tints proved to be counting",
+    "aids rather than a distinction — but ten is the other reading, and small counts on these",
+    "sheets have been wrong twice this week."
+  ],
+
+  "shields": [12],
+
+  "hullBoxes": {
+    "chull": 2
+  },
+
+  "power": {
+    "apr": 8
+  },
+
+  "control": {
+    "bridge": 1,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 2, 0],
+    "sensor": [6, 0],
+    "scanner": [0, 9],
+    "excess": 3
+  },
+
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 2,
+    "minCrew": 1
+  },
+
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FH"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["FH"] },
+    { "type": "Phaser3", "designator": "3", "arcs": ["FH"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["FH"] },
+    { "type": "Phaser1", "designator": "5", "arcs": ["FH"] }
+  ]
+}
