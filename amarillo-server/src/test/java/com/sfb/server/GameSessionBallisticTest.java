@@ -189,6 +189,56 @@ class GameSessionBallisticTest {
         assertTrue(r.getMessage().contains("not a seeking weapon"), r.getMessage());
     }
 
+    /**
+     * A suicide shuttle is a seeking weapon that lives in a BAY rather than on a rack, so it
+     * arrives named as a shuttle and not as a weapon. The handler has to tell which kind of
+     * bombardment it is being asked for; routing it to the drone path would fail for want of a
+     * weapon name, which is how this was caught.
+     */
+    @Test
+    void aSuicideShuttleBombardsThroughTheSameAction() throws Exception {
+        var bay = kzinti.getShuttles().getBays().get(0);
+        var ss = new com.sfb.objects.shuttles.SuicideShuttle(
+                new com.sfb.objects.shuttles.AdminShuttle());
+        ss.setName("SH-1");
+        bay.replaceShuttle(bay.getInventory().get(0), ss);
+        ss.arm(3);
+        ss.arm(3);
+        ss.arm(3);
+
+        ActionRequest req = new ActionRequest();
+        req.setType("LAUNCH_SEEKER_BALLISTIC");
+        req.setShipName("KHS Quasar");
+        req.setPlayerToken(HOST);
+        req.setTargetName("Ground Battery");
+        req.setAction("SH-1");
+        req.setFacing(13);
+        req.setSpeed(6);
+
+        ActionResult r = session.executeAction(req);
+
+        assertTrue(r.isSuccess(), r.getMessage());
+        assertTrue(ss.isBallistic());
+        assertTrue(ss.getBallisticCourse().isGroundAttack());
+    }
+
+    /** F4.21 lists no use for a suicide shuttle sent at an empty hex, and it cannot be ordered. */
+    @Test
+    void aSuicideShuttleCannotBeSentAtABareHex() {
+        ActionRequest req = new ActionRequest();
+        req.setType("LAUNCH_SEEKER_BALLISTIC");
+        req.setShipName("KHS Quasar");
+        req.setPlayerToken(HOST);
+        req.setAction("SH-1");
+        req.setHexCol(10);
+        req.setHexRow(10);
+
+        ActionResult r = session.executeAction(req);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage().contains("bare hex"), r.getMessage());
+    }
+
     // ---------------------------------------------------------------- secrecy
 
     /**

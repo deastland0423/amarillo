@@ -542,8 +542,24 @@ looks like a flight rather than a fault. And the first ECM-immunity test passed 
 REMOVED — six points of ECM forced onto the base did not survive to the impulse of impact, so the
 shift was zero either way. That is why the immunity is a named method now.
 
-**Still open on 5b:** no server action and no UI, so none of it is reachable in play — the chooser
-below is the next piece. P2.713's last sentence, "submunitions from a ballistic MW drone cannot
+**Reachable in play since 2026-10-12.** `LAUNCH_SEEKER_BALLISTIC` is one action for both shots: a
+request carrying only a hex is an ordinary ballistic shot, a request that also NAMES a target is a
+bombardment. The handler routes by weapon class to whichever core door fits, and a bombardment does
+not send a hex at all — the base's own position is the hex, read server-side so the client cannot
+get it wrong.
+
+In the launch pad a ground base now appears with its FACE ("Ground Battery (face B)") and a
+`bombard` chip, and every seeker order against it is drafted as a bombardment rather than an
+ordinary launch — because P2.713 is the only way a seeking weapon reaches one. Out of reach or on
+passive fire control, the row greys and says which: greyed and not hidden, because a hidden row
+cannot tell "no base there" from "not from here", and the reason is what teaches the four-hex limit.
+The mirror lives in `groundBombardment.ts` with its own tests, the same relationship
+`weaponDamageTables.ts` has to the damage rules; core still refuses authoritatively.
+
+**Still open on 5b:** firing at a BARE hex has no UI — the server action takes one and the rules
+give four uses for it (F4.21), but the pad is target-driven and there is nowhere to click a hex yet.
+That is the other half of the chooser design below, and it wants the map-click work that slice 6
+brings. P2.713's last sentence, "submunitions from a ballistic MW drone cannot
 target a ground base", has nothing to bite on while MW drones are unbuilt. P2.732's weasel exception
 holds structurally rather than explicitly: our weasel redirect keys off the target UNIT and a
 ballistic weapon has none. Also still open and smaller: the sheet's energy line (shields 1/2+1/2, life support 0,

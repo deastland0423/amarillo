@@ -8,6 +8,7 @@ import { gameApi } from '../api/gameApi';
 import { useDraggable } from '../hooks/useDraggable';
 import { useStickyCollapse } from '../hooks/useStickyCollapse';
 import { allowedFacingsFromMask, bearsOn, hexGetBearingBetween } from '../hex/geometry';
+import { bombardmentRefusal, groundBaseLabel } from '../game/groundBombardment';
 import { FacingPicker } from './FacingPicker';
 import { launchableCraft, parkedCraftNames, hasBalcony, balconyFreeOn } from './balcony';
 
@@ -50,6 +51,13 @@ export interface LaunchCandidate {
    * rack's defensive mode cannot engage a given target (FP10.212).
    */
   sizeClass: number;
+  /**
+   * P2.713: this candidate is a base standing on a planet, which changes how it can be attacked
+   * at all — a seeking weapon reaches it only on a ballistic course, from four hexes or less.
+   */
+  groundBase?: boolean;
+  /** Which face of the planet it stands on, 1-6. Shown because a hex cannot identify a base. */
+  planetFace?: number;
 }
 
 /** A ship of mine with something it could send. */
@@ -69,7 +77,9 @@ export interface LaunchingUnit {
 export interface LaunchOrder {
   label:       string;
   kind:        'PLASMA' | 'PLASMA_RACK' | 'DRONE' | 'SUICIDE' | 'SCATTER_PACK'
-             | 'WEASEL' | 'SHUTTLE';
+             | 'WEASEL' | 'SHUTTLE'
+             /** P2.713 bombardment of a ground base: one kind for every weapon that can make one. */
+             | 'BALLISTIC';
   shipName:    string;
   targetName?: string;
   weaponName?: string;
@@ -311,6 +321,19 @@ export default function LaunchOrdersPad({
 
   const attacker = units.find(u => u.name === attackerName) ?? null;
   const target   = candidates.find(c => c.name === targetName) ?? null;
+
+  /**
+   * P2.713: a ground base can only be reached by a seeking weapon on a BALLISTIC course, so
+   * every seeker order against one is a bombardment rather than an ordinary launch. One flag
+   * decides it for all of them, and `bombardWhy` is the reason to show when it cannot be made.
+   */
+  const bombarding = target?.groundBase === true;
+  const bombardWhy = bombarding
+    ? bombardmentRefusal(target, units.find(u => u.name === attackerName)?.ship)
+    : null;
+  /** The order kind a seeker launch should carry against this target. */
+  const seekKind = (ordinary: LaunchOrder['kind']): LaunchOrder['kind'] =>
+    bombarding ? 'BALLISTIC' : ordinary;
 
   useEffect(() => {
     if (!attackerName) return;
@@ -734,6 +757,11 @@ export default function LaunchOrdersPad({
               const isSel = c.name === targetName;
               const lit = hoveredOnMap.includes(c.name);
               const aimed = aimedAt.get(c.name);
+              // P2.713: a ground base is named by its FACE, because a hex cannot identify one,
+              // and it is shown greyed with the reason when it cannot be bombarded from here.
+              // Greyed and not hidden: a hidden row cannot tell "no base there" from "not from
+              // here", and the reason is what teaches the four-hex limit.
+              const why = bombardmentRefusal(c, attacker.ship);
               return (
                 <button key={c.name}
                         style={{ ...ROW,
@@ -743,7 +771,16 @@ export default function LaunchOrdersPad({
                         onClick={() => onSelectTarget(c.name)}
                         onMouseEnter={() => onHoverCandidate(c.name)}
                         onMouseLeave={() => onHoverCandidate(null)}>
-                  <span style={{ color: '#e6edf3' }}>{c.name}</span>
+                  <span style={{ color: why ? '#8b949e' : '#e6edf3' }}>
+                    {groundBaseLabel(c.name, c.planetFace)}
+                  </span>
+                  {c.groundBase && (
+                    <span style={{ color: why ? '#8b949e' : '#f0c040', fontSize: '0.9em' }}
+                          title={why ?? 'a seeking weapon reaches a ground base only on a'
+                                      + ' ballistic course, and explodes on impact (P2.713)'}>
+                      {why ? 'no bombardment' : 'bombard'}
+                    </span>
+                  )}
                   {!c.hasLockOn && (
                     <span style={{ color: '#f0c040', fontSize: '0.9em' }}
                           title="no lock-on — only a self-guiding drone under passive fire control may be sent (D6.121/D19.221)">
@@ -766,7 +803,8 @@ export default function LaunchOrdersPad({
           {/* ------------------------------------------------ what to send */}
           <div style={WORK_COL}>
             <div style={COL_TITLE}>
-              {target ? `Send at ${target.name}` : 'What to send'}
+              {target ? `Send at ${groundBaseLabel(target.name, target.planetFace)}`
+                      : 'What to send'}
             </div>
 
             {attacker && target && (
@@ -775,6 +813,14 @@ export default function LaunchOrdersPad({
                 <div style={{ fontSize: '0.72rem', color: '#8b949e', marginBottom: 4 }}>
                   Each launch carries its own heading and speed.
                 </div>
+                {bombarding && (
+                  <div style={{ fontSize: '0.72rem', marginBottom: 4,
+                                color: bombardWhy ? '#ff6060' : '#f0c040' }}>
+                    {bombardWhy
+                      ?? 'Ballistic bombardment (P2.713): it explodes on impact, and no ECM'
+                         + ' or wild weasel can turn it aside.'}
+                  </div>
+                )}
 
                 {plasma.length === 0 && plasmaRacks.length === 0 && racks.length === 0
                   && suicideReady.length === 0 && packsReady.length === 0 && (
@@ -833,7 +879,7 @@ export default function LaunchOrdersPad({
                                       onClick={() => draft({
                                         label: `${attacker.name} → ${target.name}: ${w.name}`
                                              + ` (${m.toLowerCase()})`,
-                                        kind: 'PLASMA_RACK', shipName: attacker.name,
+                                        kind: seekKind('PLASMA_RACK'), shipName: attacker.name,
                                         targetName: target.name, weaponName: w.name, facing,
                                         plasmaRackMode: m,
                                       })}>
@@ -872,7 +918,7 @@ export default function LaunchOrdersPad({
                             <button style={{ padding: '0 6px' }} disabled={!ok}
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${w.name}`,
-                                      kind: 'PLASMA', shipName: attacker.name,
+                                      kind: seekKind('PLASMA'), shipName: attacker.name,
                                       targetName: target.name, weaponName: w.name, facing,
                                     })}>launch</button>
                           )}
@@ -893,7 +939,7 @@ export default function LaunchOrdersPad({
                                     title="FP1.93 accelerated arming — 2 reserve power"
                                     onClick={() => draft({
                                       label: `${attacker.name} → ${target.name}: ${w.name} (fast)`,
-                                      kind: 'PLASMA', shipName: attacker.name,
+                                      kind: seekKind('PLASMA'), shipName: attacker.name,
                                       targetName: target.name, weaponName: w.name,
                                       fastLoad: true, facing,
                                     })}>fast</button>
@@ -929,7 +975,7 @@ export default function LaunchOrdersPad({
                                   disabled={!legalHeading(attacker.name)}
                                   onClick={() => draft({
                                     label: `${attacker.name} → ${target.name}: ${rail.drone}`,
-                                    kind: 'DRONE', shipName: attacker.name,
+                                    kind: seekKind('DRONE'), shipName: attacker.name,
                                     targetName: target.name, weaponName: railName,
                                     droneIndex: 0, facing: facings[attacker.name] ?? 0,
                                   })}>launch</button>
@@ -968,7 +1014,7 @@ export default function LaunchOrdersPad({
                                       title={`speed ${d.speed}, ${d.warheadDamage} damage`}
                                       onClick={() => draft({
                                         label: `${attacker.name} → ${target.name}: ${d.droneType}`,
-                                        kind: 'DRONE', shipName: attacker.name,
+                                        kind: seekKind('DRONE'), shipName: attacker.name,
                                         targetName: target.name, weaponName: r.name,
                                         droneIndex: i, facing: facings[r.name] ?? 0,
                                       })}>{d.droneType}</button>
@@ -995,7 +1041,7 @@ export default function LaunchOrdersPad({
                               onClick={() => draft({
                                 label: `${attacker.name} → ${target.name}: ${s.name}`
                                      + ` (speed ${speedOf(s)})`,
-                                kind: 'SUICIDE', shipName: attacker.name,
+                                kind: seekKind('SUICIDE'), shipName: attacker.name,
                                 targetName: target.name, shuttleName: s.name,
                                 facing: facings[s.name] ?? 0, speed: speedOf(s),
                               })}>launch</button>

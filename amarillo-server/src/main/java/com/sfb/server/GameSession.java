@@ -2244,11 +2244,6 @@ public class GameSession {
                 Ship attacker = findShip(request.getShipName());
                 if (attacker == null)
                     return ActionResult.fail("Ship not found: " + request.getShipName());
-                if (request.getHexCol() < 1 || request.getHexRow() < 1)
-                    return ActionResult.fail("No target hex specified");
-                com.sfb.properties.Location hex = new com.sfb.properties.Location(
-                        request.getHexCol(), request.getHexRow());
-
                 // Named target = bombardment (P2.713); no name = a shot at the bare hex.
                 Unit groundBase = null;
                 if (request.getTargetName() != null && !request.getTargetName().isBlank()) {
@@ -2257,8 +2252,50 @@ public class GameSession {
                         return ActionResult.fail("Target not found: " + request.getTargetName());
                 }
 
+                // A bombardment's hex is wherever the base is standing, so the client does not
+                // send one and cannot get it wrong. Only a shot at a BARE hex needs the pair.
+                com.sfb.properties.Location hex;
+                if (groundBase != null) {
+                    hex = groundBase.getLocation();
+                    if (hex == null)
+                        return ActionResult.fail(groundBase.getName() + " is not on the map");
+                } else {
+                    if (request.getHexCol() < 1 || request.getHexRow() < 1)
+                        return ActionResult.fail("No target hex specified");
+                    hex = new com.sfb.properties.Location(request.getHexCol(), request.getHexRow());
+                }
+
+                // A suicide shuttle bombarding (P2.713) names a shuttle rather than a weapon.
+                String ssName = request.getAction();
+                if (ssName != null && !ssName.isBlank()) {
+                    if (groundBase == null)
+                        return ActionResult.fail("A suicide shuttle can be sent at a ground base"
+                                + " or at a unit, but not at a bare hex on a ballistic course");
+                    ShuttleBay ssBay = null;
+                    com.sfb.objects.shuttles.SuicideShuttle ss = null;
+                    for (ShuttleBay bay : attacker.getShuttles().getBays()) {
+                        for (Shuttle sh : bay.getInventory())
+                            if (sh.getName().equalsIgnoreCase(ssName)
+                                    && sh instanceof com.sfb.objects.shuttles.SuicideShuttle found) {
+                                ssBay = bay;
+                                ss = found;
+                                break;
+                            }
+                        if (ssBay != null)
+                            break;
+                    }
+                    if (ssBay == null || ss == null)
+                        return ActionResult.fail("Suicide shuttle not found: " + ssName);
+                    ActionResult ssRes = game.launchSuicideShuttleGroundAttack(attacker, ssBay, ss,
+                            groundBase, request.getFacing(), request.getSpeed());
+                    if (ssRes.isSuccess())
+                        appendCombatLog(attacker.getName() + " launched a seeking weapon");
+                    return ssRes;
+                }
+
                 String weaponName = request.getWeaponNames() != null
                         && !request.getWeaponNames().isEmpty()
+                        && !request.getWeaponNames().get(0).isBlank()
                         ? request.getWeaponNames().get(0) : null;
                 if (weaponName == null)
                     return ActionResult.fail("No weapon specified");
@@ -2883,6 +2920,23 @@ public class GameSession {
                 r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
                 r.setRange(o.getDroneIndex());     // LAUNCH_DRONE reads the index from range
                 r.setFacing(o.getFacing());
+                break;
+            case "BALLISTIC":
+                // P2.713 bombardment. One order kind for every weapon that can make one: the
+                // handler routes by the weapon's class, so the pad does not have to know which
+                // of the three doors a drone rack, a plasma tube and a plasma rack go through.
+                // The target hex is not sent — the base's own position IS the hex, and the
+                // handler reads it from the named target so the client cannot get it wrong.
+                r.setType("LAUNCH_SEEKER_BALLISTIC");
+                r.setWeaponNames(List.of(o.getWeaponName() == null ? "" : o.getWeaponName()));
+                r.setRange(o.getDroneIndex());
+                r.setFacing(o.getFacing());
+                r.setPlasmaRackMode(o.getPlasmaRackMode());
+                // A suicide shuttle is a seeking weapon that lives in a BAY rather than on a
+                // rack, so it arrives named as a shuttle. Carrying both lets the handler tell
+                // which kind of bombardment this is without a second order kind.
+                r.setAction(o.getShuttleName());
+                r.setSpeed(o.getSpeed());
                 break;
             case "SHUTTLE":
             case "WEASEL":

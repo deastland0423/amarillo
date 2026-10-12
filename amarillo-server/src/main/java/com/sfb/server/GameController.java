@@ -1961,6 +1961,14 @@ public class GameController {
                 // cannot engage this candidate (FP10.212: size-5 and smaller, six hexes).
                 row.put("sizeClass", candidate.getSizeClass());
                 row.put("plasmaLaunchers", plasmaLaunchersBearing(launcher, candidate));
+                // P2.713: a ground base can only be attacked by seeking weapons ballistically,
+                // and the pad has to say WHICH base — a radius-zero planet keeps all six faces'
+                // bases in one hex, so "Ground Battery" alone does not identify one. The face
+                // is already public (a counter on the map announces its class and position).
+                if (candidate instanceof Ship cs && cs.getPlanetFace() != null) {
+                    row.put("groundBase", true);
+                    row.put("planetFace", cs.getPlanetFace());
+                }
                 out.add(row);
             }
             out.sort(java.util.Comparator.comparingInt(r -> (Integer) r.get("range")));
