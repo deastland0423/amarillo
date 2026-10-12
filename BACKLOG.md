@@ -250,9 +250,31 @@ resolver pattern already does, and extend the same habit to the other tiers:
 
   **It would be the first built consumer of the G21.1 crew-quality lists**, which are declared but
   unimplemented — G6.224 points at G21.144, where a POOR crew mutinies on "1" or "2" and puts it
-  down only on "1" or "2". That is the penal connection: penal ships are poor-crewed, and the owner
-  reports mutiny is automatic for them (that clause is in R3.36's ship description, which we do not
-  have — we hold the R3 SSD book, not its rules text).
+  down only on "1" or "2".
+
+  **For PENAL ships none of that applies: R3.R52 supersedes G21.144 outright** (text supplied by
+  the owner 2026-10-11, from Module R3's rules). Mutiny is AUTOMATIC once all security stations are
+  destroyed or captured — no occurrence roll, no put-down roll. Then:
+    - roll 2d6: that many boarding parties of mutineers are converted immediately from crew units;
+    - the boom crew (a QUARTER of the total) and every original boarding party stay loyal;
+    - boom separation, if the boom is still viable (G12.12), succeeds on 1-5;
+    - **the ship can still move and fire**, which is the opposite of G6.32 — "as some of the
+      technically qualified personnel would be part of any successful mutiny". It may only fire at
+      a unit that fired at it, a seeking weapon within three hexes, a unit holding it in a tractor,
+      or any unit within three hexes;
+    - the NON-KLINGON player then takes control, and rolls one die: 1-3 it tries to disengage to a
+      neutral or non-Klingon empire, 4-6 it tries to surrender to the forces it was fighting.
+      Against a monster (SM0.0) it always disengages.
+  So the penal case is not a simplification of the generic rule — it is a different rule that needs
+  the enemy to take over a ship, which nothing here does yet.
+
+  **R3.R53 booms**, for whenever G12.0 separation arrives: a penal boom is not a standard one. The
+  second box on the sensor/scanner tracks is marked out (not the first) and every second box after,
+  except the last. J-boom shields are D6J 13, D5J 10, F5J 9, E4J 7. The small warp engines under
+  the boom are "emergency warp" (H2.5) and may be used for POWER but not MOVEMENT while the boom is
+  attached — which is what `centerWarp` on our penal hulls represents, and nothing currently stops
+  it being spent on movement. Supersedes G21.125 and D21.56. The E4J is the exception throughout:
+  it has no warp-powered boom, so D21.543's improved catastrophic-damage escape does not apply.
 
   **Defer the deep end.** G6.4 (boom control, self-destruct, separation) and G6.5 (capturing a
   mutinous ship) need G12.0 boom separation, which does not exist here at all; G6.25's "let it
