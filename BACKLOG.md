@@ -272,8 +272,8 @@ resolver pattern already does, and extend the same habit to the other tiers:
   second box on the sensor/scanner tracks is marked out (not the first) and every second box after,
   except the last. J-boom shields are D6J 13, D5J 10, F5J 9, E4J 7. The small warp engines under
   the boom are "emergency warp" (H2.5) and may be used for POWER but not MOVEMENT while the boom is
-  attached — which is what `centerWarp` on our penal hulls represents, and nothing currently stops
-  it being spent on movement. Supersedes G21.125 and D21.56. The E4J is the exception throughout:
+  attached — which is what `centerWarp` on our penal hulls represents. Nothing stops it being spent
+  on movement, and that is now a deliberate simplification; see "Deferred on purpose". Supersedes G21.125 and D21.56. The E4J is the exception throughout:
   it has no warp-powered boom, so D21.543's improved catastrophic-damage escape does not apply.
 
   **Defer the deep end.** G6.4 (boom control, self-destruct, separation) and G6.5 (capturing a
@@ -297,6 +297,25 @@ resolver pattern already does, and extend the same habit to the other tiers:
   themselves are built at every tier.
 
 ## Deferred on purpose
+
+- **J-series emergency warp is treated as ordinary power (R3.53).** Owner's decision 2026-10-11:
+  "kinda fiddly and an edge case that introduces more complexity than justifies the payoff", and
+  the cost estimate agrees — `getTotalAvailablePower()` sums lwarp + rwarp + cwarp + impulse + apr
+  into ONE number and allocation spends from that pool, so "these two points may fund anything but
+  movement" means threading a per-source constraint through allocation.
+
+  What the rule says: the small warp engines under a penal boom are "emergency warp" (H2.5) and
+  "can be used for power, but not movement, while the boom is attached". Note that is not a rare
+  state — the boom is attached in every game we can play, since G12.0 separation is unbuilt. So a
+  penal hull permanently gets about 2 extra points of movement power it should not have, which at
+  move cost 1.0 is roughly 2 speed on a 98-BPV ship.
+
+  **Do not "fix" this by deleting `centerWarp` from the penal hulls.** The cwarp boxes are a
+  damageable system in their own right — the DAC has a `cwarp` entry — so removing them would cost
+  the ship two internal-damage absorbers and change how it dies, which is a worse and far less
+  visible error than two points of speed. If this is ever revisited, the fix is a movement-eligible
+  subset of the power pool, not a change to the ship data.
+
 
 Not backlog so much as decisions. Listed so nobody re-opens them by accident.
 
