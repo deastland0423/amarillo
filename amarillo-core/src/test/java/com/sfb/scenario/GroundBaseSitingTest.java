@@ -189,4 +189,73 @@ public class GroundBaseSitingTest {
 
         assertTrue(r.getMessage(), r.isSuccess());
     }
+
+    // ---------------------------------------------------------------- the real scenario
+
+    /**
+     * The Assault on Nivram, loaded from the file the players will actually use. Six
+     * phaser-2 batteries, one on each face, and they must survive two things that could
+     * quietly swallow them: the Defender side is {@code bringYourOwn}, and the siting pass
+     * happens after terrain is on the map.
+     */
+    @Test
+    public void nivramCarriesSixBatteriesOneOnEachFace() throws Exception {
+        java.io.File f = new java.io.File("../data/scenarios/nivram_assault.json");
+        org.junit.Assume.assumeTrue("nivram_assault.json must exist", f.exists());
+
+        ScenarioSpec s = ScenarioSpec.fromJson(f);
+        Game game = new Game();
+        game.setupFromScenario(s);
+
+        List<Ship> batteries = game.getShips().stream()
+                .filter(sh -> sh.getName() != null && sh.getName().startsWith("Nivram Battery"))
+                .toList();
+        assertEquals("six batteries, one per face", 6, batteries.size());
+
+        com.sfb.properties.Location nivram = game.getTerrain().stream()
+                .filter(t -> "Nivram".equals(t.getName()))
+                .findFirst().orElseThrow(() -> new AssertionError("Nivram should be terrain"))
+                .getLocation();
+
+        java.util.Set<Integer> faces = new java.util.HashSet<>();
+        for (Ship b : batteries) {
+            assertNotNull(b.getName() + " should know its face", b.getPlanetFace());
+            faces.add(b.getPlanetFace());
+            assertEquals(b.getName() + " stands in Nivram's hex", nivram, b.getLocation());
+            assertEquals(b.getName() + " does not move", 0, b.getSpeed());
+            assertEquals(b.getName() + " looks out from its face",
+                    (b.getPlanetFace() - 1) * 4 + 1, b.getFacing());
+        }
+        assertEquals("all six faces, none doubled", 6, faces.size());
+    }
+
+    /**
+     * A bringYourOwn side means the MOBILE force is brought, not that the side owns nothing.
+     * Nivram's batteries are part of the planet; replacing the ship list wholesale when a fleet
+     * arrives discarded them without a word, which is the worst way for a scenario to be wrong
+     * — the file says the batteries are there and the game does not have them.
+     */
+    @Test
+    public void aBroughtFleetDoesNotDisplaceTheScenariosOwnShips() {
+        ScenarioSpec s = spec("Nivram", "A", "Nivram", "PLANET");
+        s.sides.get(0).bringYourOwn = true;
+
+        FleetSpec fleet = new FleetSpec();
+        fleet.name = "Border Patrol";
+        FleetSpec.ShipEntry entry = new FleetSpec.ShipEntry();
+        entry.faction = "Kzinti";
+        entry.type = "CA";
+        entry.name = "KHS Resolute";
+        fleet.ships = new ArrayList<>(List.of(entry));
+        fleet.factions = new ArrayList<>(List.of("Kzinti"));
+
+        FleetsToScenario.fill(s,
+                List.of(new FleetsToScenario.Entry(fleet, "Defenders")),
+                new FleetsToScenario.Conditions(180, 0, 42, 32, 3));
+
+        List<String> names = s.sides.get(0).ships.stream()
+                .map(sh -> sh.shipName).toList();
+        assertTrue("the battery survived: " + names, names.contains("Nivram Battery"));
+        assertTrue("and the brought fleet arrived: " + names, names.contains("KHS Resolute"));
+    }
 }

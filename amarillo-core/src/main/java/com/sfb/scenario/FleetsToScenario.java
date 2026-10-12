@@ -128,7 +128,16 @@ public final class FleetsToScenario {
             if (side.name == null || side.name.isBlank())
                 side.name = entry.team();
 
+            // Ships the SCENARIO listed on this side survive the fleet being brought. A
+            // bringYourOwn side means "the mobile force is brought", not "this side owns
+            // nothing" — Nivram's ground batteries are part of the planet's defences and the
+            // defender brings whatever was in orbit when the alarm went out. Replacing the list
+            // wholesale discarded them without a word, which is the worst way for a scenario to
+            // be wrong: the file says the batteries are there and the game does not have them.
+            List<ScenarioSpec.ShipSetup> authored =
+                    side.ships != null ? new ArrayList<>(side.ships) : new ArrayList<>();
             side.ships = shipsFor(entry.fleet(), side, i, spec, conditions);
+            side.ships.addAll(0, authored);
         }
 
         spec.numPlayers = Math.max(spec.numPlayers, entries.size());

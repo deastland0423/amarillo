@@ -26,7 +26,22 @@
     {
       "name": "Defender",
       "bringYourOwn": true,
-      "deploymentZone": { "shape": "CIRCLE", "hex": "2116", "radius": 3 }
+      "deploymentZone": { "shape": "CIRCLE", "hex": "2116", "radius": 3 },
+      "_comment": [
+        "Nivram's own defences, which are part of the planet rather than part of anyone's",
+        "fleet: the defender still brings whatever was in orbit. A ground base names the",
+        "planet and the face it stands on and never a hex, because the hex is the planet's",
+        "(R1.14, P2.62). Seeking weapons can only reach them ballistically, from four hexes",
+        "or less, and never under passive fire control (P2.713)."
+      ],
+      "ships": [
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery A", "planet": "Nivram", "planetFace": "A" },
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery B", "planet": "Nivram", "planetFace": "B" },
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery C", "planet": "Nivram", "planetFace": "C" },
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery D", "planet": "Nivram", "planetFace": "D" },
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery E", "planet": "Nivram", "planetFace": "E" },
+        { "faction": "Neutral", "type": "GBD2", "shipName": "Nivram Battery F", "planet": "Nivram", "planetFace": "F" }
+      ]
     },
     {
       "name": "Attacker",

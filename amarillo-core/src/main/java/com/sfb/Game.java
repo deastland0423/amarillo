@@ -290,7 +290,12 @@ public class Game {
             Player player = new Player();
             player.setName(side.name);
             try {
-                player.setFaction(Faction.valueOf(side.faction));
+                // A side need not declare one: a bringYourOwn side has no faction until a fleet
+                // arrives to give it one, and an authored side may simply not care. valueOf(null)
+                // throws NullPointerException rather than IllegalArgumentException, which the old
+                // catch did not cover — so loading such a scenario died here.
+                if (side.faction != null && !side.faction.isBlank())
+                    player.setFaction(Faction.valueOf(side.faction));
             } catch (IllegalArgumentException ignored) {
                 // Faction not in enum yet — player faction left null
             }
@@ -310,8 +315,12 @@ public class Game {
                     ScenarioLoader.applyCoi(ship, coiLoadouts.get(ship), scenario);
                 }
                 ScenarioSpec.ShipSetup siting = sitings.get(ship.getName());
-                if (siting != null && !siteGroundBase(ship, siting))
-                    continue;        // refused and reported — better off the map than misplaced
+                if (siting != null) {
+                    // placeGroundBase enrols the base itself, so this must NOT add it again —
+                    // doing both put every battery on Nivram twice.
+                    siteGroundBase(ship, siting);
+                    continue;
+                }
                 ships.add(ship);
             }
         }
