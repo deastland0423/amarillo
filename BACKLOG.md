@@ -179,6 +179,59 @@ pallets p67, Klingon pods in Lyran service pp69-70) which are not ships at all.
 at all, and the WYN fly captured and mixed-technology hulls, so this is a faction decision rather
 than two files.
 
+## Maulers (E8.0) — not started, but the battery design is SETTLED
+
+Read in full 2026-10-12, with the Advanced Missions SSD book now in `data/ssd/` for the D6M.
+**Maulers and shock arrive together**: D23.11 makes every mauler ship subject to D23.0, so neither
+ships alone. Shock itself is already scoped — see the shock memory and Annex #7S.
+
+**A mauler is barely a weapon in our sense.** E8.11: no box on the SSD, and it "cannot be destroyed
+unless the ship is destroyed". It is never armed; it is an energy dump resolved at the instant of
+firing, damage being energy scaled by range (E8.21/E8.22 — at range 4, one point per power). Once
+per impulse (E8.12), auto-hitting unless EW applies, where E8.24 treats it as a 2–12 two-dice weapon
+for die-roll shifts only. Our `Weapon` class assumes boxes, arming and cooldowns, and a mauler has
+none of the three, so expect it to sit awkwardly in that hierarchy.
+
+### DECIDED: one battery pool, not battery groups (owner, 2026-10-12)
+
+E8.31-E8.323 divide a mauler ship's batteries into numbered GROUPS, each separately recorded,
+discharged whole, fractions ignored. **We are not implementing groups.** The owner's reasoning, and
+it is sound: in play the weapon is almost always fired by dumping everything, and the rule's own
+worked example (E8.4) has a player juggling a full group of ten, a group of ten holding four, and a
+single battery just to reach fifteen. Partially-charged small groups are bookkeeping noise. We also
+hold batteries as whole points already, so E8.321's half-point-does-one-damage clause cannot bite.
+
+**Instead: a single pool, and the player names how many points to spend.**
+
+**But keep E8.323's rate limit, in pool form.** The group rule bars a group from feeding the mauler
+twice within a quarter turn REGARDLESS of recharging — so across any quarter turn a ship can manage
+exactly one pass through all its groups, which is its full battery capacity. The faithful
+translation is therefore not an approximation but the same aggregate:
+
+> In any rolling quarter-turn window, total battery power discharged into the mauler may not exceed
+> the ship's battery capacity.
+
+Without it, a single pool plus per-turn recharging lets a mauler fire appreciably more often than
+the rules allow, which on a weapon this powerful is the one place the simplification would change
+outcomes. The mechanism already exists: it is the rolling quarter-turn window built for the gatling
+(E2.151, `Weapon.shotsInQuarterTurnEnding`), counting energy instead of shots.
+
+### The rest of E8.3 is unaffected and still applies
+
+Engine and reactor power may be coupled to the mauler, must be pre-allocated on the EAF (E8.331),
+must all discharge on one impulse (E8.333) — and **the supplying system takes damage equal to half
+the power supplied, rounded up** (E8.332). Power allocated and not used is simply lost, with no
+damage (E8.334). That self-damage is the character of the ship and is not a candidate for
+simplifying away.
+
+### Before building
+
+E8.22's damage chart is a rendered table not yet read; pull it at 600 dpi and have the owner confirm
+the range bands first. Suggested slicing: the battery/energy work first (it touches allocation,
+which is core and server-validated), then the mauler, then shock, then the ships — D6M, MD5 (R3.75),
+STJ (R11.43), the Romulan mauler hulls, and with shock the KillerHawk at Annex #7S's lowest rating
+of 10.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
