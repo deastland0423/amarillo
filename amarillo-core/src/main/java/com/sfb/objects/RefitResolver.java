@@ -128,8 +128,26 @@ public final class RefitResolver {
             if (r == null)
                 continue;
             out.bpv += r.bpv;
+            /*
+             * A refit's cost is added to the ECONOMIC value as well as the combat one (owner's
+             * ruling 2026-10-11: "When an upgrade is applied to a ship that has both BPV and EPV,
+             * the increase in points applies to both values"). Before this, only bpv moved and a
+             * D7E with the B refit read 124/140 instead of 124/144 — the split widening by the
+             * cost of every refit the ship ever took.
+             *
+             * A refit that states its own epv overrides rather than adds, which is how a refit
+             * that changes what the ship IS economically — rather than merely costing something —
+             * can still say so. Nothing in the data does that today.
+             *
+             * epv of zero means "not a split-value ship" (ShipSpec.epv is a primitive, so it
+             * cannot say "unset" any other way) and must stay zero: Ship.init reads a missing epv
+             * as equal to the bpv, and adding to the zero would make a ship with no economic
+             * rating suddenly have a tiny one.
+             */
             if (r.epv != null)
                 out.epv = r.epv;
+            else if (out.epv > 0)
+                out.epv += r.bpv;
             if (r.shields != null)
                 out.shields = r.shields.clone();
             if (r.y175Upgrades != null)
@@ -258,6 +276,8 @@ public final class RefitResolver {
             to.setInt(spec.power, to.getInt(spec.power) + count);
             from.setInt(spec.power, 0);
             spec.bpv += count * conv.bpvEach;
+            if (spec.epv > 0)
+                spec.epv += count * conv.bpvEach;   // both values, as above
         } catch (NoSuchFieldException ex) {
             throw new IllegalStateException("a refit converts power." + conv.from + " to power."
                     + conv.to + ", and one of those is not a field of PowerSpec", ex);

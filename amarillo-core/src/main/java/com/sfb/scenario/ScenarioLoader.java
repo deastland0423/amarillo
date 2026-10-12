@@ -920,7 +920,10 @@ public class ScenarioLoader {
         Set<String> handledRacks = new java.util.HashSet<>();
         if (shipSpec.y175Upgrades != null) {
             if (shipSpec.y175Upgrades.refitCost != 0) {
+                // Both values: a refit's cost is added to the economic rating as well as the
+                // combat one. See RefitResolver, which does the same for a named refit.
                 ship.setBattlePointValue(ship.getBattlePointValue() + shipSpec.y175Upgrades.refitCost);
+                ship.setEconomicBpv(ship.getEconomicBpv() + shipSpec.y175Upgrades.refitCost);
             }
             for (ShipSpec.Y175RackUpgrade ru : shipSpec.y175Upgrades.racks) {
                 for (com.sfb.weapons.Weapon w : ship.getWeapons().fetchAllWeapons()) {

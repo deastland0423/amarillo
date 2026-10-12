@@ -876,6 +876,18 @@ public class Ship extends Unit implements DroneController {
 	}
 
 	/**
+	 * Set the economic point value. Raised alongside the combat one whenever a refit costs
+	 * points, because the cost applies to both (owner's ruling 2026-10-11).
+	 * <p>
+	 * No "split-value ship only" guard here, unlike {@code RefitResolver}: {@link #init} gives a
+	 * ship with no stated epv the SAME figure as its bpv, so on this side the two simply move
+	 * together and a non-split ship stays non-split.
+	 */
+	public void setEconomicBpv(int economicPointValue) {
+		this.economicPointValue = economicPointValue;
+	}
+
+	/**
 	 * Leader variant — CWL, DWL, DDL, CC and the like (S8.36). A second leader of a given type
 	 * needs two combat variants of the same hull to accompany it (S8.361), and no leader may be
 	 * included unless all larger leaders have their supporting ships (S8.362).
