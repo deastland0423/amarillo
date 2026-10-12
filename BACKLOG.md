@@ -286,23 +286,34 @@ Note the larger ground bases are NOT this case: P2.731 gives a base with two non
 two shields at 3x strength, and one with three such sides three shields at 2x — the planet itself
 covering the rest.
 
-**And the coverage is a property of the SITING, not of the base** (owner raised asteroids,
-2026-10-12; P2.747 and P2.721 settle it):
+**Two separate things, and an earlier draft of this entry ran them together** (caught by the owner
+2026-10-12, asking whether small bases always have one shield — they do):
 
-| siting | weapons | shields |
-|---|---|---|
-| planet surface | 180° by design (P2.721) | the exposed arc |
-| large asteroid, centred | **360°** | **360°** |
-| large asteroid, on a hex side | 180° | 180° |
+1. **SHIELD COUNT is fixed by size.** Small and medium: exactly ONE shield, "covering all arcs, as
+   part of their design", always, wherever it sits. Large: the P2.731 rules above. Nothing about
+   placement changes a small base's shield count.
+2. **EXPOSURE ARC is fixed by siting** (P2.721, P2.747) — the arc into which it can fire AND from
+   which it can be hit:
 
-So the same `GBD1` is a 180° unit on a planet and a 360° one on an asteroid. The ship FILE says
-"one shield"; the DEPLOYMENT says what arc it covers, and the weapons' arcs move with it. Design the
-field as an arc the shield covers rather than as a count or a boolean, or the asteroid case forces a
-second ship file for the same base — which is the mistake [[project_ship_lines]] records for
-factions and [[project_fighter_lines]] records for Lyran fighters.
+| siting | arc |
+|---|---|
+| planet surface | 180°, which is how R1.14 designs them (P2.721) |
+| large asteroid, centred | **360°** |
+| large asteroid, on a hex side | 180° |
+
+So the same `GBD1` is a 180° unit on a planet and a 360° one on an asteroid, while carrying one
+shield in every case. The ship FILE says "one shield"; the DEPLOYMENT says which way it faces and
+how wide. Keep those as two fields, or the asteroid case forces a second ship file for the same
+base — the mistake [[project_ship_lines]] records for factions and [[project_fighter_lines]] for
+Lyran fighters.
 
 Large bases cannot be placed on large asteroids at all, "although of course they can be placed in
 asteroid hexes" (P2.747).
+
+Worth noting for the ballistic slice: P2.732 lets a ground base use a WILD WEASEL to distract
+seeking weapons — "except those using ballistic targeting (P2.713)". We have wild weasels, so that
+clause is nearly free, and it is the defender's answer to everything except the one attack that was
+built for ground targets in the first place.
 
 **Not a blocker for the first slice.** Ground bases on PLANETS need nothing from P3.4, which is
 unbuilt and already on the smaller-gaps list. Asteroid siting is a later placement option that
