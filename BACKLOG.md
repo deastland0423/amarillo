@@ -367,7 +367,37 @@ eight fits (`3940fb1b`), and siting via `Game.placeGroundBase(base, planet, side
 ground base now stands on a planet face, looks outward, cannot move, fires into the hemisphere away
 from the planet and is hidden from the far side — with no rule of its own for any of it.
 
-**REMAINING: slice 5, ballistic ground attack.** P2.713 wiring the new target into F4.0: seeking
+### Slice 5a, BALLISTIC TARGETING (F4.0) — read in full, design settled, NOT started
+
+Worth building for its own sake, not just for ground bases (owner, 2026-10-12): it is what
+`Game.clearAsteroidPath` has always implied, and it is the prerequisite for scatter-packs, whose
+`ScatterPack.isReadyToRelease` fires on a flat eight-impulse timer where F4.41 wants release on an
+acceptable target entering a pre-set range.
+
+**The rule, in full.** F4.11: designate a HEX, not a unit; the weapon pursues it by the most direct
+route (F2.2) and on reaching it EVADES it (C1.3223), holding as nearly as possible to the course
+opposite its approach — and if it enters a THIRD hex adjacent to the target without ever entering
+the target, it begins evading from there, which is the anti-loop clause. F4.12: released from
+control the instant it launches and never counts against the control limit, the one exception being
+a scatter-pack's submunitions, which must be guided at the release point or go inert (FD1.7). F4.13:
+one hex, never a sequence. F4.14: normal range, except P2.713. F4.21: it NORMALLY NEVER EXPLODES —
+the uses are detecting a minefield, clearing asteroids, saturating defences and deception. F4.22 is
+the hook for ground attack: a seeker fired at targets on a planet explodes against them only if it
+satisfies P2.713. FP4.23: a ballistically launched plasma torpedo cannot acquire its own target.
+
+**THE DESIGN SEAM, which is the thing worth having decided.** `Seeker` exposes `setTarget(Unit)` and
+`getTarget()`, and `SeekerMover` calls `getTarget()` at EIGHT sites across its 638 lines — once per
+seeker kind, drone, scatter-pack, suicide shuttle and plasma torpedo, each with its own movement
+path. Do NOT branch on "is it ballistic" at those eight sites. Add a single `destination()` to
+`Seeker` returning a `Location` — the target unit's hex, or the ballistic hex — and let the movers
+steer by that. Only ARRIVAL and DETONATION then need to know which kind of seeker it is, which is
+exactly where the rules differ.
+
+Expect to touch all four seeker kinds, so do it in one session rather than leaving the mover half
+migrated: a ballistic seeker that pursues but never evades, or an ordinary one that loses its target
+mid-refactor, is worse than not starting.
+
+**Then slice 5b, ballistic ground attack.** P2.713 wiring the new target into F4.0: seeking
 weapons at a ground base from four hexes or less, never under passive fire control, undistractable
 by ECM or wild weasels, exploding on impact. P2.732's weasel exception is the other half — a ground
 base CAN weasel away ordinary seekers, which is what makes ballistic attack worth the four-hex
