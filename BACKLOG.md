@@ -144,6 +144,41 @@ absent from the UI — the DAC arming display turned out to be exactly this.
   carrying `tokenArt` resolved through `ShipLibrary` at broadcast time — small, but it is the
   lobby DTO reaching into the ship library for the first time. Parked by the owner 2026-10-09.
 
+## Module R3 ships not yet entered
+
+Surveyed 2026-10-11 against the R3 SSD book's contents list: **32 of its 81 ships are missing**,
+and they are not one job. Page numbers are the PRINTED page; add 1 for the PDF page.
+
+**Ready to enter — nothing new needed (17).** Klingon D7E survey cruiser p8, D7V strike carrier p9,
+D6E survey cruiser p11, D5F anti-fighter cruiser p15, D5I ISF cruiser p17, D5N diplomatic cruiser
+p19, RKL Sparrowhawk p22, F6 battle frigate p23, E5 battle escort p24, C8S space control ship p25,
+AD6 heavy escort cruiser p30, E3D drone escort p34; Hydran SR Outrider p36 and LP Lord Paladin p56;
+Lyran SCS Siberian Lion p62, SR Prairie Cat p65, MP military police p77. The first four Klingon
+ones have token art already drawn and parked in `TokenArtClaimedTest`.
+
+Worth doing D5N early for its own sake: it is one of the two Klingon hulls that DOES have a flag
+bridge (G6.12's exception, with the D7N), so it is the live test of the Annex #7E conversion.
+
+**Blocked on a weapon system (4).** MD5 Klingon war cruiser mauler p29 and STJ Lyran mauler p75
+need E8.0 maulers — a case-insensitive grep of the whole main source tree returns nothing, and
+D23.0 shock is parked behind the same rule. C9A stasis dreadnought p26 and C7A heavy stasis
+battlecruiser p28 need G16.0 stasis field generators; `StasisFieldGenerator` exists ONLY as a
+string in `DacPriority`, there is no weapon class, and SFGs are deferred "very late or never".
+
+**Blocked on M8.0 minesweeping (4).** Klingon D5M p18, Lyran CWM p60 and DWM p74, Hydran NMS p40.
+Nothing implements minesweeping — the only mention in the whole engine is a comment in
+`ShuttleCatalog`. G33.45 says a ship qualifies as a minesweeper by carrying minesweeping shuttles,
+and those are among the shuttle types missing from the data.
+
+**Blocked on G14.0 tugs and pods (5).** Klingon D5H light tactical transport p16, Hydran LTT Mule
+p42, Lyran LTT p66, LTV light carrier transport p76, SRC Prairie Lion survey carrier p80. No Pod
+class exists. The book also carries pallets and pods in their own right (Lyran carrier/repair
+pallets p67, Klingon pods in Lyran service pp69-70) which are not ships at all.
+
+**A whole empire (2).** WYN ODR double raider p81 and KE4 frigate p82. There is no `data/factions/wyn`
+at all, and the WYN fly captured and mixed-technology hulls, so this is a faction decision rather
+than two files.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
