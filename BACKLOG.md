@@ -233,6 +233,40 @@ resolver pattern already does, and extend the same habit to the other tiers:
 - **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) and movement
   costs are fractional.
 - **E1.7 small target modifiers.**
+- **G6.0 security stations and Klingon mutiny.** Raised by the owner 2026-10-11 as "not sure it's
+  worth the bother". Read in full; here is what it actually costs.
+
+  It is TWO rules. **G6.12 must come first or the rest is unreachable**: "Hits designated by the
+  DAMAGE ALLOCATION CHART as 'flag bridge' hits will be scored against the security stations of a
+  Klingon ship. For this reason, no Klingon ship has a 'flag bridge'." Today a `flag` hit calls
+  `controlSpaces.damageFlag()`, which returns false on a hull with no flag boxes, so the DAC
+  advances and the damage lands somewhere else. Every Klingon hull therefore has security stations
+  that CANNOT be damaged — so a mutiny rule built on top would never fire in play. G6.12 is small
+  and worth doing on its own merits; the exception is the diplomatic ships (D7N, D5N), which do
+  have flag bridges.
+
+  **Then the mutiny itself (G6.2/G6.3)**, which is cheap: when the last security station is
+  destroyed or captured, roll a die immediately and once per turn after. A "1" means a mutiny; roll
+  again, 1-3 put down, 4-6 successful. Put down once (G6.24) and no further rolls are made. A
+  successful mutiny means the ship cannot move or fire (G6.32) — the non-Klingons aboard were never
+  taught how. Modifiers: G6.23 all control spaces destroyed, and G6.22 enemy boarding parties
+  aboard, scaled by size class (every 4th, or 2nd on an SC4, 6th on an SC2, 10th on a starbase;
+  PFs cannot mutiny at all). G11.25: no mutiny on a computer-controlled ship.
+
+  **It would be the first built consumer of the G21.1 crew-quality lists**, which are declared but
+  unimplemented — G6.224 points at G21.144, where a POOR crew mutinies on "1" or "2" and puts it
+  down only on "1" or "2". That is the penal connection: penal ships are poor-crewed, and the owner
+  reports mutiny is automatic for them (that clause is in R3.36's ship description, which we do not
+  have — we hold the R3 SSD book, not its rules text).
+
+  **Defer the deep end.** G6.4 (boom control, self-destruct, separation) and G6.5 (capturing a
+  mutinous ship) need G12.0 boom separation, which does not exist here at all; G6.25's "let it
+  succeed but keep the boom" needs the same. A first slice can stop at "the ship is dead in space
+  and may surrender" and lose little.
+
+  **Worth it for the penal ships specifically.** Without G6.0 a D6J is a D6 with more security
+  boxes and a lower BPV — strictly less interesting than the hull it came from. The mutiny rule is
+  what the ship type is FOR, and two more penal hulls (D5J, E4J) are queued behind it.
 - **Shield boundary bearings** (3, 7, 11, 15, 19, 23) have split-shield rules not implemented.
 - **E7.54** — the fusion holding size-class/PF limit.
 - **D6.6 passive fire control**: seven clauses unimplemented, including D6.622 ECCM, D6.623 barred
