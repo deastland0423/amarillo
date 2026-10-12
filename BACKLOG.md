@@ -665,6 +665,51 @@ questions 2-4 would produce an SP that flies to a hex and dumps its drones there
 timer, into empty space, with nothing able to guide them. F4.413 explicitly forbids the hex
 triggering that release. Refusing the launch is the more honest state until FD7.31 is built.
 
+## Ground combat (D15.0) — THE RULE EXISTS; stop designing it
+
+Found 2026-10-12, after a design conversation had got most of the way to re-inventing it. The
+owner's own verdict: "this is probably all covered in the actual rulebook. I don't know why I'm
+trying to freestyle planets and troops." It is, and the geometry we had reasoned our way to is the
+geometry the rule states — which is reassuring about the model and a reminder to grep first. See
+the read-the-rule-text memory, which exists for exactly this.
+
+**D15.1 GROUND COMBAT LOCATIONS, and it is what we guessed.** "Unless specified otherwise in the
+scenario, there are six 'ground combat locations' (GCLs) on a class-M planet, ONE FACING EACH HEX
+SIDE." Troops on different faces do not interact, troops land to get there, and "these units cannot
+be attacked from space; they can only be attacked or destroyed by landing ground units or shuttles
+and using the ground combat routines". Every ground unit or shuttle on a planet "must be at a GCL or
+in the remote areas (D15.7) of a GCL". An asteroid gets one GCL, rarely two.
+
+**What we had wrong.** The currency is not a count of troops. **D15.11: each GCL has three CONTROL
+STATIONS**, which "can never be destroyed; they can be captured" — and capture is the victory lever,
+with D15.111 letting a player surrender a station to pay off casualty points. A scenario condition
+should read control stations, not boarding parties on the ground.
+
+**And bases are explicitly carved out.** D15.1's note: "This rule (D15.0) assumes that there is no
+base on the hex side. If there is a base, use the procedures in (P2.75) instead of those in
+(D15.11). Some scenarios require the player to secure a GCL or achieve other goals before attacking
+a base within it." So our ground bases sit under P2.75, NOT under D15.11 — the two interlock rather
+than overlap, and P2.75 is unread.
+
+**What we already have that fits.** `Terrain.getSideManifest(face)` is a per-hex-side Manifest
+holding crew, captured crew, boarding parties and commandos — "survey parties, garrisons" — with
+landed craft and ground bases deliberately tracking their own face separately so nothing is counted
+twice. That IS a GCL's inventory, built before anyone knew the rule's name. The gap is that a
+Manifest records quantities and not WHOSE they are, and a GCL can be contested, so manifests want
+keying by (face × side) rather than an owner field.
+
+**The size of it, from the section list:** D15.1 locations, D15.11 control stations, D15.12
+defensive systems (including GDS), D15.13 attacker fire support, D15.14 definitions, D15.15 tactical
+intelligence, D15.2 operations, D15.3 a four-step combat resolution procedure with its own casualty
+table, D15.35 a worked example, D15.36 the link back to SFB, D15.4 combat restrictions, D15.7 remote
+areas, and D15.8x the unit types — militia, commandos, civilians, combat engineers. This is a
+subsystem on the scale of boarding combat, not a victory condition.
+
+**Before building any of it:** read D15.0 through D15.87 and P2.75 in full. Note D15.0's own warning
+about scope — it is "an abstract system... cannot be used to invade an inhabited planet or one with
+any significant amount of ground-based military power", and ships may not fire from orbit in support
+except transporter artillery.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
