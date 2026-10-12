@@ -367,6 +367,35 @@ eight fits (`3940fb1b`), and siting via `Game.placeGroundBase(base, planet, side
 ground base now stands on a planet face, looks outward, cannot move, fires into the hemisphere away
 from the planet and is hidden from the far side — with no rule of its own for any of it.
 
+### Slice 6, SHOWING A GROUND BASE — design settled 2026-10-12, not started
+
+Owner's direction: "I don't want to crowd the planet. Maybe all we need is a tooltip that will show
+the state of the bases. And if you click on a planet the side bar could show the details for all
+bases on the planet? That way the main map stays clean." Agreed, and it sidesteps the shield-arc
+question entirely — a base that is not drawn as a counter needs no arcs.
+
+**What it must not do: nothing.** D17's intel levels list "size-5 ground bases can be distinguished
+as to TYPE" at a high level, which implies presence is known before type is. So a face with a base
+on it wants a small cue; what is on it is detail behind the tooltip and the sidebar. Hiding them
+outright would be unfaithful as well as unplayable.
+
+**Four pieces.**
+1. **The DTO stops assuming six shields.** `for (int s = 1; s <= 6; s++)` must loop over
+   `getShieldCount()`, or a ground base reports one shield of 12 and FIVE AT ZERO — which reads as
+   a ship that has had five blown off. This is slice 1's "six is hardcoded" assumption again, on
+   the serialisation side, and it is the one piece that is core rather than client.
+2. **Terrain becomes selectable.** `HexGrid` currently filters it out of selection outright
+   (`o.type !== 'TERRAIN'`), so clicking a planet does nothing today.
+3. **Ground bases are suppressed as individual counters** and aggregated onto their planet. They
+   arrive in `mapObjects` as ordinary SHIP objects because that is what they are, so the client
+   needs something to recognise them by — `isBase` plus the `GRBASE` line, or a flag of their own.
+4. **A sidebar panel for the selected planet**, listing bases by face with their state, and a
+   tooltip summarising. Privacy comes free: they are Ships, so `redactForEnemy` already covers them
+   and an enemy sees what he would see of any ship.
+
+Draw order already favours this — `HexGrid` paints `[...terrain, ...ships, ...]`, so anything drawn
+for a base lands on top of the planet rather than under it.
+
 ### Slice 5a, BALLISTIC TARGETING (F4.0) — read in full, design settled, NOT started
 
 Worth building for its own sake, not just for ground bases (owner, 2026-10-12): it is what
