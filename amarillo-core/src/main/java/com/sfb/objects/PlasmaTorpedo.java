@@ -307,4 +307,17 @@ public class PlasmaTorpedo extends Unit implements Seeker {
     public int impact() {
         return pseudoPlasma ? 0 : getCurrentStrength();
     }
+
+    /** F4.0 ballistic course: a target HEX instead of a target unit. Null when pursuing a unit. */
+    private BallisticCourse ballisticCourse;
+
+    @Override
+    public BallisticCourse getBallisticCourse() {
+        return ballisticCourse;
+    }
+
+    @Override
+    public void setBallisticCourse(BallisticCourse course) {
+        this.ballisticCourse = course;
+    }
 }

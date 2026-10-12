@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.sfb.objects.BallisticCourse;
 import com.sfb.objects.Drone;
 import com.sfb.objects.DroneController;
 import com.sfb.objects.PlasmaTorpedo;
@@ -94,16 +95,16 @@ class SeekerMover {
                     continue;
 
                 Unit target = drone.getTarget();
-                if (target == null) {
-                    // Orphaned drone — no guidance, self-destructs immediately
+                if (target == null && !drone.isBallistic()) {
+                    // Orphaned drone — no guidance, self-destructs immediately. A BALLISTIC
+                    // drone has no target unit either and must not be caught here: it needs
+                    // no guidance at all, having been released from control on launch (F4.12).
                     log.add("  " + droneLabel(drone) + " lost guidance — self-destructed");
                     expired.add(drone);
                     continue;
                 }
 
-                int bearing = MapUtils.getGeometricBearing(drone, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : drone.getFacing();
-                drone.setFacing(chooseSeekerFacing(drone, idealFacing));
+                steer(drone, drone);
 
                 prevLocations.putIfAbsent(drone, drone.getLocation());
                 drone.goForward(game.getMapCols(), game.getMapRows());
@@ -121,6 +122,8 @@ class SeekerMover {
                         continue;
                     }
                 }
+
+                noteBallisticProgress(drone, drone, droneLabel(drone), log);
 
                 drone.setEndurance(drone.getEndurance() - 1);
 
@@ -164,7 +167,7 @@ class SeekerMover {
 
                 if (drone.getEndurance() <= 0) {
                     log.add("  " + droneLabel(drone) + " targeting "
-                            + (target != null ? target.getName() : "?") + " ran out of endurance");
+                            + aimLabel(drone) + " ran out of endurance");
                     expired.add(seeker);
                 }
 
@@ -216,22 +219,22 @@ class SeekerMover {
 
                 // Movement: only on scheduled impulses, only while still en route
                 if (!pack.isReleased() && MovementUtil.moveThisImpulse(impulse, pack.getSpeed())) {
-                    Unit target = pack.getTarget();
-                    if (target != null) {
-                        int bearing = MapUtils.getGeometricBearing(pack, target);
-                        int idealFacing = bearing != 0 ? snapToCardinal(bearing) : pack.getFacing();
-                        pack.setFacing(chooseSeekerFacing(pack, idealFacing));
-                    }
+                    steer(pack, pack);
                     pack.goForward(game.getMapCols(), game.getMapRows());
                     if (pack.getLocation() == null) {
                         log.add("  Scatterpack moved off the map — lost");
                         expired.add(pack);
-                    } else if (game.isAsteroidHex(pack.getLocation())
-                            || game.isRingHex(pack.getLocation())) {
-                        // C11.1: nimble even on a seeking course — but it still rolls.
-                        log.add("  " + game.applyTerrainCollision(pack));
-                        if (pack.getCurrentHull() <= 0)
-                            expired.add(pack);
+                    } else {
+                        if (game.isAsteroidHex(pack.getLocation())
+                                || game.isRingHex(pack.getLocation())) {
+                            // C11.1: nimble even on a seeking course — but it still rolls.
+                            log.add("  " + game.applyTerrainCollision(pack));
+                            if (pack.getCurrentHull() <= 0)
+                                expired.add(pack);
+                        }
+                        // Entering the hex counts whatever else is in it: clearing a path
+                        // through asteroids is one of F4.21's four uses for the course.
+                        noteBallisticProgress(pack, pack, "Scatterpack", log);
                     }
                 }
 
@@ -241,14 +244,12 @@ class SeekerMover {
                     continue;
 
                 Unit target = ss.getTarget();
-                if (target == null) {
+                if (target == null && !ss.isBallistic()) {
                     log.add("  Suicide shuttle lost guidance — removed");
                     expired.add(ss);
                     continue;
                 }
-                int bearing = MapUtils.getGeometricBearing(ss, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : ss.getFacing();
-                ss.setFacing(chooseSeekerFacing(ss, idealFacing));
+                steer(ss, ss);
                 prevLocations.putIfAbsent(ss, ss.getLocation());
                 ss.goForward(game.getMapCols(), game.getMapRows());
                 if (ss.getLocation() == null) {
@@ -265,7 +266,11 @@ class SeekerMover {
                         continue;
                     }
                 }
-                if (target.getLocation() != null && ss.getLocation().equals(target.getLocation())) {
+                noteBallisticProgress(ss, ss, "Suicide shuttle", log);
+                // A ballistic shuttle has no target unit, so it passes through this
+                // untouched — which IS the rule: it "will normally never explode" (F4.21).
+                if (target != null && target.getLocation() != null
+                        && ss.getLocation().equals(target.getLocation())) {
                     if (target instanceof WildWeaselShuttle) {
                         WildWeaselShuttle ww = (WildWeaselShuttle) target;
                         if (!ww.isExploding()) {
@@ -291,15 +296,13 @@ class SeekerMover {
                     continue;
 
                 Unit target = torp.getTarget();
-                if (target == null) {
+                if (target == null && !torp.isBallistic()) {
                     log.add("  Plasma torpedo has no target — removed");
                     expired.add(seeker);
                     continue;
                 }
 
-                int bearing = MapUtils.getGeometricBearing(torp, target);
-                int idealFacing = bearing != 0 ? snapToCardinal(bearing) : torp.getFacing();
-                torp.setFacing(chooseSeekerFacing(torp, idealFacing));
+                steer(torp, torp);
 
                 prevLocations.putIfAbsent(torp, torp.getLocation());
                 torp.goForward(game.getMapCols(), game.getMapRows());
@@ -319,9 +322,11 @@ class SeekerMover {
                     }
                 }
 
+                noteBallisticProgress(torp, torp, "Plasma-" + torp.getPlasmaType(), log);
+
                 if (torp.getCurrentStrength() <= 0) {
                     log.add("  Plasma-" + torp.getPlasmaType() + " targeting "
-                            + (target != null ? target.getName() : "?") + " dissipated");
+                            + aimLabel(torp) + " dissipated");
                     expired.add(seeker);
                     continue;
                 }
@@ -520,6 +525,59 @@ class SeekerMover {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Point a seeker at where it is going, by the most nearly direct route (F2.2).
+     * <p>
+     * Everything that used to read {@code getGeometricBearing(seeker, target)} now comes
+     * through here, because since F4.0 a seeker's destination can be a bare hex with nothing
+     * in it. The steering is identical either way — which is the point of
+     * {@link Seeker#destination()}.
+     * <p>
+     * A ballistic weapon that has reached its hex stops steering altogether. F4.11 has it
+     * "evade" the hex (C1.3223), "adhering as nearly as possible to a course directly
+     * opposite its approach course" — and for a weapon that arrived on a straight run, that
+     * course is the one it is already flying. Holding the current facing therefore satisfies
+     * both halves: it is the reciprocal of the approach, and every impulse puts it one hex
+     * further from the target hex, which is what C1.3223 asks for. Steering it anywhere else
+     * would turn it back towards the hex it is supposed to be leaving.
+     */
+    private void steer(Unit unit, Seeker seeker) {
+        if (seeker.isBallistic() && seeker.getBallisticCourse().isEvading())
+            return;
+        Location destination = seeker.destination();
+        if (destination == null)
+            return;
+        int bearing = MapUtils.getGeometricBearing(unit.getLocation(), destination);
+        int idealFacing = bearing != 0 ? snapToCardinal(bearing) : unit.getFacing();
+        unit.setFacing(chooseSeekerFacing(unit, idealFacing));
+    }
+
+    /**
+     * F4.11: tell a ballistic weapon's course which hex it has just entered, so it can decide
+     * whether the pursuit is over. Called after every successful move, and a no-op for a
+     * weapon pursuing a unit.
+     */
+    private void noteBallisticProgress(Seeker seeker, Unit unit, String label, List<String> log) {
+        if (!seeker.isBallistic() || unit.getLocation() == null)
+            return;
+        BallisticCourse course = seeker.getBallisticCourse();
+        if (!course.noteHexEntered(unit.getLocation()))
+            return;
+        boolean arrived = unit.getLocation().equals(course.getTargetHex());
+        log.add("  " + label + (arrived
+                ? " reached " + course.getTargetHex() + " — now evading (F4.11)"
+                : " could not reach " + course.getTargetHex()
+                        + " after three adjacent hexes — now evading (F4.11)"));
+    }
+
+    /** What a seeker is aimed at, for the log: a unit's name, or a bare hex under F4.0. */
+    private static String aimLabel(Seeker seeker) {
+        if (seeker.isBallistic())
+            return "hex " + seeker.getBallisticCourse().getTargetHex();
+        Unit target = seeker.getTarget();
+        return target != null ? target.getName() : "?";
+    }
 
     /**
      * Snap a 1-24 bearing to the nearest of the six facings.

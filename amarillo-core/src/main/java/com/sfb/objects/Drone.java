@@ -209,4 +209,17 @@ public class Drone extends Unit implements Seeker {
 		return impact();
 	}
 
+
+	/** F4.0 ballistic course: a target HEX instead of a target unit. Null when pursuing a unit. */
+	private BallisticCourse ballisticCourse;
+
+	@Override
+	public BallisticCourse getBallisticCourse() {
+		return ballisticCourse;
+	}
+
+	@Override
+	public void setBallisticCourse(BallisticCourse course) {
+		this.ballisticCourse = course;
+	}
 }

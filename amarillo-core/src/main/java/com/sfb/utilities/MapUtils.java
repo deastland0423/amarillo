@@ -735,8 +735,14 @@ public class MapUtils {
 	 * Use this for seeker tracking to avoid zone-boundary oscillation.
 	 */
 	public static int getGeometricBearing(Marker source, Marker target) {
-		Location src = source.getLocation();
-		Location tgt = target.getLocation();
+		return getGeometricBearing(source.getLocation(), target.getLocation());
+	}
+
+	/**
+	 * The same bearing between two HEXES, which is what a ballistic seeker needs: under F4.0
+	 * it steers for a hex that may hold nothing at all, so there is no target Marker to ask.
+	 */
+	public static int getGeometricBearing(Location src, Location tgt) {
 		if (src == null || tgt == null) return 0;  // off the map (C7.1)
 		if (src.equals(tgt)) return 0;
 

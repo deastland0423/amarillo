@@ -23,6 +23,38 @@ public interface Seeker {
 	 */
 	public Unit getTarget();
 
+	/**
+	 * F4.0: the ballistic course this weapon is flying, or null when it is pursuing a unit in
+	 * the ordinary way. A weapon has one or the other, never both — a ballistic weapon's
+	 * {@link #getTarget()} is null, which is what makes it uncontrolled (F4.12).
+	 */
+	public BallisticCourse getBallisticCourse();
+
+	public void setBallisticCourse(BallisticCourse course);
+
+	default boolean isBallistic() { return getBallisticCourse() != null; }
+
+	/**
+	 * WHERE THIS WEAPON IS GOING, which since F4.0 is a hex and not necessarily a unit.
+	 * <p>
+	 * This is the seam the movers steer by. Before ballistic targeting they asked
+	 * {@link #getTarget()} and took its location, which meant every mover had to be told
+	 * separately that a target can now be a bare hex. They ask this instead: a pursuing
+	 * weapon reports its target's current hex, a ballistic one reports the fixed hex it was
+	 * aimed at, and the movement code never learns the difference.
+	 * <p>
+	 * Null means the weapon has nowhere to go — an orphaned drone that lost guidance, or a
+	 * target that has left the map — and the movers destroy it. A ballistic weapon can never
+	 * report null, which is correct: it needs no guidance and cannot be orphaned (F4.12).
+	 */
+	default com.sfb.properties.Location destination() {
+		BallisticCourse course = getBallisticCourse();
+		if (course != null)
+			return course.getTargetHex();
+		Unit target = getTarget();
+		return target == null ? null : target.getLocation();
+	}
+
 	public SeekerType getSeekerType();
 
 	public void setSeekerType(SeekerType type);

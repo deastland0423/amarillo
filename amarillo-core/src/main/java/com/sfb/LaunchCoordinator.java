@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sfb.Game.ActionResult;
+import com.sfb.objects.BallisticCourse;
 import com.sfb.objects.Drone;
 import com.sfb.objects.shuttles.Fighter;
 import com.sfb.objects.PlasmaTorpedo;
 import com.sfb.objects.Seeker;
 import com.sfb.objects.Ship;
 import com.sfb.objects.Unit;
+import com.sfb.properties.Location;
 import com.sfb.utilities.ArcUtils;
 import com.sfb.utilities.MapUtils;
 import com.sfb.weapons.DroneRack;
@@ -313,9 +315,14 @@ class LaunchCoordinator {
      * @return the facing to use, or 0 if the named direction is not a legal facing
      */
     private int launchFacingFor(Unit launcher, Unit target, int named) {
+        return launchFacingFor(launcher, target == null ? null : target.getLocation(), named);
+    }
+
+    /** The same, aimed at a HEX: a ballistic weapon has no target unit to take a bearing on. */
+    private int launchFacingFor(Unit launcher, Location aim, int named) {
         if (named > 0)
             return MapUtils.isFacing(named) ? named : 0;
-        return MapUtils.snapToFacing(MapUtils.getBearing(launcher, target));
+        return MapUtils.snapToFacing(MapUtils.getBearing(launcher.getLocation(), aim));
     }
 
     /**
@@ -337,15 +344,27 @@ class LaunchCoordinator {
      * @return a refusal, or null if the seeker can track from there
      */
     private ActionResult seekerArcBlock(Unit launcher, Unit target, int seekerFacing, String what) {
-        if (seekerFacing <= 0 || target == null)
+        if (target == null)
             return null;
-        int bearing = MapUtils.getBearing(launcher, target);
+        return seekerArcBlock(launcher, target.getLocation(), target.getName(), seekerFacing, what);
+    }
+
+    /**
+     * The same, aimed at a HEX. A ballistic weapon is bound by this exactly as a pursuing one
+     * is: F4.11 has it fly to the hex "by the most nearly direct route", which it cannot do if
+     * the hex is behind it at launch.
+     */
+    private ActionResult seekerArcBlock(Unit launcher, Location aim, String aimName,
+            int seekerFacing, String what) {
+        if (seekerFacing <= 0 || aim == null)
+            return null;
+        int bearing = MapUtils.getBearing(launcher.getLocation(), aim);
         if (bearing == 0)
             return null;               // same hex: no bearing exists to judge
         int relative = MapUtils.getRelativeBearing(bearing, seekerFacing);
         if (!ArcUtils.inArc(relative, ArcUtils.FA))
             return ActionResult.fail(what + " launched on direction " + seekerFacing
-                    + " cannot track " + target.getName()
+                    + " cannot track " + aimName
                     + " — the target must lie in the seeker's forward arc");
         return null;
     }
@@ -381,6 +400,70 @@ class LaunchCoordinator {
         }
 
         return launchDrone(launcher, target, rack, rack.getAmmo().get(0), 0);
+    }
+
+    /**
+     * Launch a drone on a BALLISTIC course (F4.0): aimed at a hex, not at a unit.
+     * <p>
+     * A separate door from {@link #launchDrone}, because what it must satisfy is genuinely
+     * different rather than merely looser. Three of the ordinary gates do not apply at all:
+     * <ul>
+     * <li><b>No lock-on.</b> D6.121 wants a lock-on to the TARGET, and there is no target
+     *     unit to hold one on. D19.224 says so outright: "a ship on active or passive fire
+     *     control could use ballistic targeting (F4.0) to launch seeking weapons."
+     * <li><b>No passive-fire-control restriction.</b> Under PFC a ship may normally launch
+     *     only self-guiding drones (D19.221), since nothing else can be guided. A ballistic
+     *     drone needs no guidance from anybody, so the restriction has nothing to bite on.
+     * <li><b>No control channel.</b> F4.12: ballistic weapons "are released from control
+     *     immediately on launch and never count against the control limit of the launching
+     *     unit." So no {@code acquireControl}, and no overflow interrupt either.
+     * </ul>
+     * Everything else a launch must satisfy still applies, because none of it is about the
+     * target: erratic maneuvers, the Activity phase, cloak, breakdown lockout, the rack's own
+     * state, the seeker's forward arc, and J3.41 voiding the launcher's own Wild Weasel.
+     *
+     * @param hex the target hex (F4.11), which must be on the map
+     */
+    public ActionResult launchDroneBallistic(Ship launcher, Location hex, DroneRack rack,
+            Drone drone, int facing) {
+        ActionResult emBlock = emLaunchBlock(launcher, "a drone");
+        if (emBlock != null)
+            return emBlock;
+        if (!game.canLaunchThisPhase())
+            return ActionResult.fail("Drones can only be launched during the Activity phase");
+        ActionResult cloakBlock = game.cloakActionBlock(launcher);
+        if (cloakBlock != null)
+            return cloakBlock;
+        if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
+            return ActionResult.fail("Cannot launch seeking weapons — breakdown lockout for 8 impulses (C6.5473)");
+        // G7.943 still binds, and binds harder: a tractored ship may launch only AT THE
+        // HOLDING SHIP, and a ballistic weapon is by definition aimed at nobody.
+        if (launcher.isTractored())
+            return ActionResult.fail("Tractored ships may only launch seeking weapons at the"
+                    + " holding ship (G7.943) — a ballistic course is aimed at a hex");
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        if (!rack.isFunctional())
+            return ActionResult.fail(rack.getName() + " is destroyed");
+        if (!rack.canFire())
+            return ActionResult.fail(rack.getName() + " cannot launch yet (once per turn, 8-impulse delay)");
+        if (drone == null)
+            return ActionResult.fail(rack.getName() + " has no drones loaded");
+        if (!rack.getAmmo().contains(drone))
+            return ActionResult.fail("Drone is not in " + rack.getName());
+
+        // J3.41: launching a seeking weapon voids the launcher's own WW
+        if (launcher.hasActiveWildWeasel())
+            voidWildWeasel(launcher);
+
+        return placeLaunchedDrone(launcher, null, new BallisticCourse(hex), rack, drone, facing);
+    }
+
+    /** Ballistic launch of whatever is at the front of the rack. */
+    public ActionResult launchDroneBallistic(Ship launcher, Location hex, DroneRack rack) {
+        return launchDroneBallistic(launcher, hex,  rack,
+                rack.isEmpty() ? null : rack.getAmmo().get(0), 0);
     }
 
     /**
@@ -436,15 +519,28 @@ class LaunchCoordinator {
      */
     private ActionResult placeLaunchedDrone(Unit launcher, Unit target, DroneRack rack,
             Drone drone, int facing) {
+        return placeLaunchedDrone(launcher, target, null, rack, drone, facing);
+    }
+
+    /**
+     * @param course a ballistic course (F4.0) when the drone is aimed at a hex, in which case
+     *               {@code target} is null; exactly one of the two is ever set
+     */
+    private ActionResult placeLaunchedDrone(Unit launcher, Unit target, BallisticCourse course,
+            DroneRack rack, Drone drone, int facing) {
+        Location aim = course != null ? course.getTargetHex()
+                : (target != null ? target.getLocation() : null);
+        String aimName = course != null ? "hex " + course.getTargetHex()
+                : (target != null ? target.getName() : "?");
         rack.getAmmo().remove(drone);
         rack.recordLaunch();
         drone.setName(launcher.getName() + "-Drone-" + game.nextSeekerSeq());
         drone.setLocation(launcher.getLocation());
-        int droneFacing = launchFacingFor(launcher, target, facing);
+        int droneFacing = launchFacingFor(launcher, aim, facing);
         if (droneFacing == 0 && facing > 0)
             return ActionResult.fail("Direction " + facing + " is not one of the six a unit"
                     + " may face (1, 5, 9, 13, 17, 21)");
-        ActionResult droneArc = seekerArcBlock(launcher, target, droneFacing, rack.getName());
+        ActionResult droneArc = seekerArcBlock(launcher, aim, aimName, droneFacing, rack.getName());
         if (droneArc != null)
             return droneArc;
         drone.setFacing(droneFacing);
@@ -456,8 +552,14 @@ class LaunchCoordinator {
             if (ww != null && !ww.isPostExplosion())
                 droneTarget = ww;
         }
-        drone.setTarget(droneTarget);
-        if (drone.getController() == null)
+        // A ballistic drone is aimed at a hex and has no target unit at all, which is also
+        // why no Wild Weasel can draw it off (P2.732 leans on exactly this).
+        drone.setBallisticCourse(course);
+        drone.setTarget(course != null ? null : droneTarget);
+        // F4.12: a ballistic weapon is "released from control immediately on launch", so it
+        // gets no controller at all. Setting one here would have handed it back to the
+        // launcher's guidance the moment anything asked who was flying it.
+        if (drone.getController() == null && course == null)
             drone.setController(launcher);
         drone.setLauncherName(launcher.getName());
         drone.setLaunchImpulse(game.getAbsoluteImpulse());
@@ -468,7 +570,8 @@ class LaunchCoordinator {
                 : java.util.Collections.emptyList();
 
         String msg = launcher.getName() + " launched " + drone.getDroneType()
-                + " drone at " + target.getName();
+                + " drone at " + aimName
+                + (course != null ? " on a ballistic course (F4.0)" : "");
         if (!lockLog.isEmpty())
             msg += "\n" + String.join("\n", lockLog);
         game.checkControlOverflow();

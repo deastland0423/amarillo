@@ -3358,6 +3358,18 @@ public class Game {
         return launchCoordinator.launchDrone(launcher, target, rack, drone, facing);
     }
 
+    /** F4.0: launch a drone at a HEX rather than a unit. */
+    public ActionResult launchDroneBallistic(Ship launcher, com.sfb.properties.Location hex,
+            DroneRack rack) {
+        return launchCoordinator.launchDroneBallistic(launcher, hex, rack);
+    }
+
+    /** F4.0: launch a named drone, on a named direction, at a HEX rather than a unit. */
+    public ActionResult launchDroneBallistic(Ship launcher, com.sfb.properties.Location hex,
+            DroneRack rack, Drone drone, int facing) {
+        return launchCoordinator.launchDroneBallistic(launcher, hex, rack, drone, facing);
+    }
+
     /** A fighter launches one of its own drones (J1.31, J4.24). */
     public ActionResult launchFighterDrone(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, com.sfb.weapons.DroneRail rail, int facing) {

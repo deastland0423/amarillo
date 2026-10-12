@@ -445,7 +445,7 @@ one rule for every unit, not a ground-base quirk.
 Draw order already favours this — `HexGrid` paints `[...terrain, ...ships, ...]`, so anything drawn
 for a base lands on top of the planet rather than under it.
 
-### Slice 5a, BALLISTIC TARGETING (F4.0) — read in full, design settled, NOT started
+### Slice 5a, BALLISTIC TARGETING (F4.0) — BUILT IN CORE 2026-10-12
 
 Worth building for its own sake, not just for ground bases (owner, 2026-10-12): it is what
 `Game.clearAsteroidPath` has always implied, and it is the prerequisite for scatter-packs, whose
@@ -474,6 +474,37 @@ exactly where the rules differ.
 Expect to touch all four seeker kinds, so do it in one session rather than leaving the mover half
 migrated: a ballistic seeker that pursues but never evades, or an ordinary one that loses its target
 mid-refactor, is worse than not starting.
+
+**DONE, and the seam held.** `Seeker.destination()` is a default method: a pursuing weapon reports
+its target's current hex, a ballistic one the fixed hex it was aimed at, and `SeekerMover` steers by
+that through one new `steer()` helper. All four seeker kinds move correctly because none of them
+knows the difference. `BallisticCourse` holds the F4.11 state — the target hex, whether the weapon
+has started evading, and the SET of adjacent hexes entered (a set, not a tally: a weapon that
+re-enters the same hex three times has not entered three of them).
+
+Evasion is "hold the current facing", with the reasoning recorded at the site because the rule's
+wording invites the opposite reading: "a course directly opposite its approach course" sounds like
+turning round, but turning round would carry it back TOWARDS the hex it is supposed to be evading.
+Flying straight on is the reciprocal of the approach AND opens the range every impulse, which is
+what C1.3223 actually asks for. The mutation test is in `BallisticTargetingTest` — disable the
+evasion branch and the drone orbits its hex at range 0-1 forever.
+
+**One real bug surfaced on the way**, caught by a test written for F4.12: `placeLaunchedDrone` set
+the launcher as controller unconditionally, so a weapon that is "released from control immediately
+on launch" was handed straight back to its launcher's guidance. It now takes no controller and no
+control channel.
+
+**What is NOT built yet, and should not be assumed:**
+- **Only DRONES have a ballistic launch door** (`Game.launchDroneBallistic`). Plasma torpedoes,
+  suicide shuttles and scatter-packs fly a ballistic course correctly if given one, but nothing
+  hands them one. Plasma wants FP4.23 with it (a ballistically launched torpedo cannot acquire its
+  own target); the SP wants F4.41's release-on-acceptable-target and F4.43's go-and-stop, which is
+  a feature in its own right and the reason `ScatterPack.isReadyToRelease` still runs off a flat
+  eight-impulse timer.
+- **No server action and no UI.** This is core only.
+- **F4.3 type-III "wild boar" targeting** (FD5.25, D19.222) is untouched.
+- **F4.5 tractors**: a tractored ballistic weapon should go inert, and a released one should have
+  its target hex offset by however far it was dragged. Not implemented.
 
 **Then slice 5b, ballistic ground attack.** P2.713 wiring the new target into F4.0: seeking
 weapons at a ground base from four hexes or less, never under passive fire control, undistractable

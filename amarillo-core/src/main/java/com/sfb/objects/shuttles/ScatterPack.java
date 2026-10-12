@@ -195,4 +195,17 @@ public class ScatterPack extends Shuttle implements Seeker {
     public String dtoType() {
         return "scatterpack";
     }
+
+    /** F4.0 ballistic course: a target HEX instead of a target unit. Null when pursuing a unit. */
+    private com.sfb.objects.BallisticCourse ballisticCourse;
+
+    @Override
+    public com.sfb.objects.BallisticCourse getBallisticCourse() {
+        return ballisticCourse;
+    }
+
+    @Override
+    public void setBallisticCourse(com.sfb.objects.BallisticCourse course) {
+        this.ballisticCourse = course;
+    }
 }
