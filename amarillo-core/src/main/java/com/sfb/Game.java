@@ -179,6 +179,16 @@ public class Game {
     private final Map<Ship, List<com.sfb.weapons.Disruptor>> uimUsedThisImpulse = new HashMap<>();
     private final DamageResolver damageResolver = new DamageResolver(this, seekers, activeShuttles,
             pendingVolleys, pendingInternalDamage, pendingDacChoices, firedPairsThisPhase, uimUsedThisImpulse);
+    /**
+     * The damage resolver, for tests in this package that need to ask it a question directly
+     * rather than through a whole volley. Package-private: shield geometry is pure arithmetic over
+     * two units, and driving a full exchange to observe which shield a hit landed on makes the
+     * assertion depend on dice it does not care about.
+     */
+    DamageResolver damageResolver() {
+        return damageResolver;
+    }
+
     private final BoardingResolver boardingResolver = new BoardingResolver(this, seekers, capturedThisTurn);
     private final LaunchCoordinator launchCoordinator = new LaunchCoordinator(this, seekers, activeShuttles);
     private final MineResolver mineResolver = new MineResolver(this, mines, ships, seekers, activeShuttles,

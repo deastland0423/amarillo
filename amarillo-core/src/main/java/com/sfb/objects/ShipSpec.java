@@ -841,14 +841,28 @@ public class ShipSpec {
         if (optionMounts != null && !optionMounts.isEmpty())
             m.put("optionmounts", buildOptionMounts());
 
-        // Shields
-        if (shields != null && shields.length >= 6) {
-            m.put("shield1", shields[0]);
-            m.put("shield2", shields[1]);
-            m.put("shield3", shields[2]);
-            m.put("shield4", shields[3]);
-            m.put("shield5", shields[4]);
-            m.put("shield6", shields[5]);
+        /*
+         * Shields, and how many of them there are.
+         *
+         * SIX is the ordinary case and needs no explanation. ONE is P2.73: "The small and medium
+         * ground bases (P2.76) have a single shield (covering all arcs) as part of their design."
+         * That is a property of the base's SIZE and never of where it is sited — what the siting
+         * changes is the arc it can fire into and be hit from (P2.721, P2.747), which is a
+         * different field and not this one.
+         *
+         * The array's own length is the declaration, so a hull with one shield writes
+         * {@code "shields": [12]} and means it. Any other length is rejected rather than ignored:
+         * the previous {@code length >= 6} test silently dropped a shorter array, which would have
+         * given a ground base NO shields at all and said nothing — the shape of silent failure this
+         * project keeps finding.
+         */
+        if (shields != null && shields.length > 0) {
+            if (shields.length != 1 && shields.length != 6)
+                throw new IllegalStateException("a hull declares " + shields.length
+                        + " shields; only 1 (a small or medium ground base, P2.73) or 6 is legal");
+            m.put("shieldCount", shields.length);
+            for (int i = 0; i < shields.length; i++)
+                m.put("shield" + (i + 1), shields[i]);
         }
 
         // Hull boxes

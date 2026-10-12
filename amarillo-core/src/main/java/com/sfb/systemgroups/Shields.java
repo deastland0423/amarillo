@@ -15,6 +15,21 @@ public class Shields implements Systems {
 	}
 
 	// Shield strength
+	/**
+	 * How many shields this unit has: 6 for anything that flies, 1 for a small or medium ground
+	 * base (P2.73 — "a single shield (covering all arcs) as part of their design").
+	 *
+	 * <p>The ARRAY stays six long whatever this says, because every other field here is indexed
+	 * by shield number and widening them all to serve one case would be a poor trade. What the
+	 * count does is tell the damage resolver which shield a hit lands on: with one shield, every
+	 * bearing resolves to shield 1 and the other five slots are never addressed.
+	 *
+	 * <p>NOT the arc the shield covers. That is a property of where the base is sited — 180° on a
+	 * planet, 360° centred on a large asteroid, 180° on an asteroid hex side — and belongs to the
+	 * deployment rather than to the hull.
+	 */
+	private int shieldCount = 6;
+
 	private int[] shieldValues = new int[] { 0, 0, 0, 0, 0, 0 }; // The baseline strength of the various shields.
 	private int[] currentShieldValues = new int[] { 0, 0, 0, 0, 0, 0 }; // The current strength of the various shields.
 
@@ -42,6 +57,16 @@ public class Shields implements Systems {
 	 * @param shieldNumber The shield to be checked.
 	 * @return The value of the shield.
 	 */
+	/** How many shields this unit has — 6 normally, 1 for a small or medium ground base. */
+	public int getShieldCount() {
+		return shieldCount;
+	}
+
+	/** P2.73: one shield covering all arcs, so every hit resolves against shield 1. */
+	public boolean hasSingleShield() {
+		return shieldCount == 1;
+	}
+
 	public int getShieldStrength(int shieldNumber) {
 		return currentShieldValues[shieldNumber - 1] + specificReinforcement[shieldNumber - 1];
 	}
@@ -87,6 +112,7 @@ public class Shields implements Systems {
 
 	@Override
 	public void init(Map<String, Object> values) {
+		shieldCount = values.get("shieldCount") == null ? 6 : (Integer) values.get("shieldCount");
 		currentShieldValues[0] = shieldValues[0] = values.get("shield1") == null ? 0 : (Integer) values.get("shield1");
 		currentShieldValues[1] = shieldValues[1] = values.get("shield2") == null ? 0 : (Integer) values.get("shield2");
 		currentShieldValues[2] = shieldValues[2] = values.get("shield3") == null ? 0 : (Integer) values.get("shield3");

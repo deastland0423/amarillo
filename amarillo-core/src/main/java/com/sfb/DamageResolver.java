@@ -62,6 +62,12 @@ class DamageResolver {
     // -------------------------------------------------------------------------
 
     int getShieldNumber(Marker attacker, Ship target) {
+        // P2.73: a small or medium ground base has "a single shield (covering all arcs)", so there
+        // is no facing to work out — everything lands on shield 1. Asked before the geometry rather
+        // than after, because the arithmetic below would otherwise hand back a shield number the
+        // unit does not have and the damage would land in an array slot holding zero.
+        if (target.getShields().hasSingleShield())
+            return 1;
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         int shieldNumber = (shieldFacing % 2 == 0) ? shieldFacing / 2 : (shieldFacing + 1) / 2;
         return Math.max(1, Math.min(6, shieldNumber));
@@ -87,6 +93,10 @@ class DamageResolver {
     }
 
     java.util.List<Integer> getShieldCandidates(Marker attacker, Ship target) {
+        // One shield means one candidate, and never the seam prompt below: there is no boundary
+        // between two shields when there is only one.
+        if (target.getShields().hasSingleShield())
+            return java.util.List.of(1);
         int shieldFacing = target.getRelativeShieldFacing(attacker);
         if (shieldFacing % 2 != 0) {
             // Odd = center of a shield face → single candidate
