@@ -332,6 +332,24 @@ built for ground targets in the first place.
 unbuilt and already on the smaller-gaps list. Asteroid siting is a later placement option that
 arrives with large asteroids.
 
+### Arcs need NO new machinery (checked 2026-10-12)
+
+The owner's model — "a base on the B side of a planet should behave as if it were a ship pointing
+in direction B" — is exactly right, and it already works:
+
+- `ScenarioLoader` maps a heading letter to a direction with `(ch - 'A') * 4 + 1`, so A=1, B=5,
+  C=9, D=13, E=17, F=21. Give the base facing 5 and it is a unit pointed at side B.
+- Arcs are computed relative to the unit's own facing — `getRelativeBearing(trueBearing,
+  attacker.getFacing())` then `ArcUtils.inArc` — so an `FH` weapon covers the forward hemisphere
+  around whatever direction it faces. Nothing knows or needs to know that it is a base.
+- The planet blocks the rest by itself. `Game.losBlocked` is P2.322, "planetary surface lies
+  strictly between the two hexes", and the geometry falls out right: the base's OWN hex is an
+  endpoint rather than strictly between, so it fires outward freely, while a line to anything on
+  the far side crosses other surface hexes and is blocked.
+
+Those three together produce P2.747's "the arc into which it can fire (and from which it can be
+hit)" with no new code. So slice 4 is placement and immobility, not arcs.
+
 ### The rest
 
 Siting on a planet hex with no movement, and the EW asymmetry already identified: P2.52 gives a
