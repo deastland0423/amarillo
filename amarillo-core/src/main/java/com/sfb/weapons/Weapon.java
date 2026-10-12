@@ -40,6 +40,16 @@ public abstract class Weapon {
 	 */
 	public static final int NEVER_FIRED = -9;
 
+	/**
+	 * A quarter turn, in impulses — the period the firing rates are written in terms of.
+	 *
+	 * E1.52 fixes the length by worked example: a weapon fired on Impulse #25 "must wait
+	 * through Impulses #26 (one), #27 (two), #28 (three), #29 (four), #30 (five), #31 (six),
+	 * #32 (seven), and then could fire on Impulse #1 (eight impulses later) of the next turn".
+	 * So eight, and a gap of exactly eight is LEGAL rather than one short.
+	 */
+	public static final int QUARTER_TURN = 8;
+
 	private int lastImpulseFired = NEVER_FIRED; // The last impulse on which this weapon was fired.
 	private int lastTurnFired = -1; // The last turn on which this weapon was fired. -1 = never fired. (used by
 																	// Fusion)
@@ -47,6 +57,8 @@ public abstract class Weapon {
 	private int minImpulseGap = 8; // Minimum global impulses between shots (default 8).
 	private int shotsThisTurn = 0; // Shots fired so far this turn; reset by cleanUp().
 	private int shotsThisImpulse = 0; // Shots on lastImpulseFired; see getShotsThisImpulse.
+	private int maxShotsPerQuarterTurn = 0; // 0 = no window cap; see QUARTER_TURN.
+	private final java.util.List<Integer> recentShots = new java.util.ArrayList<>(); // absolute impulses
 	private int lastRoll = 0; // Die roll from most recent fire(); 0 = no roll (plasma, etc.)
 	private int ecmShift = 0; // Net ECM shift applied to this weapon's next fire() call; set by
 														// Game.fireWeapons()
@@ -295,8 +307,74 @@ public abstract class Weapon {
 		// outright rather than left to the arithmetic, which only ever worked for the default
 		// gap of eight — see NEVER_FIRED.
 		return shotsThisTurn < maxShotsPerTurn
+				&& !quarterTurnAllowanceSpent(currentImpulse)
 				&& (lastImpulseFired == NEVER_FIRED
 						|| (currentImpulse - lastImpulseFired) >= minImpulseGap);
+	}
+
+	/**
+	 * Whether this weapon has already spent its shots for the quarter turn ENDING NOW.
+	 *
+	 * A rolling window, not a per-turn count, and that is the whole point: E2.151 says the
+	 * period "can include some shots fired during the final portion of one turn and some shots
+	 * fired during the early portion of the subsequent turn". A gatling that spends all four
+	 * shots on impulses 30-32 therefore has nothing on impulse 1 of the next turn, though
+	 * {@code shotsThisTurn} has just been zeroed. Firing four, waiting out the window and
+	 * firing four more is legal; firing eight across the boundary is not.
+	 *
+	 * <p>Off by default. E1.50's "no weapon may be fired twice within a period of one-fourth
+	 * of a turn" is the same mechanism with an allowance of one, and {@link #minImpulseGap}
+	 * already implements that for every ordinary weapon — so this cap is set only by the
+	 * weapons E1.213 excepts from firing once per turn, which today means the gatling.
+	 */
+	private boolean quarterTurnAllowanceSpent(int currentImpulse) {
+		if (maxShotsPerQuarterTurn <= 0)
+			return false;
+		return shotsInQuarterTurnEnding(currentImpulse) >= maxShotsPerQuarterTurn;
+	}
+
+	/** Shots fired in the eight impulses ending at {@code currentImpulse}, that one included. */
+	public int shotsInQuarterTurnEnding(int currentImpulse) {
+		int count = 0;
+		for (int impulse : recentShots)
+			if (currentImpulse - impulse < QUARTER_TURN)
+				count++;
+		return count;
+	}
+
+	/**
+	 * Shots this weapon may still fire RIGHT NOW, with every rate cap applied.
+	 *
+	 * One number, computed here, because a client that works it out from the parts gets it
+	 * wrong the moment a second cap exists: a pad subtracting {@code shotsThisTurn} from
+	 * {@code maxShotsPerTurn} would offer a gatling four shots on impulse 1 of a turn whose
+	 * quarter-turn window is still full, and the volley would be refused after the orders were
+	 * sealed. Rules outcomes belong in core; the view renders this.
+	 */
+	public int shotsAvailableNow() {
+		if (!canFire())
+			return 0;
+		int left = maxShotsPerTurn - shotsThisTurn;
+		if (maxShotsPerQuarterTurn > 0)
+			left = Math.min(left, maxShotsPerQuarterTurn - shotsInQuarterTurn());
+		return Math.max(0, left);
+	}
+
+	/** Shots fired in the quarter turn ending on the current impulse. */
+	public int shotsInQuarterTurn() {
+		return shotsInQuarterTurnEnding(clock.getImpulse());
+	}
+
+	public int getMaxShotsPerQuarterTurn() {
+		return maxShotsPerQuarterTurn;
+	}
+
+	/**
+	 * Cap the shots this weapon may fire in any eight-impulse window. 0 leaves it uncapped.
+	 * Set it only for a weapon E1.213 excepts from the once-per-turn rule.
+	 */
+	public void setMaxShotsPerQuarterTurn(int maxShotsPerQuarterTurn) {
+		this.maxShotsPerQuarterTurn = maxShotsPerQuarterTurn;
 	}
 
 	/**
@@ -332,6 +410,10 @@ public abstract class Weapon {
 		lastTurnFired = clock.getTurn();
 		lastShotUnderAegis = firingUnderAegis;
 		shotsThisTurn++;
+		// The rolling window (E2.151). Pruned here rather than on a timer: anything older than
+		// a quarter turn can never bind again, and the list is at most a handful either way.
+		recentShots.add(clock.getImpulse());
+		recentShots.removeIf(impulse -> clock.getImpulse() - impulse >= QUARTER_TURN);
 	}
 
 	/**
@@ -389,6 +471,9 @@ public abstract class Weapon {
 		// says in as many words. A DRONE RACK must NOT: FD3.0 holds the quarter-turn gap across
 		// the turn boundary, so DroneRack.cleanUp reads the timestamp back over this.
 		lastImpulseFired = NEVER_FIRED;
+		// recentShots is deliberately NOT cleared. The quarter-turn window straddles the turn
+		// boundary by design (E2.151), so a turn ending is not an amnesty — clearing it here
+		// would let a gatling fire four on impulses 29-32 and four more on 1-4.
 	}
 
 	public int getMaxShotsPerTurn() {

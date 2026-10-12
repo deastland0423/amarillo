@@ -96,6 +96,12 @@ export interface WeaponState {
   canFastLoad?:      boolean; // plasma only: FP1.93 fast-load (G/S/R on turn 2, costs 2 battery)
   maxShotsPerTurn:   number;
   shotsThisTurn:     number;
+  /**
+   * Shots this weapon may still fire right now, every rate cap applied in CORE — the per-turn
+   * count AND E2.151's rolling quarter-turn window, which `maxShotsPerTurn - shotsThisTurn`
+   * cannot see. Prefer this over doing that subtraction here.
+   */
+  shotsAvailableNow: number;
   minImpulseGap:     number;
   chargesRemaining?: number;  // FighterFusion only
   canFireDouble?:    boolean; // FighterFusion only

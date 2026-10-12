@@ -25,8 +25,16 @@ export interface ShotAllowance {
   maxShotsPerTurn: number;
   /** Impulses that must pass between firings. Non-zero means it cannot fire twice in one. */
   minImpulseGap:   number;
-  /** Already fired this turn, as the server counts it. */
-  shotsThisTurn:   number;
+  /**
+   * Shots the weapon may still fire right now, with every rate cap already applied by core.
+   *
+   * This replaced a `maxShotsPerTurn - shotsThisTurn` subtraction done here, which silently
+   * stopped being the answer when E2.151's quarter-turn window arrived: four shots fired on
+   * impulses 29-32 leave none for impulse 1 of the next turn, though the per-turn count has
+   * just been zeroed. The view cannot see a rolling window, and should not be the place that
+   * tries to.
+   */
+  shotsAvailableNow: number;
 }
 
 /** Just the order fields this arithmetic needs. */
@@ -59,8 +67,9 @@ export function canSplitShots(w: ShotAllowance): boolean {
  * find out.
  */
 export function shotsRemaining(w: ShotAllowance, draftedShots: number): number {
-  const allowance = canSplitShots(w) ? w.maxShotsPerTurn : 1;
-  return allowance - w.shotsThisTurn - draftedShots;
+  // A weapon that cannot split still offers one order's worth, and only if it can fire at all.
+  const allowance = canSplitShots(w) ? w.shotsAvailableNow : Math.min(1, w.shotsAvailableNow);
+  return allowance - draftedShots;
 }
 
 /**

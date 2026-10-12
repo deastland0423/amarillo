@@ -38,6 +38,7 @@ function weapon(over: Partial<WeaponState> = {}): WeaponState {
     eptCost: 0,
     maxShotsPerTurn: 1,
     shotsThisTurn: 0,
+    shotsAvailableNow: 1,
     minImpulseGap: 0,
     ...over,
   };

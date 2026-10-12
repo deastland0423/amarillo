@@ -205,7 +205,8 @@ public class ShipDtoPrivacyTest {
         // they are: it is printed on the SSD. Note it is built from the LAUNCHER's plasma type, never
         // from what is loaded in the tube, which stays private under G4.232.
         "name", "designator", "type", "label", "arcLabel", "arcMask", "launchDirectionsMask", "functional",
-        "isHeavy", "maxShotsPerTurn", "shotsThisTurn", "minImpulseGap", "lastImpulseFired",
+        "isHeavy", "maxShotsPerTurn", "shotsThisTurn", "shotsAvailableNow",
+            "minImpulseGap", "lastImpulseFired",
         "cooldown", "launcherType", "photonTube", "canOverload", "canSuicide", "canEpt",
         "canProximity", "canFastLoad", "overloadFinalTurnOnly", "armingCost", "holdCost",
         "eptCost", "rollingCost", "canFireDouble",

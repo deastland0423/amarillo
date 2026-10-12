@@ -38,6 +38,12 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 		// which exists to stop exactly that — so it is pinned by PhaserGRateOfFireTest
 		// rather than left looking like an oversight.
 		setMinImpulseGap(0);
+		// E2.151's SECOND cap, which the per-turn one does not imply: "nor can it fire more
+		// than four shots within a 1/4-turn period. The 1/4-turn period can include some shots
+		// fired during the final portion of one turn and some shots fired during the early
+		// portion of the subsequent turn." Without it a gatling fires four on impulses 29-32
+		// and four more on 1-4, which is eight inside a window the rule allows four.
+		setMaxShotsPerQuarterTurn(SHOTS_PER_TURN);
 	}
 
 	/**
@@ -51,11 +57,18 @@ public class PhaserG extends VariableDamageWeapon implements DirectFire, PhaserW
 	public int fire(int range) throws TargetOutOfRangeException, CapacitorException, WeaponUnarmedException {
 
 		if (!canFire()) {
-			// The only way a Ph-G runs out: four shots a turn, with no gap between them.
-			// The message used to describe a Ph-1's eight-impulse wait, which this weapon
-			// has never had.
-			throw new WeaponUnarmedException(getName() + " has fired all "
+			// Two ways a Ph-G runs out, and they are different facts about the battle, so they
+			// get different sentences. The per-turn cap is the familiar one. The quarter-turn
+			// window (E2.151) is the one that surprises a player, because it can bite on the
+			// first impulse of a turn, when shotsThisTurn has just been zeroed and the weapon
+			// looks fresh. Neither mentions a Ph-1's eight-impulse wait, which this weapon has
+			// never had.
+			if (getShotsThisTurn() >= getMaxShotsPerTurn())
+				throw new WeaponUnarmedException(getName() + " has fired all "
 					+ getMaxShotsPerTurn() + " of its shots this turn");
+			throw new WeaponUnarmedException(getName() + " has fired all "
+					+ getMaxShotsPerQuarterTurn() + " of its shots within the last quarter turn"
+					+ " (E2.151); the window clears as those shots age out");
 		}
 
 		// If this phaser is mounted on a ship, drain the capacitor

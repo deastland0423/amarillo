@@ -62,16 +62,34 @@ public class PhaserGRateOfFireTest {
         }
     }
 
-    /** The shots belong to the turn, not to the impulse. */
+    /**
+     * The shots belong to the turn, not to the impulse — but the turn ending is not on its own
+     * enough to get them back.
+     *
+     * <p>This test used to call {@code cleanUp()} with the clock standing still and expect four
+     * shots immediately. That passed before E2.151's quarter-turn window was implemented, and
+     * the rule says otherwise: the window "can include some shots fired during the final portion
+     * of one turn and some shots fired during the early portion of the subsequent turn", so four
+     * shots just fired still bind whatever the per-turn counter says. The old fixture could not
+     * happen in a game either — the engine only reaches cleanUp by advancing the clock.
+     *
+     * <p>Both halves are asserted here. {@link PhaserGQuarterTurnTest} covers the window itself.
+     */
     @Test
-    public void theTurnRestoresThem() throws Exception {
+    public void theTurnRestoresThemOnceTheWindowClears() throws Exception {
         for (int shot = 1; shot <= 4; shot++)
             phaser.fire(5);
         assertFalse(phaser.canFire());
 
         phaser.cleanUp();
 
-        assertTrue("a new turn, four shots again", phaser.canFire());
+        assertEquals("the turn's allowance is restored", 0, phaser.getShotsThisTurn());
+        assertFalse("but four shots this recent still bind (E2.151)", phaser.canFire());
+
+        for (int i = 0; i < 8; i++)
+            clock.nextImpulse();
+
+        assertTrue("a quarter turn on, four shots again", phaser.canFire());
     }
 
     /**

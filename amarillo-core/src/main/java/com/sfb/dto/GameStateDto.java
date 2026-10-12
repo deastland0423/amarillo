@@ -220,6 +220,12 @@ public class GameStateDto {
         public int eptCost; // PlasmaLauncher only: energy cost for EPT on final arming turn
         public int maxShotsPerTurn; // how many times this weapon may fire per turn
         public int shotsThisTurn; // shots already fired this turn
+        /**
+         * Shots this weapon may still fire right now, every rate cap applied (E2.151's
+         * quarter-turn window as well as the per-turn count). Derived in CORE on purpose: a
+         * client subtracting shotsThisTurn from maxShotsPerTurn misses the window entirely.
+         */
+        public int shotsAvailableNow;
         public int minImpulseGap; // minimum global impulses between shots (0 = same-impulse multi-shot ok)
         /**
          * FighterFusion only: charges left (0-2). NULL on every other weapon, and the type
@@ -1913,6 +1919,7 @@ public class GameStateDto {
             }
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
+            wd.shotsAvailableNow = w.shotsAvailableNow();
             wd.minImpulseGap = w.getMinImpulseGap();
             if (w instanceof com.sfb.weapons.FighterFusion) {
                 com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;
@@ -2512,6 +2519,7 @@ public class GameStateDto {
             wd.readyToFire = w.isFunctional() && w.canFire();
             wd.maxShotsPerTurn = w.getMaxShotsPerTurn();
             wd.shotsThisTurn = w.getShotsThisTurn();
+            wd.shotsAvailableNow = w.shotsAvailableNow();
             wd.minImpulseGap = w.getMinImpulseGap();
             if (w instanceof com.sfb.weapons.FighterFusion) {
                 com.sfb.weapons.FighterFusion ff = (com.sfb.weapons.FighterFusion) w;

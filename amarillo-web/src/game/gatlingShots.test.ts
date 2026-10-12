@@ -5,16 +5,16 @@ import {
 } from './gatlingShots';
 
 /** A Ph-G as the server reports one: four shots a turn, no gap (E2.151). */
-const gatling = (shotsThisTurn = 0): ShotAllowance =>
-  ({ name: 'PhaserG-1', maxShotsPerTurn: 4, minImpulseGap: 0, shotsThisTurn });
+const gatling = (fired = 0): ShotAllowance =>
+  ({ name: 'PhaserG-1', maxShotsPerTurn: 4, minImpulseGap: 0, shotsAvailableNow: 4 - fired });
 
 /** A Ph-1: one shot, then eight impulses of nothing. */
-const phaser1 = (shotsThisTurn = 0): ShotAllowance =>
-  ({ name: 'Phaser1-1', maxShotsPerTurn: 1, minImpulseGap: 8, shotsThisTurn });
+const phaser1 = (fired = 0): ShotAllowance =>
+  ({ name: 'Phaser1-1', maxShotsPerTurn: 1, minImpulseGap: 8, shotsAvailableNow: 1 - fired });
 
 /** An ADD, which repeats but sets a gap of 1 precisely to bar two shots in one impulse. */
-const add = (shotsThisTurn = 0): ShotAllowance =>
-  ({ name: 'ADD-1', maxShotsPerTurn: 2, minImpulseGap: 1, shotsThisTurn });
+const add = (fired = 0): ShotAllowance =>
+  ({ name: 'ADD-1', maxShotsPerTurn: 2, minImpulseGap: 1, shotsAvailableNow: 2 - fired });
 
 const order = (target: string, weaponNames: string[], shipName = 'Stinger2-1'): DraftedOrder =>
   ({ shipName, targetName: target, weaponNames });
@@ -87,6 +87,28 @@ describe('a gatling engaging two drones in one impulse (E2.151)', () => {
     const spoken = weaponsSpokenFor(orders, 'Stinger2-1', [gatling(3)]);
 
     expect(spoken.get('PhaserG-1')).toBe('hex 12|9');
+  });
+});
+
+describe("E2.151's quarter-turn window reaches the pad", () => {
+  it('offers nothing on a fresh turn while the window is still full', () => {
+    // Four shots fired on impulses 29-32 leave none for impulse 1, though the per-turn count
+    // has just been zeroed. Core says so in shotsAvailableNow; the pad used to subtract
+    // shotsThisTurn from maxShotsPerTurn and would have offered four.
+    const windowFull: ShotAllowance =
+      { name: 'PhaserG-1', maxShotsPerTurn: 4, minImpulseGap: 0, shotsAvailableNow: 0 };
+
+    expect(shotsRemaining(windowFull, 0)).toBe(0);
+    expect(weaponsSpokenFor([order('Drone-1', ['PhaserG-1'])], 'Stinger2-1', [windowFull])
+      .get('PhaserG-1')).toBe('Drone-1');
+  });
+
+  it('offers only what the window leaves, not the whole turn allowance', () => {
+    const partly: ShotAllowance =
+      { name: 'PhaserG-1', maxShotsPerTurn: 4, minImpulseGap: 0, shotsAvailableNow: 2 };
+
+    expect(shotsRemaining(partly, 0)).toBe(2);
+    expect(shotsRemaining(partly, 2)).toBe(0);
   });
 });
 
