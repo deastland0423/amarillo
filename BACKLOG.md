@@ -524,11 +524,29 @@ Three things fell out of that:
 - **F4.5 tractors**: a tractored ballistic weapon should go inert, and a released one should have
   its target hex offset by however far it was dragged. Not implemented.
 
-**Then slice 5b, ballistic ground attack.** P2.713 wiring the new target into F4.0: seeking
-weapons at a ground base from four hexes or less, never under passive fire control, undistractable
-by ECM or wild weasels, exploding on impact. P2.732's weasel exception is the other half — a ground
-base CAN weasel away ordinary seekers, which is what makes ballistic attack worth the four-hex
-approach. Also still open and smaller: the sheet's energy line (shields 1/2+1/2, life support 0,
+**Slice 5b, ballistic ground attack: BUILT IN CORE 2026-10-12.** P2.713's four sentences, wired
+where each belongs — the four-hex limit and the active-fire-control requirement gate the LAUNCH (one
+`groundAttackRefusal` shared by every weapon), the ECM and weasel immunity lives at the moment of
+impact as `SeekerMover.impactEcmShift`, and the explosion is in `noteBallisticProgress`. A
+`BallisticCourse` can now name a ground TARGET as well as a hex, and it holds the base rather than
+its hex because a radius-zero planet keeps all six faces' bases in one hex.
+
+Doors exist for every weapon that can carry a warhead to a surface: a ship's drone rack, a fighter's
+drone rail, a plasma tube, a plasma rack, a fighter's type-D rail, and a suicide shuttle. The pseudo
+torpedo deliberately has none — it does no damage, so bombarding with one is a contradiction.
+
+**Two things that bit, both recorded in the commit.** `chooseSeekerFacing` refuses to steer any
+seeker into a planet hex, which is right for every seeker but this one; without a narrow exception
+for the one hex it was aimed at, the drone circled the planet until its endurance ran out, which
+looks like a flight rather than a fault. And the first ECM-immunity test passed with the rule
+REMOVED — six points of ECM forced onto the base did not survive to the impulse of impact, so the
+shift was zero either way. That is why the immunity is a named method now.
+
+**Still open on 5b:** no server action and no UI, so none of it is reachable in play — the chooser
+below is the next piece. P2.713's last sentence, "submunitions from a ballistic MW drone cannot
+target a ground base", has nothing to bite on while MW drones are unbuilt. P2.732's weasel exception
+holds structurally rather than explicitly: our weasel redirect keys off the target UNIT and a
+ballistic weapon has none. Also still open and smaller: the sheet's energy line (shields 1/2+1/2, life support 0,
 fire control 0), P2.52/P2.524's EW asymmetry, and the asteroid siting that waits on P3.4.
 
 **The target chooser, agreed with the owner 2026-10-12 and not yet built.** Slice 5b needs a UI

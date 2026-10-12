@@ -3382,6 +3382,38 @@ public class Game {
         return launchCoordinator.launchDroneGroundAttack(launcher, base, rack, drone, facing);
     }
 
+    /** P2.713: a fighter's drone at a GROUND BASE. */
+    public ActionResult launchFighterDroneGroundAttack(com.sfb.objects.shuttles.Fighter fighter,
+            com.sfb.objects.Unit base, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterDroneGroundAttack(fighter, base, rail, facing);
+    }
+
+    /** P2.713: a plasma torpedo at a GROUND BASE. */
+    public ActionResult launchPlasmaGroundAttack(Ship launcher, com.sfb.objects.Unit base,
+            com.sfb.weapons.PlasmaLauncher weapon, boolean fastLoad, int facing) {
+        return launchCoordinator.launchPlasmaGroundAttack(launcher, base, weapon, fastLoad, facing);
+    }
+
+    /** P2.713: a type-D torpedo from a rack at a GROUND BASE. */
+    public ActionResult launchPlasmaRackGroundAttack(Ship launcher, com.sfb.objects.Unit base,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        return launchCoordinator.launchPlasmaRackGroundAttack(launcher, base, rack, mode, facing);
+    }
+
+    /** P2.713: a fighter's type-D torpedo at a GROUND BASE. */
+    public ActionResult launchFighterPlasmaDGroundAttack(com.sfb.objects.shuttles.Fighter fighter,
+            com.sfb.objects.Unit base, com.sfb.weapons.DroneRail rail, int facing) {
+        return launchCoordinator.launchFighterPlasmaDGroundAttack(fighter, base, rail, facing);
+    }
+
+    /** P2.713: a suicide shuttle at a GROUND BASE, which DOES detonate on arrival. */
+    public ActionResult launchSuicideShuttleGroundAttack(Ship launcher,
+            com.sfb.systemgroups.ShuttleBay bay, com.sfb.objects.shuttles.SuicideShuttle shuttle,
+            com.sfb.objects.Unit base, int facing, int speed) {
+        return launchCoordinator.launchSuicideShuttleGroundAttack(launcher, bay, shuttle, base,
+                facing, speed);
+    }
+
     /** F4.0: a fighter sends one of its own drones at a HEX (J4.24 limits still apply). */
     public ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
             com.sfb.properties.Location hex, com.sfb.weapons.DroneRail rail, int facing) {

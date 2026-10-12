@@ -226,6 +226,104 @@ public class BallisticGroundAttackTest {
                 game.launchDroneBallistic(kzinti, new Location(10, 10), rack()).isSuccess());
     }
 
+    // ---------------------------------------------------------------- every weapon, not just drones
+
+    /**
+     * P2.713 says "seeking weapons", not "drones". A plasma torpedo bombards exactly as a drone
+     * does, and FP4.23 is no obstacle — there is no target to acquire, only a hex to reach and a
+     * base to detonate against.
+     */
+    @Test
+    public void aPlasmaTorpedoCanBombardAGroundBase() {
+        Ship romulan = new Ship();
+        romulan.init(com.sfb.samples.RomulanShips.getRomKr());
+        romulan.setName("IRW Gauntlet");
+        romulan.setLocation(kzinti.getLocation());
+        romulan.setFacing(13);                      // pointing down the column, at the planet
+        romulan.setActiveFireControl(true);
+        game.getShips().add(romulan);
+
+        com.sfb.weapons.PlasmaLauncher tube = romulan.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.PlasmaLauncher)
+                .map(w -> (com.sfb.weapons.PlasmaLauncher) w)
+                .findFirst().orElseThrow(() -> new AssertionError("the KR should carry plasma"));
+
+        ActionResult r = game.launchPlasmaGroundAttack(romulan, base, tube, false, 0);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        com.sfb.objects.PlasmaTorpedo torp = (com.sfb.objects.PlasmaTorpedo)
+                game.getSeekers().get(game.getSeekers().size() - 1);
+        assertTrue(torp.isBallistic());
+        assertTrue("aimed at the base (P2.713)", torp.getBallisticCourse().isGroundAttack());
+        assertNull("and with no target to acquire (FP4.23)", torp.getTarget());
+    }
+
+    /** The four-hex limit belongs to the RULE, not to the drone rack that first enforced it. */
+    @Test
+    public void thePlasmaIsBoundByTheSameFourHexes() {
+        Ship romulan = new Ship();
+        romulan.init(com.sfb.samples.RomulanShips.getRomKr());
+        romulan.setName("IRW Gauntlet");
+        romulan.setFacing(13);
+        romulan.setActiveFireControl(true);
+        Location hex = base.getLocation();
+        romulan.setLocation(new Location(hex.getX(), hex.getY() - 6));
+        game.getShips().add(romulan);
+
+        com.sfb.weapons.PlasmaLauncher tube = romulan.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.PlasmaLauncher)
+                .map(w -> (com.sfb.weapons.PlasmaLauncher) w)
+                .findFirst().orElseThrow(() -> new AssertionError("the KR should carry plasma"));
+
+        ActionResult r = game.launchPlasmaGroundAttack(romulan, base, tube, false, 0);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("P2.713"));
+    }
+
+    /** A suicide shuttle is a seeking weapon too, and this is the one time it does explode. */
+    @Test
+    public void aSuicideShuttleCanBombardAGroundBase() {
+        com.sfb.systemgroups.ShuttleBay bay = kzinti.getShuttles().getBays().get(0);
+        com.sfb.objects.shuttles.SuicideShuttle ss =
+                new com.sfb.objects.shuttles.SuicideShuttle(
+                        new com.sfb.objects.shuttles.AdminShuttle());
+        ss.setName("SH-1");
+        bay.replaceShuttle(bay.getInventory().get(0), ss);
+        ss.arm(3);
+        ss.arm(3);
+        ss.arm(3);
+
+        ActionResult r = game.launchSuicideShuttleGroundAttack(kzinti, bay, ss, base, 13, 6);
+
+        assertTrue(r.getMessage(), r.isSuccess());
+        assertTrue(ss.isBallistic());
+        assertTrue("it will detonate on the base (P2.713)",
+                ss.getBallisticCourse().isGroundAttack());
+    }
+
+    /** And the passive-fire-control bar is the rule's, so it binds a plasma the same way. */
+    @Test
+    public void passiveFireControlBarsEveryWeaponNotJustDrones() {
+        Ship romulan = new Ship();
+        romulan.init(com.sfb.samples.RomulanShips.getRomKr());
+        romulan.setName("IRW Gauntlet");
+        romulan.setLocation(kzinti.getLocation());
+        romulan.setFacing(13);
+        romulan.setActiveFireControl(false);
+        game.getShips().add(romulan);
+
+        com.sfb.weapons.PlasmaLauncher tube = romulan.getWeapons().fetchAllWeapons().stream()
+                .filter(w -> w instanceof com.sfb.weapons.PlasmaLauncher)
+                .map(w -> (com.sfb.weapons.PlasmaLauncher) w)
+                .findFirst().orElseThrow(() -> new AssertionError("the KR should carry plasma"));
+
+        ActionResult r = game.launchPlasmaGroundAttack(romulan, base, tube, false, 0);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("passive fire control"));
+    }
+
     // ---------------------------------------------------------------- what counts as a ground base
 
     @Test

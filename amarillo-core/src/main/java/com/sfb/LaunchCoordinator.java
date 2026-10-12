@@ -434,6 +434,10 @@ class LaunchCoordinator {
             return ActionResult.fail("Ballistic bombardment of a ground base is only possible"
                     + " from 4 hexes or less — " + base.getName() + " is " + range
                     + " hexes away (P2.713)");
+        // Ships only: a fighter has no active/passive fire control mode in our model at all
+        // (J1.31 gives it a flat sensor rating of six), so there is no passive state for
+        // P2.713's clause to catch. If fighters ever gain fire control modes, this is the line
+        // that has to learn about them.
         if (launcher instanceof Ship && !((Ship) launcher).isActiveFireControl())
             return ActionResult.fail("Ballistic bombardment cannot be fired under passive fire"
                     + " control — target tracking is inadequate (P2.713)");
@@ -667,14 +671,29 @@ class LaunchCoordinator {
      */
     public ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
             Location hex, com.sfb.weapons.DroneRail rail, int facing) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        return launchFighterDroneBallistic(fighter, new BallisticCourse(hex), rail, facing);
+    }
+
+    /** P2.713: a fighter's drone at a GROUND BASE. */
+    public ActionResult launchFighterDroneGroundAttack(com.sfb.objects.shuttles.Fighter fighter,
+            Unit base, com.sfb.weapons.DroneRail rail, int facing) {
+        ActionResult block = groundAttackRefusal(fighter, base);
+        if (block != null)
+            return block;
+        return launchFighterDroneBallistic(fighter,
+                new BallisticCourse(base.getLocation(), base), rail, facing);
+    }
+
+    private ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
+            BallisticCourse course, com.sfb.weapons.DroneRail rail, int facing) {
         ActionResult emBlock = emLaunchBlock(fighter, "a drone");
         if (emBlock != null)
             return emBlock;
         if (!game.canLaunchThisPhase())
             return ActionResult.fail("Drones can only be launched during the Activity phase");
-        if (hex == null || hex.getX() < 1 || hex.getY() < 1
-                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
-            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
         if (fighter.isCrippled())
             return ActionResult.fail(fighter.getName()
                     + " is crippled - external weapons are dropped (J1.332)");
@@ -698,8 +717,7 @@ class LaunchCoordinator {
         if (rate != null)
             return ActionResult.fail(rate);
 
-        ActionResult result = placeLaunchedDrone(fighter, null, new BallisticCourse(hex),
-                rail, drone, facing);
+        ActionResult result = placeLaunchedDrone(fighter, null, course, rail, drone, facing);
         if (result.isSuccess())
             fighter.recordDroneFired(null, drone, game.getAbsoluteImpulse());
         return result;
@@ -858,6 +876,16 @@ class LaunchCoordinator {
         return launchFighterPlasmaD(fighter, null, new BallisticCourse(hex), rail, facing);
     }
 
+    /** P2.713: a fighter's type-D torpedo at a GROUND BASE. */
+    public ActionResult launchFighterPlasmaDGroundAttack(com.sfb.objects.shuttles.Fighter fighter,
+            Unit base, com.sfb.weapons.DroneRail rail, int facing) {
+        ActionResult block = groundAttackRefusal(fighter, base);
+        if (block != null)
+            return block;
+        return launchFighterPlasmaD(fighter, null,
+                new BallisticCourse(base.getLocation(), base), rail, facing);
+    }
+
     private ActionResult launchFighterPlasmaD(com.sfb.objects.shuttles.Fighter fighter,
             Unit target, BallisticCourse course, com.sfb.weapons.DroneRail rail, int facing) {
         Location aim = course != null ? course.getTargetHex()
@@ -972,6 +1000,16 @@ class LaunchCoordinator {
                 || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
             return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
         return launchPlasma(launcher, null, new BallisticCourse(hex), weapon, fastLoad, facing);
+    }
+
+    /** P2.713: a plasma torpedo at a GROUND BASE. */
+    public ActionResult launchPlasmaGroundAttack(Ship launcher, Unit base, PlasmaLauncher weapon,
+            boolean fastLoad, int facing) {
+        ActionResult block = groundAttackRefusal(launcher, base);
+        if (block != null)
+            return block;
+        return launchPlasma(launcher, null, new BallisticCourse(base.getLocation(), base),
+                weapon, fastLoad, facing);
     }
 
     private ActionResult launchPlasma(Ship launcher, Unit target, BallisticCourse course,
@@ -1130,6 +1168,19 @@ class LaunchCoordinator {
                     + " mode — defensive mode's rate is paid for with target restrictions by size"
                     + " class and range (FP10.212), and a hex has neither");
         return launchPlasmaRack(launcher, null, new BallisticCourse(hex), rack, mode, facing);
+    }
+
+    /** P2.713: a type-D torpedo from a rack at a GROUND BASE. Offensive mode only (FP10.212). */
+    public ActionResult launchPlasmaRackGroundAttack(Ship launcher, Unit base,
+            com.sfb.weapons.PlasmaRack rack, com.sfb.weapons.PlasmaRack.RackMode mode, int facing) {
+        ActionResult block = groundAttackRefusal(launcher, base);
+        if (block != null)
+            return block;
+        if (mode != com.sfb.weapons.PlasmaRack.RackMode.OFFENSIVE)
+            return ActionResult.fail(rack.getName() + " can only fire ballistically in offensive"
+                    + " mode (FP10.212)");
+        return launchPlasmaRack(launcher, null, new BallisticCourse(base.getLocation(), base),
+                rack, mode, facing);
     }
 
     private ActionResult launchPlasmaRack(Ship launcher, Unit target, BallisticCourse course,
@@ -1434,6 +1485,29 @@ class LaunchCoordinator {
     public ActionResult launchSuicideShuttleBallistic(Ship launcher,
             com.sfb.systemgroups.ShuttleBay bay,
             com.sfb.objects.shuttles.SuicideShuttle shuttle, Location hex, int facing, int speed) {
+        if (hex == null || hex.getX() < 1 || hex.getY() < 1
+                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
+            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
+        return launchSuicideShuttleBallistic(launcher, bay, shuttle, new BallisticCourse(hex),
+                facing, speed);
+    }
+
+    /** P2.713: a suicide shuttle at a GROUND BASE, which DOES detonate on arrival. */
+    public ActionResult launchSuicideShuttleGroundAttack(Ship launcher,
+            com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, Unit base, int facing, int speed) {
+        ActionResult block = groundAttackRefusal(launcher, base);
+        if (block != null)
+            return block;
+        return launchSuicideShuttleBallistic(launcher, bay, shuttle,
+                new BallisticCourse(base.getLocation(), base), facing, speed);
+    }
+
+    private ActionResult launchSuicideShuttleBallistic(Ship launcher,
+            com.sfb.systemgroups.ShuttleBay bay,
+            com.sfb.objects.shuttles.SuicideShuttle shuttle, BallisticCourse course,
+            int facing, int speed) {
+        Location hex = course.getTargetHex();
         ActionResult emBlock = emLaunchBlock(launcher, "a suicide shuttle");
         if (emBlock != null)
             return emBlock;
@@ -1446,9 +1520,6 @@ class LaunchCoordinator {
             return ActionResult.fail("Cannot launch shuttles within 4 impulses of a HET (C6.38)");
         if (launcher.isInBreakdownLockout(game.getAbsoluteImpulse()))
             return ActionResult.fail("Cannot launch shuttles — breakdown lockout for 8 impulses (C6.5472)");
-        if (hex == null || hex.getX() < 1 || hex.getY() < 1
-                || hex.getX() > game.getMapCols() || hex.getY() > game.getMapRows())
-            return ActionResult.fail("A ballistic course must name a hex on the map (F4.11)");
         if (!shuttle.isFullyArmed())
             return ActionResult.fail("Suicide shuttle is not fully armed (needs 3 turns)");
         if (!bay.canLaunch(game.getAbsoluteImpulse()))
@@ -1465,7 +1536,7 @@ class LaunchCoordinator {
                 suicideFacing, game.getAbsoluteImpulse());
         shuttle.setName(launchName(launcher, shuttle));
         shuttle.setLocation(launcher.getLocation());
-        shuttle.setBallisticCourse(new BallisticCourse(hex));
+        shuttle.setBallisticCourse(course);
         shuttle.setTarget(null);
         shuttle.setLaunchImpulse(game.getAbsoluteImpulse());
         seekers.add(shuttle);
