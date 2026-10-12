@@ -241,22 +241,46 @@ function seekerNumber(name: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * A label drawn over the map, legible on anything underneath it.
+ *
+ * There is no fill colour that works everywhere: the background runs from black space to a bright
+ * nebula within a single screen, and a star can sit directly behind a letter. So the text carries
+ * its own contrast — a dark halo stroked under a light fill, which is the cartographer's answer
+ * and was already what seeker numbers did ("legible over any terrain") while ship names, the
+ * labels a player reads most, were a flat fill that disappeared into the pink cloud. Raised from
+ * a screenshot, 2026-10-11.
+ *
+ * `lineJoin = 'round'` matters: the default miter join grows spikes off the corners of glyphs at
+ * this stroke width, which looks like a rendering fault rather than an outline.
+ */
+function drawMapLabel(
+  ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
+  opts: {
+    fill?: string; font?: string;
+    align?: CanvasTextAlign; baseline?: CanvasTextBaseline; halo?: number;
+  } = {},
+) {
+  // save/restore: the wide stroke would otherwise leak into whatever draws next.
+  ctx.save();
+  ctx.font         = opts.font ?? '8px monospace';
+  ctx.textAlign    = opts.align ?? 'center';
+  ctx.textBaseline = opts.baseline ?? 'top';
+  ctx.lineJoin     = 'round';
+  ctx.lineWidth    = opts.halo ?? 3;
+  ctx.strokeStyle  = 'rgba(0, 0, 0, 0.85)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle    = opts.fill ?? '#f0f6fc';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
 /** Small outlined number under a counter, legible over any terrain. */
 function drawSeekerNumber(ctx: CanvasRenderingContext2D, cx: number, cy: number,
                           name: string, offsetY: number) {
   const n = seekerNumber(name);
   if (!n) return;
-  // save/restore: the wide stroke below would otherwise leak into whatever draws next.
-  ctx.save();
-  ctx.font         = 'bold 9px monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'top';
-  ctx.lineWidth    = 3;
-  ctx.strokeStyle  = 'rgba(0, 0, 0, 0.85)';
-  ctx.strokeText(n, cx, cy + offsetY);
-  ctx.fillStyle    = '#ffe9a8';
-  ctx.fillText(n, cx, cy + offsetY);
-  ctx.restore();
+  drawMapLabel(ctx, n, cx, cy + offsetY, { fill: '#ffe9a8', font: 'bold 9px monospace' });
 }
 
 function drawShip(
@@ -325,17 +349,14 @@ function drawShip(
 
   drawShields(ctx, cx, cy, ship, angle, isMine);
 
-  ctx.font         = '8px monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'top';
+  // Bold as well as haloed: at 8px the difference between a name that reads at a glance and one
+  // that has to be squinted at is mostly stroke weight.
+  const NAME_FONT = 'bold 8px monospace';
   if (ship.captured) {
-    ctx.fillStyle = '#ff6b6b';
-    ctx.fillText('CAPTURED', cx, cy + r + 2);
-    ctx.fillStyle = '#e6edf3';
-    ctx.fillText(ship.name, cx, cy + r + 12);
+    drawMapLabel(ctx, 'CAPTURED', cx, cy + r + 2,  { fill: '#ff6b6b', font: NAME_FONT });
+    drawMapLabel(ctx, ship.name, cx, cy + r + 12, { font: NAME_FONT });
   } else {
-    ctx.fillStyle = '#e6edf3';
-    ctx.fillText(ship.name, cx, cy + r + 2);
+    drawMapLabel(ctx, ship.name, cx, cy + r + 2,  { font: NAME_FONT });
   }
 
   ctx.globalAlpha = prevAlpha;
@@ -557,11 +578,8 @@ function drawObjects(
       }
       // Strength label always shown
       const strength = (obj as PlasmaObject).currentStrength ?? 0;
-      ctx.fillStyle    = '#ffffff';
-      ctx.font         = '8px monospace';
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(strength), cx, cy + 1);
+      drawMapLabel(ctx, String(strength), cx, cy + 1,
+                   { fill: '#ffffff', baseline: 'middle' });
       drawSeekerNumber(ctx, cx, cy, obj.name, plasmaImg ? 13 : 8);
       continue;
     }
@@ -653,11 +671,8 @@ function drawObjects(
             }
           }
         }
-        ctx.fillStyle    = '#ffffff';
-        ctx.font         = 'bold 11px sans-serif';
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(obj.name ?? 'Planet', cx, cy);
+        drawMapLabel(ctx, obj.name ?? 'Planet', cx, cy,
+                     { fill: '#ffffff', font: 'bold 11px sans-serif', baseline: 'middle', halo: 4 });
       }
       continue;
     }
@@ -697,12 +712,8 @@ function drawObjects(
       ctx.rect(ox - s, oy - s, s * 2, s * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle    = '#ffffff';
-      ctx.font         = 'bold 9px sans-serif';
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'top';
       const label = o.beingRecovered ? `${o.name ?? 'Objective'} ⟳` : (o.name ?? 'Objective');
-      ctx.fillText(label, ox, oy + s + 2);
+      drawMapLabel(ctx, label, ox, oy + s + 2, { fill: '#ffffff', font: 'bold 9px sans-serif' });
       continue;
     }
     if (obj.type === 'SHUTTLE' || obj.type === 'SUICIDE_SHUTTLE' || obj.type === 'SCATTER_PACK') {
