@@ -2968,7 +2968,26 @@ public class Ship extends Unit implements DroneController {
 			case "bridge":
 				return controlSpaces.damageBridge() ? "bridge HIT" : null;
 			case "flag":
-				return controlSpaces.damageFlag() ? "flag HIT" : null;
+				if (controlSpaces.damageFlag())
+					return "flag HIT";
+				/*
+				 * Annex #7E, the DAMAGE CONVERSION CHART: "Flag Bridge .... Security Station".
+				 *
+				 * Written as a conversion rather than as a Klingon rule, because that is what the
+				 * annex makes it. G6.12 only says WHY it matters to them: "Hits designated by the
+				 * DAMAGE ALLOCATION CHART as 'flag bridge' hits will be scored against the security
+				 * stations of a Klingon ship. For this reason, no Klingon ship has a 'flag bridge'.
+				 * The flag bridges on Klingon ships are merged with the regular bridges for SSD
+				 * purposes." The exception is the diplomatic ships, D7N and D5N, which do have one —
+				 * and they need no special case here, since a ship with a flag bridge hits it above
+				 * and only falls through once it is gone.
+				 *
+				 * Until this existed the fall-through advanced the DAC to the next system, so every
+				 * Klingon hull in the game carried security stations that could not be damaged. That
+				 * is also what G6.0 mutiny reads, so the rule would have been unreachable had it been
+				 * built first.
+				 */
+				return controlSpaces.damageSecurity() ? "security HIT" : null;
 			case "emer":
 				return controlSpaces.damageEmer() ? "emer HIT" : null;
 			case "auxcon":

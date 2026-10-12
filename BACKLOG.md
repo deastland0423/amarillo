@@ -236,14 +236,9 @@ resolver pattern already does, and extend the same habit to the other tiers:
 - **G6.0 security stations and Klingon mutiny.** Raised by the owner 2026-10-11 as "not sure it's
   worth the bother". Read in full; here is what it actually costs.
 
-  It is TWO rules. **G6.12 must come first or the rest is unreachable**: "Hits designated by the
-  DAMAGE ALLOCATION CHART as 'flag bridge' hits will be scored against the security stations of a
-  Klingon ship. For this reason, no Klingon ship has a 'flag bridge'." Today a `flag` hit calls
-  `controlSpaces.damageFlag()`, which returns false on a hull with no flag boxes, so the DAC
-  advances and the damage lands somewhere else. Every Klingon hull therefore has security stations
-  that CANNOT be damaged — so a mutiny rule built on top would never fire in play. G6.12 is small
-  and worth doing on its own merits; the exception is the diplomatic ships (D7N, D5N), which do
-  have flag bridges.
+  **G6.12 is DONE** (2026-10-11), and it had to come first or the rest was unreachable. A flag
+  hit now converts to a security station per Annex #7E's damage conversion chart; before that,
+  every Klingon hull in the game carried security stations that no amount of damage could touch.
 
   **Then the mutiny itself (G6.2/G6.3)**, which is cheap: when the last security station is
   destroyed or captured, roll a die immediately and once per turn after. A "1" means a mutiny; roll
