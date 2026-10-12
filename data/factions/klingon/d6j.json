@@ -1,0 +1,136 @@
+{
+  "faction": "Klingon",
+  "type": "D6J",
+  "typeName": "Penal Battlecruiser",
+  "line": "CA",
+  "name": "IKS Anguish",
+  "serviceYear": 124,
+  "bpv": 98,
+  "epv": 123,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 7,
+  "crewQuality": "poor",
+  "tokenArt": "klingon/d6j.png",
+
+  "_comment": [
+    "R3.36, Module R3 SSD book page 3. A D6 hull converted to carry prisoners, so it is entered",
+    "as the D6 with the penal differences applied rather than re-read box by box: the F5/F5J pair",
+    "already in this directory differ in exactly two things, and the D6J's sheet shows the same",
+    "two. The ship data table gives POINT VALUE 75/60 on the F5J, which our F5J records as",
+    "epv 75 / bpv 60 — so the SSD prints EPV first and the D6J's 123/98 is epv 123, bpv 98.",
+    "",
+    "The penal differences (owner, 2026-10-11: 'the main difference are the Center Warp boxes",
+    "found on the boom'):",
+    "  - centerWarp, which no standard D6 has. The boom carries WRP-C, IMP, WRP-C: two centre",
+    "    warp boxes and the emergency impulse. Annex: 'The F5J penal ship has a different boom",
+    "    from other F5s.' Neither can move the ship unless the boom separates (G12.102).",
+    "  - security doubled, 2 to 4, for the prisoners.",
+    "Everything else — shields, hull, power, control, tables, auxiliaries, weapons — is the D6's.",
+    "Shield 4 cross-checks: nine B-refit boxes are drawn beside it, and 13 + 9 = 22, the value",
+    "the B refit gives every shield."
+  ],
+
+  "shields": [30, 22, 15, 13, 15, 22],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 7
+  },
+
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "centerWarp": 2,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 4,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 3,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 44,
+    "boardingParties": 14,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Disruptor", "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "B", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "C", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "D", "range": 22, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_F", "arcs": ["FULL"] }
+  ],
+
+  "_refitComment": [
+    "The sheet states both costs: B REFIT (Y165) = +4, Y175 REFIT = +2, and in as many words that",
+    "'THE UIM REFIT IS NOT AVAILABLE FOR THIS SHIP' — so unlike the D6 there is no u refit here,",
+    "and no K phaser refit is offered either.",
+    "The rack note on the sheet: the ship began with type-F racks (one reload); the B refit converts",
+    "them to type-A (FD3.1) with one reload, lifting the FD3.6 restrictions and the chance of chain",
+    "reactions; the Y175 refit takes them to type-B (FD3.2) with two reloads.",
+    "",
+    "The B refit does NOT lengthen the disruptors. The D6's does — 22 to 30 — and copying that",
+    "across because the D6J is a D6 hull would have been wrong; the penal ship keeps range 22 for",
+    "good (owner, 2026-10-11). The refit here converts the racks and adds the shield boxes, and",
+    "that is all it does."
+  ],
+  "refits": [
+    {
+      "code": "B",
+      "name": "B refit",
+      "year": 165,
+      "bpv": 4,
+      "shields": [30, 22, 22, 22, 22, 22],
+      "replaceWeapons": [
+        { "from": "DroneRack", "set": { "rackType": "TYPE_A" } }
+      ],
+      "y175Upgrades": { "refitCost": 2 }
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["B"],
+      "type": "D6JB",
+      "name": "IKS Remorse",
+      "typeName": "Penal Battlecruiser (B refit)",
+      "serviceYear": 165
+    }
+  ]
+}

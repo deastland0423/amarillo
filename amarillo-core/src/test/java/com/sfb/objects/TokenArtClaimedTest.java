@@ -59,7 +59,6 @@ public class TokenArtClaimedTest {
         AWAITING_A_HULL.put("klingon/d5j.png", "D5J penal cruiser");
         AWAITING_A_HULL.put("klingon/d6c.png", "D6C command cruiser");
         AWAITING_A_HULL.put("klingon/d6e.png", "D6E escort cruiser");
-        AWAITING_A_HULL.put("klingon/d6j.png", "D6J penal cruiser");
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
         AWAITING_A_HULL.put("klingon/d7e.png", "D7E escort battlecruiser");
         AWAITING_A_HULL.put("klingon/d7v.png", "D7V carrier");
