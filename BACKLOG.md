@@ -224,10 +224,27 @@ the power supplied, rounded up** (E8.332). Power allocated and not used is simpl
 damage (E8.334). That self-damage is the character of the ship and is not a candidate for
 simplifying away.
 
+### E8.22 damage chart (owner, 2026-10-12)
+
+| range | damage scored |
+|---|---|
+| 0-1  | **double** the energy discharged |
+| 2-5  | the energy discharged |
+| 6-10 | **half** the energy discharged, fractions rounded DOWN |
+
+Three bands and no die roll — E8.22 says the weapon simply hits, and E8.24's 2-12 exists only so
+that EW has something to shift. Cross-checks against the rulebook's own worked example (E8.4), where
+a Romulan scores fifteen damage from fifteen power at range four, inside the 1x band.
+
+Two things follow. **Ten is the maximum range**, since the chart stops there. And the weapon is
+brutal up close: at range 0-1 every battery point is two damage, which with a pool of batteries plus
+coupled engine power is a very large single shot — worth remembering when the window rule above
+looks over-cautious. Note E8.25 resolves range 0 as range 1 and takes no feedback damage, and that
+the target must be genuinely in front.
+
 ### Before building
 
-E8.22's damage chart is a rendered table not yet read; pull it at 600 dpi and have the owner confirm
-the range bands first. Suggested slicing: the battery/energy work first (it touches allocation,
+Suggested slicing: the battery/energy work first (it touches allocation,
 which is core and server-validated), then the mauler, then shock, then the ships — D6M, MD5 (R3.75),
 STJ (R11.43), the Romulan mauler hulls, and with shock the KillerHawk at Annex #7S's lowest rating
 of 10.
