@@ -75,12 +75,18 @@ public class ScenarioLoader {
         Ship ship = ShipLibrary.createShip(shipSpec);
         ship.setName(setup.shipName);
         ship.getShuttles().prefixShuttleNames(setup.shipName);
-        ship.setLocation(parseHex(setup.startHex));
-        ship.setFacing(parseHeading(setup.startHeading));
-        ship.setSpeed(setup.startSpeed);
-        // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
-        ship.setSpeedPreviousTurn(setup.startSpeed);
-        ship.setSpeedTwoTurnsAgo(setup.startSpeed);
+        // A ground base states a PLANET and a face instead of a hex: its position, heading and
+        // speed are all consequences of where it was built (R1.14, P2.62), and Game.setupFromScenario
+        // sites it once the terrain is on the map. Reading startHex here would throw on the null
+        // it is entitled to have.
+        if (setup.planet == null || setup.planet.isBlank()) {
+            ship.setLocation(parseHex(setup.startHex));
+            ship.setFacing(parseHeading(setup.startHeading));
+            ship.setSpeed(setup.startSpeed);
+            // Seed C2.2 speed history — assume ship has been at startSpeed for at least 2 turns
+            ship.setSpeedPreviousTurn(setup.startSpeed);
+            ship.setSpeedTwoTurnsAgo(setup.startSpeed);
+        }
         // Every year-gated rule, in one call, so the three other places that build a ship cannot
         // drift from this one again. applyWeaponStatus stays here: it is scenario setup, not a
         // fact about the hull in that year, and it must follow the fighter re-seat so it arms the
@@ -395,6 +401,24 @@ public class ScenarioLoader {
      * Parse SFB CCRR hex notation to a Location(column, row).
      * "0515" → Location(5, 15).
      */
+    /**
+     * The face of a planet a ground base is built on: "A"-"F" as the scenario writes headings,
+     * or 1-6. Returns 0 when it is neither, which the caller reports rather than guessing at.
+     */
+    public static int parsePlanetFace(String face) {
+        if (face == null || face.isBlank())
+            return 0;
+        String f = face.trim().toUpperCase();
+        if (f.length() == 1 && f.charAt(0) >= 'A' && f.charAt(0) <= 'F')
+            return f.charAt(0) - 'A' + 1;
+        try {
+            int n = Integer.parseInt(f);
+            return (n >= 1 && n <= 6) ? n : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     static Location parseHex(String hex) {
         int col = Integer.parseInt(hex.substring(0, 2));
         int row = Integer.parseInt(hex.substring(2, 4));

@@ -296,10 +296,22 @@ public class Game {
             }
             players.add(player);
 
+            // R1.14: a ground base names the PLANET it stands on and the face, never a hex.
+            // Matched back by ship name, which is unique across a scenario, because buildShip
+            // hands back ships and not the setups they came from.
+            Map<String, ScenarioSpec.ShipSetup> sitings = new java.util.HashMap<>();
+            if (side.ships != null)
+                for (ScenarioSpec.ShipSetup setup : side.ships)
+                    if (setup.planet != null && !setup.planet.isBlank() && setup.shipName != null)
+                        sitings.put(setup.shipName, setup);
+
             for (Ship ship : shipList) {
                 if (coiLoadouts != null) {
                     ScenarioLoader.applyCoi(ship, coiLoadouts.get(ship), scenario);
                 }
+                ScenarioSpec.ShipSetup siting = sitings.get(ship.getName());
+                if (siting != null && !siteGroundBase(ship, siting))
+                    continue;        // refused and reported — better off the map than misplaced
                 ships.add(ship);
             }
         }
@@ -307,6 +319,52 @@ public class Game {
         clock.reset();
         inProgress = true;
         startTurn();
+    }
+
+    /**
+     * Site one scenario-declared ground base on its planet (R1.14, P2.62).
+     * <p>
+     * The scenario names the PLANET rather than restating a hex, so there is one statement of
+     * where the base is and it cannot drift: move the planet while tuning a scenario and the
+     * bases move with it. Position, heading and speed all follow from the planet and the face.
+     * <p>
+     * A base that cannot be sited is left OFF the map rather than dropped into space. Every
+     * ground-base rule keys off the face — bombardment eligibility, the arcs, the counter
+     * suppression — so a base placed without one would look present and behave like nothing in
+     * particular, which is the harder failure to notice.
+     *
+     * @return true if it was sited and should join the game
+     */
+    private boolean siteGroundBase(Ship base, ScenarioSpec.ShipSetup setup) {
+        int face = ScenarioLoader.parsePlanetFace(setup.planetFace);
+        if (face == 0) {
+            System.err.println("Scenario: " + base.getName() + " names planet '" + setup.planet
+                    + "' but its planetFace '" + setup.planetFace
+                    + "' is not A-F or 1-6 — base omitted");
+            return false;
+        }
+        List<Terrain> named = new ArrayList<>();
+        for (Terrain t : terrain)
+            if (setup.planet.equalsIgnoreCase(t.getName()))
+                named.add(t);
+        if (named.isEmpty()) {
+            System.err.println("Scenario: " + base.getName() + " is built on '" + setup.planet
+                    + "', which is not a terrain feature in this scenario — base omitted");
+            return false;
+        }
+        if (named.size() > 1) {
+            System.err.println("Scenario: more than one terrain feature is called '"
+                    + setup.planet + "' — " + base.getName() + " cannot say which, base omitted");
+            return false;
+        }
+        // placeGroundBase owns the rules: it refuses a gas giant (P2.222), an asteroid (P3.4,
+        // unbuilt) and a unit that is not a base.
+        ActionResult sited = placeGroundBase(base, named.get(0), face);
+        if (!sited.isSuccess()) {
+            System.err.println("Scenario: " + sited.getMessage() + " — base omitted");
+            return false;
+        }
+        return true;
     }
 
     /**

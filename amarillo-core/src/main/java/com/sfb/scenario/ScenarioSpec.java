@@ -157,6 +157,24 @@ public class ScenarioSpec {
         public int          startSpeed;     // prior-turn speed; 16 = Speed Max
         public int          weaponStatus;   // 0–3 per S4.1
         public List<String> refits;         // refit codes applied to this ship, e.g. "plus", "awr"
+        /**
+         * R1.14: the NAME of the planet this unit is built on, matching a {@link TerrainSetup}'s
+         * name. Set only for a ground base.
+         * <p>
+         * The planet is named rather than the hex restated, and that is the whole point: a
+         * {@code startHex} would state the base's position a second time, and the two can
+         * silently disagree the first time somebody nudges the planet while tuning a scenario.
+         * The bases would stay behind in empty space with every ground-base rule quietly not
+         * applying, because all of them key off the face. One source of truth instead — and it
+         * mirrors the engine, whose siting call takes a planet and a face and never a hex.
+         * <p>
+         * {@code startHex}, {@code startHeading} and {@code startSpeed} are all IGNORED for a
+         * ground base: the hex is the planet's, the heading is the face (P2.62), and the speed
+         * is zero because a ground base does not move.
+         */
+        public String       planet;
+        /** Which face of that planet it stands on: "A"-"F", or 1-6. See P2.62. */
+        public String       planetFace;
     }
 
     // -------------------------------------------------------------------------

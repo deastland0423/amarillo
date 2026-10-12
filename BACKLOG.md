@@ -665,6 +665,36 @@ questions 2-4 would produce an SP that flies to a hex and dumps its drones there
 timer, into empty space, with nothing able to guide them. F4.413 explicitly forbids the hex
 triggering that release. Refusing the launch is the more honest state until FD7.31 is built.
 
+## Ground bases in a scenario file — DONE 2026-10-12
+
+A ground base names the PLANET it is built on and the face, and states no hex:
+
+```json
+"terrain": [ { "type": "PLANET", "hex": "2116", "name": "Nivram" } ],
+"sides": [ { "name": "Defenders", "faction": "Klingon", "ships": [
+  { "type": "GBD1", "shipName": "Nivram Battery B", "planet": "Nivram", "planetFace": "B" }
+] } ]
+```
+
+`startHex`, `startHeading` and `startSpeed` are ignored and should be omitted: the hex is the
+planet's, the heading is the face (P2.62) and the speed is zero. The face takes "A"-"F" or 1-6.
+
+**Why not a hex.** It would state the base's position a second time, and the two can silently
+disagree — nudge the planet one hex while tuning a scenario and the bases stay behind in empty
+space, where every ground-base rule quietly stops applying because all of them key off the face.
+One source of truth, and it matches the engine, whose siting call has only ever taken a planet and
+a face.
+
+**Ownership comes from the side the base is listed under**, which is the owner's ruling: "typically
+one of the factions will own the planetary batteries, otherwise what player would be deciding where
+it shoots?" Planets themselves carry no owner — a field was written and reverted the same hour
+because nothing would have read it.
+
+**A base that cannot be sited is left OFF the map and the reason is printed**, rather than dropped
+into space: no such planet, two planets with that name, an unreadable face, or core's own refusals
+(a gas giant under P2.222, an asteroid under P3.4). A base placed without a face would look present
+and behave like nothing in particular, which is the harder failure to notice.
+
 ## Ground combat (D15.0) — THE RULE EXISTS; stop designing it
 
 Found 2026-10-12, after a design conversation had got most of the way to re-inventing it. The
