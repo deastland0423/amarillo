@@ -249,6 +249,56 @@ which is core and server-validated), then the mauler, then shock, then the ships
 STJ (R11.43), the Romulan mauler hulls, and with shock the KillerHawk at Annex #7S's lowest rating
 of 10.
 
+## Ground bases (R1.14) and defense satellites (R1.15) — scoped and AGREED 2026-10-12
+
+The Advanced Missions SSD book supplies what the ballistic-targeting entry below said we lacked:
+that entry rejected giving planets a default "base" partly because "we have NO ground bases at all
+— no concept in code, nothing in the data", naming R1.14 as the unbuilt system. The data half now
+exists, pages 9-16 (printed; add 1 for the PDF page).
+
+**Two different things, and they should be separate slices.**
+
+**R1.14 GROUND BASES** sit on a planet's surface and share ONE chassis across every weapon fit: a
+shield, two hull boxes, a bridge, APR, sensor 6|0, scanner 0|9, dam-con 4|2|0, five crew units, two
+boarding parties, DK 4, EX 0, CR 0. Only the weapons and the BPV change — `GBD1` phaser-1 at 8,
+`GBDP` phaser-4 at 14, `GBFB` fusion at 8, plus disruptor, plasma, plasma-F, photon and Hydran
+fits. Energy is simpler than a ship's: shields ½+½, **life support 0, fire control 0**. Every weapon
+they mount already exists, Phaser4 included.
+
+**R1.15 DEFENSE SATELLITES** are a different shape: `DEFSAT`, size class 7, point value 20, sited in
+high or low orbit, ALL weapons 360°, and a damage-point track in place of shields and hull. Drone
+racks cannot be reloaded during a scenario and carry only type-I drones at the historically current
+speed. Defer these; they are not what planetary bombardment needs.
+
+### The one real change to existing code: SINGLE-SHIELD MODE
+
+P2.73: small and medium ground bases have "a single shield (covering all arcs)". `Shields` hardcodes
+six slots and `getShieldNumber` picks one by bearing, so six equal shields — the obvious shortcut —
+would silently give a ground base SIX TIMES its real protection, since each facing absorbs
+separately.
+
+**Build it as a general property of the unit, not a ground-base special case** (owner, 2026-10-12:
+"Single-shield mode may come in useful for other units in the future"). A flag that collapses every
+bearing to one shield, so anything with 360° protection gets it without knowing about planets. This
+is also the wiring-to-the-general-mechanism rule applied before the fact rather than after.
+
+Note the larger ground bases are NOT this case: P2.731 gives a base with two non-planet hex sides
+two shields at 3x strength, and one with three such sides three shields at 2x — the planet itself
+covering the rest. So the flag wants to express "N shields covering all arcs between them", with 1
+as the common case, rather than a boolean.
+
+### The rest
+
+Siting on a planet hex with no movement, and the EW asymmetry already identified: P2.52 gives a
+target ON a planet two points of ground-clutter ECM while **P2.524 denies it to planetary bases** —
+trivial while they are separate objects, which is why merging them was rejected. Then P2.713's
+four-hex ballistic limit wires the new target into the seeker work already done.
+
+**Agreed slicing:** single-shield mode, then the chassis plus one fit (GBD1), targetable by direct
+fire; then the remaining fits as data; then ballistic ground attack; satellites last or never. That
+completes two of the three ground targets the ballistic entry lists, and gives planetary bombardment
+a defender that shoots back.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
