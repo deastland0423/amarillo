@@ -284,8 +284,29 @@ is also the wiring-to-the-general-mechanism rule applied before the fact rather 
 
 Note the larger ground bases are NOT this case: P2.731 gives a base with two non-planet hex sides
 two shields at 3x strength, and one with three such sides three shields at 2x — the planet itself
-covering the rest. So the flag wants to express "N shields covering all arcs between them", with 1
-as the common case, rather than a boolean.
+covering the rest.
+
+**And the coverage is a property of the SITING, not of the base** (owner raised asteroids,
+2026-10-12; P2.747 and P2.721 settle it):
+
+| siting | weapons | shields |
+|---|---|---|
+| planet surface | 180° by design (P2.721) | the exposed arc |
+| large asteroid, centred | **360°** | **360°** |
+| large asteroid, on a hex side | 180° | 180° |
+
+So the same `GBD1` is a 180° unit on a planet and a 360° one on an asteroid. The ship FILE says
+"one shield"; the DEPLOYMENT says what arc it covers, and the weapons' arcs move with it. Design the
+field as an arc the shield covers rather than as a count or a boolean, or the asteroid case forces a
+second ship file for the same base — which is the mistake [[project_ship_lines]] records for
+factions and [[project_fighter_lines]] records for Lyran fighters.
+
+Large bases cannot be placed on large asteroids at all, "although of course they can be placed in
+asteroid hexes" (P2.747).
+
+**Not a blocker for the first slice.** Ground bases on PLANETS need nothing from P3.4, which is
+unbuilt and already on the smaller-gaps list. Asteroid siting is a later placement option that
+arrives with large asteroids.
 
 ### The rest
 
