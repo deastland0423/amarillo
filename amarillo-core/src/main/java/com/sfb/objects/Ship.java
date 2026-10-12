@@ -2962,8 +2962,15 @@ public class Ship extends Unit implements DroneController {
 	 * Attempts to apply one internal damage point to the named system.
 	 * Returns the log label (e.g. "fhull HIT") on success, or null if the system
 	 * has no remaining boxes (caller should advance the DAC and retry).
+	 * <p>
+	 * Package-private rather than private so a test can name the system it means. Going through
+	 * {@code applyInternalDamage} instead makes the assertion depend on the DAC rolling a
+	 * particular result before the ship dies, which is a coin flip: the first version of
+	 * {@code FlagBridgeHitsSecurityTest} passed twice and then failed on an unlucky run.
+	 * {@code DiceRoller} calls {@code Math.random()} with nothing to seed, so the only way to
+	 * test a specific conversion exactly is to ask for it.
 	 */
-	private String tryApplySystemHit(String system, Ship attacker) {
+	String tryApplySystemHit(String system, Ship attacker) {
 		switch (system) {
 			case "bridge":
 				return controlSpaces.damageBridge() ? "bridge HIT" : null;

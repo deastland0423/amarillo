@@ -52,19 +52,27 @@ public class FlagBridgeHitsSecurityTest {
         int before = control.getAvailableSecurity();
         assertTrue("fixture: there should be stations to lose", before > 0);
 
-        // Enough to work through the chart many times over. The DAC is random, but the
-        // DESTINATION is not: with the conversion every flag result lands here, and without it
-        // nothing in the engine can reach a security station at all.
-        //
-        // Damage TAKEN, not every station destroyed: applyInternalDamage stops the moment the
-        // excess-damage boxes run out and the ship is destroyed (C3.14), so a D7 dies with
-        // boxes still unticked however much is thrown at it. Asserting zero passed only by
-        // accident of how far the chart happened to get.
-        ship.applyInternalDamage(300);
+        // The DAC result is named rather than rolled for. An earlier version of this test threw
+        // 300 points of internal damage at the ship and asserted a security box had gone, which
+        // passed twice and then failed: applyInternalDamage stops the moment the excess-damage
+        // boxes run out (C3.14), so whether a flag result comes up first is a coin flip, and
+        // DiceRoller calls Math.random() with nothing to seed.
+        String label = ship.tryApplySystemHit("flag", null);
 
-        assertTrue("flag-bridge hits are scored on the security stations (Annex #7E) — "
-                + "started with " + before + ", still has " + control.getAvailableSecurity(),
-                control.getAvailableSecurity() < before);
+        assertEquals("a flag-bridge hit is scored on a security station (Annex #7E)",
+                "security HIT", label);
+        assertEquals("and costs it a box", before - 1, control.getAvailableSecurity());
+    }
+
+    @Test
+    public void onceTheSecurityStationsAreGoneTheHitFallsThrough() {
+        ControlSpaces control = ship.getControlSpaces();
+        for (int i = control.getAvailableSecurity(); i > 0; i--)
+            assertEquals("security HIT", ship.tryApplySystemHit("flag", null));
+
+        assertEquals("fixture: all of them are gone", 0, control.getAvailableSecurity());
+        assertNull("with nothing left to convert to, the DAC advances as it always did",
+                ship.tryApplySystemHit("flag", null));
     }
 
     /**
