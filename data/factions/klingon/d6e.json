@@ -1,0 +1,141 @@
+{
+  "faction": "Klingon",
+  "type": "D6E",
+  "typeName": "Survey Cruiser",
+  "line": "CA",
+  "name": "IKS Wide Reach",
+  "serviceYear": 125,
+  "bpv": 112,
+  "epv": 132,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 8,
+  "tokenArt": "klingon/d6e.png",
+
+  "_comment": [
+    "R3.46, Module R3 SSD book page 11. Corner YS:125 DK:7 EX:16 CR:8; annex gives crew 40 and 10",
+    "boarding parties and the point value 132/112, so bpv 112 (R3.R51's economic/combat split).",
+    "",
+    "The D7E's sister on the D6 hull — the owner called it before either sheet was read, and the",
+    "two pages are near enough identical in layout. Same exploration trade: NO APR (the D6 carries",
+    "two), labs doubled to eight, two special sensors, one drone rack instead of two, seven",
+    "phaser-2s, four cargo boxes, three shuttle boxes.",
+    "",
+    "ONE REAL DIFFERENCE between the sisters, and it is the kind that would be invisible if either",
+    "were copied from the other: this ship's special sensors are destroyed on TORPEDO damage",
+    "points, the D7E's on PHASER points. Each sheet says so in its own note and the boxes are",
+    "drawn in the matching colour. dacHitLocation is the field that carries it (G24.17).",
+    "",
+    "The second difference is the disruptors. This sheet: 'DISRUPTORS HAD A MAXIMUM RANGE OF 22",
+    "UNTIL THE B REFIT, 30 THEREAFTER.' The D7E's sheet carries no such note. So these start at 22",
+    "and the B refit lengthens them, exactly as the plain D6's do.",
+    "",
+    "WORTH CHECKING when this is reviewed: security 3 and probes 2, both counted off the sheet",
+    "rather than inherited from the D6, which has 2 and 1."
+  ],
+
+  "shields": [30, 22, 15, 13, 15, 22],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 7,
+    "cargo": 4
+  },
+
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 5,
+    "apr": 0,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 3,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 3,
+    "labs": 8,
+    "probes": 2
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 10,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Disruptor", "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "B", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "C", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "D", "range": 22, "arcs": ["FA"] },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "1" },
+    { "type": "ScoutChannel", "dacHitLocation": "torp", "designator": "2" },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"] }
+  ],
+
+  "_refitComment": [
+    "UIM REFIT (Y165) +5, B REFIT (Y165) +6, Y175 REFIT +1, all off the ship data table. The B",
+    "refit does four things here: raises the shields, installs DERFACS, lengthens the disruptors",
+    "from 22 to 30, and converts the type-F rack to type-A. Y175 takes the rack to type-B."
+  ],
+  "refits": [
+    {
+      "code": "B",
+      "name": "B refit",
+      "year": 165,
+      "bpv": 6,
+      "shields": [30, 22, 22, 22, 22, 22],
+      "auxiliary": { "derfacs": true },
+      "replaceWeapons": [
+        { "from": "Disruptor", "set": { "range": 30 } },
+        { "from": "DroneRack", "set": { "rackType": "TYPE_A" }, "designators": ["Rack 1"] }
+      ],
+      "y175Upgrades": { "refitCost": 1 }
+    },
+    {
+      "code": "u",
+      "name": "UIM refit",
+      "year": 165,
+      "bpv": 5,
+      "auxiliary": { "uim": 1 }
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["B"],
+      "type": "D6EB",
+      "name": "IKS Open Sky",
+      "typeName": "Survey Cruiser (B refit)",
+      "serviceYear": 165
+    }
+  ]
+}
