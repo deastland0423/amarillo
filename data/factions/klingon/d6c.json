@@ -3,7 +3,7 @@
   "type": "D6C",
   "typeName": "Command Cruiser",
   "line": "CA",
-  "name": "IKS Warlord",
+  "name": "IKS Darkkiller",
   "isLeader": true,
   "serviceYear": 135,
   "bpv": 120,
@@ -125,9 +125,12 @@
     "SECOND RELOAD.' The ADD round count is handled generically — applyYearUpgrades takes every",
     "ADD_6 to ADD_12 at Y175, which is what 'ADDs HAD SIX ROUNDS EACH UNTIL THE Y175 REFIT' says.",
     "",
-    "NOT MODELLED: the sheet's note that the type-E racks launch at full rate irrespective of the",
-    "type-A ones. Our racks do not constrain each other, so the clause costs nothing today — but it",
-    "would matter the moment a per-ship launch limit exists."
+    "The sheet's note that the type-E racks launch at full rate irrespective of the type-A ones is",
+    "ALREADY TRUE here, checked 2026-10-12: racks do not constrain one another, and DroneRack",
+    "encodes FD3.5 properly — a type-E has four spaces, one reload, fires FOUR times a turn, and",
+    "its accepts() takes type-VI dogfight drones and nothing else. So racks 3 and 4 will behave as",
+    "the sheet describes without further work; the clause would only need stating if a per-ship",
+    "launch limit were ever added."
   ],
   "refits": [
     {
@@ -168,7 +171,7 @@
     {
       "refits": ["L"],
       "type": "D6L",
-      "name": "IKS Overlord",
+      "name": "IKS Dreamkiller",
       "typeName": "War Cruiser Leader",
       "serviceYear": 146
     }
