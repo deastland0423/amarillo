@@ -4243,6 +4243,18 @@ public class Game {
             return ActionResult.fail(base.getName() + " is not a base and cannot be sited on a planet");
         if (planet.getLocation() == null)
             return ActionResult.fail(planet.getName() + " is not on the map");
+        // P2.222: a large gas giant has no surface to build on — "units cannot land on (or be
+        // BUILT ON) the surface... there actually is no surface, just an increasingly dense
+        // layer of gas". Without this a base could be sited on the rim of one, which the code
+        // would have done quite happily since it only ever walked the radius outward.
+        if (planet.getTerrainType() == com.sfb.properties.TerrainType.GAS_GIANT)
+            return ActionResult.fail(planet.getName() + " is a gas giant — there is no surface"
+                    + " to build a ground base on (P2.222)");
+        // Bases on large asteroids are a real thing (P2.76/P3.4) and are not built. Refusing
+        // says so, rather than siting one and leaving every asteroid rule unapplied.
+        if (planet.getTerrainType() != com.sfb.properties.TerrainType.PLANET)
+            return ActionResult.fail("Ground bases can only be sited on a planet — siting on"
+                    + " asteroids (P3.4) is not implemented");
 
         int direction = (side - 1) * 4 + 1;
         Location hex = planet.getLocation();

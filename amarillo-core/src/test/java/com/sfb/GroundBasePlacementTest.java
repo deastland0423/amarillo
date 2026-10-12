@@ -214,4 +214,62 @@ public class GroundBasePlacementTest {
                 .findFirst().orElseThrow(() -> new AssertionError("the cruiser should be there"));
         assertEquals("an ordinary ship still reports all six", 6, shipDto.shields.size());
     }
+
+    /**
+     * P2.222, and the owner spotted it before the code did: "it would be if you could place a
+     * ground base on a gas giant — which has no ground."
+     * <p>
+     * The rule is explicit and uses the word that settles it: the large gas giants "are unique
+     * in that units cannot land on (or be BUILT ON) the surface. (There actually is no surface,
+     * just an increasingly dense layer of gas to the point where the hull of the ship could be
+     * crushed.)" Siting walked the planet's radius outward without ever asking what kind of
+     * body it was, so a base could have stood on the rim of a gas giant.
+     */
+    @Test
+    public void aGasGiantHasNoSurfaceToBuildOn() {
+        Terrain jupiter = new Terrain(TerrainType.GAS_GIANT, 10, 10, 3);
+        game.addTerrain(jupiter);
+
+        Game.ActionResult r = game.placeGroundBase(groundBase("GBD1"), jupiter, 1);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("P2.222"));
+    }
+
+    /** Bases on large asteroids are real (P3.4) and unbuilt; the refusal says so. */
+    @Test
+    public void anAsteroidIsRefusedAsUnbuiltRatherThanSitedWrongly() {
+        Terrain rock = new Terrain(TerrainType.ASTEROID, 12, 12, 0);
+        game.addTerrain(rock);
+
+        Game.ActionResult r = game.placeGroundBase(groundBase("GBD1"), rock, 1);
+
+        assertFalse(r.isSuccess());
+        assertTrue(r.getMessage(), r.getMessage().contains("P3.4"));
+    }
+
+    /**
+     * P2.21: a class-M planet "completely fills one hex", and P2.23's moons are one hex too. So
+     * the radius-zero case is the NORMAL one, not a corner — every face's base stands in the
+     * planet's own hex, which is exactly why the face is stored rather than derived.
+     */
+    @Test
+    public void aSingleHexPlanetIsTheOrdinaryCase() {
+        Terrain classM = new Terrain(TerrainType.PLANET, 30, 20, 0);
+        game.addTerrain(classM);
+
+        Ship[] bases = new Ship[6];
+        for (int side = 1; side <= 6; side++) {
+            bases[side - 1] = groundBase("GBD1");
+            bases[side - 1].setName("Base-" + side);
+            assertTrue(game.placeGroundBase(bases[side - 1], classM, side).isSuccess());
+        }
+
+        for (int side = 1; side <= 6; side++) {
+            assertEquals("all six stand in the planet's own hex (P2.21)",
+                    classM.getLocation(), bases[side - 1].getLocation());
+            assertEquals("and only the recorded face tells them apart",
+                    Integer.valueOf(side), bases[side - 1].getPlanetFace());
+        }
+    }
 }
