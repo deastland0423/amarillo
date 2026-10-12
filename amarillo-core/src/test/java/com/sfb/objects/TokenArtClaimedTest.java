@@ -56,13 +56,11 @@ public class TokenArtClaimedTest {
     private static final Map<String, String> AWAITING_A_HULL = new LinkedHashMap<>();
     static {
         AWAITING_A_HULL.put("klingon/ad6.png", "AD6, the D6 aegis cruiser");
-        AWAITING_A_HULL.put("klingon/d5j.png", "D5J penal cruiser");
         AWAITING_A_HULL.put("klingon/d6c.png", "D6C command cruiser");
         AWAITING_A_HULL.put("klingon/d6e.png", "D6E escort cruiser");
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
         AWAITING_A_HULL.put("klingon/d7e.png", "D7E escort battlecruiser");
         AWAITING_A_HULL.put("klingon/d7v.png", "D7V carrier");
-        AWAITING_A_HULL.put("klingon/e4j.png", "E4J penal escort");
     }
 
     private static final File SHIP_DIR  = new File("../data/factions");

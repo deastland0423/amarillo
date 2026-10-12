@@ -1,0 +1,132 @@
+{
+  "faction": "Klingon",
+  "type": "E4J",
+  "typeName": "Penal Escort",
+  "line": "FF",
+  "name": "IKS Contrition",
+  "serviceYear": 135,
+  "bpv": 40,
+  "epv": 62,
+  "turnMode": "A",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 4,
+  "bonusHets": 1,
+  "commandRating": 2,
+  "crewQuality": "poor",
+  "tokenArt": "klingon/e4j.png",
+
+  "_comment": [
+    "R3.39, Module R3 SSD book page 6. Corner reads YS:135 DK:3 EX:8 CR:2; the annex agrees on",
+    "crew 14 and 6 boarding parties, both identical to the E4 this is converted from.",
+    "",
+    "POINT VALUE 62/40 is R3.R51's economic/combat split; 40 applies because the crew is poor.",
+    "",
+    "ONE penal difference here, not the usual two: security 2 instead of the E4's 1. There is NO",
+    "centerWarp, and that is the point — R3.R53 says the improved catastrophic-damage escape 'does",
+    "not apply to the E4J penal escort (R3.39), which does not have a warp-powered boom', and the",
+    "sheet bears it out: where the D6J and D5J booms carry WRP-C / IMP / WRP-C, this one carries",
+    "an 'E IMP' box and nothing else. The owner called it before the sheet was read — the E4J was",
+    "too small for boom separation, so it does not get the extra power.",
+    "",
+    "The annex's 'ISF' note is explained at the foot of the sheet: 'E4Js assigned to the Internal",
+    "Security Forces have inferior fire control to those ships in the deep space fleet.' Not",
+    "modelled — it is a scenario-assignment property, not a property of the hull.",
+    "",
+    "The annex prints '--' in the HET column for the E4 as well as the E4J, so whatever that means",
+    "it is a property of this hull and not of the conversion; bonusHets matches the E4 rather than",
+    "inventing a difference the chart does not draw."
+  ],
+
+  "shields": [21, 12, 7, 5, 7, 12],
+
+  "hullBoxes": {
+    "fhull": 2,
+    "ahull": 4
+  },
+
+  "power": {
+    "leftWarp": 6,
+    "rightWarp": 6,
+    "impulse": 2,
+    "apr": 1,
+    "battery": 1
+  },
+
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "auxCon": 1,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [2, 2, 2, 0],
+    "sensor": [6, 5, 3, 0],
+    "scanner": [0, 1, 3, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 1,
+    "tractors": 1,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 14,
+    "boardingParties": 6,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FA", "L", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FA", "R", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["RX"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["RX"] },
+    { "type": "Disruptor", "designator": "A", "range": 15, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "B", "range": 15, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_F", "arcs": ["FULL"] }
+  ],
+
+  "_refitComment": [
+    "B REFIT (Y165) = +3 and Y175 REFIT = +1, both off the ship data table, and the sheet carries",
+    "the 'shaded boxes are added by the B refit' legend.",
+    "",
+    "Deliberately NOT carrying over the E4's ADD. The E4's B refit fits an ADD-6, but this sheet",
+    "has no ADD box and no anti-drone table at all, so the penal ship's refit converts the rack and",
+    "raises the shields and that is all. The same reasoning that wrongly gave the D6J range-30",
+    "disruptors says to check this one rather than assume it.",
+    "",
+    "Rack note on the sheet: a type-F rack with one reload; the B refit makes it type-A (FD3.1),",
+    "lifting FD3.6's restrictions and the chain-reaction risk; the Y175 refit makes it type-B",
+    "(FD3.2) with two reloads."
+  ],
+  "refits": [
+    {
+      "code": "B",
+      "name": "B refit",
+      "year": 165,
+      "bpv": 3,
+      "shields": [21, 12, 12, 12, 12, 12],
+      "replaceWeapons": [
+        { "from": "DroneRack", "set": { "rackType": "TYPE_A" }, "designators": ["Rack 1"] }
+      ],
+      "y175Upgrades": { "refitCost": 1 }
+    }
+  ],
+  "variants": [
+    {
+      "refits": ["B"],
+      "type": "E4JB",
+      "name": "IKS Absolution",
+      "typeName": "Penal Escort (B refit)",
+      "serviceYear": 165
+    }
+  ]
+}
