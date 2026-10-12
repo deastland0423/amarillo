@@ -352,11 +352,24 @@ function drawShip(
   // Bold as well as haloed: at 8px the difference between a name that reads at a glance and one
   // that has to be squinted at is mostly stroke weight.
   const NAME_FONT = 'bold 8px monospace';
+  /*
+   * Whose ship it is, said in HUE rather than in brightness.
+   *
+   * Brightness is what the halo just bought, so dimming enemy names to mark them would spend the
+   * legibility this was all for. Both tints are therefore near-white and equally readable; only
+   * the cast differs — cool for yours, matching the white ring isMine already draws, warm for
+   * theirs. It is a SECOND signal, not the only one: the ring remains the thing that carries the
+   * distinction for anyone who cannot separate the two casts.
+   *
+   * Neither tint is #f0c040 or #ff6b6b, which this map has already spent on "selected" and
+   * "captured" — a third meaning for either would make all three ambiguous.
+   */
+  const nameFill = isMine ? '#dceeff' : '#ffcabc';
   if (ship.captured) {
     drawMapLabel(ctx, 'CAPTURED', cx, cy + r + 2,  { fill: '#ff6b6b', font: NAME_FONT });
-    drawMapLabel(ctx, ship.name, cx, cy + r + 12, { font: NAME_FONT });
+    drawMapLabel(ctx, ship.name, cx, cy + r + 12, { fill: nameFill, font: NAME_FONT });
   } else {
-    drawMapLabel(ctx, ship.name, cx, cy + r + 2,  { font: NAME_FONT });
+    drawMapLabel(ctx, ship.name, cx, cy + r + 2,  { fill: nameFill, font: NAME_FONT });
   }
 
   ctx.globalAlpha = prevAlpha;
