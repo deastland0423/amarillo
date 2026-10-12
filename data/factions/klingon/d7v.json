@@ -35,11 +35,13 @@
     "controlMod 2.0 from the sheet's own words: 'THIS SHIP CAN CONTROL A NUMBER OF SEEKING",
     "WEAPONS EQUAL TO DOUBLE ITS SENSOR RATING.' The D6V carries the same.",
     "",
-    "NEEDS A LOOK when reviewed: the sheet draws sixteen craft positions, eight to a bay, and",
-    "twelve of them are fighters — the deck-crew track counts twelve, which agrees. What the sheet",
-    "does NOT say is how those twelve divide by ROLE; R3's rules text would, and we hold only its",
-    "SSD book. The split below mirrors the D6V's proportions scaled to six per bay. Everything",
-    "else here was read off the sheet or the annex."
+    "Sixteen craft positions, eight to a bay: twelve fighters and four administrative shuttles,",
+    "and the deck-crew track counts twelve independently. The ROLES are the owner's, checked",
+    "against the SSD 2026-10-12 — ALL SUPERIORITY but for a single EW fighter. My first guess",
+    "mirrored the D6V's mix of superiority and attack fighters and was wrong, which is the point",
+    "of the type: a STRIKE CARRIER carries a heavy cruiser's weaponry plus a full squadron of",
+    "twelve, and a full squadron is not an escort carrier's assortment. The Federation CVS and the",
+    "Kzinti CVS fill the same role."
   ],
 
   "shields": [30, 22, 15, 13, 15, 22],
@@ -82,9 +84,9 @@
 
   "shuttleBays": [
     { "shuttles": ["admin", "admin"],
-      "fighters": { "line": "klingon-zegurnii", "superiority": 3, "attack": 2, "ew": 1 } },
+      "fighters": { "line": "klingon-zegurnii", "superiority": 5, "ew": 1 } },
     { "shuttles": ["admin", "admin"],
-      "fighters": { "line": "klingon-zegurnii", "superiority": 3, "attack": 3 },
+      "fighters": { "line": "klingon-zegurnii", "superiority": 6 },
       "balconyPositions": 4 }
   ],
 
