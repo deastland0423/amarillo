@@ -556,6 +556,59 @@ list rather than guessing:
 The gating is the server's call in the end — the client only has to stop the player from
 discovering the rule by having an order silently do nothing.
 
+## Scatter-packs: the full targeting model (FD7.3) — NOT started, current handling is DELIBERATE
+
+Owner, 2026-10-12: "I've been using the 'select a target and release in 8 impulses' as a simple way
+to implement scatterpacks. But full implementation will be much more complex." Agreed, and the
+current handling is correct as far as it goes — this entry exists so nobody later mistakes the
+simplification for a bug and 'fixes' half of it.
+
+**The insight to hold on to is that there are TWO targeting decisions, not one** (owner's framing):
+the targeting of the SP ITSELF, which may be ballistic; and the targeting of the DRONES it carries,
+which may inherit the SP's target or follow criteria programmed before launch. We currently collapse
+both into "the SP has a target unit, and its drones get that same unit".
+
+**FD7.31 states it as four questions the owning player must record BEFORE launching:**
+
+1. **What is the primary target** — "enemy ship, or other unit, or object; **or hex if ballistic
+   (F4.4)**, note that a hex cannot trigger release". This is the first targeting level, and the
+   ballistic half of it is already modelled: `BallisticCourse` exists and the movers fly it. What is
+   missing is the door and F4.413's consequence — a ballistic SP reaches its hex and must NOT
+   release there, because only a valid target can trigger release.
+2. **At what range do the drones release** — minimum TWO hexes (FD7.333, and it "cannot be
+   decreased"), maximum 35, always true range. Our eight-impulse timer stands in for this.
+3. **How much damage to the SP forces a premature release** — counted after launch only, not
+   counting unrepaired damage carried into it (FD7.31 q3, FD7.3342). Nothing models this.
+4. **Do all the drones go at the prime target, or randomly at different ones** — and if random
+   (FD7.34), **what size class will they accept**? This is the second targeting level and it is
+   entirely unbuilt. FD7.341 has the player NUMBER each drone before launch, and they acquire in
+   that order.
+
+**Two clauses make the first level cheaper than it looks, now that ballistic targeting exists:**
+
+- **FD7.332: "if the target is destroyed, the SP pursues the hex where the target was destroyed"**
+  (where residual radiation and wreckage exist). That is a conversion from unit-pursuit to a
+  ballistic course, and `destination()` plus `BallisticCourse` already express it — it is close to
+  free. Note the sting in the tail: drones released at a destroyed primary target go INERT (FD1.7),
+  with the wild-weasel explosion period the one exception (J3.21, FD7.345).
+- **FD7.3331/FD7.3332** give the SP two of the plot types from C1.322 that we already reason about
+  for ballistic evasion: it will not voluntarily enter a hex adjacent to its target (station-keeping
+  plot, C1.3224), and if the target closes to adjacent it switches to an EVASIVE plot (C1.3223) and
+  backs off until it is two hexes away again.
+
+**And the release itself is harsher than our timer suggests.** FD7.31: "If an SP meets its release
+conditions, it will release its submunitions even if there is no unit that can control them at that
+point. This will result in the submunitions being lost if they are incapable of gaining their own
+lock-ons." F4.42 says the SP cannot guide them itself and F4.422 lets any friendly SHIP (not a
+shuttle or PF) take control at the release point, needing the channels of FD7.363. D19.223 caps it
+at one SP launched per turn, or within a quarter turn of one on a previous turn, and a ship on
+passive fire control cannot control an SP at all.
+
+**Why no ballistic door was wired when every other seeker got one** (2026-10-12): a door without
+questions 2-4 would produce an SP that flies to a hex and dumps its drones there on an eight-impulse
+timer, into empty space, with nothing able to guide them. F4.413 explicitly forbids the hex
+triggering that release. Refusing the launch is the more honest state until FD7.31 is built.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.
