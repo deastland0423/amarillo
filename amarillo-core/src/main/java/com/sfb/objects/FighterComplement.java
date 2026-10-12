@@ -215,7 +215,31 @@ public final class FighterComplement {
      */
     public List<String> applyTo(ShuttleBay bay, int year, String namePrefix,
                                 Map<String, Integer> typeCount) {
-        List<String> types = typesFor(year);
+        return seat(bay, typesFor(year), namePrefix, typeCount);
+    }
+
+    /**
+     * J4.6: a declared fighter position with no fighter available holds an ADMIN SHUTTLE.
+     *
+     * <p>Owner's ruling 2026-10-11, about the diplomatic cruisers: "If there is no fighter
+     * available, that shuttle box will instead contain an admin shuttle." Their sheets say the
+     * ship "always carried one fighter, which would be the best available fighter for the year of
+     * the scenario" — and before Y167 the Zegurnii line has not begun, so there is no best
+     * available fighter and the box is not therefore empty.
+     *
+     * <p>Two different wrong answers were reachable before this, depending only on the hull's own
+     * service year, because that is what a ship is BUILT with. The D7N (Y137) came out of a Y137
+     * scenario with three admin shuttles and no fourth box at all; the D5N (Y171) came out of the
+     * same scenario still carrying a Z-2 that would not exist for thirty years.
+     */
+    public List<String> standDown(ShuttleBay bay, String namePrefix,
+                                  Map<String, Integer> typeCount) {
+        return seat(bay, java.util.Collections.nCopies(total(), "admin"), namePrefix, typeCount);
+    }
+
+    /** Clear whatever fighters are aboard and seat {@code types} in their places. */
+    private List<String> seat(ShuttleBay bay, List<String> types, String namePrefix,
+                              Map<String, Integer> typeCount) {
         if (bay == null || types.isEmpty())
             return List.of();
 
@@ -299,9 +323,12 @@ public final class FighterComplement {
                 continue;
             }
             if (complement.typesFor(year).isEmpty()) {
+                // Not "keep what it was built with", which left the answer depending on the
+                // hull's own service year — see standDown.
+                complement.standDown(bay, "", typeCount);
                 notes.add("Fighters: line '" + complement.getLine()
                         + "' has nothing available in Y" + year
-                        + " — keeping the complement it was built with");
+                        + " — the fighter position holds an admin shuttle");
                 continue;
             }
             complement.applyTo(bay, year, "", typeCount);
