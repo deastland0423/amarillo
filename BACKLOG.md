@@ -310,6 +310,19 @@ Lyran fighters.
 Large bases cannot be placed on large asteroids at all, "although of course they can be placed in
 asteroid hexes" (P2.747).
 
+**A base on a large asteroid is probably NOT restricted to ballistic attack** (owner, 2026-10-12).
+P2.7 introduces its whole block with "In the case of bases on planets, certain modifications
+apply", and P2.713's ballistic route, four-hex limit and no-ECM/WW clause are among them — so an
+asteroid-sited base falls outside and should be attackable by ordinary seeking weapons like any base
+in space. Two supports: P2.713 says seekers "CAN be fired… using ballistic targeting", granting a
+route rather than requiring one, and P2.734 bothers to say ground bases can be hit by warp-seeking
+type-VI drones "as any base in space could", which only needs saying because ordinary seekers cannot
+reach a planet-sited one.
+
+CAVEAT, so this is not mistaken for a quotation: P2.747 itself sits inside the planet-scoped
+section. The reading is the owner's judgement and a sensible one, not a line of text. Settle it from
+P3.4 if that module is ever to hand.
+
 Worth noting for the ballistic slice: P2.732 lets a ground base use a WILD WEASEL to distract
 seeking weapons — "except those using ballistic targeting (P2.713)". We have wild weasels, so that
 clause is nearly free, and it is the defender's answer to everything except the one attack that was
