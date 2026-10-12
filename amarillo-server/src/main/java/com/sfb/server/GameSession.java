@@ -2232,6 +2232,87 @@ public class GameSession {
                 return plasmaRes;
             }
 
+            /**
+             * F4.0 ballistic targeting, and P2.713 bombardment, through one door.
+             * <p>
+             * Which one it is depends on whether a target was NAMED. A request carrying only a
+             * hex is an ordinary ballistic shot: it flies there and evades (F4.21). A request
+             * that also names a ground base is a bombardment: it flies there and explodes. The
+             * client's chooser offers both from the same hex, because the rules do.
+             */
+            case "LAUNCH_SEEKER_BALLISTIC": {
+                Ship attacker = findShip(request.getShipName());
+                if (attacker == null)
+                    return ActionResult.fail("Ship not found: " + request.getShipName());
+                if (request.getHexCol() < 1 || request.getHexRow() < 1)
+                    return ActionResult.fail("No target hex specified");
+                com.sfb.properties.Location hex = new com.sfb.properties.Location(
+                        request.getHexCol(), request.getHexRow());
+
+                // Named target = bombardment (P2.713); no name = a shot at the bare hex.
+                Unit groundBase = null;
+                if (request.getTargetName() != null && !request.getTargetName().isBlank()) {
+                    groundBase = findUnit(request.getTargetName());
+                    if (groundBase == null)
+                        return ActionResult.fail("Target not found: " + request.getTargetName());
+                }
+
+                String weaponName = request.getWeaponNames() != null
+                        && !request.getWeaponNames().isEmpty()
+                        ? request.getWeaponNames().get(0) : null;
+                if (weaponName == null)
+                    return ActionResult.fail("No weapon specified");
+
+                com.sfb.weapons.Weapon weapon = attacker.getWeapons().fetchAllWeapons().stream()
+                        .filter(w -> w.getName().equalsIgnoreCase(weaponName))
+                        .findFirst().orElse(null);
+                if (weapon == null)
+                    return ActionResult.fail("Weapon not found: " + weaponName);
+
+                ActionResult result;
+                if (weapon instanceof com.sfb.weapons.DroneRack rack) {
+                    int droneIndex = request.getRange();   // as LAUNCH_DRONE does
+                    if (droneIndex < 0 || droneIndex >= rack.getAmmo().size())
+                        return ActionResult.fail("Invalid drone index: " + droneIndex);
+                    com.sfb.objects.Drone drone = rack.getAmmo().get(droneIndex);
+                    result = groundBase != null
+                            ? game.launchDroneGroundAttack(attacker, groundBase, rack, drone,
+                                    request.getFacing())
+                            : game.launchDroneBallistic(attacker, hex, rack, drone,
+                                    request.getFacing());
+                } else if (weapon instanceof com.sfb.weapons.PlasmaRack prack) {
+                    com.sfb.weapons.PlasmaRack.RackMode mode;
+                    try {
+                        mode = com.sfb.weapons.PlasmaRack.RackMode.valueOf(
+                                String.valueOf(request.getPlasmaRackMode()).toUpperCase());
+                    } catch (IllegalArgumentException | NullPointerException e) {
+                        return ActionResult.fail("Specify offensive or defensive mode (FP10.21)");
+                    }
+                    if (mode == com.sfb.weapons.PlasmaRack.RackMode.UNDECIDED)
+                        return ActionResult.fail("Specify offensive or defensive mode (FP10.21)");
+                    result = groundBase != null
+                            ? game.launchPlasmaRackGroundAttack(attacker, groundBase, prack, mode,
+                                    request.getFacing())
+                            : game.launchPlasmaRackBallistic(attacker, hex, prack, mode,
+                                    request.getFacing());
+                } else if (weapon instanceof com.sfb.weapons.PlasmaLauncher tube) {
+                    result = groundBase != null
+                            ? game.launchPlasmaGroundAttack(attacker, groundBase, tube, false,
+                                    request.getFacing())
+                            : game.launchPlasmaBallistic(attacker, hex, tube, false,
+                                    request.getFacing());
+                } else {
+                    return ActionResult.fail(weapon.getName() + " is not a seeking weapon that"
+                            + " can be fired ballistically");
+                }
+
+                if (result.isSuccess())
+                    // Deliberately vague, as LAUNCH_DRONE is: what went out and where it was
+                    // aimed are the firing player's business.
+                    appendCombatLog(attacker.getName() + " launched a seeking weapon");
+                return result;
+            }
+
             case "PLACE_TBOMB": {
                 Ship ship = findShip(request.getShipName());
                 if (ship == null)
