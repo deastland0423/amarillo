@@ -362,6 +362,18 @@ fire; then the remaining fits as data; then ballistic ground attack; satellites 
 completes two of the three ground targets the ballistic entry lists, and gives planetary bombardment
 a defender that shoots back.
 
+**DONE: slices 1-4.** Single-shield mode (`373275de`), the chassis and GBD1 (`8b2fbbe7`), the other
+eight fits (`3940fb1b`), and siting via `Game.placeGroundBase(base, planet, side)` (slice 4). A
+ground base now stands on a planet face, looks outward, cannot move, fires into the hemisphere away
+from the planet and is hidden from the far side — with no rule of its own for any of it.
+
+**REMAINING: slice 5, ballistic ground attack.** P2.713 wiring the new target into F4.0: seeking
+weapons at a ground base from four hexes or less, never under passive fire control, undistractable
+by ECM or wild weasels, exploding on impact. P2.732's weasel exception is the other half — a ground
+base CAN weasel away ordinary seekers, which is what makes ballistic attack worth the four-hex
+approach. Also still open and smaller: the sheet's energy line (shields 1/2+1/2, life support 0,
+fire control 0), P2.52/P2.524's EW asymmetry, and the asteroid siting that waits on P3.4.
+
 ## Unstarted systems
 
 Roughly largest first. Several have had their rules read and their design settled; those say so.

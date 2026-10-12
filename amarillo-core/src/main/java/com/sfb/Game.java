@@ -4109,6 +4109,66 @@ public class Game {
         return null;
     }
 
+    /**
+     * Site a ground base on one face of a planet (R1.14, P2.62).
+     *
+     * <h2>Why this is only placement</h2>
+     * A ground base needs no special handling once it is in the right hex facing the right way,
+     * which is the owner's own model: a base on the B face "should behave as if it were a ship
+     * pointing in direction B". Three things that already exist do the rest.
+     * <ul>
+     *   <li>Firing arcs are computed against a unit's own facing, so the {@code FH} arc R1.14
+     *       gives these bases (P2.721) covers the hemisphere away from the planet by itself.</li>
+     *   <li>{@link #losBlocked} is P2.322's "planetary surface lies strictly between", and the
+     *       geometry falls out right: the base's own hex is an ENDPOINT rather than between, so it
+     *       fires outward freely, while a line to anything on the far side crosses other surface
+     *       hexes and is blocked. That is P2.747's "the arc into which it can fire (and from which
+     *       it can be hit)" without a rule of its own.</li>
+     *   <li>It never moves because {@code ImpulseUtil.doesMove} is false at speed zero, which is
+     *       where a base starts. Planet hexes are policed on ENTRY by the movers; nothing sweeps
+     *       units already standing in one, so a base that never moves is never caught by it.</li>
+     * </ul>
+     *
+     * <h2>Which hex</h2>
+     * A planet occupies every hex within its radius, so the face-{@code side} hex is {@code radius}
+     * steps from the centre in that direction — and for a radius-zero planet it is the centre
+     * itself. Sides are numbered as shields are, 1 to 6, so side 1 is direction 1 and side 2 is
+     * direction 5: the same mapping {@code ScenarioLoader} uses for deployment headings, which is
+     * why a side letter and a facing agree without conversion.
+     *
+     * @param base   a ground base; it is moved, not copied, and is added to the game if absent
+     * @param planet the planet to stand it on
+     * @param side   which face, 1 to 6
+     */
+    public ActionResult placeGroundBase(Ship base, com.sfb.objects.Terrain planet, int side) {
+        if (base == null || planet == null)
+            return ActionResult.fail("A ground base and a planet are both required");
+        if (side < 1 || side > 6)
+            return ActionResult.fail("A planet has six faces; " + side + " is not one of them");
+        if (!base.isBase())
+            return ActionResult.fail(base.getName() + " is not a base and cannot be sited on a planet");
+        if (planet.getLocation() == null)
+            return ActionResult.fail(planet.getName() + " is not on the map");
+
+        int direction = (side - 1) * 4 + 1;
+        Location hex = planet.getLocation();
+        for (int step = 0; step < planet.getRadius(); step++) {
+            Location next = com.sfb.utilities.MapUtils.getAdjacentHex(hex, direction, mapCols, mapRows);
+            if (next == null)
+                return ActionResult.fail("Face " + side + " of " + planet.getName()
+                        + " runs off the map");
+            hex = next;
+        }
+
+        base.setLocation(hex);
+        base.setFacing(direction);
+        base.setSpeed(0);
+        if (!ships.contains(base))
+            ships.add(base);
+        return ActionResult.ok(base.getName() + " is sited on face " + side + " of "
+                + planet.getName() + " at " + hex + ", facing " + direction);
+    }
+
     public boolean isPlanetHex(Location loc) {
         return loc != null && planetHexes.contains(loc);
     }
