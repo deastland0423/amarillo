@@ -1,0 +1,176 @@
+{
+  "faction": "Klingon",
+  "type": "D6C",
+  "typeName": "Command Cruiser",
+  "line": "CA",
+  "name": "IKS Warlord",
+  "isLeader": true,
+  "serviceYear": 135,
+  "bpv": 120,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 2,
+  "commandRating": 9,
+  "tokenArt": "klingon/d6c.png",
+
+  "_comment": [
+    "R3.164, Module R12 'Unusual Ships' SSD book page 25 — NOT R3, which is why this hull sat in",
+    "TokenArtClaimedTest's parked list while the rest of the Klingon set was entered. Corner reads",
+    "YS:135 DK:7 EX:18 CR:9; annex crew 46, 16 boarding parties, two bonus HETs, point value 120",
+    "with no economic split.",
+    "",
+    "A D6 command variant, and isLeader like the D5C and D7C (S8.36). Command rating 9 against the",
+    "plain D6's 8.",
+    "",
+    "FOUR drone racks of TWO kinds, which is the unusual part: racks 1 and 2 are type-A, racks 3",
+    "and 4 are type-E (owner, 2026-10-12 — I had read them as type-F), and the sheet says that",
+    "pair 'launch drones at their maximum rate irrespective of the type-A drone racks'. The D6L",
+    "refit then replaces them with ADDs outright.",
+    "",
+    "Counted at 600 dpi after the survey cruisers taught the lesson: SCTY is ONE box in the hull",
+    "and one in the boom, so security 2 — a 400 dpi crop read it as two in the hull. Transporters",
+    "are 7 (one in the boom, two groups of three in the hull), which is high for the chassis and",
+    "was counted rather than inherited. Tractors are 2 BEFORE the mech-tractor refit; the two extra",
+    "beams are drawn with a black wedge to mark them as refit-only, and the sheet says 'THE",
+    "TRACTORS ARE NOT PRESENT WITHOUT THE REFIT'.",
+    "",
+    "SERVICE YEAR DISAGREEMENT, flagged rather than resolved: the SSD corner reads YS:135 and the",
+    "Master Annex's ship chart says 136. The sheet is used here. Everything else the two sources",
+    "share — crew, boarding parties, BPV, command rating, excess damage — agrees exactly."
+  ],
+
+  "shields": [30, 22, 15, 13, 15, 22],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 7
+  },
+
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 1.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 7,
+    "tractors": 2,
+    "labs": 4,
+    "probes": 1,
+    "uim": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"] }
+  ],
+
+  "crewData": {
+    "totalCrew": 46,
+    "boardingParties": 16,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Disruptor", "designator": "A", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "B", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "C", "range": 22, "arcs": ["FA"] },
+    { "type": "Disruptor", "designator": "D", "range": 22, "arcs": ["FA"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 3", "rackType": "TYPE_E", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 4", "rackType": "TYPE_E", "arcs": ["FULL"] }
+  ],
+
+  "_refitComment": [
+    "Five lines on the ship data table, which is more than any hull entered so far:",
+    "  D6L REFIT (Y146) = +11, 1 UIM STANDARD FROM Y165, DERFACS FROM Y165 = +5,",
+    "  Y175 REFIT = +3, MECH-TRACTOR REFIT (Y179) = +3.",
+    "",
+    "The UIM is STANDARD rather than a refit, so it is declared in auxiliary above and the year",
+    "logic withholds it before Y165 on its own, exactly as it does for the D7N.",
+    "",
+    "The D6L refit does three things in one, all stated on the sheet: 'THE D6L REFIT CONVERTS THE",
+    "THREE FX PHASER-2Ks TO PHASER-1s, CONVERTS THE TYPE-F DRONE RACKS TO ADDs, AND INCREASES THE",
+    "RANGE OF THE DISRUPTORS TO 30 HEXES.' The resulting ship is a D6L, following the same naming",
+    "the D7C does when ITS refit makes a D7L rather than a D7CK.",
+    "",
+    "Y175 adds the racks' second reload: 'SHIP HAD TYPE-A DRONE RACKS WITH ONE RELOAD UNTIL THE",
+    "D6L REFIT WHICH CONVERTED THE DRONE RACKS TO TYPE-B WITH ONE RELOAD. THE Y175 REFIT ADDED A",
+    "SECOND RELOAD.' The ADD round count is handled generically — applyYearUpgrades takes every",
+    "ADD_6 to ADD_12 at Y175, which is what 'ADDs HAD SIX ROUNDS EACH UNTIL THE Y175 REFIT' says.",
+    "",
+    "NOT MODELLED: the sheet's note that the type-E racks launch at full rate irrespective of the",
+    "type-A ones. Our racks do not constrain each other, so the clause costs nothing today — but it",
+    "would matter the moment a per-ship launch limit exists."
+  ],
+  "refits": [
+    {
+      "code": "L",
+      "name": "D6L refit",
+      "year": 146,
+      "bpv": 11,
+      "replaceWeapons": [
+        { "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] },
+        { "from": "Disruptor", "set": { "range": 30 } },
+        { "from": "DroneRack", "to": "ADD", "designators": ["Rack 3", "Rack 4"],
+          "set": { "addType": "ADD_6" } }
+      ]
+    },
+    {
+      "code": "d",
+      "name": "DERFACS refit",
+      "year": 165,
+      "bpv": 5,
+      "auxiliary": { "derfacs": true }
+    },
+    {
+      "code": "m",
+      "name": "Mech-tractor refit",
+      "year": 179,
+      "bpv": 3,
+      "auxiliary": { "tractors": 4 }
+    }
+  ],
+  "y175Upgrades": {
+    "refitCost": 3,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_B", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_B", "extraReloads": 1 }
+    ]
+  },
+  "variants": [
+    {
+      "refits": ["L"],
+      "type": "D6L",
+      "name": "IKS Overlord",
+      "typeName": "War Cruiser Leader",
+      "serviceYear": 146
+    }
+  ]
+}

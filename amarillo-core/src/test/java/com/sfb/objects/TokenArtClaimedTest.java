@@ -55,7 +55,6 @@ public class TokenArtClaimedTest {
      */
     private static final Map<String, String> AWAITING_A_HULL = new LinkedHashMap<>();
     static {
-        AWAITING_A_HULL.put("klingon/d6c.png", "D6C command cruiser");
         AWAITING_A_HULL.put("klingon/d6m.png", "D6M mauler");
     }
 

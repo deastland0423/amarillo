@@ -185,15 +185,25 @@ public class UimAvailabilityTest {
      * phaser refit arrived in Y169 (the owner's correction from the SSD, 2026-10-08), so the hull
      * cannot be fielded before the UIM existed and the gate never has anything to take away. Its
      * base the D7C is here, and that is where the -5 is seen.
+     * <p>
+     * The D6C and D6L joined on 2026-10-12, when the D6C was entered from Module R12. Its sheet
+     * says "1 UIM STANDARD FROM Y165" in the same words the D7C's does, and the hull predates that
+     * by thirty years — so the gate takes -5 off a Y135 D6C exactly as it does a Y137 D7N. Unlike
+     * the D7L, the D6L is here as well rather than exempt: its own refit arrives in Y146, still
+     * nineteen years before the UIM, so there IS a window in which it can be fielded without one.
+     * The two command hulls behaving alike is the point — this list is the record of which ships
+     * the gate can actually be seen on, so it grows whenever a UIM-carrying hull is older than
+     * Y165, and shrinks only if one is removed.
      */
     @Test
-    public void onlyThreeHullsPredateTheUimTheyDeclare() {
+    public void onlyTheHullsThatPredateTheUimTheyDeclareAreGated() {
         List<String> early = new ArrayList<>();
         for (ShipSpec spec : ShipLibrary.all())
             if (!ShipLibrary.createShip(spec).getUims().isEmpty() && spec.serviceYear < 165)
                 early.add(spec.faction + "/" + spec.type + " (Y" + spec.serviceYear + ")");
         early.sort(null);
-        assertEquals(List.of("Klingon/D7C (Y143)", "Klingon/D7N (Y137)", "Lyran/CC (Y120)"),
+        assertEquals(List.of("Klingon/D6C (Y135)", "Klingon/D6L (Y146)",
+                        "Klingon/D7C (Y143)", "Klingon/D7N (Y137)", "Lyran/CC (Y120)"),
                 early);
     }
 
