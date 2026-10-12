@@ -1,0 +1,146 @@
+{
+  "faction": "Klingon",
+  "type": "AD6",
+  "typeName": "Heavy Escort Cruiser",
+  "line": "CA",
+  "name": "IKS Bulwark",
+  "isEscort": true,
+  "carrierClass": "CASUAL",
+  "aegis": "FULL",
+  "serviceYear": 176,
+  "bpv": 119,
+  "turnMode": "B",
+  "sizeClass": 3,
+  "moveCost": 1.0,
+  "breakdown": 5,
+  "bonusHets": 1,
+  "commandRating": 8,
+  "tokenArt": "klingon/ad6.png",
+
+  "_comment": [
+    "R3.76, Module R3 SSD book page 30. Corner YS:176 DK:7 EX:18 CR:8; annex crew 40 and 10",
+    "boarding parties; POINT VALUE a single 119, and the data table adds 'INCLUDES FULL AEGIS'.",
+    "",
+    "A D6 hull turned into an escort, and the conversion is drastic: THE DISRUPTORS ARE GONE.",
+    "Where the D6 mounts four, this ship carries phaser-2s in their place beside both warp",
+    "engines — 8 and 9 to port, 10 and 11 to starboard — for eleven phaser-2s in all and no heavy",
+    "weapon of any kind. Two ADDs and two drone racks do the rest. That is what makes it an escort",
+    "rather than a cruiser that happens to escort.",
+    "",
+    "It services someone else's air group and has none of its own. The sheet: 'AS A CARRIER",
+    "ESCORT, THIS SHIP HAS DECK CREWS AND READY RACKS TO SERVICE THE FIGHTERS OF THE CARRIER. IT",
+    "HAS NO FIGHTERS OF ITS OWN.' So the bay below declares fighterFacilities and a LINE with no",
+    "counts, which is the same shape the AD5, F5E and D5E already use (J4.62).",
+    "",
+    "'RACKS ALWAYS HAD THREE RELOADS. THIRD RELOAD IS ENTIRELY ADDS.' A type-G rack carries two",
+    "by default, so the third is the extra reload set that y175Upgrades already expresses — and",
+    "since this ship cannot exist before Y176 it has that reload from the moment it is built, which",
+    "is what 'always' means here. The third reload being ADDs specifically is NOT modelled; our",
+    "reload sets do not distinguish their contents.",
+    "",
+    "controlMod 2.0 from the sheet's own note, the same doubled seeking-weapon control the D7V and",
+    "D5N carry. Anti-drones always had 12 rounds, hence ADD_12.",
+    "",
+    "INHERITED, not counted: transporters, tractors and labs are the D6's. The hull boxes that",
+    "were read directly are the ones the conversion touched."
+  ],
+
+  "shields": [30, 22, 15, 13, 15, 22],
+
+  "hullBoxes": {
+    "fhull": 4,
+    "ahull": 7
+  },
+
+  "power": {
+    "leftWarp": 15,
+    "rightWarp": 15,
+    "impulse": 5,
+    "apr": 2,
+    "battery": 3
+  },
+
+  "control": {
+    "bridge": 2,
+    "emergency": 1,
+    "auxCon": 2,
+    "security": 2,
+    "controlMod": 2.0
+  },
+
+  "tables": {
+    "damageControl": [4, 4, 2, 2, 2, 0],
+    "sensor": [6, 6, 5, 3, 1, 0],
+    "scanner": [0, 0, 1, 3, 5, 9],
+    "excess": 4
+  },
+
+  "auxiliary": {
+    "transporters": 5,
+    "tractors": 3,
+    "labs": 4,
+    "probes": 1
+  },
+
+  "shuttleBays": [
+    { "shuttles": ["admin", "admin"],
+      "fighterFacilities": 2,
+      "fighters": { "line": "klingon-zegurnii" } }
+  ],
+
+  "crewData": {
+    "totalCrew": 40,
+    "boardingParties": 10,
+    "deckCrews": 2,
+    "minCrew": 4
+  },
+
+  "weapons": [
+    { "type": "Phaser2", "designator": "1", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "2", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "3", "arcs": ["FX", "13"] },
+    { "type": "Phaser2", "designator": "4", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "5", "arcs": ["L", "LR"] },
+    { "type": "Phaser2", "designator": "6", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "7", "arcs": ["R", "RR"] },
+    { "type": "Phaser2", "designator": "8", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "9", "arcs": ["FA", "L"] },
+    { "type": "Phaser2", "designator": "10", "arcs": ["FA", "R"] },
+    { "type": "Phaser2", "designator": "11", "arcs": ["FA", "R"] },
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_12" },
+    { "type": "ADD", "designator": "ADD 2", "addType": "ADD_12" },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_G", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_G", "arcs": ["FULL"] }
+  ],
+
+  "_refitComment": [
+    "One refit on the data table: K REFIT (Y175) = +3. The sheet names what it touches —",
+    "'PHASER-2s MARKED K ARE CHANGED TO PHASER-1s ON THE K REFIT' — and the marked ones are the",
+    "three forward. There is no B refit and no UIM refit offered."
+  ],
+  "refits": [
+    {
+      "code": "K",
+      "name": "Phaser-1 refit",
+      "year": 175,
+      "bpv": 3,
+      "replaceWeapons": [{ "from": "Phaser2", "to": "Phaser1", "designators": ["1", "2", "3"] }]
+    }
+  ],
+  "y175Upgrades": {
+    "refitCost": 0,
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_G", "extraReloads": 1 },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_G", "extraReloads": 1 }
+    ]
+  },
+  "variants": [
+    {
+      "refits": ["K"],
+      "type": "AD6K",
+      "name": "IKS Palisade",
+      "typeName": "Heavy Escort Cruiser (Phaser-1 refit)",
+      "serviceYear": 176
+    }
+  ]
+}

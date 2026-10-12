@@ -268,6 +268,23 @@ resolver pattern already does, and extend the same habit to the other tiers:
 - **Fractional batteries.** Batteries hold whole points, but transporters (0.2/use) and movement
   costs are fractional.
 - **E1.7 small target modifiers.**
+- **The type-G rack's third reload set never materialises.** Found 2026-10-12 while entering the
+  AD6, whose sheet says "RACKS ALWAYS HAD THREE RELOADS. THIRD RELOAD IS ENTIRELY ADDS." A type-G
+  carries two by default and FD3.72's extra set is expressed as `y175Upgrades.racks[].extraReloads`,
+  which the AD5 and AF5 have carried for some time — and all three ships report **two** reloads
+  after `outfitForYear(.., 176, ..)`, so this is pre-existing and not about the new hull.
+
+  The diagnosis, as far as it got: `DroneRack.addReloadSets(n)` raises `numberOfReloads` AND
+  appends a set to `reloads`, but only `if (!set.isEmpty())` — it copies the rack's CURRENT
+  `ammoList`, so an unloaded rack appends nothing. `getNumberOfReloads()` then answers
+  `reloads.isEmpty() ? numberOfReloads : reloads.size()`, and with two base sets loaded it reports
+  the list's length and the raised counter is never seen. Either the sets must be materialised from
+  the rack's nominal load rather than its current contents, or the getter must prefer the counter.
+  Both have consequences for ships that legitimately carry partial reloads, so read FD3.70/FD3.72
+  before choosing.
+
+  Separately and smaller: "third reload is entirely ADDs" is not expressible at all — a reload set
+  does not record what is in it.
 - **G6.0 security stations and Klingon mutiny.** Raised by the owner 2026-10-11 as "not sure it's
   worth the bother". Read in full; here is what it actually costs.
 
