@@ -30,10 +30,10 @@
     "the sheet ('SHIELDS = 1/2 + 1/2, LIFE SUPPORT = 0, FIRE CONTROL = 0' — a ground base pays",
     "nothing for the last two), and placement on a planetary hex side.",
     "",
-    "WORTH CHECKING: the shield strip is a six-by-two grid of twelve cells, ten shaded and two",
-    "left white. Read as twelve on the precedent of the D5J, where the tints proved to be counting",
-    "aids rather than a distinction — but ten is the other reading, and small counts on these",
-    "sheets have been wrong twice this week."
+    "The shield strip is a six-by-two grid of twelve cells, ten shaded and two left white, and the",
+    "shield IS 12 — confirmed by the owner 2026-10-12. So the tints are counting aids here as they",
+    "were on the D5J, and white cells count. minCrew is 2, also the owner's correction; 1 was a",
+    "guess and the sheet does not leave it to guessing."
   ],
 
   "shields": [12],
@@ -61,7 +61,7 @@
   "crewData": {
     "totalCrew": 5,
     "boardingParties": 2,
-    "minCrew": 1
+    "minCrew": 2
   },
 
   "weapons": [
