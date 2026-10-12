@@ -3370,6 +3370,18 @@ public class Game {
         return launchCoordinator.launchDroneBallistic(launcher, hex, rack, drone, facing);
     }
 
+    /** P2.713: a drone fired ballistically at a GROUND BASE, which DOES explode on impact. */
+    public ActionResult launchDroneGroundAttack(Ship launcher, com.sfb.objects.Unit base,
+            DroneRack rack) {
+        return launchCoordinator.launchDroneGroundAttack(launcher, base, rack);
+    }
+
+    /** P2.713, naming the drone and the launch direction. */
+    public ActionResult launchDroneGroundAttack(Ship launcher, com.sfb.objects.Unit base,
+            DroneRack rack, Drone drone, int facing) {
+        return launchCoordinator.launchDroneGroundAttack(launcher, base, rack, drone, facing);
+    }
+
     /** F4.0: a fighter sends one of its own drones at a HEX (J4.24 limits still apply). */
     public ActionResult launchFighterDroneBallistic(com.sfb.objects.shuttles.Fighter fighter,
             com.sfb.properties.Location hex, com.sfb.weapons.DroneRail rail, int facing) {

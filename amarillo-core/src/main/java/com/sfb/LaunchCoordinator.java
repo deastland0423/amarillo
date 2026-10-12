@@ -398,6 +398,70 @@ class LaunchCoordinator {
     }
 
     /**
+     * P2.713, the whole rule, in one place: what a ballistic attack on a GROUND BASE must
+     * satisfy, whatever weapon is making it.
+     * <p>
+     * "Seeking weapons can be fired at a ground base using ballistic targeting (F4.0), but only
+     * from a range of 4 hexes or less. Weapons fired in this manner cannot be distracted by ECM
+     * or WW. Weapons fired ballistically at ground targets do explode on impact. Weapons cannot
+     * be fired for ballistic bombardment under passive fire control (D19.0) as target tracking
+     * is inadequate."
+     * <p>
+     * Two of those four sentences are enforced elsewhere, where they belong: the ECM and weasel
+     * immunity at the moment of impact in {@code SeekerMover.queueSeekerImpact}, and the
+     * explosion itself in {@code noteBallisticProgress}. The two that gate the LAUNCH are here.
+     * <p>
+     * The passive-fire-control clause is the interesting one, because it runs the opposite way
+     * to ordinary ballistic targeting. D19.224 lets a ship on passive fire control fire
+     * ballistically at a hex all day; P2.713 says it may not do so at a ground target, "as
+     * target tracking is inadequate". So a ballistic bombardment is the one ballistic shot that
+     * NEEDS active fire control.
+     *
+     * @return a refusal, or null if the attack may proceed
+     */
+    private ActionResult groundAttackRefusal(Unit launcher, Unit base) {
+        if (base == null)
+            return ActionResult.fail("No ground base named");
+        if (base.getLocation() == null)
+            return ActionResult.fail(base.getName() + " is not on the map");
+        if (!(base instanceof Ship) || ((Ship) base).getPlanetFace() == null)
+            return ActionResult.fail(base.getName() + " is not a ground base — ballistic"
+                    + " bombardment is for targets on a planet (P2.713)");
+        if (launcher.getLocation() == null)
+            return ActionResult.fail(launcher.getName() + " is not on the map");
+        int range = MapUtils.getRange(launcher.getLocation(), base.getLocation());
+        if (range > 4)
+            return ActionResult.fail("Ballistic bombardment of a ground base is only possible"
+                    + " from 4 hexes or less — " + base.getName() + " is " + range
+                    + " hexes away (P2.713)");
+        if (launcher instanceof Ship && !((Ship) launcher).isActiveFireControl())
+            return ActionResult.fail("Ballistic bombardment cannot be fired under passive fire"
+                    + " control — target tracking is inadequate (P2.713)");
+        return null;
+    }
+
+    /**
+     * Launch a drone at a GROUND BASE, ballistically (P2.713).
+     * <p>
+     * The same flight as any other ballistic drone; the difference is at both ends. At launch
+     * it must satisfy {@link #groundAttackRefusal}; on arrival it explodes, where an ordinary
+     * ballistic weapon would evade the hex and fly on (F4.21 vs P2.713).
+     */
+    public ActionResult launchDroneGroundAttack(Ship launcher, Unit base, DroneRack rack,
+            Drone drone, int facing) {
+        ActionResult block = groundAttackRefusal(launcher, base);
+        if (block != null)
+            return block;
+        return launchDroneBallistic(launcher, base.getLocation(), base, rack, drone, facing);
+    }
+
+    /** Ground attack with whatever is at the front of the rack. */
+    public ActionResult launchDroneGroundAttack(Ship launcher, Unit base, DroneRack rack) {
+        return launchDroneGroundAttack(launcher, base, rack,
+                rack.isEmpty() ? null : rack.getAmmo().get(0), 0);
+    }
+
+    /**
      * Launch a drone on a BALLISTIC course (F4.0): aimed at a hex, not at a unit.
      * <p>
      * A separate door from {@link #launchDrone}, because what it must satisfy is genuinely
@@ -421,6 +485,11 @@ class LaunchCoordinator {
      */
     public ActionResult launchDroneBallistic(Ship launcher, Location hex, DroneRack rack,
             Drone drone, int facing) {
+        return launchDroneBallistic(launcher, hex, null, rack, drone, facing);
+    }
+
+    private ActionResult launchDroneBallistic(Ship launcher, Location hex, Unit groundTarget,
+            DroneRack rack, Drone drone, int facing) {
         ActionResult emBlock = emLaunchBlock(launcher, "a drone");
         if (emBlock != null)
             return emBlock;
@@ -452,7 +521,8 @@ class LaunchCoordinator {
         if (launcher.hasActiveWildWeasel())
             voidWildWeasel(launcher);
 
-        return placeLaunchedDrone(launcher, null, new BallisticCourse(hex), rack, drone, facing);
+        return placeLaunchedDrone(launcher, null, new BallisticCourse(hex, groundTarget),
+                rack, drone, facing);
     }
 
     /** Ballistic launch of whatever is at the front of the rack. */

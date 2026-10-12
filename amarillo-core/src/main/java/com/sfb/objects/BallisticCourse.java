@@ -26,6 +26,19 @@ public class BallisticCourse {
     private boolean evading;
 
     /**
+     * The ground base this weapon is aimed at, or null for an ordinary ballistic course.
+     * <p>
+     * P2.713 is the exception to F4.21's "will normally never explode": "weapons fired
+     * ballistically at ground targets DO explode on impact." So the hex is not the end of the
+     * journey — it is where the warhead goes off.
+     * <p>
+     * It is a reference to the BASE and not merely its hex, because a hex is not enough to say
+     * which base is meant. A radius-zero planet holds all six faces' bases in its own hex, and
+     * nothing about the position distinguishes them: see {@code Ship.planetFace}.
+     */
+    private final Unit groundTarget;
+
+    /**
      * The adjacent hexes entered without ever entering the target hex. A SET, not a count:
      * F4.11 says "a third hex adjacent to the target hex", and a weapon that passes through
      * the same adjacent hex three times (which a tractor under F4.5 can arrange) has not
@@ -34,9 +47,28 @@ public class BallisticCourse {
     private final Set<Location> adjacentEntered = new HashSet<>();
 
     public BallisticCourse(Location targetHex) {
+        this(targetHex, null);
+    }
+
+    /**
+     * A course aimed at a ground base (P2.713), which explodes against it on arrival rather
+     * than evading the hex.
+     */
+    public BallisticCourse(Location targetHex, Unit groundTarget) {
         if (targetHex == null)
             throw new IllegalArgumentException("A ballistic course needs a target hex (F4.11)");
         this.targetHex = targetHex;
+        this.groundTarget = groundTarget;
+    }
+
+    /** The ground base this weapon will detonate against (P2.713), or null. */
+    public Unit getGroundTarget() {
+        return groundTarget;
+    }
+
+    /** P2.713: this course ends in an explosion rather than an evasion. */
+    public boolean isGroundAttack() {
+        return groundTarget != null;
     }
 
     public Location getTargetHex() {

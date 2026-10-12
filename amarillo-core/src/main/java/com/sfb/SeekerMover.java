@@ -123,7 +123,10 @@ class SeekerMover {
                     }
                 }
 
-                noteBallisticProgress(drone, drone, droneLabel(drone), log);
+                if (noteBallisticProgress(drone, drone, droneLabel(drone), log)) {
+                    expired.add(drone);
+                    continue;
+                }
 
                 drone.setEndurance(drone.getEndurance() - 1);
 
@@ -266,7 +269,10 @@ class SeekerMover {
                         continue;
                     }
                 }
-                noteBallisticProgress(ss, ss, "Suicide shuttle", log);
+                if (noteBallisticProgress(ss, ss, "Suicide shuttle", log)) {
+                    expired.add(ss);
+                    continue;
+                }
                 // A ballistic shuttle has no target unit, so it passes through this
                 // untouched — which IS the rule: it "will normally never explode" (F4.21).
                 if (target != null && target.getLocation() != null
@@ -322,7 +328,10 @@ class SeekerMover {
                     }
                 }
 
-                noteBallisticProgress(torp, torp, "Plasma-" + torp.getPlasmaType(), log);
+                if (noteBallisticProgress(torp, torp, "Plasma-" + torp.getPlasmaType(), log)) {
+                    expired.add(seeker);
+                    continue;
+                }
 
                 if (torp.getCurrentStrength() <= 0) {
                     log.add("  Plasma-" + torp.getPlasmaType() + " targeting "
@@ -448,7 +457,7 @@ class SeekerMover {
                 ? ((Ship) seeker.getController()).getLocation()
                 : unit.getLocation();
         int terrainEcm = game.terrainEcmAlongLine(guideLoc, target.getLocation());
-        int ecmShift = computeSeekerEcmShift(seeker, target, terrainEcm);
+        int ecmShift = impactEcmShift(seeker, target, terrainEcm);
         // FD2.54: the target matters for a dogfight drone — two points on a ship rather than its
         // full eight, because the warhead is sized for a fighter engine and not a ship's shields.
         // Asking impact() without the target gave a type-VI four times its due against every ship
@@ -550,7 +559,11 @@ class SeekerMover {
             return;
         int bearing = MapUtils.getGeometricBearing(unit.getLocation(), destination);
         int idealFacing = bearing != 0 ? snapToCardinal(bearing) : unit.getFacing();
-        unit.setFacing(chooseSeekerFacing(unit, idealFacing));
+        // P2.713: a bombardment is allowed into the one planet hex it is aimed at.
+        Location planetHexAllowed = seeker.isBallistic()
+                && seeker.getBallisticCourse().isGroundAttack()
+                        ? seeker.getBallisticCourse().getTargetHex() : null;
+        unit.setFacing(chooseSeekerFacing(unit, idealFacing, planetHexAllowed));
     }
 
     /**
@@ -558,17 +571,36 @@ class SeekerMover {
      * whether the pursuit is over. Called after every successful move, and a no-op for a
      * weapon pursuing a unit.
      */
-    private void noteBallisticProgress(Seeker seeker, Unit unit, String label, List<String> log) {
+    private boolean noteBallisticProgress(Seeker seeker, Unit unit, String label, List<String> log) {
         if (!seeker.isBallistic() || unit.getLocation() == null)
-            return;
+            return false;
         BallisticCourse course = seeker.getBallisticCourse();
         if (!course.noteHexEntered(unit.getLocation()))
-            return;
+            return false;
         boolean arrived = unit.getLocation().equals(course.getTargetHex());
+
+        // P2.713, the exception to F4.21: a weapon fired ballistically at a GROUND target does
+        // explode on impact. Only on actually reaching the hex — a weapon that gave up after
+        // three adjacent hexes (F4.11) never got there and evades like any other.
+        if (arrived && course.isGroundAttack()) {
+            Unit base = course.getGroundTarget();
+            if (base instanceof Ship && unit.getLocation().equals(base.getLocation())) {
+                queueSeekerImpact(seeker, (Ship) base,
+                        label + " impacted " + base.getName() + " (P2.713)", log);
+                return true;
+            }
+            // The base is gone, or no longer where it was. Nothing to explode against, so the
+            // weapon carries on under F4.21 like any other ballistic shot.
+            log.add("  " + label + " reached " + course.getTargetHex()
+                    + " but its ground target is no longer there — now evading (F4.11)");
+            return false;
+        }
+
         log.add("  " + label + (arrived
                 ? " reached " + course.getTargetHex() + " — now evading (F4.11)"
                 : " could not reach " + course.getTargetHex()
                         + " after three adjacent hexes — now evading (F4.11)"));
+        return false;
     }
 
     /** What a seeker is aimed at, for the log: a unit's name, or a bare hex under F4.0. */
@@ -594,6 +626,17 @@ class SeekerMover {
      * staying as close as possible to the ideal bearing toward the target.
      */
     private int chooseSeekerFacing(Unit seeker, int idealFacing) {
+        return chooseSeekerFacing(seeker, idealFacing, null);
+    }
+
+    /**
+     * @param planetHexAllowed one planet hex this seeker may fly into after all — the hex of a
+     *        ground base it is bombarding under P2.713. Seekers otherwise steer around planets,
+     *        which is right for every seeker but this one: a ballistic bombardment has to reach
+     *        the surface, and the avoidance silently turned it into a weapon that circled the
+     *        planet until its endurance ran out.
+     */
+    private int chooseSeekerFacing(Unit seeker, int idealFacing, Location planetHexAllowed) {
         int[] cardinals = com.sfb.utilities.MapUtils.FACINGS;
         int idealIdx = 0;
         for (int i = 0; i < cardinals.length; i++) {
@@ -609,7 +652,8 @@ class SeekerMover {
                 int altIdx = ((idealIdx + sign * offset) % 6 + 6) % 6;
                 Location nextHex = MapUtils.getAdjacentHex(seeker.getLocation(),
                         MapUtils.getTrueBearing(1, cardinals[altIdx]), game.getMapCols(), game.getMapRows());
-                if (nextHex != null && !game.isPlanetHex(nextHex))
+                if (nextHex != null
+                        && (!game.isPlanetHex(nextHex) || nextHex.equals(planetHexAllowed)))
                     return cardinals[altIdx];
             }
         }
@@ -637,6 +681,25 @@ class SeekerMover {
      */
     static int computeSeekerEcmShift(Seeker seeker, Unit target) {
         return computeSeekerEcmShift(seeker, target, 0);
+    }
+
+    /**
+     * The ECM shift that actually applies when a seeker arrives, which is not always the one
+     * {@link #computeSeekerEcmShift} works out.
+     * <p>
+     * P2.713: a weapon fired ballistically at a GROUND TARGET "cannot be distracted by ECM or
+     * WW". That immunity is the whole bargain of the four-hex approach — the base's own ECM,
+     * the ground clutter it sits in and any weasel it puts up under P2.732 all stop mattering.
+     * <p>
+     * It has a name of its own so it can be tested for what it is. Inlined in the impact path
+     * it looked tested and was not: an integration test that forced six points of ECM onto the
+     * base proved nothing, because the allocation did not survive to the impulse of impact and
+     * the shift was zero either way.
+     */
+    static int impactEcmShift(Seeker seeker, Unit target, int terrainEcm) {
+        if (seeker.isBallistic() && seeker.getBallisticCourse().isGroundAttack())
+            return 0;
+        return computeSeekerEcmShift(seeker, target, terrainEcm);
     }
 
     /** As above, plus P3.33 terrain ECM along the guidance line (0 = none). */
