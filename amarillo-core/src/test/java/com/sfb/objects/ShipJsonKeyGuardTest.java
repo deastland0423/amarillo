@@ -71,16 +71,16 @@ public class ShipJsonKeyGuardTest {
                 + "'auxiliary.slow' until 2026-10-12, a second name for the same unbuilt rule "
                 + "that made the gap look like a distinction between hull sizes.");
         PARKED.put("auxiliary.mineRacks",
-                "Romulan, 1 file, the large Q-ship. Two mine racks on its SSD (M8.0). Mines "
-                + "themselves ARE built — Game.dropMine and MineResolver — but a ship carries no "
-                + "rack inventory: dropMine takes a type and nothing counts what is left, so the "
-                + "number here is the sheet's and not a limit. Each rack box holds ONE LARGE "
-                + "mine or TWO SMALL ones (the sheet: 'racks are shown for large mines; for "
-                + "small mines write an S on each side of the dividing bar'), so two racks "
-                + "is two-to-four mines and the field as written cannot say which. Note NSM "
-                + "is a different thing and IS built: auxiliary.nuclearSpaceMines, which the "
-                + "small Q-ship uses. Recorded rather than dropped because losing it means "
-                + "re-reading the SSD when racks are built.");
+                "Romulan, 1 file, the large Q-ship. Mine racks (M9.11), and the count is racks "
+                + "and not mines: each rack box holds FOUR large mines, and two small mines may "
+                + "be substituted for one large, so two racks is 8 NSMs or up to 16 T-bombs. "
+                + "There are NO reloads (M9.12) and the mines in them do not come with the free "
+                + "dummies a T-bomb gets (M3.224). Unbuilt: dropMine knows TBOMB, DUMMY_TBOMB "
+                + "and NSM and no ship holds a rack inventory. Note NSM itself IS built, as "
+                + "auxiliary.nuclearSpaceMines, which the small Q-ship uses — so the pair of "
+                + "Romulan Q-ships sits either side of the gap. When racks are built they also "
+                + "take damage: M9.13 puts cargo hits on them when no other cargo remains and "
+                + "shuttle hits on them or shuttle boxes, per Annex #7E.");
         PARKED.put("hullBoxes.repair",
                 "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
                 + "notion of them — Ship.repairShield spends energy against the DamCon rating "

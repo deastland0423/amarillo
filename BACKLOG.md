@@ -35,6 +35,25 @@ groundwork already in place.
   F4.0 and somebody looking for it will come here first. Still open: the SCATTER-PACK has no
   ballistic door (it needs F4.41/F4.42/F4.43, which is a feature in its own right — see the
   scatter-pack section), F4.3 wild boars, F4.5 tractors, and firing at a bare hex has no UI.
+- **Mine racks (M9.0) — rules READ 2026-10-12, unbuilt.** The Romulan large Q-ship is the first
+  hull in the data to carry them, and `auxiliary.mineRacks` is parked rather than read.
+
+  **M9.11:** minesweepers and minelayers carry mine storage boxes. "Each such box holds FOUR large
+  mines. Two small mines can be substituted for one large one." So a rack is 4 NSMs or up to 8
+  T-bombs — the owner's analogy is a type-G drone rack holding type-I against type-VI drones, and
+  `DroneRack` already models capacity that varies by what is loaded, so it is the pattern to copy
+  rather than a new idea. **M9.12: there are NO reloads for mine racks**, and the mines in them do
+  not come with the free dummies a T-bomb gets (M3.224).
+
+  **M9.13 makes them a damage location**, which is the part that reaches beyond minelaying: cargo
+  hits MAY be scored on mine rack boxes and MUST be when no other cargo boxes remain, and shuttle
+  hits must be scored on shuttle or mine rack boxes where either exists (Annex #7E). Mines on a
+  destroyed rack are destroyed and do NOT detonate. **M9.14:** a non-minelaying ship cannot carry
+  mines at all except under M3.1 or M2.7.
+
+  What exists today: `Game.dropMine` takes "TBOMB", "DUMMY_TBOMB" or "NSM", `MineResolver` runs
+  arming and detonation, and `auxiliary.nuclearSpaceMines` gives a ship its NSMs. What is missing
+  is the RACK as an inventory and as a hit location.
 - **R1.7 acceleration limit on freighters and Q-ships — DEAD DATA, not implemented.** Every
   freighter and Q-ship sheet carries the same line: "this ship can accelerate by no more than 5
   movement points or double the current speed. It can disengage by acceleration." Eleven ship files
