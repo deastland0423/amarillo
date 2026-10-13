@@ -506,6 +506,40 @@ public class GameSession {
         return null;
     }
 
+    /**
+     * Ships the SCENARIO puts in place itself, which no player deploys.
+     * <p>
+     * A ground base names a planet and a face (R1.14) and is sited by {@code setupFromScenario}
+     * once the terrain is down. It must be kept out of deployment entirely: it has no startHex,
+     * so auto-arrange scattered the Nivram batteries across the map, and its real hex is the
+     * PLANET'S, which {@code Deployment.check} refuses as no-entry (P2.224). Between the two there
+     * was no legal placement, so deployment could never be completed and the game could not start.
+     * <p>
+     * They are still OWNED by their side — the player commands them in play — which is why this is
+     * a separate question from {@code getAssignedShipsFor}.
+     */
+    public java.util.Set<String> scenarioSitedShips() {
+        java.util.Set<String> sited = new java.util.HashSet<>();
+        if (loadedSpec == null || loadedSpec.sides == null)
+            return sited;
+        for (com.sfb.scenario.ScenarioSpec.SideSpec side : loadedSpec.sides) {
+            if (side.ships == null)
+                continue;
+            for (com.sfb.scenario.ScenarioSpec.ShipSetup ship : side.ships)
+                if (ship.planet != null && !ship.planet.isBlank() && ship.shipName != null)
+                    sited.add(ship.shipName);
+        }
+        return sited;
+    }
+
+    /** This player's ships that actually need placing: theirs, less the ones the scenario sites. */
+    public List<String> deployableShipsFor(String token) {
+        java.util.Set<String> sited = scenarioSitedShips();
+        return getAssignedShipsFor(token).stream()
+                .filter(name -> !sited.contains(name))
+                .toList();
+    }
+
     /** The ground this player may set up on, or null if they have no ships yet. */
     public com.sfb.scenario.MapRegion deploymentZoneFor(String token) {
         com.sfb.scenario.ScenarioSpec.SideSpec side = sideFor(token);
@@ -529,8 +563,15 @@ public class GameSession {
      */
     public List<String> submitDeployment(String token,
                                          List<com.sfb.scenario.Deployment.Placement> placements) {
-        List<String> mine = getAssignedShipsFor(token);
+        List<String> mine = deployableShipsFor(token);
+        java.util.Set<String> sited = scenarioSitedShips();
         List<String> problems = new java.util.ArrayList<>();
+
+        // A client holding a stale list may still send a ground base. Drop it rather than refuse
+        // the whole setup: the scenario decides where it stands and the player never could.
+        placements = placements.stream()
+                .filter(p -> !sited.contains(p.shipName()))
+                .toList();
 
         for (com.sfb.scenario.Deployment.Placement p : placements)
             if (!mine.contains(p.shipName()))
@@ -564,7 +605,7 @@ public class GameSession {
     public List<String> autoArrange(String token) {
         List<com.sfb.scenario.Deployment.Placement> placements =
                 com.sfb.scenario.Deployment.autoArrange(
-                        getAssignedShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
+                        deployableShipsFor(token), deploymentZoneFor(token), noEntryHexes(),
                         loadedSpec != null ? loadedSpec.mapCols : 42,
                         loadedSpec != null ? loadedSpec.mapRows : 32);
         return submitDeployment(token, placements);
@@ -572,7 +613,7 @@ public class GameSession {
 
     /** True once every one of this player's ships is somewhere legal. */
     public boolean isDeploymentComplete(String token) {
-        List<String> mine = getAssignedShipsFor(token);
+        List<String> mine = deployableShipsFor(token);
         if (mine.isEmpty())
             return true;   // nothing to place
         return com.sfb.scenario.Deployment.isComplete(

@@ -602,7 +602,9 @@ public class GameController {
 
             Map<String, Object> body = new java.util.LinkedHashMap<>();
             body.put("required", session.isDeploymentRequired());
-            body.put("ships", session.getAssignedShipsFor(token));
+            // Only the ships the player must place: a ground base is sited by the scenario
+            // (R1.14) and listing it here is what put the Nivram batteries on the map by hand.
+            body.put("ships", session.deployableShipsFor(token));
             body.put("zone", zone == null ? null
                     : LobbyStateDto.ZoneDto.of(zone, cols, rows));
             body.put("noEntry", session.noEntryHexes());
