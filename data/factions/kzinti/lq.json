@@ -1,0 +1,81 @@
+{
+  "faction": "Kzinti",
+  "type": "L-Q",
+  "typeName": "Large Q-Ship",
+  "line": "F-L",
+  "name": "Velvet Claw",
+  "serviceYear": 164,
+  "bpv": 62,
+  "turnMode": "D",
+  "sizeClass": 4,
+  "moveCost": 0.5,
+  "breakdown": 2,
+  "bonusHets": 0,
+  "carrierClass": "CASUAL",
+  "commandRating": 3,
+  "shields": [20, 20, 20, 20, 20, 20],
+  "hullBoxes": {
+    "chull": 6,
+    "cargo": 20,
+    "armor": 7
+  },
+  "power": {
+    "leftWarp": 4,
+    "rightWarp": 4,
+    "impulse": 2,
+    "apr": 10,
+    "battery": 3
+  },
+  "control": {
+    "bridge": 1,
+    "auxCon": 1,
+    "emergency": 1,
+    "controlMod": 1
+  },
+  "tables": {
+    "damageControl": [4, 2, 2, 0],
+    "sensor": [6, 6, 3, 0],
+    "scanner": [0, 0, 2, 9],
+    "excess": 4
+  },
+  "auxiliary": {
+    "transporters": 3,
+    "tractors": 3,
+    "probes": 0,
+    "slow": true
+  },
+  "shuttleBays": [
+    { "shuttles": ["admin"], "fighters": { "line": "kzinti-attack", "superiority": 2 } },
+    { "shuttles": ["admin"], "fighters": { "line": "kzinti-attack", "superiority": 2 } }
+  ],
+  "crewData": {
+    "totalCrew": 12,
+    "boardingParties": 12,
+    "deckCrews": 4,
+    "minCrew": 3
+  },
+  "weapons": [
+    { "type": "Phaser3", "designator": "1", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "4", "arcs": ["FULL"] },
+    { "type": "Phaser3", "designator": "5", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 1", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"] },
+    { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
+  ],
+  "refits": [
+    {
+      "code": "75",
+      "name": "Y175 refit",
+      "label": "Y175 Refit",
+      "year": 175,
+      "bpv": 4,
+      "_note": "R1.7 on the SSD: type-A racks (one reload) until Y175, converted to type-C (two reloads); the ADDs carried 6 rounds before the same refit.",
+      "replaceWeapons": [
+        { "from": "DroneRack", "set": { "rackType": "TYPE_C" } },
+        { "from": "ADD", "set": { "addType": "ADD_12" } }
+      ]
+    }
+  ]
+}
