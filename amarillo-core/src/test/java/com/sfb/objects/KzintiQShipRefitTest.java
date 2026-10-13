@@ -108,4 +108,37 @@ public class KzintiQShipRefitTest {
     public void thereIsNoRefitCodeForThis() {
         assertNull("this is a year upgrade, not a selectable refit", spec().refits);
     }
+
+    // ---------------------------------------------------------------- the small Q-ship
+
+    private static Ship smallQshipAt(int year) {
+        ShipSpec s = ShipLibrary.get("Kzinti", "S-Q");
+        assertNotNull("the library should hold the Kzinti small Q-ship", s);
+        Ship ship = ShipLibrary.createShip(s);
+        ScenarioLoader.outfitForYear(ship, "Kzinti", year, s);
+        return ship;
+    }
+
+    /** Same history, same mechanism, a smaller bill: the S-Q sheet prices it at +2. */
+    @Test
+    public void theSmallQShipUpgradesItsRacksToo() {
+        Ship early = smallQshipAt(170);
+        assertEquals(DroneRack.DroneRackType.TYPE_A, rack(early, "Rack 1").getRackType());
+        assertEquals(DroneRack.DroneRackType.TYPE_A, rack(early, "Rack 2").getRackType());
+
+        Ship late = smallQshipAt(175);
+        assertEquals(DroneRack.DroneRackType.TYPE_C, rack(late, "Rack 1").getRackType());
+        assertEquals(DroneRack.DroneRackType.TYPE_C, rack(late, "Rack 2").getRackType());
+        assertEquals(early.getBattlePointValue() + 2, late.getBattlePointValue());
+    }
+
+    /**
+     * The S-Q carries no ADD at all, where the L-Q carries one. Worth pinning because the two
+     * sheets are otherwise so alike that the smaller one is easy to fill in from the larger.
+     */
+    @Test
+    public void theSmallQShipHasNoAdd() {
+        for (Weapon w : smallQshipAt(175).getWeapons().fetchAllWeapons())
+            assertFalse("the S-Q sheet has no ADD and no anti-drone table", w instanceof ADD);
+    }
 }
