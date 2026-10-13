@@ -47,7 +47,7 @@
     "transporters": 3,
     "tractors": 3,
     "probes": 0,
-    "slow": true
+    "maxAccel": 5
   },
 
   "shuttleBays": [

@@ -61,10 +61,15 @@ public class ShipJsonKeyGuardTest {
                 "Tholian, 8 files. Web generators — the Sequence of Play cites web "
                 + "deceleration at (G10.59), so the system is G10 and wholly unbuilt.");
         PARKED.put("auxiliary.maxAccel",
-                "4 files, Q-ships and a freighter. A cap on acceleration these hulls cannot "
-                + "exceed. Our movement applies no such cap.");
-        PARKED.put("auxiliary.slow",
-                "2 files, the large Q-ships. Companion to maxAccel; unbuilt.");
+                "11 files, every Q-ship and both neutral freighters. R1.7, stated identically on "
+                + "all of their sheets: 'this ship can accelerate by no more than 5 movement "
+                + "points or double the current speed. It can disengage by acceleration.' Our "
+                + "movement applies no such cap, so a freighter goes from zero to flank in one "
+                + "allocation. Note the KEY carries only one bound of the rule — the doubling "
+                + "and the disengage clause have nowhere to live — so whatever builds this will "
+                + "want to read R1.7 rather than the number. The large Q-ships said "
+                + "'auxiliary.slow' until 2026-10-12, a second name for the same unbuilt rule "
+                + "that made the gap look like a distinction between hull sizes.");
         PARKED.put("hullBoxes.repair",
                 "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
                 + "notion of them — Ship.repairShield spends energy against the DamCon rating "

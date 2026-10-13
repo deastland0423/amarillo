@@ -35,6 +35,19 @@ groundwork already in place.
   F4.0 and somebody looking for it will come here first. Still open: the SCATTER-PACK has no
   ballistic door (it needs F4.41/F4.42/F4.43, which is a feature in its own right — see the
   scatter-pack section), F4.3 wild boars, F4.5 tractors, and firing at a bare hex has no UI.
+- **R1.7 acceleration limit on freighters and Q-ships — DEAD DATA, not implemented.** Every
+  freighter and Q-ship sheet carries the same line: "this ship can accelerate by no more than 5
+  movement points or double the current speed. It can disengage by acceleration." Eleven ship files
+  declare `auxiliary.maxAccel: 5` and **nothing reads it** — `ShipSpec` does not even declare the
+  field, so Jackson drops it at parse time. A freighter can presently go from zero to flank in one
+  energy allocation.
+
+  Already tracked in code: `ShipJsonKeyGuardTest`'s PARKED list names it, which is what keeps
+  the gap visible rather than silent. Spelling unified 2026-10-12 (owner: "maxAccel: 5 is cleaner"): the four large Q-ships said
+  `slow: true` instead, which was a second name for the same unimplemented rule and made the gap
+  look like a distinction. Note the field name still only carries ONE bound of the rule — the
+  doubling clause and the disengage-by-acceleration clause are not expressible in it, so whatever
+  implements this will probably want to read the rule rather than the number.
 - **EM C10.514** — a ship using erratic maneuvers may not lay or sweep a mine. `Game.placeTBomb`
   and `Game.dropMine` both exist, so this is a guard rather than new machinery. (C10.512, cannot
   guide seekers, is real work by comparison.)
