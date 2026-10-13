@@ -45,6 +45,20 @@ groundwork already in place.
   rather than a new idea. **M9.12: there are NO reloads for mine racks**, and the mines in them do
   not come with the free dummies a T-bomb gets (M3.224).
 
+  **M2.76 is the per-ship rule, and it reaches the COI system.** "The Romulan large Q-ship carries
+  two mine racks, each of which holds four NSMs. The mines on the Romulan large Q-ship are not
+  included in its BPV, but can be purchased in excess of the Commander's Options (S3.2)." So the
+  hull is 8 NSMs of capacity starting EMPTY, its BPV 80 is correct without them, and when mines
+  become purchasable they must be bought OUTSIDE the Commander's Options budget rather than against
+  it.
+
+  **And there is already a pattern that does the opposite**, which is what makes this worth writing
+  down. `CoiLoadout.extraTBombs` buys transporter bombs at `COST_TBOMB = 4.0` each and sums them
+  into the COI cost like every other option — correctly, for T-bombs. Rack mines are a different
+  purchase under a different rule (owner, 2026-10-12: "I know you can buy T-Bombs in the COI, but
+  that's different than buying mines for the mine rack"), so copying `extraTBombs` for them would
+  silently charge against a budget M2.76 says they sit outside.
+
   **M9.13 makes them a damage location**, which is the part that reaches beyond minelaying: cargo
   hits MAY be scored on mine rack boxes and MUST be when no other cargo boxes remain, and shuttle
   hits must be scored on shuttle or mine rack boxes where either exists (Annex #7E). Mines on a
