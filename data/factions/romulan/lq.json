@@ -12,7 +12,7 @@
   "breakdown": 2,
   "bonusHets": 0,
   "commandRating": 3,
-  "_note": "No cloakCost, deliberately: the SSD says in its data table DOES NOT HAVE CLOAK. It is a disguised freighter, and a cloak would give the disguise away.",
+  "_note": "Two deliberate things that look like mistakes. No cloakCost: the SSD data table says DOES NOT HAVE CLOAK, and a cloak would give the disguise away. And both plasma-F launchers bear ASTERN (RA), which is the whole design of the ship — it looks like a freighter, so when a raider begins its attack run the Q-ship turns and runs like any other freighter, and the attacker closes into the one arc that can hurt it. Do not \"fix\" either.",
   "shields": [20, 20, 20, 20, 20, 20],
   "hullBoxes": {
     "chull": 6,

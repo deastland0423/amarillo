@@ -1,0 +1,60 @@
+{
+  "faction": "Romulan",
+  "type": "S-Q",
+  "typeName": "Small Q-Ship",
+  "line": "F-S",
+  "name": "Patient Snare",
+  "serviceYear": 161,
+  "bpv": 40,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 2,
+  "bonusHets": 0,
+  "commandRating": 3,
+  "_note": "No cloakCost, deliberately: the SSD data table says DOES NOT HAVE CLOAK. And the plasma-G bears ASTERN (RA), which is the design of the ship, not an error — it looks like a freighter, so a raider beginning its attack run sees it turn and run, and closes into the one arc that can hurt it.",
+  "shields": [10, 10, 10, 10, 10, 10],
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 10,
+    "armor": 3
+  },
+  "power": {
+    "leftWarp": 2,
+    "rightWarp": 2,
+    "impulse": 1,
+    "apr": 4,
+    "battery": 3
+  },
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+  "tables": {
+    "damageControl": [4, 2, 0],
+    "sensor": [6, 4, 0],
+    "scanner": [0, 0, 9],
+    "excess": 2
+  },
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "probes": 0,
+    "maxAccel": 5,
+    "nuclearSpaceMines": 1
+  },
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 4,
+    "minCrew": 2
+  },
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FULL"] },
+    { "type": "PlasmaLauncher", "designator": "A", "plasmaType": "G", "arcs": ["RA"] }
+  ]
+}

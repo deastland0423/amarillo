@@ -74,8 +74,13 @@ public class ShipJsonKeyGuardTest {
                 "Romulan, 1 file, the large Q-ship. Two mine racks on its SSD (M8.0). Mines "
                 + "themselves ARE built — Game.dropMine and MineResolver — but a ship carries no "
                 + "rack inventory: dropMine takes a type and nothing counts what is left, so the "
-                + "number here is the sheet's and not a limit. Recorded rather than dropped "
-                + "because losing it means re-reading the SSD when racks are built.");
+                + "number here is the sheet's and not a limit. Each rack box holds ONE LARGE "
+                + "mine or TWO SMALL ones (the sheet: 'racks are shown for large mines; for "
+                + "small mines write an S on each side of the dividing bar'), so two racks "
+                + "is two-to-four mines and the field as written cannot say which. Note NSM "
+                + "is a different thing and IS built: auxiliary.nuclearSpaceMines, which the "
+                + "small Q-ship uses. Recorded rather than dropped because losing it means "
+                + "re-reading the SSD when racks are built.");
         PARKED.put("hullBoxes.repair",
                 "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
                 + "notion of them — Ship.repairShield spends energy against the DamCon rating "
