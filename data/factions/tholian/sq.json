@@ -1,0 +1,62 @@
+{
+  "faction": "Tholian",
+  "type": "S-Q",
+  "typeName": "Small Q-Ship",
+  "line": "F-S",
+  "name": "Quiet Filament",
+  "serviceYear": 150,
+  "bpv": 41,
+  "turnMode": "C",
+  "sizeClass": 4,
+  "moveCost": 0.3333333,
+  "breakdown": 2,
+  "bonusHets": 0,
+  "commandRating": 3,
+  "_note": "One web generator on a converted freighter (E13.0) — the Tholian Q-ship trick in miniature. The SSD adds that the web generator is destroyed on FLAG hits, and that the Y183 snare refit (+3) lets it operate as a web snare (E13.3, Module C2, with E13.32 for the snare's firing arc); neither is modelled.",
+  "shields": [10, 10, 10, 10, 10, 10],
+  "hullBoxes": {
+    "chull": 4,
+    "cargo": 10,
+    "armor": 3
+  },
+  "power": {
+    "leftWarp": 2,
+    "rightWarp": 2,
+    "impulse": 1,
+    "apr": 4,
+    "battery": 3
+  },
+  "control": {
+    "bridge": 1,
+    "emergency": 1,
+    "controlMod": 1.0
+  },
+  "tables": {
+    "damageControl": [4, 2, 0],
+    "sensor": [6, 4, 0],
+    "scanner": [0, 0, 9],
+    "excess": 2
+  },
+  "auxiliary": {
+    "transporters": 2,
+    "tractors": 2,
+    "probes": 0,
+    "maxAccel": 5,
+    "web": 1
+  },
+  "shuttleBays": [
+    { "shuttles": ["admin"] },
+    { "shuttles": ["admin"] }
+  ],
+  "crewData": {
+    "totalCrew": 5,
+    "boardingParties": 4,
+    "minCrew": 2
+  },
+  "weapons": [
+    { "type": "Phaser1", "designator": "1", "arcs": ["FX"] },
+    { "type": "Phaser3", "designator": "2", "arcs": ["FULL"] },
+    { "type": "Phaser1", "designator": "3", "arcs": ["RA"] },
+    { "type": "Disruptor", "designator": "A", "range": 22, "arcs": ["FA"] }
+  ]
+}

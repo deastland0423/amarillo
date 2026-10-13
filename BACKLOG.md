@@ -176,10 +176,22 @@ least the right feature to defer.
 Also on that sheet, and still open: the SMALL GROUND BASE energy line — shields 1/2+1/2, life
 support 0, fire control 0.
 
-**Six Q-ships, ready to enter now (R1.7, pp27-32).** Kzinti large p27 and small p28, Romulan large
-p29 and small p30, Tholian large p31 and small p32. Nothing new is needed: Q-ships already exist as
-`L-Q` and `S-Q` for the Federation, Gorn and Klingons, so this is data entry against a working
-pattern. (Separately, the Hydrans have `S-Q` but no large Q-ship, which is not from this book.)
+**DONE 2026-10-12: all six Q-ships (R1.7, pp27-32)** — Kzinti, Romulan and Tholian, large and
+small. They really are one converted freighter twice over: every large hull is shields 20, chull 6,
+cargo 20, armour 7, warp 4+4, impulse 2, APR 10, battery 3, and every small one is shields 10,
+chull 4, cargo 10, armour 3, warp 2+2, impulse 1, APR 4, battery 3. Only the cargo differs.
+
+Three things the set turned up, all recorded where they belong: every Q-ship now breaks down on 2
+(three said 1), the acceleration limit is one dead key rather than two, and mine racks got their
+rules read (M9.0).
+
+**Still open and NOT modelled from these sheets:** the Romulan **sabot refit** (Y180, +2 large and
++1 small, speed-40 torpedoes under FP11.0 in Module R10 — a module we do not have); the Tholian
+**snare refit** (Y183, +6 large and +3 small, letting web generators operate as web snares under
+E13.3 in Module C2 — likewise); the note on both Tholian sheets that **web generators are destroyed
+on FLAG hits**; and the Romulan large Q-ship's **mine racks**, parked as `auxiliary.mineRacks`.
+
+(Separately, the Hydrans have `S-Q` but no large Q-ship, which is not from this book.)
 
 **The Romulan K9R, conjecturally (R4.40, p97).** We have `K9RB` and no `K9R`. The owner's ruling
 2026-10-12, which is the reason and should not be re-litigated: "the K9R was transferred to the
