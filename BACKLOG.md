@@ -125,13 +125,24 @@ Gorn 113-124, Tholian 125-138, Orion 139-144.
 ship by ship. What follows is what was actually checked against `data/factions/`, so treat the rest
 of the book as unsurveyed rather than as present.
 
-**The one ground base we skipped: the DRONE Planetary Defense System, printed p12.** The book
-carries nine PDS fits across pp9-16 and we entered nine, but they are not the same nine: ours are
-phaser-1 (GBD1 "Ground Battery"), phaser-2, phaser-4, disruptor, fusion, plasma-S, plasma-F, photon
-and hellbore, with no drone fit at all. Worth entering when ballistic targeting lands, because a
-drone PDS is the only ground base that fights back with SEEKERS — it is the natural test of P2.732's
-"a ground base can wild-weasel away ordinary seekers but not ballistic ones" from the defender's
-side, which every other fit leaves untested.
+**CORRECTION 2026-10-12: there is no missing drone ground base.** This entry previously claimed the
+book had a DRONE planetary defence fit we had skipped, and that our phaser-1 "Ground Battery" stood
+in its place. Reading the page settled it: printed p12 is titled "R1.14 & R1.15 DRONE PLANETARY
+DEFENSE SYSTEM" and carries TWO SSDs. The R1.14 half is `GBD1`, the ground-based phaser-1 — four
+phaser-3s and a phaser-1, BPV 8 — which is exactly the fit we already have. The contents line covers
+both halves, and reading it as one fit is what produced the phantom gap. **Our nine ground bases are
+the book's nine.**
+
+**What IS missing from that page is R1.15 DEFENSE SATELLITES** (`DEFSAT`, point value 20, size class
+7), which are a different thing entirely: five free-standing satellites in high and low orbit, each
+with a PH-2, a drone rack and a PH-3 and its own damage track — not a base on a planet face. Sheet
+notes: all weapons 360°, "drone racks cannot be reloaded during a scenario", and all drones are
+type-I at current speed with no special warheads. Used by the Federation, Klingons, WYNs and
+Kzintis. Satellites were already scoped as "last or never"; this does not change that, but it is at
+least the right feature to defer.
+
+Also on that sheet, and still open: the SMALL GROUND BASE energy line — shields 1/2+1/2, life
+support 0, fire control 0.
 
 **Six Q-ships, ready to enter now (R1.7, pp27-32).** Kzinti large p27 and small p28, Romulan large
 p29 and small p30, Tholian large p31 and small p32. Nothing new is needed: Q-ships already exist as
