@@ -2,23 +2,34 @@ package com.sfb.objects;
 
 import static org.junit.Assert.*;
 
-import java.util.List;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.sfb.scenario.ScenarioLoader;
+import com.sfb.weapons.ADD;
+import com.sfb.weapons.DroneRack;
+import com.sfb.weapons.Weapon;
+
 /**
- * The Kzinti large Q-ship's Y175 refit (R1.7).
+ * The Kzinti large Q-ship's Y175 upgrades (R1.7).
  *
- * <p>The SSD states it as a history rather than as an upgrade: "ship had type-A drone racks (one
+ * <p>The SSD states them as a history rather than as an option: "ship had type-A drone racks (one
  * reload) until the Y175 refit, which converted these to type-C drone racks (2 reloads)", and
- * "ADDs had 6 rounds before Y175 refit". So the HULL carries the pre-refit fit and the refit is
- * what a ship fielded from Y175 has.
+ * "ADDs had 6 rounds before Y175 refit". So the hull carries the pre-refit fit and anything
+ * fielded from Y175 has the upgrade — nobody chooses it.
  *
- * <p>Worth a test of its own because this is the first refit in the data that changes a weapon's
- * PROPERTIES rather than adding or replacing weapons — a rack stays a rack and an ADD stays an
- * ADD, and only what they hold changes. A refit that silently did nothing would leave a Y180
- * Q-ship fighting with one reload and six rounds, and nothing else would notice.
+ * <p>That is why this belongs in {@code y175Upgrades} and NOT in {@code refits}. The two are
+ * different mechanisms for different things: a {@code refits} entry is a named variant somebody
+ * selects by code, while {@code y175Upgrades} is applied automatically by
+ * {@code ScenarioLoader.applyYearUpgrades}, reached through {@link ScenarioLoader#outfitForYear}, to every ship in a scenario of Y175 or later. Writing
+ * this as a refit would have left a Y180 Q-ship with its type-A racks unless a player happened to
+ * ask for a refit code, and would have charged the +4 a second time on top of the automatic one.
+ *
+ * <p>The ADDs are deliberately NOT listed. ADD_6 to ADD_12 is universal at Y175, applied before
+ * any per-ship block, so naming them would restate the default rather than change it — and the
+ * comment in {@code applyYearUpgrades} records three hulls broken by exactly that confusion,
+ * including a Klingon G2 that "declared a refit COST and nothing else, so it paid for an upgrade
+ * it never received".
  */
 public class KzintiQShipRefitTest {
 
@@ -27,61 +38,74 @@ public class KzintiQShipRefitTest {
         ShipLibrary.loadAllSpecs("../data/factions");
     }
 
-    private ShipSpec qship() {
-        ShipSpec spec = ShipLibrary.get("Kzinti", "L-Q");
-        assertNotNull("the library should hold the Kzinti large Q-ship", spec);
-        return spec;
+    private static ShipSpec spec() {
+        ShipSpec s = ShipLibrary.get("Kzinti", "L-Q");
+        assertNotNull("the library should hold the Kzinti large Q-ship", s);
+        return s;
     }
 
-    private static String rackType(ShipSpec spec, String designator) {
-        return spec.weapons.stream()
-                .filter(w -> "DroneRack".equals(w.type) && designator.equals(w.designator))
-                .map(w -> String.valueOf(w.rackType))
-                .findFirst().orElseThrow(() -> new AssertionError("no rack " + designator));
+    private static Ship qshipAt(int year) {
+        ShipSpec s = spec();
+        Ship ship = ShipLibrary.createShip(s);
+        ScenarioLoader.outfitForYear(ship, "Kzinti", year, s);
+        return ship;
     }
 
-    private static String addType(ShipSpec spec) {
-        return spec.weapons.stream()
-                .filter(w -> "ADD".equals(w.type))
-                .map(w -> String.valueOf(w.addType))
-                .findFirst().orElseThrow(() -> new AssertionError("no ADD"));
+    private static DroneRack rack(Ship ship, String designator) {
+        for (Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof DroneRack r && designator.equals(w.getDesignator()))
+                return r;
+        throw new AssertionError("no rack " + designator);
+    }
+
+    private static ADD add(Ship ship) {
+        for (Weapon w : ship.getWeapons().fetchAllWeapons())
+            if (w instanceof ADD a)
+                return a;
+        throw new AssertionError("no ADD");
     }
 
     @Test
-    public void theHullCarriesThePreRefitFit() {
-        ShipSpec base = qship();
+    public void beforeY175ItFightsWithWhatItWasBuiltWith() {
+        Ship early = qshipAt(170);
 
-        assertEquals("TYPE_A", rackType(base, "Rack 1"));
-        assertEquals("TYPE_A", rackType(base, "Rack 2"));
-        assertEquals("ADD_6", addType(base));
+        assertEquals(DroneRack.DroneRackType.TYPE_A, rack(early, "Rack 1").getRackType());
+        assertEquals(DroneRack.DroneRackType.TYPE_A, rack(early, "Rack 2").getRackType());
+        assertEquals(ADD.AddType.ADD_6, add(early).getAddType());
     }
 
     @Test
-    public void theY175RefitConvertsBothRacksAndTheAdd() {
-        ShipSpec refitted = RefitResolver.apply(qship(), List.of("75"));
+    public void fromY175BothRacksAreTypeC() {
+        Ship late = qshipAt(175);
 
         assertEquals("both racks, not just the first (R1.7)",
-                "TYPE_C", rackType(refitted, "Rack 1"));
-        assertEquals("TYPE_C", rackType(refitted, "Rack 2"));
-        assertEquals("the ADD goes from six rounds to twelve",
-                "ADD_12", addType(refitted));
+                DroneRack.DroneRackType.TYPE_C, rack(late, "Rack 1").getRackType());
+        assertEquals(DroneRack.DroneRackType.TYPE_C, rack(late, "Rack 2").getRackType());
     }
 
-    /** The sheet prices it: "Y175 REFIT = +4". */
+    /** Universal at Y175, which is why the ship's own block leaves {@code adds} empty. */
     @Test
-    public void theRefitCostsFourPoints() {
-        ShipSpec base = qship();
-        ShipSpec refitted = RefitResolver.apply(base, List.of("75"));
+    public void theAddGainsItsRoundsWithoutBeingListed() {
+        assertTrue("the hull's block deliberately names no ADDs",
+                spec().y175Upgrades.adds.isEmpty());
 
-        assertEquals(base.bpv + 4, refitted.bpv);
+        assertEquals(ADD.AddType.ADD_12, add(qshipAt(175)).getAddType());
     }
 
-    /** It changes what the weapons hold, never how many of them there are. */
+    /** The sheet prices it: "Y175 REFIT = +4", and a refit's cost counts against both ratings. */
     @Test
-    public void theRefitAddsNoWeapons() {
-        ShipSpec base = qship();
-        ShipSpec refitted = RefitResolver.apply(base, List.of("75"));
+    public void theUpgradeCostsFourPoints() {
+        int asBuilt = qshipAt(170).getBattlePointValue();
 
-        assertEquals(base.weapons.size(), refitted.weapons.size());
+        assertEquals(asBuilt + 4, qshipAt(175).getBattlePointValue());
+    }
+
+    /**
+     * It changes what the weapons hold, never how many there are — and it is not a named variant,
+     * so the hull declares no refit codes at all.
+     */
+    @Test
+    public void thereIsNoRefitCodeForThis() {
+        assertNull("this is a year upgrade, not a selectable refit", spec().refits);
     }
 }

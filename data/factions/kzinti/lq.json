@@ -64,18 +64,13 @@
     { "type": "DroneRack", "designator": "Rack 2", "rackType": "TYPE_A", "arcs": ["FULL"] },
     { "type": "ADD", "designator": "ADD 1", "addType": "ADD_6" }
   ],
-  "refits": [
-    {
-      "code": "75",
-      "name": "Y175 refit",
-      "label": "Y175 Refit",
-      "year": 175,
-      "bpv": 4,
-      "_note": "R1.7 on the SSD: type-A racks (one reload) until Y175, converted to type-C (two reloads); the ADDs carried 6 rounds before the same refit.",
-      "replaceWeapons": [
-        { "from": "DroneRack", "set": { "rackType": "TYPE_C" } },
-        { "from": "ADD", "set": { "addType": "ADD_12" } }
-      ]
-    }
-  ]
+  "y175Upgrades": {
+    "refitCost": 4,
+    "_note": "R1.7: type-A racks (one reload) until the Y175 refit, which converted them to type-C (two reloads). The ADDs are not listed because ADD_6 to ADD_12 is universal at Y175 in applyYearUpgrades — naming them here would restate the default, not change it.",
+    "racks": [
+      { "designator": "Rack 1", "upgradeTo": "TYPE_C" },
+      { "designator": "Rack 2", "upgradeTo": "TYPE_C" }
+    ],
+    "adds": []
+  }
 }
