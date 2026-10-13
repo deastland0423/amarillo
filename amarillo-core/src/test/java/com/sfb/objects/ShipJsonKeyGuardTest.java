@@ -70,6 +70,12 @@ public class ShipJsonKeyGuardTest {
                 + "want to read R1.7 rather than the number. The large Q-ships said "
                 + "'auxiliary.slow' until 2026-10-12, a second name for the same unbuilt rule "
                 + "that made the gap look like a distinction between hull sizes.");
+        PARKED.put("auxiliary.mineRacks",
+                "Romulan, 1 file, the large Q-ship. Two mine racks on its SSD (M8.0). Mines "
+                + "themselves ARE built — Game.dropMine and MineResolver — but a ship carries no "
+                + "rack inventory: dropMine takes a type and nothing counts what is left, so the "
+                + "number here is the sheet's and not a limit. Recorded rather than dropped "
+                + "because losing it means re-reading the SSD when racks are built.");
         PARKED.put("hullBoxes.repair",
                 "Romulan, 1 file, the ROC. Repair boxes, unbuilt: our damage control has no "
                 + "notion of them — Ship.repairShield spends energy against the DamCon rating "
