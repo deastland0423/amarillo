@@ -1520,6 +1520,57 @@ public class GameController {
         });
     }
 
+    /**
+     * Hand a whole side to one player.
+     *
+     * Body: { "playerToken": "...", "team": "Defender" }
+     *
+     * <p>The per-ship endpoint above remains for splitting a side between players. This one
+     * exists because a scenario has usually already decided the answer — a fleet is brought FOR
+     * a side, and a scenario's own units are listed under the side that owns them — so asking
+     * the host to re-enter it a ship at a time is asking them to retype the file.
+     *
+     * <p>Ships another player already holds are reported rather than seized: a Commander's
+     * Options loadout is keyed to a token, so moving a ship after COI would strand what that
+     * player chose for it.
+     */
+    @PostMapping("/{id}/assign-side")
+    public ResponseEntity<Map<String, Object>> assignSide(
+            @PathVariable String id,
+            @RequestHeader("X-Player-Token") String token,
+            @RequestBody Map<String, String> body) {
+
+        GameSession session = sessionService.getSession(id);
+        if (session == null)
+            return ResponseEntity.notFound().build();
+        if (!session.isHost(token))
+            return ResponseEntity.status(403).body(Map.of("error", "Only the host can assign ships"));
+
+        String playerToken = body.get("playerToken");
+        String team = body.get("team");
+        if (playerToken == null || team == null)
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "playerToken and team are required"));
+
+        return locked(session, () -> {
+            GameSession.SideAssignmentResult result = session.assignSide(playerToken, team);
+            if (result.error() != null)
+                return ResponseEntity.badRequest().body(Map.of("error", result.error()));
+
+            broadcastLobby(session);
+            if (session.isStarted())
+                broadcastState(session);
+
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("assigned", result.assigned());
+            out.put("heldByOthers", result.heldByOthers());
+            out.put("message", result.assigned().size() + " ship(s) of " + team + " assigned"
+                    + (result.heldByOthers().isEmpty() ? ""
+                       : ", " + result.heldByOthers().size() + " left with their current player"));
+            return ResponseEntity.ok(out);
+        });
+    }
+
     // -------------------------------------------------------------------------
     // Fire options — range, shield, and weapons in arc for a prospective shot
     // -------------------------------------------------------------------------

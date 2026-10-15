@@ -318,6 +318,69 @@ public class GameSession {
     }
 
     /**
+     * What happened when a whole side was handed to a player.
+     *
+     * @param error         a hard refusal (nothing was assigned), or null
+     * @param assigned      ship names this player now holds
+     * @param heldByOthers  ships left alone because another player already has them
+     */
+    public record SideAssignmentResult(String error, List<String> assigned,
+            List<String> heldByOthers) {
+        boolean ok() {
+            return error == null;
+        }
+    }
+
+    /**
+     * Hand every unclaimed ship on one side to one player.
+     *
+     * <h2>Why a side is the right unit</h2>
+     * Assignment was per ship, two clicks each, and a scenario has usually already decided the
+     * answer: a fleet is brought FOR a side, and a scenario's own units — Nivram's six phaser
+     * batteries, say — are listed under the side that owns them. Asking a host to re-enter that
+     * one ship at a time is asking them to retype the file. The per-ship route stays, because
+     * splitting one side between two players is a real thing to want and is the only reason it
+     * was ever per ship.
+     *
+     * <p>Delegates to {@link #assignShip}, so it inherits that method's refusal to take a ship
+     * from the player who already holds it. That matters more than it looks: a loadout submitted
+     * in Commander's Options is keyed to a token, so quietly moving a ship after COI would strand
+     * what that player chose for it. Ships held by somebody else are reported, not seized, and
+     * the host can still move one deliberately with the per-ship control.
+     */
+    public SideAssignmentResult assignSide(String playerToken, String team) {
+        if (!scenarioLoaded)
+            return new SideAssignmentResult("Load a scenario before assigning ships",
+                    List.of(), List.of());
+        if (!players.containsKey(playerToken))
+            return new SideAssignmentResult("Player token not found", List.of(), List.of());
+        if (team == null || team.isBlank())
+            return new SideAssignmentResult("A side is required", List.of(), List.of());
+
+        List<String> onSide = shipTeamName.entrySet().stream()
+                .filter(e -> team.equals(e.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        if (onSide.isEmpty())
+            return new SideAssignmentResult("No such side: " + team, List.of(), List.of());
+
+        List<String> assigned = new ArrayList<>();
+        List<String> heldByOthers = new ArrayList<>();
+        for (String shipName : onSide) {
+            if (assignShip(playerToken, shipName) == null)
+                assigned.add(shipName);
+            else
+                heldByOthers.add(shipName);
+        }
+        return new SideAssignmentResult(null, assigned, heldByOthers);
+    }
+
+    /** The side names this scenario defines, in the order it lists them. */
+    public List<String> sideNames() {
+        return new ArrayList<>(new java.util.LinkedHashSet<>(shipTeamName.values()));
+    }
+
+    /**
      * Validate an Orion fleet's option-mount choices against its cartel quota
      * (G15.44). Returns a violation message, or null if within quota / no cartel.
      */

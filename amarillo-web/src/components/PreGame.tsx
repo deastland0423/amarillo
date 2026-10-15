@@ -34,6 +34,8 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
   const [players,         setPlayers]         = useState<PlayerListing[]>([]);
   // Host-only: which player token is selected per ship in the assignment UI
   const [selectedPlayer,  setSelectedPlayer]  = useState<Record<string, string>>({});
+  // ...and per SIDE, for handing over a whole side at once
+  const [selectedSide,    setSelectedSide]    = useState<Record<string, string>>({});
   // Host-only: scenario list + selection
   const [scenarios,       setScenarios]       = useState<ScenarioSummary[]>([]);
   const [selectedScenario,setSelectedScenario]= useState('');
@@ -172,6 +174,34 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
       setSelectedPlayer(prev => { const next = { ...prev }; delete next[shipName]; return next; });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not assign ship.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Hand a whole side to one player.
+   *
+   * The scenario has usually already decided this — a fleet is brought FOR a side, and a
+   * scenario's own units (Nivram's six phaser batteries, say) are listed under the side that
+   * owns them — so doing it a ship at a time was retyping the file. The per-ship rows below stay,
+   * because splitting one side between two players is a real thing to want.
+   */
+  async function handleAssignSide(team: string) {
+    const playerToken = selectedSide[team];
+    if (!playerToken) { setError('Select a player for ' + team); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await gameApi.assignSide(
+        session.gameId, session.playerToken, playerToken, team);
+      setSelectedSide(prev => { const next = { ...prev }; delete next[team]; return next; });
+      // Not an error: a ship another player already holds is left with them on purpose, because
+      // their COI loadout is keyed to their token. Say so, so the host is not left wondering.
+      if (res.heldByOthers.length > 0)
+        setError(`${res.assigned.length} assigned. Left with their current player: `
+               + res.heldByOthers.join(', '));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not assign the side.');
     } finally {
       setBusy(false);
     }
@@ -508,6 +538,46 @@ export default function PreGame({ session, onGameStarted, onLeave }: Props) {
       {session.isHost && lobby?.scenarioLoaded && lobby.unassignedShips.length > 0 && (
         <div className="card" style={{ width: '100%', maxWidth: 480 }}>
           <h3 style={{ margin: 0 }}>Assign ships</h3>
+
+          {/* By side first: one choice instead of one per ship, and it brings the scenario's own
+              units (ground bases and the like) along with the fleet that owns them. */}
+          {(lobby.sides ?? []).map(side => {
+            const waiting = (side.ships ?? [])
+              .map(sh => sh.shipName)
+              .filter(name => lobby.unassignedShips.includes(name));
+            if (waiting.length === 0) return null;
+            return (
+              <div key={side.name} className="assign-row">
+                <span className="assign-ship">
+                  <strong>{side.name}</strong>
+                  <span className="fb-hint" style={{ marginLeft: 6 }}>
+                    {waiting.length} ship{waiting.length === 1 ? '' : 's'}
+                  </span>
+                </span>
+                <select
+                  value={selectedSide[side.name] ?? ''}
+                  onChange={e => setSelectedSide(prev =>
+                    ({ ...prev, [side.name]: e.target.value }))}
+                >
+                  <option value="">— pick player —</option>
+                  {players.map(p => (
+                    <option key={p.token} value={p.token}>{p.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleAssignSide(side.name)}
+                  disabled={busy || !selectedSide[side.name]}
+                  title={`Give all ${waiting.length} remaining ${side.name} ships to this player`}
+                >
+                  Give side
+                </button>
+              </div>
+            );
+          })}
+
+          <p className="fb-hint" style={{ margin: '8px 0 0' }}>
+            …or one ship at a time, to split a side between players:
+          </p>
           {lobby.unassignedShips.map(ship => (
             <div key={ship} className="assign-row">
               <span className="assign-ship">{ship}</span>

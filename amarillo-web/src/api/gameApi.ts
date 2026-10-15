@@ -672,6 +672,21 @@ export const gameApi = {
     });
   },
 
+  /**
+   * Hand a whole side to one player.
+   *
+   * `heldByOthers` names ships left where they were because another player already holds them —
+   * a Commander's Options loadout is keyed to a token, so they are reported rather than seized.
+   */
+  assignSide(gameId: string, hostToken: string, playerToken: string, team: string):
+      Promise<{ assigned: string[]; heldByOthers: string[]; message: string }> {
+    return request(`/api/games/${gameId}/assign-side`, {
+      method: 'POST',
+      headers: { 'X-Player-Token': hostToken },
+      body: JSON.stringify({ playerToken, team }),
+    });
+  },
+
   getGameState(gameId: string, playerToken: string): Promise<unknown> {
     return request(`/api/games/${gameId}/state`, {
       headers: { 'X-Player-Token': playerToken },
