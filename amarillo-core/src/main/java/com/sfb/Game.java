@@ -440,9 +440,22 @@ public class Game {
             // reset also resurrected boxes that had been shot off.
             ship.resetHetsThisTurn();
         }
-        // No engaged ships left to allocate (e.g. all disengaged) — don't stall
-        // the turn waiting for allocations that will never come.
-        if (allocationQueue.isEmpty()) {
+        // Units whose allocation holds no decision fill their own in, rather than stopping the
+        // turn to ask a question with one answer (see Ship.hasNoEnergyAllocationChoice). This
+        // runs AFTER the queue is built, because submitAllocation() works by removing from it.
+        //
+        // Six phaser batteries on a planet meant six identical forms a turn, every turn, before
+        // the first impulse could be played. Ground bases carrying a heavy weapon are deliberately
+        // NOT included: arming one is a real choice and still belongs to the player.
+        for (Ship ship : new ArrayList<>(allocationQueue))
+            if (ship.hasNoEnergyAllocationChoice())
+                submitAllocation(ship, ship.buildAutoAllocation());
+
+        // No engaged ships left to allocate (e.g. all disengaged, or every unit allocated itself
+        // above) — don't stall the turn waiting for allocations that will never come. Guarded on
+        // awaitingAllocation because submitAllocation() has already called beginImpulses() if it
+        // emptied the queue, and calling it twice would run a turn's worth of setup twice.
+        if (awaitingAllocation && allocationQueue.isEmpty()) {
             beginImpulses();
         }
     }

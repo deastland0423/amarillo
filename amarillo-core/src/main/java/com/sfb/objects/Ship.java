@@ -88,6 +88,8 @@ public class Ship extends Unit implements DroneController {
 	private int activeShieldCost = 0; // Cost to have shields active.
 	private double minimumShieldCost = 0; // Cost to have shields at minimum.
 	private int fireControlCost = 1; // Cost for active fire control (always 1).
+	/** D17.123's boundary: a "size 5 unit" is a small or medium ground base. */
+	public static final int SMALL_GROUND_BASE_MIN_SIZE_CLASS = 5;
 	private int tBombs = 0; // Number of transporter bombs available.
 	private int dummyTBombs = 0; // Number of dummy transporter bombs available.
 	// EW circuit bank (D6.31) — powered counts are this turn's ECM/ECCM;
@@ -424,7 +426,7 @@ public class Ship extends Unit implements DroneController {
 		}
 
 		// Fire control (D6.6)
-		boolean fcPaid = energyAllocated.getFireControl() >= fireControlCost;
+		boolean fcPaid = energyAllocated.getFireControl() >= getFireControlCost();
 		this.fcPaidThisTurn = fcPaid;
 		boolean wwForcePassive = activeWildWeasel != null && !activeWildWeasel.isPostExplosion();
 		if (!fcPaid) {
@@ -1467,8 +1469,68 @@ public class Ship extends Unit implements DroneController {
 		return this.minimumShieldCost;
 	}
 
+	/**
+	 * What active fire control costs this unit for the turn (D6.631) — normally one point.
+	 *
+	 * Zero for a small or medium ground base. D6.631: "PFs, shuttles (including fighters),
+	 * captor mines, small and medium ground bases, self-guiding seeking weapons, and certain
+	 * other units noted in the rules do not allocate energy for active fire control." Those
+	 * other categories are not Ships in this model, so the ground bases are the whole of it
+	 * here.
+	 *
+	 * <p>Worth one point of power and no more, so be careful what this is credited with. The
+	 * passive ground bases seen in play were NOT caused by this: {@code allocateEnergy} is what
+	 * raises fire control, and for a base nothing was calling it at all. Charging the point is
+	 * simply wrong rather than ruinous — a GBD2 has eight APR against a three-point capacitor and
+	 * so would never have noticed, but a tighter sheet would.
+	 */
 	public int getFireControlCost() {
-		return this.fireControlCost;
+		return isSmallGroundBase() ? 0 : this.fireControlCost;
+	}
+
+	/**
+	 * A small or medium ground base — the "size 5" units of D17.123 and P2.76.
+	 *
+	 * Size class counts UP as a unit gets smaller, so size-5-and-smaller is {@code sizeClass >=
+	 * 5}; D17.123 puts the boundary exactly here: "Small and medium ground bases [size 5 units,
+	 * see (P2.76) and (R1.28)] count as PFs for this purpose. Size class 4 and larger bases on a
+	 * planetary surface are treated as ships." The nine orbital Base Stations are size class 3
+	 * and so are NOT covered, which is the separation the rule intends — a large ground base is
+	 * an orbital design that happens to be sitting on a planet.
+	 *
+	 * <p>A property of the hull, not of where it stands: a base of this class is only ever
+	 * emplaced on a surface, and keying off the planet face instead would make the rule blink
+	 * out while the base is being sited.
+	 */
+	public boolean isSmallGroundBase() {
+		return isBase && getSizeClass() >= SMALL_GROUND_BASE_MIN_SIZE_CLASS;
+	}
+
+	/**
+	 * True when this unit's energy allocation has nothing in it for a player to decide, so the
+	 * engine may fill it in rather than stopping the turn to ask.
+	 *
+	 * <h2>Why this is not "it is a base"</h2>
+	 * A small ground base cannot move, pays nothing for fire control (D6.631), and has power to
+	 * spare, so its sheet offers no trade-off — six phaser batteries on a planet produced six
+	 * identical forms a turn, every turn, with one sensible answer each. But three of the nine
+	 * fits carry a plasma launcher, a photon, a hellbore, a fusion beam or a disruptor, and
+	 * arming a heavy weapon IS a decision (standard, overload, how many turns to hold). So the
+	 * test is the weapons, not the hull class: no {@link HeavyWeapon}, nothing to decide.
+	 *
+	 * <h2>What the player does not lose</h2>
+	 * Only EW looks like a forfeited choice, and D6.312 answers it: "RESERVE POWER (H7.2) may be
+	 * used to increase ECM or ECCM strength during the Fire Decision Step of any impulse."
+	 * Power this leaves unspent is therefore still available as EW at the moment it matters,
+	 * which is later and better informed than allocation time.
+	 */
+	public boolean hasNoEnergyAllocationChoice() {
+		if (!isSmallGroundBase())
+			return false;
+		for (Weapon weapon : weapons.fetchAllWeapons())
+			if (weapon instanceof HeavyWeapon)
+				return false;
+		return true;
 	}
 
 	public int getEcmAllocated() {
@@ -2512,7 +2574,7 @@ public class Ship extends Unit implements DroneController {
 		e.setLifeSupport(lifeSupportCost);
 
 		// Fire control
-		e.setFireControl(fireControlCost);
+		e.setFireControl(getFireControlCost());
 
 		// Shields — activate at full cost
 		e.setActivateShields(activeShieldCost);
